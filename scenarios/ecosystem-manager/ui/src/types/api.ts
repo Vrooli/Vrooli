@@ -28,6 +28,16 @@ export type Priority = 'critical' | 'high' | 'medium' | 'low';
 // SteerMode is now dynamic - any phase name from prompts/phases/*.md files
 export type SteerMode = string;
 
+// Steering strategy types for unified steering configuration
+export type SteeringStrategy = 'profile' | 'queue' | 'manual' | 'none';
+
+export interface SteeringConfig {
+  strategy: SteeringStrategy;
+  profileId?: string; // Profile strategy - ID of the Auto Steer profile
+  queue?: string[]; // Queue strategy - ordered list of mode names
+  manualMode?: string; // Manual strategy - single mode that repeats
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -41,6 +51,7 @@ export interface Task {
   auto_steer_profile_id?: string;
   auto_steer_mode?: string;
   auto_steer_phase_index?: number;
+  steering_queue?: string[]; // Ordered list of modes for queue steering strategy
   auto_requeue?: boolean;
   created_at: string;
   updated_at: string;
@@ -75,6 +86,7 @@ export interface CreateTaskInput {
   target?: string[];
   notes?: string;
   auto_steer_profile_id?: string;
+  steering_queue?: string[]; // Ordered list of modes for queue steering strategy
   auto_requeue?: boolean;
 }
 
@@ -83,6 +95,7 @@ export interface UpdateTaskInput {
   notes?: string;
   steer_mode?: SteerMode;
   auto_steer_profile_id?: string;
+  steering_queue?: string[]; // Ordered list of modes for queue steering strategy
   auto_requeue?: boolean;
   target?: string[];
 }

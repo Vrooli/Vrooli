@@ -208,6 +208,15 @@ const normalizeTaskTargets = (task: any): Task => {
         ? task.processor_auto_requeue
         : true;
 
+  // Normalize steering_queue field (snake_case or camelCase)
+  const steeringQueue = Array.isArray(task.steering_queue)
+    ? task.steering_queue
+    : Array.isArray(task.steeringQueue)
+      ? task.steeringQueue
+      : Array.isArray(task.SteeringQueue)
+        ? task.SteeringQueue
+        : undefined;
+
   return {
     ...task,
     target: rawTargets.filter(Boolean),
@@ -218,6 +227,7 @@ const normalizeTaskTargets = (task: any): Task => {
     // Backend uses processor_auto_requeue; UI expects auto_requeue
     auto_requeue: autoRequeue,
     auto_steer_mode: autoSteerMode,
+    steering_queue: steeringQueue,
   };
 };
 

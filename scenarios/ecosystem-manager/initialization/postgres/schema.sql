@@ -230,6 +230,16 @@ CREATE TABLE IF NOT EXISTS profile_execution_state (
     last_updated TIMESTAMP DEFAULT NOW()
 );
 
+-- Steering Queue State (active queue executions)
+-- Tracks progress through a steering queue for tasks
+CREATE TABLE IF NOT EXISTS steering_queue_state (
+    task_id VARCHAR(255) PRIMARY KEY,
+    queue JSONB NOT NULL,  -- Array of steer mode strings
+    current_index INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Execution feedback annotations for completed runs
 CREATE TABLE IF NOT EXISTS execution_feedback_entries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

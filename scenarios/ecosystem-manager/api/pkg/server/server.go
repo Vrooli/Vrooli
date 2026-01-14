@@ -29,6 +29,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -307,6 +308,19 @@ func (a *Application) initializeComponents() error {
 	// Connect Auto Steer to queue processor
 	autoSteerIntegration := queue.NewAutoSteerIntegration(a.autoSteerExecutionEngine)
 	a.processor.SetAutoSteerIntegration(autoSteerIntegration)
+
+	// Initialize unified steering registry
+	promptEnhancer := autosteer.NewPromptEnhancer(phasesDir)
+	queueStateRepo := steering.NewPostgresQueueStateRepository(a.db)
+	steeringRegistry := steering.NewRegistry(map[steering.SteeringStrategy]steering.SteeringProvider{
+		steering.StrategyProfile: steering.NewProfileProvider(autoSteerIntegration),
+		steering.StrategyQueue:   steering.NewQueueProvider(queueStateRepo, promptEnhancer),
+		steering.StrategyManual:  steering.NewManualProvider(promptEnhancer),
+		steering.StrategyNone:    steering.NewNoneProvider(promptEnhancer),
+	})
+	a.processor.SetSteeringRegistry(steeringRegistry)
+	log.Println("✅ Unified steering registry initialized")
+	systemlog.Info("Unified steering registry initialized")
 
 	// Centralized coordinator for lifecycle + side effects.
 	lifecycle := &tasks.Lifecycle{Store: a.storage}

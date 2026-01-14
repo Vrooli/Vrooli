@@ -15,6 +15,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/recycler"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
@@ -157,11 +158,12 @@ type ProcessorDeps struct {
 	Broadcast chan<- any
 
 	// Optional dependencies - if nil, defaults will be created
-	Registry    ExecutionRegistryAPI
-	AgentSvc    agentmanager.AgentServiceAPI
-	Recycler    recycler.RecyclerAPI
-	RateLimiter *RateLimiter
-	TaskLogger  *TaskLogger
+	Registry         ExecutionRegistryAPI
+	AgentSvc         agentmanager.AgentServiceAPI
+	Recycler         recycler.RecyclerAPI
+	RateLimiter      *RateLimiter
+	TaskLogger       *TaskLogger
+	SteeringRegistry steering.RegistryAPI
 
 	// Configuration
 	VrooliRoot   string
@@ -229,13 +231,14 @@ func NewProcessor(deps ProcessorDeps) *Processor {
 
 	// Create ExecutionManager with shared dependencies (including HistoryManager)
 	p.executionManager = NewExecutionManager(ExecutionManagerDeps{
-		Storage:        deps.Storage,
-		Assembler:      deps.Assembler,
-		AgentSvc:       deps.AgentSvc,
-		Registry:       registry,
-		TaskLogger:     taskLogger,
-		Broadcast:      deps.Broadcast,
-		HistoryManager: historyManager,
+		Storage:          deps.Storage,
+		Assembler:        deps.Assembler,
+		AgentSvc:         deps.AgentSvc,
+		Registry:         registry,
+		TaskLogger:       taskLogger,
+		Broadcast:        deps.Broadcast,
+		SteeringRegistry: deps.SteeringRegistry,
+		HistoryManager:   historyManager,
 		// AutoSteerIntegration is set separately via SetAutoSteerIntegration
 		TaskLogsDir: taskLogsDir,
 	})
@@ -399,6 +402,17 @@ func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) 
 // AutoSteerIntegration returns the configured Auto Steer integration, if any.
 func (qp *Processor) AutoSteerIntegration() *AutoSteerIntegration {
 	return qp.autoSteerIntegration
+}
+
+// SetSteeringRegistry sets the steering registry for unified steering strategy dispatch.
+// This must be called after the processor is created but before processing starts.
+func (qp *Processor) SetSteeringRegistry(registry steering.RegistryAPI) {
+	// Propagate to ExecutionManager (steering is handled there)
+	if qp.executionManager != nil {
+		qp.executionManager.SetSteeringRegistry(registry)
+	}
+	log.Println("✅ Steering registry configured for queue processor")
+	systemlog.Info("Steering registry enabled")
 }
 
 // Start begins the queue processing loop

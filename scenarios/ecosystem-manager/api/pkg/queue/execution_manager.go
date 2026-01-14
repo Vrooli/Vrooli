@@ -18,6 +18,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/ratelimit"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -32,6 +33,7 @@ type ExecutionManagerDeps struct {
 	TaskLogger           *TaskLogger
 	Broadcast            chan<- any
 	AutoSteerIntegration *AutoSteerIntegration
+	SteeringRegistry     steering.RegistryAPI
 	HistoryManager       HistoryManagerAPI
 	TaskLogsDir          string
 }
@@ -46,6 +48,7 @@ type ExecutionManager struct {
 	taskLogger           *TaskLogger
 	broadcast            chan<- any
 	autoSteerIntegration *AutoSteerIntegration
+	steeringRegistry     steering.RegistryAPI
 	historyManager       HistoryManagerAPI
 	taskLogsDir          string
 
@@ -66,6 +69,7 @@ func NewExecutionManager(deps ExecutionManagerDeps) *ExecutionManager {
 		taskLogger:           deps.TaskLogger,
 		broadcast:            deps.Broadcast,
 		autoSteerIntegration: deps.AutoSteerIntegration,
+		steeringRegistry:     deps.SteeringRegistry,
 		historyManager:       deps.HistoryManager,
 		taskLogsDir:          deps.TaskLogsDir,
 	}
@@ -84,6 +88,11 @@ func (em *ExecutionManager) SetFinalizeFunc(f func(task *tasks.TaskItem, toStatu
 // SetAutoSteerIntegration updates the Auto Steer integration.
 func (em *ExecutionManager) SetAutoSteerIntegration(integration *AutoSteerIntegration) {
 	em.autoSteerIntegration = integration
+}
+
+// SetSteeringRegistry sets the steering registry for unified steering strategy dispatch.
+func (em *ExecutionManager) SetSteeringRegistry(registry steering.RegistryAPI) {
+	em.steeringRegistry = registry
 }
 
 // GetExecutionDir returns the directory for a specific execution.
@@ -201,8 +210,34 @@ func (em *ExecutionManager) ExecuteTask(ctx context.Context, task tasks.TaskItem
 
 // applySteeringToPrompt applies steering context to the prompt.
 func (em *ExecutionManager) applySteeringToPrompt(prompt string, task *tasks.TaskItem) string {
+	// Only apply steering to scenario improver tasks
+	if task.Type != "scenario" || task.Operation != "improver" {
+		return prompt
+	}
+
+	// Use unified steering registry when available
+	if em.steeringRegistry != nil {
+		provider := em.steeringRegistry.GetProvider(task)
+		if provider != nil {
+			enhancement, err := provider.EnhancePrompt(task)
+			if err != nil {
+				log.Printf("Warning: Steering enhancement failed for task %s: %v", task.ID, err)
+			} else if enhancement != nil && enhancement.Section != "" {
+				log.Printf("Prompt enhanced with steering (%s) for task %s", enhancement.Source, task.ID)
+				return autosteer.InjectSteeringSection(prompt, enhancement.Section)
+			}
+		}
+	}
+
+	// Fallback: Use legacy steering logic for backward compatibility
+	return em.applySteeringToPromptLegacy(prompt, task)
+}
+
+// applySteeringToPromptLegacy is the original steering logic for backward compatibility.
+// Used when steeringRegistry is not configured.
+func (em *ExecutionManager) applySteeringToPromptLegacy(prompt string, task *tasks.TaskItem) string {
 	// Apply default Progress steering when Auto Steer is not configured
-	if strings.TrimSpace(task.AutoSteerProfileID) == "" && task.Type == "scenario" && task.Operation == "improver" {
+	if strings.TrimSpace(task.AutoSteerProfileID) == "" {
 		mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
 		prompt = em.appendManualSteeringSection(prompt, mode)
 	}
@@ -245,6 +280,70 @@ func (em *ExecutionManager) appendManualSteeringSection(prompt string, steerMode
 	return autosteer.InjectSteeringSection(prompt, section)
 }
 
+// handleSteeringContinuation determines whether a task should continue after execution.
+// Uses the unified steering registry when available, falling back to legacy logic.
+func (em *ExecutionManager) handleSteeringContinuation(task *tasks.TaskItem, autoSteerInitFailed bool) {
+	// Only apply steering continuation to scenario improver tasks
+	if task.Type != "scenario" || task.Operation != "improver" {
+		return
+	}
+
+	// Use unified steering registry when available
+	if em.steeringRegistry != nil {
+		provider := em.steeringRegistry.GetProvider(task)
+		if provider != nil {
+			scenarioName := GetScenarioNameFromTask(task)
+			decision, err := provider.AfterExecution(task, scenarioName)
+			if err != nil {
+				log.Printf("Warning: Steering evaluation failed for task %s: %v", task.ID, err)
+				task.ProcessorAutoRequeue = false
+				task.Status = tasks.StatusCompletedFinalized
+				return
+			}
+
+			if decision.Exhausted || !decision.ShouldRequeue {
+				log.Printf("Steering: Task %s completed (%s) - moving to finalized", task.ID, decision.Reason)
+				task.ProcessorAutoRequeue = false
+				task.Status = tasks.StatusCompletedFinalized
+			} else if task.ProcessorAutoRequeue {
+				log.Printf("Steering: Task %s will continue (%s) - requeuing", task.ID, decision.Reason)
+				task.Status = "pending"
+			}
+			return
+		}
+	}
+
+	// Fallback: Use legacy Auto Steer logic for backward compatibility
+	em.handleSteeringContinuationLegacy(task, autoSteerInitFailed)
+}
+
+// handleSteeringContinuationLegacy is the original Auto Steer continuation logic.
+// Used when steeringRegistry is not configured.
+func (em *ExecutionManager) handleSteeringContinuationLegacy(task *tasks.TaskItem, autoSteerInitFailed bool) {
+	if em.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
+		if autoSteerInitFailed {
+			log.Printf("Auto Steer: Task %s initialization failed - disabling auto-requeue", task.ID)
+			task.ProcessorAutoRequeue = false
+			task.Status = tasks.StatusCompletedFinalized
+		} else {
+			scenarioName := GetScenarioNameFromTask(task)
+			shouldContinue, err := em.autoSteerIntegration.ShouldContinueTask(task, scenarioName)
+			if err != nil {
+				log.Printf("Warning: Auto Steer evaluation failed for task %s: %v", task.ID, err)
+				task.ProcessorAutoRequeue = false
+				task.Status = tasks.StatusCompletedFinalized
+			} else if !shouldContinue {
+				log.Printf("Auto Steer: Task %s completed all phases - moving to finalized", task.ID)
+				task.ProcessorAutoRequeue = false
+				task.Status = tasks.StatusCompletedFinalized
+			} else if task.ProcessorAutoRequeue {
+				log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
+				task.Status = "pending"
+			}
+		}
+	}
+}
+
 // enrichSteeringMetadata captures steering context for execution history.
 func (em *ExecutionManager) enrichSteeringMetadata(task *tasks.TaskItem, history *ExecutionHistory) {
 	if task == nil || history == nil {
@@ -253,6 +352,89 @@ func (em *ExecutionManager) enrichSteeringMetadata(task *tasks.TaskItem, history
 
 	history.SteeringSource = "none"
 
+	// Use steering registry to determine source when available
+	if em.steeringRegistry != nil && task.Type == "scenario" && task.Operation == "improver" {
+		strategy := em.steeringRegistry.DetermineStrategy(task)
+		switch strategy {
+		case steering.StrategyProfile:
+			em.enrichSteeringMetadataProfile(task, history)
+		case steering.StrategyQueue:
+			em.enrichSteeringMetadataQueue(task, history)
+		case steering.StrategyManual:
+			em.enrichSteeringMetadataManual(task, history)
+		default:
+			em.enrichSteeringMetadataNone(task, history)
+		}
+		return
+	}
+
+	// Fallback: legacy logic
+	em.enrichSteeringMetadataLegacy(task, history)
+}
+
+// enrichSteeringMetadataProfile populates history for profile steering.
+func (em *ExecutionManager) enrichSteeringMetadataProfile(task *tasks.TaskItem, history *ExecutionHistory) {
+	if em.autoSteerIntegration != nil {
+		orchestrator := em.autoSteerIntegration.ExecutionOrchestrator()
+		if orchestrator != nil {
+			if state, err := orchestrator.GetExecutionState(task.ID); err == nil && state != nil {
+				history.AutoSteerProfileID = state.ProfileID
+				history.AutoSteerIteration = state.AutoSteerIteration
+				history.SteerPhaseIndex = state.CurrentPhaseIndex + 1
+				history.SteerPhaseIteration = state.CurrentPhaseIteration + 1
+				history.SteeringSource = "auto_steer"
+			}
+
+			if mode, err := orchestrator.GetCurrentMode(task.ID); err == nil && mode != "" {
+				history.SteerMode = string(mode)
+				if history.SteeringSource == "none" {
+					history.SteeringSource = "auto_steer"
+				}
+			}
+		}
+	}
+}
+
+// enrichSteeringMetadataQueue populates history for queue steering.
+func (em *ExecutionManager) enrichSteeringMetadataQueue(task *tasks.TaskItem, history *ExecutionHistory) {
+	provider := em.steeringRegistry.GetProvider(task)
+	if provider == nil {
+		return
+	}
+
+	mode, err := provider.GetCurrentMode(task.ID)
+	if err == nil && mode != "" {
+		history.SteerMode = string(mode)
+	}
+	history.SteeringSource = "steering_queue"
+	history.SteerPhaseIndex = 1
+	history.SteerPhaseIteration = 1
+}
+
+// enrichSteeringMetadataManual populates history for manual steering.
+func (em *ExecutionManager) enrichSteeringMetadataManual(task *tasks.TaskItem, history *ExecutionHistory) {
+	mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
+	if mode.IsValid() {
+		history.SteerMode = string(mode)
+		history.SteeringSource = "manual_mode"
+	} else {
+		history.SteerMode = string(autosteer.ModeProgress)
+		history.SteeringSource = "default_progress"
+	}
+	history.SteerPhaseIndex = 1
+	history.SteerPhaseIteration = 1
+}
+
+// enrichSteeringMetadataNone populates history when no steering is configured.
+func (em *ExecutionManager) enrichSteeringMetadataNone(task *tasks.TaskItem, history *ExecutionHistory) {
+	history.SteerMode = string(autosteer.ModeProgress)
+	history.SteeringSource = "default_progress"
+	history.SteerPhaseIndex = 1
+	history.SteerPhaseIteration = 1
+}
+
+// enrichSteeringMetadataLegacy is the original metadata enrichment logic.
+func (em *ExecutionManager) enrichSteeringMetadataLegacy(task *tasks.TaskItem, history *ExecutionHistory) {
 	if em.autoSteerIntegration != nil && strings.TrimSpace(task.AutoSteerProfileID) != "" {
 		orchestrator := em.autoSteerIntegration.ExecutionOrchestrator()
 		if orchestrator != nil {
@@ -582,29 +764,8 @@ func (em *ExecutionManager) handleSuccessfulExecution(result *tasks.ClaudeCodeRe
 	task.CompletionCount++
 	task.LastCompletedAt = task.CompletedAt
 
-	// Handle Auto Steer continuation logic
-	if em.autoSteerIntegration != nil && task.AutoSteerProfileID != "" {
-		if autoSteerInitFailed {
-			log.Printf("Auto Steer: Task %s initialization failed - disabling auto-requeue", task.ID)
-			task.ProcessorAutoRequeue = false
-			task.Status = tasks.StatusCompletedFinalized
-		} else {
-			scenarioName := GetScenarioNameFromTask(task)
-			shouldContinue, err := em.autoSteerIntegration.ShouldContinueTask(task, scenarioName)
-			if err != nil {
-				log.Printf("Warning: Auto Steer evaluation failed for task %s: %v", task.ID, err)
-				task.ProcessorAutoRequeue = false
-				task.Status = tasks.StatusCompletedFinalized
-			} else if !shouldContinue {
-				log.Printf("Auto Steer: Task %s completed all phases - moving to finalized", task.ID)
-				task.ProcessorAutoRequeue = false
-				task.Status = tasks.StatusCompletedFinalized
-			} else if task.ProcessorAutoRequeue {
-				log.Printf("Auto Steer: Task %s will continue - requeuing for next iteration", task.ID)
-				task.Status = "pending"
-			}
-		}
-	}
+	// Handle steering continuation logic
+	em.handleSteeringContinuation(task, autoSteerInitFailed)
 
 	// Apply cooldown for auto-requeue tasks
 	if task.Status == "completed" && task.ProcessorAutoRequeue {

@@ -29,7 +29,6 @@ import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
@@ -37,9 +36,14 @@ import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard
 import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
 import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
 import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
+import {
+  SteeringConfigPicker,
+  deriveSteeringConfig,
+  extractSteeringFields,
+} from '@/components/steer/SteeringConfigPicker';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteerMode, Campaign } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -50,6 +54,7 @@ interface TaskDetailsModalProps {
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 const AUTO_STEER_NONE = 'none';
+const DEFAULT_STEERING_CONFIG: SteeringConfig = { strategy: 'none' };
 
 // Campaigns Tab Component
 function CampaignsTab({ task }: { task: Task }) {
@@ -246,8 +251,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [notesDirty, setNotesDirty] = useState(false);
-  const [steerMode, setSteerMode] = useState<SteerMode | 'none'>('none');
-  const [autoSteerProfileId, setAutoSteerProfileId] = useState<string>(AUTO_STEER_NONE);
+  const [steeringConfig, setSteeringConfig] = useState<SteeringConfig>(DEFAULT_STEERING_CONFIG);
+  // Derive autoSteerProfileId from steeringConfig for Auto Steer state management
+  const autoSteerProfileId = steeringConfig.strategy === 'profile' ? (steeringConfig.profileId ?? AUTO_STEER_NONE) : AUTO_STEER_NONE;
   const [autoRequeue, setAutoRequeue] = useState(false);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [autoSteerExpanded, setAutoSteerExpanded] = useState(false);
@@ -264,7 +270,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
     [profiles],
   );
-  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
   const {
     data: autoSteerState,
     isFetching: isAutoSteerStateLoading,
@@ -328,12 +333,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     setTargetName(derivedTarget || '');
     setPriority(task.priority);
 
-    const initialMode: SteerMode | 'none' =
-      task.auto_steer_profile_id && task.auto_steer_profile_id !== AUTO_STEER_NONE
-        ? 'none'
-        : (task.steer_mode as SteerMode) || 'none';
-    setSteerMode(initialMode);
-    setAutoSteerProfileId(task.auto_steer_profile_id || AUTO_STEER_NONE);
+    // Use deriveSteeringConfig to initialize unified steering state
+    setSteeringConfig(deriveSteeringConfig(task));
     setAutoRequeue(task.auto_requeue || false);
   }, [task?.id]);
 
@@ -383,11 +384,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     }
   }, [initialTab, open]);
 
-  useEffect(() => {
-    if (autoSteerProfileId !== AUTO_STEER_NONE && steerMode !== 'none') {
-      setSteerMode('none');
-    }
-  }, [autoSteerProfileId, steerMode]);
 
   useEffect(() => {
     if (sortedExecutions.length > 0 && !selectedExecutionId) {
@@ -594,11 +590,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       return;
     }
 
+    // Extract steering fields from unified config
+    const steeringFields = extractSteeringFields(steeringConfig);
+
     const updates: UpdateTaskInput = {
       priority,
       notes: notes.trim(),
-      steer_mode: autoSteerProfileId === AUTO_STEER_NONE && steerMode !== 'none' ? steerMode : undefined,
-      auto_steer_profile_id: autoSteerProfileId === AUTO_STEER_NONE ? undefined : autoSteerProfileId,
+      ...steeringFields,
       auto_requeue: autoRequeue,
     };
 
@@ -733,64 +731,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
               </Select>
             </div>
 
+            {/* Steering Configuration */}
             {task?.type === 'scenario' && task?.operation === 'improver' && (
               <div className="space-y-2">
-                <Label htmlFor="detail-steer-mode">Steering focus (manual)</Label>
-                <Select
-                  value={steerMode}
-                  onValueChange={(val: string) => {
-                    const mode = val as SteerMode | 'none';
-                    setSteerMode(mode);
-                    if (mode !== 'none') {
-                      setAutoSteerProfileId(AUTO_STEER_NONE);
-                    }
-                  }}
-                  disabled={autoSteerProfileId !== AUTO_STEER_NONE}
-                >
-                  <SelectTrigger id="detail-steer-mode">
-                    <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'None (use Progress)'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None (use Progress)</SelectItem>
-                    {phaseNames.map(phase => (
-                      <SelectItem key={phase.name} value={phase.name}>
-                        {phase.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500">
-                  Pick a manual focus OR an Auto Steer profile. Selecting a profile disables manual steering until cleared.
-                </p>
+                <Label>Steering Configuration</Label>
+                <SteeringConfigPicker value={steeringConfig} onChange={setSteeringConfig} />
               </div>
             )}
-
-            {(profiles && profiles.length > 0) && (
-              <div className="space-y-2">
-                <Label htmlFor="detail-auto-steer">Auto Steer Profile</Label>
-                <Select
-                  value={autoSteerProfileId}
-                  onValueChange={(val: string) => {
-                    setAutoSteerProfileId(val);
-                    if (val !== AUTO_STEER_NONE) {
-                      setSteerMode('none');
-                    }
-                  }}
-                >
-                  <SelectTrigger id="detail-auto-steer">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                        <SelectItem value={AUTO_STEER_NONE}>None</SelectItem>
-                        {profiles.map(profile => (
-                          <SelectItem key={profile.id} value={profile.id}>
-                            {profile.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
 
                 {autoSteerProfileId !== AUTO_STEER_NONE && (
                   <div className="rounded-md border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-200 space-y-3">

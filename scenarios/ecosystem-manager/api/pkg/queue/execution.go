@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/autosteer"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
@@ -37,84 +35,6 @@ func (qp *Processor) completeTaskCleanupExplicit(taskID string, cleanupFunc func
 // cleanupAgentAfterFinalizationFailure handles cleanup when finalization fails
 func (qp *Processor) cleanupAgentAfterFinalizationFailure(taskID string, cleanupFunc func(), context string) {
 	qp.cleanupTaskWithVerifiedAgentRemoval(taskID, cleanupFunc, context, true)
-}
-
-// appendManualSteeringSection attaches a manual steering mode when provided, otherwise falls back to Progress.
-func (qp *Processor) appendManualSteeringSection(prompt string, steerMode autosteer.SteerMode) string {
-	if qp.assembler == nil {
-		return prompt
-	}
-
-	mode := steerMode
-	if !mode.IsValid() {
-		mode = autosteer.ModeProgress
-	}
-
-	// Prefer the orchestrator's cached prompt enhancer when available.
-	if qp.autoSteerIntegration != nil {
-		if orchestrator := qp.autoSteerIntegration.ExecutionOrchestrator(); orchestrator != nil {
-			if section := strings.TrimSpace(orchestrator.GenerateModeSection(mode)); section != "" {
-				return autosteer.InjectSteeringSection(prompt, section)
-			}
-		}
-	}
-
-	phasesDir := filepath.Join(qp.assembler.PromptsDir, "phases")
-	section := strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(mode))
-	if section == "" {
-		return autosteer.InjectSteeringSection(prompt, "")
-	}
-	return autosteer.InjectSteeringSection(prompt, section)
-}
-
-// enrichSteeringMetadata captures the steering context used for an execution so we can analyze prompts later.
-func (qp *Processor) enrichSteeringMetadata(task *tasks.TaskItem, history *ExecutionHistory) {
-	if task == nil || history == nil {
-		return
-	}
-
-	history.SteeringSource = "none"
-
-	// Capture Auto Steer state when active.
-	if qp.autoSteerIntegration != nil && strings.TrimSpace(task.AutoSteerProfileID) != "" {
-		orchestrator := qp.autoSteerIntegration.ExecutionOrchestrator()
-		if orchestrator != nil {
-			if state, err := orchestrator.GetExecutionState(task.ID); err == nil && state != nil {
-				history.AutoSteerProfileID = state.ProfileID
-				history.AutoSteerIteration = state.AutoSteerIteration
-				history.SteerPhaseIndex = state.CurrentPhaseIndex + 1
-				history.SteerPhaseIteration = state.CurrentPhaseIteration + 1
-				history.SteeringSource = "auto_steer"
-			} else if err != nil {
-				log.Printf("Warning: Failed to capture Auto Steer state for task %s: %v", task.ID, err)
-			}
-
-			if mode, err := orchestrator.GetCurrentMode(task.ID); err == nil {
-				if mode != "" {
-					history.SteerMode = string(mode)
-					if history.SteeringSource == "none" {
-						history.SteeringSource = "auto_steer"
-					}
-				}
-			} else {
-				log.Printf("Warning: Failed to capture Auto Steer mode for task %s: %v", task.ID, err)
-			}
-		}
-	}
-
-	// For improver tasks without Auto Steer we still inject steering guidance.
-	if history.SteeringSource == "none" && task.Type == "scenario" && task.Operation == "improver" {
-		mode := autosteer.SteerMode(strings.ToLower(strings.TrimSpace(task.SteerMode)))
-		if mode.IsValid() {
-			history.SteerMode = string(mode)
-			history.SteeringSource = "manual_mode"
-		} else {
-			history.SteerMode = string(autosteer.ModeProgress)
-			history.SteeringSource = "default_progress"
-		}
-		history.SteerPhaseIndex = 1
-		history.SteerPhaseIteration = 1
-	}
 }
 
 // executeTask executes a single task by delegating to ExecutionManager.
