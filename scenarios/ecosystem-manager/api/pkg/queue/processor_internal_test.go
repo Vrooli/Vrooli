@@ -10,14 +10,12 @@ import (
 )
 
 func TestReserveExecutionCreatesEntry(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+	qp := &Processor{registry: NewExecutionRegistry()}
 
 	startedAt := time.Unix(1_700_000_000, 0)
 	qp.reserveExecution("task-1", "ecosystem-task-1", startedAt)
 
-	qp.executionsMu.RLock()
-	execState, ok := qp.executions["task-1"]
-	qp.executionsMu.RUnlock()
+	execState, ok := qp.registry.GetExecution("task-1")
 
 	if !ok {
 		t.Fatalf("expected reservation to exist")
@@ -34,7 +32,7 @@ func TestReserveExecutionCreatesEntry(t *testing.T) {
 }
 
 func TestRegisterExecutionUpgradesReservation(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+	qp := &Processor{registry: NewExecutionRegistry()}
 
 	startedAt := time.Unix(1_700_000_000, 0)
 	qp.reserveExecution("task-2", "ecosystem-task-2", startedAt)
@@ -44,9 +42,7 @@ func TestRegisterExecutionUpgradesReservation(t *testing.T) {
 
 	qp.registerExecution("task-2", "ecosystem-task-2", cmd, startedAt.Add(5*time.Minute))
 
-	qp.executionsMu.RLock()
-	execState, ok := qp.executions["task-2"]
-	qp.executionsMu.RUnlock()
+	execState, ok := qp.registry.GetExecution("task-2")
 
 	if !ok {
 		t.Fatalf("expected execution to exist")
@@ -63,14 +59,12 @@ func TestRegisterExecutionUpgradesReservation(t *testing.T) {
 }
 
 func TestUnregisterExecutionRemovesEntry(t *testing.T) {
-	qp := &Processor{executions: make(map[string]*taskExecution)}
+	qp := &Processor{registry: NewExecutionRegistry()}
 	qp.reserveExecution("task-3", "ecosystem-task-3", time.Now())
 
 	qp.unregisterExecution("task-3")
 
-	qp.executionsMu.RLock()
-	_, ok := qp.executions["task-3"]
-	qp.executionsMu.RUnlock()
+	_, ok := qp.registry.GetExecution("task-3")
 
 	if ok {
 		t.Fatalf("expected execution to be removed")

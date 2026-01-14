@@ -58,10 +58,12 @@ func (qp *Processor) appendManualSteeringSection(prompt string, steerMode autost
 		mode = autosteer.ModeProgress
 	}
 
-	// Prefer the execution engine’s cached prompt enhancer when available.
-	if qp.autoSteerIntegration != nil && qp.autoSteerIntegration.executionEngine != nil {
-		if section := strings.TrimSpace(qp.autoSteerIntegration.executionEngine.GenerateModeSection(mode)); section != "" {
-			return autosteer.InjectSteeringSection(prompt, section)
+	// Prefer the orchestrator's cached prompt enhancer when available.
+	if qp.autoSteerIntegration != nil {
+		if orchestrator := qp.autoSteerIntegration.ExecutionOrchestrator(); orchestrator != nil {
+			if section := strings.TrimSpace(orchestrator.GenerateModeSection(mode)); section != "" {
+				return autosteer.InjectSteeringSection(prompt, section)
+			}
 		}
 	}
 
@@ -83,9 +85,9 @@ func (qp *Processor) enrichSteeringMetadata(task *tasks.TaskItem, history *Execu
 
 	// Capture Auto Steer state when active.
 	if qp.autoSteerIntegration != nil && strings.TrimSpace(task.AutoSteerProfileID) != "" {
-		engine := qp.autoSteerIntegration.ExecutionEngine()
-		if engine != nil {
-			if state, err := engine.GetExecutionState(task.ID); err == nil && state != nil {
+		orchestrator := qp.autoSteerIntegration.ExecutionOrchestrator()
+		if orchestrator != nil {
+			if state, err := orchestrator.GetExecutionState(task.ID); err == nil && state != nil {
 				history.AutoSteerProfileID = state.ProfileID
 				history.AutoSteerIteration = state.AutoSteerIteration
 				history.SteerPhaseIndex = state.CurrentPhaseIndex + 1
@@ -95,7 +97,7 @@ func (qp *Processor) enrichSteeringMetadata(task *tasks.TaskItem, history *Execu
 				log.Printf("Warning: Failed to capture Auto Steer state for task %s: %v", task.ID, err)
 			}
 
-			if mode, err := engine.GetCurrentMode(task.ID); err == nil {
+			if mode, err := orchestrator.GetCurrentMode(task.ID); err == nil {
 				if mode != "" {
 					history.SteerMode = string(mode)
 					if history.SteeringSource == "none" {
@@ -705,20 +707,8 @@ func (qp *Processor) callClaudeCodeViaAgentManager(prompt string, task tasks.Tas
 
 // registerExecutionByRunID registers a task execution using agent-manager run ID instead of exec.Cmd.
 func (qp *Processor) registerExecutionByRunID(taskID, agentTag, runID string, started time.Time) {
-	qp.executionsMu.Lock()
-	defer qp.executionsMu.Unlock()
-
-	currentSettings := settings.GetSettings()
-	timeout := time.Duration(currentSettings.TaskTimeout) * time.Minute
-
-	qp.executions[taskID] = &taskExecution{
-		taskID:    taskID,
-		agentTag:  agentTag,
-		runID:     runID, // Store for StopRun calls
-		cmd:       nil,   // No local process - managed by agent-manager
-		started:   started,
-		timeoutAt: started.Add(timeout),
-	}
+	qp.registry.ReserveExecution(taskID, agentTag, started)
+	qp.registry.RegisterRunID(taskID, runID)
 }
 
 // streamAgentManagerEvents polls for agent-manager events and forwards them to the log system.

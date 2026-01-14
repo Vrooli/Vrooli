@@ -60,7 +60,7 @@ func (m *ModeInstructions) GetSuccessCriteria(mode SteerMode) []string {
 
 // FormatConditionProgress renders stop conditions with their evaluated status.
 // If no evaluator is provided, a new one is created to keep callers simple.
-func (m *ModeInstructions) FormatConditionProgress(conditions []StopCondition, metrics MetricsSnapshot, evaluator *ConditionEvaluator) string {
+func (m *ModeInstructions) FormatConditionProgress(conditions []StopCondition, metrics MetricsSnapshot, evaluator ConditionEvaluatorAPI) string {
 	if len(conditions) == 0 {
 		return ""
 	}

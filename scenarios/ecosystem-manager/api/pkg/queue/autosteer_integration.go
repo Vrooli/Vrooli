@@ -11,13 +11,13 @@ import (
 
 // AutoSteerIntegration handles Auto Steer integration with the task processor
 type AutoSteerIntegration struct {
-	executionEngine *autosteer.ExecutionEngine
+	executionOrchestrator *autosteer.ExecutionOrchestrator
 }
 
 // NewAutoSteerIntegration creates a new Auto Steer integration handler
-func NewAutoSteerIntegration(executionEngine *autosteer.ExecutionEngine) *AutoSteerIntegration {
+func NewAutoSteerIntegration(executionOrchestrator *autosteer.ExecutionOrchestrator) *AutoSteerIntegration {
 	return &AutoSteerIntegration{
-		executionEngine: executionEngine,
+		executionOrchestrator: executionOrchestrator,
 	}
 }
 
@@ -29,9 +29,9 @@ func (a *AutoSteerIntegration) isEligible(task *tasks.TaskItem) bool {
 	return task.AutoSteerProfileID != "" && task.Type == "scenario" && task.Operation == "improver"
 }
 
-// ExecutionEngine exposes the underlying execution engine for advanced workflows.
-func (a *AutoSteerIntegration) ExecutionEngine() *autosteer.ExecutionEngine {
-	return a.executionEngine
+// ExecutionOrchestrator exposes the underlying execution orchestrator for advanced workflows.
+func (a *AutoSteerIntegration) ExecutionOrchestrator() *autosteer.ExecutionOrchestrator {
+	return a.executionOrchestrator
 }
 
 // InitializeAutoSteer initializes Auto Steer execution for a task if needed
@@ -42,7 +42,7 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 	}
 
 	// Check if already initialized
-	existingState, err := a.executionEngine.GetExecutionState(task.ID)
+	existingState, err := a.executionOrchestrator.GetExecutionState(task.ID)
 	if err != nil {
 		return fmt.Errorf("failed to check Auto Steer state: %w", err)
 	}
@@ -59,7 +59,7 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 	systemlog.Infof("Auto Steer: Initializing task %s with profile %s for scenario %s",
 		task.ID, task.AutoSteerProfileID, scenarioName)
 
-	state, err := a.executionEngine.StartExecution(task.ID, task.AutoSteerProfileID, scenarioName)
+	state, err := a.executionOrchestrator.StartExecution(task.ID, task.AutoSteerProfileID, scenarioName)
 	if err != nil {
 		return fmt.Errorf("failed to start Auto Steer execution: %w", err)
 	}
@@ -80,7 +80,7 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 	}
 
 	// Get Auto Steer prompt section
-	autoSteerSection, err := a.executionEngine.GetEnhancedPrompt(task.ID)
+	autoSteerSection, err := a.executionOrchestrator.GetEnhancedPrompt(task.ID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Auto Steer prompt enhancement: %w", err)
 	}
@@ -95,7 +95,7 @@ func (a *AutoSteerIntegration) EnhancePrompt(task *tasks.TaskItem, basePrompt st
 	enhancedPrompt := autosteer.InjectSteeringSection(basePrompt, autoSteerSection)
 
 	// Log for debugging
-	currentMode, _ := a.executionEngine.GetCurrentMode(task.ID)
+	currentMode, _ := a.executionOrchestrator.GetCurrentMode(task.ID)
 	log.Printf("Enhanced prompt with Auto Steer (%s mode) for task %s", currentMode, task.ID)
 
 	return enhancedPrompt, nil
@@ -113,7 +113,7 @@ func (a *AutoSteerIntegration) EvaluateIteration(task *tasks.TaskItem, scenarioN
 	log.Printf("Evaluating Auto Steer iteration for task %s", task.ID)
 
 	// Evaluate iteration
-	evaluation, err := a.executionEngine.EvaluateIteration(task.ID, scenarioName)
+	evaluation, err := a.executionOrchestrator.EvaluateIteration(task.ID, scenarioName)
 	if err != nil {
 		return false, false, fmt.Errorf("failed to evaluate Auto Steer iteration: %w", err)
 	}
@@ -137,7 +137,7 @@ func (a *AutoSteerIntegration) AdvancePhase(task *tasks.TaskItem, scenarioName s
 	log.Printf("Advancing Auto Steer phase for task %s", task.ID)
 	systemlog.Infof("Auto Steer: Advancing phase for task %s", task.ID)
 
-	result, err := a.executionEngine.AdvancePhase(task.ID, scenarioName)
+	result, err := a.executionOrchestrator.AdvancePhase(task.ID, scenarioName)
 	if err != nil {
 		return false, fmt.Errorf("failed to advance Auto Steer phase: %w", err)
 	}
@@ -216,7 +216,7 @@ func (a *AutoSteerIntegration) GetCurrentMode(task *tasks.TaskItem) (autosteer.S
 		return "", nil
 	}
 
-	return a.executionEngine.GetCurrentMode(task.ID)
+	return a.executionOrchestrator.GetCurrentMode(task.ID)
 }
 
 // IsActive checks if Auto Steer is active for a task
@@ -225,7 +225,7 @@ func (a *AutoSteerIntegration) IsActive(task *tasks.TaskItem) bool {
 		return false
 	}
 
-	active, err := a.executionEngine.IsAutoSteerActive(task.ID)
+	active, err := a.executionOrchestrator.IsAutoSteerActive(task.ID)
 	if err != nil {
 		log.Printf("Warning: Failed to check Auto Steer status for task %s: %v", task.ID, err)
 		return false

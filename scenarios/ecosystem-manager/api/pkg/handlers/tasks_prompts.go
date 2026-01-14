@@ -314,8 +314,8 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 				response["auto_steer_applied"] = true
 			}
 
-			if engine := autoSteer.ExecutionEngine(); engine != nil {
-				if err := engine.DeleteExecutionState(tempTask.ID); err != nil {
+			if orchestrator := autoSteer.ExecutionOrchestrator(); orchestrator != nil {
+				if err := orchestrator.DeleteExecutionState(tempTask.ID); err != nil {
 					systemlog.Warnf("Prompt preview: failed to clean up Auto Steer state for temp task %s: %v", tempTask.ID, err)
 				}
 			}

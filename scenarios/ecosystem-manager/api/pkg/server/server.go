@@ -52,7 +52,7 @@ type Application struct {
 
 	// Auto Steer components
 	autoSteerProfileService   *autosteer.ProfileService
-	autoSteerExecutionEngine  *autosteer.ExecutionEngine
+	autoSteerExecutionEngine  *autosteer.ExecutionOrchestrator
 	autoSteerHistoryService   *autosteer.HistoryService
 	autoSteerMetricsCollector *autosteer.MetricsCollector
 
@@ -299,12 +299,7 @@ func (a *Application) initializeComponents() error {
 
 	a.autoSteerMetricsCollector = autosteer.NewMetricsCollector(a.projectRoot)
 	a.autoSteerProfileService = autosteer.NewProfileService(a.db)
-	a.autoSteerExecutionEngine = autosteer.NewExecutionEngine(
-		a.db,
-		a.autoSteerProfileService,
-		a.autoSteerMetricsCollector,
-		phasesDir,
-	)
+	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorFromDB(a.db, a.projectRoot, phasesDir)
 	a.autoSteerHistoryService = autosteer.NewHistoryService(a.db)
 	log.Println("✅ Auto Steer components initialized")
 	systemlog.Info("Auto Steer components initialized")

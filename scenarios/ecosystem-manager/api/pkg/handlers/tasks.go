@@ -110,8 +110,8 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 	if integration == nil {
 		return result
 	}
-	engine := integration.ExecutionEngine()
-	if engine == nil {
+	orchestrator := integration.ExecutionOrchestrator()
+	if orchestrator == nil {
 		return result
 	}
 
@@ -120,7 +120,7 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 			continue
 		}
 
-		state, err := engine.GetExecutionState(task.ID)
+		state, err := orchestrator.GetExecutionState(task.ID)
 		if err != nil || state == nil {
 			continue
 		}
@@ -129,7 +129,7 @@ func (h *TaskHandlers) buildAutoSteerRuntime(tasks []tasks.TaskItem) map[string]
 		idx := state.CurrentPhaseIndex
 		idxPtr = &idx
 
-		mode, _ := engine.GetCurrentMode(task.ID)
+		mode, _ := orchestrator.GetCurrentMode(task.ID)
 
 		result[task.ID] = autoSteerRuntime{
 			phaseIndex: idxPtr,

@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"sync"
 	"time"
-
-	"github.com/ecosystem-manager/api/pkg/settings"
 )
 
 // insightProcess tracks a running insight generation process
@@ -40,136 +38,66 @@ type ProcessInfo struct {
 
 // reserveExecution creates a placeholder execution entry for a task that's about to start
 func (qp *Processor) reserveExecution(taskID, agentID string, startedAt time.Time) {
-	if startedAt.IsZero() {
-		startedAt = time.Now()
-	}
-
-	// Get current timeout setting
-	currentSettings := settings.GetSettings()
-	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
-	timeoutAt := startedAt.Add(timeoutDuration)
-
-	qp.executionsMu.Lock()
-	defer qp.executionsMu.Unlock()
-
-	if existing, ok := qp.executions[taskID]; ok {
-		if agentID != "" {
-			existing.agentTag = agentID
-		}
-		if existing.started.IsZero() {
-			existing.started = startedAt
-			existing.timeoutAt = timeoutAt
-		}
-	} else {
-		qp.executions[taskID] = &taskExecution{
-			taskID:    taskID,
-			agentTag:  agentID,
-			started:   startedAt,
-			timeoutAt: timeoutAt,
-		}
-	}
+	qp.registry.ReserveExecution(taskID, agentID, startedAt)
 }
 
 // registerExecution registers a running process for a task
 func (qp *Processor) registerExecution(taskID, agentID string, cmd *exec.Cmd, startedAt time.Time) {
-	if startedAt.IsZero() {
-		startedAt = time.Now()
-	}
+	qp.registry.RegisterExecution(taskID, agentID, cmd, startedAt)
+}
 
-	// Get current timeout setting
-	currentSettings := settings.GetSettings()
-	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
-	timeoutAt := startedAt.Add(timeoutDuration)
-
-	qp.executionsMu.Lock()
-	defer qp.executionsMu.Unlock()
-
-	execState, exists := qp.executions[taskID]
-	if !exists {
-		execState = &taskExecution{taskID: taskID}
-		qp.executions[taskID] = execState
-	}
-	if agentID != "" {
-		execState.agentTag = agentID
-	}
-	execState.cmd = cmd
-	if execState.started.IsZero() {
-		execState.started = startedAt
-		execState.timeoutAt = timeoutAt
-	}
-
-	// Defensive nil check for logging
-	if cmd != nil && cmd.Process != nil {
-		log.Printf("Registered execution %d for task %s (timeout at %s)", cmd.Process.Pid, taskID, timeoutAt.Format(time.RFC3339))
-	} else {
-		log.Printf("Registered execution record for task %s (pid unknown, timeout at %s)", taskID, timeoutAt.Format(time.RFC3339))
-	}
+// registerRunID associates an agent-manager run ID with a task execution
+func (qp *Processor) registerRunID(taskID, runID string) {
+	qp.registry.RegisterRunID(taskID, runID)
 }
 
 // unregisterExecution removes a task from the execution registry
 func (qp *Processor) unregisterExecution(taskID string) {
-	qp.executionsMu.Lock()
-	defer qp.executionsMu.Unlock()
-
-	if exec, exists := qp.executions[taskID]; exists {
-		log.Printf("Unregistered execution %d for task %s", exec.pid(), taskID)
-		delete(qp.executions, taskID)
-	}
+	qp.registry.UnregisterExecution(taskID)
 }
 
 // getExecution retrieves the execution state for a task
 func (qp *Processor) getExecution(taskID string) (*taskExecution, bool) {
-	qp.executionsMu.RLock()
-	exec, exists := qp.executions[taskID]
-	qp.executionsMu.RUnlock()
-	return exec, exists
+	return qp.registry.GetExecution(taskID)
 }
 
 // ListRunningProcesses returns task IDs of all currently running processes
 func (qp *Processor) ListRunningProcesses() []string {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-
-	taskIDs := make([]string, 0, len(qp.executions))
-	for taskID := range qp.executions {
-		taskIDs = append(taskIDs, taskID)
-	}
-	return taskIDs
+	return qp.registry.ListRunningTaskIDs()
 }
 
 // GetRunningProcessesInfo returns detailed information about all running processes
 func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-
-	processes := make([]ProcessInfo, 0, len(qp.executions))
+	executions := qp.registry.GetAllExecutions()
 	now := time.Now()
 
+	processes := make([]ProcessInfo, 0, len(executions))
+
 	// Add task executions
-	for taskID, execState := range qp.executions {
-		duration := now.Sub(execState.started)
+	for _, exec := range executions {
+		duration := now.Sub(exec.Started)
 		info := ProcessInfo{
-			TaskID:          taskID,
-			ProcessID:       execState.pid(),
-			ProcessType:     "task", // Default to task type
-			StartTime:       execState.started.Format(time.RFC3339),
+			TaskID:          exec.TaskID,
+			ProcessID:       exec.PID,
+			ProcessType:     "task",
+			StartTime:       exec.Started.Format(time.RFC3339),
 			Duration:        duration.Round(time.Second).String(),
 			DurationSeconds: int64(duration.Seconds()),
-			AgentID:         execState.agentTag,
-			TimedOut:        execState.isTimedOut(),
+			AgentID:         exec.AgentTag,
+			TimedOut:        exec.TimedOut,
 		}
 
 		// Try to get task title from storage
 		if qp.storage != nil {
-			if task, _, err := qp.storage.GetTaskByID(taskID); err == nil && task != nil {
+			if task, _, err := qp.storage.GetTaskByID(exec.TaskID); err == nil && task != nil {
 				info.TaskTitle = task.Title
 			}
 		}
 
 		// Add timeout information if available
-		if !execState.timeoutAt.IsZero() {
-			info.TimeoutAt = execState.timeoutAt.Format(time.RFC3339)
-			timeRemaining := execState.timeoutAt.Sub(now)
+		if !exec.TimeoutAt.IsZero() {
+			info.TimeoutAt = exec.TimeoutAt.Format(time.RFC3339)
+			timeRemaining := exec.TimeoutAt.Sub(now)
 			if timeRemaining > 0 {
 				info.TimeRemaining = timeRemaining.Round(time.Second).String()
 			} else {
@@ -228,14 +156,12 @@ func UnregisterInsightProcess(taskID string) {
 
 // IsTaskRunning returns true if the task is currently tracked in executions
 func (qp *Processor) IsTaskRunning(taskID string) bool {
-	_, exists := qp.getExecution(taskID)
-	return exists
+	return qp.registry.IsTaskRunning(taskID)
 }
 
 // TerminateRunningProcess terminates a running task process via agent-manager
 func (qp *Processor) TerminateRunningProcess(taskID string) error {
-	_, exists := qp.getExecution(taskID)
-	if !exists {
+	if !qp.registry.IsTaskRunning(taskID) {
 		return fmt.Errorf("no running process found for task %s", taskID)
 	}
 
@@ -246,7 +172,7 @@ func (qp *Processor) TerminateRunningProcess(taskID string) error {
 	}
 
 	qp.ResetTaskLogs(taskID)
-	qp.unregisterExecution(taskID)
+	qp.registry.UnregisterExecution(taskID)
 
 	return nil
 }

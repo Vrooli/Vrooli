@@ -390,15 +390,16 @@ func TestProcessor_ReconcileInProgressTasks(t *testing.T) {
 			t.Fatalf("SaveQueueItem: %v", err)
 		}
 
-		// Mark as externally active
-		external := map[string]struct{}{
-			"active-task-1": {},
-		}
-		internal := make(map[string]struct{})
+		// Register as internally tracked (this is what the reconciliation checks now)
+		processor.reserveExecution("active-task-1", "test-agent", time.Now())
+		defer processor.unregisterExecution("active-task-1")
+
+		external := make(map[string]struct{})
+		internal := processor.getInternalRunningTaskIDs()
 
 		moved := processor.reconcileInProgressTasks(external, internal)
 
-		// Should not move active tasks
+		// Should not move internally tracked tasks
 		if len(moved) != 0 {
 			t.Errorf("Expected no tasks moved, got %d", len(moved))
 		}

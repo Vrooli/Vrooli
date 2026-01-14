@@ -79,7 +79,7 @@ func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
 func (p *PromptEnhancer) GenerateAutoSteerSection(
 	state *ProfileExecutionState,
 	profile *AutoSteerProfile,
-	evaluator *ConditionEvaluator,
+	evaluator ConditionEvaluatorAPI,
 ) string {
 	if state == nil || profile == nil {
 		return ""

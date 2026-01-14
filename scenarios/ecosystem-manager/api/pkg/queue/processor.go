@@ -47,12 +47,7 @@ func (te *taskExecution) getRunID() string {
 
 // getRunIDForTask returns the agent-manager run ID for a task, empty if not found
 func (qp *Processor) getRunIDForTask(taskID string) string {
-	qp.executionsMu.RLock()
-	defer qp.executionsMu.RUnlock()
-	if exec, ok := qp.executions[taskID]; ok {
-		return exec.getRunID()
-	}
-	return ""
+	return qp.registry.GetRunIDForTask(taskID)
 }
 
 // stopRunViaAgentManager stops a run using agent-manager by task ID
@@ -96,9 +91,8 @@ type Processor struct {
 	storage     *tasks.Storage
 	assembler   *prompts.Assembler
 
-	// Live task executions keyed by task ID
-	executions   map[string]*taskExecution
-	executionsMu sync.RWMutex
+	// Execution registry for tracking running tasks
+	registry *ExecutionRegistry
 
 	// Root of the Vrooli workspace for resource CLI commands
 	vrooliRoot string
@@ -113,13 +107,10 @@ type Processor struct {
 	broadcast chan<- any
 
 	// Rate limit pause management
-	rateLimitPaused bool
-	pauseUntil      time.Time
-	pauseMutex      sync.Mutex
+	rateLimiter *RateLimiter
 
-	// Task log buffers for streaming execution logs
-	taskLogs      map[string]*TaskLogBuffer
-	taskLogsMutex sync.RWMutex
+	// Task log buffering and persistence
+	taskLogger *TaskLogger
 
 	// Bookkeeping for queue activity
 	lastProcessedMu sync.RWMutex
@@ -142,6 +133,9 @@ type Processor struct {
 	// Agent manager service for delegating agent execution
 	agentSvc *agentmanager.AgentService
 
+	// Timeout watchdog for enforcing task timeouts
+	watchdog *TimeoutWatchdog
+
 	// Lifecycle control for background workers
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -157,24 +151,25 @@ type slotSnapshot struct {
 // NewProcessor creates a new queue processor
 func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
 	ctx, cancel := context.WithCancel(context.Background())
-	processor := &Processor{
-		stopChannel: make(chan bool),
-		wakeCh:      make(chan struct{}, 1),
-		storage:     storage,
-		assembler:   assembler,
-		executions:  make(map[string]*taskExecution),
-		broadcast:   broadcast,
-		taskLogs:    make(map[string]*TaskLogBuffer),
-		recycler:    recycler,
-		ctx:         ctx,
-		cancel:      cancel,
-	}
+	vrooliRoot := paths.DetectVrooliRoot()
+	scenarioRoot := filepath.Dir(storage.QueueDir)
+	taskLogsDir := filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
 
-	processor.vrooliRoot = paths.DetectVrooliRoot()
-	processor.scenarioRoot = filepath.Dir(storage.QueueDir)
-	processor.taskLogsDir = filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
-	if err := os.MkdirAll(processor.taskLogsDir, 0o755); err != nil {
-		log.Printf("Warning: unable to create task logs directory %s: %v", processor.taskLogsDir, err)
+	processor := &Processor{
+		stopChannel:  make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
+		wakeCh:       make(chan struct{}, 1),
+		storage:      storage,
+		assembler:    assembler,
+		registry:     NewExecutionRegistry(),
+		broadcast:    broadcast,
+		rateLimiter:  NewRateLimiter(broadcast),
+		taskLogger:   NewTaskLogger(taskLogsDir, broadcast),
+		recycler:     recycler,
+		ctx:          ctx,
+		cancel:       cancel,
+		vrooliRoot:   vrooliRoot,
+		scenarioRoot: scenarioRoot,
+		taskLogsDir:  taskLogsDir,
 	}
 
 	// Initialize agent-manager service
@@ -203,8 +198,9 @@ func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcas
 	// Reconcile any stale in-progress tasks left behind from previous runs
 	go processor.initialInProgressReconcile()
 
-	// Start timeout enforcement watchdog (defense-in-depth)
-	go processor.timeoutEnforcementWatchdog()
+	// Create and start timeout enforcement watchdog (defense-in-depth)
+	processor.watchdog = NewTimeoutWatchdog(processor.registry, processor.agentSvc)
+	processor.watchdog.Start()
 
 	return processor
 }
@@ -311,9 +307,7 @@ func (qp *Processor) Stop() {
 		return
 	}
 
-	qp.executionsMu.RLock()
-	runningCount := len(qp.executions)
-	qp.executionsMu.RUnlock()
+	runningCount := qp.registry.Count()
 
 	qp.stopChannel <- true
 	qp.isRunning = false
@@ -326,6 +320,9 @@ func (qp *Processor) Stop() {
 
 // Shutdown stops background workers and should be called during full application teardown.
 func (qp *Processor) Shutdown() {
+	if qp.watchdog != nil {
+		qp.watchdog.Stop()
+	}
 	qp.cancel()
 }
 
@@ -466,34 +463,10 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
-	// Check if rate limit paused
-	qp.pauseMutex.Lock()
-	if qp.rateLimitPaused {
-		if time.Now().Before(qp.pauseUntil) {
-			remaining := time.Until(qp.pauseUntil)
-			log.Printf("⏸️ Queue paused due to rate limit. Resuming in %v", remaining.Round(time.Second))
-			qp.pauseMutex.Unlock()
-
-			// Broadcast pause status
-			qp.broadcastUpdate("rate_limit_pause", map[string]any{
-				"paused":         true,
-				"pause_until":    qp.pauseUntil.Format(time.RFC3339),
-				"remaining_secs": int(remaining.Seconds()),
-			})
-			return
-		} else {
-			// Pause has expired, resume processing
-			qp.rateLimitPaused = false
-			qp.pauseUntil = time.Time{}
-			log.Printf("✅ Rate limit pause expired. Resuming queue processing.")
-
-			// Broadcast resume
-			qp.broadcastUpdate("rate_limit_resume", map[string]any{
-				"paused": false,
-			})
-		}
+	// Check if rate limit paused (includes auto-expiration and broadcasting)
+	if status := qp.rateLimiter.CheckLimit(); status.IsPaused {
+		return
 	}
-	qp.pauseMutex.Unlock()
 
 	qp.setLastProcessed(time.Now())
 
@@ -697,59 +670,6 @@ func (qp *Processor) cleanupOldPromptFiles() {
 	}
 }
 
-// timeoutEnforcementWatchdog monitors for tasks that have exceeded their timeout
-// This provides defense-in-depth backup enforcement if context.WithTimeout fails
-// or if cleanup/finalization failures leave tasks stuck in executions map
-func (qp *Processor) timeoutEnforcementWatchdog() {
-	ticker := time.NewTicker(scaleDuration(TimeoutWatchdogInterval))
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			qp.enforceTimeouts()
-		case <-qp.ctx.Done():
-			return
-		}
-	}
-}
-
-// enforceTimeouts checks all tracked executions and forcibly terminates timed-out tasks
-func (qp *Processor) enforceTimeouts() {
-	qp.executionsMu.RLock()
-	timedOutTasks := make([]struct {
-		taskID   string
-		agentTag string
-		pid      int
-	}, 0)
-
-	for taskID, exec := range qp.executions {
-		if exec.isTimedOut() {
-			timedOutTasks = append(timedOutTasks, struct {
-				taskID   string
-				agentTag string
-				pid      int
-			}{
-				taskID:   taskID,
-				agentTag: exec.agentTag,
-				pid:      exec.pid(),
-			})
-		}
-	}
-	qp.executionsMu.RUnlock()
-
-	if len(timedOutTasks) == 0 {
-		return
-	}
-
-	log.Printf("⏰ WATCHDOG: Detected %d timed-out tasks still in executions, forcing termination", len(timedOutTasks))
-	systemlog.Warnf("Timeout watchdog detected %d stuck tasks - forcing termination", len(timedOutTasks))
-
-	for _, task := range timedOutTasks {
-		qp.forceTerminateTimedOutTask(task.taskID, task.agentTag, task.pid)
-	}
-}
-
 // computeSlotSnapshot centralizes slot accounting for scheduler and manual starts.
 func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[string]struct{}) slotSnapshot {
 	running := len(internalRunning)
@@ -774,24 +694,6 @@ func (qp *Processor) computeSlotSnapshot(internalRunning, externalActive map[str
 		Running:   running,
 		Available: available,
 	}
-}
-
-// forceTerminateTimedOutTask forcibly terminates a task that exceeded its timeout
-// This is called by the watchdog when it detects a task stuck in executions after timeout
-func (qp *Processor) forceTerminateTimedOutTask(taskID, agentTag string, pid int) {
-	log.Printf("WATCHDOG: Force terminating timed-out task %s (agent: %s)", taskID, agentTag)
-	systemlog.Warnf("Timeout watchdog forcing termination of task %s", taskID)
-
-	// Stop via agent-manager (primary path)
-	if err := qp.stopRunViaAgentManager(taskID); err != nil {
-		log.Printf("WARNING: Watchdog agent-manager stop failed for task %s: %v", taskID, err)
-		systemlog.Warnf("Watchdog agent-manager stop failed for %s: %v", taskID, err)
-	}
-
-	// Unregister execution
-	qp.unregisterExecution(taskID)
-	log.Printf("WATCHDOG: Terminated and unregistered timed-out task %s", taskID)
-	systemlog.Infof("Watchdog successfully terminated timed-out task %s", taskID)
 }
 
 // UpdateAgentProfiles propagates current settings to agent-manager profiles.

@@ -66,7 +66,7 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")
 	settingsHandlers := handlers.NewSettingsHandlers(processor, wsManager, recyclerSvc)
 	promptsHandlers := handlers.NewPromptsHandlers(assembler)
-	autoSteerHandlers := autosteer.NewAutoSteerHandlers(&autosteer.ProfileService{}, &autosteer.ExecutionEngine{}, &autosteer.HistoryService{})
+	autoSteerHandlers := autosteer.NewAutoSteerHandlers(&autosteer.ProfileService{}, nil, &autosteer.HistoryService{})
 
 	app := &Application{
 		storage:           storage,
