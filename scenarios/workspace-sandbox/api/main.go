@@ -31,6 +31,8 @@ import (
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/repository"
 	"workspace-sandbox/internal/sandbox"
+	"workspace-sandbox/internal/toolexecution"
+	"workspace-sandbox/internal/toolregistry"
 )
 
 // Server wires the HTTP router, database, and services.
@@ -45,6 +47,10 @@ type Server struct {
 	gcService        *gc.Service      // OT-P1-003: GC/Prune Operations
 	lifecycleRecon   *sandbox.LifecycleReconciler
 	metricsCollector *metrics.Collector // OT-P1-008: Metrics/Observability
+
+	// Tool Discovery Protocol support
+	toolRegistry *toolregistry.Registry
+	toolHandler  *toolexecution.Handler
 }
 
 // NewServer initializes configuration, database, and routes.
@@ -191,6 +197,41 @@ func NewServer() (*Server, error) {
 	// Initialize metrics collector [OT-P1-008]
 	metricsCollector := metrics.NewCollector()
 
+	// --- Tool Discovery Protocol support ---
+	// Initialize tool registry with all providers
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "workspace-sandbox",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Isolated workspace management with CoW filesystems for safe agent development",
+	})
+
+	// Register all tool providers (4 tiers)
+	toolReg.RegisterProvider(toolregistry.NewSandboxToolProvider())    // Tier 1: Sandbox lifecycle
+	toolReg.RegisterProvider(toolregistry.NewExecutionToolProvider())  // Tier 2: Command execution
+	toolReg.RegisterProvider(toolregistry.NewFileToolProvider())       // Tier 3: File operations
+	toolReg.RegisterProvider(toolregistry.NewDiffToolProvider())       // Tier 4: Diff/approval
+
+	// Create adapters for tool execution
+	processExecutor := toolexecution.NewProcessExecutorAdapter(toolexecution.ProcessExecutorConfig{
+		SandboxService: svc,
+		Driver:         driverManager,
+		ProcessTracker: processTracker,
+		ProcessLogger:  processLogger,
+		ProfileStore:   profileStore,
+		ExecConfig:     cfg.Execution,
+	})
+	fileOperator := toolexecution.NewFileOperatorAdapter(svc)
+
+	// Create tool executor and handler
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		SandboxService:  svc,
+		ProcessExecutor: processExecutor,
+		FileOperator:    fileOperator,
+	})
+	toolHandler := toolexecution.NewHandler(toolExecutor)
+
+	log.Printf("tool discovery protocol enabled | providers=%d", toolReg.ProviderCount())
+
 	srv := &Server{
 		config:           cfg,
 		db:               db,
@@ -202,6 +243,8 @@ func NewServer() (*Server, error) {
 		gcService:        gcService,
 		lifecycleRecon:   lifecycleRecon,
 		metricsCollector: metricsCollector,
+		toolRegistry:     toolReg,
+		toolHandler:      toolHandler,
 	}
 
 	srv.setupRoutes()
@@ -227,6 +270,14 @@ func (s *Server) setupRoutes() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+
+	// Tool Discovery Protocol routes (agent-inbox integration)
+	// GET /api/v1/tools - Get tool manifest with all available tools
+	// GET /api/v1/tools/{name} - Get a specific tool definition
+	// POST /api/v1/tools/execute - Execute a tool
+	s.router.HandleFunc("/api/v1/tools", s.toolRegistry.HandleGetManifest).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/tools/{name}", s.toolRegistry.HandleGetTool).Methods("GET", "OPTIONS")
+	s.router.HandleFunc("/api/v1/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
 
 	// Delegate remaining route registration to handlers package
 	// This centralizes route knowledge with the handlers and makes the API surface explicit

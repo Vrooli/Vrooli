@@ -155,10 +155,8 @@ func (r *ToolRegistry) SyncTools(ctx context.Context) (*domain.DiscoveryResult, 
 	// Clear caches to force fresh discovery
 	r.scenarioClient.InvalidateAllCache()
 
-	// Get previous scenario list for comparison
-	r.mu.RLock()
+	// Get previous scenario list for comparison (getScenarioNames handles its own locking)
 	previousScenarios := r.getScenarioNames()
-	r.mu.RUnlock()
 
 	// Discover scenarios with tools
 	discovered, err := r.scenarioClient.DiscoverToolScenarios(ctx)
@@ -195,7 +193,11 @@ func (r *ToolRegistry) SyncTools(ctx context.Context) (*domain.DiscoveryResult, 
 }
 
 // getScenarioNames returns the names of scenarios in the current cache.
+// Thread-safe: acquires read lock internally.
 func (r *ToolRegistry) getScenarioNames() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	if r.cachedTools == nil {
 		return nil
 	}
@@ -413,9 +415,16 @@ func (r *ToolRegistry) ResetToolConfiguration(ctx context.Context, chatID, scena
 	return r.repo.DeleteToolConfiguration(ctx, chatID, scenario, toolName)
 }
 
-// GetScenarioStatuses checks availability of all configured scenarios.
+// GetScenarioStatuses checks availability of all discovered scenarios.
+// Uses scenarios from the cached toolSet, not the hardcoded config.
 func (r *ToolRegistry) GetScenarioStatuses(ctx context.Context) []*domain.ScenarioStatus {
-	scenarios := r.cfg.Integration.ToolDiscovery.Scenarios
+	// Get scenarios from cache (discovered scenarios)
+	scenarios := r.getScenarioNames()
+	if len(scenarios) == 0 {
+		// Fallback to config if cache is empty
+		scenarios = r.cfg.Integration.ToolDiscovery.Scenarios
+	}
+
 	statuses := make([]*domain.ScenarioStatus, len(scenarios))
 
 	var wg sync.WaitGroup

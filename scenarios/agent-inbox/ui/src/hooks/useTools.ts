@@ -23,7 +23,6 @@ import {
   setToolEnabled,
   setToolApproval,
   resetToolConfig,
-  refreshTools,
   syncTools,
   type ToolSet,
   type ScenarioStatus,
@@ -57,7 +56,6 @@ export interface UseToolsReturn {
   // Loading states
   isLoading: boolean;
   isLoadingScenarios: boolean;
-  isRefreshing: boolean;
   isSyncing: boolean;
   isUpdating: boolean;
 
@@ -69,7 +67,6 @@ export interface UseToolsReturn {
   toggleTool: (scenario: string, toolName: string, enabled: boolean) => Promise<void>;
   setApproval: (scenario: string, toolName: string, override: ApprovalOverride) => Promise<void>;
   resetTool: (scenario: string, toolName: string) => Promise<void>;
-  refreshToolRegistry: () => Promise<void>;
   /** Discover tools from all running scenarios via vrooli CLI */
   syncDiscoveredTools: () => Promise<DiscoveryResult>;
   refetch: () => void;
@@ -237,15 +234,6 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
   });
 
-  // Refresh tool registry
-  const refreshMutation = useMutation({
-    mutationFn: refreshTools,
-    onSuccess: () => {
-      // Invalidate all tool queries
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.all });
-    },
-  });
-
   // Sync tools (discover from all running scenarios)
   const syncMutation = useMutation({
     mutationFn: syncTools,
@@ -297,7 +285,6 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     // Loading states
     isLoading,
     isLoadingScenarios,
-    isRefreshing: refreshMutation.isPending,
     isSyncing: syncMutation.isPending,
     isUpdating: toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending,
 
@@ -314,9 +301,6 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     },
     resetTool: async (scenario, toolName) => {
       await resetMutation.mutateAsync({ scenario, toolName });
-    },
-    refreshToolRegistry: async () => {
-      await refreshMutation.mutateAsync();
     },
     syncDiscoveredTools: async () => {
       return await syncMutation.mutateAsync();

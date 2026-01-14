@@ -110,27 +110,6 @@ func (h *Handlers) ResetToolConfig(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
-// RefreshTools triggers a refresh of the tool registry cache.
-// POST /api/v1/tools/refresh
-func (h *Handlers) RefreshTools(w http.ResponseWriter, r *http.Request) {
-	if err := h.ToolRegistry.RefreshTools(r.Context()); err != nil {
-		h.JSONError(w, "Failed to refresh tools", http.StatusInternalServerError)
-		return
-	}
-
-	toolSet, err := h.ToolRegistry.GetToolSet(r.Context())
-	if err != nil {
-		h.JSONError(w, "Failed to get refreshed tool set", http.StatusInternalServerError)
-		return
-	}
-
-	h.JSONResponse(w, map[string]interface{}{
-		"success":         true,
-		"scenarios_count": len(toolSet.Scenarios),
-		"tools_count":     len(toolSet.Tools),
-	}, http.StatusOK)
-}
-
 // SyncTools performs full tool discovery and returns results.
 // This discovers all running scenarios with tool endpoints via vrooli CLI,
 // probes each for /api/v1/tools, and updates the registry.

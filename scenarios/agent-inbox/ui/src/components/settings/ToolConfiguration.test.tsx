@@ -72,14 +72,14 @@ describe("ToolConfiguration", () => {
   });
 
   it("renders error state with retry button", () => {
-    const onRefresh = vi.fn();
+    const onSyncTools = vi.fn();
     render(
       <ToolConfiguration
         toolsByScenario={new Map()}
         categories={[]}
         error="Failed to fetch tools"
         onToggleTool={vi.fn()}
-        onRefresh={onRefresh}
+        onSyncTools={onSyncTools}
       />
     );
 
@@ -88,7 +88,7 @@ describe("ToolConfiguration", () => {
 
     const retryButton = screen.getByRole("button", { name: /retry/i });
     fireEvent.click(retryButton);
-    expect(onRefresh).toHaveBeenCalled();
+    expect(onSyncTools).toHaveBeenCalled();
   });
 
   it("renders empty state when no tools", () => {
@@ -229,8 +229,8 @@ describe("ToolConfiguration", () => {
     expect(onResetTool).toHaveBeenCalledWith("agent-manager", "test_tool");
   });
 
-  it("shows refresh button when onRefresh is provided", () => {
-    const onRefresh = vi.fn();
+  it("shows sync button when onSyncTools is provided", () => {
+    const onSyncTools = vi.fn();
     const tools = [createMockTool()];
 
     render(
@@ -238,14 +238,14 @@ describe("ToolConfiguration", () => {
         toolsByScenario={createToolsByScenario(tools)}
         categories={mockCategories}
         onToggleTool={vi.fn()}
-        onRefresh={onRefresh}
+        onSyncTools={onSyncTools}
       />
     );
 
-    const refreshButton = screen.getByTestId("refresh-tools-button");
-    fireEvent.click(refreshButton);
+    const syncButton = screen.getByTestId("sync-tools-button");
+    fireEvent.click(syncButton);
 
-    expect(onRefresh).toHaveBeenCalled();
+    expect(onSyncTools).toHaveBeenCalled();
   });
 
   it("disables toggles when updating", () => {

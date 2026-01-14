@@ -142,13 +142,11 @@ export function Settings({
     scenarios,
     enabledTools,
     isLoading: isLoadingTools,
-    isRefreshing: isRefreshingTools,
     isSyncing: isSyncingTools,
     isUpdating: isUpdatingTools,
     error: toolsError,
     toggleTool,
     setApproval,
-    refreshToolRegistry,
     syncDiscoveredTools,
   } = useTools({ enabled: open && activeTab === "ai" });
 
@@ -515,13 +513,11 @@ export function Settings({
                     categories={toolSet?.categories ?? []}
                     scenarioStatuses={scenarios}
                     isLoading={isLoadingTools}
-                    isRefreshing={isRefreshingTools}
                     isSyncing={isSyncingTools}
                     isUpdating={isUpdatingTools}
                     error={toolsError?.message}
                     onToggleTool={toggleTool}
                     onSetApproval={handleSetApproval}
-                    onRefresh={refreshToolRegistry}
                     onSyncTools={syncDiscoveredTools}
                     yoloMode={yoloMode}
                     onRunTool={handleRunTool}

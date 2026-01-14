@@ -32,7 +32,6 @@ import {
   Shield,
   ShieldOff,
   Play,
-  Search,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -49,8 +48,6 @@ interface ToolConfigurationProps {
   chatId?: string;
   /** Loading state */
   isLoading?: boolean;
-  /** Refreshing state */
-  isRefreshing?: boolean;
   /** Syncing state (discovering tools from running scenarios) */
   isSyncing?: boolean;
   /** Updating state */
@@ -65,8 +62,6 @@ interface ToolConfigurationProps {
   onSetApproval?: (scenario: string, toolName: string, override: ApprovalOverride) => void;
   /** Callback when tool config is reset to default */
   onResetTool?: (scenario: string, toolName: string) => void;
-  /** Callback to refresh tool registry */
-  onRefresh?: () => void;
   /** Callback to discover tools from all running scenarios */
   onSyncTools?: () => void;
   /** Callback when user wants to run a tool manually */
@@ -108,7 +103,6 @@ export function ToolConfiguration({
   scenarioStatuses,
   chatId,
   isLoading,
-  isRefreshing,
   isSyncing,
   isUpdating,
   error,
@@ -116,7 +110,6 @@ export function ToolConfiguration({
   onToggleTool,
   onSetApproval,
   onResetTool,
-  onRefresh,
   onSyncTools,
   onRunTool,
 }: ToolConfigurationProps) {
@@ -166,9 +159,9 @@ export function ToolConfiguration({
       >
         <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
         <p className="text-sm text-red-400 mb-3">{error}</p>
-        {onRefresh && (
-          <Button variant="secondary" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+        {onSyncTools && (
+          <Button variant="secondary" size="sm" onClick={onSyncTools} disabled={isSyncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
             Retry
           </Button>
         )}
@@ -187,10 +180,10 @@ export function ToolConfiguration({
         <p className="text-xs text-slate-500">
           Start tool-providing scenarios to enable AI capabilities
         </p>
-        {onRefresh && (
-          <Button variant="secondary" size="sm" onClick={onRefresh} className="mt-4">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+        {onSyncTools && (
+          <Button variant="secondary" size="sm" onClick={onSyncTools} disabled={isSyncing} className="mt-4">
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? "animate-spin" : ""}`} />
+            Sync Tools
           </Button>
         )}
       </div>
@@ -201,41 +194,24 @@ export function ToolConfiguration({
 
   return (
     <div className="space-y-4" data-testid="tool-configuration">
-      {/* Header with sync/refresh buttons */}
-      {(onRefresh || onSyncTools) && (
+      {/* Header with sync button */}
+      {onSyncTools && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">
             {chatId ? "Override tool settings for this chat" : "Configure default tools for all chats"}
           </p>
-          <div className="flex items-center gap-1">
-            {onSyncTools && (
-              <Tooltip content="Discover tools from all running scenarios">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onSyncTools}
-                  disabled={isSyncing || isRefreshing}
-                  data-testid="sync-tools-button"
-                >
-                  <Search className={`h-4 w-4 ${isSyncing ? "animate-pulse" : ""}`} />
-                  <span className="ml-1 text-xs">{isSyncing ? "Syncing..." : "Sync"}</span>
-                </Button>
-              </Tooltip>
-            )}
-            {onRefresh && (
-              <Tooltip content="Refresh tool registry">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRefresh}
-                  disabled={isRefreshing || isSyncing}
-                  data-testid="refresh-tools-button"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-                </Button>
-              </Tooltip>
-            )}
-          </div>
+          <Tooltip content="Discover tools from all running scenarios">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSyncTools}
+              disabled={isSyncing}
+              data-testid="sync-tools-button"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              <span className="ml-1 text-xs">{isSyncing ? "Syncing..." : "Sync"}</span>
+            </Button>
+          </Tooltip>
         </div>
       )}
 

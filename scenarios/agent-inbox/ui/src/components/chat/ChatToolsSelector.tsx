@@ -48,12 +48,12 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
     scenarios,
     enabledTools,
     isLoading,
-    isRefreshing,
+    isSyncing,
     isUpdating,
     error,
     toggleTool,
     resetTool,
-    refreshToolRegistry,
+    syncDiscoveredTools,
   } = useTools({ chatId });
 
   // Handle master toggle for enabling/disabling all tools
@@ -190,12 +190,12 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
                 scenarioStatuses={scenarios}
                 chatId={chatId}
                 isLoading={isLoading}
-                isRefreshing={isRefreshing}
+                isSyncing={isSyncing}
                 isUpdating={isUpdating}
                 error={error?.message}
                 onToggleTool={toggleTool}
                 onResetTool={resetTool}
-                onRefresh={refreshToolRegistry}
+                onSyncTools={syncDiscoveredTools}
                 onRunTool={handleRunTool}
               />
             ) : (

@@ -1161,24 +1161,6 @@ export async function resetToolConfig(
 }
 
 /**
- * Trigger a refresh of the tool registry cache.
- */
-export async function refreshTools(): Promise<{ success: boolean; scenarios_count: number; tools_count: number }> {
-  const url = buildApiUrl("/tools/refresh", { baseUrl: API_BASE });
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to refresh tools: ${res.status}`);
-  }
-
-  return res.json();
-}
-
-/**
  * Perform full tool discovery from all running scenarios.
  * Discovers scenarios via vrooli CLI and probes each for /api/v1/tools.
  */
