@@ -28,7 +28,7 @@ func (p *NoneProvider) Strategy() SteeringStrategy {
 }
 
 // GetCurrentMode returns Progress as the default mode.
-func (p *NoneProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, error) {
+func (p *NoneProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
 	return autosteer.ModeProgress, nil
 }
 

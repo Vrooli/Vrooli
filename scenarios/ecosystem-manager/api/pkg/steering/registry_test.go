@@ -197,7 +197,7 @@ type mockProvider struct {
 }
 
 func (m *mockProvider) Strategy() SteeringStrategy { return m.strategy }
-func (m *mockProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, error) {
+func (m *mockProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
 	return "", nil
 }
 func (m *mockProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {

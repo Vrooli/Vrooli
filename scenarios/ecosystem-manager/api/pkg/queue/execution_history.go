@@ -38,7 +38,8 @@ type ExecutionHistory struct {
 	SteerMode           string    `json:"steer_mode,omitempty"`            // Active steering mode (phase)
 	SteerPhaseIndex     int       `json:"steer_phase_index,omitempty"`     // 1-based phase index (0 when unknown)
 	SteerPhaseIteration int       `json:"steer_phase_iteration,omitempty"` // 1-based iteration within the active phase
-	SteeringSource      string    `json:"steering_source,omitempty"`       // auto_steer | manual_mode | default_progress | none
+	SteeringSource      string    `json:"steering_source,omitempty"`       // auto_steer | manual_mode | default_progress | steering_queue | none
+	SteeringQueueTotal  int       `json:"steering_queue_total,omitempty"`  // Total items in steering queue (for queue steering)
 	TimeoutAllowed      string    `json:"timeout_allowed"`                 // Configured timeout
 	RateLimited         bool      `json:"rate_limited"`                    // Whether rate limit was hit
 	RetryAfter          int       `json:"retry_after"`                     // Rate limit retry seconds

@@ -17,13 +17,48 @@ func TestManualProvider_Strategy(t *testing.T) {
 func TestManualProvider_GetCurrentMode(t *testing.T) {
 	provider := NewManualProvider(nil)
 
-	// GetCurrentMode returns empty by design (no access to task)
-	mode, err := provider.GetCurrentMode("task-1")
+	task := &tasks.TaskItem{
+		ID:        "task-1",
+		SteerMode: "ux",
+	}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Errorf("GetCurrentMode() error = %v", err)
 	}
-	if mode != "" {
-		t.Errorf("GetCurrentMode() = %v, want empty string (by design)", mode)
+	if mode != "ux" {
+		t.Errorf("GetCurrentMode() = %v, want ux", mode)
+	}
+}
+
+func TestManualProvider_GetCurrentMode_InvalidMode(t *testing.T) {
+	provider := NewManualProvider(nil)
+
+	task := &tasks.TaskItem{
+		ID:        "task-1",
+		SteerMode: "invalid_xyz",
+	}
+
+	mode, err := provider.GetCurrentMode(task)
+	if err != nil {
+		t.Errorf("GetCurrentMode() error = %v", err)
+	}
+	// Should fall back to progress for invalid mode
+	if mode != "progress" {
+		t.Errorf("GetCurrentMode() = %v, want progress (fallback)", mode)
+	}
+}
+
+func TestManualProvider_GetCurrentMode_NilTask(t *testing.T) {
+	provider := NewManualProvider(nil)
+
+	mode, err := provider.GetCurrentMode(nil)
+	if err != nil {
+		t.Errorf("GetCurrentMode() error = %v", err)
+	}
+	// Should fall back to progress for nil task
+	if mode != "progress" {
+		t.Errorf("GetCurrentMode() = %v, want progress (fallback for nil)", mode)
 	}
 }
 

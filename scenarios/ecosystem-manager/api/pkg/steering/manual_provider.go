@@ -30,11 +30,8 @@ func (p *ManualProvider) Strategy() SteeringStrategy {
 
 // GetCurrentMode returns the mode from the task's SteerMode field.
 // Falls back to Progress if the mode is invalid.
-func (p *ManualProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, error) {
-	// Note: This method doesn't have access to the task, so it returns empty.
-	// The actual mode retrieval happens in EnhancePrompt which has the task.
-	// This is a limitation of the interface design that may need refinement.
-	return "", nil
+func (p *ManualProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+	return p.getModeFromTask(task), nil
 }
 
 // getModeFromTask extracts and validates the steering mode from a task.

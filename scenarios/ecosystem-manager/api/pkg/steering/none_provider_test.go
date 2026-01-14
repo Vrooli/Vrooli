@@ -17,10 +17,25 @@ func TestNoneProvider_Strategy(t *testing.T) {
 func TestNoneProvider_GetCurrentMode(t *testing.T) {
 	provider := NewNoneProvider(nil)
 
-	mode, err := provider.GetCurrentMode("task-1")
+	task := &tasks.TaskItem{ID: "task-1"}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Errorf("GetCurrentMode() error = %v", err)
 	}
+	if mode != autosteer.ModeProgress {
+		t.Errorf("GetCurrentMode() = %v, want %v", mode, autosteer.ModeProgress)
+	}
+}
+
+func TestNoneProvider_GetCurrentMode_NilTask(t *testing.T) {
+	provider := NewNoneProvider(nil)
+
+	mode, err := provider.GetCurrentMode(nil)
+	if err != nil {
+		t.Errorf("GetCurrentMode() error = %v", err)
+	}
+	// Even with nil task, returns Progress
 	if mode != autosteer.ModeProgress {
 		t.Errorf("GetCurrentMode() = %v, want %v", mode, autosteer.ModeProgress)
 	}

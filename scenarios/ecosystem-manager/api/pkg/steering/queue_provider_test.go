@@ -92,7 +92,9 @@ func TestQueueProvider_GetCurrentMode(t *testing.T) {
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux", "test"})
 	repo.Save(state)
 
-	mode, err := provider.GetCurrentMode("task-1")
+	task := &tasks.TaskItem{ID: "task-1"}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Fatalf("GetCurrentMode() error = %v", err)
 	}
@@ -105,12 +107,27 @@ func TestQueueProvider_GetCurrentMode_NoState(t *testing.T) {
 	repo := NewInMemoryQueueStateRepository()
 	provider := NewQueueProvider(repo, nil)
 
-	mode, err := provider.GetCurrentMode("nonexistent")
+	task := &tasks.TaskItem{ID: "nonexistent"}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Fatalf("GetCurrentMode() error = %v", err)
 	}
 	if mode != "" {
 		t.Errorf("GetCurrentMode() = %v, want empty string", mode)
+	}
+}
+
+func TestQueueProvider_GetCurrentMode_NilTask(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	provider := NewQueueProvider(repo, nil)
+
+	mode, err := provider.GetCurrentMode(nil)
+	if err != nil {
+		t.Fatalf("GetCurrentMode() error = %v", err)
+	}
+	if mode != "" {
+		t.Errorf("GetCurrentMode() = %v, want empty string for nil task", mode)
 	}
 }
 
@@ -295,4 +312,266 @@ func TestQueueState_Remaining(t *testing.T) {
 	if state.Remaining() != 0 {
 		t.Errorf("Remaining() = %d, want 0", state.Remaining())
 	}
+}
+
+func TestQueueState_Reset(t *testing.T) {
+	state := NewQueueState("task-1", []autosteer.SteerMode{"a", "b", "c"})
+	state.Advance()
+	state.Advance()
+
+	if state.CurrentIndex != 2 {
+		t.Fatalf("Pre-reset CurrentIndex = %d, want 2", state.CurrentIndex)
+	}
+
+	state.Reset()
+
+	if state.CurrentIndex != 0 {
+		t.Errorf("Reset() should set CurrentIndex to 0, got %d", state.CurrentIndex)
+	}
+	if state.IsExhausted() {
+		t.Error("Reset() should make state not exhausted")
+	}
+	if state.CurrentMode() != "a" {
+		t.Errorf("After Reset(), CurrentMode() = %v, want 'a'", state.CurrentMode())
+	}
+}
+
+func TestQueueProvider_EnhancePrompt(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	enhancer := &mockPromptEnhancer{modeSection: "## Progress Mode\nFocus on progress"}
+	provider := NewQueueProvider(repo, enhancer)
+
+	// Pre-initialize state
+	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux", "test"})
+	repo.Save(state)
+
+	task := &tasks.TaskItem{
+		ID:            "task-1",
+		SteeringQueue: []string{"progress", "ux", "test"},
+	}
+
+	enhancement, err := provider.EnhancePrompt(task)
+	if err != nil {
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement == nil {
+		t.Fatal("EnhancePrompt() returned nil enhancement")
+	}
+
+	// Check source format
+	if enhancement.Source != "queue:progress[1/3]" {
+		t.Errorf("EnhancePrompt().Source = %v, want queue:progress[1/3]", enhancement.Source)
+	}
+
+	// Check section contains mode content and queue progress
+	if enhancement.Section == "" {
+		t.Error("EnhancePrompt().Section should not be empty")
+	}
+	if !contains(enhancement.Section, "Queue Progress") {
+		t.Error("EnhancePrompt().Section should contain 'Queue Progress'")
+	}
+	if !contains(enhancement.Section, "Position:") {
+		t.Error("EnhancePrompt().Section should contain position info")
+	}
+}
+
+func TestQueueProvider_EnhancePrompt_InitializesIfNoState(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	enhancer := &mockPromptEnhancer{modeSection: "## Progress Mode\nFocus on progress"}
+	provider := NewQueueProvider(repo, enhancer)
+
+	task := &tasks.TaskItem{
+		ID:            "task-2",
+		SteeringQueue: []string{"progress", "ux"},
+	}
+
+	// No state pre-exists - should initialize automatically
+	enhancement, err := provider.EnhancePrompt(task)
+	if err != nil {
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement == nil {
+		t.Fatal("EnhancePrompt() returned nil enhancement after auto-init")
+	}
+
+	// Verify state was created
+	state, _ := repo.Get("task-2")
+	if state == nil {
+		t.Error("State should have been auto-initialized")
+	}
+}
+
+func TestQueueProvider_EnhancePrompt_Exhausted(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	enhancer := &mockPromptEnhancer{modeSection: "## Progress Mode"}
+	provider := NewQueueProvider(repo, enhancer)
+
+	// Create exhausted state
+	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
+	state.Advance() // Now exhausted
+	repo.Save(state)
+
+	task := &tasks.TaskItem{
+		ID:            "task-1",
+		SteeringQueue: []string{"progress"},
+	}
+
+	enhancement, err := provider.EnhancePrompt(task)
+	if err != nil {
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement != nil {
+		t.Error("EnhancePrompt() should return nil for exhausted queue")
+	}
+}
+
+func TestQueueProvider_EnhancePrompt_NilEnhancer(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	provider := NewQueueProvider(repo, nil)
+
+	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
+	repo.Save(state)
+
+	task := &tasks.TaskItem{
+		ID:            "task-1",
+		SteeringQueue: []string{"progress"},
+	}
+
+	enhancement, err := provider.EnhancePrompt(task)
+	if err != nil {
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement != nil {
+		t.Error("EnhancePrompt() should return nil when promptEnhancer is nil")
+	}
+}
+
+func TestQueueProvider_EnhancePrompt_NilRepo(t *testing.T) {
+	enhancer := &mockPromptEnhancer{}
+	provider := NewQueueProvider(nil, enhancer)
+
+	task := &tasks.TaskItem{
+		ID:            "task-1",
+		SteeringQueue: []string{"progress"},
+	}
+
+	enhancement, err := provider.EnhancePrompt(task)
+	if err != nil {
+		t.Fatalf("EnhancePrompt() error = %v", err)
+	}
+	if enhancement != nil {
+		t.Error("EnhancePrompt() should return nil when stateRepo is nil")
+	}
+}
+
+func TestQueueProvider_EnhancePrompt_QueueProgressInfo(t *testing.T) {
+	repo := NewInMemoryQueueStateRepository()
+	enhancer := &mockPromptEnhancer{modeSection: "## Mode Section"}
+	provider := NewQueueProvider(repo, enhancer)
+
+	tests := []struct {
+		name           string
+		queue          []autosteer.SteerMode
+		currentIndex   int
+		wantPosition   string
+		wantUpcoming   bool
+		wantMoreCount  int
+	}{
+		{
+			name:          "first of three",
+			queue:         []autosteer.SteerMode{"progress", "ux", "test"},
+			currentIndex:  0,
+			wantPosition:  "1/3",
+			wantUpcoming:  true,
+			wantMoreCount: 0,
+		},
+		{
+			name:          "second of three",
+			queue:         []autosteer.SteerMode{"progress", "ux", "test"},
+			currentIndex:  1,
+			wantPosition:  "2/3",
+			wantUpcoming:  true,
+			wantMoreCount: 0,
+		},
+		{
+			name:          "last item",
+			queue:         []autosteer.SteerMode{"progress", "ux", "test"},
+			currentIndex:  2,
+			wantPosition:  "3/3",
+			wantUpcoming:  false, // No upcoming when on last item
+			wantMoreCount: 0,
+		},
+		{
+			name:          "long queue with more items",
+			queue:         []autosteer.SteerMode{"a", "b", "c", "d", "e", "f", "g"},
+			currentIndex:  0,
+			wantPosition:  "1/7",
+			wantUpcoming:  true,
+			wantMoreCount: 3, // Shows 3 upcoming, then "... and 3 more"
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := NewQueueState("task-"+tt.name, tt.queue)
+			state.CurrentIndex = tt.currentIndex
+			repo.Save(state)
+
+			task := &tasks.TaskItem{
+				ID:            "task-" + tt.name,
+				SteeringQueue: toStringSlice(tt.queue),
+			}
+
+			enhancement, err := provider.EnhancePrompt(task)
+			if err != nil {
+				t.Fatalf("EnhancePrompt() error = %v", err)
+			}
+			if enhancement == nil {
+				t.Fatal("EnhancePrompt() returned nil")
+			}
+
+			// Check position
+			if !contains(enhancement.Section, tt.wantPosition) {
+				t.Errorf("Section should contain position %s", tt.wantPosition)
+			}
+
+			// Check upcoming section presence
+			hasUpcoming := contains(enhancement.Section, "Upcoming:")
+			if tt.wantUpcoming && !hasUpcoming {
+				t.Error("Section should contain 'Upcoming:' section")
+			}
+			if !tt.wantUpcoming && hasUpcoming {
+				t.Error("Section should NOT contain 'Upcoming:' section for last item")
+			}
+
+			// Check "... and X more" for long queues
+			if tt.wantMoreCount > 0 {
+				if !contains(enhancement.Section, "... and") {
+					t.Errorf("Section should contain '... and %d more'", tt.wantMoreCount)
+				}
+			}
+		})
+	}
+}
+
+// Helper functions
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func toStringSlice(modes []autosteer.SteerMode) []string {
+	result := make([]string, len(modes))
+	for i, m := range modes {
+		result[i] = string(m)
+	}
+	return result
 }

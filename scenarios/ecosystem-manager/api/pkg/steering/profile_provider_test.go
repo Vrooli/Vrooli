@@ -16,26 +16,26 @@ func TestProfileProvider_Strategy(t *testing.T) {
 }
 
 func TestProfileProvider_GetCurrentMode(t *testing.T) {
-	// Note: GetCurrentMode requires a real ExecutionOrchestrator which returns
-	// a concrete type that can't be mocked. This test verifies the nil handling
-	// path. Full integration tests should cover the orchestrator path.
-	integration := &mockAutoSteerIntegration{}
+	integration := &mockAutoSteerIntegration{currentMode: "ux"}
 	provider := NewProfileProvider(integration)
 
-	mode, err := provider.GetCurrentMode("task-1")
+	task := &tasks.TaskItem{ID: "task-1"}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Fatalf("GetCurrentMode() error = %v", err)
 	}
-	// With nil orchestrator (returned by mock), returns empty
-	if mode != "" {
-		t.Errorf("GetCurrentMode() with nil orchestrator = %v, want empty", mode)
+	if mode != "ux" {
+		t.Errorf("GetCurrentMode() = %v, want ux", mode)
 	}
 }
 
 func TestProfileProvider_GetCurrentMode_NilIntegration(t *testing.T) {
 	provider := NewProfileProvider(nil)
 
-	mode, err := provider.GetCurrentMode("task-1")
+	task := &tasks.TaskItem{ID: "task-1"}
+
+	mode, err := provider.GetCurrentMode(task)
 	if err != nil {
 		t.Fatalf("GetCurrentMode() error = %v", err)
 	}
@@ -44,16 +44,16 @@ func TestProfileProvider_GetCurrentMode_NilIntegration(t *testing.T) {
 	}
 }
 
-func TestProfileProvider_GetCurrentMode_NilOrchestrator(t *testing.T) {
-	integration := &mockAutoSteerIntegration{}
+func TestProfileProvider_GetCurrentMode_NilTask(t *testing.T) {
+	integration := &mockAutoSteerIntegration{currentMode: "ux"}
 	provider := NewProfileProvider(integration)
 
-	mode, err := provider.GetCurrentMode("task-1")
+	mode, err := provider.GetCurrentMode(nil)
 	if err != nil {
 		t.Fatalf("GetCurrentMode() error = %v", err)
 	}
 	if mode != "" {
-		t.Errorf("GetCurrentMode() = %v, want empty for nil orchestrator", mode)
+		t.Errorf("GetCurrentMode() = %v, want empty for nil task", mode)
 	}
 }
 

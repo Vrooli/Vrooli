@@ -13,7 +13,7 @@ type SteeringProvider interface {
 
 	// GetCurrentMode returns the mode to use for the current execution.
 	// Returns empty string if the strategy has no mode to provide.
-	GetCurrentMode(taskID string) (autosteer.SteerMode, error)
+	GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error)
 
 	// EnhancePrompt generates the steering content to inject into the agent prompt.
 	// Returns nil if no enhancement is needed.

@@ -34,12 +34,12 @@ func (p *QueueProvider) Strategy() SteeringStrategy {
 }
 
 // GetCurrentMode returns the current mode from the queue.
-func (p *QueueProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, error) {
-	if p.stateRepo == nil {
+func (p *QueueProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+	if p.stateRepo == nil || task == nil {
 		return "", nil
 	}
 
-	state, err := p.stateRepo.Get(taskID)
+	state, err := p.stateRepo.Get(task.ID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get queue state: %w", err)
 	}
@@ -49,6 +49,15 @@ func (p *QueueProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, erro
 	}
 
 	return state.CurrentMode(), nil
+}
+
+// GetQueueState returns the current queue state for a task.
+// This is used for metadata enrichment to get actual queue position.
+func (p *QueueProvider) GetQueueState(taskID string) (*QueueState, error) {
+	if p.stateRepo == nil {
+		return nil, nil
+	}
+	return p.stateRepo.Get(taskID)
 }
 
 // EnhancePrompt generates a steering section for the current queue mode.

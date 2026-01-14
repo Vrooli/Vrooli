@@ -48,13 +48,11 @@ func (p *ProfileProvider) Strategy() SteeringStrategy {
 }
 
 // GetCurrentMode returns the current mode from the Auto Steer profile.
-func (p *ProfileProvider) GetCurrentMode(taskID string) (autosteer.SteerMode, error) {
-	// Note: This method doesn't have access to the task. The actual mode retrieval
-	// happens through the ExecutionOrchestrator with the task ID.
-	if p.integration == nil || p.integration.ExecutionOrchestrator() == nil {
+func (p *ProfileProvider) GetCurrentMode(task *tasks.TaskItem) (autosteer.SteerMode, error) {
+	if p.integration == nil || task == nil {
 		return "", nil
 	}
-	return p.integration.ExecutionOrchestrator().GetCurrentMode(taskID)
+	return p.integration.GetCurrentMode(task)
 }
 
 // EnhancePrompt delegates to AutoSteerIntegration for profile-based prompt enhancement.
