@@ -23,12 +23,13 @@ import (
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/performance"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/ai"
+	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
-	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -105,18 +106,24 @@ type Handler struct {
 	wsAllowedOrigins  []string
 
 	// Performance monitoring
-	perfRegistry *performance.CollectorRegistry
+	perfRegistry       *performance.CollectorRegistry
 	seedCleanupManager *testgenie.SeedCleanupManager
 
 	// AI subhandlers
-	screenshotHandler        *aihandlers.ScreenshotHandler
-	domHandler               *aihandlers.DOMHandler
-	elementAnalysisHandler   *aihandlers.ElementAnalysisHandler
-	aiAnalysisHandler        *aihandlers.AIAnalysisHandler
-	visionNavigationHandler  *aihandlers.VisionNavigationHandler
+	screenshotHandler       *aihandlers.ScreenshotHandler
+	domHandler              *aihandlers.DOMHandler
+	elementAnalysisHandler  *aihandlers.ElementAnalysisHandler
+	aiAnalysisHandler       *aihandlers.AIAnalysisHandler
+	visionNavigationHandler *aihandlers.VisionNavigationHandler
 
 	// Entitlement service for tier-based feature gating
 	entitlementService *entitlement.Service
+
+	// Credit service for unified usage tracking
+	creditService credits.CreditService
+
+	// AI client factory for per-request AI client creation
+	aiClientFactory *ai.AIClientFactory
 }
 
 // recordingUploadLimitBytes returns the configured maximum upload size for recording archives.
@@ -144,16 +151,18 @@ type HandlerDeps struct {
 	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	WorkflowValidator    *workflowvalidator.Validator
-	Storage              storage.StorageInterface
-	RecordingService     archiveingestion.IngestionServiceInterface
-	RecordModeService    RecordModeService // Live recording session management (interface for testability)
-	RecordingsRoot       string
-	ReplayRenderer       replayRenderer
-	SessionProfiles      *archiveingestion.SessionProfileStore
-	UXMetricsRepo        uxmetrics.Repository          // Optional: enables UX metrics collection
-	EntitlementService   *entitlement.Service          // Optional: enables tier-based feature gating
-	AICreditsTracker     *entitlement.AICreditsTracker // Optional: enables AI credits tracking
+	WorkflowValidator  *workflowvalidator.Validator
+	Storage            storage.StorageInterface
+	RecordingService   archiveingestion.IngestionServiceInterface
+	RecordModeService  RecordModeService // Live recording session management (interface for testability)
+	RecordingsRoot     string
+	ReplayRenderer     replayRenderer
+	SessionProfiles    *archiveingestion.SessionProfileStore
+	UXMetricsRepo      uxmetrics.Repository          // Optional: enables UX metrics collection
+	EntitlementService *entitlement.Service          // Optional: enables tier-based feature gating
+	AICreditsTracker   *entitlement.AICreditsTracker // Optional: enables AI credits tracking (deprecated, use CreditService)
+	CreditService      credits.CreditService         // Optional: enables unified credit tracking
+	AIClientFactory    *ai.AIClientFactory           // Optional: enables per-request AI client creation
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -167,7 +176,9 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 type DepsOptions struct {
 	UXMetricsRepo      uxmetrics.Repository
 	EntitlementService *entitlement.Service
-	AICreditsTracker   *entitlement.AICreditsTracker
+	AICreditsTracker   *entitlement.AICreditsTracker // Deprecated: use CreditService instead
+	CreditService      credits.CreditService         // Unified credit tracking
+	AIClientFactory    *ai.AIClientFactory           // Per-request AI client creation
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -264,6 +275,8 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		UXMetricsRepo:      opts.UXMetricsRepo,
 		EntitlementService: opts.EntitlementService,
 		AICreditsTracker:   opts.AICreditsTracker,
+		CreditService:      opts.CreditService,
+		AIClientFactory:    opts.AIClientFactory,
 	}
 }
 
@@ -313,6 +326,8 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		perfRegistry:       perfRegistry,
 		seedCleanupManager: seedCleanupManager,
 		entitlementService: deps.EntitlementService,
+		creditService:      deps.CreditService,
+		aiClientFactory:    deps.AIClientFactory,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
@@ -328,6 +343,9 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	}
 	if deps.EntitlementService != nil {
 		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlement(deps.EntitlementService, deps.AICreditsTracker))
+	}
+	if deps.CreditService != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))
 	}
 	handler.visionNavigationHandler = aihandlers.NewVisionNavigationHandler(log, visionNavOpts...)
 

@@ -15,7 +15,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/credits"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // Export errors
@@ -526,9 +529,29 @@ Return ONLY the caption text, nothing else.`,
 		}(),
 	)
 
-	// Call the AI service
-	aiClient := ai.NewOpenRouterClient(h.log)
-	caption, aiErr := aiClient.ExecutePrompt(ctx, prompt)
+	// Call the AI service using the factory if available (supports BYOK and credits)
+	var caption string
+	var aiErr error
+
+	if h.aiClientFactory != nil {
+		// Get user identity and BYOK key from context
+		userIdentity := entitlement.UserIdentityFromContext(ctx)
+		byokKey := middleware.BYOKKeyFromContext(ctx)
+
+		// Use factory to create client with proper credentials and operation type.
+		// The chain handles credit charging internally for the Vrooli provider.
+		aiClient := h.aiClientFactory.CreateClient(ai.ClientOptions{
+			UserIdentity:  userIdentity,
+			BYOKKey:       byokKey,
+			OperationType: credits.OpAICaptionGenerate,
+		})
+		caption, aiErr = aiClient.ExecutePrompt(ctx, prompt)
+	} else {
+		// Fallback to direct OpenRouter client (legacy path)
+		aiClient := ai.NewOpenRouterClient(h.log)
+		caption, aiErr = aiClient.ExecutePrompt(ctx, prompt)
+	}
+
 	if aiErr != nil {
 		h.log.WithError(aiErr).WithField("export_id", exportID).Error("Failed to generate AI caption")
 		// Return a fallback caption instead of erroring

@@ -179,16 +179,24 @@ export const GlobalExecutionsView: React.FC<GlobalExecutionsViewProps> = ({
     }
   }, []);
 
+  // Fetch once on mount
   useEffect(() => {
     fetchAllExecutions();
+  }, [fetchAllExecutions]);
 
-    // Poll for updates every 15 seconds
+  // Only poll when there are active executions (running/pending)
+  useEffect(() => {
+    const hasActiveExecutions = executions.some(
+      e => e.status === 'running' || e.status === 'pending'
+    );
+    if (!hasActiveExecutions) return;
+
     const interval = setInterval(() => {
       fetchAllExecutions(true);
     }, 15000);
 
     return () => clearInterval(interval);
-  }, [fetchAllExecutions]);
+  }, [fetchAllExecutions, executions]);
 
   // Filter executions
   const filteredExecutions = useMemo(() => {

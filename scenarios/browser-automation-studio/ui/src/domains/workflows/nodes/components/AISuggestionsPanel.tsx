@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import type { ElementInfo } from '@/types/elements';
 import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
+import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 
 export interface AISuggestionsPanelProps {
   /** Node ID for logging */
@@ -63,9 +64,7 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/ai-analyze-elements`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAIRequestHeadersSync(),
         body: JSON.stringify({ url: effectiveUrl, intent: trimmedIntent }),
       });
 

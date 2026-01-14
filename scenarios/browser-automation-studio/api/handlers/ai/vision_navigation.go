@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -39,13 +40,14 @@ type VisionNavigationHandler struct {
 	log              *logrus.Logger
 	driverBaseURL    string
 	entitlementSvc   *entitlement.Service
-	aiCreditsTracker *entitlement.AICreditsTracker
+	aiCreditsTracker *entitlement.AICreditsTracker // Deprecated: use creditService instead
+	creditService    credits.CreditService         // New unified credit service
 	wsHub            wsHub.HubInterface
 	httpClient       VisionHTTPDoer
 
 	// Track active navigations for status queries
-	mu                 sync.RWMutex
-	activeNavigations  map[string]*NavigationSession
+	mu                sync.RWMutex
+	activeNavigations map[string]*NavigationSession
 }
 
 // NavigationSession tracks an active navigation.
@@ -88,10 +90,18 @@ func WithVisionNavigationHub(hub wsHub.HubInterface) VisionNavigationHandlerOpti
 }
 
 // WithVisionNavigationEntitlement sets the entitlement service.
+// Deprecated: use WithVisionNavigationCreditService for unified credit tracking.
 func WithVisionNavigationEntitlement(svc *entitlement.Service, tracker *entitlement.AICreditsTracker) VisionNavigationHandlerOption {
 	return func(h *VisionNavigationHandler) {
 		h.entitlementSvc = svc
 		h.aiCreditsTracker = tracker
+	}
+}
+
+// WithVisionNavigationCreditService sets the unified credit service.
+func WithVisionNavigationCreditService(svc credits.CreditService) VisionNavigationHandlerOption {
+	return func(h *VisionNavigationHandler) {
+		h.creditService = svc
 	}
 }
 
@@ -146,20 +156,20 @@ type AINavigateResponse struct {
 
 // NavigationStepCallback is received from playwright-driver.
 type NavigationStepCallback struct {
-	NavigationID         string                 `json:"navigationId"`
-	StepNumber           int                    `json:"stepNumber"`
-	Action               map[string]interface{} `json:"action"`
-	Reasoning            string                 `json:"reasoning"`
-	Screenshot           string                 `json:"screenshot"` // base64
-	AnnotatedScreenshot  string                 `json:"annotatedScreenshot,omitempty"`
-	CurrentURL           string                 `json:"currentUrl"`
-	TokensUsed           TokenUsage             `json:"tokensUsed"`
-	DurationMs           int64                  `json:"durationMs"`
-	GoalAchieved         bool                   `json:"goalAchieved"`
-	Error                string                 `json:"error,omitempty"`
-	ElementLabels        []interface{}          `json:"elementLabels,omitempty"`
-	AwaitingHuman        bool                   `json:"awaitingHuman,omitempty"`
-	HumanIntervention    *HumanInterventionInfo `json:"humanIntervention,omitempty"`
+	NavigationID        string                 `json:"navigationId"`
+	StepNumber          int                    `json:"stepNumber"`
+	Action              map[string]interface{} `json:"action"`
+	Reasoning           string                 `json:"reasoning"`
+	Screenshot          string                 `json:"screenshot"` // base64
+	AnnotatedScreenshot string                 `json:"annotatedScreenshot,omitempty"`
+	CurrentURL          string                 `json:"currentUrl"`
+	TokensUsed          TokenUsage             `json:"tokensUsed"`
+	DurationMs          int64                  `json:"durationMs"`
+	GoalAchieved        bool                   `json:"goalAchieved"`
+	Error               string                 `json:"error,omitempty"`
+	ElementLabels       []interface{}          `json:"elementLabels,omitempty"`
+	AwaitingHuman       bool                   `json:"awaitingHuman,omitempty"`
+	HumanIntervention   *HumanInterventionInfo `json:"humanIntervention,omitempty"`
 }
 
 // NavigationCompleteCallback is received when navigation ends.
@@ -255,8 +265,22 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 			}
 		}
 
-		// Check AI credits if tracker is available
-		if h.aiCreditsTracker != nil {
+		// Check AI credits - prefer unified credit service over deprecated tracker
+		if h.creditService != nil && h.creditService.IsEnabled() {
+			canCharge, remaining, err := h.creditService.CanCharge(ctx, userID, credits.OpAIVisionNavigate)
+			if err != nil {
+				h.log.WithError(err).Warn("vision_navigation: failed to check credits")
+			} else if !canCharge {
+				RespondError(w, &APIError{
+					Status:  http.StatusPaymentRequired,
+					Code:    "INSUFFICIENT_CREDITS",
+					Message: fmt.Sprintf("Insufficient AI credits. Remaining: %d", remaining),
+					Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
+				})
+				return
+			}
+		} else if h.aiCreditsTracker != nil {
+			// Fallback to deprecated tracker
 			creditsLimit := h.entitlementSvc.GetAICreditsLimit(ent.Tier)
 			canUse, remaining, err := h.aiCreditsTracker.CanUseCredits(ctx, userID, creditsLimit)
 			if err != nil {
@@ -476,16 +500,29 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	}
 	h.mu.Unlock()
 
-	// Charge credits if tracker is available
-	if h.aiCreditsTracker != nil && session != nil {
-		// Calculate credit cost based on tokens
-		// Simple model: 1 credit per 1000 tokens (configurable)
-		credits := (event.TokensUsed.TotalTokens + 999) / 1000
-		if credits < 1 {
-			credits = 1
+	// Charge credits per step - prefer unified credit service
+	if h.creditService != nil && h.creditService.IsEnabled() && session != nil {
+		// Charge using unified credit service (operation cost configured centrally)
+		_, err := h.creditService.Charge(ctx, credits.ChargeRequest{
+			UserIdentity: session.UserID,
+			Operation:    credits.OpAIVisionNavigate,
+			Metadata: credits.ChargeMetadata{
+				Model:            session.Model,
+				PromptTokens:     event.TokensUsed.PromptTokens,
+				CompletionTokens: event.TokensUsed.CompletionTokens,
+			},
+		})
+		if err != nil {
+			h.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
+		}
+	} else if h.aiCreditsTracker != nil && session != nil {
+		// Fallback to deprecated tracker: calculate credit cost based on tokens
+		tokenCredits := (event.TokensUsed.TotalTokens + 999) / 1000
+		if tokenCredits < 1 {
+			tokenCredits = 1
 		}
 
-		err := h.aiCreditsTracker.ChargeCredits(ctx, session.UserID, credits, "vision_navigation", session.Model)
+		err := h.aiCreditsTracker.ChargeCredits(ctx, session.UserID, tokenCredits, "vision_navigation", session.Model)
 		if err != nil {
 			h.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
 		}
@@ -517,13 +554,13 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 		if event.AwaitingHuman && event.HumanIntervention != nil {
 			humanEvent := map[string]interface{}{
 				"type":             "ai_navigation_awaiting_human",
-				"navigationId":    event.NavigationID,
-				"sessionId":       session.SessionID,
-				"stepNumber":      event.StepNumber,
-				"reason":          event.HumanIntervention.Reason,
+				"navigationId":     event.NavigationID,
+				"sessionId":        session.SessionID,
+				"stepNumber":       event.StepNumber,
+				"reason":           event.HumanIntervention.Reason,
 				"interventionType": event.HumanIntervention.InterventionType,
-				"trigger":         event.HumanIntervention.Trigger,
-				"timestamp":       time.Now().UTC().Format(time.RFC3339),
+				"trigger":          event.HumanIntervention.Trigger,
+				"timestamp":        time.Now().UTC().Format(time.RFC3339),
 			}
 			if event.HumanIntervention.Instructions != "" {
 				humanEvent["instructions"] = event.HumanIntervention.Instructions

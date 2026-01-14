@@ -19,6 +19,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/internal/typeconv"
+	"github.com/vrooli/browser-automation-studio/services/credits"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/websocket"
@@ -107,6 +109,23 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_workflow", "error": err.Error()}))
 		return
+	}
+
+	// Charge credits for execution (only when credit service is enabled)
+	if h.creditService != nil && h.creditService.IsEnabled() {
+		userIdentity := entitlement.UserIdentityFromContext(ctx)
+		_, chargeErr := h.creditService.Charge(ctx, credits.ChargeRequest{
+			UserIdentity: userIdentity,
+			Operation:    credits.OpExecutionRun,
+			Metadata: credits.ChargeMetadata{
+				WorkflowID:  req.WorkflowId,
+				ExecutionID: resp.GetExecutionId(),
+			},
+		})
+		if chargeErr != nil {
+			// Log but don't fail the request - execution already started
+			h.log.WithError(chargeErr).WithField("execution_id", resp.GetExecutionId()).Warn("Failed to charge credits for execution")
+		}
 	}
 
 	if seedPlan != nil {
@@ -207,6 +226,22 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		}
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "execute_adhoc", "error": err.Error()}))
 		return
+	}
+
+	// Charge credits for adhoc execution (only when credit service is enabled)
+	if h.creditService != nil && h.creditService.IsEnabled() {
+		userIdentity := entitlement.UserIdentityFromContext(ctx)
+		_, chargeErr := h.creditService.Charge(ctx, credits.ChargeRequest{
+			UserIdentity: userIdentity,
+			Operation:    credits.OpExecutionRun,
+			Metadata: credits.ChargeMetadata{
+				ExecutionID: resp.GetExecutionId(),
+			},
+		})
+		if chargeErr != nil {
+			// Log but don't fail the request - execution already started
+			h.log.WithError(chargeErr).WithField("execution_id", resp.GetExecutionId()).Warn("Failed to charge credits for adhoc execution")
+		}
 	}
 
 	if seedPlan != nil {

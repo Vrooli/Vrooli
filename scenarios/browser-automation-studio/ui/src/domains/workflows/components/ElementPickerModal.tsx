@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useId } from 'react';
 import { logger } from '@utils/logger';
 import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import { getConfig } from '@/config';
+import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
 import type { ElementInfo, ElementHierarchyEntry, ElementCoordinateResponse } from '@/types/elements';
@@ -291,12 +292,10 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/ai-analyze-elements`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          url, 
-          intent: userIntent.trim() 
+        headers: getAIRequestHeadersSync(),
+        body: JSON.stringify({
+          url,
+          intent: userIntent.trim()
         }),
       });
 

@@ -430,6 +430,69 @@ CREATE INDEX IF NOT EXISTS idx_ai_log_user ON ai_request_log(user_identity);
 CREATE INDEX IF NOT EXISTS idx_ai_log_created ON ai_request_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_log_type ON ai_request_log(request_type);
 
+-- =============================================================================
+-- UNIFIED CREDIT SYSTEM TABLES
+-- These tables replace entitlement_usage and ai_credits_usage with a unified
+-- credit pool model. All operations (AI, executions, exports) draw from one pool.
+-- =============================================================================
+
+-- Unified Credit Usage Tracking
+-- Tracks credit usage per user per billing month with operation type breakdown
+CREATE TABLE IF NOT EXISTS credit_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
+
+    -- Single unified credit pool totals
+    total_credits_used INTEGER NOT NULL DEFAULT 0,
+    total_operations INTEGER NOT NULL DEFAULT 0,
+
+    -- Breakdown by operation type for analytics/UI display
+    -- Format: {"ai.workflow_generate": 15, "execution.run": 42}
+    credits_by_operation JSONB NOT NULL DEFAULT '{}',
+    operations_by_type JSONB NOT NULL DEFAULT '{}',
+
+    last_operation_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_credit_user_month UNIQUE (user_identity, billing_month)
+);
+
+-- Create indexes for credit usage lookups
+CREATE INDEX IF NOT EXISTS idx_credit_usage_user ON credit_usage(user_identity);
+CREATE INDEX IF NOT EXISTS idx_credit_usage_month ON credit_usage(billing_month);
+
+-- Unified Operation Log
+-- Detailed audit log for all credit-consuming operations
+CREATE TABLE IF NOT EXISTS operation_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,  -- e.g., 'ai.workflow_generate', 'execution.run'
+    credits_charged INTEGER NOT NULL DEFAULT 0,
+    success BOOLEAN NOT NULL DEFAULT true,
+
+    -- Flexible metadata for operation-specific details
+    metadata JSONB DEFAULT '{}',
+
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for operation log
+CREATE INDEX IF NOT EXISTS idx_operation_log_user ON operation_log(user_identity);
+CREATE INDEX IF NOT EXISTS idx_operation_log_type ON operation_log(operation_type);
+CREATE INDEX IF NOT EXISTS idx_operation_log_created ON operation_log(created_at);
+
+-- Trigger to update updated_at for credit_usage
+CREATE TRIGGER update_credit_usage_updated_at BEFORE UPDATE ON credit_usage
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- =============================================================================
+-- END UNIFIED CREDIT SYSTEM TABLES
+-- =============================================================================
+
 -- Trigger to update updated_at for ai_credits_usage
 CREATE TRIGGER update_ai_credits_usage_updated_at BEFORE UPDATE ON ai_credits_usage
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -11,6 +11,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getApiBase } from '@/config';
 import { useWebSocket } from '@/contexts/WebSocketContext';
+import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 import type {
   AINavigateRequest,
   AINavigateResponse,
@@ -240,7 +241,7 @@ export function useAINavigation({
 
         const response = await fetch(`${apiUrl}/ai-navigate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAIRequestHeadersSync(),
           body: JSON.stringify({
             session_id: request.sessionId,
             prompt: request.prompt,

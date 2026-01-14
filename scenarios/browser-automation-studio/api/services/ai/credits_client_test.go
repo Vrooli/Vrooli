@@ -36,11 +36,11 @@ func (m *mockAIClient) Model() string {
 // ============================================================================
 
 type mockEntitlementService struct {
-	enabled       bool
-	tier          entitlement.Tier
-	creditsLimit  int
-	canUseAI      bool
-	entitlements  map[string]*entitlement.Entitlement
+	enabled      bool
+	tier         entitlement.Tier
+	creditsLimit int
+	canUseAI     bool
+	entitlements map[string]*entitlement.Entitlement
 }
 
 func newMockEntitlementService() *mockEntitlementService {
@@ -145,7 +145,6 @@ func TestCreditsClient_ExecutePrompt_Success(t *testing.T) {
 
 	ctx := context.Background()
 	response, err := client.ExecutePrompt(ctx, "test prompt")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -183,7 +182,6 @@ func TestCreditsClient_ExecutePrompt_EntitlementsDisabled(t *testing.T) {
 
 	ctx := context.Background()
 	response, err := client.ExecutePrompt(ctx, "test prompt")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -217,7 +215,6 @@ func TestCreditsClient_ExecutePrompt_NoUserIdentity(t *testing.T) {
 
 	ctx := context.Background()
 	response, err := client.ExecutePrompt(ctx, "test prompt")
-
 	// Should succeed without user identity (skip credits check)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -329,7 +326,6 @@ func TestCreditsClient_ExecutePromptWithType(t *testing.T) {
 
 	ctx := context.Background()
 	response, err := client.ExecutePromptWithType(ctx, "test prompt", "element_analyze")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

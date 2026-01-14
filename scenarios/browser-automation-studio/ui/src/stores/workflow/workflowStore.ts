@@ -12,6 +12,7 @@ import {
 import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { parseProtoStrict } from '../../utils/proto';
+import { getAIRequestHeadersSync } from '../../utils/apiHeaders';
 
 // Import types
 import type {
@@ -457,9 +458,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/workflows/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAIRequestHeadersSync(),
         body: JSON.stringify({
           project_id: projectId,
           name,
@@ -495,9 +494,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}/modify`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAIRequestHeadersSync(),
         body: JSON.stringify({
           modification_prompt: prompt,
           current_flow: { nodes, edges }

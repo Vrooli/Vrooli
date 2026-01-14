@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,6 +22,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/handlers"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
+	"github.com/vrooli/browser-automation-studio/services/ai"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/recovery"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
@@ -35,6 +38,10 @@ import (
 	importscan "github.com/vrooli/browser-automation-studio/usecases/import/scan"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+
+	// Tool Discovery Protocol
+	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
+	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
 )
 
 const globalRequestTimeout = 15 * time.Minute
@@ -138,6 +145,7 @@ func main() {
 	aiCreditsTracker := entitlement.NewAICreditsTracker(db.RawDB(), log)
 	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, aiCreditsTracker, repo)
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
+	byokMiddleware := middleware.NewBYOKMiddleware()
 
 	if cfg.Entitlement.Enabled {
 		log.WithFields(logrus.Fields{
@@ -149,6 +157,37 @@ func main() {
 	} else {
 		log.Info("⚠️  Entitlement system disabled - all features available without restrictions")
 	}
+
+	// Initialize unified credits service
+	creditService := credits.NewService(credits.ServiceOptions{
+		DB:             db.RawDB(),
+		Logger:         log,
+		EntitlementSvc: entitlementSvc,
+		Enabled:        cfg.Credits.Enabled,
+	})
+	if cfg.Credits.Enabled {
+		log.Info("✅ Unified credits service enabled")
+	}
+
+	// Initialize AI provider chain and factory
+	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
+		Logger:        log,
+		CreditService: creditService,
+		EnableBYOK:    cfg.AIProvider.EnableBYOK,
+		EnableVrooli:  cfg.AIProvider.EnableVrooliAPI,
+		EnableDevMode: cfg.AIProvider.EnableDevMode,
+		VrooliAPIURL:  cfg.AIProvider.VrooliAPIURL,
+		DefaultModel:  cfg.AIProvider.DefaultModel,
+	})
+	aiClientFactory := ai.NewAIClientFactory(ai.AIClientFactoryOptions{
+		Chain:  aiProviderChain,
+		Logger: log,
+	})
+	log.WithFields(logrus.Fields{
+		"byok_enabled":     cfg.AIProvider.EnableBYOK,
+		"vrooli_enabled":   cfg.AIProvider.EnableVrooliAPI,
+		"dev_mode_enabled": cfg.AIProvider.EnableDevMode,
+	}).Info("✅ AI provider chain initialized")
 
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
 	uxRepo := uxrepository.NewPostgresRepository(db.DB)
@@ -163,6 +202,8 @@ func main() {
 		UXMetricsRepo:      uxRepo,
 		EntitlementService: entitlementSvc,
 		AICreditsTracker:   aiCreditsTracker,
+		CreditService:      creditService,
+		AIClientFactory:    aiClientFactory,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
@@ -181,6 +222,27 @@ func main() {
 	// Wire up WebSocket input forwarding for low-latency input events
 	// This allows the UI to send input via WebSocket instead of HTTP POST
 	hub.SetInputForwarder(handler.CreateInputForwarder())
+
+	// Initialize Tool Discovery Protocol
+	// This enables AI agents (via agent-inbox) to discover and execute BAS tools
+	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "browser-automation-studio",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Browser automation and workflow execution engine for web testing and automation",
+	})
+	// Register all tool providers (Tiers 1-4)
+	toolRegistry.RegisterProvider(toolregistry.NewWorkflowToolProvider())   // Tier 1: Workflow execution
+	toolRegistry.RegisterProvider(toolregistry.NewProjectToolProvider())    // Tier 2: Project management
+	toolRegistry.RegisterProvider(toolregistry.NewRecordingToolProvider())  // Tier 3: Recording sessions
+	toolRegistry.RegisterProvider(toolregistry.NewAIToolProvider())         // Tier 4: AI capabilities
+
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		CatalogService:   deps.CatalogService,
+		ExecutionService: deps.ExecutionService,
+		Repository:       repo,
+	})
+	toolHandler := toolexecution.NewHandler(toolExecutor)
+	log.WithField("tool_count", len(toolRegistry.ListToolNames(context.Background()))).Info("✅ Tool Discovery Protocol initialized")
 
 	// Initialize playwright-driver sidecar management
 	// This enables automatic restart on crashes, health monitoring, and recording recovery
@@ -239,6 +301,9 @@ func main() {
 
 	// Entitlement middleware - injects user identity and entitlement into context
 	r.Use(entitlementMiddleware.InjectEntitlement)
+
+	// BYOK middleware - extracts OpenRouter API key from request header for AI requests
+	r.Use(byokMiddleware.InjectBYOKKey)
 
 	// Routes
 	// Health endpoint using api-core/health for standardized response format
@@ -322,6 +387,18 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
+
+		// Tool Discovery Protocol endpoints
+		// GET /api/v1/tools - Returns the tool manifest for agent-inbox discovery
+		r.Get("/tools", func(w http.ResponseWriter, req *http.Request) {
+			manifest := toolRegistry.GetManifest(req.Context())
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			json.NewEncoder(w).Encode(manifest)
+		})
+		// POST /api/v1/tools/execute - Executes a tool
+		r.Post("/tools/execute", toolHandler.Execute)
+
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
 		r.Get("/projects", handler.ListProjects)

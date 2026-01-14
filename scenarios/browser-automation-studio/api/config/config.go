@@ -86,6 +86,12 @@ type Config struct {
 	// Performance controls debug performance mode for frame streaming diagnostics.
 	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
 	Performance PerformanceConfig
+
+	// Credits controls the unified credit system for metered operations.
+	Credits CreditsConfig
+
+	// AIProvider controls the AI provider fallback chain configuration.
+	AIProvider AIProviderConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -570,6 +576,54 @@ type PerformanceConfig struct {
 	StreamToWebSocket bool
 }
 
+// CreditsConfig controls the unified credit system for metered operations.
+// This provides configurable costs per operation type for the CreditService.
+type CreditsConfig struct {
+	// Enabled controls whether credit tracking is active.
+	// When false, all operations are allowed without charging (development mode).
+	// Typically mirrors EntitlementConfig.Enabled.
+	// Env: BAS_CREDITS_ENABLED (default: false, uses BAS_ENTITLEMENT_ENABLED if not set)
+	Enabled bool
+
+	// OperationCosts defines the credit cost per operation type.
+	// Parsed from JSON: {"ai_workflow_generate": 1, "ai_vision_navigate": 2, ...}
+	// Env: BAS_CREDITS_OPERATION_COSTS_JSON
+	OperationCosts map[string]int
+}
+
+// AIProviderConfig controls the AI provider fallback chain.
+// The chain tries providers in order: BYOK → VrooliAPI → DevMode → Block
+type AIProviderConfig struct {
+	// EnableBYOK allows users to provide their own OpenRouter keys via header.
+	// When true, requests with X-BYOK-OpenRouter-Key header use the user's key.
+	// Env: BAS_AI_ENABLE_BYOK (default: true)
+	EnableBYOK bool
+
+	// EnableVrooliAPI enables the Vrooli external AI API (when available).
+	// This is the paid tier that charges credits.
+	// Env: BAS_AI_ENABLE_VROOLI_API (default: true)
+	EnableVrooliAPI bool
+
+	// EnableDevMode enables the dev mode fallback using resource-openrouter.
+	// This is always available if the resource is installed locally.
+	// Env: BAS_AI_ENABLE_DEV_MODE (default: true)
+	EnableDevMode bool
+
+	// BYOKValidationTTL is how long to cache BYOK key validation results.
+	// Tradeoff: Higher = fewer validation calls, slower to detect revoked keys.
+	// Env: BAS_AI_BYOK_VALIDATION_TTL_MS (default: 300000, 5 minutes)
+	BYOKValidationTTL time.Duration
+
+	// VrooliAPIURL is the URL for Vrooli's external AI service.
+	// Placeholder for now - returns unavailable until service is built.
+	// Env: BAS_AI_VROOLI_API_URL (default: "")
+	VrooliAPIURL string
+
+	// DefaultModel is the AI model to use when not specified.
+	// Env: BAS_AI_DEFAULT_MODEL (default: "openai/gpt-4o-mini")
+	DefaultModel string
+}
+
 var (
 	globalConfig *Config
 	configOnce   sync.Once
@@ -707,6 +761,18 @@ func loadFromEnv() *Config {
 			ExposeEndpoint:     parseBool("BAS_PERF_EXPOSE_ENDPOINT", true),
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
+		},
+		Credits: CreditsConfig{
+			Enabled:        parseCreditsEnabled(),
+			OperationCosts: parseOperationCosts("BAS_CREDITS_OPERATION_COSTS_JSON"),
+		},
+		AIProvider: AIProviderConfig{
+			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
+			EnableVrooliAPI:   parseBool("BAS_AI_ENABLE_VROOLI_API", true),
+			EnableDevMode:     parseBool("BAS_AI_ENABLE_DEV_MODE", true),
+			BYOKValidationTTL: parseDurationMs("BAS_AI_BYOK_VALIDATION_TTL_MS", 300000),
+			VrooliAPIURL:      parseString("BAS_AI_VROOLI_API_URL", ""),
+			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", "openai/gpt-4o-mini"),
 		},
 	}
 }
@@ -1023,6 +1089,72 @@ func parseAICreditsLimits(envVar string) map[string]int {
 		"pro":      500,  // Power users
 		"studio":   2000, // Teams
 		"business": -1,   // Unlimited
+	}
+
+	value := strings.TrimSpace(os.Getenv(envVar))
+	if value == "" {
+		return defaults
+	}
+
+	// Try to parse as JSON
+	result := make(map[string]int)
+	value = strings.Trim(value, "{}")
+	if value == "" {
+		return defaults
+	}
+
+	pairs := strings.Split(value, ",")
+	for _, pair := range pairs {
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
+		valStr := strings.TrimSpace(parts[1])
+		if val, err := strconv.Atoi(valStr); err == nil {
+			result[key] = val
+		}
+	}
+
+	// Merge with defaults (defaults take precedence for missing keys)
+	for k, v := range defaults {
+		if _, exists := result[k]; !exists {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
+// parseCreditsEnabled determines if credits are enabled.
+// Defaults to BAS_ENTITLEMENT_ENABLED if BAS_CREDITS_ENABLED is not set.
+func parseCreditsEnabled() bool {
+	// Check for explicit credits setting first
+	if value := strings.TrimSpace(os.Getenv("BAS_CREDITS_ENABLED")); value != "" {
+		return strings.ToLower(value) == "true" || value == "1"
+	}
+	// Fall back to entitlement enabled
+	return parseBool("BAS_ENTITLEMENT_ENABLED", false)
+}
+
+// parseOperationCosts parses operation costs from JSON or returns defaults.
+// JSON format: {"ai_workflow_generate": 1, "ai_vision_navigate": 2, "execution_run": 1, ...}
+func parseOperationCosts(envVar string) map[string]int {
+	defaults := map[string]int{
+		// AI operations
+		"ai_workflow_generate": 1,
+		"ai_workflow_modify":   1,
+		"ai_element_analyze":   1,
+		"ai_vision_navigate":   2, // Vision is more expensive
+		"ai_caption_generate":  1,
+		// Execution operations
+		"execution_run":       1,
+		"execution_scheduled": 1,
+		// Export operations (free)
+		"export_video": 0,
+		"export_gif":   0,
+		"export_html":  0,
+		"export_json":  0,
 	}
 
 	value := strings.TrimSpace(os.Getenv(envVar))
