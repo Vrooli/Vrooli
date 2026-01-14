@@ -284,22 +284,6 @@ INSERT INTO workflow_folders (path, name, description) VALUES
     ('/monitoring', 'Monitoring', 'Website and application monitoring workflows')
 ON CONFLICT (path) DO NOTHING;
 
--- Entitlement usage tracking table
--- Tracks workflow execution counts per user per billing month for tier limit enforcement
-CREATE TABLE IF NOT EXISTS entitlement_usage (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_identity VARCHAR(255) NOT NULL,
-    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
-    execution_count INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_user_month UNIQUE (user_identity, billing_month)
-);
-
--- Create indexes for entitlement usage lookups
-CREATE INDEX idx_entitlement_usage_user ON entitlement_usage(user_identity);
-CREATE INDEX idx_entitlement_usage_month ON entitlement_usage(billing_month);
-
 -- User identity storage table
 -- Stores the user's email for entitlement verification
 -- This is persisted locally so the user doesn't have to re-enter it
@@ -392,48 +376,9 @@ INSERT INTO workflow_templates (name, category, description, flow_definition, ic
      'database', ARRAY['scraping', 'data', 'extraction'])
 ON CONFLICT (name) DO NOTHING;
 
--- AI Credits Usage Tracking
--- Tracks AI credit usage per user per billing month for tier limit enforcement
-CREATE TABLE IF NOT EXISTS ai_credits_usage (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_identity VARCHAR(255) NOT NULL,
-    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
-    credits_used INTEGER NOT NULL DEFAULT 0,
-    requests_count INTEGER NOT NULL DEFAULT 0,
-    last_request_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT unique_ai_user_month UNIQUE (user_identity, billing_month)
-);
-
--- Create indexes for AI credits usage lookups
-CREATE INDEX IF NOT EXISTS idx_ai_credits_user ON ai_credits_usage(user_identity);
-CREATE INDEX IF NOT EXISTS idx_ai_credits_month ON ai_credits_usage(billing_month);
-
--- AI Request Log (for detailed tracking and debugging)
-CREATE TABLE IF NOT EXISTS ai_request_log (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_identity VARCHAR(255) NOT NULL,
-    request_type VARCHAR(50) NOT NULL,  -- 'workflow_generate', 'element_analyze', etc.
-    model VARCHAR(100),
-    prompt_tokens INTEGER,
-    completion_tokens INTEGER,
-    credits_charged INTEGER NOT NULL DEFAULT 1,
-    success BOOLEAN NOT NULL DEFAULT true,
-    error_message TEXT,
-    duration_ms INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create indexes for AI request log
-CREATE INDEX IF NOT EXISTS idx_ai_log_user ON ai_request_log(user_identity);
-CREATE INDEX IF NOT EXISTS idx_ai_log_created ON ai_request_log(created_at);
-CREATE INDEX IF NOT EXISTS idx_ai_log_type ON ai_request_log(request_type);
-
 -- =============================================================================
 -- UNIFIED CREDIT SYSTEM TABLES
--- These tables replace entitlement_usage and ai_credits_usage with a unified
--- credit pool model. All operations (AI, executions, exports) draw from one pool.
+-- Single credit pool model for all operations (AI, executions, exports).
 -- =============================================================================
 
 -- Unified Credit Usage Tracking
@@ -492,10 +437,6 @@ CREATE TRIGGER update_credit_usage_updated_at BEFORE UPDATE ON credit_usage
 -- =============================================================================
 -- END UNIFIED CREDIT SYSTEM TABLES
 -- =============================================================================
-
--- Trigger to update updated_at for ai_credits_usage
-CREATE TRIGGER update_ai_credits_usage_updated_at BEFORE UPDATE ON ai_credits_usage
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_app_user;

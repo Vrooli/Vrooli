@@ -158,11 +158,10 @@ type HandlerDeps struct {
 	RecordingsRoot     string
 	ReplayRenderer     replayRenderer
 	SessionProfiles    *archiveingestion.SessionProfileStore
-	UXMetricsRepo      uxmetrics.Repository          // Optional: enables UX metrics collection
-	EntitlementService *entitlement.Service          // Optional: enables tier-based feature gating
-	AICreditsTracker   *entitlement.AICreditsTracker // Optional: enables AI credits tracking (deprecated, use CreditService)
-	CreditService      credits.CreditService         // Optional: enables unified credit tracking
-	AIClientFactory    *ai.AIClientFactory           // Optional: enables per-request AI client creation
+	UXMetricsRepo      uxmetrics.Repository  // Optional: enables UX metrics collection
+	EntitlementService *entitlement.Service  // Optional: enables tier-based feature gating
+	CreditService      credits.CreditService // Optional: enables unified credit tracking
+	AIClientFactory    *ai.AIClientFactory   // Optional: enables per-request AI client creation
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -176,9 +175,8 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 type DepsOptions struct {
 	UXMetricsRepo      uxmetrics.Repository
 	EntitlementService *entitlement.Service
-	AICreditsTracker   *entitlement.AICreditsTracker // Deprecated: use CreditService instead
-	CreditService      credits.CreditService         // Unified credit tracking
-	AIClientFactory    *ai.AIClientFactory           // Per-request AI client creation
+	CreditService      credits.CreditService // Unified credit tracking
+	AIClientFactory    *ai.AIClientFactory   // Per-request AI client creation
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -220,18 +218,9 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		log.Debug("UX metrics collector enabled in event pipeline")
 	}
 
-	// Create AI client - wrap with credits tracking if entitlement services are available
+	// Create base AI client for workflow service
+	// Note: For credit-tracked AI operations, use AIClientFactory instead
 	var aiClient ai.AIClient = ai.NewOpenRouterClient(log)
-	if opts.EntitlementService != nil && opts.AICreditsTracker != nil {
-		aiClient = ai.NewCreditsClient(ai.CreditsClientOptions{
-			Inner:            aiClient,
-			EntitlementSvc:   opts.EntitlementService,
-			AICreditsTracker: opts.AICreditsTracker,
-			Logger:           log,
-			UserIdentityFn:   entitlement.UserIdentityFromContext,
-		})
-		log.Debug("AI credits tracking enabled")
-	}
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
@@ -274,7 +263,6 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		SessionProfiles:    sessionProfiles,
 		UXMetricsRepo:      opts.UXMetricsRepo,
 		EntitlementService: opts.EntitlementService,
-		AICreditsTracker:   opts.AICreditsTracker,
 		CreditService:      opts.CreditService,
 		AIClientFactory:    opts.AIClientFactory,
 	}
@@ -337,12 +325,12 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log)
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler)
 
-	// Initialize vision navigation handler with optional entitlement/credits
+	// Initialize vision navigation handler with optional credit service
 	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{
 		aihandlers.WithVisionNavigationHub(wsHub),
 	}
 	if deps.EntitlementService != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlement(deps.EntitlementService, deps.AICreditsTracker))
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlementService(deps.EntitlementService))
 	}
 	if deps.CreditService != nil {
 		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))

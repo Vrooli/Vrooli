@@ -37,13 +37,12 @@ type VisionHTTPDoer interface {
 
 // VisionNavigationHandler handles AI-powered vision navigation.
 type VisionNavigationHandler struct {
-	log              *logrus.Logger
-	driverBaseURL    string
-	entitlementSvc   *entitlement.Service
-	aiCreditsTracker *entitlement.AICreditsTracker // Deprecated: use creditService instead
-	creditService    credits.CreditService         // New unified credit service
-	wsHub            wsHub.HubInterface
-	httpClient       VisionHTTPDoer
+	log            *logrus.Logger
+	driverBaseURL  string
+	entitlementSvc *entitlement.Service
+	creditService  credits.CreditService // Unified credit service
+	wsHub          wsHub.HubInterface
+	httpClient     VisionHTTPDoer
 
 	// Track active navigations for status queries
 	mu                sync.RWMutex
@@ -89,12 +88,10 @@ func WithVisionNavigationHub(hub wsHub.HubInterface) VisionNavigationHandlerOpti
 	}
 }
 
-// WithVisionNavigationEntitlement sets the entitlement service.
-// Deprecated: use WithVisionNavigationCreditService for unified credit tracking.
-func WithVisionNavigationEntitlement(svc *entitlement.Service, tracker *entitlement.AICreditsTracker) VisionNavigationHandlerOption {
+// WithVisionNavigationEntitlementService sets the entitlement service for tier checking.
+func WithVisionNavigationEntitlementService(svc *entitlement.Service) VisionNavigationHandlerOption {
 	return func(h *VisionNavigationHandler) {
 		h.entitlementSvc = svc
-		h.aiCreditsTracker = tracker
 	}
 }
 
@@ -265,27 +262,12 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 			}
 		}
 
-		// Check AI credits - prefer unified credit service over deprecated tracker
+		// Check AI credits
 		if h.creditService != nil && h.creditService.IsEnabled() {
 			canCharge, remaining, err := h.creditService.CanCharge(ctx, userID, credits.OpAIVisionNavigate)
 			if err != nil {
 				h.log.WithError(err).Warn("vision_navigation: failed to check credits")
 			} else if !canCharge {
-				RespondError(w, &APIError{
-					Status:  http.StatusPaymentRequired,
-					Code:    "INSUFFICIENT_CREDITS",
-					Message: fmt.Sprintf("Insufficient AI credits. Remaining: %d", remaining),
-					Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
-				})
-				return
-			}
-		} else if h.aiCreditsTracker != nil {
-			// Fallback to deprecated tracker
-			creditsLimit := h.entitlementSvc.GetAICreditsLimit(ent.Tier)
-			canUse, remaining, err := h.aiCreditsTracker.CanUseCredits(ctx, userID, creditsLimit)
-			if err != nil {
-				h.log.WithError(err).Warn("vision_navigation: failed to check credits")
-			} else if !canUse {
 				RespondError(w, &APIError{
 					Status:  http.StatusPaymentRequired,
 					Code:    "INSUFFICIENT_CREDITS",
@@ -500,9 +482,8 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	}
 	h.mu.Unlock()
 
-	// Charge credits per step - prefer unified credit service
+	// Charge credits per step
 	if h.creditService != nil && h.creditService.IsEnabled() && session != nil {
-		// Charge using unified credit service (operation cost configured centrally)
 		_, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: session.UserID,
 			Operation:    credits.OpAIVisionNavigate,
@@ -512,17 +493,6 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 				CompletionTokens: event.TokensUsed.CompletionTokens,
 			},
 		})
-		if err != nil {
-			h.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
-		}
-	} else if h.aiCreditsTracker != nil && session != nil {
-		// Fallback to deprecated tracker: calculate credit cost based on tokens
-		tokenCredits := (event.TokensUsed.TotalTokens + 999) / 1000
-		if tokenCredits < 1 {
-			tokenCredits = 1
-		}
-
-		err := h.aiCreditsTracker.ChargeCredits(ctx, session.UserID, tokenCredits, "vision_navigation", session.Model)
 		if err != nil {
 			h.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
 		}

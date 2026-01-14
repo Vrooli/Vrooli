@@ -7,15 +7,15 @@ import (
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/constants"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // EntitlementHandler provides HTTP handlers for entitlement operations.
 type EntitlementHandler struct {
-	service          *entitlement.Service
-	usageTracker     *entitlement.UsageTracker
-	aiCreditsTracker *entitlement.AICreditsTracker
-	settingsRepo     UserSettingsRepository
+	service       *entitlement.Service
+	creditService credits.CreditService
+	settingsRepo  UserSettingsRepository
 }
 
 // UserSettingsRepository defines the interface for user settings storage.
@@ -27,15 +27,13 @@ type UserSettingsRepository interface {
 // NewEntitlementHandler creates a new entitlement handler.
 func NewEntitlementHandler(
 	service *entitlement.Service,
-	usageTracker *entitlement.UsageTracker,
-	aiCreditsTracker *entitlement.AICreditsTracker,
+	creditService credits.CreditService,
 	settingsRepo UserSettingsRepository,
 ) *EntitlementHandler {
 	return &EntitlementHandler{
-		service:          service,
-		usageTracker:     usageTracker,
-		aiCreditsTracker: aiCreditsTracker,
-		settingsRepo:     settingsRepo,
+		service:       service,
+		creditService: creditService,
+		settingsRepo:  settingsRepo,
 	}
 }
 
@@ -112,34 +110,48 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
-	// Get usage count
-	usedCount := 0
-	if h.usageTracker != nil && userIdentity != "" {
-		if count, err := h.usageTracker.GetMonthlyExecutionCount(ctx, userIdentity); err == nil {
-			usedCount = count
+	// Get unified usage from CreditService
+	var usage *credits.UsageSummary
+	if h.creditService != nil && userIdentity != "" {
+		var err error
+		usage, err = h.creditService.GetUsage(ctx, userIdentity)
+		if err != nil {
+			// Log but don't fail - use defaults
+			usage = nil
 		}
 	}
 
-	// Calculate limits
-	monthlyLimit := h.service.GetRemainingExecutions(ctx, userIdentity, 0)
-	if overrideActive {
-		monthlyLimit = h.service.TierLimit(ent.Tier)
-	}
-	if monthlyLimit == -1 {
-		monthlyLimit = -1 // Keep as unlimited
-	} else if !overrideActive {
-		monthlyLimit = h.service.GetRemainingExecutions(ctx, userIdentity, 0)
-		// Recalculate since GetRemainingExecutions returns remaining, not limit
-		monthlyLimit = usedCount + h.service.GetRemainingExecutions(ctx, userIdentity, usedCount)
-	}
-	if monthlyLimit < 0 {
-		monthlyLimit = -1 // Normalize to -1 for unlimited
+	// Extract usage values (unified credit pool)
+	usedCount := 0
+	monthlyLimit := h.service.GetAICreditsLimit(ent.Tier) // Use AI credits limit as the unified limit
+	remaining := monthlyLimit
+	aiCreditsUsed := 0
+	aiRequestsCount := 0
+	aiResetDate := ""
+
+	// When entitlements are disabled (and no override), everything is unlimited
+	entitlementsEnabled := h.service.IsEnabled() || overrideActive
+	if !entitlementsEnabled {
+		monthlyLimit = -1
+		remaining = -1
 	}
 
-	remaining := h.service.GetRemainingExecutions(ctx, userIdentity, usedCount)
+	if usage != nil {
+		usedCount = usage.TotalCreditsUsed
+		monthlyLimit = usage.CreditsLimit
+		remaining = usage.CreditsRemaining
+		aiCreditsUsed = usage.TotalCreditsUsed
+		aiRequestsCount = usage.TotalOperations
+		if !usage.ResetDate.IsZero() {
+			aiResetDate = usage.ResetDate.Format("2006-01-02")
+		}
+	}
+
+	// Handle override tier - recalculate limits based on overridden tier
 	if overrideActive {
-		if monthlyLimit == -1 {
-			remaining = -1
+		monthlyLimit = h.service.GetAICreditsLimit(ent.Tier)
+		if monthlyLimit < 0 {
+			remaining = -1 // Unlimited
 		} else {
 			remaining = monthlyLimit - usedCount
 			if remaining < 0 {
@@ -148,24 +160,9 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
-	// Get AI credits usage
-	aiCreditsLimit := h.service.GetAICreditsLimit(ent.Tier)
-	aiCreditsUsed := 0
-	aiRequestsCount := 0
-	aiResetDate := ""
-	if h.aiCreditsTracker != nil {
-		if aiUsage, err := h.aiCreditsTracker.GetAICreditsUsage(ctx, userIdentity, aiCreditsLimit); err == nil {
-			aiCreditsUsed = aiUsage.CreditsUsed
-			aiRequestsCount = aiUsage.RequestsCount
-			aiResetDate = aiUsage.ResetDate.Format("2006-01-02")
-		}
-	}
-	aiCreditsRemaining := aiCreditsLimit - aiCreditsUsed
-	if aiCreditsLimit < 0 {
-		aiCreditsRemaining = -1 // Unlimited
-	} else if aiCreditsRemaining < 0 {
-		aiCreditsRemaining = 0
-	}
+	// For backward compatibility, AI credits are the same as the unified pool
+	aiCreditsLimit := monthlyLimit
+	aiCreditsRemaining := remaining
 
 	response := EntitlementStatusResponse{
 		UserIdentity:        userIdentity,
@@ -285,12 +282,12 @@ func (h *EntitlementHandler) GetUsageSummary(w http.ResponseWriter, r *http.Requ
 		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
 	}
 
-	if h.usageTracker == nil {
+	if h.creditService == nil {
 		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
 		return
 	}
 
-	summary, err := h.usageTracker.GetUsageSummary(ctx, userIdentity)
+	summary, err := h.creditService.GetUsage(ctx, userIdentity)
 	if err != nil {
 		http.Error(w, `{"error":{"code":"USAGE_ERROR","message":"Failed to get usage summary"}}`, http.StatusInternalServerError)
 		return

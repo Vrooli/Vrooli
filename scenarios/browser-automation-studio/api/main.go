@@ -139,11 +139,8 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize entitlement services
+	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
-	usageTracker := entitlement.NewUsageTracker(db.RawDB(), log)
-	aiCreditsTracker := entitlement.NewAICreditsTracker(db.RawDB(), log)
-	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, usageTracker, aiCreditsTracker, repo)
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
 	byokMiddleware := middleware.NewBYOKMiddleware()
 
@@ -168,6 +165,9 @@ func main() {
 	if cfg.Credits.Enabled {
 		log.Info("✅ Unified credits service enabled")
 	}
+
+	// Initialize entitlement handler (uses unified credit service)
+	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, creditService, repo)
 
 	// Initialize AI provider chain and factory
 	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
@@ -197,11 +197,10 @@ func main() {
 
 	// Initialize handlers with UX metrics integration and entitlement services
 	// The UX metrics collector wraps the event sink to passively capture interaction data
-	// The entitlement services enable tier-based feature gating and AI credits tracking
+	// The entitlement services enable tier-based feature gating and credit tracking
 	deps := handlers.InitDefaultDepsWithOptions(repo, hub, log, handlers.DepsOptions{
 		UXMetricsRepo:      uxRepo,
 		EntitlementService: entitlementSvc,
-		AICreditsTracker:   aiCreditsTracker,
 		CreditService:      creditService,
 		AIClientFactory:    aiClientFactory,
 	})
@@ -628,7 +627,14 @@ func main() {
 	// The scheduler loads active schedules from the database and triggers workflow executions
 	// at the configured cron times
 	scheduleNotifier := scheduler.NewWSNotifier(hub, log)
-	schedulerSvc := scheduler.New(repo, handler.GetExecutionService(), scheduleNotifier, log)
+	schedulerSvc := scheduler.New(scheduler.SchedulerOptions{
+		Repo:          repo,
+		Executor:      handler.GetExecutionService(),
+		Notifier:      scheduleNotifier,
+		Log:           log,
+		CreditService: creditService,
+		SettingsRepo:  repo,
+	})
 	if err := schedulerSvc.Start(); err != nil {
 		log.WithError(err).Warn("⚠️  Scheduler failed to start - scheduled workflows will not run")
 	} else {

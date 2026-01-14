@@ -73,8 +73,10 @@ type OperationCosts struct {
 	ExportJSON  int `json:"export_json"`
 }
 
-// DefaultOperationCosts returns the default cost configuration.
-// These can be overridden via BAS_ENTITLEMENT_OPERATION_COSTS_JSON.
+// DefaultOperationCosts returns the canonical credit costs for all operations.
+// SECURITY: These costs are intentionally hard-coded. Do NOT add environment
+// variable overrides - this would allow end-users to bypass credit charges
+// by setting all operations to cost 0 credits.
 func DefaultOperationCosts() OperationCosts {
 	return OperationCosts{
 		// AI operations - cost credits

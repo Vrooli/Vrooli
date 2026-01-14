@@ -577,7 +577,6 @@ type PerformanceConfig struct {
 }
 
 // CreditsConfig controls the unified credit system for metered operations.
-// This provides configurable costs per operation type for the CreditService.
 type CreditsConfig struct {
 	// Enabled controls whether credit tracking is active.
 	// When false, all operations are allowed without charging (development mode).
@@ -585,10 +584,9 @@ type CreditsConfig struct {
 	// Env: BAS_CREDITS_ENABLED (default: false, uses BAS_ENTITLEMENT_ENABLED if not set)
 	Enabled bool
 
-	// OperationCosts defines the credit cost per operation type.
-	// Parsed from JSON: {"ai_workflow_generate": 1, "ai_vision_navigate": 2, ...}
-	// Env: BAS_CREDITS_OPERATION_COSTS_JSON
-	OperationCosts map[string]int
+	// Note: Operation costs are intentionally NOT configurable via environment variables.
+	// They are hard-coded in services/credits/costs.go to prevent end-users from
+	// bypassing credit charges by setting all costs to 0.
 }
 
 // AIProviderConfig controls the AI provider fallback chain.
@@ -763,8 +761,7 @@ func loadFromEnv() *Config {
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
 		},
 		Credits: CreditsConfig{
-			Enabled:        parseCreditsEnabled(),
-			OperationCosts: parseOperationCosts("BAS_CREDITS_OPERATION_COSTS_JSON"),
+			Enabled: parseCreditsEnabled(),
 		},
 		AIProvider: AIProviderConfig{
 			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
@@ -1135,59 +1132,4 @@ func parseCreditsEnabled() bool {
 	}
 	// Fall back to entitlement enabled
 	return parseBool("BAS_ENTITLEMENT_ENABLED", false)
-}
-
-// parseOperationCosts parses operation costs from JSON or returns defaults.
-// JSON format: {"ai_workflow_generate": 1, "ai_vision_navigate": 2, "execution_run": 1, ...}
-func parseOperationCosts(envVar string) map[string]int {
-	defaults := map[string]int{
-		// AI operations
-		"ai_workflow_generate": 1,
-		"ai_workflow_modify":   1,
-		"ai_element_analyze":   1,
-		"ai_vision_navigate":   2, // Vision is more expensive
-		"ai_caption_generate":  1,
-		// Execution operations
-		"execution_run":       1,
-		"execution_scheduled": 1,
-		// Export operations (free)
-		"export_video": 0,
-		"export_gif":   0,
-		"export_html":  0,
-		"export_json":  0,
-	}
-
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value == "" {
-		return defaults
-	}
-
-	// Try to parse as JSON
-	result := make(map[string]int)
-	value = strings.Trim(value, "{}")
-	if value == "" {
-		return defaults
-	}
-
-	pairs := strings.Split(value, ",")
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
-		valStr := strings.TrimSpace(parts[1])
-		if val, err := strconv.Atoi(valStr); err == nil {
-			result[key] = val
-		}
-	}
-
-	// Merge with defaults (defaults take precedence for missing keys)
-	for k, v := range defaults {
-		if _, exists := result[k]; !exists {
-			result[k] = v
-		}
-	}
-
-	return result
 }

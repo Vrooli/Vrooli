@@ -40,22 +40,18 @@ type ServiceOptions struct {
 	DB             *sql.DB
 	Logger         *logrus.Logger
 	EntitlementSvc *entitlement.Service
-	Costs          *OperationCosts // nil uses defaults
-	Enabled        bool            // Whether credit tracking is enabled
+	Enabled        bool // Whether credit tracking is enabled
+	// Note: Operation costs are intentionally NOT configurable here.
+	// They are hard-coded in DefaultOperationCosts() to prevent bypassing charges.
 }
 
 // NewService creates a new CreditService.
 func NewService(opts ServiceOptions) *Service {
-	costs := DefaultOperationCosts()
-	if opts.Costs != nil {
-		costs = *opts.Costs
-	}
-
 	return &Service{
 		db:             opts.DB,
 		log:            opts.Logger,
 		entitlementSvc: opts.EntitlementSvc,
-		costs:          costs,
+		costs:          DefaultOperationCosts(),
 		enabled:        opts.Enabled,
 		cache:          make(map[string]*usageCache),
 	}

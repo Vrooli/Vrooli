@@ -59,8 +59,8 @@ func createTestEntitlementHandler(t *testing.T) (*EntitlementHandler, *mockSetti
 	service := entitlement.NewService(cfg, log)
 	settingsRepo := newMockSettingsRepo()
 
-	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
-	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
+	// Pass nil for creditService since we don't have a DB in tests
+	handler := NewEntitlementHandler(service, nil, settingsRepo)
 	return handler, settingsRepo
 }
 
@@ -78,8 +78,8 @@ func createTestEntitlementHandlerDisabled(t *testing.T) (*EntitlementHandler, *m
 	service := entitlement.NewService(cfg, log)
 	settingsRepo := newMockSettingsRepo()
 
-	// Pass nil for usageTracker and aiCreditsTracker since we don't have a DB in tests
-	handler := NewEntitlementHandler(service, nil, nil, settingsRepo)
+	// Pass nil for creditService since we don't have a DB in tests
+	handler := NewEntitlementHandler(service, nil, settingsRepo)
 	return handler, settingsRepo
 }
 

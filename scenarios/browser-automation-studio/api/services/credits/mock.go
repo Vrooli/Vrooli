@@ -52,12 +52,8 @@ func WithCanChargeFn(fn func(OperationType) bool) MockServiceOption {
 	}
 }
 
-// WithCosts sets custom operation costs.
-func WithCosts(costs OperationCosts) MockServiceOption {
-	return func(m *MockService) {
-		m.costs = costs
-	}
-}
+// Note: WithCosts was intentionally removed. Operation costs are hard-coded
+// to prevent bypassing charges. The mock always uses DefaultOperationCosts().
 
 // NewMockService creates a new mock credit service.
 func NewMockService(opts ...MockServiceOption) *MockService {

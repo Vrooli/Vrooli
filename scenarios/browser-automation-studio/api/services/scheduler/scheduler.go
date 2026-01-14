@@ -13,6 +13,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/services/credits"
 )
 
 // WorkflowExecutor defines the interface for executing workflows.
@@ -34,6 +35,12 @@ type ScheduleRepository interface {
 // This is used to push WebSocket notifications.
 type ScheduleNotifier interface {
 	BroadcastScheduleEvent(event ScheduleEvent)
+}
+
+// SettingsRepository provides access to application settings.
+// Used to retrieve the stored user identity for credit charging.
+type SettingsRepository interface {
+	GetSetting(ctx context.Context, key string) (string, error)
 }
 
 // ScheduleEvent represents a schedule-related event for WebSocket notification.
@@ -58,10 +65,12 @@ const (
 
 // Scheduler manages workflow scheduling using cron expressions.
 type Scheduler struct {
-	repo     ScheduleRepository
-	executor WorkflowExecutor
-	notifier ScheduleNotifier
-	log      *logrus.Logger
+	repo          ScheduleRepository
+	executor      WorkflowExecutor
+	notifier      ScheduleNotifier
+	log           *logrus.Logger
+	creditService credits.CreditService
+	settingsRepo  SettingsRepository
 
 	cron      *cron.Cron
 	entries   map[uuid.UUID]cron.EntryID // scheduleID -> cron entry ID
@@ -90,8 +99,18 @@ func DefaultConfig() *Config {
 	}
 }
 
+// SchedulerOptions holds the dependencies for creating a Scheduler.
+type SchedulerOptions struct {
+	Repo          ScheduleRepository
+	Executor      WorkflowExecutor
+	Notifier      ScheduleNotifier
+	Log           *logrus.Logger
+	CreditService credits.CreditService
+	SettingsRepo  SettingsRepository
+}
+
 // New creates a new Scheduler instance.
-func New(repo ScheduleRepository, executor WorkflowExecutor, notifier ScheduleNotifier, log *logrus.Logger) *Scheduler {
+func New(opts SchedulerOptions) *Scheduler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Create cron scheduler with seconds precision and location support
@@ -104,14 +123,16 @@ func New(repo ScheduleRepository, executor WorkflowExecutor, notifier ScheduleNo
 	)
 
 	return &Scheduler{
-		repo:     repo,
-		executor: executor,
-		notifier: notifier,
-		log:      log,
-		cron:     c,
-		entries:  make(map[uuid.UUID]cron.EntryID),
-		ctx:      ctx,
-		cancel:   cancel,
+		repo:          opts.Repo,
+		executor:      opts.Executor,
+		notifier:      opts.Notifier,
+		log:           opts.Log,
+		creditService: opts.CreditService,
+		settingsRepo:  opts.SettingsRepo,
+		cron:          c,
+		entries:       make(map[uuid.UUID]cron.EntryID),
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 }
 
@@ -362,6 +383,27 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 			"execution_id":  execution.ID,
 		}).Info("Scheduled workflow execution completed")
 
+		// Charge credits for successful scheduled execution
+		if s.creditService != nil && s.creditService.IsEnabled() {
+			userIdentity := s.getUserIdentity(ctx)
+			if userIdentity != "" {
+				_, chargeErr := s.creditService.Charge(ctx, credits.ChargeRequest{
+					UserIdentity: userIdentity,
+					Operation:    credits.OpExecutionScheduled,
+					Metadata: credits.ChargeMetadata{
+						WorkflowID:  workflowID.String(),
+						ExecutionID: execution.ID.String(),
+					},
+				})
+				if chargeErr != nil {
+					s.log.WithError(chargeErr).WithFields(logrus.Fields{
+						"schedule_id":  scheduleID,
+						"execution_id": execution.ID,
+					}).Warn("Failed to charge credits for scheduled execution")
+				}
+			}
+		}
+
 		// Notify about success
 		if s.notifier != nil {
 			s.notifier.BroadcastScheduleEvent(ScheduleEvent{
@@ -397,6 +439,20 @@ func (s *Scheduler) RegisteredCount() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.entries)
+}
+
+// getUserIdentity retrieves the stored user identity from settings.
+// Returns empty string if no identity is configured or settings repo is unavailable.
+func (s *Scheduler) getUserIdentity(ctx context.Context) string {
+	if s.settingsRepo == nil {
+		return ""
+	}
+	identity, err := s.settingsRepo.GetSetting(ctx, "user_identity")
+	if err != nil {
+		s.log.WithError(err).Debug("Failed to get user identity for credit charging")
+		return ""
+	}
+	return identity
 }
 
 // tzCronSchedule wraps a cron.Schedule to apply timezone.
