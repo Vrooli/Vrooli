@@ -1,11 +1,14 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	"scenario-to-cloud/cli/internal/streaming"
 )
 
 // Client provides API access for deployment operations.
@@ -16,6 +19,11 @@ type Client struct {
 // NewClient creates a new deployment client.
 func NewClient(api *cliutil.APIClient) *Client {
 	return &Client{api: api}
+}
+
+// APIClient returns the underlying API client for advanced operations.
+func (c *Client) APIClient() *cliutil.APIClient {
+	return c.api
 }
 
 // Plan generates a deployment plan from a manifest.
@@ -149,4 +157,16 @@ func (c *Client) History(id string) ([]byte, HistoryResponse, error) {
 		return body, HistoryResponse{}, err
 	}
 	return body, resp, nil
+}
+
+// StreamProgress opens an SSE connection to stream deployment progress.
+// The handler is called for each progress event received.
+// Returns nil on successful completion, or an error if streaming fails.
+func (c *Client) StreamProgress(ctx context.Context, id string, handler streaming.ProgressHandler) error {
+	opts := streaming.StreamOptions{
+		BaseURL: c.api.BaseURL(),
+		Path:    fmt.Sprintf("/api/v1/deployments/%s/progress", id),
+		Headers: c.api.AuthHeaders(),
+	}
+	return streaming.StreamProgress(ctx, opts, handler)
 }

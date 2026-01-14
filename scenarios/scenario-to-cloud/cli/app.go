@@ -20,6 +20,7 @@ import (
 	"scenario-to-cloud/cli/secrets"
 	"scenario-to-cloud/cli/ssh"
 	"scenario-to-cloud/cli/status"
+	"scenario-to-cloud/cli/task"
 	"scenario-to-cloud/cli/vps"
 )
 
@@ -52,6 +53,7 @@ type App struct {
 	sshClient        *ssh.Client
 	secretsClient    *secrets.Client
 	scenarioClient   *scenario.Client
+	taskClient       *task.Client
 }
 
 // NewApp creates a new CLI application instance.
@@ -92,6 +94,8 @@ func NewApp() (*App, error) {
 		edgeClient:       edge.NewClient(core.APIClient),
 		sshClient:        ssh.NewClient(core.APIClient),
 		secretsClient:    secrets.NewClient(core.APIClient),
+		scenarioClient:   scenario.NewClient(core.APIClient),
+		taskClient:       task.NewClient(core.APIClient),
 	}
 	app.core.SetCommands(app.registerCommands())
 	return app, nil
@@ -180,6 +184,18 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Secrets management (get)",
 				Run:         func(args []string) error { return secrets.Run(a.secretsClient, args) },
+			},
+			{
+				Name:        "scenario",
+				NeedsAPI:    true,
+				Description: "Scenario discovery (list, ports, deps)",
+				Run:         func(args []string) error { return scenario.Run(a.scenarioClient, args) },
+			},
+			{
+				Name:        "task",
+				NeedsAPI:    true,
+				Description: "AI task management (create, list, get, stop, agent-status)",
+				Run:         func(args []string) error { return task.Run(a.taskClient, args) },
 			},
 		},
 	}

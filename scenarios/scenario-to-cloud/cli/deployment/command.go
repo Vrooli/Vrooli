@@ -1,17 +1,21 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
+	"scenario-to-cloud/cli/internal/streaming"
 )
 
 // Run executes deployment subcommands.
@@ -270,21 +274,29 @@ func runExecute(client *Client, args []string) error {
 	fs := flag.NewFlagSet("deployment execute", flag.ContinueOnError)
 	preflight := fs.Bool("preflight", false, "Run VPS preflight checks before deployment")
 	forceBuild := fs.Bool("force-bundle", false, "Force rebuild of bundle even if one exists")
-	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	stream := fs.Bool("stream", true, "Stream progress updates (enabled by default)")
+	noStream := fs.Bool("no-stream", false, "Disable streaming, return immediately after starting")
+	jsonOutput := fs.Bool("json", false, "Output raw JSON (implies --no-stream)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud deployment execute <id> [--preflight] [--force-bundle]")
+		return fmt.Errorf("usage: scenario-to-cloud deployment execute <id> [--preflight] [--force-bundle] [--stream|--no-stream]")
 	}
+
+	deploymentID := fs.Arg(0)
+
+	// JSON output implies no streaming
+	useStreaming := *stream && !*noStream && !*jsonOutput
 
 	req := ExecuteRequest{
 		RunPreflight:     *preflight,
 		ForceBundleBuild: *forceBuild,
 	}
 
-	body, resp, err := client.Execute(fs.Arg(0), req)
+	// Start the execution
+	body, resp, err := client.Execute(deploymentID, req)
 	if err != nil {
 		return err
 	}
@@ -294,11 +306,96 @@ func runExecute(client *Client, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Deployment execution started.\n")
-	fmt.Printf("  Run ID:  %s\n", resp.RunID)
-	fmt.Printf("  Message: %s\n", resp.Message)
-	fmt.Println("\nUse 'deployment get <id>' to check status.")
+	fmt.Printf("Deployment execution started (Run ID: %s)\n", resp.RunID)
+
+	if !useStreaming {
+		fmt.Println("\nUse 'deployment get <id>' to check status.")
+		return nil
+	}
+
+	// Set up context with signal handling for graceful cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		fmt.Println("\nReceived interrupt, stopping...")
+		cancel()
+	}()
+
+	// Stream progress with animated display
+	fmt.Println()
+	var lastStep string
+	startTime := time.Now()
+
+	err = client.StreamProgress(ctx, deploymentID, func(event streaming.ProgressEvent) error {
+		// Clear previous line and print new status
+		if lastStep != event.Step {
+			if lastStep != "" {
+				fmt.Printf("\r\033[K")
+			}
+			lastStep = event.Step
+		}
+
+		elapsed := time.Since(startTime).Round(time.Second)
+		progressBar := renderProgressBar(event.Percent, 30)
+
+		fmt.Printf("\r\033[K%s %5.1f%% | %s | %s",
+			progressBar,
+			event.Percent,
+			event.Step,
+			elapsed)
+
+		if event.Message != "" && event.Message != event.Step {
+			fmt.Printf(" - %s", event.Message)
+		}
+
+		return nil
+	})
+
+	fmt.Println() // New line after progress
+
+	if err != nil {
+		if streaming.IsSuccess(err) {
+			elapsed := time.Since(startTime).Round(time.Second)
+			fmt.Printf("\nDeployment completed successfully in %s\n", elapsed)
+			return nil
+		}
+		if ctx.Err() != nil {
+			return fmt.Errorf("streaming cancelled: %w", ctx.Err())
+		}
+		// Streaming failed, fall back to showing final status
+		fmt.Printf("\nStreaming interrupted: %v\n", err)
+		fmt.Println("Checking final status...")
+	}
+
+	// Get final deployment status
+	_, getResp, err := client.Get(deploymentID)
+	if err != nil {
+		return fmt.Errorf("failed to get final status: %w", err)
+	}
+
+	d := getResp.Deployment
+	fmt.Printf("\nFinal Status: %s\n", d.Status)
+	if d.ErrorMessage != nil {
+		fmt.Printf("Error: %s\n", *d.ErrorMessage)
+	}
+
 	return nil
+}
+
+// renderProgressBar creates an ASCII progress bar.
+func renderProgressBar(percent float64, width int) string {
+	filled := int(percent / 100 * float64(width))
+	if filled > width {
+		filled = width
+	}
+	if filled < 0 {
+		filled = 0
+	}
+	return "[" + strings.Repeat("=", filled) + strings.Repeat(" ", width-filled) + "]"
 }
 
 func runStart(client *Client, args []string) error {
