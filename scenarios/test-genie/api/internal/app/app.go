@@ -35,6 +35,8 @@ func NewServer() (*httpserver.Server, error) {
 		FixService:                 deps.FixService,
 		RequirementsImproveService: deps.RequirementsImproveService,
 		RequirementsSyncer:         deps.RequirementsSyncer,
+		ToolRegistry:               deps.ToolRegistry,
+		ToolHandler:                deps.ToolHandler,
 	}
 
 	return httpserver.New(httpCfg, httpDeps)

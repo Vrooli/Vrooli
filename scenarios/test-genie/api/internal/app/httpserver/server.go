@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
@@ -25,6 +26,8 @@ import (
 	"test-genie/internal/queue"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/toolexecution"
+	"test-genie/internal/toolregistry"
 )
 
 // Config controls the HTTP transport settings.
@@ -52,6 +55,9 @@ type Dependencies struct {
 	RequirementsImproveService requirementsImproveService
 	RequirementsSyncer         requirementsSyncer
 	Logger                     Logger
+	// Tool Discovery Protocol support
+	ToolRegistry *toolregistry.Registry
+	ToolHandler  *toolexecution.Handler
 }
 
 type suiteRequestQueue interface {
@@ -123,6 +129,9 @@ type Server struct {
 	seedSessions               map[string]*seedSession
 	seedSessionsByScenario     map[string]string
 	seedSessionsMu             sync.Mutex
+	// Tool Discovery Protocol support
+	toolRegistry *toolregistry.Registry
+	toolHandler  *toolexecution.Handler
 }
 
 // New creates a configured HTTP server instance.
@@ -173,6 +182,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		requirementsSyncer:         deps.RequirementsSyncer,
 		seedSessions:               make(map[string]*seedSession),
 		seedSessionsByScenario:     make(map[string]string),
+		toolRegistry:               deps.ToolRegistry,
+		toolHandler:                deps.ToolHandler,
 	}
 
 	srv.setupRoutes()
@@ -238,6 +249,15 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/active", s.handleGetActiveRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}", s.handleGetRequirementsImprove).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/improve/{id}/stop", s.handleStopRequirementsImprove).Methods("POST")
+
+	// Tool Discovery Protocol routes
+	if s.toolRegistry != nil {
+		apiRouter.HandleFunc("/tools", s.handleGetToolManifest).Methods("GET", "OPTIONS")
+		apiRouter.HandleFunc("/tools/{name}", s.handleGetTool).Methods("GET", "OPTIONS")
+	}
+	if s.toolHandler != nil {
+		apiRouter.HandleFunc("/tools/execute", s.toolHandler.Execute).Methods("POST", "OPTIONS")
+	}
 }
 
 // Start launches the HTTP server with graceful shutdown.
@@ -310,4 +330,57 @@ func (s *Server) serviceName() string {
 		return "Test Genie API"
 	}
 	return name
+}
+
+// -----------------------------------------------------------------------------
+// Tool Discovery Protocol Handlers
+// -----------------------------------------------------------------------------
+
+// handleGetToolManifest returns the complete tool manifest for test-genie.
+func (s *Server) handleGetToolManifest(w http.ResponseWriter, r *http.Request) {
+	if s.toolRegistry == nil {
+		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	manifest := s.toolRegistry.GetManifest(r.Context())
+
+	w.Header().Set("Content-Type", "application/json")
+	marshaler := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+		UseProtoNames:   false,
+	}
+	data, err := marshaler.Marshal(manifest)
+	if err != nil {
+		http.Error(w, "failed to marshal manifest", http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
+}
+
+// handleGetTool returns a specific tool by name.
+func (s *Server) handleGetTool(w http.ResponseWriter, r *http.Request) {
+	if s.toolRegistry == nil {
+		http.Error(w, "tool registry not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	name := mux.Vars(r)["name"]
+	tool := s.toolRegistry.GetTool(r.Context(), name)
+	if tool == nil {
+		http.Error(w, "tool not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	marshaler := protojson.MarshalOptions{
+		EmitUnpopulated: true,
+		UseProtoNames:   false,
+	}
+	data, err := marshaler.Marshal(tool)
+	if err != nil {
+		http.Error(w, "failed to marshal tool", http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }

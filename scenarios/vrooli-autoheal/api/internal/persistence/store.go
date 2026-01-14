@@ -203,9 +203,9 @@ func (s *Store) GetUptimeStats(ctx context.Context, windowHours int) (*UptimeSta
 	query := `
 		SELECT
 			COUNT(*) as total,
-			SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END) as ok_count,
-			SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END) as warning_count,
-			SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END) as critical_count
+			COALESCE(SUM(CASE WHEN status = 'ok' THEN 1 ELSE 0 END), 0) as ok_count,
+			COALESCE(SUM(CASE WHEN status = 'warning' THEN 1 ELSE 0 END), 0) as warning_count,
+			COALESCE(SUM(CASE WHEN status = 'critical' THEN 1 ELSE 0 END), 0) as critical_count
 		FROM health_results
 		WHERE created_at >= NOW() - INTERVAL '1 hour' * $1
 	`

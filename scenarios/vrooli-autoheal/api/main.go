@@ -72,6 +72,11 @@ func run() error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	// Initialize database schema (idempotent - uses CREATE TABLE IF NOT EXISTS)
+	if err := initializeSchema(db); err != nil {
+		log.Printf("warning: schema initialization failed: %v (tables may already exist)", err)
+	}
+
 	// Initialize components
 	store := persistence.NewStore(db)
 	plat := platform.Detect()
@@ -192,5 +197,37 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
+}
+
+// initializeSchema runs the database schema initialization script.
+// Uses CREATE TABLE IF NOT EXISTS, making it safe to run on every startup.
+func initializeSchema(db *sql.DB) error {
+	// Look for schema.sql in initialization/postgres/ relative to binary or cwd
+	schemaPaths := []string{
+		filepath.Join(filepath.Dir(os.Args[0]), "..", "initialization", "postgres", "schema.sql"),
+		filepath.Join("initialization", "postgres", "schema.sql"),
+		filepath.Join("..", "initialization", "postgres", "schema.sql"),
+	}
+
+	var schemaSQL []byte
+	var err error
+	for _, path := range schemaPaths {
+		schemaSQL, err = os.ReadFile(path)
+		if err == nil {
+			log.Printf("initializing database schema from %s", path)
+			break
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("schema.sql not found in expected locations: %v", schemaPaths)
+	}
+
+	_, err = db.Exec(string(schemaSQL))
+	if err != nil {
+		return fmt.Errorf("failed to execute schema: %w", err)
+	}
+
+	log.Printf("database schema initialized successfully")
+	return nil
 }
 

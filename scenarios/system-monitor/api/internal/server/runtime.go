@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,6 +15,9 @@ import (
 	"system-monitor-api/internal/repository"
 	"system-monitor-api/internal/repository/memory"
 	"system-monitor-api/internal/services"
+	"system-monitor-api/internal/toolexecution"
+	"system-monitor-api/internal/toolhandlers"
+	"system-monitor-api/internal/toolregistry"
 )
 
 // Run wires dependencies, starts the HTTP server, and blocks until shutdown.
@@ -59,7 +63,29 @@ func Run(cfg *config.Config) error {
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr)
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler)
+	// Initialize Tool Discovery Protocol registry
+	toolRegistry := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "system-monitor",
+		ScenarioVersion:     cfg.Server.Version,
+		ScenarioDescription: "Real-time system monitoring with AI-driven anomaly detection and automated root cause analysis",
+	})
+	toolRegistry.RegisterProvider(toolregistry.NewMetricsToolProvider())
+	toolRegistry.RegisterProvider(toolregistry.NewInvestigationToolProvider())
+	toolRegistry.RegisterProvider(toolregistry.NewConfigurationToolProvider())
+	log.Printf("📦 Registered %d tool providers with %d tools", toolRegistry.ProviderCount(), len(toolRegistry.ListToolNames(context.Background())))
+
+	// Initialize Tool Execution Protocol executor
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		MonitorSvc:       monitorSvc,
+		InvestigationSvc: investigationSvc,
+		ReportSvc:        reportSvc,
+		SettingsMgr:      settingsMgr,
+		Logger:           slog.Default(),
+	})
+	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
+	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
+
+	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, toolsHandler, toolExecHandler)
 	handler := buildMiddleware(cfg, router)
 
 	srv := &http.Server{

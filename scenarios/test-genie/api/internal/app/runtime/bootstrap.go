@@ -17,6 +17,8 @@ import (
 	"test-genie/internal/requirements"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/toolexecution"
+	"test-genie/internal/toolregistry"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -34,6 +36,9 @@ type Bootstrapped struct {
 	FixService                 *fix.Service
 	RequirementsImproveService *requirementsimprove.Service
 	RequirementsSyncer         *RequirementsSyncerAdapter
+	// Tool Discovery Protocol support
+	ToolRegistry *toolregistry.Registry
+	ToolHandler  *toolexecution.Handler
 }
 
 // RequirementsSyncerAdapter adapts the requirements.Service to a simple Sync interface.
@@ -121,6 +126,32 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		svc: requirements.NewService(),
 	}
 
+	// Create tool registry for Tool Discovery Protocol
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "test-genie",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Automated testing and quality assurance for Vrooli scenarios",
+	})
+
+	// Register all tool providers
+	toolReg.RegisterProvider(toolregistry.NewTestingToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewFixToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewRequirementsToolProvider())
+
+	// Create tool executor with all required dependencies
+	toolExec := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		ExecutionHistory:    executionHistory,
+		SuiteExecutor:       executionSvc,
+		ScenarioDirectory:   scenarioService,
+		PhaseCatalog:        runner,
+		FixService:          fixService,
+		RequirementsImprove: reqImproveService,
+		RequirementsSyncer:  reqSyncer,
+	})
+	toolHandler := toolexecution.NewHandler(toolExec)
+
+	log.Printf("[test-genie] Tool Discovery Protocol enabled with %d tools", len(toolReg.ListToolNames(context.Background())))
+
 	return &Bootstrapped{
 		DB:                         db,
 		SuiteRequests:              suiteRequestService,
@@ -133,5 +164,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		FixService:                 fixService,
 		RequirementsImproveService: reqImproveService,
 		RequirementsSyncer:         reqSyncer,
+		ToolRegistry:               toolReg,
+		ToolHandler:                toolHandler,
 	}, nil
 }
