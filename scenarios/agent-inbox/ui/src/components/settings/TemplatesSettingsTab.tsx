@@ -17,6 +17,7 @@ import {
   FileText,
   User,
   RefreshCw,
+  Construction,
 } from "lucide-react";
 import type { ModeHistoryEntry, TemplateWithSource } from "@/lib/types/templates";
 import { ModelSelector } from "./ModelSelector";
@@ -139,6 +140,15 @@ export function TemplatesSettingsTab({
               <BadgeIcon className="h-2.5 w-2.5" />
               {badge.label}
             </span>
+            {template.draft && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-orange-900/50 text-orange-400 border border-orange-500/30"
+                title="This template is a draft and may not be fully working"
+              >
+                <Construction className="h-2.5 w-2.5" />
+                Draft
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 truncate">
             {template.modes?.join(" → ") || "No mode"}
@@ -280,6 +290,10 @@ export function TemplatesSettingsTab({
           <span className="flex items-center gap-1 text-indigo-400">
             <User className="h-3 w-3" />
             Custom
+          </span>
+          <span className="flex items-center gap-1 text-orange-400">
+            <Construction className="h-3 w-3" />
+            Draft
           </span>
         </div>
 

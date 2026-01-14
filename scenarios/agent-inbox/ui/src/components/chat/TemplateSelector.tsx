@@ -10,6 +10,7 @@ import {
   Sparkles,
   Code,
   Search,
+  Construction,
   type LucideIcon,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "@/components/ui/dialog";
@@ -236,6 +237,15 @@ export function TemplateSelector({
                       {template.category && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400">
                           {template.category}
+                        </span>
+                      )}
+                      {template.draft && (
+                        <span
+                          className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-orange-900/50 text-orange-400 border border-orange-500/30"
+                          title="This template is a draft and may not be fully working"
+                        >
+                          <Construction className="h-2.5 w-2.5" />
+                          Draft
                         </span>
                       )}
                     </div>

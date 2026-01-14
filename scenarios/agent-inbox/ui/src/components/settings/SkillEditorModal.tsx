@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
-import { X, Eye, ChevronDown, Info, Tag, Pencil, AlertTriangle, BookOpen, Loader2 } from "lucide-react";
+import { X, Eye, ChevronDown, Info, Tag, Pencil, AlertTriangle, BookOpen, Loader2, Construction } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { Skill, SkillSource, SkillWithSource } from "@/lib/types/templates";
 import { IconSelector, SKILL_ICON_OPTIONS } from "@/components/shared/IconSelector";
@@ -58,6 +58,7 @@ interface SkillFormState {
   tagsInput: string;
   targetToolId: string;
   applyToDefault: boolean;
+  draft: boolean;
 }
 
 export function SkillEditorModal({
@@ -86,6 +87,7 @@ export function SkillEditorModal({
   const [targetToolId, setTargetToolId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [applyToDefault, setApplyToDefault] = useState(false);
+  const [draft, setDraft] = useState(false);
 
   // Validation
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -104,7 +106,7 @@ export function SkillEditorModal({
     if (readOnly) return false;
     if (!skill) {
       // Creating new - has changes if any field is filled
-      return !!(name.trim() || description.trim() || content.trim() || tagsInput.trim() || targetToolId.trim() || modes.length > 0);
+      return !!(name.trim() || description.trim() || content.trim() || tagsInput.trim() || targetToolId.trim() || modes.length > 0 || draft);
     }
     // Editing - compare to original
     const originalTags = skill.tags?.join(", ") || "";
@@ -115,9 +117,10 @@ export function SkillEditorModal({
       JSON.stringify(modes) !== JSON.stringify(skill.modes || []) ||
       content !== skill.content ||
       tagsInput !== originalTags ||
-      targetToolId !== (skill.targetToolId || "")
+      targetToolId !== (skill.targetToolId || "") ||
+      draft !== (skill.draft || false)
     );
-  }, [readOnly, skill, name, description, icon, modes, content, tagsInput, targetToolId]);
+  }, [readOnly, skill, name, description, icon, modes, content, tagsInput, targetToolId, draft]);
 
   // Get current form state as an object
   const getCurrentFormState = useCallback((): SkillFormState => ({
@@ -129,7 +132,8 @@ export function SkillEditorModal({
     tagsInput,
     targetToolId,
     applyToDefault,
-  }), [name, description, icon, modes, content, tagsInput, targetToolId, applyToDefault]);
+    draft,
+  }), [name, description, icon, modes, content, tagsInput, targetToolId, applyToDefault, draft]);
 
   // Store current changes in pending when switching skills
   const storeCurrentChanges = useCallback(() => {
@@ -232,6 +236,7 @@ export function SkillEditorModal({
             content: content.trim(),
             tags: tags.length > 0 ? tags : undefined,
             targetToolId: targetToolId.trim() || undefined,
+            draft: draft || undefined,
           },
           options: isEditingDefault ? { applyToDefault } : undefined,
         });
@@ -257,6 +262,7 @@ export function SkillEditorModal({
             content: state.content.trim(),
             tags: tags.length > 0 ? tags : undefined,
             targetToolId: state.targetToolId.trim() || undefined,
+            draft: state.draft || undefined,
           },
           options: isDefault ? { applyToDefault: state.applyToDefault } : undefined,
         });
@@ -269,7 +275,7 @@ export function SkillEditorModal({
     } finally {
       setIsSavingAll(false);
     }
-  }, [onSaveAll, dirtyCount, skill?.id, hasUnsavedChanges, name, description, icon, modes, content, tagsInput, targetToolId, isEditingDefault, applyToDefault, pendingChanges, allSkills]);
+  }, [onSaveAll, dirtyCount, skill?.id, hasUnsavedChanges, name, description, icon, modes, content, tagsInput, targetToolId, isEditingDefault, applyToDefault, pendingChanges, allSkills, draft]);
 
   // Handle close with unsaved changes check (updated for multi-item)
   const handleClose = useCallback(() => {
@@ -315,6 +321,7 @@ export function SkillEditorModal({
         setTagsInput(pending.tagsInput);
         setTargetToolId(pending.targetToolId);
         setApplyToDefault(pending.applyToDefault);
+        setDraft(pending.draft);
       } else {
         // Initialize from skill
         setName(skill.name);
@@ -325,6 +332,7 @@ export function SkillEditorModal({
         setTagsInput(skill.tags?.join(", ") || "");
         setTargetToolId(skill.targetToolId || "");
         setApplyToDefault(false);
+        setDraft(skill.draft || false);
       }
     } else {
       setName("");
@@ -335,6 +343,7 @@ export function SkillEditorModal({
       setTagsInput("");
       setTargetToolId("");
       setApplyToDefault(false);
+      setDraft(false);
     }
     setErrors({});
     setShowPreview(false);
@@ -385,11 +394,12 @@ export function SkillEditorModal({
         content: content.trim(),
         tags: tags.length > 0 ? tags : undefined,
         targetToolId: targetToolId.trim() || undefined,
+        draft: draft || undefined,
       },
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [readOnly, onSave, validate, name, description, icon, modes, content, tagsInput, targetToolId, onClose, isEditingDefault, applyToDefault]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, tagsInput, targetToolId, onClose, isEditingDefault, applyToDefault, draft]);
 
   if (!open) return null;
 
@@ -558,6 +568,28 @@ export function SkillEditorModal({
                   disabled={readOnly}
                 />
               </div>
+
+              {/* Draft Status */}
+              {!readOnly && (
+                <div className="flex items-center gap-3 p-3 bg-slate-800/50 border border-white/5 rounded-lg">
+                  <input
+                    type="checkbox"
+                    id="draft"
+                    checked={draft}
+                    onChange={(e) => setDraft(e.target.checked)}
+                    className="rounded bg-slate-700 border-white/20 text-orange-500 focus:ring-orange-500"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="draft" className="text-sm text-slate-300 cursor-pointer flex items-center gap-2">
+                      <Construction className="h-4 w-4 text-orange-400" />
+                      Mark as draft
+                    </label>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Draft skills show a warning that they may not be fully working
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Category Path */}
               <CategoryPathEditor

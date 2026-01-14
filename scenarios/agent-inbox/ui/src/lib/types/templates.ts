@@ -31,6 +31,7 @@ export interface Template {
   isBuiltIn?: boolean; // Distinguishes system vs user templates (legacy, use source instead)
   createdAt?: string; // ISO timestamp (user templates)
   updatedAt?: string; // ISO timestamp (user templates)
+  draft?: boolean; // Indicates template may not be fully working
 }
 
 /** Template source type - indicates where the template came from */
@@ -54,6 +55,7 @@ export interface Skill {
   targetToolId?: string; // Optional tool this skill targets
   /** @deprecated Use modes instead. Kept for backwards compatibility during migration. */
   category?: string;
+  draft?: boolean; // Indicates skill may not be fully working
 }
 
 /** Skill source type - indicates where the skill came from */

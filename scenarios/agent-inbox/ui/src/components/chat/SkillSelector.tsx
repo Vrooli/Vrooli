@@ -16,6 +16,7 @@ import {
   Eye,
   Plus,
   ChevronLeft,
+  Construction,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -468,6 +469,15 @@ export function SkillSelector({
                                   <span className={`font-medium text-sm ${isSelected ? "text-amber-300" : "text-white"}`}>
                                     {skill.name}
                                   </span>
+                                  {skill.draft && (
+                                    <span
+                                      className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-orange-900/50 text-orange-400 border border-orange-500/30"
+                                      title="This skill is a draft and may not be fully working"
+                                    >
+                                      <Construction className="h-2.5 w-2.5" />
+                                      Draft
+                                    </span>
+                                  )}
                                   {skill.tags && skill.tags.length > 0 && (
                                     <div className="flex gap-1">
                                       {skill.tags.slice(0, 2).map((tag) => (

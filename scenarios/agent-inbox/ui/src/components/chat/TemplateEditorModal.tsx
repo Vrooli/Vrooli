@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
-import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench, Pencil, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
+import { X, Plus, Trash2, ChevronDown, ChevronRight, Eye, Info, Wrench, Pencil, AlertTriangle, Sparkles, Loader2, Construction } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import type { Template, TemplateVariable, TemplateSource, TemplateWithSource } from "@/lib/types/templates";
 import { fillTemplateContent, getTemplateModesAtLevel } from "@/data/templates";
@@ -59,6 +59,7 @@ interface TemplateFormState {
   variables: TemplateVariable[];
   selectedToolIds: string[];
   applyToDefault: boolean;
+  draft: boolean;
 }
 
 const VARIABLE_TYPES: TemplateVariable["type"][] = [
@@ -93,6 +94,7 @@ export function TemplateEditorModal({
   const [variables, setVariables] = useState<TemplateVariable[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [applyToDefault, setApplyToDefault] = useState(false);
+  const [draft, setDraft] = useState(false);
 
   // Tool selection state
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
@@ -119,7 +121,7 @@ export function TemplateEditorModal({
     if (readOnly) return false;
     if (!template) {
       // Creating new - has changes if any field is filled
-      return !!(name.trim() || description.trim() || content.trim() || modes.length > 0 || variables.length > 0 || selectedToolIds.length > 0);
+      return !!(name.trim() || description.trim() || content.trim() || modes.length > 0 || variables.length > 0 || selectedToolIds.length > 0 || draft);
     }
     // Editing - compare to original (use initialToolIds which are already normalized)
     return (
@@ -129,9 +131,10 @@ export function TemplateEditorModal({
       JSON.stringify(modes) !== JSON.stringify(template.modes || []) ||
       content !== template.content ||
       JSON.stringify(variables) !== JSON.stringify(template.variables || []) ||
-      JSON.stringify([...selectedToolIds].sort()) !== JSON.stringify([...initialToolIds].sort())
+      JSON.stringify([...selectedToolIds].sort()) !== JSON.stringify([...initialToolIds].sort()) ||
+      draft !== (template.draft || false)
     );
-  }, [readOnly, template, name, description, icon, modes, content, variables, selectedToolIds, initialToolIds]);
+  }, [readOnly, template, name, description, icon, modes, content, variables, selectedToolIds, initialToolIds, draft]);
 
   // Get current form state as an object
   const getCurrentFormState = useCallback((): TemplateFormState => ({
@@ -143,7 +146,8 @@ export function TemplateEditorModal({
     variables,
     selectedToolIds,
     applyToDefault,
-  }), [name, description, icon, modes, content, variables, selectedToolIds, applyToDefault]);
+    draft,
+  }), [name, description, icon, modes, content, variables, selectedToolIds, applyToDefault, draft]);
 
   // Store current changes in pending when switching templates
   const storeCurrentChanges = useCallback(() => {
@@ -241,6 +245,7 @@ export function TemplateEditorModal({
             content: content.trim(),
             variables,
             suggestedToolIds: selectedToolIds.length > 0 ? selectedToolIds : undefined,
+            draft: draft || undefined,
           },
           options: isEditingDefault ? { applyToDefault } : undefined,
         });
@@ -261,6 +266,7 @@ export function TemplateEditorModal({
             content: state.content.trim(),
             variables: state.variables,
             suggestedToolIds: state.selectedToolIds.length > 0 ? state.selectedToolIds : undefined,
+            draft: state.draft || undefined,
           },
           options: isDefault ? { applyToDefault: state.applyToDefault } : undefined,
         });
@@ -273,7 +279,7 @@ export function TemplateEditorModal({
     } finally {
       setIsSavingAll(false);
     }
-  }, [onSaveAll, dirtyCount, template?.id, hasUnsavedChanges, name, description, icon, modes, content, variables, selectedToolIds, isEditingDefault, applyToDefault, pendingChanges, allTemplates]);
+  }, [onSaveAll, dirtyCount, template?.id, hasUnsavedChanges, name, description, icon, modes, content, variables, selectedToolIds, isEditingDefault, applyToDefault, pendingChanges, allTemplates, draft]);
 
   // Handle close with unsaved changes check (updated for multi-item)
   const handleClose = useCallback(() => {
@@ -340,6 +346,7 @@ export function TemplateEditorModal({
         setVariables(pending.variables);
         setSelectedToolIds(pending.selectedToolIds);
         setApplyToDefault(pending.applyToDefault);
+        setDraft(pending.draft);
         // Keep initial tool IDs from original template for comparison
         const normalizedIds = normalizeToolIds(template.suggestedToolIds || [], toolsByScenario);
         setInitialToolIds(normalizedIds);
@@ -356,6 +363,7 @@ export function TemplateEditorModal({
         setSelectedToolIds(normalizedIds);
         setInitialToolIds(normalizedIds);
         setApplyToDefault(false);
+        setDraft(template.draft || false);
       }
     } else {
       setName("");
@@ -367,6 +375,7 @@ export function TemplateEditorModal({
       setSelectedToolIds([]);
       setInitialToolIds([]);
       setApplyToDefault(false);
+      setDraft(false);
     }
     setErrors({});
     setShowPreview(false);
@@ -500,11 +509,12 @@ export function TemplateEditorModal({
         content: content.trim(),
         variables,
         suggestedToolIds: selectedToolIds.length > 0 ? selectedToolIds : undefined,
+        draft: draft || undefined,
       },
       isEditingDefault ? { applyToDefault } : undefined
     );
     onClose();
-  }, [readOnly, onSave, validate, name, description, icon, modes, content, variables, selectedToolIds, onClose, isEditingDefault, applyToDefault]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, variables, selectedToolIds, onClose, isEditingDefault, applyToDefault, draft]);
 
   // Generate preview content
   const previewContent = useCallback(() => {
@@ -682,6 +692,28 @@ export function TemplateEditorModal({
                     disabled={readOnly}
                   />
                 </div>
+
+                {/* Draft Status */}
+                {!readOnly && (
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/50 border border-white/5 rounded-lg">
+                    <input
+                      type="checkbox"
+                      id="draft"
+                      checked={draft}
+                      onChange={(e) => setDraft(e.target.checked)}
+                      className="rounded bg-slate-700 border-white/20 text-orange-500 focus:ring-orange-500"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="draft" className="text-sm text-slate-300 cursor-pointer flex items-center gap-2">
+                        <Construction className="h-4 w-4 text-orange-400" />
+                        Mark as draft
+                      </label>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Draft templates show a warning that they may not be fully working
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Category Path */}
                 <CategoryPathEditor

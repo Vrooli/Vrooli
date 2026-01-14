@@ -21,6 +21,7 @@ import {
   User,
   RefreshCw,
   Plus,
+  Construction,
 } from "lucide-react";
 import type { SkillWithSource } from "@/lib/types/templates";
 
@@ -128,6 +129,15 @@ export function SkillsSettingsTab({
               <BadgeIcon className="h-2.5 w-2.5" />
               {badge.label}
             </span>
+            {skill.draft && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-orange-900/50 text-orange-400 border border-orange-500/30"
+                title="This skill is a draft and may not be fully working"
+              >
+                <Construction className="h-2.5 w-2.5" />
+                Draft
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 truncate">
             {skill.modes?.join(" / ") || skill.category || "No category"}
@@ -217,6 +227,10 @@ export function SkillsSettingsTab({
           <span className="flex items-center gap-1 text-indigo-400">
             <User className="h-3 w-3" />
             Custom
+          </span>
+          <span className="flex items-center gap-1 text-orange-400">
+            <Construction className="h-3 w-3" />
+            Draft
           </span>
         </div>
 

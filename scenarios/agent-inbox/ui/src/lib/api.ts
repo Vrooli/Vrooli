@@ -1535,6 +1535,7 @@ export interface Template {
   variables: TemplateVariable[];
   suggestedSkillIds?: string[];
   suggestedToolIds?: string[];
+  draft?: boolean;
 }
 
 export type TemplateSource = "default" | "user" | "modified";

@@ -26,6 +26,7 @@ type Skill struct {
 	Content      string   `json:"content"`
 	Tags         []string `json:"tags,omitempty"`
 	TargetToolID string   `json:"targetToolId,omitempty"` // Optional tool this skill targets
+	Draft        bool     `json:"draft,omitempty"`        // Indicates skill may not be fully working
 }
 
 // SkillSource indicates where a skill came from.
@@ -280,6 +281,8 @@ func (s *SkillsService) UpdateSkill(id string, updates *Skill) (*SkillResponse, 
 	if updates.TargetToolID != "" {
 		base.TargetToolID = updates.TargetToolID
 	}
+	// Always apply Draft (boolean field)
+	base.Draft = updates.Draft
 
 	// Determine path - use existing user path or create new override
 	var filePath string
@@ -372,6 +375,8 @@ func (s *SkillsService) UpdateDefaultSkill(id string, updates *Skill) (*SkillRes
 	if updates.TargetToolID != "" {
 		base.TargetToolID = updates.TargetToolID
 	}
+	// Always apply Draft (boolean field)
+	base.Draft = updates.Draft
 
 	// Write to the default skill's path
 	if err := s.writeSkill(defaultSkill.path, &base); err != nil {

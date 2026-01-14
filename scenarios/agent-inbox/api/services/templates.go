@@ -39,6 +39,7 @@ type Template struct {
 	Variables         []TemplateVariable `json:"variables"`
 	SuggestedSkillIDs []string           `json:"suggestedSkillIds,omitempty"`
 	SuggestedToolIDs  []string           `json:"suggestedToolIds,omitempty"`
+	Draft             bool               `json:"draft,omitempty"` // Indicates template may not be fully working
 }
 
 // TemplateSource indicates where a template came from.
@@ -296,6 +297,8 @@ func (s *TemplatesService) UpdateTemplate(id string, updates *Template) (*Templa
 	if updates.SuggestedToolIDs != nil {
 		base.SuggestedToolIDs = updates.SuggestedToolIDs
 	}
+	// Always apply Draft (boolean field)
+	base.Draft = updates.Draft
 
 	// Determine path - use existing user path or create new override
 	var filePath string
@@ -391,6 +394,8 @@ func (s *TemplatesService) UpdateDefaultTemplate(id string, updates *Template) (
 	if updates.SuggestedToolIDs != nil {
 		base.SuggestedToolIDs = updates.SuggestedToolIDs
 	}
+	// Always apply Draft (boolean field)
+	base.Draft = updates.Draft
 
 	// Write to the default template's path
 	if err := s.writeTemplate(defaultTemplate.path, &base); err != nil {
