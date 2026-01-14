@@ -170,8 +170,9 @@ func TestPlanPostsToPlanEndpoint(t *testing.T) {
 			t.Fatalf("plan failed: %v", err)
 		}
 	})
-	if !strings.Contains(output, "\"plan\"") {
-		t.Fatalf("expected plan output, got: %s", output)
+	// Check for pretty-printed output format
+	if !strings.Contains(output, "Deployment Plan") || !strings.Contains(output, "VPS Preflight") {
+		t.Fatalf("expected plan output with steps, got: %s", output)
 	}
 }
 

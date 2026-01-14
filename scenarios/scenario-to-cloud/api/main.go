@@ -28,6 +28,8 @@ import (
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
+	"scenario-to-cloud/toolhandlers"
+	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
 )
@@ -51,6 +53,8 @@ type Server struct {
 	taskSvc          *tasks.Service
 	historyRecorder  deployment.HistoryRecorder
 	orchestrator     *deployment.Orchestrator
+	// Tool Discovery Protocol
+	toolRegistry *toolregistry.Registry
 
 	// Seam: SSH command execution (defaults to ssh.ExecRunner)
 	sshRunner ssh.Runner
@@ -158,6 +162,17 @@ func NewServer() (*Server, error) {
 		Logger:           srv.log,
 	})
 
+	// Initialize Tool Discovery Protocol registry
+	srv.toolRegistry = toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "scenario-to-cloud",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Deploys scenarios to VPS targets with full lifecycle management, preflight checks, and live state inspection.",
+	})
+	// Register all tool providers
+	srv.toolRegistry.RegisterProvider(toolregistry.NewDeploymentToolProvider())
+	srv.toolRegistry.RegisterProvider(toolregistry.NewInspectionToolProvider())
+	srv.toolRegistry.RegisterProvider(toolregistry.NewValidationToolProvider())
+
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -261,6 +276,11 @@ func (s *Server) setupRoutes() {
 
 	// New unified task endpoints
 	s.registerTaskRoutes(api)
+
+	// Tool Discovery Protocol endpoints
+	toolsHandler := toolhandlers.NewToolsHandler(s.toolRegistry)
+	api.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
+	api.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
 }
 
 // Router returns the HTTP handler for use with server.Run

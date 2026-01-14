@@ -1,4 +1,5 @@
-package main
+// Package manifest provides shared manifest utilities for CLI domain packages.
+package manifest
 
 import (
 	"encoding/json"
@@ -6,11 +7,9 @@ import (
 	"os"
 )
 
-func (a *App) cmdManifestValidate(args []string) error {
-	return a.postManifestOnly(args, "manifest-validate", "/api/v1/manifest/validate")
-}
-
-func readJSONFile(path string) (map[string]interface{}, error) {
+// ReadJSONFile reads and parses a JSON file into a generic map.
+// Used by CLI commands that need to send manifest data to the API.
+func ReadJSONFile(path string) (map[string]interface{}, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
