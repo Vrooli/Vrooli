@@ -16,12 +16,13 @@
  * - Test IDs on interactive elements
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ChevronDown,
   ChevronRight,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -32,10 +33,14 @@ import {
   Shield,
   ShieldOff,
   Play,
+  Info,
+  Search,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import type { EffectiveTool, ScenarioStatus, ToolCategory, ApprovalOverride } from "../../lib/api";
+
+type SortOrder = "a-z" | "z-a" | "most-enabled" | "fewest-enabled";
 
 interface ToolConfigurationProps {
   /** Tools grouped by scenario */
@@ -56,6 +61,10 @@ interface ToolConfigurationProps {
   error?: string | null;
   /** Whether YOLO mode is enabled (hides approval selectors) */
   yoloMode?: boolean;
+  /** Total count of enabled tools (for token cost warning) */
+  enabledCount?: number;
+  /** Total count of all tools */
+  totalCount?: number;
   /** Callback when tool is toggled */
   onToggleTool: (scenario: string, toolName: string, enabled: boolean) => void;
   /** Callback when tool approval is changed */
@@ -107,6 +116,8 @@ export function ToolConfiguration({
   isUpdating,
   error,
   yoloMode,
+  enabledCount,
+  totalCount,
   onToggleTool,
   onSetApproval,
   onResetTool,
@@ -117,6 +128,10 @@ export function ToolConfiguration({
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(
     new Set(toolsByScenario.keys())
   );
+  // Search query
+  const [searchQuery, setSearchQuery] = useState("");
+  // Sort order (default A-Z)
+  const [sortOrder, setSortOrder] = useState<SortOrder>("a-z");
 
   const toggleScenario = (scenario: string) => {
     setExpandedScenarios((prev) => {
@@ -190,15 +205,111 @@ export function ToolConfiguration({
     );
   }
 
-  const scenarioEntries = Array.from(toolsByScenario.entries());
+  // Filter and sort scenarios
+  const scenarioEntries = useMemo(() => {
+    const entries = Array.from(toolsByScenario.entries());
+    const query = searchQuery.toLowerCase().trim();
+
+    // Filter by search query (match scenario name or tool names/descriptions)
+    const filtered = query
+      ? entries.filter(([scenario, tools]) => {
+          // Match scenario name
+          if (scenario.toLowerCase().includes(query)) return true;
+          // Match any tool name or description
+          return tools.some(
+            (t) =>
+              t.tool.name.toLowerCase().includes(query) ||
+              t.tool.description.toLowerCase().includes(query)
+          );
+        })
+      : entries;
+
+    // Sort scenarios
+    return filtered.sort((a, b) => {
+      const [scenarioA, toolsA] = a;
+      const [scenarioB, toolsB] = b;
+      const enabledA = toolsA.filter((t) => t.enabled).length;
+      const enabledB = toolsB.filter((t) => t.enabled).length;
+
+      switch (sortOrder) {
+        case "a-z":
+          return scenarioA.localeCompare(scenarioB);
+        case "z-a":
+          return scenarioB.localeCompare(scenarioA);
+        case "most-enabled":
+          return enabledB - enabledA || scenarioA.localeCompare(scenarioB);
+        case "fewest-enabled":
+          return enabledA - enabledB || scenarioA.localeCompare(scenarioB);
+        default:
+          return scenarioA.localeCompare(scenarioB);
+      }
+    });
+  }, [toolsByScenario, searchQuery, sortOrder]);
 
   return (
     <div className="space-y-4" data-testid="tool-configuration">
+      {/* Token cost explanation */}
+      <div className="p-3 rounded-lg bg-slate-800/50 border border-white/10">
+        <div className="flex items-start gap-2">
+          <Info className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+          <div className="text-xs text-slate-400">
+            <p>Each enabled tool adds ~50-200 tokens to every AI request, increasing costs and latency.</p>
+            <p className="mt-1">Enable only the tools you need for your current workflow.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Warning when >10 tools enabled */}
+      {enabledCount !== undefined && enabledCount > 10 && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <span className="text-xs text-amber-300">
+              {enabledCount} tools enabled — this adds ~{enabledCount * 100}-{enabledCount * 200} tokens per request
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Search and sort controls */}
+      <div className="flex items-center gap-3">
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search tools or scenarios..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+            data-testid="tool-search-input"
+          />
+        </div>
+
+        {/* Sort dropdown */}
+        <div className="flex items-center gap-1.5">
+          <Tooltip content="Sort scenarios">
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+              className="text-xs bg-white/5 border border-white/10 rounded px-2 py-1.5 text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 cursor-pointer"
+              data-testid="tool-sort-select"
+            >
+              <option value="a-z">A → Z</option>
+              <option value="z-a">Z → A</option>
+              <option value="most-enabled">Most Enabled</option>
+              <option value="fewest-enabled">Fewest Enabled</option>
+            </select>
+          </Tooltip>
+        </div>
+      </div>
+
       {/* Header with sync button */}
       {onSyncTools && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-slate-500">
             {chatId ? "Override tool settings for this chat" : "Configure default tools for all chats"}
+            {totalCount !== undefined && ` (${enabledCount ?? 0}/${totalCount} enabled)`}
           </p>
           <Tooltip content="Discover tools from all running scenarios">
             <Button
@@ -215,11 +326,39 @@ export function ToolConfiguration({
         </div>
       )}
 
+      {/* No results message */}
+      {searchQuery && scenarioEntries.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="tools-no-results">
+          <Search className="h-8 w-8 text-slate-500 mb-2" />
+          <p className="text-sm text-slate-400">No tools or scenarios match "{searchQuery}"</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSearchQuery("")}
+            className="mt-2"
+          >
+            Clear search
+          </Button>
+        </div>
+      )}
+
       {/* Scenario sections */}
       {scenarioEntries.map(([scenario, tools]) => {
         const status = statusByScenario.get(scenario);
         const isExpanded = expandedScenarios.has(scenario);
-        const enabledCount = tools.filter((t) => t.enabled).length;
+        const scenarioEnabledCount = tools.filter((t) => t.enabled).length;
+        const allEnabled = scenarioEnabledCount === tools.length;
+        const someEnabled = scenarioEnabledCount > 0 && scenarioEnabledCount < tools.length;
+
+        const handleToggleAllInScenario = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          const newEnabled = !allEnabled;
+          for (const tool of tools) {
+            if (tool.enabled !== newEnabled) {
+              onToggleTool(scenario, tool.tool.name, newEnabled);
+            }
+          }
+        };
 
         return (
           <div
@@ -228,24 +367,51 @@ export function ToolConfiguration({
             data-testid={`scenario-section-${scenario}`}
           >
             {/* Scenario header */}
-            <button
-              onClick={() => toggleScenario(scenario)}
-              className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors"
-              data-testid={`scenario-toggle-${scenario}`}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-slate-400" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-slate-400" />
-              )}
-              <div className="flex-1 flex items-center gap-2 min-w-0">
-                {getStatusIndicator(status)}
-                <span className="font-medium text-white truncate">{scenario}</span>
-                <span className="text-xs text-slate-500">
-                  {enabledCount}/{tools.length} enabled
-                </span>
-              </div>
-            </button>
+            <div className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
+              {/* Expand/collapse button */}
+              <button
+                onClick={() => toggleScenario(scenario)}
+                className="flex items-center gap-3 flex-1 min-w-0"
+                data-testid={`scenario-toggle-${scenario}`}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                )}
+                <div className="flex-1 flex items-center gap-2 min-w-0">
+                  {getStatusIndicator(status)}
+                  <span className="font-medium text-white truncate">{scenario}</span>
+                  <span className="text-xs text-slate-500">
+                    {scenarioEnabledCount}/{tools.length} enabled
+                  </span>
+                </div>
+              </button>
+
+              {/* Toggle all switch */}
+              <Tooltip content={allEnabled ? "Disable all tools in this scenario" : "Enable all tools in this scenario"}>
+                <label
+                  className="relative inline-flex items-center cursor-pointer shrink-0"
+                  onClick={handleToggleAllInScenario}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allEnabled}
+                    onChange={() => {}}
+                    disabled={isUpdating}
+                    className="sr-only peer"
+                    data-testid={`scenario-toggle-all-${scenario}`}
+                  />
+                  <div className={`w-9 h-5 rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/50 ${
+                    allEnabled
+                      ? "bg-indigo-500 peer-checked:after:translate-x-full"
+                      : someEnabled
+                        ? "bg-indigo-500/50"
+                        : "bg-slate-700"
+                  } ${allEnabled ? "after:translate-x-full" : ""}`} />
+                </label>
+              </Tooltip>
+            </div>
 
             {/* Tools list */}
             {isExpanded && (

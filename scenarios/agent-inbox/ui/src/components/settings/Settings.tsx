@@ -50,7 +50,7 @@ import type { TemplateWithSource, SkillWithSource, Skill, SkillSource } from "..
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "templates" | "skills" | "data";
+export type SettingsTab = "general" | "ai" | "tools" | "templates" | "skills" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -124,7 +124,6 @@ export function Settings({
   const [defaultModel, setDefaultModelState] = useState<string>(getDefaultModel);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [showTools, setShowTools] = useState(false);
   const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
 
   // YOLO mode setting
@@ -148,7 +147,7 @@ export function Settings({
     toggleTool,
     setApproval,
     syncDiscoveredTools,
-  } = useTools({ enabled: open && activeTab === "ai" });
+  } = useTools({ enabled: open && (activeTab === "ai" || activeTab === "tools") });
 
   // Suggestions and templates settings
   const {
@@ -309,7 +308,7 @@ export function Settings({
 
   return (
     <>
-    <Dialog open={open} onClose={onClose} className="max-w-lg" disableEscape={isCreatingSkill || editingSkill !== null}>
+    <Dialog open={open} onClose={onClose} className="max-w-2xl" disableEscape={isCreatingSkill || editingSkill !== null}>
       <DialogHeader onClose={onClose}>Settings</DialogHeader>
       <DialogBody className="space-y-4">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
@@ -324,6 +323,12 @@ export function Settings({
               <span className="flex items-center gap-2">
                 <Cpu className="h-4 w-4" />
                 AI
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="tools">
+              <span className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                Tools
               </span>
             </TabsTrigger>
             <TabsTrigger value="templates">
@@ -449,8 +454,12 @@ export function Settings({
               />
             </section>
 
+          </TabsContent>
+
+          {/* Tools Tab */}
+          <TabsContent value="tools" className="space-y-4">
             {/* YOLO Mode Section */}
-            <section>
+            <section className="p-3 rounded-lg border border-white/10 bg-white/5">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-slate-300">YOLO Mode</h3>
@@ -480,51 +489,22 @@ export function Settings({
               )}
             </section>
 
-            {/* Tools Configuration Section */}
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-slate-300">AI Tools</h3>
-                <span className="text-xs text-slate-500">
-                  {enabledTools.length} of {toolSet?.tools.length ?? 0} enabled
-                </span>
-              </div>
-              {!showTools ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowTools(true)}
-                  className="w-full justify-start gap-2"
-                  data-testid="configure-tools-button"
-                >
-                  <Wrench className="h-4 w-4" />
-                  Configure Default Tools
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowTools(false)}
-                    className="text-slate-400"
-                  >
-                    Hide tool configuration
-                  </Button>
-                  <ToolConfiguration
-                    toolsByScenario={toolsByScenario}
-                    categories={toolSet?.categories ?? []}
-                    scenarioStatuses={scenarios}
-                    isLoading={isLoadingTools}
-                    isSyncing={isSyncingTools}
-                    isUpdating={isUpdatingTools}
-                    error={toolsError?.message}
-                    onToggleTool={toggleTool}
-                    onSetApproval={handleSetApproval}
-                    onSyncTools={syncDiscoveredTools}
-                    yoloMode={yoloMode}
-                    onRunTool={handleRunTool}
-                  />
-                </div>
-              )}
-            </section>
+            <ToolConfiguration
+              toolsByScenario={toolsByScenario}
+              categories={toolSet?.categories ?? []}
+              scenarioStatuses={scenarios}
+              isLoading={isLoadingTools}
+              isSyncing={isSyncingTools}
+              isUpdating={isUpdatingTools}
+              error={toolsError?.message}
+              onToggleTool={toggleTool}
+              onSetApproval={handleSetApproval}
+              onSyncTools={syncDiscoveredTools}
+              yoloMode={yoloMode}
+              onRunTool={handleRunTool}
+              enabledCount={enabledTools.length}
+              totalCount={toolSet?.tools.length ?? 0}
+            />
           </TabsContent>
 
           {/* Templates Tab */}
