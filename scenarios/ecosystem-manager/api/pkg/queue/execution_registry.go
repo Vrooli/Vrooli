@@ -2,7 +2,6 @@ package queue
 
 import (
 	"log"
-	"os/exec"
 	"sync"
 	"time"
 
@@ -58,43 +57,6 @@ func (r *ExecutionRegistry) ReserveExecution(taskID, agentID string, startedAt t
 	}
 }
 
-// RegisterExecution registers a running process for a task.
-// This updates an existing reservation or creates a new entry with the given process.
-func (r *ExecutionRegistry) RegisterExecution(taskID, agentID string, cmd *exec.Cmd, startedAt time.Time) {
-	if startedAt.IsZero() {
-		startedAt = time.Now()
-	}
-
-	// Get current timeout setting
-	currentSettings := settings.GetSettings()
-	timeoutDuration := time.Duration(currentSettings.TaskTimeout) * time.Minute
-	timeoutAt := startedAt.Add(timeoutDuration)
-
-	r.executionsMu.Lock()
-	defer r.executionsMu.Unlock()
-
-	execState, exists := r.executions[taskID]
-	if !exists {
-		execState = &taskExecution{taskID: taskID}
-		r.executions[taskID] = execState
-	}
-	if agentID != "" {
-		execState.agentTag = agentID
-	}
-	execState.cmd = cmd
-	if execState.started.IsZero() {
-		execState.started = startedAt
-		execState.timeoutAt = timeoutAt
-	}
-
-	// Defensive nil check for logging
-	if cmd != nil && cmd.Process != nil {
-		log.Printf("Registered execution %d for task %s (timeout at %s)", cmd.Process.Pid, taskID, timeoutAt.Format(time.RFC3339))
-	} else {
-		log.Printf("Registered execution record for task %s (pid unknown, timeout at %s)", taskID, timeoutAt.Format(time.RFC3339))
-	}
-}
-
 // RegisterRunID associates an agent-manager run ID with a task execution
 func (r *ExecutionRegistry) RegisterRunID(taskID, runID string) {
 	r.executionsMu.Lock()
@@ -110,8 +72,8 @@ func (r *ExecutionRegistry) UnregisterExecution(taskID string) {
 	r.executionsMu.Lock()
 	defer r.executionsMu.Unlock()
 
-	if exec, exists := r.executions[taskID]; exists {
-		log.Printf("Unregistered execution %d for task %s", exec.pid(), taskID)
+	if _, exists := r.executions[taskID]; exists {
+		log.Printf("Unregistered execution for task %s", taskID)
 		delete(r.executions, taskID)
 	}
 }
@@ -174,7 +136,6 @@ func (r *ExecutionRegistry) GetAllExecutions() []taskExecutionSnapshot {
 			Started:   exec.started,
 			TimeoutAt: exec.timeoutAt,
 			TimedOut:  exec.isTimedOut(),
-			PID:       exec.pid(),
 		})
 	}
 	return snapshots
@@ -195,7 +156,6 @@ func (r *ExecutionRegistry) GetTimedOutExecutions() []taskExecutionSnapshot {
 				Started:   exec.started,
 				TimeoutAt: exec.timeoutAt,
 				TimedOut:  true,
-				PID:       exec.pid(),
 			})
 		}
 	}
@@ -219,7 +179,6 @@ type taskExecutionSnapshot struct {
 	Started   time.Time
 	TimeoutAt time.Time
 	TimedOut  bool
-	PID       int
 }
 
 // ListRunningTaskIDsAsMap returns task IDs as a map for O(1) lookup

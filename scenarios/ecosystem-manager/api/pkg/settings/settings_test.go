@@ -381,8 +381,7 @@ func TestValidateAndNormalize(t *testing.T) {
 
 	input := Settings{
 		Slots:           2,
-		CooldownSeconds: 0,
-		RefreshInterval: 45, // legacy field should migrate
+		CooldownSeconds: 45,
 		MaxTurns:        60,
 		TaskTimeout:     90,
 		IdleTimeoutCap:  0, // should fall back to previous
@@ -416,7 +415,7 @@ func TestValidateAndNormalize(t *testing.T) {
 		t.Fatalf("unexpected Slots value %d", result.Slots)
 	}
 	if result.CooldownSeconds != 45 {
-		t.Fatalf("expected CooldownSeconds to migrate from legacy refresh interval, got %d", result.CooldownSeconds)
+		t.Fatalf("expected CooldownSeconds to be 45, got %d", result.CooldownSeconds)
 	}
 }
 

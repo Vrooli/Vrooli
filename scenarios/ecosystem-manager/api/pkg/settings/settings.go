@@ -28,10 +28,8 @@ type Settings struct {
 	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots           int `json:"slots"`
-	CooldownSeconds int `json:"cooldown_seconds"`
-	// Legacy field for backward compatibility; populated only on load and not persisted.
-	RefreshInterval int  `json:"refresh_interval,omitempty"`
+	Slots           int  `json:"slots"`
+	CooldownSeconds int  `json:"cooldown_seconds"`
 	Active          bool `json:"active"`
 
 	// Agent settings
@@ -132,10 +130,6 @@ func ValidateAndNormalize(input Settings, previous Settings) (Settings, error) {
 
 	if s.Slots < MinSlots || s.Slots > MaxSlots {
 		return previous, fmt.Errorf("Slots must be between %d and %d", MinSlots, MaxSlots)
-	}
-	// Migrate legacy refresh_interval to cooldown_seconds
-	if s.CooldownSeconds == 0 && s.RefreshInterval > 0 {
-		s.CooldownSeconds = s.RefreshInterval
 	}
 	if s.CooldownSeconds < MinCooldownSeconds || s.CooldownSeconds > MaxCooldownSeconds {
 		return previous, fmt.Errorf("Cooldown must be between %d and %d seconds", MinCooldownSeconds, MaxCooldownSeconds)

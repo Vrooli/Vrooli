@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 )
 
@@ -37,7 +36,7 @@ type ApplySuggestionResult struct {
 }
 
 // ApplySuggestion applies a suggestion to the codebase
-func (sa *SuggestionApplier) ApplySuggestion(suggestion queue.Suggestion, dryRun bool) (*ApplySuggestionResult, error) {
+func (sa *SuggestionApplier) ApplySuggestion(suggestion Suggestion, dryRun bool) (*ApplySuggestionResult, error) {
 	result := &ApplySuggestionResult{
 		Success:      false,
 		FilesChanged: []string{},
@@ -84,7 +83,7 @@ func (sa *SuggestionApplier) ApplySuggestion(suggestion queue.Suggestion, dryRun
 }
 
 // applyChange applies a single change
-func (sa *SuggestionApplier) applyChange(change queue.ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
+func (sa *SuggestionApplier) applyChange(change ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
 	// Validate file path (prevent directory traversal)
 	filePath := filepath.Join(sa.scenarioRoot, change.File)
 	if !strings.HasPrefix(filePath, sa.scenarioRoot) {
@@ -104,7 +103,7 @@ func (sa *SuggestionApplier) applyChange(change queue.ProposedChange, result *Ap
 }
 
 // applyFileEdit applies an edit to an existing file
-func (sa *SuggestionApplier) applyFileEdit(filePath string, change queue.ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
+func (sa *SuggestionApplier) applyFileEdit(filePath string, change ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
 	// Read current content
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -142,7 +141,7 @@ func (sa *SuggestionApplier) applyFileEdit(filePath string, change queue.Propose
 }
 
 // createFile creates a new file with the specified content
-func (sa *SuggestionApplier) createFile(filePath string, change queue.ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
+func (sa *SuggestionApplier) createFile(filePath string, change ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
 	// Check if file already exists
 	if _, err := os.Stat(filePath); err == nil {
 		return fmt.Errorf("file already exists: %s", filePath)
@@ -169,7 +168,7 @@ func (sa *SuggestionApplier) createFile(filePath string, change queue.ProposedCh
 }
 
 // applyConfigUpdate updates a configuration file (JSON)
-func (sa *SuggestionApplier) applyConfigUpdate(filePath string, change queue.ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
+func (sa *SuggestionApplier) applyConfigUpdate(filePath string, change ProposedChange, result *ApplySuggestionResult, dryRun bool) error {
 	// Read current config
 	content, err := os.ReadFile(filePath)
 	if err != nil {

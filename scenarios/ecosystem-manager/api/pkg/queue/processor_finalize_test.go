@@ -46,7 +46,12 @@ func newTestProcessorWithRecycler(t *testing.T) (*Processor, *recycler.Recycler,
 	broadcast := make(chan any, 4)
 	rec := recycler.New(storage, nil)
 	rec.Start()
-	processor := NewProcessor(storage, assembler, broadcast, rec)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+		Recycler:  rec,
+	})
 
 	cleanup := func() {
 		rec.Stop()

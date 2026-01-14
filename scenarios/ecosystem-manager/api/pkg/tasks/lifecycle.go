@@ -19,20 +19,14 @@ const (
 )
 
 // TransitionContext captures caller intent and knobs for lifecycle operations.
-// Deprecated fields Manual/ForceOverride remain for compatibility but callers should set Intent.
 type TransitionContext struct {
-	Intent        TransitionIntent
-	Manual        bool // deprecated: use IntentManual instead
-	ForceOverride bool // deprecated: use IntentReconcile when override is needed
-	Now           func() time.Time
+	Intent TransitionIntent
+	Now    func() time.Time
 }
 
 func (ctx TransitionContext) intent() TransitionIntent {
 	if ctx.Intent != "" {
 		return ctx.Intent
-	}
-	if ctx.Manual {
-		return IntentManual
 	}
 	return IntentAuto
 }
@@ -42,7 +36,7 @@ func (ctx TransitionContext) isManual() bool {
 }
 
 func (ctx TransitionContext) allowsLockOverride() bool {
-	return ctx.intent() == IntentReconcile || ctx.ForceOverride
+	return ctx.intent() == IntentReconcile
 }
 
 func (ctx TransitionContext) allowsCooldownOverride() bool {
@@ -92,12 +86,26 @@ type transitionRule struct {
 //
 // The goal: a single, declarative state machine that callers delegate to, rather than re-encoding rules in handlers/processors/recycler.
 
-// StorageAPI is the minimal interface Lifecycle needs from storage.
+// StorageAPI abstracts task storage for testability.
+// Used by Lifecycle, Processor, Recycler, and handlers.
 type StorageAPI interface {
-	MoveTaskTo(taskID, status string) (*TaskItem, string, error)
+	// Core CRUD operations
+	GetTaskByID(taskID string) (*TaskItem, string, error)
 	SaveQueueItem(task TaskItem, status string) error
 	SaveQueueItemSkipCleanup(task TaskItem, status string) error
-	GetTaskByID(taskID string) (*TaskItem, string, error)
+	MoveTaskTo(taskID, status string) (*TaskItem, string, error)
+
+	// Query operations
+	GetQueueItems(status string) ([]TaskItem, error)
+	CurrentStatus(taskID string) (string, error)
+	FindActiveTargetTask(taskType, operation, target string) (*TaskItem, string, error)
+
+	// Maintenance operations
+	CleanupDuplicates() error
+	DeleteTask(taskID string) (string, error)
+
+	// Configuration
+	GetQueueDir() string
 }
 
 func defaultNow(ctx TransitionContext) time.Time {
@@ -221,7 +229,7 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				if !isTerminalStatus(fromStatus) && !task.ProcessorAutoRequeue && !req.allowsLockOverride() {
 					return effects, newTransitionError(TransitionErrorCodeConflict, "auto-requeue disabled; cannot move %s to pending", req.TaskID)
 				}
-				if remaining := cooldownRemaining(task); remaining > 0 && !req.allowsCooldownOverride() {
+				if remaining := CooldownRemaining(task); remaining > 0 && !req.allowsCooldownOverride() {
 					return effects, newTransitionError(TransitionErrorCodeConflict, "task %s still cooling down (%v remaining)", req.TaskID, remaining)
 				}
 				if isTerminalStatus(fromStatus) {
@@ -323,36 +331,6 @@ func finalizeRule(toStatus string) func(lc *Lifecycle, task *TaskItem, fromStatu
 	}
 }
 
-// StartPending moves a task into in-progress using the canonical rules.
-// Deprecated: prefer ApplyTransition directly to maintain single-path behavior.
-func (lc *Lifecycle) StartPending(taskID string, ctx TransitionContext) (*TaskItem, error) {
-	outcome, err := lc.ApplyTransition(TransitionRequest{
-		TaskID:            taskID,
-		ToStatus:          StatusInProgress,
-		TransitionContext: ctx,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return outcome.Task, nil
-}
-
-// StopActive moves an in-progress task to the provided status (default pending) via canonical rules.
-// Deprecated: prefer ApplyTransition directly.
-func (lc *Lifecycle) StopActive(taskID, toStatus string, ctx TransitionContext) (*TaskItem, string, error) {
-	if toStatus == "" {
-		toStatus = StatusPending
-	}
-	outcome, err := lc.ApplyTransition(TransitionRequest{
-		TaskID:            taskID,
-		ToStatus:          toStatus,
-		TransitionContext: ctx,
-	})
-	if err != nil {
-		return nil, "", err
-	}
-	return outcome.Task, outcome.From, nil
-}
 
 // Complete marks a task as completed using canonical rules.
 func (lc *Lifecycle) Complete(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
@@ -419,21 +397,3 @@ func (lc *Lifecycle) Recycle(taskID string, ctx TransitionContext) (*TaskItem, s
 	return outcome.Task, outcome.From, nil
 }
 
-// cooldownRemaining is duplicated from recycler for now to keep lifecycle self-contained.
-func cooldownRemaining(task *TaskItem) time.Duration {
-	if task == nil {
-		return 0
-	}
-	if strings.TrimSpace(task.CooldownUntil) == "" {
-		return 0
-	}
-	ts, err := time.Parse(time.RFC3339, task.CooldownUntil)
-	if err != nil {
-		return 0
-	}
-	remaining := time.Until(ts)
-	if remaining <= 0 {
-		return 0
-	}
-	return remaining
-}

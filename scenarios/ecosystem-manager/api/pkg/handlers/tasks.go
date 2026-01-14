@@ -33,7 +33,7 @@ const (
 
 // TaskHandlers contains handlers for task-related endpoints
 type TaskHandlers struct {
-	storage           *tasks.Storage
+	storage           tasks.StorageAPI
 	assembler         *prompts.Assembler
 	processor         ProcessorAPI
 	wsManager         *websocket.Manager
@@ -277,7 +277,7 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage *tasks.Storage, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
+func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
 	lc := &tasks.Lifecycle{Store: storage}
 	if coordinator != nil && coordinator.LC != nil {
 		lc = coordinator.LC

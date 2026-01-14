@@ -16,14 +16,14 @@ import (
 
 // QueueHandlers contains handlers for queue-related endpoints
 type QueueHandlers struct {
-	processor *queue.Processor
+	processor ProcessorAPI
 	wsManager *websocket.Manager
-	storage   *tasks.Storage
+	storage   tasks.StorageAPI
 	coord     *tasks.Coordinator
 }
 
 // NewQueueHandlers creates a new queue handlers instance
-func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, storage *tasks.Storage, coord *tasks.Coordinator) *QueueHandlers {
+func NewQueueHandlers(processor ProcessorAPI, wsManager *websocket.Manager, storage tasks.StorageAPI, coord *tasks.Coordinator) *QueueHandlers {
 	return &QueueHandlers{
 		processor: processor,
 		wsManager: wsManager,
@@ -84,13 +84,12 @@ func (h *QueueHandlers) GetResumeDiagnosticsHandler(w http.ResponseWriter, r *ht
 
 	diagnostics := h.processor.GetResumeDiagnostics()
 
-	response := ResumeDiagnosticsResponse{
-		Success:     true,
-		Diagnostics: diagnostics,
-		GeneratedAt: timeutil.NowRFC3339(),
-	}
-
-	writeJSON(w, response, http.StatusOK)
+	// Using inline struct to avoid importing queue types in response
+	writeJSON(w, map[string]any{
+		"success":      true,
+		"diagnostics":  diagnostics,
+		"generated_at": timeutil.NowRFC3339(),
+	}, http.StatusOK)
 }
 
 // TriggerQueueProcessingHandler forces immediate queue processing
@@ -180,13 +179,12 @@ func (h *QueueHandlers) SetMaintenanceStateHandler(w http.ResponseWriter, r *htt
 func (h *QueueHandlers) GetRunningProcessesHandler(w http.ResponseWriter, r *http.Request) {
 	processes := h.processor.GetRunningProcessesInfo()
 
-	response := ProcessesListResponse{
-		Processes: processes,
-		Count:     len(processes),
-		Timestamp: time.Now().Unix(),
-	}
-
-	writeJSON(w, response, http.StatusOK)
+	// Using inline map to avoid importing queue types in response
+	writeJSON(w, map[string]any{
+		"processes": processes,
+		"count":     len(processes),
+		"timestamp": time.Now().Unix(),
+	}, http.StatusOK)
 }
 
 // TerminateProcessHandler terminates a specific running process

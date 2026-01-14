@@ -44,19 +44,32 @@ type ExecutionHistory struct {
 	RetryAfter          int       `json:"retry_after"`                     // Rate limit retry seconds
 }
 
-// getExecutionHistoryDir returns the directory for a task's execution history
+// getExecutionHistoryDir returns the directory for a task's execution history.
+// Delegates to HistoryManager when available.
 func (qp *Processor) getExecutionHistoryDir(taskID string) string {
+	if qp.historyManager != nil {
+		// Use HistoryManager's internal path logic
+		return filepath.Join(qp.taskLogsDir, taskID, "executions")
+	}
 	return filepath.Join(qp.taskLogsDir, taskID, "executions")
 }
 
-// getExecutionDir returns the directory for a specific execution
+// getExecutionDir returns the directory for a specific execution.
+// Delegates to HistoryManager when available.
 func (qp *Processor) getExecutionDir(taskID, executionID string) string {
+	if qp.historyManager != nil {
+		return qp.historyManager.GetExecutionDir(taskID, executionID)
+	}
 	return filepath.Join(qp.getExecutionHistoryDir(taskID), executionID)
 }
 
-// GetExecutionFilePath returns the full path to a file within an execution directory
-// This is exported for use by handlers to serve execution files (prompt.txt, output.log, etc.)
+// GetExecutionFilePath returns the full path to a file within an execution directory.
+// This is exported for use by handlers to serve execution files (prompt.txt, output.log, etc.).
+// Delegates to HistoryManager when available.
 func (qp *Processor) GetExecutionFilePath(taskID, executionID, filename string) string {
+	if qp.historyManager != nil {
+		return qp.historyManager.GetExecutionFilePath(taskID, executionID, filename)
+	}
 	return filepath.Join(qp.getExecutionDir(taskID, executionID), filename)
 }
 
@@ -65,25 +78,32 @@ func createExecutionID() string {
 	return time.Now().Format("2006-01-02_150405")
 }
 
-// savePromptToHistory stores the assembled prompt in execution history
+// savePromptToHistory stores the assembled prompt in execution history.
+// Delegates to HistoryManager when available.
 func (qp *Processor) savePromptToHistory(taskID, executionID, prompt string) (string, error) {
+	if qp.historyManager != nil {
+		return qp.historyManager.SavePromptToHistory(taskID, executionID, prompt)
+	}
+	// Fallback implementation
 	execDir := qp.getExecutionDir(taskID, executionID)
 	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return "", fmt.Errorf("create execution directory: %w", err)
 	}
-
 	promptPath := filepath.Join(execDir, "prompt.txt")
 	if err := os.WriteFile(promptPath, []byte(prompt), 0o644); err != nil {
 		return "", fmt.Errorf("write prompt file: %w", err)
 	}
-
-	// Return relative path from task-runs root
 	relPath := filepath.Join(taskID, "executions", executionID, "prompt.txt")
 	return relPath, nil
 }
 
-// saveExecutionMetadata persists execution metadata to disk
+// saveExecutionMetadata persists execution metadata to disk.
+// Delegates to HistoryManager when available.
 func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
+	if qp.historyManager != nil {
+		return qp.historyManager.SaveExecutionMetadata(history)
+	}
+	// Fallback implementation
 	execDir := qp.getExecutionDir(history.TaskID, history.ExecutionID)
 	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return fmt.Errorf("create execution directory: %w", err)
@@ -108,8 +128,13 @@ func (qp *Processor) saveExecutionMetadata(history ExecutionHistory) error {
 	return nil
 }
 
-// saveOutputToHistory moves the execution log to the history directory
+// saveOutputToHistory moves the execution log to the history directory.
+// Delegates to HistoryManager when available.
 func (qp *Processor) saveOutputToHistory(taskID, executionID string) (string, error) {
+	if qp.historyManager != nil {
+		return qp.historyManager.SaveOutputToHistory(taskID, executionID)
+	}
+	// Fallback implementation
 	execDir := qp.getExecutionDir(taskID, executionID)
 	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		return "", fmt.Errorf("create execution directory: %w", err)
@@ -138,8 +163,13 @@ func (qp *Processor) saveOutputToHistory(taskID, executionID string) (string, er
 	return relPath, nil
 }
 
-// LoadExecutionHistory loads all execution history for a task
+// LoadExecutionHistory loads all execution history for a task.
+// Delegates to HistoryManager when available.
 func (qp *Processor) LoadExecutionHistory(taskID string) ([]ExecutionHistory, error) {
+	if qp.historyManager != nil {
+		return qp.historyManager.LoadExecutionHistory(taskID)
+	}
+	// Fallback implementation
 	historyDir := qp.getExecutionHistoryDir(taskID)
 	entries, err := os.ReadDir(historyDir)
 	if err != nil {
@@ -197,10 +227,15 @@ func (qp *Processor) LoadExecutionHistory(taskID string) ([]ExecutionHistory, er
 	return history, nil
 }
 
-// LoadAllExecutionHistory loads execution history for all tasks
+// LoadAllExecutionHistory loads execution history for all tasks.
 // Uses a simple time-based cache (10 seconds) to avoid expensive filesystem operations
-// on repeated calls (e.g., when user refreshes the execution history tab)
+// on repeated calls (e.g., when user refreshes the execution history tab).
+// Delegates to HistoryManager when available.
 func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
+	if qp.historyManager != nil {
+		return qp.historyManager.LoadAllExecutionHistory()
+	}
+	// Fallback implementation
 	// Check cache first
 	qp.executionHistoryCacheMu.RLock()
 	if time.Since(qp.executionHistoryCacheTime) < ExecutionHistoryCacheTTL && qp.executionHistoryCache != nil {
@@ -251,9 +286,14 @@ func (qp *Processor) LoadAllExecutionHistory() ([]ExecutionHistory, error) {
 	return allHistory, nil
 }
 
-// LatestExecutionOutputPath returns the absolute path to the most recent execution output
+// LatestExecutionOutputPath returns the absolute path to the most recent execution output.
 // Prefers clean_output.txt when available, otherwise output.log. Returns empty string if none found.
+// Delegates to HistoryManager when available.
 func (qp *Processor) LatestExecutionOutputPath(taskID string) string {
+	if qp.historyManager != nil {
+		return qp.historyManager.LatestExecutionOutputPath(taskID)
+	}
+	// Fallback implementation
 	history, err := qp.LoadExecutionHistory(taskID)
 	if err != nil || len(history) == 0 {
 		return ""
@@ -276,8 +316,13 @@ func (qp *Processor) LatestExecutionOutputPath(taskID string) string {
 	return resolve(latest.OutputPath)
 }
 
-// CleanupOldExecutions removes execution history older than the specified retention period
+// CleanupOldExecutions removes execution history older than the specified retention period.
+// Delegates to HistoryManager when available.
 func (qp *Processor) CleanupOldExecutions(taskID string, retentionDays int) error {
+	if qp.historyManager != nil {
+		return qp.historyManager.CleanupOldExecutions(taskID, retentionDays)
+	}
+	// Fallback implementation
 	if retentionDays <= 0 {
 		return nil // Retention disabled
 	}

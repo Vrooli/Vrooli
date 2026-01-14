@@ -280,3 +280,9 @@ func (qp *Processor) getLastProcessed() time.Time {
 	defer qp.lastProcessedMu.RUnlock()
 	return qp.lastProcessedAt
 }
+
+// GetLastProcessedTime returns the timestamp of the last queue processing cycle.
+// Implements DiagnosticsAPI.
+func (qp *Processor) GetLastProcessedTime() time.Time {
+	return qp.getLastProcessed()
+}

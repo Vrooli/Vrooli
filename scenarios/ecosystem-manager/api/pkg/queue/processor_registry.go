@@ -3,7 +3,6 @@ package queue
 import (
 	"fmt"
 	"log"
-	"os/exec"
 	"sync"
 	"time"
 )
@@ -41,11 +40,6 @@ func (qp *Processor) reserveExecution(taskID, agentID string, startedAt time.Tim
 	qp.registry.ReserveExecution(taskID, agentID, startedAt)
 }
 
-// registerExecution registers a running process for a task
-func (qp *Processor) registerExecution(taskID, agentID string, cmd *exec.Cmd, startedAt time.Time) {
-	qp.registry.RegisterExecution(taskID, agentID, cmd, startedAt)
-}
-
 // registerRunID associates an agent-manager run ID with a task execution
 func (qp *Processor) registerRunID(taskID, runID string) {
 	qp.registry.RegisterRunID(taskID, runID)
@@ -78,7 +72,7 @@ func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
 		duration := now.Sub(exec.Started)
 		info := ProcessInfo{
 			TaskID:          exec.TaskID,
-			ProcessID:       exec.PID,
+			ProcessID:       0, // No process ID for agent-manager runs
 			ProcessType:     "task",
 			StartTime:       exec.Started.Format(time.RFC3339),
 			Duration:        duration.Round(time.Second).String(),

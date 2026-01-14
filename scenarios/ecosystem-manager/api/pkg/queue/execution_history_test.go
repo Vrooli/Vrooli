@@ -32,7 +32,11 @@ func setupTestExecutionProcessor(t *testing.T) (*Processor, func()) {
 	assembler := &prompts.Assembler{} // Mock assembler
 	broadcast := make(chan any, 10)
 
-	processor := NewProcessor(storage, assembler, broadcast, nil)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 
 	cleanup := func() {
 		processor.Stop()

@@ -43,7 +43,11 @@ func setupTestProcessor(t *testing.T) (*Processor, string, func()) {
 	}
 
 	broadcast := make(chan any, 10)
-	processor := NewProcessor(storage, assembler, broadcast, nil)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 
 	cleanup := func() {
 		processor.Stop()
@@ -128,7 +132,7 @@ func TestProcessor_StopAllowsRunningTasksToFinish(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	taskID := "test-running-on-stop"
-	processor.registerExecution(taskID, "ecosystem-"+taskID, nil, time.Now())
+	processor.reserveExecution(taskID, "ecosystem-"+taskID, time.Now())
 
 	processor.Stop()
 	time.Sleep(10 * time.Millisecond)

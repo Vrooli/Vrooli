@@ -35,7 +35,7 @@ const (
 
 // Recycler coordinates the background auto-requeue workflow.
 type Recycler struct {
-	storage   *tasks.Storage
+	storage   tasks.StorageAPI
 	wsManager *websocket.Manager
 	lifecycle *tasks.Lifecycle
 
@@ -52,13 +52,13 @@ type Recycler struct {
 
 	retryDelay func(int) time.Duration
 
-	stats recyclerStats
+	stats Stats
 
 	wake func()
 }
 
 // New creates a recycler instance.
-func New(storage *tasks.Storage, wsManager *websocket.Manager) *Recycler {
+func New(storage tasks.StorageAPI, wsManager *websocket.Manager) *Recycler {
 	return &Recycler{
 		storage:   storage,
 		wsManager: wsManager,
@@ -317,7 +317,7 @@ func (r *Recycler) handleWork(taskID string) {
 		return
 	}
 
-	if remaining := cooldownRemaining(task); remaining > 0 {
+	if remaining := tasks.CooldownRemaining(task); remaining > 0 {
 		r.scheduleAfterCooldown(taskID, remaining)
 		r.resetFailures(taskID)
 		return
@@ -491,23 +491,6 @@ func (r *Recycler) resetFailures(taskID string) {
 	r.mu.Unlock()
 }
 
-func cooldownRemaining(task *tasks.TaskItem) time.Duration {
-	if task == nil {
-		return 0
-	}
-	if strings.TrimSpace(task.CooldownUntil) == "" {
-		return 0
-	}
-	ts, err := time.Parse(time.RFC3339, task.CooldownUntil)
-	if err != nil {
-		return 0
-	}
-	remaining := time.Until(ts)
-	if remaining <= 0 {
-		return 0
-	}
-	return remaining
-}
 
 func (r *Recycler) scheduleAfterCooldown(taskID string, delay time.Duration) {
 	if delay <= 0 {
@@ -540,8 +523,8 @@ func (r *Recycler) scheduleAfterCooldown(taskID string, delay time.Duration) {
 }
 
 // Stats exposes basic recycler counters for observability/testing.
-func (r *Recycler) Stats() recyclerStats {
-	return recyclerStats{
+func (r *Recycler) Stats() Stats {
+	return Stats{
 		Enqueued:  atomic.LoadUint64(&r.stats.Enqueued),
 		Dropped:   atomic.LoadUint64(&r.stats.Dropped),
 		Processed: atomic.LoadUint64(&r.stats.Processed),
@@ -757,7 +740,8 @@ func (r *Recycler) isEnabled(enabledFor string) bool {
 	return enabled != "" && enabled != enabledOff
 }
 
-type recyclerStats struct {
+// Stats contains basic recycler counters for observability/testing.
+type Stats struct {
 	Enqueued  uint64
 	Dropped   uint64
 	Processed uint64

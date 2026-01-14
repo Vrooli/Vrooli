@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/recycler"
@@ -111,7 +112,11 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 
 	broadcast := make(chan any, 10)
-	processor := queue.NewProcessor(storage, assembler, broadcast, nil)
+	processor := queue.NewProcessor(queue.ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 	t.Cleanup(processor.Stop)
 	wsManager := websocket.NewManager()
 	testRecycler := &recycler.Recycler{}
@@ -133,7 +138,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	return taskHandlers, queueHandlers, healthHandlers, discoveryHandlers, settingsHandlers
 }
 
-func mustSaveTask(t *testing.T, storage *tasks.Storage, status string, task tasks.TaskItem) tasks.TaskItem {
+func mustSaveTask(t *testing.T, storage tasks.StorageAPI, status string, task tasks.TaskItem) tasks.TaskItem {
 	t.Helper()
 	now := time.Now().Format(time.RFC3339)
 
@@ -167,6 +172,20 @@ type fakeProcessor struct {
 	lastForceStartOverflow bool
 }
 
+// Lifecycle management
+func (f *fakeProcessor) Start()                                  {}
+func (f *fakeProcessor) Stop()                                   {}
+func (f *fakeProcessor) Pause()                                  {}
+func (f *fakeProcessor) ResumeWithReset() queue.ResumeResetSummary { return queue.ResumeResetSummary{} }
+func (f *fakeProcessor) ResumeWithoutReset()                     {}
+func (f *fakeProcessor) Wake()                                   { f.wakeCalled++ }
+
+// Queue status and diagnostics
+func (f *fakeProcessor) GetQueueStatus() map[string]any          { return map[string]any{} }
+func (f *fakeProcessor) GetResumeDiagnostics() queue.ResumeDiagnostics { return queue.ResumeDiagnostics{} }
+func (f *fakeProcessor) ProcessQueue()                           {}
+
+// Task execution control
 func (f *fakeProcessor) TerminateRunningProcess(taskID string) error {
 	f.terminateCalled++
 	f.lastTerminateID = taskID
@@ -186,69 +205,64 @@ func (f *fakeProcessor) StartTaskIfSlotAvailable(taskID string) error {
 	return nil
 }
 
-func (f *fakeProcessor) Wake() {
-	f.wakeCalled++
-}
-
 func (f *fakeProcessor) GetRunningProcessesInfo() []queue.ProcessInfo {
 	return nil
 }
 
-func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration {
-	return nil
-}
-
+// Task logs
 func (f *fakeProcessor) GetTaskLogs(taskID string, afterSeq int64) ([]queue.LogEntry, int64, bool, string, bool, int) {
 	return nil, 0, false, "", false, 0
 }
+func (f *fakeProcessor) ResetTaskLogs(taskID string) {}
 
+// Rate limiting
+func (f *fakeProcessor) ResetRateLimitPause() {}
+
+// Auto Steer integration
+func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration { return nil }
+
+// Execution history
 func (f *fakeProcessor) LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error) {
 	return nil, nil
 }
-
 func (f *fakeProcessor) LoadAllExecutionHistory() ([]queue.ExecutionHistory, error) {
 	return nil, nil
 }
-
 func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename string) string {
 	return ""
 }
 
-func (f *fakeProcessor) LoadInsightReports(taskID string) ([]queue.InsightReport, error) {
+// Insight-related methods
+func (f *fakeProcessor) LoadInsightReports(taskID string) ([]insights.InsightReport, error) {
 	return nil, nil
 }
-
-func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*queue.InsightReport, error) {
+func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error) {
 	return nil, nil
 }
-
-func (f *fakeProcessor) SaveInsightReport(report queue.InsightReport) error {
+func (f *fakeProcessor) SaveInsightReport(report insights.InsightReport) error {
 	return nil
 }
-
 func (f *fakeProcessor) UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error {
 	return nil
 }
-
-func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]queue.InsightReport, error) {
+func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error) {
 	return nil, nil
 }
-
-func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*queue.InsightReport, error) {
-	return nil, nil
-}
-
 func (f *fakeProcessor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
 	return "", nil
 }
-
-func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*queue.InsightReport, error) {
+func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error) {
+	return nil, nil
+}
+func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error) {
+	return nil, nil
+}
+func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error) {
 	return nil, nil
 }
 
-func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*queue.SystemInsightReport, error) {
-	return nil, nil
-}
+// Verify fakeProcessor implements ProcessorAPI
+var _ ProcessorAPI = (*fakeProcessor)(nil)
 
 // TestHealthCheckHandler tests the health check endpoint
 func TestHealthCheckHandler(t *testing.T) {

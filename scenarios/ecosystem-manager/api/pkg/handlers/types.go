@@ -1,13 +1,7 @@
 package handlers
 
-import "github.com/ecosystem-manager/api/pkg/queue"
-
-// ProcessesListResponse represents the response for running processes list
-type ProcessesListResponse struct {
-	Processes []queue.ProcessInfo `json:"processes"`
-	Count     int                 `json:"count"`
-	Timestamp int64               `json:"timestamp"`
-}
+// NOTE: This file previously imported queue types which caused a boundary violation.
+// Now we use either inline types or the api/dto package for clean separation.
 
 // ProcessTerminateResponse represents the response for process termination
 type ProcessTerminateResponse struct {
@@ -21,11 +15,4 @@ type SimpleSuccessResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message,omitempty"`
 	Error   string `json:"error,omitempty"`
-}
-
-// ResumeDiagnosticsResponse represents the response for resume diagnostics
-type ResumeDiagnosticsResponse struct {
-	Success     bool                    `json:"success"`
-	Diagnostics queue.ResumeDiagnostics `json:"diagnostics"`
-	GeneratedAt string                  `json:"generated_at"`
 }

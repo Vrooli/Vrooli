@@ -14,14 +14,14 @@ import (
 // It provides defense-in-depth backup enforcement if context.WithTimeout fails
 // or if cleanup/finalization failures leave tasks stuck in the executions map.
 type TimeoutWatchdog struct {
-	registry *ExecutionRegistry
-	agentSvc *agentmanager.AgentService
+	registry ExecutionRegistryAPI
+	agentSvc agentmanager.AgentServiceAPI
 	ctx      context.Context
 	cancel   context.CancelFunc
 }
 
 // NewTimeoutWatchdog creates a new timeout watchdog.
-func NewTimeoutWatchdog(registry *ExecutionRegistry, agentSvc *agentmanager.AgentService) *TimeoutWatchdog {
+func NewTimeoutWatchdog(registry ExecutionRegistryAPI, agentSvc agentmanager.AgentServiceAPI) *TimeoutWatchdog {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &TimeoutWatchdog{
 		registry: registry,
@@ -68,12 +68,12 @@ func (tw *TimeoutWatchdog) enforceTimeouts() {
 	systemlog.Warnf("Timeout watchdog detected %d stuck tasks - forcing termination", len(timedOutTasks))
 
 	for _, task := range timedOutTasks {
-		tw.forceTerminateTimedOutTask(task.TaskID, task.AgentTag, task.PID)
+		tw.forceTerminateTimedOutTask(task.TaskID, task.AgentTag)
 	}
 }
 
 // forceTerminateTimedOutTask forcibly terminates a task that exceeded its timeout.
-func (tw *TimeoutWatchdog) forceTerminateTimedOutTask(taskID, agentTag string, pid int) {
+func (tw *TimeoutWatchdog) forceTerminateTimedOutTask(taskID, agentTag string) {
 	log.Printf("WATCHDOG: Force terminating timed-out task %s (agent: %s)", taskID, agentTag)
 	systemlog.Warnf("Timeout watchdog forcing termination of task %s", taskID)
 

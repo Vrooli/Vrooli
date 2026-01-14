@@ -63,6 +63,9 @@ func NewStorage(queueDir string) *Storage {
 	}
 }
 
+// Compile-time interface assertion
+var _ StorageAPI = (*Storage)(nil)
+
 // convertToStringMap converts map[any]any to map[string]any
 // This is needed because YAML unmarshals to any keys but JSON needs string keys
 func convertToStringMap(m any) any {
@@ -86,22 +89,6 @@ func convertToStringMap(m any) any {
 	default:
 		return v
 	}
-}
-
-func hasLegacyTaskFields(raw map[string]any) bool {
-	legacyKeys := []string{
-		"impact_score",
-		"requirements",
-		"assigned_resources",
-		"progress_percentage",
-		"estimated_completion",
-	}
-	for _, key := range legacyKeys {
-		if _, exists := raw[key]; exists {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[string]any) bool {
@@ -148,10 +135,6 @@ func (s *Storage) normalizeTaskItem(item *TaskItem, status string, raw map[strin
 			item.CompletionCount = 0
 			changed = true
 		}
-	}
-
-	if raw != nil && hasLegacyTaskFields(raw) {
-		changed = true
 	}
 
 	// Ensure streak counters are non-negative
@@ -700,6 +683,12 @@ func (s *Storage) DeleteTask(taskID string) (string, error) {
 	}
 
 	return "", fmt.Errorf("task not found: %s", taskID)
+}
+
+// GetQueueDir returns the root directory for task queue storage.
+// Implements StorageAPI.
+func (s *Storage) GetQueueDir() string {
+	return s.QueueDir
 }
 
 // lockTask provides a per-task critical section to prevent concurrent moves/writes that can create duplicates.

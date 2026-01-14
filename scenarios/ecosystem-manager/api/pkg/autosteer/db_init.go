@@ -146,22 +146,5 @@ func ensureExecutionFeedbackEntriesTable(db *sql.DB) error {
 		return fmt.Errorf("failed to ensure execution_feedback_entries table: %w", err)
 	}
 
-	_, err := db.Exec(`
-	DO $$
-	BEGIN
-		IF EXISTS (
-			SELECT 1
-			FROM pg_constraint
-			WHERE conname = 'execution_feedback_entries_execution_task_id_fkey'
-		) THEN
-			ALTER TABLE execution_feedback_entries DROP CONSTRAINT execution_feedback_entries_execution_task_id_fkey;
-		END IF;
-	END
-	$$;
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to drop legacy execution feedback foreign key: %w", err)
-	}
-
 	return nil
 }

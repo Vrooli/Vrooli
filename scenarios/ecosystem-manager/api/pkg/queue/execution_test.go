@@ -1,10 +1,8 @@
 package queue
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -48,7 +46,11 @@ func setupExecutionTestProcessor(t *testing.T) (*Processor, *tasks.Storage, stri
 	}
 
 	broadcast := make(chan any, 100)
-	processor := NewProcessor(storage, assembler, broadcast, nil)
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+	})
 	t.Cleanup(processor.Stop)
 
 	return processor, storage, tmpDir
@@ -76,20 +78,14 @@ func TestExecutionRegistryLifecycle(t *testing.T) {
 		t.Errorf("Expected agent tag %q, got %q", agentTag, execState.agentTag)
 	}
 
-	// Test 2: Register execution with command
-	cmd := exec.Command("sleep", "0.1")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	processor.registerExecution(taskID, agentTag, cmd, time.Now())
+	// Test 2: Register run ID (modern agent-manager pattern)
+	runID := "run-12345"
+	processor.registerRunID(taskID, runID)
 
 	execState, ok = processor.getExecution(taskID)
-	if !ok || execState.cmd == nil {
-		t.Error("Expected execution to have command after registration")
+	if !ok || execState.runID != runID {
+		t.Errorf("Expected execution to have runID %q after registration, got %q", runID, execState.runID)
 	}
-
-	// Wait for command to finish
-	cmd.Wait()
 
 	// Test 3: Verify task still shows as running (until unregistered)
 	if !processor.IsTaskRunning(taskID) {
@@ -237,35 +233,26 @@ func TestExecutionLifecycle(t *testing.T) {
 	processor, _, _ := setupExecutionTestProcessor(t)
 
 	taskID := "lifecycle-test-task"
+	runID := "run-lifecycle-123"
 
-	// Start a real process
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	// Reserve execution (task is about to start)
+	processor.reserveExecution(taskID, "test-agent", time.Now())
 
-	cmd := exec.CommandContext(ctx, "sleep", "1")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Register execution
-	processor.registerExecution(taskID, "test-agent", cmd, time.Now())
-
-	// Simulate coordinated wait (what execution.go does now)
-	waitChan := make(chan error, 1)
-	go func() {
-		waitChan <- cmd.Wait()
-		close(waitChan)
-	}()
+	// Register run ID (agent-manager has started the task)
+	processor.registerRunID(taskID, runID)
 
 	// Verify processor reports task as running
 	if !processor.IsTaskRunning(taskID) {
 		t.Error("Processor should report task as running")
 	}
 
-	// Wait for process to complete
-	<-waitChan
+	// Verify run ID was stored
+	execState, ok := processor.getExecution(taskID)
+	if !ok || execState.runID != runID {
+		t.Errorf("Expected runID %q, got %q", runID, execState.runID)
+	}
 
-	// Even after process completes, execution registry keeps it until explicitly unregistered
+	// Execution registry keeps it until explicitly unregistered
 	if !processor.IsTaskRunning(taskID) {
 		t.Error("Task should still be in registry until unregistered")
 	}

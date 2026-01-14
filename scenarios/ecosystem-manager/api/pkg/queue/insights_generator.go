@@ -12,12 +12,18 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/agentmanager"
+	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-// GenerateInsightReportForTask analyzes execution history and generates an insight report
-func (qp *Processor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*InsightReport, error) {
+// GenerateInsightReportForTask analyzes execution history and generates an insight report.
+// Delegates to InsightManager when available.
+func (qp *Processor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.GenerateInsightReportForTask(taskID, limit, statusFilter)
+	}
+	// Fallback implementation
 	log.Printf("Generating insight report for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
 	systemlog.Infof("Starting insight generation for task %s", taskID)
 
@@ -212,7 +218,7 @@ func (qp *Processor) loadExecutionDetails(executions []ExecutionHistory) ([]exec
 }
 
 // assembleInsightPrompt creates the prompt for insight generation
-func (qp *Processor) assembleInsightPrompt(taskID string, executions []ExecutionHistory, stats ExecutionStatistics, details []executionDetailData) (string, error) {
+func (qp *Processor) assembleInsightPrompt(taskID string, executions []ExecutionHistory, stats insights.ExecutionStatistics, details []executionDetailData) (string, error) {
 	// Create a pseudo-task for prompt assembly
 	insightTask := tasks.TaskItem{
 		ID:        fmt.Sprintf("insight-generator-%s-%d", taskID, time.Now().Unix()),
@@ -364,11 +370,11 @@ func (qp *Processor) callClaudeCodeForInsight(prompt string, taskID string) (*ta
 }
 
 // parseInsightResponse parses the LLM response into an InsightReport
-func parseInsightResponse(output string, taskID string, executions []ExecutionHistory, stats ExecutionStatistics) (*InsightReport, error) {
+func parseInsightResponse(output string, taskID string, executions []ExecutionHistory, stats insights.ExecutionStatistics) (*insights.InsightReport, error) {
 	// Try to parse as JSON
 	var rawReport struct {
-		Patterns    []Pattern    `json:"patterns"`
-		Suggestions []Suggestion `json:"suggestions"`
+		Patterns    []insights.Pattern    `json:"patterns"`
+		Suggestions []insights.Suggestion `json:"suggestions"`
 	}
 
 	if err := json.Unmarshal([]byte(output), &rawReport); err != nil {
@@ -376,11 +382,11 @@ func parseInsightResponse(output string, taskID string, executions []ExecutionHi
 	}
 
 	// Build full report
-	report := &InsightReport{
+	report := &insights.InsightReport{
 		TaskID:         taskID,
 		GeneratedAt:    time.Now(),
 		ExecutionCount: len(executions),
-		AnalysisWindow: AnalysisWindow{
+		AnalysisWindow: insights.AnalysisWindow{
 			Limit:        len(executions),
 			StatusFilter: determineStatusFilter(executions),
 		},
@@ -425,7 +431,12 @@ func extractJSONFromMarkdown(output string) string {
 
 // BuildInsightPrompt builds and returns the prompt that would be used for insight generation
 // without actually generating the report. Useful for preview/editing workflows.
+// Delegates to InsightManager when available.
 func (qp *Processor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.BuildInsightPrompt(taskID, limit, statusFilter)
+	}
+	// Fallback implementation
 	log.Printf("Building insight prompt for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
 
 	// Load execution history
@@ -467,7 +478,12 @@ func (qp *Processor) BuildInsightPrompt(taskID string, limit int, statusFilter s
 
 // GenerateInsightReportWithCustomPrompt generates an insight report using a custom prompt
 // instead of the default template. This allows users to customize the analysis focus.
-func (qp *Processor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*InsightReport, error) {
+// Delegates to InsightManager when available.
+func (qp *Processor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.GenerateInsightReportWithCustomPrompt(taskID, limit, statusFilter, customPrompt)
+	}
+	// Fallback implementation
 	log.Printf("Generating insight report with custom prompt for task %s (limit: %d, filter: %s)", taskID, limit, statusFilter)
 	systemlog.Infof("Starting custom insight generation for task %s", taskID)
 

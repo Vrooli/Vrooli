@@ -49,7 +49,12 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	wsManager := websocket.NewManager()
 	recyclerSvc := recycler.New(storage, wsManager)
 	broadcast := make(chan any, 1)
-	processor := queue.NewProcessor(storage, assembler, broadcast, recyclerSvc)
+	processor := queue.NewProcessor(queue.ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+		Recycler:  recyclerSvc,
+	})
 
 	coord := &tasks.Coordinator{
 		LC:          &tasks.Lifecycle{Store: storage},

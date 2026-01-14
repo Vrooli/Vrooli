@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/insights"
-	"github.com/ecosystem-manager/api/pkg/queue"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/gorilla/mux"
 )
@@ -192,7 +191,7 @@ func (h *InsightHandlers) GenerateInsightReportHandler(w http.ResponseWriter, r 
 	}
 
 	// Generate insight report using the workflow
-	var report *queue.InsightReport
+	var report *insights.InsightReport
 
 	if options.CustomPrompt != "" {
 		// Use custom prompt
@@ -373,8 +372,8 @@ func (h *InsightHandlers) ApplySuggestionHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Find the suggestion (need to work with queue.Suggestion type)
-	var suggestion *queue.Suggestion
+	// Find the suggestion
+	var suggestion *insights.Suggestion
 	for i := range report.Suggestions {
 		if report.Suggestions[i].ID == suggestionID {
 			suggestion = &report.Suggestions[i]

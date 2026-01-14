@@ -131,7 +131,7 @@ func (h *TaskHandlers) GetExecutionOutputHandler(w http.ResponseWriter, r *http.
 	executionID := vars["execution_id"]
 	taskID := task.ID
 
-	// Prefer clean output if present; otherwise sanitize legacy timestamped logs
+	// Prefer clean output if present; otherwise sanitize timestamped output logs
 	cleanPath := h.processor.GetExecutionFilePath(taskID, executionID, "clean_output.txt")
 	outputPath := h.processor.GetExecutionFilePath(taskID, executionID, "output.log")
 
@@ -210,7 +210,8 @@ func (h *TaskHandlers) GetExecutionMetadataHandler(w http.ResponseWriter, r *htt
 	writeJSON(w, execution, http.StatusOK)
 }
 
-// stripLogPrefixes removes timestamp/stream prefixes from legacy output logs for readability.
+// stripLogPrefixes removes timestamp/stream prefixes from output logs for readability.
+// Handles older log formats like "2024-01-01 [stdout] (pid) message" by extracting just the message.
 func stripLogPrefixes(content string) string {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {

@@ -271,7 +271,7 @@ func (a *Application) initializeComponents() error {
 	systemlog.Info("Recycler daemon started")
 
 	// Initialize queue processor
-	a.processor = queue.NewProcessor(
+	a.processor = queue.NewProcessorWithDefaults(
 		a.storage,
 		a.assembler,
 		a.wsManager.GetBroadcastChannel(),

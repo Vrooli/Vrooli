@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -24,17 +23,9 @@ type taskExecution struct {
 	taskID    string
 	agentTag  string
 	runID     string    // agent-manager run ID for StopRun calls
-	cmd       *exec.Cmd // Deprecated: only used for legacy fallback, nil when using agent-manager
 	started   time.Time
 	timeoutAt time.Time // When this execution will timeout
 	timedOut  bool      // Whether timeout has already occurred
-}
-
-func (te *taskExecution) pid() int {
-	if te == nil || te.cmd == nil || te.cmd.Process == nil {
-		return 0
-	}
-	return te.cmd.Process.Pid
 }
 
 // getRunID returns the agent-manager run ID, empty if not set
@@ -88,11 +79,11 @@ type Processor struct {
 	isPaused    bool // Added for maintenance state awareness
 	stopChannel chan bool
 	wakeCh      chan struct{}
-	storage     *tasks.Storage
+	storage     tasks.StorageAPI
 	assembler   *prompts.Assembler
 
-	// Execution registry for tracking running tasks
-	registry *ExecutionRegistry
+	// Execution registry for tracking running tasks (interface for testability)
+	registry ExecutionRegistryAPI
 
 	// Root of the Vrooli workspace for resource CLI commands
 	vrooliRoot string
@@ -124,14 +115,23 @@ type Processor struct {
 	// Auto Steer integration for multi-dimensional improvement
 	autoSteerIntegration *AutoSteerIntegration
 
-	// Recycler to trigger recycling on task completion/failure
-	recycler *recycler.Recycler
+	// Recycler to trigger recycling on task completion/failure (interface for testability)
+	recycler recycler.RecyclerAPI
 
 	// Centralized task coordinator for lifecycle + side effects orchestration.
 	coord *tasks.Coordinator
 
-	// Agent manager service for delegating agent execution
-	agentSvc *agentmanager.AgentService
+	// Agent manager service for delegating agent execution (interface for testability)
+	agentSvc agentmanager.AgentServiceAPI
+
+	// Execution manager for task execution lifecycle (Phase 3.1 extraction)
+	executionManager *ExecutionManager
+
+	// History manager for execution history persistence (Phase 3.2 extraction)
+	historyManager *HistoryManager
+
+	// Insight manager for insight report generation and persistence (Phase 3.3 extraction)
+	insightManager *InsightManager
 
 	// Timeout watchdog for enforcing task timeouts
 	watchdog *TimeoutWatchdog
@@ -148,61 +148,172 @@ type slotSnapshot struct {
 	Available int
 }
 
-// NewProcessor creates a new queue processor
-func NewProcessor(storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- any, recycler *recycler.Recycler) *Processor {
-	ctx, cancel := context.WithCancel(context.Background())
-	vrooliRoot := paths.DetectVrooliRoot()
-	scenarioRoot := filepath.Dir(storage.QueueDir)
-	taskLogsDir := filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
+// ProcessorDeps contains all dependencies for the Processor.
+// Using a deps struct allows for clean dependency injection and testability.
+type ProcessorDeps struct {
+	// Required dependencies
+	Storage   tasks.StorageAPI
+	Assembler *prompts.Assembler
+	Broadcast chan<- any
 
-	processor := &Processor{
-		stopChannel:  make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
-		wakeCh:       make(chan struct{}, 1),
-		storage:      storage,
-		assembler:    assembler,
-		registry:     NewExecutionRegistry(),
-		broadcast:    broadcast,
-		rateLimiter:  NewRateLimiter(broadcast),
-		taskLogger:   NewTaskLogger(taskLogsDir, broadcast),
-		recycler:     recycler,
-		ctx:          ctx,
-		cancel:       cancel,
-		vrooliRoot:   vrooliRoot,
-		scenarioRoot: scenarioRoot,
-		taskLogsDir:  taskLogsDir,
+	// Optional dependencies - if nil, defaults will be created
+	Registry    ExecutionRegistryAPI
+	AgentSvc    agentmanager.AgentServiceAPI
+	Recycler    recycler.RecyclerAPI
+	RateLimiter *RateLimiter
+	TaskLogger  *TaskLogger
+
+	// Configuration
+	VrooliRoot   string
+	ScenarioRoot string
+	TaskLogsDir  string
+}
+
+// NewProcessor creates a new queue processor with explicit dependencies.
+// Background workers are NOT started - call Start() after construction.
+func NewProcessor(deps ProcessorDeps) *Processor {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Derive paths if not provided
+	vrooliRoot := deps.VrooliRoot
+	if vrooliRoot == "" {
+		vrooliRoot = paths.DetectVrooliRoot()
+	}
+	scenarioRoot := deps.ScenarioRoot
+	if scenarioRoot == "" && deps.Storage != nil {
+		scenarioRoot = filepath.Dir(deps.Storage.GetQueueDir())
+	}
+	taskLogsDir := deps.TaskLogsDir
+	if taskLogsDir == "" && deps.Storage != nil {
+		taskLogsDir = filepath.Join(deps.Storage.GetQueueDir(), "..", "logs", "task-runs")
 	}
 
-	// Initialize agent-manager service
-	processor.agentSvc = agentmanager.NewAgentService(agentmanager.Config{
+	// Create default implementations for optional dependencies
+	registry := deps.Registry
+	if registry == nil {
+		registry = NewExecutionRegistry()
+	}
+
+	rateLimiter := deps.RateLimiter
+	if rateLimiter == nil {
+		rateLimiter = NewRateLimiter(deps.Broadcast)
+	}
+
+	taskLogger := deps.TaskLogger
+	if taskLogger == nil && taskLogsDir != "" {
+		taskLogger = NewTaskLogger(taskLogsDir, deps.Broadcast)
+	}
+
+	// Create HistoryManager first (shared by Processor and ExecutionManager)
+	historyManager := NewHistoryManager(taskLogsDir)
+
+	// Create the processor
+	p := &Processor{
+		stopChannel:    make(chan bool, 1), // Buffered to prevent deadlock when Stop() holds mutex
+		wakeCh:         make(chan struct{}, 1),
+		storage:        deps.Storage,
+		assembler:      deps.Assembler,
+		registry:       registry,
+		broadcast:      deps.Broadcast,
+		rateLimiter:    rateLimiter,
+		taskLogger:     taskLogger,
+		recycler:       deps.Recycler,
+		agentSvc:       deps.AgentSvc,
+		historyManager: historyManager,
+		ctx:            ctx,
+		cancel:         cancel,
+		vrooliRoot:     vrooliRoot,
+		scenarioRoot:   scenarioRoot,
+		taskLogsDir:    taskLogsDir,
+	}
+
+	// Create ExecutionManager with shared dependencies (including HistoryManager)
+	p.executionManager = NewExecutionManager(ExecutionManagerDeps{
+		Storage:        deps.Storage,
+		Assembler:      deps.Assembler,
+		AgentSvc:       deps.AgentSvc,
+		Registry:       registry,
+		TaskLogger:     taskLogger,
+		Broadcast:      deps.Broadcast,
+		HistoryManager: historyManager,
+		// AutoSteerIntegration is set separately via SetAutoSteerIntegration
+		TaskLogsDir: taskLogsDir,
+	})
+
+	// Wire up callbacks
+	p.executionManager.SetWakeFunc(p.Wake)
+	p.executionManager.SetFinalizeFunc(p.finalizeTaskStatus)
+
+	// Create InsightManager with shared dependencies
+	p.insightManager = NewInsightManager(InsightManagerDeps{
+		TaskLogsDir:    taskLogsDir,
+		HistoryManager: historyManager,
+		AgentSvc:       deps.AgentSvc,
+		Assembler:      deps.Assembler,
+		Storage:        deps.Storage,
+	})
+
+	return p
+}
+
+// NewProcessorWithDefaults creates a processor with default implementations for all optional dependencies.
+// This is the convenience constructor for production use that mirrors the original behavior.
+// Background workers ARE started automatically for backward compatibility.
+func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assembler, broadcast chan<- any, rec recycler.RecyclerAPI) *Processor {
+	vrooliRoot := paths.DetectVrooliRoot()
+
+	// Create agent service with default config
+	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
 		TaskProfileKey:     "ecosystem-manager-tasks",
 		InsightsProfileKey: "ecosystem-manager-insights",
 		Timeout:            30 * time.Second,
-		VrooliRoot:         processor.vrooliRoot,
+		VrooliRoot:         vrooliRoot,
 	})
 
-	// Initialize agent profiles (non-blocking, log warnings)
-	go func() {
-		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-		if err := processor.agentSvc.Initialize(initCtx); err != nil {
-			log.Printf("[agent-manager] Warning: failed to initialize profiles: %v", err)
-		}
-	}()
+	processor := NewProcessor(ProcessorDeps{
+		Storage:   storage,
+		Assembler: assembler,
+		Broadcast: broadcast,
+		Recycler:  rec,
+		AgentSvc:  agentSvc,
+	})
 
-	// Clean up orphaned processes
-	processor.cleanupOrphanedProcesses()
-
-	// Clean up old temporary prompt files
-	go processor.cleanupOldPromptFiles()
-
-	// Reconcile any stale in-progress tasks left behind from previous runs
-	go processor.initialInProgressReconcile()
-
-	// Create and start timeout enforcement watchdog (defense-in-depth)
-	processor.watchdog = NewTimeoutWatchdog(processor.registry, processor.agentSvc)
-	processor.watchdog.Start()
+	// Initialize background workers for backward compatibility
+	processor.InitializeWorkers()
 
 	return processor
+}
+
+// InitializeWorkers sets up and starts all background workers.
+// This should be called after construction when using NewProcessor directly.
+// NewProcessorWithDefaults calls this automatically.
+// Note: This does NOT start the main processLoop - call Start() separately for that.
+func (qp *Processor) InitializeWorkers() {
+	// Initialize agent profiles (non-blocking, log warnings)
+	if qp.agentSvc != nil {
+		go func() {
+			initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := qp.agentSvc.Initialize(initCtx); err != nil {
+				log.Printf("[agent-manager] Warning: failed to initialize profiles: %v", err)
+			}
+		}()
+	}
+
+	// Clean up orphaned processes
+	qp.cleanupOrphanedProcesses()
+
+	// Clean up old temporary prompt files
+	go qp.cleanupOldPromptFiles()
+
+	// Reconcile any stale in-progress tasks left behind from previous runs
+	go qp.initialInProgressReconcile()
+
+	// Create and start timeout enforcement watchdog (defense-in-depth)
+	if qp.watchdog == nil && qp.registry != nil && qp.agentSvc != nil {
+		qp.watchdog = NewTimeoutWatchdog(qp.registry, qp.agentSvc)
+		qp.watchdog.Start()
+	}
 }
 
 // SetCoordinator injects a central coordinator for lifecycle-aware transitions.
@@ -240,12 +351,16 @@ func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus stri
 		}
 	} else if currentStatus != "in-progress" {
 		lc := tasks.Lifecycle{Store: qp.storage}
-		var err error
-		task, err = lc.StartPending(task.ID, ctx)
+		outcome, err := lc.ApplyTransition(tasks.TransitionRequest{
+			TaskID:            task.ID,
+			ToStatus:          tasks.StatusInProgress,
+			TransitionContext: ctx,
+		})
 		if err != nil {
 			return fmt.Errorf("start pending task %s: %w", task.ID, err)
 		}
-		previousStatus = "pending"
+		task = outcome.Task
+		previousStatus = outcome.From
 	}
 
 	agentIdentifier := makeAgentTag(task.ID)
@@ -273,6 +388,10 @@ func (qp *Processor) startTaskExecution(task *tasks.TaskItem, currentStatus stri
 // This must be called after the processor is created but before processing starts
 func (qp *Processor) SetAutoSteerIntegration(integration *AutoSteerIntegration) {
 	qp.autoSteerIntegration = integration
+	// Propagate to ExecutionManager
+	if qp.executionManager != nil {
+		qp.executionManager.SetAutoSteerIntegration(integration)
+	}
 	log.Println("✅ Auto Steer integration configured for queue processor")
 	systemlog.Info("Auto Steer integration enabled")
 }
@@ -370,9 +489,12 @@ func (qp *Processor) ForceStartTask(taskID string, allowOverflow bool) error {
 	}
 
 	externalActive := qp.getExternalActiveTaskIDs()
+	intent := tasks.IntentManual
+	if allowOverflow {
+		intent = tasks.IntentReconcile // Use reconcile intent to bypass constraints when overflow is allowed
+	}
 	return qp.startTaskExecution(task, status, externalActive, tasks.TransitionContext{
-		Intent:        tasks.IntentManual,
-		ForceOverride: allowOverflow,
+		Intent: intent,
 	})
 }
 
@@ -425,6 +547,35 @@ func (qp *Processor) Wake() {
 	case qp.wakeCh <- struct{}{}:
 	default:
 	}
+}
+
+// GetSlotSnapshot returns the current slot availability.
+// Implements SchedulerAPI.
+func (qp *Processor) GetSlotSnapshot() SlotSnapshot {
+	externalActive := qp.getExternalActiveTaskIDs()
+	internalRunning := qp.getInternalRunningTaskIDs()
+	snap := qp.computeSlotSnapshot(internalRunning, externalActive)
+	return SlotSnapshot{
+		Slots:     snap.Slots,
+		Running:   snap.Running,
+		Available: snap.Available,
+	}
+}
+
+// IsRunning returns whether the processor is currently running.
+// Implements SchedulerAPI.
+func (qp *Processor) IsRunning() bool {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	return qp.isRunning
+}
+
+// IsPaused returns whether the processor is in maintenance mode.
+// Implements SchedulerAPI.
+func (qp *Processor) IsPaused() bool {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	return qp.isPaused
 }
 
 // processLoop is the main queue processing loop

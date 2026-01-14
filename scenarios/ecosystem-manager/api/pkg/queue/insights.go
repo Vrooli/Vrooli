@@ -10,128 +10,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/google/uuid"
 )
 
-// InsightReport represents an analysis of execution patterns and suggested improvements
-type InsightReport struct {
-	ID             string              `json:"id"`
-	TaskID         string              `json:"task_id"`
-	GeneratedAt    time.Time           `json:"generated_at"`
-	AnalysisWindow AnalysisWindow      `json:"analysis_window"`
-	ExecutionCount int                 `json:"execution_count"`
-	Patterns       []Pattern           `json:"patterns"`
-	Suggestions    []Suggestion        `json:"suggestions"`
-	Statistics     ExecutionStatistics `json:"statistics"`
-	GeneratedBy    string              `json:"generated_by"` // task_id of insight-generator
-}
-
-// AnalysisWindow describes what executions were analyzed
-type AnalysisWindow struct {
-	StartTime    time.Time `json:"start_time"`
-	EndTime      time.Time `json:"end_time"`
-	Limit        int       `json:"limit"`         // How many executions analyzed
-	StatusFilter string    `json:"status_filter"` // e.g., "failed,timeout"
-}
-
-// Pattern represents a recurring issue or behavior
-type Pattern struct {
-	ID          string   `json:"id"`
-	Type        string   `json:"type"`      // failure_mode, timeout, rate_limit, stuck_state
-	Frequency   int      `json:"frequency"` // How many executions exhibit this
-	Severity    string   `json:"severity"`  // critical, high, medium, low
-	Description string   `json:"description"`
-	Examples    []string `json:"examples"` // Execution IDs showing this pattern
-	Evidence    []string `json:"evidence"` // Specific log excerpts
-}
-
-// Suggestion represents an actionable improvement
-type Suggestion struct {
-	ID          string           `json:"id"`
-	PatternID   string           `json:"pattern_id"` // Which pattern this addresses
-	Type        string           `json:"type"`       // prompt, timeout, code, autosteer_profile
-	Priority    string           `json:"priority"`   // critical, high, medium, low
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	Changes     []ProposedChange `json:"changes"`
-	Impact      ImpactEstimate   `json:"impact"`
-	Status      string           `json:"status"` // pending, applied, rejected, superseded
-	AppliedAt   *time.Time       `json:"applied_at,omitempty"`
-}
-
-// ProposedChange describes a specific change to apply
-type ProposedChange struct {
-	File        string `json:"file"` // Relative path from scenario root
-	Type        string `json:"type"` // edit, create, config_update
-	Description string `json:"description"`
-	Before      string `json:"before,omitempty"`       // For edits
-	After       string `json:"after,omitempty"`        // For edits
-	Content     string `json:"content,omitempty"`      // For creates
-	ConfigPath  string `json:"config_path,omitempty"`  // For config updates (e.g., "phases[0].timeout")
-	ConfigValue any    `json:"config_value,omitempty"` // New config value
-}
-
-// ImpactEstimate describes expected impact of a suggestion
-type ImpactEstimate struct {
-	SuccessRateImprovement string `json:"success_rate_improvement"` // e.g., "+15-25%"
-	TimeReduction          string `json:"time_reduction,omitempty"` // e.g., "-10m avg"
-	Confidence             string `json:"confidence"`               // high, medium, low
-	Rationale              string `json:"rationale"`
-}
-
-// ExecutionStatistics provides aggregate stats for analyzed executions
-type ExecutionStatistics struct {
-	TotalExecutions      int     `json:"total_executions"`
-	SuccessCount         int     `json:"success_count"`
-	FailureCount         int     `json:"failure_count"`
-	TimeoutCount         int     `json:"timeout_count"`
-	RateLimitCount       int     `json:"rate_limit_count"`
-	SuccessRate          float64 `json:"success_rate"`
-	AvgDuration          string  `json:"avg_duration"`
-	MedianDuration       string  `json:"median_duration"`
-	MostCommonExitReason string  `json:"most_common_exit_reason"`
-}
-
-// SystemInsightReport represents system-wide analysis across all tasks
-type SystemInsightReport struct {
-	ID                string                   `json:"id"`
-	GeneratedAt       time.Time                `json:"generated_at"`
-	TimeWindow        AnalysisWindow           `json:"time_window"`
-	TaskCount         int                      `json:"task_count"`
-	TotalExecutions   int                      `json:"total_executions"`
-	CrossTaskPatterns []CrossTaskPattern       `json:"cross_task_patterns"`
-	SystemSuggestions []Suggestion             `json:"system_suggestions"`
-	ByTaskType        map[string]TaskTypeStats `json:"by_task_type"`
-	ByOperation       map[string]TaskTypeStats `json:"by_operation"`
-}
-
-// CrossTaskPattern represents a pattern affecting multiple tasks
-type CrossTaskPattern struct {
-	Pattern
-	AffectedTasks []string `json:"affected_tasks"`
-	TaskTypes     []string `json:"task_types"` // Which task types show this
-}
-
-// TaskTypeStats provides aggregate stats by task type or operation
-type TaskTypeStats struct {
-	Count       int     `json:"count"`
-	SuccessRate float64 `json:"success_rate"`
-	AvgDuration string  `json:"avg_duration"`
-	TopPattern  string  `json:"top_pattern"`
-}
-
-// getInsightDir returns the directory for a task's insight reports
+// getInsightDir returns the directory for a task's insight reports.
+// Delegates to InsightManager when available.
 func (qp *Processor) getInsightDir(taskID string) string {
+	if qp.insightManager != nil {
+		return qp.insightManager.getInsightDir(taskID)
+	}
 	return filepath.Join(qp.taskLogsDir, taskID, "insights")
 }
 
-// getInsightReportDir returns the directory for a specific insight report
+// getInsightReportDir returns the directory for a specific insight report.
+// Delegates to InsightManager when available.
 func (qp *Processor) getInsightReportDir(taskID, reportID string) string {
+	if qp.insightManager != nil {
+		return qp.insightManager.getInsightReportDir(taskID, reportID)
+	}
 	return filepath.Join(qp.getInsightDir(taskID), reportID)
 }
 
-// SaveInsightReport persists an insight report to disk
-func (qp *Processor) SaveInsightReport(report InsightReport) error {
+// SaveInsightReport persists an insight report to disk.
+// Delegates to InsightManager when available.
+func (qp *Processor) SaveInsightReport(report insights.InsightReport) error {
+	if qp.insightManager != nil {
+		return qp.insightManager.SaveInsightReport(report)
+	}
+	// Fallback implementation
 	// Generate ID if not set
 	if report.ID == "" {
 		report.ID = uuid.New().String()
@@ -186,18 +93,23 @@ func (qp *Processor) SaveInsightReport(report InsightReport) error {
 	return nil
 }
 
-// LoadInsightReports loads all insight reports for a task
-func (qp *Processor) LoadInsightReports(taskID string) ([]InsightReport, error) {
+// LoadInsightReports loads all insight reports for a task.
+// Delegates to InsightManager when available.
+func (qp *Processor) LoadInsightReports(taskID string) ([]insights.InsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.LoadInsightReports(taskID)
+	}
+	// Fallback implementation
 	insightDir := qp.getInsightDir(taskID)
 	entries, err := os.ReadDir(insightDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []InsightReport{}, nil // No insights yet
+			return []insights.InsightReport{}, nil // No insights yet
 		}
 		return nil, fmt.Errorf("read insight directory: %w", err)
 	}
 
-	var reports []InsightReport
+	var reports []insights.InsightReport
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -210,7 +122,7 @@ func (qp *Processor) LoadInsightReports(taskID string) ([]InsightReport, error) 
 			continue
 		}
 
-		var report InsightReport
+		var report insights.InsightReport
 		if err := json.Unmarshal(data, &report); err != nil {
 			log.Printf("Warning: could not parse insight report %s: %v", reportPath, err)
 			continue
@@ -227,8 +139,13 @@ func (qp *Processor) LoadInsightReports(taskID string) ([]InsightReport, error) 
 	return reports, nil
 }
 
-// LoadInsightReport loads a specific insight report
-func (qp *Processor) LoadInsightReport(taskID, reportID string) (*InsightReport, error) {
+// LoadInsightReport loads a specific insight report.
+// Delegates to InsightManager when available.
+func (qp *Processor) LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.LoadInsightReport(taskID, reportID)
+	}
+	// Fallback implementation
 	reportPath := filepath.Join(qp.getInsightReportDir(taskID, reportID), "report.json")
 	data, err := os.ReadFile(reportPath)
 	if err != nil {
@@ -238,7 +155,7 @@ func (qp *Processor) LoadInsightReport(taskID, reportID string) (*InsightReport,
 		return nil, fmt.Errorf("read insight report: %w", err)
 	}
 
-	var report InsightReport
+	var report insights.InsightReport
 	if err := json.Unmarshal(data, &report); err != nil {
 		return nil, fmt.Errorf("parse insight report: %w", err)
 	}
@@ -246,8 +163,13 @@ func (qp *Processor) LoadInsightReport(taskID, reportID string) (*InsightReport,
 	return &report, nil
 }
 
-// UpdateSuggestionStatus updates the status of a specific suggestion
+// UpdateSuggestionStatus updates the status of a specific suggestion.
+// Delegates to InsightManager when available.
 func (qp *Processor) UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error {
+	if qp.insightManager != nil {
+		return qp.insightManager.UpdateSuggestionStatus(taskID, reportID, suggestionID, status)
+	}
+	// Fallback implementation
 	report, err := qp.LoadInsightReport(taskID, reportID)
 	if err != nil {
 		return err
@@ -275,17 +197,22 @@ func (qp *Processor) UpdateSuggestionStatus(taskID, reportID, suggestionID, stat
 	return qp.SaveInsightReport(*report)
 }
 
-// LoadAllInsightReports loads all insight reports across all tasks since a given time
-func (qp *Processor) LoadAllInsightReports(sinceTime time.Time) ([]InsightReport, error) {
+// LoadAllInsightReports loads all insight reports across all tasks since a given time.
+// Delegates to InsightManager when available.
+func (qp *Processor) LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.LoadAllInsightReports(sinceTime)
+	}
+	// Fallback implementation
 	taskDirs, err := os.ReadDir(qp.taskLogsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []InsightReport{}, nil
+			return []insights.InsightReport{}, nil
 		}
 		return nil, fmt.Errorf("read task logs directory: %w", err)
 	}
 
-	var allReports []InsightReport
+	var allReports []insights.InsightReport
 	for _, taskDir := range taskDirs {
 		if !taskDir.IsDir() {
 			continue
@@ -315,8 +242,8 @@ func (qp *Processor) LoadAllInsightReports(sinceTime time.Time) ([]InsightReport
 }
 
 // ComputeExecutionStatistics calculates aggregate statistics from execution history
-func ComputeExecutionStatistics(executions []ExecutionHistory) ExecutionStatistics {
-	stats := ExecutionStatistics{
+func ComputeExecutionStatistics(executions []ExecutionHistory) insights.ExecutionStatistics {
+	stats := insights.ExecutionStatistics{
 		TotalExecutions: len(executions),
 	}
 
@@ -396,7 +323,7 @@ func formatDuration(d time.Duration) string {
 }
 
 // generateInsightSummary creates a markdown summary of an insight report
-func generateInsightSummary(report InsightReport) string {
+func generateInsightSummary(report insights.InsightReport) string {
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("# Insight Report: %s\n\n", report.TaskID))
@@ -451,8 +378,13 @@ func generateInsightSummary(report InsightReport) string {
 	return sb.String()
 }
 
-// GenerateSystemInsightReport analyzes all insight reports and generates system-wide insights
-func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemInsightReport, error) {
+// GenerateSystemInsightReport analyzes all insight reports and generates system-wide insights.
+// Delegates to InsightManager when available.
+func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error) {
+	if qp.insightManager != nil {
+		return qp.insightManager.GenerateSystemInsightReport(sinceTime)
+	}
+	// Fallback implementation
 	// Load all insight reports since the given time
 	reports, err := qp.LoadAllInsightReports(sinceTime)
 	if err != nil {
@@ -464,15 +396,15 @@ func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemIn
 	totalExecutions := 0
 
 	// Aggregate patterns by type and identify cross-task patterns
-	patternsByType := make(map[string][]Pattern)
-	patternOccurrences := make(map[string]*CrossTaskPattern) // keyed by pattern type + description
+	patternsByType := make(map[string][]insights.Pattern)
+	patternOccurrences := make(map[string]*insights.CrossTaskPattern) // keyed by pattern type + description
 
 	// Aggregate suggestions by type
 	suggestionsByType := make(map[string]int)
 
 	// Stats by task type and operation
-	byTaskType := make(map[string]TaskTypeStats)
-	byOperation := make(map[string]TaskTypeStats)
+	byTaskType := make(map[string]insights.TaskTypeStats)
+	byOperation := make(map[string]insights.TaskTypeStats)
 
 	for _, report := range reports {
 		taskSet[report.TaskID] = true
@@ -492,7 +424,7 @@ func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemIn
 				}
 			} else {
 				// New cross-task pattern
-				patternOccurrences[key] = &CrossTaskPattern{
+				patternOccurrences[key] = &insights.CrossTaskPattern{
 					Pattern:       pattern,
 					AffectedTasks: []string{report.TaskID},
 					TaskTypes:     []string{}, // Will be populated if needed
@@ -507,7 +439,7 @@ func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemIn
 	}
 
 	// Extract cross-task patterns (patterns affecting 2+ tasks)
-	var crossTaskPatterns []CrossTaskPattern
+	var crossTaskPatterns []insights.CrossTaskPattern
 	for _, pattern := range patternOccurrences {
 		if len(pattern.AffectedTasks) >= 2 {
 			crossTaskPatterns = append(crossTaskPatterns, *pattern)
@@ -535,10 +467,10 @@ func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemIn
 	systemSuggestions := aggregateTopSuggestions(reports, 10)
 
 	// Create system insight report
-	sysReport := &SystemInsightReport{
+	sysReport := &insights.SystemInsightReport{
 		ID:          uuid.New().String(),
 		GeneratedAt: time.Now(),
-		TimeWindow: AnalysisWindow{
+		TimeWindow: insights.AnalysisWindow{
 			StartTime: sinceTime,
 			EndTime:   time.Now(),
 		},
@@ -554,8 +486,8 @@ func (qp *Processor) GenerateSystemInsightReport(sinceTime time.Time) (*SystemIn
 }
 
 // aggregateTopSuggestions collects the highest-priority suggestions across all reports
-func aggregateTopSuggestions(reports []InsightReport, limit int) []Suggestion {
-	var allSuggestions []Suggestion
+func aggregateTopSuggestions(reports []insights.InsightReport, limit int) []insights.Suggestion {
+	var allSuggestions []insights.Suggestion
 
 	for _, report := range reports {
 		allSuggestions = append(allSuggestions, report.Suggestions...)

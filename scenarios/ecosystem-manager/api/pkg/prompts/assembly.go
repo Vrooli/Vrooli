@@ -443,6 +443,12 @@ func (a *Assembler) GetPromptsConfig() tasks.PromptsConfig {
 	return a.PromptsConfig
 }
 
+// GetPromptsDir returns the root directory containing prompt templates.
+// Implements AssemblerAPI.
+func (a *Assembler) GetPromptsDir() string {
+	return a.PromptsDir
+}
+
 func normalizeTemplatePath(templatePath string) string {
 	if templatePath == "" {
 		return templatePath
