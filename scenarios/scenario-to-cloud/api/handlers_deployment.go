@@ -504,6 +504,63 @@ func (s *Server) handleStopDeployment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleStartDeployment starts/resumes a stopped deployment.
+// POST /deployments/{id}/start
+//
+// This restarts the scenario and its resources without re-running VPS setup.
+// Only works for deployments in 'stopped' or 'setup_complete' status.
+func (s *Server) handleStartDeployment(w http.ResponseWriter, r *http.Request) {
+	dctx := s.FetchDeploymentContext(w, r)
+	if dctx == nil {
+		return
+	}
+
+	// Parse optional request body for provided secrets
+	var req domain.ExecuteDeploymentRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.log("failed to parse start request body", map[string]interface{}{"error": err.Error()})
+		}
+	}
+
+	// Validate status - only stopped or setup_complete can be started
+	if dctx.Deployment.Status != domain.StatusStopped && dctx.Deployment.Status != domain.StatusSetupComplete {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "invalid_status",
+			Message: fmt.Sprintf("Cannot start deployment with status '%s'. Must be 'stopped' or 'setup_complete'.", dctx.Deployment.Status),
+		})
+		return
+	}
+
+	// Generate run ID for this execution
+	runID := uuid.New().String()
+
+	// Atomic status transition
+	if err := s.repo.StartDeploymentStart(r.Context(), dctx.ID, runID); err != nil {
+		httputil.WriteAPIError(w, http.StatusConflict, httputil.APIError{
+			Code:    "start_failed",
+			Message: "Cannot start deployment",
+			Hint:    err.Error(),
+		})
+		return
+	}
+
+	s.log("deployment start initiated", map[string]interface{}{
+		"deployment_id": dctx.ID,
+		"run_id":        runID,
+	})
+
+	// Start in background
+	go s.orchestrator.RunStartPipeline(dctx.ID, runID, dctx.Manifest, req.ProvidedSecrets)
+
+	httputil.WriteJSON(w, http.StatusAccepted, map[string]interface{}{
+		"deployment_id": dctx.ID,
+		"run_id":        runID,
+		"message":       "Start initiated. Subscribe to /deployments/{id}/progress for real-time updates.",
+		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
 // stopDeploymentOnVPS runs the stop command on the remote VPS.
 func (s *Server) stopDeploymentOnVPS(ctx context.Context, m domain.CloudManifest) domain.VPSDeployResult {
 	normalized, _ := manifest.ValidateAndNormalize(m)

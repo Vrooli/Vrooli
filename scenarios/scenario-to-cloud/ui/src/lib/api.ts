@@ -648,6 +648,19 @@ export async function stopDeployment(id: string): Promise<{ success: boolean; er
   return res.json();
 }
 
+export async function startDeployment(id: string): Promise<{ deployment_id: string; run_id: string; message: string; timestamp: string }> {
+  const url = buildApiUrl(`/deployments/${encodeURIComponent(id)}/start`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to start deployment: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
 export async function deleteDeployment(
   id: string,
   options: { stopOnVPS?: boolean; cleanupBundles?: boolean } = {},

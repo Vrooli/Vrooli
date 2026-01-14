@@ -205,6 +205,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/progress", s.handleDeploymentProgress).Methods("GET")
 	api.HandleFunc("/deployments/{id}/inspect", s.handleInspectDeployment).Methods("POST")
 	api.HandleFunc("/deployments/{id}/stop", s.handleStopDeployment).Methods("POST")
+	api.HandleFunc("/deployments/{id}/start", s.handleStartDeployment).Methods("POST")
 
 	// Live state inspection (Ground Truth Redesign - Phase 1)
 	api.HandleFunc("/deployments/{id}/live-state", s.handleGetLiveState).Methods("GET")

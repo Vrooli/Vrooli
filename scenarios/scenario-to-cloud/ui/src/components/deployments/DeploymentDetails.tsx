@@ -27,6 +27,7 @@ import {
   useDeployment,
   useInspectDeployment,
   useStopDeployment,
+  useStartDeployment,
   useExecuteDeployment,
   getStatusInfo,
 } from "../../hooks/useDeployments";
@@ -63,6 +64,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const { data: deployment, isLoading, error, refetch } = useDeployment(deploymentId);
   const inspectMutation = useInspectDeployment();
   const stopMutation = useStopDeployment();
+  const startMutation = useStartDeployment();
   const executeMutation = useExecuteDeployment();
 
   const [showManifest, setShowManifest] = useState(false);
@@ -117,6 +119,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     deploymentRecord?.status === "stopped";
 
   const canStop = deploymentRecord?.status === "deployed";
+  const canStart = deploymentRecord?.status === "stopped";
   const hasExistingBundle = Boolean(deploymentRecord?.bundle_path);
   const canViewRedeployProgress = redeployActive || isInProgress;
   const redeployLocked = executeMutation.isPending || isInProgress;
@@ -477,6 +480,25 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
                   <Square className="h-4 w-4" />
                 )}
                 Stop
+              </button>
+            )}
+
+            {canStart && (
+              <button
+                onClick={() => startMutation.mutate(deploymentId)}
+                disabled={startMutation.isPending}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-500/30",
+                  "hover:bg-emerald-500/10 text-emerald-400 transition-colors text-sm font-medium",
+                  startMutation.isPending && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {startMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Start
               </button>
             )}
 

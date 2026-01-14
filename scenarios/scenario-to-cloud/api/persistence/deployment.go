@@ -535,6 +535,40 @@ func (r *Repository) StartDeploymentRun(ctx context.Context, id, runID string) e
 	return nil
 }
 
+// StartDeploymentStart begins a start/resume operation for a stopped deployment.
+// Unlike StartDeploymentRun, this sets status to 'deploying' (skipping setup phase)
+// and only works for stopped or setup_complete deployments.
+func (r *Repository) StartDeploymentStart(ctx context.Context, id, runID string) error {
+	const q = `
+		UPDATE deployments SET
+			run_id = $2,
+			completed_steps = '[]'::jsonb,
+			status = 'deploying',
+			error_message = NULL,
+			error_step = NULL,
+			progress_step = NULL,
+			progress_percent = 0,
+			updated_at = $3
+		WHERE id = $1
+		  AND status IN ('stopped', 'setup_complete')
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, runID, now)
+	if err != nil {
+		return fmt.Errorf("failed to start deployment: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found or not in stopped/setup_complete state")
+	}
+
+	return nil
+}
+
 // MarkStepCompleted records a step as completed for idempotent replay.
 // Uses JSONB append to add the step ID to completed_steps array.
 func (r *Repository) MarkStepCompleted(ctx context.Context, id, stepID string) error {

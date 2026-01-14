@@ -183,6 +183,7 @@ const (
 	EventDeployFailed       HistoryEventType = "deploy_failed"
 	EventInspection         HistoryEventType = "inspection"
 	EventStopped            HistoryEventType = "stopped"
+	EventStarted            HistoryEventType = "started"
 	EventRestarted          HistoryEventType = "restarted"
 	EventAutohealTriggered  HistoryEventType = "autoheal_triggered"
 )

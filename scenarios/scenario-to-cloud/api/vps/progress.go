@@ -71,6 +71,47 @@ var StepWeights = map[string]float64{
 	"verify_public":     2,
 }
 
+// CalculateWeightsForSteps returns normalized weights for a subset of steps.
+// The weights are scaled so they sum to 100%.
+func CalculateWeightsForSteps(steps []string) map[string]float64 {
+	if len(steps) == 0 {
+		return StepWeights
+	}
+	// Calculate total weight of selected steps
+	var total float64
+	for _, step := range steps {
+		if w, ok := StepWeights[step]; ok {
+			total += w
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	// Normalize weights to sum to 100%
+	normalized := make(map[string]float64, len(steps))
+	for _, step := range steps {
+		if w, ok := StepWeights[step]; ok {
+			normalized[step] = (w / total) * 100
+		}
+	}
+	return normalized
+}
+
+// StartSteps defines the steps to run when starting/resuming a stopped deployment.
+// These skip setup steps (Caddy, firewall) and focus on starting services.
+var StartSteps = []string{
+	"scenario_stop",
+	"secrets_provision",
+	"resource_start",
+	"scenario_deps",
+	"scenario_target",
+	"wait_for_ui",
+	"verify_local",
+	"verify_https",
+	"verify_origin",
+	"verify_public",
+}
+
 // NewProgressEvent creates a new ProgressEvent with the current timestamp.
 func NewProgressEvent(eventType, stepID, stepTitle string, progress float64) ProgressEvent {
 	return ProgressEvent{

@@ -285,7 +285,7 @@ func (o *Orchestrator) RunPipeline(
 		Message:   "Deployment started",
 	})
 
-	deployResult := vps.RunDeployWithProgress(ctx, manifest, o.sshRunner, o.secretsGenerator, providedSecrets, hubAdapter, repoAdapter, id, &progress)
+	deployResult := vps.RunDeployWithProgress(ctx, manifest, o.sshRunner, o.secretsGenerator, providedSecrets, hubAdapter, repoAdapter, id, &progress, vps.DeployOptions{})
 	deployJSON, _ := json.Marshal(deployResult)
 	if err := o.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
 		o.log("failed to save deploy result", map[string]interface{}{"error": err.Error()})
@@ -323,6 +323,98 @@ func (o *Orchestrator) RunPipeline(
 		Type:      "completed",
 		Progress:  100,
 		Message:   "Deployment successful",
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// RunStartPipeline starts/resumes a stopped deployment.
+// Unlike RunPipeline, this skips bundle building, preflight, and VPS setup steps.
+// It only runs the deploy steps needed to restart services.
+func (o *Orchestrator) RunStartPipeline(
+	id, runID string,
+	manifest domain.CloudManifest,
+	providedSecrets map[string]string,
+) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	progress := 0.0
+
+	// Log the start operation
+	o.log("start pipeline initiated", map[string]interface{}{
+		"deployment_id": id,
+		"run_id":        runID,
+		"scenario_id":   manifest.Scenario.ID,
+	})
+
+	// Record start event
+	startTime := time.Now()
+	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:      domain.EventStarted,
+		Timestamp: startTime.UTC(),
+		Message:   "Deployment start/resume initiated",
+	})
+
+	// Create adapters for progress tracking
+	hubAdapter := &progressHubAdapter{hub: o.progressHub}
+	repoAdapter := &progressRepoAdapter{repo: o.repo}
+
+	// Calculate normalized weights for start steps
+	startWeights := vps.CalculateWeightsForSteps(vps.StartSteps)
+
+	// Run deploy steps with start-specific options
+	deployResult := vps.RunDeployWithProgress(
+		ctx,
+		manifest,
+		o.sshRunner,
+		o.secretsGenerator,
+		providedSecrets,
+		hubAdapter,
+		repoAdapter,
+		id,
+		&progress,
+		vps.DeployOptions{
+			StepsToRun:  vps.StartSteps,
+			StepWeights: startWeights,
+		},
+	)
+
+	deployJSON, _ := json.Marshal(deployResult)
+	if err := o.repo.UpdateDeploymentDeployResult(ctx, id, deployJSON, deployResult.OK); err != nil {
+		o.log("failed to save start result", map[string]interface{}{"error": err.Error()})
+	}
+
+	if !deployResult.OK {
+		failedStep := deployResult.FailedStep
+		if failedStep == "" {
+			failedStep = "start"
+		}
+		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:       domain.EventDeployFailed,
+			Timestamp:  time.Now().UTC(),
+			Message:    "Start failed",
+			Details:    deployResult.Error,
+			DurationMs: time.Since(startTime).Milliseconds(),
+			Success:    boolPtr(false),
+			StepName:   failedStep,
+		})
+		setDeploymentError(o.repo, ctx, id, failedStep, deployResult.Error)
+		return
+	}
+
+	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type:       domain.EventDeployCompleted,
+		Timestamp:  time.Now().UTC(),
+		Message:    "Deployment started successfully",
+		DurationMs: time.Since(startTime).Milliseconds(),
+		Success:    boolPtr(true),
+	})
+
+	// Success!
+	o.progressHub.Broadcast(id, Event{
+		Type:      "completed",
+		Progress:  100,
+		Message:   "Deployment started successfully",
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	})
 }

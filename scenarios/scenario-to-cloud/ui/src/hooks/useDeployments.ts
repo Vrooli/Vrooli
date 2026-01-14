@@ -6,6 +6,7 @@ import {
   executeDeployment,
   inspectDeployment,
   stopDeployment,
+  startDeployment,
   deleteDeployment,
   type DeploymentSummary,
   type Deployment,
@@ -124,6 +125,22 @@ export function useStopDeployment() {
   return useMutation({
     mutationFn: async (id: string) => {
       return stopDeployment(id);
+    },
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["deployments"] });
+      queryClient.invalidateQueries({ queryKey: ["deployment", id] });
+    },
+  });
+}
+
+/**
+ * Hook to start/resume a stopped deployment.
+ */
+export function useStartDeployment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return startDeployment(id);
     },
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["deployments"] });
