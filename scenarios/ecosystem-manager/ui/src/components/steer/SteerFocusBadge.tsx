@@ -1,12 +1,16 @@
 import { cn } from '@/lib/utils';
 import type { AutoSteerProfile, ExecutionHistory } from '@/types/api';
-import { Compass, Zap } from 'lucide-react';
+import { Compass, ListOrdered, Zap } from 'lucide-react';
 
 export interface SteerFocusBadgeProps {
   autoSteerProfileName?: string;
   phaseMode?: string;
   phaseTooltip?: string;
   manualSteerMode?: string;
+  queueMode?: string;
+  queueIndex?: number;
+  queueTotal?: number;
+  queueExhausted?: boolean;
   className?: string;
 }
 
@@ -15,6 +19,10 @@ export interface SteerFocusInfo {
   phaseMode?: string;
   phaseTooltip?: string;
   manualSteerMode?: string;
+  queueMode?: string;
+  queueIndex?: number;
+  queueTotal?: number;
+  queueExhausted?: boolean;
 }
 
 export function getExecutionSteerFocus(
@@ -57,12 +65,17 @@ export function SteerFocusBadge({
   phaseMode,
   phaseTooltip,
   manualSteerMode,
+  queueMode,
+  queueIndex,
+  queueTotal,
+  queueExhausted,
   className,
 }: SteerFocusBadgeProps) {
-  if (!autoSteerProfileName && !manualSteerMode) {
+  if (!autoSteerProfileName && !manualSteerMode && queueMode === undefined && queueIndex === undefined) {
     return null;
   }
 
+  // Auto Steer Profile badge (indigo)
   if (autoSteerProfileName) {
     return (
       <div
@@ -90,6 +103,46 @@ export function SteerFocusBadge({
     );
   }
 
+  // Queue steering badge (cyan)
+  if (queueMode !== undefined || queueIndex !== undefined) {
+    const position = queueIndex !== undefined && queueTotal !== undefined
+      ? `${queueIndex + 1}/${queueTotal}`
+      : undefined;
+    const displayMode = queueMode?.toUpperCase?.() ?? queueMode;
+    const tooltip = queueExhausted
+      ? 'Queue exhausted'
+      : position
+        ? `Queue position ${position}: ${displayMode || 'N/A'}`
+        : displayMode;
+
+    return (
+      <div
+        title={tooltip}
+        className={cn(
+          'flex items-center gap-1.5 px-2 py-1 rounded bg-cyan-100 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/10 dark:text-cyan-100 dark:border-cyan-500/30',
+          queueExhausted && 'opacity-60',
+          className,
+        )}
+      >
+        <ListOrdered className="h-3.5 w-3.5" />
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs font-semibold flex items-center gap-1">
+            {position && (
+              <>
+                <span className="font-mono text-[10px] text-cyan-700 dark:text-cyan-200/70">{position}</span>
+                <span className="text-[10px] text-cyan-800/70 dark:text-cyan-100/70">•</span>
+              </>
+            )}
+            <span className={cn('font-normal text-[11px] uppercase', queueExhausted && 'line-through')}>
+              {queueExhausted ? 'Done' : displayMode || 'Queue'}
+            </span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Manual steering badge (amber)
   const manualLabel = manualSteerMode?.toUpperCase?.() ?? manualSteerMode;
   if (!manualLabel) {
     return null;

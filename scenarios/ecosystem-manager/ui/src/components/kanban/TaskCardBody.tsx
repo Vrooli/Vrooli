@@ -20,7 +20,8 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
 
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
-  const manualSteerMode = !hasAutoSteer && task.steer_mode ? task.steer_mode.toUpperCase() : '';
+  const hasQueueSteering = !hasAutoSteer && task.steering_queue && task.steering_queue.length > 0;
+  const manualSteerMode = !hasAutoSteer && !hasQueueSteering && task.steer_mode ? task.steer_mode.toUpperCase() : '';
   const phaseIndex = typeof autoSteerPhaseIndex === 'number'
     ? autoSteerPhaseIndex
     : typeof task.auto_steer_phase_index === 'number'
@@ -59,7 +60,11 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
         autoSteerProfileName={hasAutoSteer ? autoSteerProfile?.name ?? 'Auto Steer' : undefined}
         phaseMode={phaseMode}
         phaseTooltip={phaseTooltip}
-        manualSteerMode={!hasAutoSteer && manualSteerMode ? manualSteerMode : undefined}
+        manualSteerMode={!hasAutoSteer && !hasQueueSteering && manualSteerMode ? manualSteerMode : undefined}
+        queueMode={hasQueueSteering ? task.steering_queue_mode : undefined}
+        queueIndex={hasQueueSteering ? task.steering_queue_index : undefined}
+        queueTotal={hasQueueSteering ? task.steering_queue_total : undefined}
+        queueExhausted={hasQueueSteering ? task.steering_queue_exhausted : undefined}
       />
     </div>
   );

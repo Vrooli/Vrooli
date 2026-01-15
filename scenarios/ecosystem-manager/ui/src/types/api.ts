@@ -52,6 +52,10 @@ export interface Task {
   auto_steer_mode?: string;
   auto_steer_phase_index?: number;
   steering_queue?: string[]; // Ordered list of modes for queue steering strategy
+  steering_queue_index?: number; // Current position in the queue (0-indexed)
+  steering_queue_mode?: string; // Current mode being executed from the queue
+  steering_queue_total?: number; // Total items in the queue
+  steering_queue_exhausted?: boolean; // Whether the queue has been fully processed
   auto_requeue?: boolean;
   created_at: string;
   updated_at: string;

@@ -1,0 +1,35 @@
+id: scenario-improver-agent-inbox-20260114-204858
+title: Improve scenario agent-inbox
+type: scenario
+operation: improver
+target: agent-inbox
+targets:
+    - agent-inbox
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed
+current_phase: completed
+started_at: "2026-01-14T20:50:13-05:00"
+completed_at: "2026-01-14T20:58:15-05:00"
+cooldown_until: "2026-01-14T21:01:25-05:00"
+completion_count: 1
+last_completed_at: "2026-01-14T20:58:15-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2026-01-14T20:48:58-05:00"
+updated_at: "2026-01-14T21:21:08-05:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+steering_queue:
+    - react-stability
+    - react-stability

@@ -16,6 +16,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/steering"
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
@@ -40,6 +41,7 @@ type TaskHandlers struct {
 	autoSteerProfiles *autosteer.ProfileService
 	coordinator       *tasks.Coordinator
 	lifecycle         *tasks.Lifecycle
+	queueStateRepo    steering.QueueStateRepository
 }
 
 func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool {
@@ -65,9 +67,13 @@ func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool 
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
 type taskWithRuntime struct {
 	tasks.TaskItem
-	CurrentProcess       *queue.ProcessInfo `json:"current_process,omitempty"`
-	AutoSteerPhaseIndex  *int               `json:"auto_steer_phase_index,omitempty"`
-	AutoSteerCurrentMode string             `json:"auto_steer_mode,omitempty"`
+	CurrentProcess          *queue.ProcessInfo `json:"current_process,omitempty"`
+	AutoSteerPhaseIndex     *int               `json:"auto_steer_phase_index,omitempty"`
+	AutoSteerCurrentMode    string             `json:"auto_steer_mode,omitempty"`
+	SteeringQueueIndex      *int               `json:"steering_queue_index,omitempty"`
+	SteeringQueueMode       string             `json:"steering_queue_mode,omitempty"`
+	SteeringQueueTotal      int                `json:"steering_queue_total,omitempty"`
+	SteeringQueueIsExhausted bool              `json:"steering_queue_exhausted,omitempty"`
 }
 
 // buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
@@ -97,6 +103,58 @@ func attachRuntime(task tasks.TaskItem, runtime map[string]queue.ProcessInfo) ta
 type autoSteerRuntime struct {
 	phaseIndex *int
 	mode       string
+}
+
+type queueSteeringRuntime struct {
+	index       *int
+	mode        string
+	total       int
+	isExhausted bool
+}
+
+// buildQueueSteeringRuntime gathers live queue steering state for tasks with steering_queue.
+func (h *TaskHandlers) buildQueueSteeringRuntime(taskItems []tasks.TaskItem) map[string]queueSteeringRuntime {
+	result := make(map[string]queueSteeringRuntime)
+
+	if h.queueStateRepo == nil {
+		return result
+	}
+
+	for _, task := range taskItems {
+		if len(task.SteeringQueue) == 0 {
+			continue
+		}
+
+		state, err := h.queueStateRepo.Get(task.ID)
+		if err != nil || state == nil {
+			// No state yet - queue hasn't started, show index 0
+			idx := 0
+			result[task.ID] = queueSteeringRuntime{
+				index:       &idx,
+				mode:        task.SteeringQueue[0],
+				total:       len(task.SteeringQueue),
+				isExhausted: false,
+			}
+			continue
+		}
+
+		idx := state.CurrentIndex
+		isExhausted := state.IsExhausted()
+
+		var mode string
+		if !isExhausted && idx >= 0 && idx < len(state.Queue) {
+			mode = string(state.Queue[idx])
+		}
+
+		result[task.ID] = queueSteeringRuntime{
+			index:       &idx,
+			mode:        mode,
+			total:       len(state.Queue),
+			isExhausted: isExhausted,
+		}
+	}
+
+	return result
 }
 
 // buildAutoSteerRuntime gathers live Auto Steer state for the provided tasks.
@@ -277,7 +335,7 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator) *TaskHandlers {
+func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository) *TaskHandlers {
 	lc := &tasks.Lifecycle{Store: storage}
 	if coordinator != nil && coordinator.LC != nil {
 		lc = coordinator.LC
@@ -299,6 +357,7 @@ func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, pro
 		autoSteerProfiles: autoSteerProfiles,
 		coordinator:       coord,
 		lifecycle:         lc,
+		queueStateRepo:    queueStateRepo,
 	}
 }
 
@@ -522,6 +581,7 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	runtimeIndex := h.buildRuntimeIndex()
 	autoSteerIndex := h.buildAutoSteerRuntime(filteredItems)
+	queueSteerIndex := h.buildQueueSteeringRuntime(filteredItems)
 	enriched := make([]taskWithRuntime, 0, len(filteredItems))
 	for _, item := range filteredItems {
 		enrichedTask := attachRuntime(item, runtimeIndex)
@@ -530,6 +590,12 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(steer.mode) != "" {
 				enrichedTask.AutoSteerCurrentMode = steer.mode
 			}
+		}
+		if queueSteer, ok := queueSteerIndex[item.ID]; ok {
+			enrichedTask.SteeringQueueIndex = queueSteer.index
+			enrichedTask.SteeringQueueMode = queueSteer.mode
+			enrichedTask.SteeringQueueTotal = queueSteer.total
+			enrichedTask.SteeringQueueIsExhausted = queueSteer.isExhausted
 		}
 		enriched = append(enriched, enrichedTask)
 	}
