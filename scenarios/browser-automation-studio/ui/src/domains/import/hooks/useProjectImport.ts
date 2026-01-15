@@ -29,6 +29,8 @@ export interface InspectFolderResponse {
   workflow_count?: number;
   /** Relative paths to detected workflow files */
   workflow_locations?: string[];
+  /** Number of V1 format workflows that will be converted */
+  v1_workflow_count?: number;
 }
 
 export interface ImportProjectRequest {

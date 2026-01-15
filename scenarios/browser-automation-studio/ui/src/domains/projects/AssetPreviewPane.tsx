@@ -254,8 +254,10 @@ export function AssetPreviewPane({
     });
   }, []);
 
-  // Build asset URL
-  const assetUrl = apiUrl ? `${apiUrl}/projects/${projectId}/files/${encodeURIComponent(path)}` : null;
+  // Build asset URL - encode each path segment individually to preserve slashes
+  const assetUrl = apiUrl
+    ? `${apiUrl}/projects/${projectId}/files/${path.split("/").map(encodeURIComponent).join("/")}`
+    : null;
 
   // Load text content for text/json files
   useEffect(() => {
@@ -289,7 +291,7 @@ export function AssetPreviewPane({
   }, [assetUrl, fileInfo.type, path, projectId]);
 
   return (
-    <div className="bg-flow-node border border-gray-700 rounded-lg h-full flex flex-col">
+    <div className="bg-flow-node h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">

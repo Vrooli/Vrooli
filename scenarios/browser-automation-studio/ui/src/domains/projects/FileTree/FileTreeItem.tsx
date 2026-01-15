@@ -232,8 +232,16 @@ export function FileTreeItem({
     }
     try {
       await onOpenWorkflowFile(node.workflowId);
-    } catch {
-      toast.error("Failed to open workflow");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to open workflow";
+      // Check for common error patterns to provide helpful messages
+      if (message.includes("404") || message.includes("not found")) {
+        toast.error("Workflow not found. It may have been deleted.");
+      } else if (message.includes("network") || message.includes("fetch")) {
+        toast.error("Network error. Please check your connection and try again.");
+      } else {
+        toast.error(`Failed to open workflow: ${message}`);
+      }
     }
   };
 

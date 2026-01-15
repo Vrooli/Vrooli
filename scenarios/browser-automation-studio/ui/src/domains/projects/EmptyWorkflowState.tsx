@@ -151,7 +151,7 @@ export function EmptyWorkflowState({
   // When in pane mode, wrap in a styled container matching other panes
   if (inPane) {
     return (
-      <div className="bg-flow-node border border-gray-700 rounded-lg h-full flex flex-col">
+      <div className="bg-flow-node h-full flex flex-col">
         {content}
       </div>
     );
