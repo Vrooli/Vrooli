@@ -12,7 +12,6 @@ type MockService struct {
 	mu               sync.Mutex
 	creditsRemaining int
 	creditsLimit     int
-	enabled          bool
 	charges          []ChargeRequest
 	failedOps        []ChargeRequest
 	costs            OperationCosts
@@ -38,13 +37,6 @@ func WithUnlimited() MockServiceOption {
 	}
 }
 
-// WithEnabled sets whether credits are enabled.
-func WithEnabled(enabled bool) MockServiceOption {
-	return func(m *MockService) {
-		m.enabled = enabled
-	}
-}
-
 // WithCanChargeFn sets a custom can-charge predicate.
 func WithCanChargeFn(fn func(OperationType) bool) MockServiceOption {
 	return func(m *MockService) {
@@ -60,7 +52,6 @@ func NewMockService(opts ...MockServiceOption) *MockService {
 	m := &MockService{
 		creditsRemaining: 100, // Default
 		creditsLimit:     100,
-		enabled:          true,
 		costs:            DefaultOperationCosts(),
 	}
 	for _, opt := range opts {
@@ -73,10 +64,6 @@ func NewMockService(opts ...MockServiceOption) *MockService {
 func (m *MockService) CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	if !m.enabled {
-		return true, -1, nil
-	}
 
 	if m.canChargeFn != nil {
 		return m.canChargeFn(op), m.creditsRemaining, nil
@@ -94,10 +81,6 @@ func (m *MockService) CanCharge(ctx context.Context, userIdentity string, op Ope
 func (m *MockService) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	if !m.enabled {
-		return &ChargeResult{Charged: 0, RemainingCredits: -1, WasCharged: false}, nil
-	}
 
 	cost := m.costs.GetCost(req.Operation)
 
@@ -190,11 +173,6 @@ func (m *MockService) LogFailedOperation(ctx context.Context, req ChargeRequest,
 	defer m.mu.Unlock()
 	m.failedOps = append(m.failedOps, req)
 	return nil
-}
-
-// IsEnabled implements CreditService.
-func (m *MockService) IsEnabled() bool {
-	return m.enabled
 }
 
 // GetUsageHistory implements CreditService.

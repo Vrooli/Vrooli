@@ -47,32 +47,12 @@ func createTestEntitlementHandler(t *testing.T) (*EntitlementHandler, *mockSetti
 	log.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.EntitlementConfig{
-		Enabled:        true,
 		RequestTimeout: 5,
 		DefaultTier:    "free",
 		AICreditsLimits: map[string]int{
 			"free": 10,
 			"pro":  100,
 		},
-	}
-
-	service := entitlement.NewService(cfg, log)
-	settingsRepo := newMockSettingsRepo()
-
-	// Pass nil for creditService since we don't have a DB in tests
-	handler := NewEntitlementHandler(service, nil, settingsRepo)
-	return handler, settingsRepo
-}
-
-func createTestEntitlementHandlerDisabled(t *testing.T) (*EntitlementHandler, *mockSettingsRepo) {
-	t.Helper()
-
-	log := logrus.New()
-	log.SetLevel(logrus.ErrorLevel)
-
-	cfg := config.EntitlementConfig{
-		Enabled:        false,
-		RequestTimeout: 5,
 	}
 
 	service := entitlement.NewService(cfg, log)
@@ -132,29 +112,6 @@ func TestGetEntitlementStatus_WithUserQuery(t *testing.T) {
 
 	if response.UserIdentity != "test@example.com" {
 		t.Fatalf("expected user identity 'test@example.com', got %q", response.UserIdentity)
-	}
-}
-
-func TestGetEntitlementStatus_EntitlementsDisabled(t *testing.T) {
-	handler, _ := createTestEntitlementHandlerDisabled(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
-	rr := httptest.NewRecorder()
-
-	handler.GetEntitlementStatus(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var response EntitlementStatusResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	// When disabled, should return unlimited entitlement
-	if response.MonthlyLimit != -1 {
-		t.Fatalf("expected monthly_limit -1 (unlimited), got %d", response.MonthlyLimit)
 	}
 }
 
@@ -576,30 +533,6 @@ func TestGetEntitlementStatus_IncludesAICreditsFields(t *testing.T) {
 	if response.AIRequestsCount != 0 {
 		t.Errorf("expected AIRequestsCount = 0 without tracker, got %d", response.AIRequestsCount)
 	}
-}
-
-func TestGetEntitlementStatus_AICreditsDisabledReturnsDefaults(t *testing.T) {
-	handler, _ := createTestEntitlementHandlerDisabled(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/entitlement/status", nil)
-	rr := httptest.NewRecorder()
-
-	handler.GetEntitlementStatus(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var response EntitlementStatusResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	// When entitlements are disabled, AI should be accessible
-	// and credits should show as unlimited (-1) or 0 depending on implementation
-	// The key check is that the response contains these fields
-	t.Logf("AICreditsLimit = %d, AICreditsUsed = %d, AICreditsRemaining = %d",
-		response.AICreditsLimit, response.AICreditsUsed, response.AICreditsRemaining)
 }
 
 func TestGetEntitlementStatus_ResponseIncludesAIResetDate(t *testing.T) {

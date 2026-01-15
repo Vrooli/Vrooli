@@ -46,9 +46,6 @@ export function SubscriptionTab() {
     );
   }
 
-  const entitlementsDisabled = Boolean(status && !status.entitlements_enabled);
-  const showDisabledNotice = entitlementsDisabled && !activeOverride;
-
   return (
     <div className="space-y-8">
       {canOverrideTier && (
@@ -87,36 +84,23 @@ export function SubscriptionTab() {
         </div>
       )}
 
-      {showDisabledNotice ? (
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-6 text-center">
-          <p className="text-gray-400">
-            Subscription management is not enabled for this installation.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            All features are available without restrictions.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Email Input */}
-          <EmailInputSection />
+      {/* Email Input */}
+      <EmailInputSection />
 
-          {/* Status Card - only show if we have status */}
-          {status && <SubscriptionStatusCard />}
+      {/* Status Card - only show if we have status */}
+      {status && <SubscriptionStatusCard />}
 
-          {/* Unified Usage - shows both AI credits and executions */}
-          {status && <UnifiedUsageSection />}
+      {/* Unified Usage - shows both AI credits and executions */}
+      {status && <UnifiedUsageSection />}
 
-          {/* Usage History - banking-style period navigation */}
-          {status && <UsageHistorySection onViewOperations={handleViewOperations} />}
+      {/* Usage History - banking-style period navigation */}
+      {status && <UsageHistorySection onViewOperations={handleViewOperations} />}
 
-          {/* Feature Access List - only show if we have status */}
-          {status && <FeatureAccessList />}
+      {/* Feature Access List - only show if we have status */}
+      {status && <FeatureAccessList />}
 
-          {/* Upgrade Prompt - component handles its own visibility */}
-          <UpgradePromptSection />
-        </>
-      )}
+      {/* Upgrade Prompt - component handles its own visibility */}
+      <UpgradePromptSection />
 
       {/* Operation Log Modal */}
       <OperationLogModal

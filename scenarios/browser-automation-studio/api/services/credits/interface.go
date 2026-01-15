@@ -60,10 +60,6 @@ type CreditService interface {
 	// Useful for audit trails and debugging.
 	LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
 
-	// IsEnabled reports whether credit tracking is enabled.
-	// When disabled, all operations are allowed without charging.
-	IsEnabled() bool
-
 	// GetUsageHistory returns usage summaries for multiple billing periods.
 	// months specifies how many months to retrieve, offset specifies months to skip from current.
 	// Returns (summaries, hasMore, error).

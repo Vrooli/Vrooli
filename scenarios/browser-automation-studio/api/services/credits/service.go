@@ -20,7 +20,6 @@ type Service struct {
 	log            *logrus.Logger
 	entitlementSvc *entitlement.Service
 	costs          OperationCosts
-	enabled        bool
 
 	// In-memory cache for fast lookups
 	cacheMu sync.RWMutex
@@ -41,7 +40,6 @@ type ServiceOptions struct {
 	DB             *sql.DB
 	Logger         *logrus.Logger
 	EntitlementSvc *entitlement.Service
-	Enabled        bool // Whether credit tracking is enabled
 	// Note: Operation costs are intentionally NOT configurable here.
 	// They are hard-coded in DefaultOperationCosts() to prevent bypassing charges.
 }
@@ -53,23 +51,12 @@ func NewService(opts ServiceOptions) *Service {
 		log:            opts.Logger,
 		entitlementSvc: opts.EntitlementSvc,
 		costs:          DefaultOperationCosts(),
-		enabled:        opts.Enabled,
 		cache:          make(map[string]*usageCache),
 	}
 }
 
-// IsEnabled reports whether credit tracking is enabled.
-func (s *Service) IsEnabled() bool {
-	return s.enabled
-}
-
 // CanCharge checks if the user has sufficient credits for the operation.
 func (s *Service) CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error) {
-	// If credits disabled, always allow
-	if !s.enabled {
-		return true, -1, nil
-	}
-
 	userIdentity = normalizeIdentity(userIdentity)
 
 	// Get user's credit limit from entitlement
@@ -111,13 +98,6 @@ func (s *Service) CanCharge(ctx context.Context, userIdentity string, op Operati
 // Charge deducts credits for a completed operation.
 func (s *Service) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error) {
 	userIdentity := normalizeIdentity(req.UserIdentity)
-
-	// If credits disabled or no user identity, just log but don't charge
-	if !s.enabled {
-		// Still log the operation for analytics
-		_ = s.logOperation(ctx, userIdentity, req.Operation, 0, true, req.Metadata, "")
-		return &ChargeResult{Charged: 0, RemainingCredits: -1, WasCharged: false}, nil
-	}
 
 	if userIdentity == "" {
 		// Can't charge without user identity, but don't fail
@@ -192,19 +172,17 @@ func (s *Service) GetUsage(ctx context.Context, userIdentity string) (*UsageSumm
 	}
 
 	// Get credit limit from entitlement
-	creditsLimit := -1 // Default to unlimited
+	creditsLimit, err := s.getUserCreditsLimit(ctx, userIdentity)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to get credit limit, assuming unlimited")
+		creditsLimit = -1
+	}
+
 	creditsRemaining := -1
-	if s.enabled {
-		var err error
-		creditsLimit, err = s.getUserCreditsLimit(ctx, userIdentity)
-		if err != nil {
-			s.log.WithError(err).Warn("Failed to get credit limit, assuming unlimited")
-		}
-		if creditsLimit >= 0 {
-			creditsRemaining = creditsLimit - usage.totalCreditsUsed
-			if creditsRemaining < 0 {
-				creditsRemaining = 0
-			}
+	if creditsLimit >= 0 {
+		creditsRemaining = creditsLimit - usage.totalCreditsUsed
+		if creditsRemaining < 0 {
+			creditsRemaining = 0
 		}
 	}
 
@@ -329,13 +307,10 @@ func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, mont
 	}
 
 	// Get credit limit for the user
-	creditsLimit := -1
-	if s.enabled {
-		var err error
-		creditsLimit, err = s.getUserCreditsLimit(ctx, userIdentity)
-		if err != nil {
-			s.log.WithError(err).Warn("Failed to get credit limit for history")
-		}
+	creditsLimit, err := s.getUserCreditsLimit(ctx, userIdentity)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to get credit limit for history")
+		creditsLimit = -1
 	}
 
 	// Build summaries for the requested months
@@ -497,8 +472,8 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 
 // getUserCreditsLimit gets the credit limit for a user based on their entitlement tier.
 func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) (int, error) {
-	if s.entitlementSvc == nil || !s.entitlementSvc.IsEnabled() {
-		return -1, nil // Unlimited when entitlements disabled
+	if s.entitlementSvc == nil {
+		return -1, nil // Unlimited when no entitlement service
 	}
 
 	ent, err := s.entitlementSvc.GetEntitlement(ctx, userIdentity)
@@ -512,10 +487,6 @@ func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) 
 
 // getRemainingCredits returns the remaining credits for a user.
 func (s *Service) getRemainingCredits(ctx context.Context, userIdentity string) (int, error) {
-	if !s.enabled {
-		return -1, nil
-	}
-
 	creditsLimit, err := s.getUserCreditsLimit(ctx, userIdentity)
 	if err != nil {
 		return -1, err

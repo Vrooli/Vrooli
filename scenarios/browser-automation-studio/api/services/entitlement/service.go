@@ -42,19 +42,9 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 	}
 }
 
-// IsEnabled reports whether entitlement checks are enabled.
-func (s *Service) IsEnabled() bool {
-	return s.cfg.Enabled
-}
-
 // GetEntitlement retrieves the entitlement for a user, using cache when available.
 func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
-
-	// If entitlements are disabled, return unlimited entitlement
-	if !s.cfg.Enabled {
-		return s.unlimitedEntitlement(userIdentity), nil
-	}
 
 	// Empty user identity gets default tier
 	if userIdentity == "" {
@@ -93,10 +83,6 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 // CanExecuteWorkflow checks if the user can execute a workflow based on their tier limits.
 // Returns true if execution is allowed, false if limit reached.
 func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail open - allow execution if we can't check
@@ -116,10 +102,6 @@ func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, c
 // GetRemainingExecutions returns how many executions the user has remaining this month.
 // Returns -1 for unlimited.
 func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity string, currentMonthCount int) int {
-	if !s.cfg.Enabled {
-		return -1
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		return -1
@@ -139,10 +121,6 @@ func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity strin
 
 // RequiresWatermark returns true if exports for this user should be watermarked.
 func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return false
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail safe - require watermark if we can't check
@@ -154,10 +132,6 @@ func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bo
 
 // CanUseAI returns true if the user has access to AI-powered features.
 func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail closed for premium features
@@ -169,10 +143,6 @@ func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
 
 // CanUseRecording returns true if the user has access to live recording features.
 func (s *Service) CanUseRecording(ctx context.Context, userIdentity string) bool {
-	if !s.cfg.Enabled {
-		return true
-	}
-
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
 		// Fail closed for premium features
@@ -314,19 +284,7 @@ func (s *Service) defaultEntitlement(userIdentity string) *Entitlement {
 	}
 }
 
-// unlimitedEntitlement returns an entitlement with no restrictions (for dev mode).
-func (s *Service) unlimitedEntitlement(userIdentity string) *Entitlement {
-	now := time.Now()
-	return &Entitlement{
-		UserIdentity: userIdentity,
-		Status:       StatusActive,
-		Tier:         TierBusiness,
-		FetchedAt:    now,
-		ExpiresAt:    now.Add(24 * time.Hour),
-	}
-}
-
-// TierLimit returns the execution limit for a tier, independent of entitlement enablement.
+// TierLimit returns the execution limit for a tier.
 // Returns -1 for unlimited.
 func (s *Service) TierLimit(tier Tier) int {
 	return s.getTierLimit(tier)

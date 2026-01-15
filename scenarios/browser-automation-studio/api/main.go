@@ -144,27 +144,24 @@ func main() {
 	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
 	byokMiddleware := middleware.NewBYOKMiddleware()
 
-	if cfg.Entitlement.Enabled {
+	if cfg.Entitlement.ServiceURL != "" {
 		log.WithFields(logrus.Fields{
 			"service_url":     cfg.Entitlement.ServiceURL,
 			"cache_ttl":       cfg.Entitlement.CacheTTL,
 			"default_tier":    cfg.Entitlement.DefaultTier,
 			"watermark_tiers": cfg.Entitlement.WatermarkTiers,
-		}).Info("✅ Entitlement system enabled")
+		}).Info("✅ Entitlement service configured")
 	} else {
-		log.Info("⚠️  Entitlement system disabled - all features available without restrictions")
+		log.WithField("default_tier", cfg.Entitlement.DefaultTier).Info("ℹ️  No entitlement service URL - using default tier")
 	}
 
-	// Initialize unified credits service
+	// Initialize unified credits service (always enabled for tracking)
 	creditService := credits.NewService(credits.ServiceOptions{
 		DB:             db.RawDB(),
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
-		Enabled:        cfg.Credits.Enabled,
 	})
-	if cfg.Credits.Enabled {
-		log.Info("✅ Unified credits service enabled")
-	}
+	log.Info("✅ Unified credits service initialized")
 
 	// Initialize entitlement handler (uses unified credit service)
 	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, creditService, repo)

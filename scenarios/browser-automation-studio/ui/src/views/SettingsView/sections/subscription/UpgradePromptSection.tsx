@@ -38,11 +38,6 @@ const TIER_ICONS: Record<SubscriptionTier, LucideIcon> = {
 export function UpgradePromptSection() {
   const { status, userEmail } = useEntitlementStore();
 
-  // Don't show upgrade prompt for high tiers or when entitlements are disabled
-  if (!status?.entitlements_enabled) {
-    return null;
-  }
-
   const currentTier = status?.tier || 'free';
   const isHighTier = currentTier === 'studio' || currentTier === 'business';
 

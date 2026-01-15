@@ -111,8 +111,8 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charge credits for execution (only when credit service is enabled)
-	if h.creditService != nil && h.creditService.IsEnabled() {
+	// Charge credits for execution
+	if h.creditService != nil {
 		userIdentity := entitlement.UserIdentityFromContext(ctx)
 		_, chargeErr := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: userIdentity,
@@ -228,8 +228,8 @@ func (h *Handler) ExecuteAdhocWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Charge credits for adhoc execution (only when credit service is enabled)
-	if h.creditService != nil && h.creditService.IsEnabled() {
+	// Charge credits for adhoc execution
+	if h.creditService != nil {
 		userIdentity := entitlement.UserIdentityFromContext(ctx)
 		_, chargeErr := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: userIdentity,

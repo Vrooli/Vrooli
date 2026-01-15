@@ -87,9 +87,6 @@ type Config struct {
 	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
 	Performance PerformanceConfig
 
-	// Credits controls the unified credit system for metered operations.
-	Credits CreditsConfig
-
 	// AIProvider controls the AI provider fallback chain configuration.
 	AIProvider AIProviderConfig
 }
@@ -492,11 +489,6 @@ type HTTPConfig struct {
 // This enables the monetization model by connecting to the landing-page-business-suite
 // entitlement service to verify user subscriptions and enforce tier-based limits.
 type EntitlementConfig struct {
-	// Enabled controls whether entitlement checking is active.
-	// When false, all features are available without restrictions (development mode).
-	// Env: BAS_ENTITLEMENT_ENABLED (default: false)
-	Enabled bool
-
 	// ServiceURL is the base URL of the entitlement service (landing-page-business-suite).
 	// Must include protocol (https://) and no trailing slash.
 	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
@@ -574,19 +566,6 @@ type PerformanceConfig struct {
 	// When true, perf_stats messages are broadcast periodically over WebSocket.
 	// Env: BAS_PERF_STREAM_TO_WEBSOCKET (default: true)
 	StreamToWebSocket bool
-}
-
-// CreditsConfig controls the unified credit system for metered operations.
-type CreditsConfig struct {
-	// Enabled controls whether credit tracking is active.
-	// When false, all operations are allowed without charging (development mode).
-	// Typically mirrors EntitlementConfig.Enabled.
-	// Env: BAS_CREDITS_ENABLED (default: false, uses BAS_ENTITLEMENT_ENABLED if not set)
-	Enabled bool
-
-	// Note: Operation costs are intentionally NOT configurable via environment variables.
-	// They are hard-coded in services/credits/costs.go to prevent end-users from
-	// bypassing credit charges by setting all costs to 0.
 }
 
 // AIProviderConfig controls the AI provider fallback chain.
@@ -741,7 +720,6 @@ func loadFromEnv() *Config {
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
 		},
 		Entitlement: EntitlementConfig{
-			Enabled:            parseBool("BAS_ENTITLEMENT_ENABLED", false),
 			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
 			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
 			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
@@ -759,9 +737,6 @@ func loadFromEnv() *Config {
 			ExposeEndpoint:     parseBool("BAS_PERF_EXPOSE_ENDPOINT", true),
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
-		},
-		Credits: CreditsConfig{
-			Enabled: parseCreditsEnabled(),
 		},
 		AIProvider: AIProviderConfig{
 			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
@@ -911,10 +886,8 @@ func (c *Config) Validate() error {
 	}
 
 	// Entitlement validation
-	if c.Entitlement.Enabled {
-		if c.Entitlement.ServiceURL == "" {
-			return fmt.Errorf("Entitlement.ServiceURL is required when entitlements are enabled")
-		}
+	// When ServiceURL is configured, validate related settings
+	if c.Entitlement.ServiceURL != "" {
 		if c.Entitlement.CacheTTL <= 0 {
 			return fmt.Errorf("Entitlement.CacheTTL must be positive, got %v", c.Entitlement.CacheTTL)
 		}
@@ -1121,15 +1094,4 @@ func parseAICreditsLimits(envVar string) map[string]int {
 	}
 
 	return result
-}
-
-// parseCreditsEnabled determines if credits are enabled.
-// Defaults to BAS_ENTITLEMENT_ENABLED if BAS_CREDITS_ENABLED is not set.
-func parseCreditsEnabled() bool {
-	// Check for explicit credits setting first
-	if value := strings.TrimSpace(os.Getenv("BAS_CREDITS_ENABLED")); value != "" {
-		return strings.ToLower(value) == "true" || value == "1"
-	}
-	// Fall back to entitlement enabled
-	return parseBool("BAS_ENTITLEMENT_ENABLED", false)
 }

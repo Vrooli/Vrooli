@@ -384,7 +384,7 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 		}).Info("Scheduled workflow execution completed")
 
 		// Charge credits for successful scheduled execution
-		if s.creditService != nil && s.creditService.IsEnabled() {
+		if s.creditService != nil {
 			userIdentity := s.getUserIdentity(ctx)
 			if userIdentity != "" {
 				_, chargeErr := s.creditService.Charge(ctx, credits.ChargeRequest{

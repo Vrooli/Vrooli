@@ -263,7 +263,7 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 		}
 
 		// Check AI credits
-		if h.creditService != nil && h.creditService.IsEnabled() {
+		if h.creditService != nil {
 			canCharge, remaining, err := h.creditService.CanCharge(ctx, userID, credits.OpAIVisionNavigate)
 			if err != nil {
 				h.log.WithError(err).Warn("vision_navigation: failed to check credits")
@@ -483,7 +483,7 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	h.mu.Unlock()
 
 	// Charge credits per step
-	if h.creditService != nil && h.creditService.IsEnabled() && session != nil {
+	if h.creditService != nil && session != nil {
 		_, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: session.UserID,
 			Operation:    credits.OpAIVisionNavigate,

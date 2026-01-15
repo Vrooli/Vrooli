@@ -135,12 +135,9 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 	aiRequestsCount := 0
 	aiResetDate := ""
 
-	// When entitlements are disabled (and no override), everything is unlimited
-	entitlementsEnabled := h.service.IsEnabled() || overrideActive
-	if !entitlementsEnabled {
-		monthlyLimit = -1
-		remaining = -1
-	}
+	// Entitlements are always enabled - limits come from the tier
+	entitlementsEnabled := true
+	_ = entitlementsEnabled // Used in response below
 
 	if usage != nil {
 		usedCount = usage.TotalCreditsUsed
@@ -183,7 +180,7 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		RequiresWatermark:   h.resolveRequiresWatermark(ctx, userIdentity, ent, overrideActive),
 		CanUseAI:            h.resolveCanUseAI(ctx, userIdentity, ent, overrideActive),
 		CanUseRecording:     h.resolveCanUseRecording(ctx, userIdentity, ent, overrideActive),
-		EntitlementsEnabled: h.service.IsEnabled() || overrideActive,
+		EntitlementsEnabled: true,
 		AICreditsUsed:       aiCreditsUsed,
 		AICreditsLimit:      aiCreditsLimit,
 		AICreditsRemaining:  aiCreditsRemaining,

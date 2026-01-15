@@ -124,7 +124,7 @@ func (c *AIProviderChain) Execute(ctx context.Context, req ProviderRequest) (*Pr
 
 		if provider.IsAvailable(ctx) {
 			// Check credits before attempting
-			if c.creditService != nil && c.creditService.IsEnabled() {
+			if c.creditService != nil {
 				canCharge, remaining, err := c.creditService.CanCharge(ctx, req.UserIdentity, opType)
 				if err != nil {
 					c.log.WithError(err).Warn("Failed to check credits, skipping Vrooli provider")
