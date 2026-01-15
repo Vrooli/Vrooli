@@ -17,6 +17,10 @@ type QueueStateRepository interface {
 
 	// Delete removes the queue state for a task.
 	Delete(taskID string) error
+
+	// ResetPosition resets the queue position to 0 without deleting the state.
+	// Use this when reactivating a task to allow re-running the full queue.
+	ResetPosition(taskID string) error
 }
 
 // NewQueueState creates a new QueueState for a task.

@@ -11,6 +11,10 @@ interface SteeringConfigPickerProps {
   onChange: (config: SteeringConfig) => void;
   disabled?: boolean;
   className?: string;
+  /** Queue progress: current execution position (0-indexed) */
+  queueIndex?: number;
+  /** Queue progress: whether the queue is fully processed */
+  queueExhausted?: boolean;
 }
 
 interface StrategyDisplay {
@@ -80,6 +84,8 @@ export function SteeringConfigPicker({
   onChange,
   disabled,
   className,
+  queueIndex,
+  queueExhausted,
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
@@ -120,6 +126,8 @@ export function SteeringConfigPicker({
         phaseNames={phaseNames}
         isLoadingProfiles={isLoadingProfiles}
         isLoadingPhases={isLoadingPhases}
+        queueIndex={queueIndex}
+        queueExhausted={queueExhausted}
       />
     </>
   );

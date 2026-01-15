@@ -43,6 +43,8 @@ import {
 } from '@/components/steer/SteeringConfigPicker';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
+import { QueuePanel } from '@/components/steer/panels/QueuePanel';
+import { usePhaseNames } from '@/hooks/usePromptFiles';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -278,6 +280,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const seekAutoSteer = useSeekAutoSteerExecution();
+  const { data: phaseNames = [] } = usePhaseNames();
 
   // Fetch task prompt
   const { data: promptData } = useQuery({
@@ -735,7 +738,27 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             {task?.type === 'scenario' && task?.operation === 'improver' && (
               <div className="space-y-2">
                 <Label>Steering Configuration</Label>
-                <SteeringConfigPicker value={steeringConfig} onChange={setSteeringConfig} />
+                <SteeringConfigPicker
+                  value={steeringConfig}
+                  onChange={setSteeringConfig}
+                  queueIndex={task.steering_queue_index}
+                  queueExhausted={task.steering_queue_exhausted}
+                />
+              </div>
+            )}
+
+            {/* Queue Progress - show when task has a steering queue */}
+            {task?.steering_queue && task.steering_queue.length > 0 && (
+              <div className="space-y-2">
+                <Label>Queue Progress</Label>
+                <QueuePanel
+                  value={task.steering_queue}
+                  onChange={() => {}}
+                  phaseNames={phaseNames}
+                  currentIndex={task.steering_queue_index}
+                  isExhausted={task.steering_queue_exhausted}
+                  readOnly
+                />
               </div>
             )}
 

@@ -25,6 +25,10 @@ interface SteeringConfigDialogProps {
   phaseNames: PhaseInfo[];
   isLoadingProfiles?: boolean;
   isLoadingPhases?: boolean;
+  /** Queue progress: current execution position (0-indexed) */
+  queueIndex?: number;
+  /** Queue progress: whether the queue is fully processed */
+  queueExhausted?: boolean;
 }
 
 const STRATEGY_TABS: { value: SteeringStrategy; label: string; icon: React.ElementType }[] = [
@@ -58,6 +62,8 @@ export function SteeringConfigDialog({
   phaseNames,
   isLoadingProfiles,
   isLoadingPhases,
+  queueIndex,
+  queueExhausted,
 }: SteeringConfigDialogProps) {
   // Local state for editing
   const [localConfig, setLocalConfig] = useState<SteeringConfig>(value);
@@ -130,6 +136,8 @@ export function SteeringConfigDialog({
                 onChange={(queue) => setLocalConfig((prev) => ({ ...prev, queue }))}
                 phaseNames={phaseNames}
                 isLoading={isLoadingPhases}
+                currentIndex={queueIndex}
+                isExhausted={queueExhausted}
               />
             </TabsContent>
 

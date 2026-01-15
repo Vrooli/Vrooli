@@ -56,6 +56,7 @@ type TransitionEffects struct {
 	ForceStart             bool // caller should force start the task (manual move to active)
 	StartIfSlotAvailable   bool // caller should start if capacity is available
 	WakeProcessorAfterSave bool // caller should wake queue processor
+	ResetSteeringQueue     bool // caller should reset steering queue position to 0
 }
 
 // TransitionOutcome is the result of applying a transition.
@@ -193,6 +194,7 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				if isTerminalStatus(fromStatus) {
 					task.ProcessorAutoRequeue = true
 					task.CooldownUntil = ""
+					effects.ResetSteeringQueue = true
 				}
 
 				task.Status = StatusInProgress
@@ -235,6 +237,7 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				if isTerminalStatus(fromStatus) {
 					task.ProcessorAutoRequeue = true
 					task.CooldownUntil = ""
+					effects.ResetSteeringQueue = true
 				}
 
 				if fromStatus == StatusInProgress {

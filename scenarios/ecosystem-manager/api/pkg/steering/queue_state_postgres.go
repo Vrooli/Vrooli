@@ -128,6 +128,22 @@ func (r *PostgresQueueStateRepository) Delete(taskID string) error {
 	return nil
 }
 
+// ResetPosition resets the queue position to 0 without deleting the state.
+func (r *PostgresQueueStateRepository) ResetPosition(taskID string) error {
+	if r.db == nil {
+		return fmt.Errorf("database connection not available")
+	}
+
+	query := `UPDATE steering_queue_state SET current_index = 0, updated_at = NOW() WHERE task_id = $1`
+
+	_, err := r.db.Exec(query, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to reset queue position: %w", err)
+	}
+
+	return nil
+}
+
 // InMemoryQueueStateRepository implements QueueStateRepository using an in-memory map.
 // Useful for testing and development.
 type InMemoryQueueStateRepository struct {
@@ -177,5 +193,13 @@ func (r *InMemoryQueueStateRepository) Save(state *QueueState) error {
 // Delete removes the queue state for a task from memory.
 func (r *InMemoryQueueStateRepository) Delete(taskID string) error {
 	delete(r.states, taskID)
+	return nil
+}
+
+// ResetPosition resets the queue position to 0 without deleting the state.
+func (r *InMemoryQueueStateRepository) ResetPosition(taskID string) error {
+	if state, ok := r.states[taskID]; ok {
+		state.Reset() // Uses existing QueueState.Reset() method
+	}
 	return nil
 }

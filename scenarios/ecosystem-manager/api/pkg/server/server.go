@@ -325,10 +325,11 @@ func (a *Application) initializeComponents() error {
 	// Centralized coordinator for lifecycle + side effects.
 	lifecycle := &tasks.Lifecycle{Store: a.storage}
 	coord := &tasks.Coordinator{
-		LC:          lifecycle,
-		Store:       a.storage,
-		Runtime:     a.processor,
-		Broadcaster: a.wsManager,
+		LC:             lifecycle,
+		Store:          a.storage,
+		Runtime:        a.processor,
+		Broadcaster:    a.wsManager,
+		QueueStateRepo: queueStateRepo,
 	}
 	a.processor.SetCoordinator(coord)
 	a.taskRecycler.SetCoordinator(coord)
