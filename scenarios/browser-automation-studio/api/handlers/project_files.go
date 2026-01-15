@@ -3,12 +3,16 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -703,4 +707,88 @@ func (h *Handler) OpenProjectFolder(w http.ResponseWriter, r *http.Request) {
 		"status": "opened",
 		"path":   folderPath,
 	})
+}
+
+// ServeProjectFile handles GET /api/v1/projects/{id}/files/*
+// Serves any file from a project's folder (assets, workflows, etc.)
+func (h *Handler) ServeProjectFile(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := h.parseUUIDParam(w, r, "id", ErrInvalidProjectID)
+	if !ok {
+		return
+	}
+
+	// Extract file path from wildcard capture
+	filePath := chi.URLParam(r, "*")
+	if filePath == "" {
+		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "file_path"}))
+		return
+	}
+
+	// Remove any leading slash and normalize
+	filePath = strings.TrimPrefix(filePath, "/")
+	relPath, ok := normalizeProjectRelPath(filePath)
+	if !ok {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid file path"}))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	project, err := h.repo.GetProject(ctx, projectID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			h.respondError(w, ErrProjectNotFound)
+			return
+		}
+		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_project"}))
+		return
+	}
+
+	// Safely join paths to prevent directory traversal
+	absPath, joinErr := safeJoinProjectPath(project.FolderPath, relPath)
+	if joinErr != nil {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": joinErr.Error()}))
+		return
+	}
+
+	// Check if file exists and is not a directory
+	info, statErr := os.Stat(absPath)
+	if statErr != nil {
+		if os.IsNotExist(statErr) {
+			h.respondError(w, ErrProjectFileNotFound)
+			return
+		}
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "stat_file"}))
+		return
+	}
+	if info.IsDir() {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "path is a directory, not a file"}))
+		return
+	}
+
+	// Open the file
+	file, openErr := os.Open(absPath)
+	if openErr != nil {
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "open_file"}))
+		return
+	}
+	defer file.Close()
+
+	// Determine MIME type from extension
+	ext := filepath.Ext(absPath)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
+	w.Header().Set("Cache-Control", "private, max-age=60")
+
+	// Stream file to response
+	if _, err := io.Copy(w, file); err != nil {
+		h.log.WithError(err).WithField("path", relPath).Error("Failed to stream project file")
+	}
 }

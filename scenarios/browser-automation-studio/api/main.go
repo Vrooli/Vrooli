@@ -414,6 +414,7 @@ func main() {
 		r.Post("/projects/{id}/files/delete", handler.DeleteProjectFile)
 		r.Post("/projects/{id}/files/resync", handler.ResyncProjectFiles)
 		r.Post("/projects/{id}/files/reveal", handler.RevealProjectPath)
+		r.Get("/projects/{id}/files/*", handler.ServeProjectFile) // Must be after specific /files/* routes
 		r.Post("/projects/{id}/open-folder", handler.OpenProjectFolder)
 
 		// Import usecase routes (project, routine/workflow, and asset import handlers)
