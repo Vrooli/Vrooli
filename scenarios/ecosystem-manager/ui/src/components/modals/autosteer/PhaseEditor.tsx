@@ -3,23 +3,17 @@
  * Edit a single phase in an Auto Steer profile
  */
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Trash2, CodeIcon, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import type { AutoSteerPhase, SteerMode } from '@/types/api';
 import { ConditionBuilderModal } from './ConditionBuilderModal';
 import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
 import { usePhaseNames } from '@/hooks/usePromptFiles';
+import { PhasePicker } from '@/components/steer/PhasePicker';
 
 interface PhaseEditorProps {
   phase: AutoSteerPhase;
@@ -32,17 +26,6 @@ interface PhaseEditorProps {
   isFirst: boolean;
   isLast: boolean;
 }
-
-const MODE_DESCRIPTIONS: Record<string, string> = {
-  progress: 'Structured, step-by-step execution focused on momentum.',
-  ux: 'UI/UX polish and usability-first execution.',
-  refactor: 'Technical cleanup, readability, and maintainability.',
-  test: 'Validation-heavy; adds/updates coverage and reliability.',
-  explore: 'Discovery and research without strict output constraints.',
-  polish: 'Tighten copy, micro-interactions, and quality details.',
-  performance: 'Optimize throughput, memory, and responsiveness.',
-  security: 'Harden surfaces, permissions, and guardrails.',
-};
 
 function toTitleCase(str: string): string {
   return str
@@ -65,13 +48,6 @@ export function PhaseEditor({
   const [isConditionBuilderOpen, setIsConditionBuilderOpen] = useState(false);
   const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
 
-  const phaseModes = useMemo(() => {
-    return phaseNames.map(p => ({
-      value: p.name,
-      label: toTitleCase(p.name),
-    }));
-  }, [phaseNames]);
-
   const updateField = (field: keyof AutoSteerPhase, value: any) => {
     onChange({ ...phase, [field]: value });
   };
@@ -86,8 +62,9 @@ export function PhaseEditor({
     summarizeCondition(condition)
   );
 
-  const modeLabel = phaseModes.find(m => m.value === phase.mode)?.label || toTitleCase(phase.mode) || 'Select a mode';
-  const modeDescription = MODE_DESCRIPTIONS[phase.mode] || `Phase: ${modeLabel}`;
+  const modeLabel = phase.mode ? toTitleCase(phase.mode) : 'Select a mode';
+  const selectedPhase = phaseNames.find(p => p.name === phase.mode);
+  const modeDescription = selectedPhase?.description || `Phase: ${modeLabel}`;
 
   return (
     <div className="p-4 border border-slate-700 rounded-lg bg-slate-800/50 space-y-4 shadow-sm">
@@ -165,19 +142,18 @@ export function PhaseEditor({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Mode *</Label>
-          <Select value={phase.mode} onValueChange={(value) => updateField('mode', value as SteerMode)} disabled={phasesLoading}>
-            <SelectTrigger>
-              <SelectValue placeholder={phasesLoading ? 'Loading phases...' : 'Select a phase'} />
-            </SelectTrigger>
-            <SelectContent>
-              {phaseModes.map((mode) => (
-                <SelectItem key={mode.value} value={mode.value}>
-                  {mode.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-slate-500 mt-1">{modeDescription}</p>
+          <PhasePicker
+            value={phase.mode}
+            onChange={(mode) => updateField('mode', mode as SteerMode)}
+            phaseNames={phaseNames}
+            isLoading={phasesLoading}
+            placeholder="Select a phase"
+            dialogTitle="Select Phase Mode"
+            dialogDescription="Choose a steering phase for this profile step."
+          />
+          {modeDescription && (
+            <p className="text-xs text-slate-500 mt-1 line-clamp-2">{modeDescription}</p>
+          )}
         </div>
 
         <div>

@@ -511,6 +511,7 @@ export interface PromptFile {
 
 export interface PhaseInfo {
   name: string;
+  description?: string;
 }
 
 // ==================== API Response Wrappers ====================

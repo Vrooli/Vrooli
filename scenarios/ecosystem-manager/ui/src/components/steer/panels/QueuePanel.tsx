@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -16,15 +15,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, ListOrdered, Plus, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { GripVertical, ListOrdered, X } from 'lucide-react';
+import { PhasePicker } from '../PhasePicker';
+import { formatPhaseName } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 interface QueuePanelProps {
@@ -39,13 +32,6 @@ interface SortableQueueItemProps {
   mode: string;
   index: number;
   onRemove: () => void;
-}
-
-function formatPhaseName(name: string): string {
-  return name
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 function SortableQueueItem({ id, mode, index, onRemove }: SortableQueueItemProps) {
@@ -90,8 +76,6 @@ function SortableQueueItem({ id, mode, index, onRemove }: SortableQueueItemProps
 }
 
 export function QueuePanel({ value, onChange, phaseNames, isLoading }: QueuePanelProps) {
-  const [selectedMode, setSelectedMode] = useState('');
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -119,19 +103,15 @@ export function QueuePanel({ value, onChange, phaseNames, isLoading }: QueuePane
     }
   };
 
-  const handleAddMode = () => {
-    if (selectedMode) {
-      onChange([...value, selectedMode]);
-      setSelectedMode('');
+  const handleAddMode = (mode: string | undefined) => {
+    if (mode) {
+      onChange([...value, mode]);
     }
   };
 
   const handleRemove = (index: number) => {
     onChange(value.filter((_, i) => i !== index));
   };
-
-  // Filter out modes already in queue for the add dropdown (allow duplicates but show indication)
-  const availableModes = phaseNames;
 
   return (
     <div className="space-y-4">
@@ -149,30 +129,15 @@ export function QueuePanel({ value, onChange, phaseNames, isLoading }: QueuePane
       </div>
 
       {/* Add mode controls */}
-      <div className="flex gap-2">
-        <Select value={selectedMode} onValueChange={setSelectedMode} disabled={isLoading}>
-          <SelectTrigger className="flex-1">
-            <SelectValue placeholder={isLoading ? 'Loading modes...' : 'Select a mode to add'} />
-          </SelectTrigger>
-          <SelectContent>
-            {availableModes.map((phase) => (
-              <SelectItem key={phase.name} value={phase.name}>
-                {formatPhaseName(phase.name)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleAddMode}
-          disabled={!selectedMode}
-          className="shrink-0 px-3"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+      <PhasePicker
+        value={undefined}
+        onChange={handleAddMode}
+        phaseNames={phaseNames}
+        isLoading={isLoading}
+        placeholder="Add a phase to queue..."
+        dialogTitle="Add Phase to Queue"
+        dialogDescription="Select a phase to add to the steering queue."
+      />
 
       {/* Queue list with drag-and-drop */}
       <div className="min-h-[120px]">

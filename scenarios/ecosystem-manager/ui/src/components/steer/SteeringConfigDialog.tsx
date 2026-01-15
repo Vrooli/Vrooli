@@ -110,7 +110,7 @@ export function SteeringConfigDialog({
             ))}
           </TabsList>
 
-          <div className="mt-4 min-h-[280px]">
+          <div className="mt-4 min-h-[280px] max-h-[400px] overflow-y-auto overflow-x-hidden">
             <TabsContent value="none" className="m-0">
               <NonePanel />
             </TabsContent>

@@ -22,11 +22,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { usePromptPreview } from '@/hooks/usePromptTester';
 import { markdownToHtml } from '@/lib/markdown';
 import { PromptLibraryPanel } from './PromptLibraryPanel';
-import type { TaskType, OperationType, Priority, AutoSteerProfile } from '@/types/api';
+import { SteeringConfigPicker, extractSteeringFields } from '@/components/steer/SteeringConfigPicker';
+import type { TaskType, OperationType, Priority, SteeringConfig } from '@/types/api';
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 
@@ -38,15 +38,10 @@ export function PromptTesterTab() {
   const [priority, setPriority] = useState<Priority>('medium');
   const [notes, setNotes] = useState('');
   const [target, setTarget] = useState('');
-  const [autoSteerProfileId, setAutoSteerProfileId] = useState('');
-  const [autoSteerPhaseKey, setAutoSteerPhaseKey] = useState('none');
+  const [steeringConfig, setSteeringConfig] = useState<SteeringConfig>({ strategy: 'none' });
   const [copied, setCopied] = useState(false);
 
   const { mutate: previewPrompt, data: promptData, isPending } = usePromptPreview();
-  const { data: profiles = [], isLoading: profilesLoading } = useAutoSteerProfiles();
-
-  const currentProfile: AutoSteerProfile | undefined = profiles.find(p => p.id === autoSteerProfileId);
-  const selectedPhaseIndex = autoSteerPhaseKey === 'none' ? undefined : parseInt(autoSteerPhaseKey, 10);
 
   const promptText = promptData?.prompt || '';
   const characterCount = promptText.length;
@@ -55,6 +50,10 @@ export function PromptTesterTab() {
   const promptPreviewHtml = useMemo(() => markdownToHtml(promptText), [promptText]);
 
   const handlePreview = () => {
+    const steeringFields = type === 'scenario' && operation === 'improver'
+      ? extractSteeringFields(steeringConfig)
+      : {};
+
     previewPrompt({
       type,
       operation,
@@ -63,11 +62,7 @@ export function PromptTesterTab() {
       notes: notes || undefined,
       target: type === 'scenario' ? target.trim() || undefined : undefined,
       targets: type === 'scenario' && target.trim() ? [target.trim()] : undefined,
-      auto_steer_profile_id:
-        type === 'scenario' && operation === 'improver' && selectedPhaseIndex !== undefined
-          ? autoSteerProfileId
-          : undefined,
-      auto_steer_phase_index: type === 'scenario' && operation === 'improver' ? selectedPhaseIndex : undefined,
+      ...steeringFields,
     });
   };
 
@@ -103,8 +98,7 @@ export function PromptTesterTab() {
                   setType(val as TaskType);
                   if (val !== 'scenario') {
                     setTarget('');
-                    setAutoSteerProfileId('');
-                    setAutoSteerPhaseKey('none');
+                    setSteeringConfig({ strategy: 'none' });
                   }
                 }}
               >
@@ -125,8 +119,7 @@ export function PromptTesterTab() {
                 onValueChange={(val: string) => {
                   setOperation(val as OperationType);
                   if (val !== 'improver') {
-                    setAutoSteerProfileId('');
-                    setAutoSteerPhaseKey('none');
+                    setSteeringConfig({ strategy: 'none' });
                   }
                 }}
               >
@@ -142,7 +135,7 @@ export function PromptTesterTab() {
           </div>
 
           {type === 'scenario' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="pt-target">Scenario Target</Label>
                 <Input
@@ -153,57 +146,15 @@ export function PromptTesterTab() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="pt-autosteer">Auto Steer Profile</Label>
-                <Select
-                  value={autoSteerProfileId || 'none'}
-                  onValueChange={(val: string) => {
-                    const normalized = val === 'none' ? '' : val;
-                    setAutoSteerProfileId(normalized);
-                    setAutoSteerPhaseKey('none');
-                  }}
-                  disabled={operation !== 'improver' || profilesLoading || profiles.length === 0}
-                >
-                  <SelectTrigger id="pt-autosteer">
-                    <SelectValue placeholder={profilesLoading ? 'Loading...' : 'None'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {profiles.map(profile => (
-                      <SelectItem key={profile.id} value={profile.id}>
-                        {profile.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {operation !== 'improver' && (
-                  <p className="text-xs text-amber-400">
-                    Auto Steer applies only to scenario improver tasks.
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pt-autosteer-phase">Steer Phase</Label>
-                <Select
-                  value={autoSteerPhaseKey}
-                  onValueChange={(val: string) => setAutoSteerPhaseKey(val)}
-                  disabled={
-                    operation !== 'improver' || !currentProfile || !currentProfile.phases?.length
-                  }
-                >
-                  <SelectTrigger id="pt-autosteer-phase">
-                    <SelectValue placeholder="Select a phase" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No steer</SelectItem>
-                    {currentProfile?.phases?.map((phase, idx) => (
-                      <SelectItem key={phase.id || `${phase.mode}-${idx}`} value={String(idx)}>
-                        Phase {idx + 1}: {phase.mode}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {operation === 'improver' && (
+                <div className="space-y-2">
+                  <Label>Steering Configuration</Label>
+                  <SteeringConfigPicker
+                    value={steeringConfig}
+                    onChange={setSteeringConfig}
+                  />
+                </div>
+              )}
             </div>
           )}
 

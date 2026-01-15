@@ -1,12 +1,7 @@
 import { Compass } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { PhasePicker } from '../PhasePicker';
+import { formatPhaseName } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 interface ManualPanelProps {
@@ -14,13 +9,6 @@ interface ManualPanelProps {
   onChange: (mode: string | undefined) => void;
   phaseNames: PhaseInfo[];
   isLoading?: boolean;
-}
-
-function formatPhaseName(name: string): string {
-  return name
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPanelProps) {
@@ -40,23 +28,16 @@ export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPa
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="manual-mode">Focus Mode</Label>
-        <Select
-          value={value || ''}
-          onValueChange={(val) => onChange(val || undefined)}
-          disabled={isLoading}
-        >
-          <SelectTrigger id="manual-mode" className="w-full">
-            <SelectValue placeholder={isLoading ? 'Loading modes...' : 'Select a focus mode'} />
-          </SelectTrigger>
-          <SelectContent>
-            {phaseNames.map((phase) => (
-              <SelectItem key={phase.name} value={phase.name}>
-                {formatPhaseName(phase.name)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Focus Mode</Label>
+        <PhasePicker
+          value={value}
+          onChange={onChange}
+          phaseNames={phaseNames}
+          isLoading={isLoading}
+          placeholder="Select a focus mode"
+          dialogTitle="Select Focus Mode"
+          dialogDescription="Choose a steering phase for manual mode."
+        />
         {value && (
           <p className="text-xs text-slate-500">
             The task will focus on <span className="text-amber-400">{formatPhaseName(value)}</span>{' '}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatPhaseName } from '@/lib/utils';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { usePhaseNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
@@ -18,13 +18,6 @@ interface StrategyDisplay {
   sublabel?: string;
   icon: React.ElementType;
   colorClasses: string;
-}
-
-function formatPhaseName(name: string): string {
-  return name
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
 
 function getStrategyDisplay(

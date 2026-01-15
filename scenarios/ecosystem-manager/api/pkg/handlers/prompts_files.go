@@ -37,9 +37,10 @@ type PromptFile struct {
 	ModifiedAt string `json:"modified_at,omitempty"`
 }
 
-// PhaseInfo represents a phase name for the UI.
+// PhaseInfo represents a phase name and description for the UI.
 type PhaseInfo struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // NewPromptsHandlers creates a new prompts handler set.
@@ -75,7 +76,11 @@ func (h *PromptsHandlers) ListPhaseNamesHandler(w http.ResponseWriter, r *http.R
 
 		// Extract phase name from filename (remove .md extension)
 		name := strings.TrimSuffix(d.Name(), ".md")
-		phases = append(phases, PhaseInfo{Name: name})
+
+		// Extract description from file content
+		description := extractPhaseDescription(path)
+
+		phases = append(phases, PhaseInfo{Name: name, Description: description})
 		return nil
 	})
 
@@ -85,6 +90,63 @@ func (h *PromptsHandlers) ListPhaseNamesHandler(w http.ResponseWriter, r *http.R
 	}
 
 	writeJSON(w, phases, http.StatusOK)
+}
+
+// extractPhaseDescription reads a phase markdown file and extracts the first paragraph
+// after the "## Steer focus:" heading as the description.
+func extractPhaseDescription(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	content := string(data)
+	lines := strings.Split(content, "\n")
+
+	// Find the line after "## Steer focus:" heading and collect the first paragraph
+	foundHeading := false
+	var descLines []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Look for the "## Steer focus:" heading
+		if !foundHeading {
+			if strings.HasPrefix(trimmed, "## Steer focus:") {
+				foundHeading = true
+			}
+			continue
+		}
+
+		// Skip empty lines right after heading
+		if len(descLines) == 0 && trimmed == "" {
+			continue
+		}
+
+		// Stop at next heading, horizontal rule, or empty line (end of paragraph)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "---") {
+			break
+		}
+
+		descLines = append(descLines, trimmed)
+	}
+
+	if len(descLines) == 0 {
+		return ""
+	}
+
+	// Join lines and clean up markdown formatting
+	description := strings.Join(descLines, " ")
+
+	// Remove bold markers
+	description = strings.ReplaceAll(description, "**", "")
+
+	// Truncate if too long (limit to ~200 chars)
+	if len(description) > 200 {
+		description = description[:197] + "..."
+	}
+
+	return description
 }
 
 // GetPromptFileHandler returns the content of a prompt file.
