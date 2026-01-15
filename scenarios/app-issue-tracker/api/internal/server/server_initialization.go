@@ -16,6 +16,9 @@ import (
 	issuespkg "app-issue-tracker-api/internal/issues"
 	"app-issue-tracker-api/internal/logging"
 	"app-issue-tracker-api/internal/server/services"
+	"app-issue-tracker-api/internal/toolexecution"
+	"app-issue-tracker-api/internal/toolhandlers"
+	"app-issue-tracker-api/internal/toolregistry"
 )
 
 // NewServer constructs a configured Server instance and the associated HTTP handler.
@@ -133,6 +136,32 @@ func NewServer(config *Config, opts ...Option) (*Server, http.Handler, error) {
 	v1.HandleFunc("/rate-limit-status", server.getRateLimitStatusHandler).Methods("GET")
 	v1.HandleFunc("/processes/running", server.getRunningProcessesHandler).Methods("GET")
 	v1.HandleFunc("/processes/running/{id}", server.stopRunningProcessHandler).Methods("DELETE")
+
+	// Tool Discovery Protocol v1.0 endpoints
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "app-issue-tracker",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Issue tracking and AI-powered investigation for Vrooli scenarios",
+	})
+	toolReg.RegisterProvider(toolregistry.NewIssueDiscoveryProvider())
+	toolReg.RegisterProvider(toolregistry.NewIssueManagementProvider())
+	toolReg.RegisterProvider(toolregistry.NewInvestigationProvider())
+	toolReg.RegisterProvider(toolregistry.NewAgentToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewReportingToolProvider())
+
+	toolsHandler := toolhandlers.NewToolsHandler(toolReg)
+	v1.HandleFunc("/tools", toolsHandler.GetTools).Methods("GET", "OPTIONS")
+	v1.HandleFunc("/tools/{name}", toolsHandler.GetTool).Methods("GET", "OPTIONS")
+
+	// Tool execution endpoint - uses ServerAdapter to bridge Server to IssueOperations
+	serverAdapter := NewServerAdapter(server)
+	toolExecutor := toolexecution.NewServerExecutor(serverAdapter, func(msg string, fields map[string]interface{}) {
+		logging.LogInfo(msg, fieldsToArgs(fields)...)
+	})
+	execHandler := toolexecution.NewHandler(toolExecutor)
+	v1.HandleFunc("/tools/execute", execHandler.Execute).Methods("POST", "OPTIONS")
+
+	logging.LogInfo("Tool Discovery Protocol enabled", "tools", toolReg.ToolCount(nil))
 
 	handler := corsMiddleware(r)
 
