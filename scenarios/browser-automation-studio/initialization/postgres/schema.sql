@@ -46,6 +46,26 @@ CREATE INDEX IF NOT EXISTS idx_workflows_folder_path ON workflows(folder_path);
 CREATE INDEX IF NOT EXISTS idx_workflows_name ON workflows(name);
 
 -- ============================================================================
+-- PROJECT_ASSETS: Index of non-workflow files in a project
+-- ============================================================================
+-- Used for tracking assets (images, data files, etc.) that workflows can use.
+-- File content lives on disk; this table is just an index for lookups.
+CREATE TABLE IF NOT EXISTS project_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    file_path VARCHAR(1000) NOT NULL,  -- Relative path from project root
+    file_name VARCHAR(255) NOT NULL,
+    file_size BIGINT,
+    mime_type VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, file_path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_assets_project_id ON project_assets(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_assets_file_path ON project_assets(file_path);
+
+-- ============================================================================
 -- EXECUTIONS: Track workflow runs (queryable for status/recent)
 -- ============================================================================
 -- Note: Detailed step data, logs, and artifacts live in JSON files on disk.
@@ -221,4 +241,9 @@ CREATE TRIGGER update_settings_updated_at
 DROP TRIGGER IF EXISTS update_credit_usage_updated_at ON credit_usage;
 CREATE TRIGGER update_credit_usage_updated_at
     BEFORE UPDATE ON credit_usage
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_project_assets_updated_at ON project_assets;
+CREATE TRIGGER update_project_assets_updated_at
+    BEFORE UPDATE ON project_assets
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
