@@ -15,7 +15,7 @@
  * - Query client can be mocked in tests
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchToolSet,

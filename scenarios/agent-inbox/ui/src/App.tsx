@@ -6,6 +6,7 @@ import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
 import { useKeyboardShortcuts, type KeyboardShortcut } from "./hooks/useKeyboardShortcuts";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar } from "./components/layout/Sidebar";
 import { ChatView } from "./components/chat/ChatView";
 import { EmptyState } from "./components/chat/EmptyState";
@@ -127,11 +128,16 @@ function AppContent() {
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
 
   // Update the ref so the deactivation callback can use the activeTemplate
+  // Guard: Only deactivate if chatData matches selectedChatId to prevent
+  // deactivating the wrong chat during transitions
   useEffect(() => {
     templateDeactivateRef.current = () => {
-      activeTemplate.deactivate();
+      // Safety check: Only proceed if we have valid, matching chat data
+      if (selectedChatId && chatData?.chat?.id === selectedChatId) {
+        activeTemplate.deactivate();
+      }
     };
-  }, [activeTemplate]);
+  }, [activeTemplate, selectedChatId, chatData?.chat?.id]);
 
   // Handle template activation (when user selects a template with suggested tools)
   const handleTemplateActivated = useCallback(
@@ -486,31 +492,33 @@ function AppContent() {
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <Sidebar
-          ref={searchInputRef}
-          currentView={currentView}
-          onViewChange={(view) => {
-            setCurrentView(view);
-            if (window.innerWidth < 768) {
-              setSidebarOpen(false);
-            }
-          }}
-          onNewChat={handleNewChat}
-          onManageLabels={() => setShowLabelManager(true)}
-          onOpenSettings={handleOpenSettings}
-          onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
-          isCreatingChat={isCreatingChat}
-          labels={labels}
-          chatCounts={chatCounts}
-          chats={chats}
-          selectedChatId={selectedChatId}
-          focusedIndex={focusedIndex}
-          isLoadingChats={loadingChats}
-          onSelectChat={handleSelectChat}
-          onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
-          onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
-          isBulkOperating={isBulkOperating}
-        />
+        <ErrorBoundary name="Sidebar">
+          <Sidebar
+            ref={searchInputRef}
+            currentView={currentView}
+            onViewChange={(view) => {
+              setCurrentView(view);
+              if (window.innerWidth < 768) {
+                setSidebarOpen(false);
+              }
+            }}
+            onNewChat={handleNewChat}
+            onManageLabels={() => setShowLabelManager(true)}
+            onOpenSettings={handleOpenSettings}
+            onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
+            isCreatingChat={isCreatingChat}
+            labels={labels}
+            chatCounts={chatCounts}
+            chats={chats}
+            selectedChatId={selectedChatId}
+            focusedIndex={focusedIndex}
+            isLoadingChats={loadingChats}
+            onSelectChat={handleSelectChat}
+            onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
+            onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
+            isBulkOperating={isBulkOperating}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* Main Content - Chat View or Empty State */}
@@ -519,98 +527,108 @@ function AppContent() {
           chatListOpen && selectedChatId ? "hidden lg:flex" : "flex"
         }`}
       >
-        {selectedChatId ? (
-          <ChatView
-            chatData={chatData || null}
-            models={models}
-            labels={labels}
-            isLoading={loadingChat}
-            isGenerating={isGenerating}
-            streamingContent={streamingContent}
-            activeToolCalls={activeToolCalls}
-            generatedImages={generatedImages}
-            scrollToMessageId={scrollToMessageId}
-            onScrollComplete={() => setScrollToMessageId(null)}
-            onSendMessage={sendMessage}
-            onUpdateChat={(data) => updateChat({ chatId: selectedChatId, data })}
-            onToggleRead={() => toggleRead({ chatId: selectedChatId })}
-            onToggleStar={() => toggleStar({ chatId: selectedChatId })}
-            onToggleArchive={() => toggleArchive({ chatId: selectedChatId })}
-            onDeleteChat={() => deleteChat(selectedChatId)}
-            onAssignLabel={(labelId) => assignLabel({ chatId: selectedChatId, labelId })}
-            onRemoveLabel={(labelId) => removeLabel({ chatId: selectedChatId, labelId })}
-            viewMode={viewMode}
-            onRegenerateMessage={(messageId) => regenerateMessage(selectedChatId, messageId)}
-            onSelectBranch={selectBranch}
-            onForkConversation={forkConversation}
-            isRegenerating={isRegenerating}
-            isForking={isForking}
-            editingMessage={editingMessage}
-            onEditMessage={setEditingMessage}
-            onCancelEdit={cancelEdit}
-            onSubmitEdit={(payload) => {
-              if (editingMessage) {
-                editMessageAndComplete(editingMessage.id, payload);
-              }
-            }}
-            asyncOperations={asyncOperations}
-            onCancelAsyncOperation={cancelAsyncOperation}
-            onTemplateActivated={handleTemplateActivated}
-            activeTemplateId={activeTemplate.activeTemplateId}
-            onTemplateDeactivate={activeTemplate.deactivate}
-          />
-        ) : (
-          <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />
-        )}
+        <ErrorBoundary name="ChatContent">
+          {/* Guard: Only render ChatView when chatData matches selectedChatId to prevent stale data issues */}
+          {selectedChatId ? (
+            <ChatView
+              key={selectedChatId}
+              chatData={chatData?.chat?.id === selectedChatId ? chatData : null}
+              models={models}
+              labels={labels}
+              isLoading={loadingChat || (!!selectedChatId && chatData?.chat?.id !== selectedChatId)}
+              isGenerating={isGenerating}
+              streamingContent={streamingContent}
+              activeToolCalls={activeToolCalls}
+              generatedImages={generatedImages}
+              scrollToMessageId={scrollToMessageId}
+              onScrollComplete={() => setScrollToMessageId(null)}
+              onSendMessage={sendMessage}
+              onUpdateChat={(data) => updateChat({ chatId: selectedChatId, data })}
+              onToggleRead={() => toggleRead({ chatId: selectedChatId })}
+              onToggleStar={() => toggleStar({ chatId: selectedChatId })}
+              onToggleArchive={() => toggleArchive({ chatId: selectedChatId })}
+              onDeleteChat={() => deleteChat(selectedChatId)}
+              onAssignLabel={(labelId) => assignLabel({ chatId: selectedChatId, labelId })}
+              onRemoveLabel={(labelId) => removeLabel({ chatId: selectedChatId, labelId })}
+              viewMode={viewMode}
+              onRegenerateMessage={(messageId) => regenerateMessage(selectedChatId, messageId)}
+              onSelectBranch={selectBranch}
+              onForkConversation={forkConversation}
+              isRegenerating={isRegenerating}
+              isForking={isForking}
+              editingMessage={editingMessage}
+              onEditMessage={setEditingMessage}
+              onCancelEdit={cancelEdit}
+              onSubmitEdit={(payload) => {
+                if (editingMessage) {
+                  editMessageAndComplete(editingMessage.id, payload);
+                }
+              }}
+              asyncOperations={asyncOperations}
+              onCancelAsyncOperation={cancelAsyncOperation}
+              onTemplateActivated={handleTemplateActivated}
+              activeTemplateId={activeTemplate.activeTemplateId}
+              onTemplateDeactivate={activeTemplate.deactivate}
+            />
+          ) : (
+            <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />
+          )}
+        </ErrorBoundary>
       </div>
 
       {/* Label Manager Dialog */}
-      <LabelManager
-        open={showLabelManager}
-        onClose={() => setShowLabelManager(false)}
-        labels={labels}
-        onCreateLabel={createLabel}
-        onDeleteLabel={deleteLabel}
-      />
+      <ErrorBoundary name="LabelManager">
+        <LabelManager
+          open={showLabelManager}
+          onClose={() => setShowLabelManager(false)}
+          labels={labels}
+          onCreateLabel={createLabel}
+          onDeleteLabel={deleteLabel}
+        />
+      </ErrorBoundary>
 
       {/* Settings Dialog */}
-      <Settings
-        open={showSettings}
-        onClose={() => setShowSettings(false)}
-        onDeleteAllChats={deleteAllChats}
-        isDeletingAll={isDeletingAllChats}
-        onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
-        onShowUsageStats={handleShowUsageStats}
-        models={models}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-        onEditTemplate={handleEditTemplateFromSettings}
-      />
+      <ErrorBoundary name="Settings">
+        <Settings
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+          onDeleteAllChats={deleteAllChats}
+          isDeletingAll={isDeletingAllChats}
+          onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
+          onShowUsageStats={handleShowUsageStats}
+          models={models}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          onEditTemplate={handleEditTemplateFromSettings}
+        />
+      </ErrorBoundary>
 
       {/* Template Editor from Settings */}
-      <TemplateEditorModal
-        open={!!settingsEditingTemplate}
-        onClose={() => {
-          setSettingsEditingTemplate(null);
-          setSettingsAllTemplates([]);
-        }}
-        onSave={handleSaveTemplateFromSettings}
-        template={settingsEditingTemplate || undefined}
-        templateSource={settingsEditingTemplate?.source}
-        // Multi-item mode props for sidebar navigation
-        allTemplates={settingsAllTemplates}
-        onSelectTemplate={(template) => {
-          setSettingsEditingTemplate(template);
-        }}
-        onSaveAll={async (updates) => {
-          // Import batch save function
-          const { updateTemplates, getAllTemplates } = await import("./data/templates");
-          await updateTemplates(updates);
-          // Refresh templates list
-          const updated = await getAllTemplates();
-          setSettingsAllTemplates(updated);
-        }}
-      />
+      <ErrorBoundary name="TemplateEditor">
+        <TemplateEditorModal
+          open={!!settingsEditingTemplate}
+          onClose={() => {
+            setSettingsEditingTemplate(null);
+            setSettingsAllTemplates([]);
+          }}
+          onSave={handleSaveTemplateFromSettings}
+          template={settingsEditingTemplate || undefined}
+          templateSource={settingsEditingTemplate?.source}
+          // Multi-item mode props for sidebar navigation
+          allTemplates={settingsAllTemplates}
+          onSelectTemplate={(template) => {
+            setSettingsEditingTemplate(template);
+          }}
+          onSaveAll={async (updates) => {
+            // Import batch save function
+            const { updateTemplates, getAllTemplates } = await import("./data/templates");
+            await updateTemplates(updates);
+            // Refresh templates list
+            const updated = await getAllTemplates();
+            setSettingsAllTemplates(updated);
+          }}
+        />
+      </ErrorBoundary>
 
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcuts

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
@@ -99,13 +100,18 @@ export function ChatView({
   // This filters the full message tree to only show the active path
   // NOTE: Must be called before any early returns to satisfy React's rules of hooks
 
-  // Memoize allMessages to avoid creating new array references on each render
-  // when chatData?.messages is undefined (which would cause infinite re-renders)
-  // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
-  const allMessages = useMemo(
-    () => chatData?.messages ?? EMPTY_MESSAGES,
-    [chatData?.messages]
-  );
+  // Memoize allMessages to avoid creating new array references on each render.
+  // CRITICAL: We must return EMPTY_MESSAGES for BOTH undefined AND empty arrays.
+  // The nullish coalescing operator (??) only handles null/undefined, but [] is truthy.
+  // Without this check, an empty messages array from the API would create a new
+  // reference on every render, potentially causing infinite re-render loops (React #310).
+  const allMessages = useMemo(() => {
+    const messages = chatData?.messages;
+    if (!messages || messages.length === 0) {
+      return EMPTY_MESSAGES;
+    }
+    return messages;
+  }, [chatData?.messages]);
   const activeLeafId = chatData?.chat?.active_leaf_message_id ?? null;
 
   // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
@@ -131,60 +137,68 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-slate-950" data-testid="chat-view">
-      <ChatHeader
-        chat={chatData.chat}
-        models={models}
-        labels={labels}
-        onUpdateChat={(data) => onUpdateChat(data)}
-        onToggleRead={onToggleRead}
-        onToggleStar={onToggleStar}
-        onToggleArchive={onToggleArchive}
-        onDelete={onDeleteChat}
-        onAssignLabel={onAssignLabel}
-        onRemoveLabel={onRemoveLabel}
-      />
+      <ErrorBoundary name="ChatHeader">
+        <ChatHeader
+          chat={chatData.chat}
+          models={models}
+          labels={labels}
+          onUpdateChat={(data) => onUpdateChat(data)}
+          onToggleRead={onToggleRead}
+          onToggleStar={onToggleStar}
+          onToggleArchive={onToggleArchive}
+          onDelete={onDeleteChat}
+          onAssignLabel={onAssignLabel}
+          onRemoveLabel={onRemoveLabel}
+        />
+      </ErrorBoundary>
 
       {/* Async Operations Panel - shows active long-running tool operations */}
       {asyncOperations.length > 0 && (
-        <AsyncOperationsPanel
-          operations={asyncOperations}
-          onCancel={onCancelAsyncOperation}
-        />
+        <ErrorBoundary name="AsyncOperationsPanel">
+          <AsyncOperationsPanel
+            operations={asyncOperations}
+            onCancel={onCancelAsyncOperation}
+          />
+        </ErrorBoundary>
       )}
 
-      <MessageList
-        messages={visibleMessages}
-        allMessages={allMessages}
-        isGenerating={isGenerating}
-        streamingContent={streamingContent}
-        activeToolCalls={activeToolCalls}
-        generatedImages={generatedImages}
-        toolCallRecords={chatData.tool_call_records}
-        scrollToMessageId={scrollToMessageId}
-        onScrollComplete={onScrollComplete}
-        viewMode={viewMode}
-        onRegenerateMessage={onRegenerateMessage}
-        onSelectBranch={onSelectBranch}
-        onForkConversation={onForkConversation}
-        onEditMessage={onEditMessage}
-        isRegenerating={isRegenerating}
-        isForking={isForking}
-      />
+      <ErrorBoundary name="MessageList">
+        <MessageList
+          messages={visibleMessages}
+          allMessages={allMessages}
+          isGenerating={isGenerating}
+          streamingContent={streamingContent}
+          activeToolCalls={activeToolCalls}
+          generatedImages={generatedImages}
+          toolCallRecords={chatData.tool_call_records}
+          scrollToMessageId={scrollToMessageId}
+          onScrollComplete={onScrollComplete}
+          viewMode={viewMode}
+          onRegenerateMessage={onRegenerateMessage}
+          onSelectBranch={onSelectBranch}
+          onForkConversation={onForkConversation}
+          onEditMessage={onEditMessage}
+          isRegenerating={isRegenerating}
+          isForking={isForking}
+        />
+      </ErrorBoundary>
 
       <div className="border-t border-white/10 bg-slate-950/50">
-        <MessageInput
-          onSend={onSendMessage}
-          isLoading={isGenerating}
-          currentModel={models.find((m) => m.id === chatData.chat.model) || null}
-          chatId={chatData.chat.id}
-          chatWebSearchDefault={chatData.chat.web_search_enabled || false}
-          editingMessage={editingMessage}
-          onCancelEdit={onCancelEdit}
-          onSubmitEdit={onSubmitEdit}
-          onTemplateActivated={onTemplateActivated}
-          activeTemplateId={activeTemplateId}
-          onTemplateDeactivate={onTemplateDeactivate}
-        />
+        <ErrorBoundary name="MessageInput">
+          <MessageInput
+            onSend={onSendMessage}
+            isLoading={isGenerating}
+            currentModel={models.find((m) => m.id === chatData.chat.model) || null}
+            chatId={chatData.chat.id}
+            chatWebSearchDefault={chatData.chat.web_search_enabled || false}
+            editingMessage={editingMessage}
+            onCancelEdit={onCancelEdit}
+            onSubmitEdit={onSubmitEdit}
+            onTemplateActivated={onTemplateActivated}
+            activeTemplateId={activeTemplateId}
+            onTemplateDeactivate={onTemplateDeactivate}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

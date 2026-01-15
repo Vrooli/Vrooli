@@ -88,6 +88,18 @@ export function MessageList({
   const endRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
+  // Clear stale message refs when messages change to prevent memory leaks
+  // and stale data issues when switching between chats
+  useEffect(() => {
+    const currentMessageIds = new Set(messages.map((m) => m.id));
+    // Remove refs for messages that are no longer in the list
+    for (const id of messageRefs.current.keys()) {
+      if (!currentMessageIds.has(id)) {
+        messageRefs.current.delete(id);
+      }
+    }
+  }, [messages]);
+
   // Create lookup map from tool_call_id to ToolCallRecord for persisted tool calls
   // IDs from OpenRouter are strings like "call_abc123", stored as-is in both
   // messages.tool_calls and tool_calls.id. Normalize by removing dashes for

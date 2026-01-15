@@ -151,8 +151,14 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
               )
             );
             // Check if a template's suggested tool was used
+            // CRITICAL: Defer this callback to avoid React Error #310
+            // ("Cannot update a component while rendering a different component").
+            // The callback triggers parent state updates via useActiveTemplate.deactivate(),
+            // which would otherwise happen during the child's render phase.
             if (event.deactivate_template && onTemplateDeactivated) {
-              onTemplateDeactivated();
+              queueMicrotask(() => {
+                onTemplateDeactivated();
+              });
             }
           }
           break;

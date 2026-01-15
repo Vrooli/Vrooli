@@ -16,6 +16,7 @@
  * - Check isActive to show UI indicators
  */
 
+import { useCallback, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { setActiveTemplate, type Chat } from "../lib/api";
 
@@ -57,15 +58,29 @@ export interface UseActiveTemplateReturn {
  *   activeTemplate.deactivate();
  * }
  */
+// Stable empty array to prevent creating new references on every render
+// CRITICAL: Using `?? []` creates a NEW array each time, which can cause
+// infinite re-render loops when used as a dependency in hooks.
+const EMPTY_TOOL_IDS: string[] = [];
+
 export function useActiveTemplate(
   chatId: string | undefined,
   chat?: Chat
 ): UseActiveTemplateReturn {
   const queryClient = useQueryClient();
 
+  // Guard: Check if chat data is stale (chatId doesn't match chat.id)
+  // This can happen during chat transitions when selectedChatId has changed
+  // but chatData hasn't been updated yet from react-query
+  const isStaleData = Boolean(chatId && chat && chat.id !== chatId);
+
   // Extract active template state from chat
-  const activeTemplateId = chat?.active_template_id ?? null;
-  const activeToolIds = chat?.active_template_tool_ids ?? [];
+  // CRITICAL: Use stable EMPTY_TOOL_IDS instead of inline [] to prevent
+  // creating new references that could trigger re-render cascades.
+  // Return safe defaults if data is stale to prevent mismatched operations
+  const activeTemplateId = isStaleData ? null : (chat?.active_template_id ?? null);
+  const toolIds = isStaleData ? undefined : chat?.active_template_tool_ids;
+  const activeToolIds = toolIds && toolIds.length > 0 ? toolIds : EMPTY_TOOL_IDS;
   const isActive = Boolean(activeTemplateId);
 
   // Mutation to activate a template
@@ -146,16 +161,34 @@ export function useActiveTemplate(
     },
   });
 
-  return {
-    activeTemplateId,
-    activeToolIds,
-    isActive,
-    activate: async (templateId: string, toolIds: string[]) => {
+  // CRITICAL: Use useCallback to stabilize function references.
+  // Without this, new function references are created on every render,
+  // causing useEffect dependencies in consuming components to fire repeatedly.
+  const activate = useCallback(
+    async (templateId: string, toolIds: string[]) => {
       await activateMutation.mutateAsync({ templateId, toolIds });
     },
-    deactivate: async () => {
-      await deactivateMutation.mutateAsync();
-    },
-    isUpdating: activateMutation.isPending || deactivateMutation.isPending,
-  };
+    [activateMutation]
+  );
+
+  const deactivate = useCallback(async () => {
+    await deactivateMutation.mutateAsync();
+  }, [deactivateMutation]);
+
+  const isUpdating = activateMutation.isPending || deactivateMutation.isPending;
+
+  // CRITICAL: Use useMemo to stabilize the return object reference.
+  // This prevents unnecessary re-renders in consuming components that
+  // have this object as a dependency.
+  return useMemo(
+    () => ({
+      activeTemplateId,
+      activeToolIds,
+      isActive,
+      activate,
+      deactivate,
+      isUpdating,
+    }),
+    [activeTemplateId, activeToolIds, isActive, activate, deactivate, isUpdating]
+  );
 }
