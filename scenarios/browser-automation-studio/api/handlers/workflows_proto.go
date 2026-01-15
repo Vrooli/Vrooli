@@ -117,6 +117,7 @@ func (h *Handler) GetWorkflow(w http.ResponseWriter, r *http.Request) {
 			h.respondError(w, ErrWorkflowNotFound.WithDetails(map[string]string{"workflow_id": idStr}))
 			return
 		}
+		h.log.WithError(err).WithField("workflow_id", idStr).Error("GetWorkflowAPI failed")
 		h.respondError(w, ErrDatabaseError.WithDetails(map[string]string{"operation": "get_workflow"}))
 		return
 	}

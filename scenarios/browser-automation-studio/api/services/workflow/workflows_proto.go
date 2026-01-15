@@ -341,7 +341,8 @@ func (s *WorkflowService) hydrateWorkflowSummary(ctx context.Context, wf *databa
 		return nil, err
 	}
 
-	abs := filepath.Join(ProjectWorkflowsDir(project), filepath.FromSlash(wf.FilePath))
+	// Use project folder directly - file paths are stored relative to project root, not workflows subdir
+	abs := filepath.Join(project.FolderPath, filepath.FromSlash(wf.FilePath))
 	snapshot, err := ReadWorkflowSummaryFile(ctx, project, abs)
 	if err != nil {
 		return nil, err

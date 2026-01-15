@@ -156,6 +156,9 @@ func buildFlowDefinition(raw map[string]any) (*basworkflows.WorkflowDefinitionV2
 
 // marshalToFlowDefinition converts a map to WorkflowDefinitionV2 via JSON/protojson.
 func marshalToFlowDefinition(defMap map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
+	// Normalize for proto serialization (wraps subflow args into JsonValue format, etc.)
+	normalizeForProto(defMap)
+
 	defBytes, err := json.Marshal(defMap)
 	if err != nil {
 		return nil, err
