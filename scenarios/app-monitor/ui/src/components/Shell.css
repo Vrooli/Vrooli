@@ -77,20 +77,6 @@
   font-weight: 600;
 }
 
-.shell__nav-badge {
-  position: absolute;
-  top: -6px;
-  right: 18px;
-  min-width: 20px;
-  padding: 2px 6px;
-  border-radius: 12px;
-  background: #ff5f6d;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
 
 .shell__dialog {
   background: rgba(16, 16, 28, 0.94);
@@ -119,8 +105,8 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    width: min(480px, 92%);
-    border-radius: 22px;
+    width: auto;
+    border-radius: 16px;
   }
 
   /* Draggable nav state - position controlled by JS translate3d */
@@ -140,13 +126,15 @@
     cursor: grabbing;
   }
 
+  /* Icon-only buttons on desktop */
   .shell__nav-btn {
-    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
   }
 
-  .shell__nav-badge {
-    top: 4px;
-    right: 12px;
+  .shell__nav-label {
+    display: none;
   }
 }
 
