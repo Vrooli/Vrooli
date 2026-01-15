@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -40,6 +39,7 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 
 	// Tool Discovery Protocol
+	toolhandlers "github.com/vrooli/browser-automation-studio/internal/handlers"
 	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
 	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
 )
@@ -387,14 +387,9 @@ func main() {
 		r.Get("/health", healthHandler)
 
 		// Tool Discovery Protocol endpoints
-		// GET /api/v1/tools - Returns the tool manifest for agent-inbox discovery
-		r.Get("/tools", func(w http.ResponseWriter, req *http.Request) {
-			manifest := toolRegistry.GetManifest(req.Context())
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			json.NewEncoder(w).Encode(manifest)
-		})
-		// POST /api/v1/tools/execute - Executes a tool
+		toolsHandler := toolhandlers.NewToolsHandler(toolRegistry)
+		r.Get("/tools", toolsHandler.GetTools)
+		r.Get("/tools/{name}", toolsHandler.GetTool)
 		r.Post("/tools/execute", toolHandler.Execute)
 
 		// Project routes
