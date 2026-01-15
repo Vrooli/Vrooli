@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet } from 'react-router-dom';
 import { Layers, MoreHorizontal } from 'lucide-react';
@@ -10,6 +10,7 @@ import ActionsDialog from '@/components/actions/ActionsDialog';
 import ResponsiveDialog from '@/components/dialog/ResponsiveDialog';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
 import { useShellOverlayStore } from '@/state/shellOverlayStore';
+import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import './Shell.css';
 
 type ShellProps = {
@@ -17,12 +18,56 @@ type ShellProps = {
 };
 
 const NAV_BADGE_DIGITS = 3;
+const DESKTOP_BREAKPOINT = 768;
+const NAV_STORAGE_KEY = 'app-monitor:shell-nav-position';
+const NAV_FLOATING_MARGIN = 24;
+const NAV_WIDTH = 480; // Max width from CSS: min(480px, 92%)
+const NAV_HEIGHT = 64;
 
 export default function Shell({ isConnected }: ShellProps) {
   const appsCount = useAppsStore(state => state.apps.length);
   const resourcesCount = useResourcesStore(state => state.resources.length);
   const { overlay: activeOverlay, openOverlay, closeOverlay } = useOverlayRouter();
   const overlayHost = useShellOverlayStore(state => state.overlayHost);
+
+  // Detect desktop breakpoint for draggable nav
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`).matches,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const mql = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
+    const handleChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+
+  // Compute centered-bottom default position for nav
+  const getDefaultNavPosition = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return { x: NAV_FLOATING_MARGIN, y: NAV_FLOATING_MARGIN };
+    }
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    // Center horizontally, position near bottom
+    const x = Math.max(NAV_FLOATING_MARGIN, (viewportWidth - NAV_WIDTH) / 2);
+    const y = Math.max(NAV_FLOATING_MARGIN, viewportHeight - NAV_HEIGHT - NAV_FLOATING_MARGIN);
+    return { x, y };
+  }, []);
+
+  // Draggable nav for desktop
+  const draggable = useDraggablePosition({
+    isActive: isDesktop,
+    storageKey: NAV_STORAGE_KEY,
+    defaultPosition: getDefaultNavPosition,
+    floatingMargin: NAV_FLOATING_MARGIN,
+    onDragStart: closeOverlay,
+  });
 
   const totalSurfaceCount = useMemo(() => {
     const count = appsCount + resourcesCount;
@@ -132,7 +177,21 @@ export default function Shell({ isConnected }: ShellProps) {
         <Outlet />
       </div>
 
-      <nav className="shell__bottom-nav" aria-label="App Monitor navigation">
+      <nav
+        ref={draggable.elementRef as React.RefObject<HTMLElement>}
+        className={clsx(
+          'shell__bottom-nav',
+          isDesktop && 'shell__bottom-nav--draggable',
+          isDesktop && draggable.isDragging && 'shell__bottom-nav--dragging',
+        )}
+        style={draggable.floatingStyle}
+        onPointerDown={draggable.pointerHandlers.onPointerDown}
+        onPointerMove={draggable.pointerHandlers.onPointerMove}
+        onPointerUp={draggable.pointerHandlers.onPointerUp}
+        onPointerCancel={draggable.pointerHandlers.onPointerCancel}
+        onClickCapture={draggable.handleClickCapture}
+        aria-label="App Monitor navigation"
+      >
         <button
           type="button"
           className={clsx('shell__nav-btn', activeOverlay === 'tabs' && 'shell__nav-btn--active')}

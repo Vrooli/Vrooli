@@ -10,7 +10,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-bottom: 76px;
+  /* Mobile: exact nav height (64px) + safe area + gap */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
 }
 
 .shell__bottom-nav {
@@ -109,12 +110,34 @@
 }
 
 @media (min-width: 768px) {
+  /* Desktop: remove padding since nav is draggable and doesn't need reserved space */
+  .shell__content {
+    padding-bottom: 0;
+  }
+
   .shell__bottom-nav {
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
     width: min(480px, 92%);
     border-radius: 22px;
+  }
+
+  /* Draggable nav state - position controlled by JS translate3d */
+  .shell__bottom-nav--draggable {
+    top: 0;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    transform: none;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    will-change: transform;
+  }
+
+  .shell__bottom-nav--dragging {
+    cursor: grabbing;
   }
 
   .shell__nav-btn {

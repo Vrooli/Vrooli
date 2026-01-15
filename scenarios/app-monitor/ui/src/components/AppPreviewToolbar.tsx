@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type {
   ChangeEvent,
-  CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
-  PointerEvent as ReactPointerEvent,
 } from 'react';
 import clsx from 'clsx';
 import {
@@ -28,28 +26,14 @@ import {
   Crosshair,
 } from 'lucide-react';
 import { useOverlayRouter } from '@/hooks/useOverlayRouter';
-import { useFloatingPosition } from '@/hooks/useFloatingPosition';
+import { useDraggablePosition } from '@/hooks/useDraggablePosition';
 import { useToolbarMenu, useMenuCoordinator, useMenuAutoFocus, useMenuOutsideClick } from '@/hooks/useToolbarMenu';
 import { PREVIEW_UI } from './views/previewConstants';
 import { AnchoredPopover } from './popover/AnchoredPopover';
 
 import './AppPreviewToolbar.css';
 
-type FloatingDragState = {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  offsetX: number;
-  offsetY: number;
-  width: number;
-  height: number;
-  pointerCaptured: boolean;
-  dragging: boolean;
-};
-
 export type AppPreviewToolbarPendingAction = 'start' | 'stop' | 'restart' | null;
-
-const DRAG_THRESHOLD = 6;
 
 export interface AppPreviewToolbarProps {
   canGoBack: boolean;
@@ -93,269 +77,6 @@ export interface AppPreviewToolbarProps {
   issueCaptureCount: number;
 }
 
-const getPointerDelta = (state: FloatingDragState, event: PointerEvent | ReactPointerEvent) => ({
-  deltaX: event.clientX - state.startX,
-  deltaY: event.clientY - state.startY,
-});
-
-const useFloatingToolbar = ({
-  isActive,
-  clampPosition,
-  computeBottomRightPosition,
-  onDragStart,
-}: {
-  isActive: boolean;
-  clampPosition: ReturnType<typeof useFloatingPosition>['clampPosition'];
-  computeBottomRightPosition: ReturnType<typeof useFloatingPosition>['computeBottomRightPosition'];
-  onDragStart?: () => void;
-}) => {
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const [floatingPosition, setFloatingPosition] = useState<{ x: number; y: number }>({
-    x: PREVIEW_UI.DEFAULT_FLOATING_POSITION.x,
-    y: PREVIEW_UI.DEFAULT_FLOATING_POSITION.y,
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isTrackingPointer, setIsTrackingPointer] = useState(false);
-  const dragStateRef = useRef<FloatingDragState | null>(null);
-  const suppressClickRef = useRef(false);
-
-  const releasePointerCapture = useCallback((pointerId: number) => {
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return;
-    }
-
-    if (typeof toolbar.hasPointerCapture === 'function' && !toolbar.hasPointerCapture(pointerId)) {
-      return;
-    }
-
-    try {
-      toolbar.releasePointerCapture(pointerId);
-    } catch (error) {
-      // noop - releasePointerCapture may throw if pointer already released
-    }
-  }, []);
-
-  const computeToolbarBottomRightPosition = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return null;
-    }
-
-    const rect = toolbar.getBoundingClientRect();
-    return computeBottomRightPosition({ width: rect.width, height: rect.height });
-  }, [computeBottomRightPosition]);
-
-  useEffect(() => {
-    if (!isActive) {
-      if (dragStateRef.current?.pointerCaptured) {
-        releasePointerCapture(dragStateRef.current.pointerId);
-      }
-      setFloatingPosition({
-        x: PREVIEW_UI.DEFAULT_FLOATING_POSITION.x,
-        y: PREVIEW_UI.DEFAULT_FLOATING_POSITION.y,
-      });
-      setIsDragging(false);
-      setIsTrackingPointer(false);
-      dragStateRef.current = null;
-      return;
-    }
-
-    const initialPosition = computeToolbarBottomRightPosition();
-    if (initialPosition) {
-      setFloatingPosition(initialPosition);
-    }
-
-    const handleResize = () => {
-      const toolbar = toolbarRef.current;
-      if (!toolbar) {
-        return;
-      }
-      const rect = toolbar.getBoundingClientRect();
-      setFloatingPosition(prev => {
-        const next = clampPosition(prev.x, prev.y, { width: rect.width, height: rect.height });
-        if (next.x === prev.x && next.y === prev.y) {
-          return prev;
-        }
-        return next;
-      });
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
-    };
-  }, [clampPosition, computeToolbarBottomRightPosition, isActive, releasePointerCapture]);
-
-  const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isActive) {
-      return;
-    }
-
-    if (event.pointerType === 'mouse' && event.button !== 0) {
-      return;
-    }
-
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return;
-    }
-
-    const rect = toolbar.getBoundingClientRect();
-    dragStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      width: rect.width,
-      height: rect.height,
-      pointerCaptured: false,
-      dragging: false,
-    };
-    setIsDragging(false);
-    setIsTrackingPointer(true);
-  }, [isActive]);
-
-  const processPointerMove = useCallback((event: PointerEvent | ReactPointerEvent) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const toolbar = toolbarRef.current;
-    if (!toolbar) {
-      return;
-    }
-
-    const { deltaX, deltaY } = getPointerDelta(state, event);
-    if (!state.dragging) {
-      if (Math.abs(deltaX) + Math.abs(deltaY) < DRAG_THRESHOLD) {
-        return;
-      }
-      state.dragging = true;
-      setIsDragging(true);
-      onDragStart?.();
-      if (!state.pointerCaptured) {
-        try {
-          toolbar.setPointerCapture(event.pointerId);
-          state.pointerCaptured = true;
-        } catch (error) {
-          state.pointerCaptured = false;
-        }
-      }
-    }
-
-    if (!state.dragging) {
-      return;
-    }
-
-    event.preventDefault?.();
-    const next = clampPosition(
-      event.clientX - state.offsetX,
-      event.clientY - state.offsetY,
-      { width: state.width, height: state.height },
-    );
-    setFloatingPosition(prev => (
-      prev.x === next.x && prev.y === next.y ? prev : next
-    ));
-  }, [clampPosition, onDragStart]);
-
-  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    processPointerMove(event);
-  }, [processPointerMove]);
-
-  const processPointerEnd = useCallback((event: PointerEvent | ReactPointerEvent) => {
-    const state = dragStateRef.current;
-    if (!state || state.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (state.pointerCaptured) {
-      releasePointerCapture(event.pointerId);
-    }
-
-    if (state.dragging) {
-      event.preventDefault?.();
-      suppressClickRef.current = true;
-      if (typeof window !== 'undefined') {
-        window.setTimeout(() => {
-          suppressClickRef.current = false;
-        }, 0);
-      } else {
-        suppressClickRef.current = false;
-      }
-    }
-
-    dragStateRef.current = null;
-    setIsDragging(false);
-    setIsTrackingPointer(false);
-  }, [releasePointerCapture]);
-
-  const handlePointerEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    processPointerEnd(event);
-  }, [processPointerEnd]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    if (!isTrackingPointer) {
-      return;
-    }
-
-    const handleWindowPointerMove = (event: PointerEvent) => processPointerMove(event);
-    const handleWindowPointerUp = (event: PointerEvent) => processPointerEnd(event);
-    const handleWindowPointerCancel = (event: PointerEvent) => processPointerEnd(event);
-
-    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
-    window.addEventListener('pointerup', handleWindowPointerUp, { passive: false });
-    window.addEventListener('pointercancel', handleWindowPointerCancel, { passive: false });
-
-    return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-      window.removeEventListener('pointercancel', handleWindowPointerCancel);
-    };
-  }, [isTrackingPointer, processPointerEnd, processPointerMove]);
-
-  const handleClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) {
-      event.preventDefault();
-      event.stopPropagation();
-      suppressClickRef.current = false;
-    }
-  }, []);
-
-  const floatingStyle = useMemo<CSSProperties | undefined>(() => {
-    if (!isActive) {
-      return undefined;
-    }
-    return {
-      transform: `translate3d(${Math.round(floatingPosition.x)}px, ${Math.round(floatingPosition.y)}px, 0)`,
-    };
-  }, [floatingPosition, isActive]);
-
-  return {
-    toolbarRef,
-    isDragging,
-    floatingStyle,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerEnd,
-    handleClickCapture,
-  };
-};
-
 const AppPreviewToolbar = ({
   canGoBack,
   canGoForward,
@@ -397,8 +118,6 @@ const AppPreviewToolbar = ({
   previewInteractionSignal,
   issueCaptureCount,
 }: AppPreviewToolbarProps) => {
-  const { clampPosition, computeBottomRightPosition } = useFloatingPosition();
-
   // Coordinate mutually-exclusive menus
   const { handleMenuOpenChange, closeAll: closeMenus, registerMenu } = useMenuCoordinator();
 
@@ -451,10 +170,12 @@ const AppPreviewToolbar = ({
   const isBrowser = typeof document !== 'undefined';
   const portalHost = isBrowser ? (menuPortalContainer ?? document.body) : null;
 
-  const floatingToolbar = useFloatingToolbar({
+  // Draggable toolbar positioning for fullscreen mode
+  const floatingToolbar = useDraggablePosition({
     isActive: isFullView,
-    clampPosition,
-    computeBottomRightPosition,
+    storageKey: null, // No persistence for toolbar - resets each session
+    defaultPosition: PREVIEW_UI.DEFAULT_FLOATING_POSITION,
+    floatingMargin: PREVIEW_UI.FLOATING_MARGIN,
     onDragStart: closeMenus,
   });
 
@@ -558,17 +279,17 @@ const AppPreviewToolbar = ({
 
   return (
     <div
-      ref={floatingToolbar.toolbarRef}
+      ref={floatingToolbar.elementRef as React.RefObject<HTMLDivElement>}
       className={clsx(
         'preview-toolbar',
         isFullView && 'preview-toolbar--floating',
         isFullView && floatingToolbar.isDragging && 'preview-toolbar--dragging',
       )}
       style={floatingToolbar.floatingStyle}
-      onPointerDown={floatingToolbar.handlePointerDown}
-      onPointerMove={floatingToolbar.handlePointerMove}
-      onPointerUp={floatingToolbar.handlePointerEnd}
-      onPointerCancel={floatingToolbar.handlePointerEnd}
+      onPointerDown={floatingToolbar.pointerHandlers.onPointerDown}
+      onPointerMove={floatingToolbar.pointerHandlers.onPointerMove}
+      onPointerUp={floatingToolbar.pointerHandlers.onPointerUp}
+      onPointerCancel={floatingToolbar.pointerHandlers.onPointerCancel}
       onClickCapture={floatingToolbar.handleClickCapture}
     >
       <div className="preview-toolbar__group preview-toolbar__group--left">
