@@ -8,6 +8,7 @@
 --   2. Scheduled runs (next_run_at queries)
 --   3. Project/workflow lookups (by name/path)
 --   4. User settings (key-value store)
+--   5. Credit usage tracking
 
 -- ============================================================================
 -- PROJECTS: Top-level containers for workflows
@@ -97,10 +98,10 @@ CREATE TABLE IF NOT EXISTS exports (
     workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     format TEXT NOT NULL,
-    settings TEXT DEFAULT '{}',
+    settings TEXT DEFAULT '{}',  -- JSON as TEXT (SQLite has no JSONB)
     storage_url TEXT,
     thumbnail_url TEXT,
-    file_size_bytes INTEGER,
+    file_size_bytes INTEGER,  -- SQLite uses 64-bit integers natively
     duration_ms INTEGER,
     frame_count INTEGER,
     ai_caption TEXT,
@@ -123,6 +124,58 @@ CREATE TABLE IF NOT EXISTS settings (
     value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============================================================================
+-- UNIFIED CREDIT SYSTEM TABLES
+-- Single credit pool model for all operations (AI, executions, exports).
+-- ============================================================================
+
+-- Unified Credit Usage Tracking
+-- Tracks credit usage per user per billing month with operation type breakdown
+CREATE TABLE IF NOT EXISTS credit_usage (
+    id TEXT PRIMARY KEY,
+    user_identity TEXT NOT NULL,
+    billing_month TEXT NOT NULL,  -- Format: YYYY-MM
+
+    -- Single unified credit pool totals
+    total_credits_used INTEGER NOT NULL DEFAULT 0,
+    total_operations INTEGER NOT NULL DEFAULT 0,
+
+    -- Breakdown by operation type for analytics/UI display
+    -- Format: {"ai.workflow_generate": 15, "execution.run": 42}
+    credits_by_operation TEXT NOT NULL DEFAULT '{}',  -- JSON as TEXT
+    operations_by_type TEXT NOT NULL DEFAULT '{}',  -- JSON as TEXT
+
+    last_operation_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE (user_identity, billing_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_usage_user ON credit_usage(user_identity);
+CREATE INDEX IF NOT EXISTS idx_credit_usage_month ON credit_usage(billing_month);
+
+-- Unified Operation Log
+-- Detailed audit log for all credit-consuming operations
+CREATE TABLE IF NOT EXISTS operation_log (
+    id TEXT PRIMARY KEY,
+    user_identity TEXT NOT NULL,
+    operation_type TEXT NOT NULL,  -- e.g., 'ai.workflow_generate', 'execution.run'
+    credits_charged INTEGER NOT NULL DEFAULT 0,
+    success INTEGER NOT NULL DEFAULT 1,  -- SQLite uses INTEGER for boolean
+
+    -- Flexible metadata for operation-specific details
+    metadata TEXT DEFAULT '{}',  -- JSON as TEXT
+
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_operation_log_user ON operation_log(user_identity);
+CREATE INDEX IF NOT EXISTS idx_operation_log_type ON operation_log(operation_type);
+CREATE INDEX IF NOT EXISTS idx_operation_log_created ON operation_log(created_at);
 
 -- ============================================================================
 -- TRIGGERS: Auto-update updated_at timestamps
@@ -165,4 +218,20 @@ CREATE TRIGGER IF NOT EXISTS update_exports_updated_at
     WHEN NEW.updated_at = OLD.updated_at
 BEGIN
     UPDATE exports SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_settings_updated_at
+    AFTER UPDATE ON settings
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE settings SET updated_at = CURRENT_TIMESTAMP WHERE key = OLD.key;
+END;
+
+CREATE TRIGGER IF NOT EXISTS update_credit_usage_updated_at
+    AFTER UPDATE ON credit_usage
+    FOR EACH ROW
+    WHEN NEW.updated_at = OLD.updated_at
+BEGIN
+    UPDATE credit_usage SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
 END;

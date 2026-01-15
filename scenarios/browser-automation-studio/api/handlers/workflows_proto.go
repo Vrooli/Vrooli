@@ -11,24 +11,54 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/workflow"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	"google.golang.org/protobuf/proto"
 )
 
 func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
-	var req basapi.CreateWorkflowRequest
-	if err := decodeProtoJSONBody(r, &req); err != nil {
+	// Decode into regular struct to allow flow_definition normalization.
+	// The flow_definition contains ReactFlow fields that need to be stripped/converted
+	// before proto parsing can succeed.
+	var body struct {
+		ProjectID      string         `json:"project_id"`
+		Name           string         `json:"name"`
+		FolderPath     string         `json:"folder_path"`
+		FlowDefinition map[string]any `json:"flow_definition"`
+		AIPrompt       string         `json:"ai_prompt"`
+	}
+	if err := decodeJSONBody(w, r, &body); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
+	}
+
+	// Normalize and convert flow_definition to proto.
+	flowDef, err := workflowservice.BuildFlowDefinitionV2ForWrite(body.FlowDefinition, nil, nil)
+	if err != nil {
+		if errors.Is(err, workflowservice.ErrInvalidWorkflowFormat) {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid workflow format: nodes must have 'action' field with typed action definitions"}))
+			return
+		}
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+
+	// Build proto request with normalized flow_definition.
+	req := &basapi.CreateWorkflowRequest{
+		ProjectId:      body.ProjectID,
+		Name:           body.Name,
+		FolderPath:     body.FolderPath,
+		FlowDefinition: flowDef,
+		AiPrompt:       body.AIPrompt,
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	resp, err := h.catalogService.CreateWorkflow(ctx, &req)
+	resp, err := h.catalogService.CreateWorkflow(ctx, req)
 	if err != nil {
-		if errors.Is(err, workflow.ErrWorkflowNameConflict) {
+		if errors.Is(err, workflowservice.ErrWorkflowNameConflict) {
 			h.respondError(w, ErrWorkflowAlreadyExists.WithDetails(map[string]string{"name": req.Name}))
 			return
 		}
@@ -100,20 +130,54 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req basapi.UpdateWorkflowRequest
-	if err := decodeProtoJSONBody(r, &req); err != nil {
+	// Decode into regular struct to allow flow_definition normalization.
+	// The flow_definition contains ReactFlow fields that need to be stripped/converted
+	// before proto parsing can succeed.
+	var body struct {
+		Name              string         `json:"name"`
+		Description       string         `json:"description"`
+		FolderPath        string         `json:"folder_path"`
+		Tags              []string       `json:"tags"`
+		FlowDefinition    map[string]any `json:"flow_definition"`
+		ChangeDescription string         `json:"change_description"`
+		Source            string         `json:"source"`
+		ExpectedVersion   int32          `json:"expected_version"`
+	}
+	if err := decodeJSONBody(w, r, &body); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
 		return
 	}
-	// REST path param wins.
-	req.WorkflowId = proto.String(idStr)
+
+	// Normalize and convert flow_definition to proto.
+	flowDef, err := workflowservice.BuildFlowDefinitionV2ForWrite(body.FlowDefinition, nil, nil)
+	if err != nil {
+		if errors.Is(err, workflowservice.ErrInvalidWorkflowFormat) {
+			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid workflow format: nodes must have 'action' field with typed action definitions"}))
+			return
+		}
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+		return
+	}
+
+	// Build proto request with normalized flow_definition.
+	req := &basapi.UpdateWorkflowRequest{
+		Name:              body.Name,
+		Description:       body.Description,
+		FolderPath:        body.FolderPath,
+		Tags:              body.Tags,
+		FlowDefinition:    flowDef,
+		ChangeDescription: body.ChangeDescription,
+		Source:            parseChangeSource(body.Source),
+		ExpectedVersion:   body.ExpectedVersion,
+		WorkflowId:        proto.String(idStr),
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
 	defer cancel()
 
-	resp, err := h.catalogService.UpdateWorkflow(ctx, &req)
+	resp, err := h.catalogService.UpdateWorkflow(ctx, req)
 	if err != nil {
-		if errors.Is(err, workflow.ErrWorkflowVersionConflict) {
+		if errors.Is(err, workflowservice.ErrWorkflowVersionConflict) {
 			h.respondError(w, ErrWorkflowVersionConflict.WithDetails(map[string]string{"workflow_id": idStr}))
 			return
 		}
@@ -121,6 +185,24 @@ func (h *Handler) UpdateWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.respondProto(w, http.StatusOK, resp)
+}
+
+// parseChangeSource converts a string source to the proto enum value.
+func parseChangeSource(source string) basbase.ChangeSource {
+	switch strings.ToLower(source) {
+	case "manual":
+		return basbase.ChangeSource_CHANGE_SOURCE_MANUAL
+	case "autosave":
+		return basbase.ChangeSource_CHANGE_SOURCE_AUTOSAVE
+	case "import":
+		return basbase.ChangeSource_CHANGE_SOURCE_IMPORT
+	case "ai_generated", "ai-generated":
+		return basbase.ChangeSource_CHANGE_SOURCE_AI_GENERATED
+	case "recording":
+		return basbase.ChangeSource_CHANGE_SOURCE_RECORDING
+	default:
+		return basbase.ChangeSource_CHANGE_SOURCE_UNSPECIFIED
+	}
 }
 
 func (h *Handler) DeleteWorkflow(w http.ResponseWriter, r *http.Request) {

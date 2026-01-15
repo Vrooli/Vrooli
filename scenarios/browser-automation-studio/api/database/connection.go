@@ -273,7 +273,24 @@ func (db *DB) initSchema() error {
 	if db.dialect == DialectSQLite {
 		filename = "schema_sqlite.sql"
 	}
-	schemaPath := filepath.Join(filepath.Dir(getCurrentFilePath()), filename)
+
+	// Resolve schema path from standard location: initialization/postgres/
+	// This uses the scenario root, resolved from VROOLI_ROOT or executable path
+	scenarioRoot := os.Getenv("VROOLI_ROOT")
+	if scenarioRoot != "" {
+		scenarioRoot = filepath.Join(scenarioRoot, "scenarios", "browser-automation-studio")
+	} else {
+		// Fallback: resolve from executable location
+		// Expected structure: {scenario}/api/binary -> go up 1 level to scenario root
+		if execPath, err := os.Executable(); err == nil {
+			scenarioRoot = filepath.Join(filepath.Dir(execPath), "..")
+			scenarioRoot, _ = filepath.Abs(scenarioRoot)
+		} else {
+			// Last resort: use relative path from current working directory
+			scenarioRoot = "."
+		}
+	}
+	schemaPath := filepath.Join(scenarioRoot, "initialization", "postgres", filename)
 
 	schemaBytes, err := os.ReadFile(schemaPath)
 	if err != nil {
@@ -300,6 +317,22 @@ func (db *DB) initSchema() error {
 }
 
 func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
+	// Check if we're using the new comprehensive schema (has workflow_folders table).
+	// If so, skip legacy migrations designed for the old simplified schema.
+	var hasNewSchema bool
+	if db.dialect == DialectPostgres {
+		err := db.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'workflow_folders')`).Scan(&hasNewSchema)
+		if err != nil {
+			db.log.WithError(err).Warn("Failed to check for new schema, skipping legacy migrations")
+			return nil
+		}
+		if hasNewSchema {
+			db.log.Debug("Using comprehensive schema, skipping legacy migrations")
+			return nil
+		}
+	}
+
 	// Legacy database instances may already have tables created without newer index columns.
 	// Avoid SELECT * scan breakages by ensuring expected columns exist.
 

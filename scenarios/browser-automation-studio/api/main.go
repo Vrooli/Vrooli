@@ -160,6 +160,7 @@ func main() {
 		DB:             db.RawDB(),
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
+		Dialect:        string(db.Dialect()),
 	})
 	log.Info("✅ Unified credits service initialized")
 
@@ -227,10 +228,10 @@ func main() {
 		ScenarioDescription: "Browser automation and workflow execution engine for web testing and automation",
 	})
 	// Register all tool providers (Tiers 1-4)
-	toolRegistry.RegisterProvider(toolregistry.NewWorkflowToolProvider())   // Tier 1: Workflow execution
-	toolRegistry.RegisterProvider(toolregistry.NewProjectToolProvider())    // Tier 2: Project management
-	toolRegistry.RegisterProvider(toolregistry.NewRecordingToolProvider())  // Tier 3: Recording sessions
-	toolRegistry.RegisterProvider(toolregistry.NewAIToolProvider())         // Tier 4: AI capabilities
+	toolRegistry.RegisterProvider(toolregistry.NewWorkflowToolProvider())  // Tier 1: Workflow execution
+	toolRegistry.RegisterProvider(toolregistry.NewProjectToolProvider())   // Tier 2: Project management
+	toolRegistry.RegisterProvider(toolregistry.NewRecordingToolProvider()) // Tier 3: Recording sessions
+	toolRegistry.RegisterProvider(toolregistry.NewAIToolProvider())        // Tier 4: AI capabilities
 
 	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
 		CatalogService:   deps.CatalogService,

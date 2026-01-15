@@ -566,7 +566,13 @@ func (r *repository) ListSchedules(ctx context.Context, workflowID *uuid.UUID, a
 		base += " WHERE is_active = true"
 	}
 
-	base += " ORDER BY next_run_at ASC NULLS LAST"
+	// Use dialect-aware NULL ordering
+	if r.db.Dialect().IsPostgres() {
+		base += " ORDER BY next_run_at ASC NULLS LAST"
+	} else {
+		// SQLite: Use CASE expression to push NULLs to end
+		base += " ORDER BY CASE WHEN next_run_at IS NULL THEN 1 ELSE 0 END, next_run_at ASC"
+	}
 	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
 	args = append(args, pagingArgs...)
 	query := r.db.Rebind(queryWithPaging)

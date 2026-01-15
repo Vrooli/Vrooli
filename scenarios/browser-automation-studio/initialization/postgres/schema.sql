@@ -1,4 +1,4 @@
--- Browser Automation Studio - Simplified Schema
+-- Browser Automation Studio - Simplified Schema (PostgreSQL)
 --
 -- Design principle: Database is an INDEX, not the source of truth.
 -- - Workflows live on disk as JSON files
@@ -8,6 +8,7 @@
 --   2. Scheduled runs (next_run_at queries)
 --   3. Project/workflow lookups (by name/path)
 --   4. User settings (key-value store)
+--   5. Credit usage tracking
 
 -- ============================================================================
 -- PROJECTS: Top-level containers for workflows
@@ -125,6 +126,58 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- ============================================================================
+-- UNIFIED CREDIT SYSTEM TABLES
+-- Single credit pool model for all operations (AI, executions, exports).
+-- ============================================================================
+
+-- Unified Credit Usage Tracking
+-- Tracks credit usage per user per billing month with operation type breakdown
+CREATE TABLE IF NOT EXISTS credit_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_month VARCHAR(7) NOT NULL,  -- Format: YYYY-MM
+
+    -- Single unified credit pool totals
+    total_credits_used INTEGER NOT NULL DEFAULT 0,
+    total_operations INTEGER NOT NULL DEFAULT 0,
+
+    -- Breakdown by operation type for analytics/UI display
+    -- Format: {"ai.workflow_generate": 15, "execution.run": 42}
+    credits_by_operation JSONB NOT NULL DEFAULT '{}',
+    operations_by_type JSONB NOT NULL DEFAULT '{}',
+
+    last_operation_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_credit_user_month UNIQUE (user_identity, billing_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_usage_user ON credit_usage(user_identity);
+CREATE INDEX IF NOT EXISTS idx_credit_usage_month ON credit_usage(billing_month);
+
+-- Unified Operation Log
+-- Detailed audit log for all credit-consuming operations
+CREATE TABLE IF NOT EXISTS operation_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,  -- e.g., 'ai.workflow_generate', 'execution.run'
+    credits_charged INTEGER NOT NULL DEFAULT 0,
+    success BOOLEAN NOT NULL DEFAULT true,
+
+    -- Flexible metadata for operation-specific details
+    metadata JSONB DEFAULT '{}',
+
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_operation_log_user ON operation_log(user_identity);
+CREATE INDEX IF NOT EXISTS idx_operation_log_type ON operation_log(operation_type);
+CREATE INDEX IF NOT EXISTS idx_operation_log_created ON operation_log(created_at);
+
+-- ============================================================================
 -- TRIGGERS: Auto-update timestamps
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -163,4 +216,9 @@ CREATE TRIGGER update_exports_updated_at
 DROP TRIGGER IF EXISTS update_settings_updated_at ON settings;
 CREATE TRIGGER update_settings_updated_at
     BEFORE UPDATE ON settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_credit_usage_updated_at ON credit_usage;
+CREATE TRIGGER update_credit_usage_updated_at
+    BEFORE UPDATE ON credit_usage
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
