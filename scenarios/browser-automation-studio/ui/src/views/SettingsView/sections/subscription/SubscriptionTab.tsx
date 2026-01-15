@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useEntitlementStore, TIER_CONFIG, type SubscriptionTier } from '@stores/entitlementStore';
 import { EmailInputSection } from './EmailInputSection';
 import { SubscriptionStatusCard } from './SubscriptionStatusCard';
-import { UsageMeterSection } from './UsageMeterSection';
+import { UnifiedUsageSection } from './UnifiedUsageSection';
+import { UsageHistorySection } from './UsageHistorySection';
+import { OperationLogModal } from './OperationLogModal';
 import { FeatureAccessList } from './FeatureAccessList';
 import { UpgradePromptSection } from './UpgradePromptSection';
 import { LoadingSpinner } from '@shared/ui';
@@ -12,6 +14,17 @@ export function SubscriptionTab() {
   const { status, isLoading, fetchStatus, getUserEmail, overrideTier, setOverrideTier } = useEntitlementStore();
   const canOverrideTier = useMemo(() => !isDesktopEnvironment(), []);
   const activeOverride = overrideTier ?? null;
+
+  // Operation log modal state
+  const [operationLogMonth, setOperationLogMonth] = useState<string | null>(null);
+
+  const handleViewOperations = useCallback((month: string) => {
+    setOperationLogMonth(month);
+  }, []);
+
+  const handleCloseOperationLog = useCallback(() => {
+    setOperationLogMonth(null);
+  }, []);
 
   // Fetch entitlement status on mount
   useEffect(() => {
@@ -91,8 +104,11 @@ export function SubscriptionTab() {
           {/* Status Card - only show if we have status */}
           {status && <SubscriptionStatusCard />}
 
-          {/* Usage Meter - only show if we have status */}
-          {status && <UsageMeterSection />}
+          {/* Unified Usage - shows both AI credits and executions */}
+          {status && <UnifiedUsageSection />}
+
+          {/* Usage History - banking-style period navigation */}
+          {status && <UsageHistorySection onViewOperations={handleViewOperations} />}
 
           {/* Feature Access List - only show if we have status */}
           {status && <FeatureAccessList />}
@@ -101,6 +117,13 @@ export function SubscriptionTab() {
           <UpgradePromptSection />
         </>
       )}
+
+      {/* Operation Log Modal */}
+      <OperationLogModal
+        isOpen={operationLogMonth !== null}
+        onClose={handleCloseOperationLog}
+        month={operationLogMonth ?? ''}
+      />
     </div>
   );
 }

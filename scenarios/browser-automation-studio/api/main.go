@@ -581,6 +581,8 @@ func main() {
 		r.Post("/entitlement/identity", entitlementHandler.SetUserIdentity)
 		r.Delete("/entitlement/identity", entitlementHandler.ClearUserIdentity)
 		r.Get("/entitlement/usage", entitlementHandler.GetUsageSummary)
+		r.Get("/entitlement/usage/history", entitlementHandler.GetUsageHistory)
+		r.Get("/entitlement/usage/operations", entitlementHandler.GetOperationLog)
 		r.Post("/entitlement/refresh", entitlementHandler.RefreshEntitlement)
 		r.Get("/entitlement/override", entitlementHandler.GetEntitlementOverride)
 		r.Post("/entitlement/override", entitlementHandler.SetEntitlementOverride)

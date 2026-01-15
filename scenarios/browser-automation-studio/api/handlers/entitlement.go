@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/constants"
@@ -295,6 +296,117 @@ func (h *EntitlementHandler) GetUsageSummary(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(summary)
+}
+
+// UsageHistoryResponse represents the response for usage history.
+type UsageHistoryResponse struct {
+	UserIdentity string                   `json:"user_identity"`
+	Periods      []credits.UsageSummary   `json:"periods"`
+	HasMore      bool                     `json:"has_more"`
+}
+
+// GetUsageHistory handles GET /api/v1/entitlement/usage/history
+// Returns usage summaries for multiple billing periods.
+func (h *EntitlementHandler) GetUsageHistory(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	userIdentity := entitlement.UserIdentityFromContext(r.Context())
+	if userIdentity == "" {
+		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
+	}
+
+	// If still no user identity, try to load from settings
+	if userIdentity == "" && h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, "user_identity"); err == nil {
+			userIdentity = saved
+		}
+	}
+
+	if h.creditService == nil {
+		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query params
+	months := 6
+	offset := 0
+
+	if m := r.URL.Query().Get("months"); m != "" {
+		if parsed, err := strconv.Atoi(m); err == nil && parsed > 0 {
+			months = parsed
+		}
+	}
+
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	periods, hasMore, err := h.creditService.GetUsageHistory(ctx, userIdentity, months, offset)
+	if err != nil {
+		http.Error(w, `{"error":{"code":"HISTORY_ERROR","message":"Failed to get usage history"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(UsageHistoryResponse{
+		UserIdentity: userIdentity,
+		Periods:      periods,
+		HasMore:      hasMore,
+	})
+}
+
+// GetOperationLog handles GET /api/v1/entitlement/usage/operations
+// Returns paginated operation log entries for a billing period.
+func (h *EntitlementHandler) GetOperationLog(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	userIdentity := entitlement.UserIdentityFromContext(r.Context())
+	if userIdentity == "" {
+		userIdentity = strings.TrimSpace(r.URL.Query().Get("user"))
+	}
+
+	// If still no user identity, try to load from settings
+	if userIdentity == "" && h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, "user_identity"); err == nil {
+			userIdentity = saved
+		}
+	}
+
+	if h.creditService == nil {
+		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse query params
+	month := r.URL.Query().Get("month")
+	category := r.URL.Query().Get("category")
+	limit := 20
+	offset := 0
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	page, err := h.creditService.GetOperationLog(ctx, userIdentity, month, category, limit, offset)
+	if err != nil {
+		http.Error(w, `{"error":{"code":"OPERATIONS_ERROR","message":"Failed to get operations"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(page)
 }
 
 // GetEntitlementOverride handles GET /api/v1/entitlement/override

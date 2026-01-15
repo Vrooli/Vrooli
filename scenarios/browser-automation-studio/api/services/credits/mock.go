@@ -197,6 +197,56 @@ func (m *MockService) IsEnabled() bool {
 	return m.enabled
 }
 
+// GetUsageHistory implements CreditService.
+// Returns current usage as the only period for the mock.
+func (m *MockService) GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error) {
+	// Get usage without holding lock to avoid deadlock
+	usage, _ := m.GetUsage(ctx, userIdentity)
+	return []UsageSummary{*usage}, false, nil
+}
+
+// GetOperationLog implements CreditService.
+// Returns charges as operation log entries.
+func (m *MockService) GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if limit <= 0 {
+		limit = 20
+	}
+
+	operations := make([]OperationLogEntry, 0, len(m.charges))
+	for i, charge := range m.charges {
+		operations = append(operations, OperationLogEntry{
+			ID:             string(rune(i + 1)),
+			OperationType:  charge.Operation,
+			CreditsCharged: m.costs.GetCost(charge.Operation),
+			Success:        true,
+			CreatedAt:      time.Now(),
+		})
+	}
+
+	// Apply pagination
+	total := len(operations)
+	if offset >= len(operations) {
+		operations = nil
+	} else if offset+limit < len(operations) {
+		operations = operations[offset : offset+limit]
+	} else {
+		operations = operations[offset:]
+	}
+
+	return &OperationLogPage{
+		UserIdentity: userIdentity,
+		BillingMonth: month,
+		Operations:   operations,
+		Total:        total,
+		Limit:        limit,
+		Offset:       offset,
+		HasMore:      offset+len(operations) < total,
+	}, nil
+}
+
 // Test helpers
 
 // GetCharges returns all charges made (for test assertions).

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -236,6 +237,255 @@ func (s *Service) LogFailedOperation(ctx context.Context, req ChargeRequest, opE
 		errMsg = opErr.Error()
 	}
 	return s.logOperation(ctx, userIdentity, req.Operation, 0, false, req.Metadata, errMsg)
+}
+
+// GetUsageHistory returns usage summaries for multiple billing periods.
+func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error) {
+	userIdentity = normalizeIdentity(userIdentity)
+
+	if months <= 0 {
+		months = 6 // Default to 6 months
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Calculate the billing months to query
+	// Start from current month minus offset, go back 'months' periods
+	now := time.Now()
+	startMonth := firstDayOfMonth(now).AddDate(0, -offset, 0)
+
+	// Query for months + 1 to check if there's more
+	queryMonths := make([]string, 0, months+1)
+	for i := 0; i <= months; i++ {
+		m := startMonth.AddDate(0, -i, 0)
+		queryMonths = append(queryMonths, m.Format("2006-01"))
+	}
+
+	// Query database for these months
+	query := `
+		SELECT billing_month, total_credits_used, total_operations, credits_by_operation, operations_by_type
+		FROM credit_usage
+		WHERE user_identity = $1 AND billing_month = ANY($2)
+		ORDER BY billing_month DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userIdentity, pq.Array(queryMonths))
+	if err != nil {
+		return nil, false, fmt.Errorf("query usage history: %w", err)
+	}
+	defer rows.Close()
+
+	// Collect results into a map
+	usageByMonth := make(map[string]*usageCache)
+	for rows.Next() {
+		var month string
+		var totalCreditsUsed, totalOperations int
+		var creditsByOpJSON, opCountsJSON []byte
+
+		if err := rows.Scan(&month, &totalCreditsUsed, &totalOperations, &creditsByOpJSON, &opCountsJSON); err != nil {
+			return nil, false, fmt.Errorf("scan usage row: %w", err)
+		}
+
+		byOperation := make(map[OperationType]int)
+		operationCounts := make(map[OperationType]int)
+
+		if len(creditsByOpJSON) > 0 {
+			var rawByOp map[string]int
+			if err := json.Unmarshal(creditsByOpJSON, &rawByOp); err == nil {
+				for k, v := range rawByOp {
+					byOperation[OperationType(k)] = v
+				}
+			}
+		}
+
+		if len(opCountsJSON) > 0 {
+			var rawCounts map[string]int
+			if err := json.Unmarshal(opCountsJSON, &rawCounts); err == nil {
+				for k, v := range rawCounts {
+					operationCounts[OperationType(k)] = v
+				}
+			}
+		}
+
+		usageByMonth[month] = &usageCache{
+			totalCreditsUsed: totalCreditsUsed,
+			totalOperations:  totalOperations,
+			byOperation:      byOperation,
+			operationCounts:  operationCounts,
+			month:            month,
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("iterate usage rows: %w", err)
+	}
+
+	// Get credit limit for the user
+	creditsLimit := -1
+	if s.enabled {
+		var err error
+		creditsLimit, err = s.getUserCreditsLimit(ctx, userIdentity)
+		if err != nil {
+			s.log.WithError(err).Warn("Failed to get credit limit for history")
+		}
+	}
+
+	// Build summaries for the requested months
+	summaries := make([]UsageSummary, 0, months)
+	for i := 0; i < months && i < len(queryMonths); i++ {
+		month := queryMonths[i]
+		monthTime, _ := time.Parse("2006-01", month)
+
+		usage := usageByMonth[month]
+		if usage == nil {
+			// No usage for this month - create empty summary
+			usage = &usageCache{
+				totalCreditsUsed: 0,
+				totalOperations:  0,
+				byOperation:      make(map[OperationType]int),
+				operationCounts:  make(map[OperationType]int),
+			}
+		}
+
+		creditsRemaining := -1
+		if creditsLimit >= 0 {
+			creditsRemaining = creditsLimit - usage.totalCreditsUsed
+			if creditsRemaining < 0 {
+				creditsRemaining = 0
+			}
+		}
+
+		summaries = append(summaries, UsageSummary{
+			UserIdentity:     userIdentity,
+			BillingMonth:     month,
+			TotalCreditsUsed: usage.totalCreditsUsed,
+			TotalOperations:  usage.totalOperations,
+			ByOperation:      usage.byOperation,
+			OperationCounts:  usage.operationCounts,
+			CreditsLimit:     creditsLimit,
+			CreditsRemaining: creditsRemaining,
+			PeriodStart:      firstDayOfMonth(monthTime),
+			PeriodEnd:        lastDayOfMonth(monthTime),
+			ResetDate:        firstDayOfMonth(monthTime).AddDate(0, 1, 0),
+		})
+	}
+
+	// Check if there's more data
+	hasMore := len(queryMonths) > months && usageByMonth[queryMonths[months]] != nil
+
+	return summaries, hasMore, nil
+}
+
+// GetOperationLog returns paginated operation log entries for a billing period.
+func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error) {
+	userIdentity = normalizeIdentity(userIdentity)
+
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100 // Cap at 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Parse month to get date range
+	monthTime, err := time.Parse("2006-01", month)
+	if err != nil {
+		monthTime = firstDayOfMonth(time.Now())
+		month = monthTime.Format("2006-01")
+	}
+	monthStart := firstDayOfMonth(monthTime)
+	monthEnd := lastDayOfMonth(monthTime)
+
+	// Build category filter
+	var categoryFilter string
+	var args []interface{}
+
+	args = append(args, userIdentity, monthStart, monthEnd)
+
+	if category != "" {
+		// Map category to operation type prefix
+		switch category {
+		case "ai":
+			categoryFilter = " AND operation_type LIKE 'ai.%'"
+		case "execution":
+			categoryFilter = " AND operation_type LIKE 'execution.%'"
+		case "export":
+			categoryFilter = " AND operation_type LIKE 'export.%'"
+		}
+	}
+
+	// Count total
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM operation_log
+		WHERE user_identity = $1 AND created_at >= $2 AND created_at <= $3%s
+	`, categoryFilter)
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count operations: %w", err)
+	}
+
+	// Query operations
+	query := fmt.Sprintf(`
+		SELECT id, operation_type, credits_charged, success, created_at, metadata, error_message
+		FROM operation_log
+		WHERE user_identity = $1 AND created_at >= $2 AND created_at <= $3%s
+		ORDER BY created_at DESC
+		LIMIT $4 OFFSET $5
+	`, categoryFilter)
+
+	args = append(args, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query operations: %w", err)
+	}
+	defer rows.Close()
+
+	operations := make([]OperationLogEntry, 0, limit)
+	for rows.Next() {
+		var entry OperationLogEntry
+		var opType string
+		var metadataJSON []byte
+		var errorMsg sql.NullString
+
+		if err := rows.Scan(&entry.ID, &opType, &entry.CreditsCharged, &entry.Success, &entry.CreatedAt, &metadataJSON, &errorMsg); err != nil {
+			return nil, fmt.Errorf("scan operation row: %w", err)
+		}
+
+		entry.OperationType = OperationType(opType)
+		if errorMsg.Valid {
+			entry.ErrorMessage = errorMsg.String
+		}
+
+		if len(metadataJSON) > 0 {
+			var metadata map[string]interface{}
+			if err := json.Unmarshal(metadataJSON, &metadata); err == nil {
+				entry.Metadata = metadata
+			}
+		}
+
+		operations = append(operations, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate operation rows: %w", err)
+	}
+
+	return &OperationLogPage{
+		UserIdentity: userIdentity,
+		BillingMonth: month,
+		Operations:   operations,
+		Total:        total,
+		Limit:        limit,
+		Offset:       offset,
+		HasMore:      offset+len(operations) < total,
+	}, nil
 }
 
 // getUserCreditsLimit gets the credit limit for a user based on their entitlement tier.

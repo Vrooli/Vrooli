@@ -44,6 +44,40 @@ export interface FeatureAccessSummary {
   has_access: boolean;
 }
 
+// Usage history types
+export interface UsagePeriod {
+  billing_month: string;
+  total_credits_used: number;
+  total_operations: number;
+  by_operation: Record<string, number>;
+  operation_counts: Record<string, number>;
+  credits_limit: number;
+  credits_remaining: number;
+  period_start: string;
+  period_end: string;
+  reset_date: string;
+}
+
+export interface OperationLogEntry {
+  id: string;
+  operation_type: string;
+  credits_charged: number;
+  success: boolean;
+  created_at: string;
+  metadata?: Record<string, unknown>;
+  error_message?: string;
+}
+
+export interface OperationLogPage {
+  user_identity: string;
+  billing_month: string;
+  operations: OperationLogEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
 interface EntitlementState {
   // State
   userEmail: string;
@@ -54,6 +88,15 @@ interface EntitlementState {
   lastFetched: Date | null;
   isOffline: boolean;
 
+  // Usage history state
+  usageHistory: UsagePeriod[];
+  historyLoading: boolean;
+  selectedPeriod: string | null; // YYYY-MM format
+  operationLog: OperationLogEntry[];
+  operationLogLoading: boolean;
+  operationLogTotal: number;
+  operationLogHasMore: boolean;
+
   // Actions
   fetchStatus: () => Promise<void>;
   setUserEmail: (email: string) => Promise<void>;
@@ -61,6 +104,12 @@ interface EntitlementState {
   refreshEntitlement: () => Promise<void>;
   getUserEmail: () => Promise<string>;
   setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
+
+  // Usage history actions
+  fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
+  fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
+  setSelectedPeriod: (month: string | null) => void;
+  clearOperationLog: () => void;
 }
 
 // Helper to check if email is valid (basic client-side validation)
@@ -124,6 +173,15 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   error: null,
   lastFetched: null,
   isOffline: false,
+
+  // Usage history state
+  usageHistory: [],
+  historyLoading: false,
+  selectedPeriod: null,
+  operationLog: [],
+  operationLogLoading: false,
+  operationLogTotal: 0,
+  operationLogHasMore: false,
 
   fetchStatus: async () => {
     set({ isLoading: true, error: null });
@@ -316,6 +374,98 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         isLoading: false,
       });
     }
+  },
+
+  // Usage history actions
+  fetchUsageHistory: async (months = 6, offset = 0) => {
+    set({ historyLoading: true });
+    try {
+      const params = new URLSearchParams();
+      params.set('months', months.toString());
+      if (offset > 0) params.set('offset', offset.toString());
+
+      const response = await fetch(joinApi(API_BASE, `entitlement/usage/history?${params.toString()}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch usage history: ${response.status}`);
+      }
+
+      const data = await response.json();
+      set({
+        usageHistory: data.periods || [],
+        historyLoading: false,
+      });
+    } catch (err) {
+      console.error('Failed to fetch usage history:', err);
+      set({
+        historyLoading: false,
+      });
+    }
+  },
+
+  fetchOperationLog: async (month: string, category?: string, limit = 20, offset = 0) => {
+    set({ operationLogLoading: true });
+    try {
+      const params = new URLSearchParams();
+      params.set('month', month);
+      if (category) params.set('category', category);
+      params.set('limit', limit.toString());
+      if (offset > 0) params.set('offset', offset.toString());
+
+      const response = await fetch(joinApi(API_BASE, `entitlement/usage/operations?${params.toString()}`), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch operation log: ${response.status}`);
+      }
+
+      const data: OperationLogPage = await response.json();
+
+      // If offset > 0, append to existing operations
+      if (offset > 0) {
+        set((state) => ({
+          operationLog: [...state.operationLog, ...data.operations],
+          operationLogTotal: data.total,
+          operationLogHasMore: data.has_more,
+          operationLogLoading: false,
+        }));
+      } else {
+        set({
+          operationLog: data.operations,
+          operationLogTotal: data.total,
+          operationLogHasMore: data.has_more,
+          operationLogLoading: false,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch operation log:', err);
+      set({
+        operationLogLoading: false,
+      });
+    }
+  },
+
+  setSelectedPeriod: (month: string | null) => {
+    set({ selectedPeriod: month });
+  },
+
+  clearOperationLog: () => {
+    set({
+      operationLog: [],
+      operationLogTotal: 0,
+      operationLogHasMore: false,
+    });
   },
 }));
 
