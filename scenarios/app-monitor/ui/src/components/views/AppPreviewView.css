@@ -2432,10 +2432,7 @@ body.app-preview-immersive {
 .preview-iframe-container {
   flex: 1 1 auto;
   margin: 0;
-  border: 1px solid rgba(0, 255, 65, 0.25);
   background: #060a06;
-  box-shadow: 0 0 28px rgba(0, 255, 65, 0.08);
-  border-radius: 10px;
   overflow: hidden;
   display: flex;
   position: relative;
