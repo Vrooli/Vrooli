@@ -15,6 +15,8 @@ import (
 	"app-monitor-api/middleware"
 	"app-monitor-api/repository"
 	"app-monitor-api/services"
+	"app-monitor-api/toolexecution"
+	"app-monitor-api/toolregistry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"
@@ -29,11 +31,13 @@ type Server struct {
 
 // Handlers holds all handler instances
 type Handlers struct {
-	app        *handlers.AppHandler
-	system     *handlers.SystemHandler
-	docker     *handlers.DockerHandler
-	websocket  *handlers.WebSocketHandler
-	lighthouse *handlers.LighthouseHandler
+	app           *handlers.AppHandler
+	system        *handlers.SystemHandler
+	docker        *handlers.DockerHandler
+	websocket     *handlers.WebSocketHandler
+	lighthouse    *handlers.LighthouseHandler
+	tools         *handlers.ToolsHandler
+	toolExecution *toolexecution.Handler
 }
 
 // NewServer creates and configures a new server instance
@@ -67,13 +71,37 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	appService := services.NewAppService(appRepo)
 	metricsService := services.NewMetricsService()
 
+	// Initialize Tool Discovery Protocol registry
+	toolReg := toolregistry.NewRegistry(toolregistry.RegistryConfig{
+		ScenarioName:        "app-monitor",
+		ScenarioVersion:     "1.0.0",
+		ScenarioDescription: "Centralized monitoring and control dashboard for the Vrooli ecosystem",
+	})
+
+	// Register all tool providers
+	toolReg.RegisterProvider(toolregistry.NewDiscoveryToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewLifecycleToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewDiagnosticsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewLogsMetricsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewIssueToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewDocsToolProvider())
+	toolReg.RegisterProvider(toolregistry.NewResourceToolProvider())
+
+	// Create tool executor
+	toolExecutor := toolexecution.NewServerExecutor(toolexecution.ServerExecutorConfig{
+		AppService:     appService,
+		MetricsService: metricsService,
+	})
+
 	// Create handlers
 	handlers := &Handlers{
-		app:        handlers.NewAppHandler(appService),
-		system:     handlers.NewSystemHandler(metricsService),
-		docker:     handlers.NewDockerHandler(docker),
-		websocket:  handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
-		lighthouse: handlers.NewLighthouseHandler(),
+		app:           handlers.NewAppHandler(appService),
+		system:        handlers.NewSystemHandler(metricsService),
+		docker:        handlers.NewDockerHandler(docker),
+		websocket:     handlers.NewWebSocketHandler(middleware.SecureWebSocketUpgrader(), redis),
+		lighthouse:    handlers.NewLighthouseHandler(),
+		tools:         handlers.NewToolsHandler(toolReg),
+		toolExecution: toolexecution.NewHandler(toolExecutor),
 	}
 
 	// Setup router
@@ -171,6 +199,11 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.POST("/scenarios/:scenario/lighthouse/run", h.lighthouse.RunLighthouse)
 		v1.GET("/scenarios/:scenario/lighthouse/history", h.lighthouse.GetLighthouseHistory)
 		v1.GET("/scenarios/:scenario/lighthouse/report/:reportId", h.lighthouse.GetLighthouseReport)
+
+		// Tool Discovery Protocol endpoints
+		v1.GET("/tools", h.tools.GetManifest)
+		v1.GET("/tools/:name", h.tools.GetTool)
+		v1.POST("/tools/execute", h.toolExecution.Execute)
 	}
 
 	// WebSocket endpoint
@@ -212,6 +245,7 @@ func (s *Server) Run() error {
 	// Start server
 	log.Printf("🚀 App Monitor API server starting on port %s", s.config.API.Port)
 	log.Printf("📊 API endpoints available at http://localhost:%s/api/v1", s.config.API.Port)
+	log.Printf("🔧 Tool Discovery Protocol available at http://localhost:%s/api/v1/tools", s.config.API.Port)
 
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
