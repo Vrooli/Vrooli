@@ -329,4 +329,3 @@ func TestCheckWineHandler(t *testing.T) {
 		t.Error("expected platform to be set")
 	}
 }
-

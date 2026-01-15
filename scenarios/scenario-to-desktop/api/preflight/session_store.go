@@ -21,12 +21,12 @@ type SupervisorFactory func(manifest *bundlemanifest.Manifest, bundleRoot, appDa
 
 // InMemorySessionStore is the default in-memory implementation of SessionStore.
 type InMemorySessionStore struct {
-	sessions         map[string]*Session
-	mux              sync.Mutex
-	createSupervisor SupervisorFactory
+	sessions          map[string]*Session
+	mux               sync.Mutex
+	createSupervisor  SupervisorFactory
 	readFileWithRetry func(path string, timeout time.Duration) ([]byte, error)
-	readPortFile     func(path string, timeout time.Duration) (int, error)
-	waitForHealth    func(client *http.Client, baseURL string, timeout time.Duration) error
+	readPortFile      func(path string, timeout time.Duration) (int, error)
+	waitForHealth     func(client *http.Client, baseURL string, timeout time.Duration) error
 }
 
 // InMemorySessionStoreOption configures an InMemorySessionStore.

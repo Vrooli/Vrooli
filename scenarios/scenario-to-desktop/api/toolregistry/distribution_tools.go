@@ -254,7 +254,7 @@ func (p *DistributionToolProvider) listDistributionTargetsTool() *toolspb.ToolDe
 		Description: "List all configured distribution targets. Shows target names, types (S3, R2, local), and their enabled status.",
 		Category:    "distribution",
 		Parameters: &toolspb.ToolParameters{
-			Type: "object",
+			Type:       "object",
 			Properties: map[string]*toolspb.ParameterSchema{
 				// No required parameters
 			},

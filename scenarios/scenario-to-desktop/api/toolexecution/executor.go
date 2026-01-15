@@ -120,9 +120,39 @@ type DistributionStatus struct {
 	CompletedAt    *time.Time
 }
 
-// PipelineOrchestrator provides pipeline status.
+// PipelineOrchestrator provides full pipeline orchestration.
 type PipelineOrchestrator interface {
+	// RunPipeline starts a pipeline and returns immediately with status.
+	RunPipeline(ctx context.Context, config *PipelineConfig) (*PipelineStatus, error)
+
+	// ResumePipeline resumes a stopped pipeline from its next stage.
+	ResumePipeline(ctx context.Context, pipelineID string, config *PipelineConfig) (*PipelineStatus, error)
+
+	// GetStatus retrieves current pipeline status.
 	GetStatus(pipelineID string) (*PipelineStatus, bool)
+
+	// CancelPipeline cancels a running pipeline.
+	CancelPipeline(pipelineID string) bool
+
+	// ListPipelines returns all tracked pipelines.
+	ListPipelines() []*PipelineStatus
+}
+
+// PipelineConfig holds configuration for a pipeline run.
+type PipelineConfig struct {
+	ScenarioName        string
+	Platforms           []string
+	DeploymentMode      string
+	TemplateType        string
+	StopAfterStage      string
+	SkipPreflight       bool
+	SkipSmokeTest       bool
+	Distribute          bool
+	DistributionTargets []string
+	Sign                bool
+	Clean               bool
+	Version             string
+	ProxyURL            string
 }
 
 // PipelineStatus represents a pipeline's state.
@@ -194,10 +224,10 @@ type ScenarioService interface {
 
 // ScenarioInfo holds scenario metadata.
 type ScenarioInfo struct {
-	Name           string
-	HasWrapper     bool
-	WrapperPath    string
-	LastBuildAt    *time.Time
+	Name            string
+	HasWrapper      bool
+	WrapperPath     string
+	LastBuildAt     *time.Time
 	LastBuildStatus string
 }
 
@@ -261,7 +291,19 @@ func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[
 	e.logger.Info("executing tool", "tool", toolName)
 
 	switch toolName {
-	// Build/Generation tools
+	// Pipeline tools (preferred)
+	case "run_pipeline":
+		return e.runPipeline(ctx, args)
+	case "check_pipeline_status":
+		return e.checkPipelineStatus(ctx, args)
+	case "cancel_pipeline":
+		return e.cancelPipeline(ctx, args)
+	case "resume_pipeline":
+		return e.resumePipeline(ctx, args)
+	case "list_pipelines":
+		return e.listPipelines(ctx, args)
+
+	// Legacy build/generation tools (deprecated, use run_pipeline instead)
 	case "generate_desktop_wrapper":
 		return e.generateDesktopWrapper(ctx, args)
 	case "build_for_platform":
@@ -297,9 +339,11 @@ func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[
 
 	// Inspection tools
 	case "check_build_status":
+		// Legacy - kept for backward compatibility with build_id lookups
 		return e.checkBuildStatus(ctx, args)
 	case "get_pipeline_status":
-		return e.getPipelineStatus(ctx, args)
+		// Legacy - redirects to check_pipeline_status
+		return e.checkPipelineStatus(ctx, args)
 	case "list_generated_wrappers":
 		return e.listGeneratedWrappers(ctx, args)
 	case "validate_configuration":
@@ -315,7 +359,197 @@ func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[
 }
 
 // -----------------------------------------------------------------------------
-// Build/Generation Tools
+// Pipeline Tools
+// -----------------------------------------------------------------------------
+
+func (e *ServerExecutor) runPipeline(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
+	scenarioName := getStringArg(args, "scenario_name", "")
+	if scenarioName == "" {
+		return ErrorResult("scenario_name is required", CodeInvalidArgs), nil
+	}
+
+	if e.pipelineOrchestrator == nil {
+		return ErrorResult("pipeline orchestrator not available", CodeInternalError), nil
+	}
+
+	config := &PipelineConfig{
+		ScenarioName:        scenarioName,
+		Platforms:           getStringArrayArg(args, "platforms"),
+		DeploymentMode:      getStringArg(args, "deployment_mode", "bundled"),
+		TemplateType:        getStringArg(args, "template_type", "basic"),
+		StopAfterStage:      getStringArg(args, "stop_after_stage", ""),
+		SkipPreflight:       getBoolArg(args, "skip_preflight", false),
+		SkipSmokeTest:       getBoolArg(args, "skip_smoke_test", false),
+		Distribute:          getBoolArg(args, "distribute", false),
+		DistributionTargets: getStringArrayArg(args, "distribution_targets"),
+		Sign:                getBoolArg(args, "sign", false),
+		Clean:               getBoolArg(args, "clean", false),
+		Version:             getStringArg(args, "version", ""),
+		ProxyURL:            getStringArg(args, "proxy_url", ""),
+	}
+
+	status, err := e.pipelineOrchestrator.RunPipeline(ctx, config)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("failed to start pipeline: %v", err), CodeInternalError), nil
+	}
+
+	return AsyncResult(map[string]interface{}{
+		"pipeline_id":   status.PipelineID,
+		"scenario_name": status.ScenarioName,
+		"status":        status.Status,
+		"current_stage": status.CurrentStage,
+		"message":       "Pipeline started. Use check_pipeline_status to monitor progress.",
+	}, status.PipelineID), nil
+}
+
+func (e *ServerExecutor) checkPipelineStatus(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
+	pipelineID := getStringArg(args, "pipeline_id", "")
+	if pipelineID == "" {
+		return ErrorResult("pipeline_id is required", CodeInvalidArgs), nil
+	}
+
+	if e.pipelineOrchestrator == nil {
+		return ErrorResult("pipeline orchestrator not available", CodeInternalError), nil
+	}
+
+	status, ok := e.pipelineOrchestrator.GetStatus(pipelineID)
+	if !ok {
+		return ErrorResult("pipeline not found", CodeNotFound), nil
+	}
+
+	stages := make([]map[string]interface{}, len(status.Stages))
+	for i, s := range status.Stages {
+		stages[i] = map[string]interface{}{
+			"name":       s.Name,
+			"status":     s.Status,
+			"started_at": s.StartedAt,
+			"ended_at":   s.EndedAt,
+			"error":      s.Error,
+		}
+	}
+
+	return SuccessResult(map[string]interface{}{
+		"pipeline_id":   status.PipelineID,
+		"scenario_name": status.ScenarioName,
+		"status":        status.Status,
+		"current_stage": status.CurrentStage,
+		"stages":        stages,
+		"error":         status.Error,
+		"created_at":    status.CreatedAt,
+		"completed_at":  status.CompletedAt,
+	}), nil
+}
+
+func (e *ServerExecutor) cancelPipeline(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
+	pipelineID := getStringArg(args, "pipeline_id", "")
+	if pipelineID == "" {
+		return ErrorResult("pipeline_id is required", CodeInvalidArgs), nil
+	}
+
+	if e.pipelineOrchestrator == nil {
+		return ErrorResult("pipeline orchestrator not available", CodeInternalError), nil
+	}
+
+	cancelled := e.pipelineOrchestrator.CancelPipeline(pipelineID)
+	if !cancelled {
+		// Pipeline may not exist or already completed
+		status, ok := e.pipelineOrchestrator.GetStatus(pipelineID)
+		if !ok {
+			return ErrorResult("pipeline not found", CodeNotFound), nil
+		}
+		return SuccessResult(map[string]interface{}{
+			"pipeline_id": pipelineID,
+			"status":      status.Status,
+			"message":     "Pipeline was not running (already completed or cancelled)",
+		}), nil
+	}
+
+	return SuccessResult(map[string]interface{}{
+		"pipeline_id": pipelineID,
+		"status":      "cancelled",
+		"message":     "Pipeline cancellation requested",
+	}), nil
+}
+
+func (e *ServerExecutor) resumePipeline(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
+	pipelineID := getStringArg(args, "pipeline_id", "")
+	if pipelineID == "" {
+		return ErrorResult("pipeline_id is required", CodeInvalidArgs), nil
+	}
+
+	if e.pipelineOrchestrator == nil {
+		return ErrorResult("pipeline orchestrator not available", CodeInternalError), nil
+	}
+
+	// Check if parent pipeline exists and can be resumed
+	parentStatus, ok := e.pipelineOrchestrator.GetStatus(pipelineID)
+	if !ok {
+		return ErrorResult("parent pipeline not found", CodeNotFound), nil
+	}
+
+	// Build resume config with optional stop_after_stage
+	config := &PipelineConfig{
+		StopAfterStage: getStringArg(args, "stop_after_stage", ""),
+	}
+
+	status, err := e.pipelineOrchestrator.ResumePipeline(ctx, pipelineID, config)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("failed to resume pipeline: %v", err), CodeInternalError), nil
+	}
+
+	return AsyncResult(map[string]interface{}{
+		"pipeline_id":        status.PipelineID,
+		"parent_pipeline_id": pipelineID,
+		"scenario_name":      parentStatus.ScenarioName,
+		"status":             status.Status,
+		"current_stage":      status.CurrentStage,
+		"message":            "Pipeline resumed. Use check_pipeline_status to monitor progress.",
+	}, status.PipelineID), nil
+}
+
+func (e *ServerExecutor) listPipelines(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
+	if e.pipelineOrchestrator == nil {
+		return ErrorResult("pipeline orchestrator not available", CodeInternalError), nil
+	}
+
+	statusFilter := getStringArg(args, "status", "")
+	scenarioFilter := getStringArg(args, "scenario_name", "")
+	limit := getIntArg(args, "limit", 50)
+
+	allPipelines := e.pipelineOrchestrator.ListPipelines()
+	var pipelines []map[string]interface{}
+
+	for _, status := range allPipelines {
+		// Apply filters
+		if statusFilter != "" && status.Status != statusFilter {
+			continue
+		}
+		if scenarioFilter != "" && status.ScenarioName != scenarioFilter {
+			continue
+		}
+
+		pipelines = append(pipelines, map[string]interface{}{
+			"pipeline_id":   status.PipelineID,
+			"scenario_name": status.ScenarioName,
+			"status":        status.Status,
+			"current_stage": status.CurrentStage,
+			"created_at":    status.CreatedAt,
+			"completed_at":  status.CompletedAt,
+		})
+
+		if len(pipelines) >= limit {
+			break
+		}
+	}
+
+	return SuccessResult(map[string]interface{}{
+		"pipelines": pipelines,
+		"count":     len(pipelines),
+	}), nil
+}
+
+// -----------------------------------------------------------------------------
+// Build/Generation Tools (Legacy - prefer Pipeline Tools)
 // -----------------------------------------------------------------------------
 
 func (e *ServerExecutor) generateDesktopWrapper(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
@@ -529,9 +763,9 @@ func (e *ServerExecutor) verifySignature(ctx context.Context, args map[string]in
 		"platform":      platform,
 		"valid":         true,
 		"details": map[string]interface{}{
-			"signed":     true,
-			"notarized":  platform == "macos",
-			"timestamp":  time.Now().Format(time.RFC3339),
+			"signed":    true,
+			"notarized": platform == "macos",
+			"timestamp": time.Now().Format(time.RFC3339),
 		},
 	}), nil
 }

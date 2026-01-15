@@ -4,13 +4,14 @@ import {
   fetchProxyHints,
   fetchScenarioDesktopStatus,
   getIconPreviewUrl,
-  generateDesktop,
+  runPipeline,
   fetchBundleManifest,
   probeEndpoints,
   type BundlePreflightResponse,
   type BundleManifestResponse,
   type ProbeResponse,
   type ProxyHintsResponse,
+  type PipelineConfig,
 } from "../lib/api";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -46,7 +47,6 @@ import {
   type ServerType
 } from "../domain/deployment";
 import {
-  buildDesktopConfig,
   computeStandardOutputPath,
   computeStagingPreviewPath,
   getSelectedPlatforms,
@@ -123,12 +123,7 @@ export function GeneratorForm({
     result: null as BundlePreflightResponse | null,
     error: null as string | null,
     override: false,
-    secrets: {} as Record<string, string>,
-    sessionId: null as string | null,
-    sessionExpiresAt: null as string | null,
-    sessionTTL: 120,
-    startServices: true,
-    autoRefresh: true
+    secrets: {} as Record<string, string>
   });
   // Bundle result seed from server state - similar pattern to preflightSeed
   const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
@@ -170,34 +165,33 @@ export function GeneratorForm({
     result: preflightResult,
     error: preflightError,
     pending: preflightPending,
-    jobStatus: preflightJobStatus,
-    sessionId: preflightSessionId,
-    sessionExpiresAt: preflightSessionExpiresAt,
-    sessionTTL: preflightSessionTTL,
+    pipelineId: preflightPipelineId,
+    pipelineStatus: preflightPipelineStatus,
     override: preflightOverride,
     secrets: preflightSecrets,
-    startServices: preflightStartServices,
-    autoRefresh: preflightAutoRefresh,
     missingSecrets: missingPreflightSecrets,
     preflightOk,
-    setSessionTTL: setPreflightSessionTTL,
     setOverride: setPreflightOverride,
     setSecret: setPreflightSecret,
     runPreflight,
-    stopSession: stopPreflightSession,
+    cancelPreflight: cancelPreflightPipeline,
     reset: resetPreflight
   } = usePreflightSession({
+    scenarioName,
     bundleManifestPath,
     isBundled,
-    initialSessionId: preflightSeed.sessionId,
-    initialSessionExpiresAt: preflightSeed.sessionExpiresAt,
     initialResult: preflightSeed.result,
     initialError: preflightSeed.error,
     initialOverride: preflightSeed.override,
     initialSecrets: preflightSeed.secrets,
-    initialSessionTTL: preflightSeed.sessionTTL,
-    initialStartServices: preflightSeed.startServices,
-    initialAutoRefresh: preflightSeed.autoRefresh
+    onPreflightComplete: (result) => {
+      if (scenarioName && hasInitiallyLoaded) {
+        void saveStageResult("preflight", result, {
+          preflight_result: result,
+          preflight_error: null,
+        });
+      }
+    }
   });
 
   const {
@@ -262,12 +256,7 @@ export function GeneratorForm({
       result: null,
       error: null,
       override: false,
-      secrets: {},
-      sessionId: null,
-      sessionExpiresAt: null,
-      sessionTTL: 120,
-      startServices: true,
-      autoRefresh: true
+      secrets: {}
     });
     resetPreflight();
     if (resetTemplate) {
@@ -331,12 +320,7 @@ export function GeneratorForm({
         result: fs.preflight_result ?? null,
         error: fs.preflight_error ?? null,
         override: fs.preflight_override ?? false,
-        secrets: fs.preflight_secrets ?? {},
-        sessionId: fs.preflight_session_id ?? null,
-        sessionExpiresAt: fs.preflight_session_expires_at ?? null,
-        sessionTTL: fs.preflight_session_ttl ?? 120,
-        startServices: fs.preflight_start_services ?? true,
-        autoRefresh: fs.preflight_auto_refresh ?? true
+        secrets: fs.preflight_secrets ?? {}
       });
       // Apply bundle result seed from server state
       setBundleResultSeed((fs.bundle_result as BundleResult) ?? null);
@@ -347,12 +331,7 @@ export function GeneratorForm({
         result: null,
         error: null,
         override: false,
-        secrets: {},
-        sessionId: null,
-        sessionExpiresAt: null,
-        sessionTTL: 120,
-        startServices: true,
-        autoRefresh: true
+        secrets: {}
       });
       setBundleResultSeed(null);
       resetPreflight();
@@ -387,11 +366,6 @@ export function GeneratorForm({
     preflight_error: preflightError,
     preflight_override: preflightOverride,
     preflight_secrets: preflightSecrets,
-    preflight_start_services: preflightStartServices,
-    preflight_auto_refresh: preflightAutoRefresh,
-    preflight_session_id: preflightSessionId,
-    preflight_session_expires_at: preflightSessionExpiresAt,
-    preflight_session_ttl: preflightSessionTTL,
     deployment_manager_url: deploymentManagerUrl,
     signing_enabled_for_build: signingEnabledForBuild,
     bundle_result: bundleResultSeed
@@ -403,8 +377,6 @@ export function GeneratorForm({
     serverPort, localServerPath, localApiEndpoint,
     autoManageTier1, vrooliBinaryPath, connectionResult, connectionError,
     preflightResult, preflightError, preflightOverride, preflightSecrets,
-    preflightStartServices, preflightAutoRefresh,
-    preflightSessionId, preflightSessionExpiresAt, preflightSessionTTL,
     deploymentManagerUrl, signingEnabledForBuild, bundleResultSeed
   ]);
 
@@ -432,62 +404,7 @@ export function GeneratorForm({
     updateFormState(formStateForServer);
   }, [scenarioName, formStateForServer, updateFormState, hasInitiallyLoaded]);
 
-  // Save preflight result as stage state when preflight completes successfully
-  const prevPreflightResultRef = useRef<string>("");
-  useEffect(() => {
-    if (!scenarioName || !hasInitiallyLoaded) return;
-    if (!preflightResult || !preflightOk) return;
-
-    // Only save when result changes
-    const serialized = JSON.stringify(preflightResult);
-    if (serialized === prevPreflightResultRef.current) return;
-    prevPreflightResultRef.current = serialized;
-
-    // Save preflight stage result with form state updates
-    void saveStageResult("preflight", preflightResult, {
-      preflight_result: preflightResult,
-      preflight_error: null,
-      preflight_session_id: preflightSessionId,
-      preflight_session_expires_at: preflightSessionExpiresAt,
-    });
-  }, [
-    scenarioName,
-    hasInitiallyLoaded,
-    preflightResult,
-    preflightOk,
-    preflightSessionId,
-    preflightSessionExpiresAt,
-    saveStageResult,
-  ]);
-
-  // Handle session invalidation - when session is cleared by usePreflightSession validation
-  // This tracks when session goes from a value to null (invalidated) and clears persisted state
-  const prevSessionIdRef = useRef<string | null>(preflightSeed.sessionId);
-  useEffect(() => {
-    const prevId = prevSessionIdRef.current;
-    prevSessionIdRef.current = preflightSessionId;
-
-    // Detect invalidation: had a session ID from seed, but now it's null
-    // and we still have the same seed (hasn't been updated to match)
-    if (prevId && !preflightSessionId && preflightSeed.sessionId === prevId) {
-      // Session was invalidated - clear local seed and persisted state
-      setPreflightSeed(prev => ({
-        ...prev,
-        sessionId: null,
-        sessionExpiresAt: null,
-        result: null
-      }));
-      // Clear persisted state if ready
-      if (scenarioName && hasInitiallyLoaded) {
-        updateFormState({
-          preflight_session_id: null,
-          preflight_session_expires_at: null,
-          preflight_result: null,
-          preflight_error: `Session expired. Please run preflight again.`
-        });
-      }
-    }
-  }, [preflightSessionId, preflightSeed.sessionId, scenarioName, hasInitiallyLoaded, updateFormState]);
+  // Note: Preflight results are now saved via the onPreflightComplete callback in usePreflightSession
 
   // Legacy compatibility - keep draft timestamps working
   const draftTimestamps = serverTimestamps;
@@ -521,9 +438,9 @@ export function GeneratorForm({
   });
 
   const generateMutation = useMutation({
-    mutationFn: generateDesktop,
+    mutationFn: (config: PipelineConfig) => runPipeline(config),
     onSuccess: (data) => {
-      onBuildStart(data.build_id);
+      onBuildStart(data.pipeline_id);
     }
   });
   const generateErrorMessage = generateMutation.isError
@@ -750,31 +667,17 @@ export function GeneratorForm({
       return;
     }
 
-    const config = buildDesktopConfig({
-      scenarioName,
-      selectedTemplate,
-      framework,
-      serverType: connectionDecision.effectiveServerType,
-      serverPort,
-      outputPath: outputPathForRequest,
-      selectedPlatforms: selectedPlatformsList,
-      deploymentMode,
-      autoManageTier1,
-      vrooliBinaryPath,
-      proxyUrl,
-      bundleManifestPath,
-      isBundled,
-      requiresRemoteConfig,
-      resolvedEndpoints,
-      locationMode,
-      appDisplayName,
-      appDescription,
-      iconPath,
-      includeSigning: signingEnabledForBuild,
-      codeSigning: signingEnabledForBuild ? (signingConfig ?? undefined) : { enabled: false }
-    });
+    // Build pipeline config from form values
+    const pipelineConfig: PipelineConfig = {
+      scenario_name: scenarioName,
+      template_type: selectedTemplate,
+      deployment_mode: deploymentMode === "bundled" ? "bundled" : "proxy",
+      proxy_url: proxyUrl || undefined,
+      platforms: selectedPlatformsList,
+      stop_after_stage: "generate", // Only run up to generate stage
+    };
 
-    generateMutation.mutate(config);
+    generateMutation.mutate(pipelineConfig);
   };
 
   const handlePlatformChange = (platform: string, checked: boolean) => {
@@ -800,7 +703,7 @@ export function GeneratorForm({
         bundleHelperRef={bundleHelperRef}
         onDeploymentManagerUrlChange={setDeploymentManagerUrl}
         onBundleExported={(manifestPath) => {
-          runPreflight(undefined, manifestPath);
+          runPreflight(undefined, { bundle_manifest_path: manifestPath });
         }}
         onBundleComplete={handleBundleComplete}
         initialBundleResult={initialBundleResult}
@@ -866,8 +769,8 @@ export function GeneratorForm({
           disabled={!scenarioName}
           onClick={() => {
             if (!scenarioName) return;
-            if (preflightSessionId && bundleManifestPath.trim()) {
-              void stopPreflightSession();
+            if (preflightPipelineId && preflightPending) {
+              void cancelPreflightPipeline();
             }
             clearDraft();
             resetFormState(true);
@@ -1005,20 +908,16 @@ export function GeneratorForm({
               preflightResult={preflightResult}
               preflightPending={preflightPending}
               preflightError={preflightError}
-              preflightJobStatus={preflightJobStatus}
+              pipelineStatus={preflightPipelineStatus}
               missingSecrets={missingPreflightSecrets}
               secretInputs={preflightSecrets}
               preflightOk={preflightOk}
               preflightOverride={preflightOverride}
-              preflightSessionTTL={preflightSessionTTL}
-              preflightSessionId={preflightSessionId}
-              preflightSessionExpiresAt={preflightSessionExpiresAt}
               preflightLogTails={preflightResult?.log_tails}
               onOverrideChange={setPreflightOverride}
-              onSessionTTLChange={setPreflightSessionTTL}
               onSecretChange={setPreflightSecret}
               onRun={runPreflight}
-              onStopSession={stopPreflightSession}
+              onCancel={cancelPreflightPipeline}
             />
           )}
 

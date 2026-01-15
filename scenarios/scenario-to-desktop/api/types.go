@@ -109,4 +109,3 @@ type BundleIPCConfig struct {
 	Port         int    `json:"port,omitempty"`
 	AuthTokenRel string `json:"auth_token_path,omitempty"`
 }
-

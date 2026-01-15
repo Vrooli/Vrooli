@@ -31,6 +31,11 @@ type Orchestrator interface {
 	// Returns immediately with a pipeline ID; poll GetStatus for progress.
 	RunPipeline(ctx context.Context, config *Config) (*Status, error)
 
+	// ResumePipeline resumes a stopped pipeline from its next stage.
+	// The parent pipeline must have been stopped with StopAfterStage.
+	// Returns a new pipeline that continues from where the parent stopped.
+	ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error)
+
 	// GetStatus retrieves the current status of a pipeline run.
 	GetStatus(pipelineID string) (*Status, bool)
 
@@ -104,4 +109,12 @@ type WebhookNotifier interface {
 	// Notify sends a webhook notification about a pipeline event.
 	// The event can be "started", "stage_completed", "completed", "failed", or "cancelled".
 	Notify(ctx context.Context, webhookURL string, event string, status *Status) error
+}
+
+// ManifestGenerator creates bundle manifests via deployment-manager integration.
+// This allows the BundleStage to generate manifests on-demand if they don't exist.
+type ManifestGenerator interface {
+	// GenerateManifest creates a bundle manifest for the given scenario.
+	// Returns the path to the generated manifest, or an error if generation failed.
+	GenerateManifest(ctx context.Context, scenarioName, outputDir string) (string, error)
 }

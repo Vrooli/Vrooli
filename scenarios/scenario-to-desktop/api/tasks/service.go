@@ -259,10 +259,10 @@ func (s *Service) runFixLoop(
 		if err != nil {
 			// Record failed iteration but continue if possible
 			record := domain.FixIterationRecord{
-				Number:      iteration,
-				StartedAt:   time.Now(),
-				EndedAt:     time.Now(),
-				Outcome:     "error",
+				Number:       iteration,
+				StartedAt:    time.Now(),
+				EndedAt:      time.Now(),
+				Outcome:      "error",
 				VerifyResult: "skip",
 			}
 			loopState.RecordIteration(record)

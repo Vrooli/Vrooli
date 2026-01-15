@@ -7,6 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 type scenarioPortResponse struct {
@@ -43,5 +45,5 @@ func (s *Server) getScenarioPortHandler(w http.ResponseWriter, r *http.Request) 
 		URL:      fmt.Sprintf("http://127.0.0.1:%d", port),
 	}
 
-	writeJSONResponse(w, http.StatusOK, resp)
+	httputil.WriteJSON(w, http.StatusOK, resp)
 }

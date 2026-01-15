@@ -289,7 +289,7 @@ func (s *InvestigationStore) persistOne(inv *domain.Investigation) {
 	}
 
 	dir := filepath.Join(s.dataDir, "investigations")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return
 	}
 
@@ -298,7 +298,7 @@ func (s *InvestigationStore) persistOne(inv *domain.Investigation) {
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(path, data, 0644)
+	_ = os.WriteFile(path, data, 0o644)
 }
 
 // deleteFromDisk removes a persisted investigation file.

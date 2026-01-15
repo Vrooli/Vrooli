@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
+	"slices"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -45,207 +45,14 @@ func TestHealthHandler(t *testing.T) {
 	})
 }
 
-// TestTestDesktopHandler tests the desktop testing endpoint
-func TestTestDesktopHandler(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
+// NOTE: TestTestDesktopHandler and TestValidateDesktopConfig were removed
+// as part of the pipeline migration. The testDesktopHandler and
+// validateDesktopConfig functions from validation.go have been deprecated
+// in favor of the unified pipeline approach with preflight validation.
 
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	t.Run("ValidRequest", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":  filepath.Join(env.TempDir, "test-app"),
-			"platforms": []string{"linux"},
-			"headless":  true,
-		}
-
-		req := createJSONRequest("POST", "/api/v1/desktop/test", body)
-		w := httptest.NewRecorder()
-
-		env.Server.testDesktopHandler(w, req)
-
-		response := assertJSONResponse(t, w, http.StatusOK)
-		assertFieldExists(t, response, "test_results")
-		assertFieldExists(t, response, "status")
-		assertFieldExists(t, response, "timestamp")
-	})
-
-	t.Run("MultiPlatform", func(t *testing.T) {
-		body := map[string]interface{}{
-			"app_path":  filepath.Join(env.TempDir, "test-app-multi"),
-			"platforms": []string{"win", "mac", "linux"},
-			"headless":  false,
-		}
-
-		req := createJSONRequest("POST", "/api/v1/desktop/test", body)
-		w := httptest.NewRecorder()
-
-		env.Server.testDesktopHandler(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", w.Code)
-		}
-	})
-
-	t.Run("InvalidJSON", func(t *testing.T) {
-		req := httptest.NewRequest("POST", "/api/v1/desktop/test", strings.NewReader("{bad"))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-
-		env.Server.testDesktopHandler(w, req)
-
-		assertErrorResponse(t, w, http.StatusBadRequest, "")
-	})
-}
-
-// TestValidateDesktopConfig tests configuration validation
-func TestValidateDesktopConfig(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	server := NewServer(0)
-	newConfig := func() *DesktopConfig {
-		return &DesktopConfig{
-			AppName:      "TestApp",
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			ServerType:   "static",
-			ServerPath:   "./dist",
-			APIEndpoint:  "http://localhost:3000",
-		}
-	}
-
-	t.Run("ValidConfig", func(t *testing.T) {
-		config := newConfig()
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Fatalf("Expected no error, got: %v", err)
-		}
-
-		if config.License != "MIT" {
-			t.Errorf("Expected default license MIT, got: %s", config.License)
-		}
-		if len(config.Platforms) != 3 {
-			t.Errorf("Expected default platforms [win, mac, linux], got: %v", config.Platforms)
-		}
-	})
-
-	t.Run("MissingAppName", func(t *testing.T) {
-		config := newConfig()
-		config.AppName = ""
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "app_name") {
-			t.Errorf("Expected app_name error, got: %v", err)
-		}
-	})
-
-	t.Run("MissingFramework", func(t *testing.T) {
-		config := newConfig()
-		config.Framework = ""
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Errorf("Expected framework error, got: %v", err)
-		}
-	})
-
-	t.Run("InvalidFramework", func(t *testing.T) {
-		config := newConfig()
-		config.Framework = "invalid"
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "framework") {
-			t.Errorf("Expected framework validation error, got: %v", err)
-		}
-	})
-
-	t.Run("InvalidTemplateType", func(t *testing.T) {
-		config := newConfig()
-		config.TemplateType = "invalid"
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "template_type") {
-			t.Errorf("Expected template_type error, got: %v", err)
-		}
-	})
-
-	t.Run("MissingOutputPathDefaults", func(t *testing.T) {
-		config := newConfig()
-		config.OutputPath = ""
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Errorf("Expected default output path handling, got: %v", err)
-		}
-	})
-
-	t.Run("CustomLicense", func(t *testing.T) {
-		config := newConfig()
-		config.License = "Apache-2.0"
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Errorf("Expected no error for custom license, got: %v", err)
-		}
-		if config.License != "Apache-2.0" {
-			t.Errorf("Expected license to remain Apache-2.0, got: %s", config.License)
-		}
-	})
-
-	t.Run("CustomPlatforms", func(t *testing.T) {
-		config := newConfig()
-		config.Platforms = []string{"win"}
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Errorf("Expected no error for custom platforms, got: %v", err)
-		}
-		if len(config.Platforms) != 1 {
-			t.Errorf("Expected single platform to remain, got: %v", config.Platforms)
-		}
-	})
-
-	t.Run("InvalidDeploymentMode", func(t *testing.T) {
-		config := newConfig()
-		config.DeploymentMode = "unsupported"
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "deployment_mode") {
-			t.Errorf("Expected deployment_mode error, got: %v", err)
-		}
-	})
-
-	t.Run("AutoManageRequiresExternal", func(t *testing.T) {
-		config := newConfig()
-		config.AutoManageVrooli = true
-
-		if err := server.validateDesktopConfig(config); err == nil || !strings.Contains(err.Error(), "auto_manage_vrooli") {
-			t.Errorf("Expected auto-manage error for static server, got: %v", err)
-		}
-	})
-
-	t.Run("AutoManageAllowedWithExternal", func(t *testing.T) {
-		config := newConfig()
-		config.ServerType = "external"
-		config.ProxyURL = "http://localhost:3000/"
-		config.AutoManageVrooli = true
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Errorf("Expected external auto-manage to pass, got: %v", err)
-		}
-	})
-
-	t.Run("ServerPortDefault", func(t *testing.T) {
-		config := newConfig()
-		config.ServerType = "node"
-		config.ServerPath = "ui/server.js"
-
-		if err := server.validateDesktopConfig(config); err != nil {
-			t.Errorf("Expected embedded node config to pass, got: %v", err)
-		}
-		if config.ServerPort != 3000 {
-			t.Errorf("Expected default port 3000, got %d", config.ServerPort)
-		}
-	})
-}
-
-// TestContainsUtility tests the contains utility function
-func TestContainsUtility(t *testing.T) {
+// TestSlicesContains validates that slices.Contains works as expected
+// for our use cases (replacing the old local contains() helper).
+func TestSlicesContains(t *testing.T) {
 	testCases := []struct {
 		name     string
 		slice    []string
@@ -263,7 +70,7 @@ func TestContainsUtility(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := contains(tc.slice, tc.item)
+			result := slices.Contains(tc.slice, tc.item)
 			if result != tc.expected {
 				t.Errorf("Expected %v, got %v for slice %v and item %s",
 					tc.expected, result, tc.slice, tc.item)
@@ -314,11 +121,9 @@ func TestServerRoutes(t *testing.T) {
 		{"GET", "/api/v1/status", false},
 		{"GET", "/api/v1/templates", false},
 		{"GET", "/api/v1/templates/react-vite", true}, // Template file might not exist in test env
-		{"POST", "/api/v1/desktop/generate", false},
-		{"GET", "/api/v1/desktop/status/test-id", true}, // Build ID doesn't exist
-		{"POST", "/api/v1/desktop/build", false},
-		{"POST", "/api/v1/desktop/test", false},
-		{"POST", "/api/v1/desktop/package", false},
+		// NOTE: POST /api/v1/desktop/generate, GET /api/v1/desktop/status/{id}, and
+		// POST /api/v1/desktop/build were removed - use /api/v1/pipeline/* instead
+		// NOTE: POST /api/v1/desktop/package was removed - use pipeline bundle stage instead
 		{"POST", "/api/v1/desktop/webhook/build-complete", false},
 	}
 
@@ -403,6 +208,8 @@ func TestConcurrentRequests(t *testing.T) {
 }
 
 // Unused but needed for imports
-var _ = mux.Vars
-var _ = fmt.Sprintf
-var _ = filepath.Join
+var (
+	_ = mux.Vars
+	_ = fmt.Sprintf
+	_ = filepath.Join
+)

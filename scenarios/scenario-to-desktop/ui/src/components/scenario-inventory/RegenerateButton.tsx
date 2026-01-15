@@ -3,8 +3,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
-import { fetchBuildStatus, quickGenerateDesktop } from "../../lib/api";
+import { runPipeline, getPipelineStatus, type PipelineConfig } from "../../lib/api";
 import type { DesktopConnectionConfig } from "./types";
+
+/** Maps pipeline status to UI-friendly status */
+function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
+  switch (status) {
+    case "pending":
+    case "running":
+      return "building";
+    case "completed":
+      return "ready";
+    case "failed":
+    case "cancelled":
+      return "failed";
+    default:
+      return "building";
+  }
+}
 
 interface RegenerateButtonProps {
   scenarioName: string;
@@ -18,36 +34,21 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
 
   const regenerateMutation = useMutation({
     mutationFn: async () => {
-      const payload: Record<string, unknown> = {
+      const config: PipelineConfig = {
         scenario_name: scenarioName,
-        template_type: 'universal'
+        template_type: 'universal',
+        stop_after_stage: 'generate',
       };
-      if (connectionConfig?.proxy_url) {
-        payload.proxy_url = connectionConfig.proxy_url;
-      } else if (connectionConfig?.server_url) {
-        payload.proxy_url = connectionConfig.server_url;
+      if (connectionConfig?.proxy_url || connectionConfig?.server_url) {
+        config.proxy_url = connectionConfig.proxy_url || connectionConfig.server_url;
       }
       if (connectionConfig?.deployment_mode) {
-        payload.deployment_mode = connectionConfig.deployment_mode;
+        config.deployment_mode = connectionConfig.deployment_mode as "bundled" | "proxy";
       }
-      if (typeof connectionConfig?.auto_manage_vrooli === 'boolean') {
-        payload.auto_manage_vrooli = connectionConfig.auto_manage_vrooli;
-      }
-      if (connectionConfig?.vrooli_binary_path) {
-        payload.vrooli_binary_path = connectionConfig.vrooli_binary_path;
-      }
-
-      return quickGenerateDesktop(payload as {
-        scenario_name: string;
-        template_type: string;
-        proxy_url?: string;
-        deployment_mode?: string;
-        auto_manage_vrooli?: boolean;
-        vrooli_binary_path?: string;
-      });
+      return runPipeline(config);
     },
     onSuccess: (data) => {
-      setBuildId(data.build_id);
+      setBuildId(data.pipeline_id);
       setShowConfirm(false);
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
@@ -55,20 +56,23 @@ export function RegenerateButton({ scenarioName, connectionConfig }: RegenerateB
     }
   });
 
-  // Poll build status if we have a buildId
-  const { data: buildStatus } = useQuery({
+  // Poll pipeline status if we have a buildId
+  const { data: pipelineStatus } = useQuery({
     queryKey: ['regenerate-status', buildId],
-    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
+    queryFn: async () => (buildId ? getPipelineStatus(buildId) : null),
     enabled: !!buildId,
     refetchInterval: (query) => {
-      // Stop polling when build reaches any final state
+      // Stop polling when pipeline reaches any final state
       const data = query.state.data;
-      if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
+      if (data?.status === 'completed' || data?.status === 'failed' || data?.status === 'cancelled') {
         return false;
       }
       return 2000;
     },
   });
+
+  // Map pipeline status to UI-friendly status
+  const buildStatus = pipelineStatus ? { status: mapPipelineStatus(pipelineStatus.status) } : null;
 
   const isBuilding = regenerateMutation.isPending || buildStatus?.status === 'building';
   // Consider both 'ready' and 'partial' as successful (at least generated the desktop wrapper)

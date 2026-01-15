@@ -199,11 +199,11 @@ type StateChange struct {
 
 // ValidationStatus provides UI-friendly state information.
 type ValidationStatus struct {
-	ScenarioName   string                  `json:"scenario_name"`
-	OverallStatus  string                  `json:"overall_status"` // valid, partial, stale, none
-	Stages         map[string]StageStatus  `json:"stages"`
-	PendingChanges []StateChange           `json:"pending_changes,omitempty"`
-	LastValidated  *time.Time              `json:"last_validated,omitempty"`
+	ScenarioName   string                 `json:"scenario_name"`
+	OverallStatus  string                 `json:"overall_status"` // valid, partial, stale, none
+	Stages         map[string]StageStatus `json:"stages"`
+	PendingChanges []StateChange          `json:"pending_changes,omitempty"`
+	LastValidated  *time.Time             `json:"last_validated,omitempty"`
 }
 
 // StageStatus is the UI-facing stage state.
@@ -235,13 +235,13 @@ type LoadStateResponse struct {
 
 // SaveStateRequest provides state update data.
 type SaveStateRequest struct {
-	FormState      FormState       `json:"form_state"`
-	ManifestPath   string          `json:"manifest_path,omitempty"`
-	ComputeHash    bool            `json:"compute_hash,omitempty"`
-	LogTails       []LogTailInput  `json:"log_tails,omitempty"`
-	BuildArtifacts []BuildArtifact `json:"build_artifacts,omitempty"`
+	FormState      FormState                  `json:"form_state"`
+	ManifestPath   string                     `json:"manifest_path,omitempty"`
+	ComputeHash    bool                       `json:"compute_hash,omitempty"`
+	LogTails       []LogTailInput             `json:"log_tails,omitempty"`
+	BuildArtifacts []BuildArtifact            `json:"build_artifacts,omitempty"`
 	StageResults   map[string]json.RawMessage `json:"stage_results,omitempty"`
-	ExpectedHash   string          `json:"expected_hash,omitempty"`
+	ExpectedHash   string                     `json:"expected_hash,omitempty"`
 }
 
 // LogTailInput is uncompressed log data to be compressed on save.
@@ -253,10 +253,10 @@ type LogTailInput struct {
 
 // SaveStateResponse confirms state was saved.
 type SaveStateResponse struct {
-	Success     bool       `json:"success"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	Hash        string     `json:"hash,omitempty"`
-	Conflict    bool       `json:"conflict,omitempty"`
+	Success     bool           `json:"success"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	Hash        string         `json:"hash,omitempty"`
+	Conflict    bool           `json:"conflict,omitempty"`
 	ServerState *ScenarioState `json:"server_state,omitempty"`
 }
 
@@ -273,12 +273,12 @@ type CheckStalenessRequest struct {
 
 // CheckStalenessResponse reports detected changes.
 type CheckStalenessResponse struct {
-	Valid          bool             `json:"valid"`
-	CurrentHash    string           `json:"current_hash,omitempty"`
-	StoredHash     string           `json:"stored_hash,omitempty"`
-	Changed        bool             `json:"changed"`
-	PendingChanges []StateChange    `json:"pending_changes,omitempty"`
-	AffectedStages []string         `json:"affected_stages,omitempty"`
+	Valid          bool              `json:"valid"`
+	CurrentHash    string            `json:"current_hash,omitempty"`
+	StoredHash     string            `json:"stored_hash,omitempty"`
+	Changed        bool              `json:"changed"`
+	PendingChanges []StateChange     `json:"pending_changes,omitempty"`
+	AffectedStages []string          `json:"affected_stages,omitempty"`
 	Status         *ValidationStatus `json:"status,omitempty"`
 }
 

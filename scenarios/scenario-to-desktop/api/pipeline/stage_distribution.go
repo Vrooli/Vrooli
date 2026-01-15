@@ -76,28 +76,14 @@ func (s *DistributionStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the distribution stage.
 func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
-	// Check for service
 	if s.service == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "distribution service not configured"
+		failStage(result, s.timeProvider, "distribution service not configured")
 		return result
 	}
 
@@ -112,9 +98,7 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	}
 
 	if len(artifacts) == 0 {
-		result.Status = StatusSkipped
-		result.CompletedAt = s.timeProvider.Now()
-		result.Logs = append(result.Logs, "No artifacts to distribute")
+		skipStage(result, s.timeProvider, "No artifacts to distribute")
 		return result
 	}
 
@@ -138,9 +122,7 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 
 	resp, err := s.service.Distribute(ctx, req)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("distribution failed: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("distribution failed: %v", err))
 		return result
 	}
 
@@ -149,24 +131,18 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	// Wait for distribution to complete
 	distStatus, err := s.waitForDistribution(ctx, resp.DistributionID)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = err.Error()
+		failStage(result, s.timeProvider, err.Error())
 		return result
 	}
 
 	// Check distribution result
 	switch distStatus.Status {
 	case distribution.StatusCompleted:
-		result.Status = StatusCompleted
 		result.Logs = append(result.Logs, "All targets uploaded successfully")
 	case distribution.StatusPartial:
-		result.Status = StatusCompleted // Still consider success if some worked
 		result.Logs = append(result.Logs, "Distribution completed with some failures")
 	case distribution.StatusFailed:
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = distStatus.Error
+		failStage(result, s.timeProvider, distStatus.Error)
 		result.Details = distStatus
 		return result
 	case distribution.StatusCancelled:
@@ -179,8 +155,7 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	// Store result for next stage (if any)
 	input.DistributionResult = distStatus
 
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = distStatus
+	completeStage(result, s.timeProvider, distStatus)
 
 	// Log per-target results
 	for targetName, targetDist := range distStatus.Targets {

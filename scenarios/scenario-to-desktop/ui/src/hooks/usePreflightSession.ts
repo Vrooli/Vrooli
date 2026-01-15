@@ -1,35 +1,30 @@
 /**
- * Hook for managing preflight session state and polling.
- * Handles starting, stopping, and refreshing preflight validations.
+ * Hook for managing preflight validation via the pipeline.
+ * Handles running preflight, polling for status, and extracting results.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  startBundlePreflight,
-  fetchBundlePreflightStatus,
-  runBundlePreflight,
-  validatePreflightSession,
+  runPreflightPipeline,
+  getPipelineStatus,
+  extractPreflightResult,
+  cancelPipeline,
   type BundlePreflightResponse,
-  type BundlePreflightJobStatusResponse,
-  type BundlePreflightSecret
+  type BundlePreflightSecret,
+  type PipelineStatus,
+  type PipelineConfig
 } from "../lib/api";
 
 export interface UsePreflightSessionOptions {
+  scenarioName: string;
   bundleManifestPath: string;
   isBundled: boolean;
-  initialSessionId?: string | null;
-  initialSessionExpiresAt?: string | null;
   initialResult?: BundlePreflightResponse | null;
   initialError?: string | null;
   initialOverride?: boolean;
   initialSecrets?: Record<string, string>;
-  initialSessionTTL?: number;
-  initialStartServices?: boolean;
-  initialAutoRefresh?: boolean;
   /** Called when preflight completes successfully. Use to persist stage results. */
   onPreflightComplete?: (result: BundlePreflightResponse) => void;
-  /** Called when a stale session is detected and cleared. Use to update persisted state. */
-  onSessionInvalidated?: (sessionId: string) => void;
 }
 
 export interface UsePreflightSessionResult {
@@ -37,14 +32,10 @@ export interface UsePreflightSessionResult {
   result: BundlePreflightResponse | null;
   error: string | null;
   pending: boolean;
-  jobStatus: BundlePreflightJobStatusResponse | null;
-  sessionId: string | null;
-  sessionExpiresAt: string | null;
-  sessionTTL: number;
+  pipelineId: string | null;
+  pipelineStatus: PipelineStatus | null;
   override: boolean;
   secrets: Record<string, string>;
-  startServices: boolean;
-  autoRefresh: boolean;
   missingSecrets: BundlePreflightSecret[];
 
   // Status flags
@@ -54,62 +45,38 @@ export interface UsePreflightSessionResult {
   preflightOk: boolean;
 
   // Actions
-  setSessionTTL: (ttl: number) => void;
   setOverride: (override: boolean) => void;
   setSecret: (id: string, value: string) => void;
   setSecrets: (secrets: Record<string, string>) => void;
-  setAutoRefresh: (autoRefresh: boolean) => void;
-  setStartServices: (startServices: boolean) => void;
-  runPreflight: (secretsOverride?: Record<string, string>, manifestPathOverride?: string) => Promise<void>;
-  refreshStatus: () => Promise<void>;
-  stopSession: () => Promise<void>;
+  runPreflight: (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => Promise<void>;
+  cancelPreflight: () => Promise<void>;
   reset: () => void;
 }
 
-const DEFAULT_SESSION_TTL = 120;
-
 /**
- * Hook for managing preflight session lifecycle.
+ * Hook for managing preflight validation via the pipeline.
+ * Uses the pipeline with stop_after_stage: "preflight" to run bundle and preflight stages.
  */
 export function usePreflightSession({
+  scenarioName,
   bundleManifestPath,
   isBundled,
-  initialSessionId = null,
-  initialSessionExpiresAt = null,
   initialResult = null,
   initialError = null,
   initialOverride = false,
   initialSecrets = {},
-  initialSessionTTL = DEFAULT_SESSION_TTL,
-  initialStartServices = true,
-  initialAutoRefresh = true,
-  onPreflightComplete,
-  onSessionInvalidated
+  onPreflightComplete
 }: UsePreflightSessionOptions): UsePreflightSessionResult {
   // Core state
   const [result, setResult] = useState<BundlePreflightResponse | null>(initialResult);
   const [error, setError] = useState<string | null>(initialError);
   const [pending, setPending] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<BundlePreflightJobStatusResponse | null>(null);
-
-  // Session state
-  const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
-  const [sessionExpiresAt, setSessionExpiresAt] = useState<string | null>(initialSessionExpiresAt);
-  const [sessionTTL, setSessionTTL] = useState(initialSessionTTL);
+  const [pipelineId, setPipelineId] = useState<string | null>(null);
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus | null>(null);
 
   // Configuration state
   const [override, setOverride] = useState(initialOverride);
   const [secrets, setSecrets] = useState<Record<string, string>>(initialSecrets);
-  const [startServices, setStartServices] = useState(initialStartServices);
-  const [autoRefresh, setAutoRefresh] = useState(initialAutoRefresh);
-
-  // Ref for interval callback to avoid stale closures
-  const refreshStatusRef = useRef<(() => Promise<void>) | null>(null);
-  // Track previous manifest path to detect genuine user changes vs initial load
-  const prevManifestPathRef = useRef<string>(bundleManifestPath);
-  // Track if we've received initial values from server (to avoid resetting on load)
-  const hasReceivedInitialRef = useRef<boolean>(Boolean(initialResult));
 
   // Computed values
   const missingSecrets = useMemo(() => {
@@ -122,147 +89,62 @@ export function usePreflightSession({
   const secretsOk = missingSecrets.length === 0;
   const preflightOk = Boolean(result) && validationOk && readinessOk && secretsOk;
 
-  useEffect(() => {
-    setSessionId(initialSessionId ?? null);
-    setSessionExpiresAt(initialSessionExpiresAt ?? null);
-  }, [initialSessionId, initialSessionExpiresAt]);
-
+  // Sync initial values
   useEffect(() => {
     setResult(initialResult ?? null);
     setError(initialError ?? null);
     setOverride(initialOverride);
     setSecrets(initialSecrets);
-    if (typeof initialSessionTTL === "number") {
-      setSessionTTL(initialSessionTTL);
-    }
-    setStartServices(initialStartServices);
-    setAutoRefresh(initialAutoRefresh);
-    // Mark that we've received initial values from server
-    if (initialResult) {
-      hasReceivedInitialRef.current = true;
-    }
-  }, [
-    initialResult,
-    initialError,
-    initialOverride,
-    initialSecrets,
-    initialSessionTTL,
-    initialStartServices,
-    initialAutoRefresh
-  ]);
+  }, [initialResult, initialError, initialOverride, initialSecrets]);
 
-  // Validate session on load - check if the persisted session is still valid
-  // This handles the case where the API was restarted and in-memory sessions were lost
-  useEffect(() => {
-    if (!initialSessionId || !isBundled) return;
-
-    let cancelled = false;
-
-    const validate = async () => {
-      try {
-        const validation = await validatePreflightSession(initialSessionId);
-        if (cancelled) return;
-
-        if (!validation.valid) {
-          // Session is stale - clear it and notify parent
-          console.info(
-            `Preflight session ${initialSessionId} is no longer valid: ${validation.reason}. ` +
-            "The API may have been restarted. Please run preflight again."
-          );
-          setSessionId(null);
-          setSessionExpiresAt(null);
-          // Clear result since it depends on the session
-          setResult(null);
-          // Notify parent to clear persisted session data
-          onSessionInvalidated?.(initialSessionId);
-        } else if (validation.expires_at) {
-          // Session is valid - update expiration time in case it changed
-          setSessionExpiresAt(validation.expires_at);
-        }
-      } catch (err) {
-        // Network error or other issue - assume session might be invalid
-        console.warn("Failed to validate preflight session:", err);
-        // Don't clear on network error - let the next API call fail naturally
-      }
-    };
-
-    validate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [initialSessionId, isBundled, onSessionInvalidated]);
-
-  // Reset state when bundleManifestPath changes or bundled mode is disabled
+  // Reset when bundled mode changes or manifest path changes
   useEffect(() => {
     if (!isBundled) {
       setResult(null);
       setError(null);
       setOverride(false);
       setSecrets({});
-      prevManifestPathRef.current = bundleManifestPath;
-      return;
+      setPipelineId(null);
+      setPipelineStatus(null);
     }
+  }, [isBundled, bundleManifestPath]);
 
-    const prevPath = prevManifestPathRef.current;
-    prevManifestPathRef.current = bundleManifestPath;
-
-    // Only reset if the manifest path genuinely changed (user changed it),
-    // not on initial load from server where path goes from "" to loaded value
-    const isGenuineChange = prevPath !== bundleManifestPath && prevPath !== "";
-
-    // Also skip reset if we just received initial values from server
-    if (!isGenuineChange && hasReceivedInitialRef.current) {
-      hasReceivedInitialRef.current = false; // Reset flag after first load
-      return;
-    }
-
-    if (isGenuineChange) {
-      // Reset when manifest path actually changes to a different value
-      setResult(null);
-      setError(null);
-      setOverride(false);
-      setSecrets({});
-    }
-  }, [bundleManifestPath, isBundled]);
-
-  // Poll for job status when job is running
+  // Poll for pipeline status when running
   useEffect(() => {
-    if (!jobId) return;
+    if (!pipelineId || !pending) return;
 
     let cancelled = false;
     let timeoutId: number | undefined;
 
     const poll = async () => {
       try {
-        const status = await fetchBundlePreflightStatus({ job_id: jobId });
+        const status = await getPipelineStatus(pipelineId, { verbose: true });
         if (cancelled) return;
 
-        setJobStatus(status);
-        setPending(status.status === "running");
+        setPipelineStatus(status);
 
-        if (status.result) {
-          setResult(status.result);
-          setSessionId(status.result.session_id ?? null);
-          setSessionExpiresAt(status.result.expires_at ?? null);
-        }
-
-        if (status.status === "failed") {
-          setError(status.error || "Preflight failed.");
+        // Check if pipeline is done
+        if (status.status === "completed" || status.status === "failed" || status.status === "cancelled") {
           setPending(false);
-          return;
-        }
 
-        if (status.status === "completed") {
-          setPending(false);
-          // Notify parent when preflight completes successfully
-          if (status.result && onPreflightComplete) {
-            onPreflightComplete(status.result);
+          if (status.status === "completed") {
+            const preflightResult = extractPreflightResult(status);
+            if (preflightResult) {
+              setResult(preflightResult);
+              onPreflightComplete?.(preflightResult);
+            }
+          } else if (status.status === "failed") {
+            // Extract error from failed stage
+            const failedStage = Object.values(status.stages || {}).find(s => s?.status === "failed");
+            setError(failedStage?.error || status.error || "Pipeline failed");
+          } else if (status.status === "cancelled") {
+            setError("Preflight was cancelled");
           }
           return;
         }
 
-        timeoutId = window.setTimeout(poll, 1500);
+        // Continue polling
+        timeoutId = window.setTimeout(poll, 2000);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -276,23 +158,9 @@ export function usePreflightSession({
       cancelled = true;
       if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [jobId, onPreflightComplete]);
+  }, [pipelineId, pending, onPreflightComplete]);
 
-  // Auto-refresh status when session is active
-  useEffect(() => {
-    if (!autoRefresh || pending) return;
-
-    const manifestPath = bundleManifestPath.trim();
-    if (!manifestPath || !result || !sessionId) return;
-
-    const interval = window.setInterval(() => {
-      void refreshStatusRef.current?.();
-    }, 10000);
-
-    return () => window.clearInterval(interval);
-  }, [autoRefresh, pending, bundleManifestPath, secrets, result, sessionId]);
-
-  // Filter and format secrets for API calls
+  // Filter secrets for API calls
   const filterSecrets = useCallback((secretsInput: Record<string, string>) => {
     return Object.entries(secretsInput)
       .filter(([, value]) => value.trim())
@@ -302,146 +170,67 @@ export function usePreflightSession({
       }, {});
   }, []);
 
-  // Run preflight validation
+  // Run preflight validation via pipeline
   const runPreflight = useCallback(async (
     secretsOverride?: Record<string, string>,
-    manifestPathOverride?: string
+    configOverride?: Partial<PipelineConfig>
   ) => {
-    const manifestPath = (manifestPathOverride ?? bundleManifestPath).trim();
-    if (!manifestPath) {
-      setError("Provide bundle_manifest_path before running preflight.");
+    if (!scenarioName) {
+      setError("Scenario name is required");
+      return;
+    }
+
+    const manifestPath = bundleManifestPath.trim();
+    if (!manifestPath && isBundled) {
+      setError("Bundle manifest path is required for bundled mode");
       return;
     }
 
     setPending(true);
     setError(null);
     setResult(null);
-    setJobStatus(null);
-    setJobId(null);
-    setSessionId(null);
-    setSessionExpiresAt(null);
+    setPipelineStatus(null);
+    setPipelineId(null);
 
     try {
-      const timeoutSeconds = startServices ? 120 : 15;
       const filteredSecrets = filterSecrets(secretsOverride ?? secrets);
 
-      const job = await startBundlePreflight({
-        bundle_manifest_path: manifestPath,
-        secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
-        start_services: startServices,
-        timeout_seconds: timeoutSeconds,
-        log_tail_lines: startServices ? 80 : undefined,
-        session_ttl_seconds: startServices ? sessionTTL : undefined,
-        session_id: sessionId ?? undefined
+      const response = await runPreflightPipeline(scenarioName, {
+        bundle_manifest_path: manifestPath || undefined,
+        preflight_secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+        ...configOverride
       });
 
       setOverride(false);
-      setJobId(job.job_id);
+      setPipelineId(response.pipeline_id);
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : String(err));
       setPending(false);
     }
-  }, [bundleManifestPath, startServices, sessionTTL, sessionId, secrets, filterSecrets]);
+  }, [scenarioName, bundleManifestPath, isBundled, secrets, filterSecrets]);
 
-  // Refresh preflight status without restarting
-  const refreshStatusImpl = useCallback(async () => {
-    if (!result || pending || !sessionId || jobStatus?.status === "running") return;
-
-    const manifestPath = bundleManifestPath.trim();
-    if (!manifestPath) return;
-
-    setPending(true);
+  // Cancel running preflight
+  const cancelPreflight = useCallback(async () => {
+    if (!pipelineId) return;
 
     try {
-      const filteredSecrets = filterSecrets(secrets);
-      const refreshResult = await runBundlePreflight({
-        bundle_manifest_path: manifestPath,
-        secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
-        start_services: startServices,
-        timeout_seconds: 15,
-        log_tail_lines: startServices ? 80 : undefined,
-        status_only: true,
-        session_id: sessionId,
-        session_ttl_seconds: sessionTTL
-      });
-
-      setResult((prev) => {
-        if (!prev) return refreshResult;
-
-        const nextChecks = refreshResult.checks ?? prev.checks;
-        const mergedChecks = prev.checks
-          ? prev.checks.map((check) => {
-              const updated = nextChecks?.find((item) => item.id === check.id);
-              if (!updated) return check;
-              if (updated.step === "services" || updated.step === "diagnostics") {
-                return updated;
-              }
-              return check;
-            })
-          : nextChecks;
-
-        return {
-          ...prev,
-          ready: refreshResult.ready ?? prev.ready,
-          ports: refreshResult.ports ?? prev.ports,
-          telemetry: refreshResult.telemetry ?? prev.telemetry,
-          log_tails: refreshResult.log_tails ?? prev.log_tails,
-          checks: mergedChecks ?? prev.checks
-        };
-      });
-
-      setSessionExpiresAt(prev => refreshResult.expires_at ?? prev);
+      await cancelPipeline(pipelineId);
+      // Status will be updated via polling
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPending(false);
     }
-  }, [result, pending, sessionId, jobStatus, bundleManifestPath, secrets, startServices, sessionTTL, filterSecrets]);
+  }, [pipelineId]);
 
-  // Keep ref updated with latest callback
-  useEffect(() => {
-    refreshStatusRef.current = refreshStatusImpl;
-  }, [refreshStatusImpl]);
-
-  // Stop the preflight session
-  const stopSession = useCallback(async () => {
-    if (!sessionId || pending) return;
-
-    const manifestPath = bundleManifestPath.trim();
-    if (!manifestPath) return;
-
-    setPending(true);
-
-    try {
-      await runBundlePreflight({
-        bundle_manifest_path: manifestPath,
-        status_only: true,
-        session_id: sessionId,
-        session_stop: true
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setPending(false);
-      setSessionId(null);
-      setSessionExpiresAt(null);
-    }
-  }, [sessionId, pending, bundleManifestPath]);
-
-  // Reset all preflight state
+  // Reset all state
   const reset = useCallback(() => {
     setResult(null);
     setError(null);
     setPending(false);
-    setJobId(null);
-    setJobStatus(null);
-    setSessionId(null);
-    setSessionExpiresAt(null);
+    setPipelineId(null);
+    setPipelineStatus(null);
     setOverride(false);
     setSecrets({});
-    setStartServices(true);
-    setAutoRefresh(true);
   }, []);
 
   // Update a single secret
@@ -458,14 +247,10 @@ export function usePreflightSession({
     result,
     error,
     pending,
-    jobStatus,
-    sessionId,
-    sessionExpiresAt,
-    sessionTTL,
+    pipelineId,
+    pipelineStatus,
     override,
     secrets,
-    startServices,
-    autoRefresh,
     missingSecrets,
 
     // Status flags
@@ -475,15 +260,11 @@ export function usePreflightSession({
     preflightOk,
 
     // Actions
-    setSessionTTL,
     setOverride,
     setSecret,
     setSecrets: replaceSecrets,
-    setAutoRefresh,
-    setStartServices,
     runPreflight,
-    refreshStatus: refreshStatusImpl,
-    stopSession,
+    cancelPreflight,
     reset
   };
 }

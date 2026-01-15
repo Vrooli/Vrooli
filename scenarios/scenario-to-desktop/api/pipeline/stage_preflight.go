@@ -67,48 +67,29 @@ func (s *PreflightStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the preflight validation stage.
 func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
 	// Check if stage should be skipped
 	if s.CanSkip(input) {
-		result.Status = StatusSkipped
-		result.CompletedAt = s.timeProvider.Now()
 		if input.Config.SkipPreflight {
-			result.Logs = append(result.Logs, "Skipping preflight: explicitly skipped via config")
+			skipStage(result, s.timeProvider, "Skipping preflight: explicitly skipped via config")
 		} else {
-			result.Logs = append(result.Logs, "Skipping preflight: deployment mode is proxy")
+			skipStage(result, s.timeProvider, "Skipping preflight: deployment mode is proxy")
 		}
 		return result
 	}
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
-	// Check for service
 	if s.service == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "preflight service not configured"
+		failStage(result, s.timeProvider, "preflight service not configured")
 		return result
 	}
 
-	// Get bundle info from previous stage
 	if input.BundleResult == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "bundle result not available from previous stage"
+		failStage(result, s.timeProvider, "bundle result not available from previous stage")
 		return result
 	}
 
@@ -134,20 +115,16 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Run preflight validation
 	response, err := s.service.RunBundlePreflight(request)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("preflight validation failed: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("preflight validation failed: %v", err))
 		return result
 	}
 
 	// Check validation result
 	if response.Status == "error" || response.Status == "failed" {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
 		if len(response.Errors) > 0 {
-			result.Error = fmt.Sprintf("preflight validation failed: %v", response.Errors)
+			failStage(result, s.timeProvider, fmt.Sprintf("preflight validation failed: %v", response.Errors))
 		} else {
-			result.Error = "preflight validation failed"
+			failStage(result, s.timeProvider, "preflight validation failed")
 		}
 		result.Details = response
 		return result
@@ -156,9 +133,7 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Update input for next stage
 	input.PreflightResult = response
 
-	result.Status = StatusCompleted
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = response
+	completeStage(result, s.timeProvider, response)
 	result.Logs = append(result.Logs,
 		fmt.Sprintf("Preflight status: %s", response.Status),
 	)

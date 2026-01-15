@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"scenario-to-desktop-api/generation"
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 type ProxyHint struct {
@@ -31,7 +32,7 @@ func (s *Server) proxyHintsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hints := s.collectProxyHints(scenario)
-	writeJSONResponse(w, http.StatusOK, map[string]any{
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{
 		"scenario": scenario,
 		"hints":    hints,
 	})
@@ -251,4 +252,10 @@ func (s *Server) resolveScenarioRoot(scenario string) string {
 		return ""
 	}
 	return path
+}
+
+// telemetryFilePath returns the path to the telemetry file for a scenario.
+func (s *Server) telemetryFilePath(scenario string) string {
+	vrooliRoot := s.getVrooliRoot()
+	return filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
 }

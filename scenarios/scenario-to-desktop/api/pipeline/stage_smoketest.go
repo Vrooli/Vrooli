@@ -67,44 +67,24 @@ func (s *SmokeTestStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the smoke test stage.
 func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
-	// Check if stage should be skipped
 	if s.CanSkip(input) {
-		result.Status = StatusSkipped
-		result.CompletedAt = s.timeProvider.Now()
-		result.Logs = append(result.Logs, "Skipping smoke test: explicitly skipped via config")
+		skipStage(result, s.timeProvider, "Skipping smoke test: explicitly skipped via config")
 		return result
 	}
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
-	// Check for service
 	if s.service == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "smoke test service not configured"
+		failStage(result, s.timeProvider, "smoke test service not configured")
 		return result
 	}
 
-	// Get build result from previous stage
 	if input.BuildResult == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "build result not available from previous stage"
+		failStage(result, s.timeProvider, "build result not available from previous stage")
 		return result
 	}
 
@@ -129,9 +109,7 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	if artifactPath == "" {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "no built artifacts available for smoke testing"
+		failStage(result, s.timeProvider, "no built artifacts available for smoke testing")
 		return result
 	}
 
@@ -151,34 +129,27 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Wait for smoke test to complete
 	smokeStatus, err := s.waitForSmokeTest(ctx, smokeTestID)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = err.Error()
+		failStage(result, s.timeProvider, err.Error())
 		return result
 	}
 
 	// Check smoke test result
 	switch smokeStatus.Status {
 	case "passed":
-		result.Status = StatusCompleted
 		result.Logs = append(result.Logs, "Smoke test passed")
 		if smokeStatus.TelemetryUploaded {
 			result.Logs = append(result.Logs, "Telemetry uploaded successfully")
 		}
 	case "failed":
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = smokeStatus.Error
-		if result.Error == "" {
-			result.Error = "smoke test failed"
+		errMsg := smokeStatus.Error
+		if errMsg == "" {
+			errMsg = "smoke test failed"
 		}
+		failStage(result, s.timeProvider, errMsg)
 		result.Details = smokeStatus
 		return result
 	default:
-		// Unexpected status
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("unexpected smoke test status: %s", smokeStatus.Status)
+		failStage(result, s.timeProvider, fmt.Sprintf("unexpected smoke test status: %s", smokeStatus.Status))
 		result.Details = smokeStatus
 		return result
 	}
@@ -186,8 +157,7 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Update input with result
 	input.SmokeTestResult = smokeStatus
 
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = smokeStatus
+	completeStage(result, s.timeProvider, smokeStatus)
 
 	// Add logs from the smoke test
 	if len(smokeStatus.Logs) > 0 {

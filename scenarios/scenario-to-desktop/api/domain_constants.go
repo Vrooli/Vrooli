@@ -1,5 +1,7 @@
 package main
 
+import "slices"
+
 const (
 	defaultDeploymentMode = "external-server"
 	defaultServerType     = "external"
@@ -14,17 +16,17 @@ var (
 )
 
 func isValidFramework(framework string) bool {
-	return contains(validFrameworks, framework)
+	return slices.Contains(validFrameworks, framework)
 }
 
 func isValidTemplateType(templateType string) bool {
-	return contains(validTemplateTypes, templateType)
+	return slices.Contains(validTemplateTypes, templateType)
 }
 
 func isValidDeploymentMode(mode string) bool {
-	return contains(validDeploymentModes, mode)
+	return slices.Contains(validDeploymentModes, mode)
 }
 
 func isValidServerType(serverType string) bool {
-	return contains(validServerTypes, serverType)
+	return slices.Contains(validServerTypes, serverType)
 }

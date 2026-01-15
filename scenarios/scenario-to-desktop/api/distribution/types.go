@@ -217,14 +217,14 @@ type DistributeResponse struct {
 
 // DistributionStatus tracks the status of a distribution operation.
 type DistributionStatus struct {
-	DistributionID string                        `json:"distribution_id"`
-	ScenarioName   string                        `json:"scenario_name"`
-	Version        string                        `json:"version,omitempty"`
-	Status         string                        `json:"status"` // pending, running, completed, partial, failed
-	StartedAt      int64                         `json:"started_at"`
-	CompletedAt    int64                         `json:"completed_at,omitempty"`
+	DistributionID string                         `json:"distribution_id"`
+	ScenarioName   string                         `json:"scenario_name"`
+	Version        string                         `json:"version,omitempty"`
+	Status         string                         `json:"status"` // pending, running, completed, partial, failed
+	StartedAt      int64                          `json:"started_at"`
+	CompletedAt    int64                          `json:"completed_at,omitempty"`
 	Targets        map[string]*TargetDistribution `json:"targets"`
-	Error          string                        `json:"error,omitempty"`
+	Error          string                         `json:"error,omitempty"`
 }
 
 // TargetDistribution tracks distribution to a single target.
@@ -251,7 +251,7 @@ type PlatformUpload struct {
 
 // ValidationResult contains target validation results.
 type ValidationResult struct {
-	Valid   bool                        `json:"valid"`
+	Valid   bool                         `json:"valid"`
 	Targets map[string]*TargetValidation `json:"targets"`
 }
 

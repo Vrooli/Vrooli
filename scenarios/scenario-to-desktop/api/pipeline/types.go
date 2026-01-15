@@ -85,6 +85,19 @@ type Config struct {
 
 	// PreflightSecrets provides secrets for preflight validation.
 	PreflightSecrets map[string]string `json:"preflight_secrets,omitempty"`
+
+	// StopAfterStage halts the pipeline after this stage completes.
+	// Empty string means run all stages. Valid values: bundle, preflight, generate, build, smoketest, distribution.
+	StopAfterStage string `json:"stop_after_stage,omitempty"`
+
+	// ResumeFromStage starts execution from this stage, skipping all prior stages.
+	// Requires that the pipeline was previously stopped with StopAfterStage.
+	// The prior stages' results must be available from the parent pipeline.
+	ResumeFromStage string `json:"resume_from_stage,omitempty"`
+
+	// ParentPipelineID links this pipeline to a parent when resuming.
+	// Set automatically when resuming a pipeline.
+	ParentPipelineID string `json:"parent_pipeline_id,omitempty"`
 }
 
 // Status represents the current state of a pipeline run.
@@ -121,45 +134,56 @@ type Status struct {
 
 	// FinalArtifacts contains paths to final build artifacts.
 	FinalArtifacts map[string]string `json:"final_artifacts,omitempty"`
+
+	// StoppedAfterStage indicates the pipeline was intentionally stopped after this stage.
+	// Empty if the pipeline completed all stages or failed.
+	StoppedAfterStage string `json:"stopped_after_stage,omitempty"`
+
+	// ParentPipelineID links this pipeline to a parent when it was resumed.
+	ParentPipelineID string `json:"parent_pipeline_id,omitempty"`
+
+	// ResumedInput contains the stage input carried forward from a parent pipeline.
+	// Used to restore state when resuming. Persisted to enable resumption after server restart.
+	ResumedInput *StageInput `json:"resumed_input,omitempty"`
 }
 
 // StageInput carries data between pipeline stages.
 type StageInput struct {
 	// Config is the pipeline configuration.
-	Config *Config
+	Config *Config `json:"config,omitempty"`
 
 	// PipelineID is the ID of the current pipeline run.
-	PipelineID string
+	PipelineID string `json:"pipeline_id,omitempty"`
 
 	// ScenarioPath is the path to the scenario directory.
-	ScenarioPath string
+	ScenarioPath string `json:"scenario_path,omitempty"`
 
 	// DesktopPath is the path to the generated desktop wrapper.
-	DesktopPath string
+	DesktopPath string `json:"desktop_path,omitempty"`
 
 	// BundleResult contains the output from the bundle stage.
-	BundleResult *bundle.PackageResult
+	BundleResult *bundle.PackageResult `json:"bundle_result,omitempty"`
 
 	// PreflightResult contains the output from the preflight stage.
-	PreflightResult *preflight.Response
+	PreflightResult *preflight.Response `json:"preflight_result,omitempty"`
 
 	// GenerationResult contains the output from the generation stage.
-	GenerationResult *generation.GenerateResponse
+	GenerationResult *generation.GenerateResponse `json:"generation_result,omitempty"`
 
 	// BuildResult contains the output from the build stage.
-	BuildResult *build.Status
+	BuildResult *build.Status `json:"build_result,omitempty"`
 
 	// SmokeTestResult contains the output from the smoke test stage.
-	SmokeTestResult *smoketest.Status
+	SmokeTestResult *smoketest.Status `json:"smoke_test_result,omitempty"`
 
 	// DistributionResult contains the output from the distribution stage.
-	DistributionResult *distribution.DistributionStatus
+	DistributionResult *distribution.DistributionStatus `json:"distribution_result,omitempty"`
 
 	// ScenarioMetadata contains analyzed scenario metadata.
-	ScenarioMetadata *generation.ScenarioMetadata
+	ScenarioMetadata *generation.ScenarioMetadata `json:"scenario_metadata,omitempty"`
 
-	// Logger for stage logging.
-	Logger Logger
+	// Logger for stage logging. Not serialized.
+	Logger Logger `json:"-"`
 }
 
 // StageResult represents the outcome of executing a pipeline stage.
@@ -202,6 +226,15 @@ type CancelResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
+// ResumeResponse is the HTTP response for resuming a pipeline.
+type ResumeResponse struct {
+	PipelineID       string `json:"pipeline_id"`
+	ParentPipelineID string `json:"parent_pipeline_id"`
+	StatusURL        string `json:"status_url"`
+	ResumeFromStage  string `json:"resume_from_stage"`
+	Message          string `json:"message,omitempty"`
+}
+
 // ListResponse is the HTTP response for listing pipelines.
 type ListResponse struct {
 	Pipelines []*Status `json:"pipelines"`
@@ -231,6 +264,26 @@ func (c *Config) GetTemplateType() string {
 	return c.TemplateType
 }
 
+// GetStopAfterStage returns the stop_after_stage setting.
+func (c *Config) GetStopAfterStage() string {
+	return c.StopAfterStage
+}
+
+// GetResumeFromStage returns the resume_from_stage setting.
+func (c *Config) GetResumeFromStage() string {
+	return c.ResumeFromStage
+}
+
+// IsValidStageName checks if a stage name is valid.
+func IsValidStageName(name string) bool {
+	switch name {
+	case StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDistribution:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsComplete returns true if the stage has finished executing.
 func (r *StageResult) IsComplete() bool {
 	return r.Status == StatusCompleted || r.Status == StatusFailed || r.Status == StatusSkipped
@@ -258,4 +311,29 @@ func (s *Status) Progress() float64 {
 // IsComplete returns true if the pipeline has finished executing.
 func (s *Status) IsComplete() bool {
 	return s.Status == StatusCompleted || s.Status == StatusFailed || s.Status == StatusCancelled
+}
+
+// CanResume returns true if this pipeline can be resumed from a later stage.
+// A pipeline can be resumed if it completed successfully after being stopped at a stage.
+func (s *Status) CanResume() bool {
+	return s.Status == StatusCompleted && s.StoppedAfterStage != ""
+}
+
+// GetNextResumeStage returns the stage that should be resumed from after the stopped stage.
+// Returns empty string if the pipeline cannot be resumed or was stopped at the last stage.
+func (s *Status) GetNextResumeStage() string {
+	if !s.CanResume() {
+		return ""
+	}
+
+	// Define stage order
+	stageOrder := []string{StageBundle, StagePreflight, StageGenerate, StageBuild, StageSmokeTest, StageDistribution}
+
+	// Find the stopped stage and return the next one
+	for i, stage := range stageOrder {
+		if stage == s.StoppedAfterStage && i+1 < len(stageOrder) {
+			return stageOrder[i+1]
+		}
+	}
+	return ""
 }

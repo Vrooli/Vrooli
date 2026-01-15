@@ -13,11 +13,11 @@ import (
 
 // LoopConfig configures the iterative fix loop.
 type LoopConfig struct {
-	MaxIterations     int
-	IterationTimeout  time.Duration
-	RebuildTimeout    time.Duration
-	VerificationURL   string
-	PipelineAPIURL    string
+	MaxIterations    int
+	IterationTimeout time.Duration
+	RebuildTimeout   time.Duration
+	VerificationURL  string
+	PipelineAPIURL   string
 }
 
 // DefaultLoopConfig returns sensible defaults for the loop configuration.

@@ -2,11 +2,12 @@ package preflight
 
 import (
 	"encoding/json"
+	"scenario-to-desktop-runtime/health"
 	"time"
 
 	bundleruntime "scenario-to-desktop-runtime"
 	runtimeapi "scenario-to-desktop-runtime/api"
-	"scenario-to-desktop-runtime/health"
+
 	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
@@ -27,19 +28,19 @@ type Request struct {
 
 // Response reports the dry-run validation results.
 type Response struct {
-	Status       string                       `json:"status"`
+	Status       string                             `json:"status"`
 	Validation   *runtimeapi.BundleValidationResult `json:"validation,omitempty"`
-	Ready        *Ready                       `json:"ready,omitempty"`
-	Secrets      []Secret                     `json:"secrets,omitempty"`
-	Ports        map[string]map[string]int    `json:"ports,omitempty"`
-	Telemetry    *Telemetry                   `json:"telemetry,omitempty"`
-	LogTails     []LogTail                    `json:"log_tails,omitempty"`
-	Checks       []Check                      `json:"checks,omitempty"`
-	Runtime      *Runtime                     `json:"runtime,omitempty"`
-	Fingerprints []ServiceFingerprint         `json:"service_fingerprints,omitempty"`
-	Errors       []string                     `json:"errors,omitempty"`
-	SessionID    string                       `json:"session_id,omitempty"`
-	ExpiresAt    string                       `json:"expires_at,omitempty"`
+	Ready        *Ready                             `json:"ready,omitempty"`
+	Secrets      []Secret                           `json:"secrets,omitempty"`
+	Ports        map[string]map[string]int          `json:"ports,omitempty"`
+	Telemetry    *Telemetry                         `json:"telemetry,omitempty"`
+	LogTails     []LogTail                          `json:"log_tails,omitempty"`
+	Checks       []Check                            `json:"checks,omitempty"`
+	Runtime      *Runtime                           `json:"runtime,omitempty"`
+	Fingerprints []ServiceFingerprint               `json:"service_fingerprints,omitempty"`
+	Errors       []string                           `json:"errors,omitempty"`
+	SessionID    string                             `json:"session_id,omitempty"`
+	ExpiresAt    string                             `json:"expires_at,omitempty"`
 }
 
 // JobStartResponse returns the job identifier for async preflight.

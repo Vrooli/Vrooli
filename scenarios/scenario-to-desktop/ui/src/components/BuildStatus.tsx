@@ -1,9 +1,30 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchBuildStatus, type BuildStatus as BuildStatusType } from "../lib/api";
+import {
+  getPipelineStatus,
+  type BuildStatus as BuildStatusType,
+  type GenerateStageDetails,
+  type BuildStageDetails,
+} from "../lib/api";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { CheckCircle, Loader2 } from "lucide-react";
+
+/** Maps pipeline status to UI-friendly status */
+function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
+  switch (status) {
+    case "pending":
+    case "running":
+      return "building";
+    case "completed":
+      return "ready";
+    case "failed":
+    case "cancelled":
+      return "failed";
+    default:
+      return "building";
+  }
+}
 
 interface BuildStatusProps {
   buildId: string | null;
@@ -11,16 +32,52 @@ interface BuildStatusProps {
 }
 
 export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
-  const { data } = useQuery({
+  const { data: pipelineStatus } = useQuery({
     queryKey: ["build-status", buildId],
-    queryFn: () => (buildId ? fetchBuildStatus(buildId) : null),
+    queryFn: () => (buildId ? getPipelineStatus(buildId, { verbose: true }) : null),
     enabled: !!buildId,
     refetchInterval: (query) => {
-      const data = query.state.data as BuildStatusType | null;
-      // Stop polling when build is complete or failed
-      return data?.status === "ready" || data?.status === "failed" ? false : 2000;
+      const pipelineData = query.state.data;
+      // Stop polling when pipeline reaches any final state
+      if (pipelineData?.status === "completed" || pipelineData?.status === "failed" || pipelineData?.status === "cancelled") {
+        return false;
+      }
+      return 2000;
     }
   });
+
+  // Map pipeline status to UI-friendly build status
+  const generateDetails = pipelineStatus?.stages?.generate?.details as GenerateStageDetails | undefined;
+  const buildDetails = pipelineStatus?.stages?.build?.details as BuildStageDetails | undefined;
+
+  // Collect logs from all stages for progress calculation
+  const allLogs: string[] = [];
+  if (pipelineStatus?.stages) {
+    for (const stage of Object.values(pipelineStatus.stages)) {
+      if (stage?.logs) {
+        allLogs.push(...stage.logs);
+      }
+    }
+  }
+  // Also include build_log from build details
+  if (buildDetails?.build_log) {
+    allLogs.push(...buildDetails.build_log);
+  }
+
+  const data: BuildStatusType | null = pipelineStatus ? {
+    status: mapPipelineStatus(pipelineStatus.status),
+    build_id: pipelineStatus.pipeline_id,
+    scenario_name: pipelineStatus.scenario_name,
+    template_type: buildDetails?.template_type || generateDetails?.detected_metadata?.name || "basic",
+    framework: buildDetails?.framework || "electron",
+    platforms: buildDetails?.platforms || pipelineStatus.config?.platforms || [],
+    output_path: generateDetails?.desktop_path || buildDetails?.output_path || "",
+    build_log: allLogs,
+    error_log: buildDetails?.error_log,
+    created_at: pipelineStatus.started_at
+      ? new Date(pipelineStatus.started_at * 1000).toISOString()
+      : new Date().toISOString(),
+  } : null;
 
   useEffect(() => {
     if (data && onStatusChange) {

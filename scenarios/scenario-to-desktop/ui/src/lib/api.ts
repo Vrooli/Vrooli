@@ -275,35 +275,6 @@ export interface BundlePreflightStep {
   detail?: string;
 }
 
-export interface BundlePreflightJobStartResponse {
-  job_id: string;
-}
-
-export interface BundlePreflightJobStatusResponse {
-  job_id: string;
-  status: "running" | "completed" | "failed";
-  steps?: BundlePreflightStep[];
-  result?: BundlePreflightResponse;
-  error?: string;
-  started_at?: string;
-  updated_at?: string;
-}
-
-export interface BundlePreflightHealthResponse {
-  service_id: string;
-  supported?: boolean;
-  health_type?: string;
-  message?: string;
-  url?: string;
-  status_code?: number;
-  status?: string;
-  body?: string;
-  content_type?: string;
-  truncated?: boolean;
-  fetched_at?: string;
-  elapsed_ms?: number;
-}
-
 export interface BundleManifestResponse {
   path: string;
   manifest: unknown;
@@ -440,21 +411,292 @@ export interface WineInstallStatus {
   error_log: string[];
 }
 
-export interface QuickGenerateRequest {
+// ==================== Pipeline API Types ====================
+
+export interface PipelineConfig {
   scenario_name: string;
-  template_type: string;
-  deployment_mode?: string;
+  platforms?: string[];
+  deployment_mode?: "bundled" | "proxy";
+  template_type?: string;
   proxy_url?: string;
   bundle_manifest_path?: string;
-  auto_manage_vrooli?: boolean;
-  vrooli_binary_path?: string;
+  skip_preflight?: boolean;
+  skip_smoke_test?: boolean;
+  stop_after_stage?: "bundle" | "preflight" | "generate" | "build" | "smoketest" | "distribution";
+  clean?: boolean;
+  sign?: boolean;
+  distribute?: boolean;
+  preflight_timeout_seconds?: number;
+  preflight_secrets?: Record<string, string>;
 }
 
-export interface QuickGenerateResponse {
-  build_id: string;
+export interface PipelineStageResult {
+  stage: string;
   status: string;
-  output_path?: string;
-  desktop_path?: string;
+  started_at: number;
+  completed_at?: number;
+  error?: string;
+  details?: unknown;
+}
+
+export interface PipelineStatus {
+  pipeline_id: string;
+  scenario_name: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  current_stage?: string;
+  stages: Record<string, PipelineStageResult>;
+  stage_order: string[];
+  config: PipelineConfig;
+  started_at: number;
+  completed_at?: number;
+  error?: string;
+  final_artifacts?: Record<string, string>;
+  stopped_after_stage?: string;
+}
+
+export interface PipelineRunResponse {
+  pipeline_id: string;
+  status_url: string;
+  message?: string;
+}
+
+export interface PipelineResumeResponse {
+  pipeline_id: string;
+  parent_pipeline_id: string;
+  status_url: string;
+  resume_from_stage: string;
+  message?: string;
+}
+
+// ==================== Verbose Stage Details ====================
+// These types match the backend stage result Details when ?verbose=true is used
+
+/** Bundle stage details (from bundle/types.go PackageResult) */
+export interface BundleStageDetails {
+  bundle_dir: string;
+  manifest_path: string;
+  runtime_binaries?: Record<string, string>;
+  copied_artifacts?: string[];
+  total_size_bytes?: number;
+  total_size_human?: string;
+  size_warning?: {
+    level: string;
+    message: string;
+    total_bytes: number;
+    total_human?: string;
+    large_files?: { path: string; size_bytes: number; size_human?: string }[];
+  };
+}
+
+/** Generate stage details (from generation/types.go GenerateResponse) */
+export interface GenerateStageDetails {
+  build_id?: string;
+  pipeline_id?: string;
+  status: string;
+  scenario_name: string;
+  desktop_path: string;
+  install_instructions?: string;
+  test_command?: string;
+  status_url?: string;
+  detected_metadata?: {
+    name: string;
+    display_name?: string;
+    description?: string;
+    version?: string;
+    author?: string;
+    license?: string;
+    app_id?: string;
+    has_ui?: boolean;
+    ui_dist_path?: string;
+    ui_port?: number;
+    api_port?: number;
+    scenario_path?: string;
+    category?: string;
+    tags?: string[];
+  };
+}
+
+/** Build stage platform result (from build/types.go PlatformResult) */
+export interface BuildPlatformResult {
+  platform: string;
+  status: "pending" | "building" | "ready" | "failed" | "skipped";
+  started_at?: string;
+  completed_at?: string;
+  artifact?: string;
+  file_size?: number;
+  error_log?: string[];
+  skip_reason?: string;
+}
+
+/** Build stage details (from build/types.go Status) */
+export interface BuildStageDetails {
+  build_id: string;
+  scenario_name: string;
+  status: string;
+  framework: string;
+  template_type: string;
+  platforms: string[];
+  requested_platforms?: string[];
+  platform_results?: Record<string, BuildPlatformResult>;
+  output_path: string;
+  created_at?: string;
+  completed_at?: string;
+  build_log?: string[];
+  error_log?: string[];
+  artifacts?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+}
+
+/** SmokeTest stage details (from smoketest/types.go Status) */
+export interface SmokeTestStageDetails {
+  smoke_test_id: string;
+  scenario_name: string;
+  platform: string;
+  status: string;
+  artifact_path?: string;
+  started_at?: string;
+  completed_at?: string;
+  logs?: string[];
+  error?: string;
+  telemetry_uploaded?: boolean;
+  telemetry_upload_error?: string;
+}
+
+/** Distribution platform upload (from distribution/types.go PlatformUpload) */
+export interface DistributionPlatformUpload {
+  platform: string;
+  status: string;
+  local_path?: string;
+  remote_key?: string;
+  url?: string;
+  size?: number;
+  bytes_uploaded?: number;
+  error?: string;
+}
+
+/** Distribution target status (from distribution/types.go TargetDistribution) */
+export interface DistributionTargetStatus {
+  target_name: string;
+  status: string;
+  started_at?: number;
+  completed_at?: number;
+  uploads?: Record<string, DistributionPlatformUpload>;
+  error?: string;
+}
+
+/** Distribution stage details (from distribution/types.go DistributionStatus) */
+export interface DistributionStageDetails {
+  distribution_id: string;
+  scenario_name: string;
+  version: string;
+  status: string;
+  started_at?: number;
+  completed_at?: number;
+  targets?: Record<string, DistributionTargetStatus>;
+  error?: string;
+}
+
+/** Union type for all possible stage details */
+export type StageDetails =
+  | BundleStageDetails
+  | GenerateStageDetails
+  | BuildStageDetails
+  | SmokeTestStageDetails
+  | DistributionStageDetails;
+
+/** Verbose stage result includes details and logs */
+export interface VerboseStageResult extends Omit<PipelineStageResult, "details"> {
+  details?: StageDetails;
+  logs?: string[];
+}
+
+/** Verbose pipeline status includes full stage details */
+export interface VerbosePipelineStatus extends Omit<PipelineStatus, "stages"> {
+  stages: Record<string, VerboseStageResult>;
+}
+
+// ==================== Pipeline API Functions ====================
+
+export async function runPipeline(config: PipelineConfig): Promise<PipelineRunResponse> {
+  const response = await fetch(buildUrl("/pipeline/run"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to start pipeline");
+  }
+  return response.json();
+}
+
+/** Options for getPipelineStatus */
+export interface GetPipelineStatusOptions {
+  /** Request verbose output with stage Details and Logs (default: false) */
+  verbose?: boolean;
+}
+
+/**
+ * Get pipeline status by ID.
+ * @param pipelineId - The pipeline ID
+ * @param options - Options including verbose flag
+ * @returns Pipeline status. When verbose=true, includes stage details and logs.
+ */
+export async function getPipelineStatus(
+  pipelineId: string,
+  options?: { verbose: true }
+): Promise<VerbosePipelineStatus>;
+export async function getPipelineStatus(
+  pipelineId: string,
+  options?: { verbose?: false } | undefined
+): Promise<PipelineStatus>;
+export async function getPipelineStatus(
+  pipelineId: string,
+  options?: GetPipelineStatusOptions
+): Promise<PipelineStatus | VerbosePipelineStatus> {
+  const params = new URLSearchParams();
+  if (options?.verbose) {
+    params.set("verbose", "true");
+  }
+
+  const queryString = params.toString();
+  const url = buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}`) +
+    (queryString ? `?${queryString}` : "");
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pipeline status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function resumePipeline(pipelineId: string): Promise<PipelineResumeResponse> {
+  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/resume`), {
+    method: "POST"
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || "Failed to resume pipeline");
+  }
+  return response.json();
+}
+
+export async function cancelPipeline(pipelineId: string): Promise<{ status: string; message?: string }> {
+  const response = await fetch(buildUrl(`/pipeline/${encodeURIComponent(pipelineId)}/cancel`), {
+    method: "POST"
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to cancel pipeline: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function listPipelines(): Promise<{ pipelines: PipelineStatus[] }> {
+  const response = await fetch(buildUrl("/pipelines"));
+  if (!response.ok) {
+    throw new Error(`Failed to list pipelines: ${response.statusText}`);
+  }
+  return response.json();
 }
 
 export interface TelemetryUploadRequest {
@@ -492,36 +734,6 @@ export async function fetchTemplates(): Promise<{ templates: TemplateInfo[] }> {
   const response = await fetch(buildUrl("/templates"));
   if (!response.ok) {
     throw new Error(`Failed to fetch templates: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function generateDesktop(config: DesktopConfig): Promise<{
-  build_id: string;
-  status: string;
-  desktop_path: string;
-  install_instructions: string;
-}> {
-  const response = await fetch(buildUrl("/desktop/generate"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(config)
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || "Failed to generate desktop application");
-  }
-
-  return response.json();
-}
-
-export async function fetchBuildStatus(buildId: string): Promise<BuildStatus> {
-  const response = await fetch(buildUrl(`/desktop/status/${buildId}`));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch build status: ${response.statusText}`);
   }
   return response.json();
 }
@@ -569,35 +781,6 @@ export async function moveDesktopRecord(
   return response.json();
 }
 
-export async function buildScenarioDesktop(
-  scenarioName: string,
-  platforms?: string[]
-): Promise<{
-  build_id: string;
-  status: string;
-  scenario: string;
-  desktop_path: string;
-  platforms: string[];
-  status_url: string;
-}> {
-  const response = await fetch(buildUrl(`/desktop/build/${scenarioName}`), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      platforms: platforms || ["win", "mac", "linux"]
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(error.message || "Failed to build desktop application");
-  }
-
-  return response.json();
-}
-
 export function getDownloadUrl(scenarioName: string, platform: string): string {
   return buildUrl(`/desktop/download/${scenarioName}/${platform}`);
 }
@@ -622,85 +805,33 @@ export async function probeEndpoints(payload: {
   return response.json();
 }
 
-export async function runBundlePreflight(payload: BundlePreflightRequest): Promise<BundlePreflightResponse> {
-  const response = await fetch(buildUrl("/desktop/preflight"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+/**
+ * Runs preflight validation via the pipeline.
+ * Uses stop_after_stage: "preflight" to run only bundle and preflight stages.
+ * Returns the pipeline run response which can be polled for status.
+ */
+export async function runPreflightPipeline(
+  scenarioName: string,
+  config: Partial<PipelineConfig> = {}
+): Promise<PipelineRunResponse> {
+  return runPipeline({
+    scenario_name: scenarioName,
+    stop_after_stage: "preflight",
+    ...config
   });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return response.json();
 }
 
-export async function startBundlePreflight(payload: BundlePreflightRequest): Promise<BundlePreflightJobStartResponse> {
-  const response = await fetch(buildUrl("/desktop/preflight/start"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
+/**
+ * Extracts the preflight result from a pipeline status.
+ * Returns null if the preflight stage hasn't completed or failed.
+ */
+export function extractPreflightResult(status: PipelineStatus): BundlePreflightResponse | null {
+  const preflightStage = status.stages?.preflight;
+  if (!preflightStage || preflightStage.status !== "completed") {
+    return null;
   }
-
-  return response.json();
-}
-
-export async function fetchBundlePreflightStatus(payload: { job_id: string }): Promise<BundlePreflightJobStatusResponse> {
-  const params = new URLSearchParams({ job_id: payload.job_id });
-  const response = await fetch(buildUrl(`/desktop/preflight/status?${params.toString()}`));
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return response.json();
-}
-
-export interface PreflightSessionValidationResponse {
-  session_id: string;
-  valid: boolean;
-  reason?: string;
-  expires_at?: string;
-  created_at?: string;
-}
-
-export async function validatePreflightSession(sessionId: string): Promise<PreflightSessionValidationResponse> {
-  const params = new URLSearchParams({ session_id: sessionId });
-  const response = await fetch(buildUrl(`/desktop/preflight/session/validate?${params.toString()}`));
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return response.json();
-}
-
-export async function fetchBundlePreflightHealth(payload: {
-  session_id: string;
-  service_id: string;
-}): Promise<BundlePreflightHealthResponse> {
-  const params = new URLSearchParams({
-    session_id: payload.session_id,
-    service_id: payload.service_id
-  });
-  const response = await fetch(buildUrl(`/desktop/preflight/health?${params.toString()}`));
-
-  if (!response.ok) {
-    const contentType = response.headers.get("content-type");
-    if (contentType?.includes("application/json")) {
-      const errorData = await response.json().catch(() => null);
-      const errorMessage = errorData?.error || errorData?.message || response.statusText;
-      throw new Error(errorMessage);
-    }
-    throw new Error(await response.text());
-  }
-
-  return response.json();
+  // The preflight stage stores the response in Details
+  return preflightStage.details as BundlePreflightResponse | null;
 }
 
 export async function fetchBundleManifest(payload: { bundle_manifest_path: string }): Promise<BundleManifestResponse> {
@@ -722,38 +853,6 @@ export async function fetchProxyHints(scenarioName: string): Promise<ProxyHintsR
   if (!response.ok) {
     throw new Error("Failed to load proxy hints");
   }
-  return response.json();
-}
-
-export async function quickGenerateDesktop(payload: QuickGenerateRequest): Promise<QuickGenerateResponse> {
-  const response = await fetch(buildUrl("/desktop/generate/quick"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const contentType = response.headers.get("content-type");
-    let errorMessage = "Failed to generate desktop app";
-
-    if (contentType?.includes("application/json")) {
-      const errorData = await response.json().catch(() => null);
-      errorMessage = errorData?.message || errorData?.error || errorMessage;
-    } else {
-      const textError = await response.text().catch(() => null);
-      errorMessage = textError || errorMessage;
-    }
-
-    if (response.status === 404) {
-      throw new Error("Scenario not found. Check that it exists in the scenarios directory.");
-    } else if (response.status === 400) {
-      throw new Error(`Invalid request: ${errorMessage}`);
-    } else if (response.status === 500) {
-      throw new Error(`Server error: ${errorMessage}. Check API logs for details.`);
-    }
-    throw new Error(`${errorMessage} (HTTP ${response.status})`);
-  }
-
   return response.json();
 }
 

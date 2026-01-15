@@ -4,9 +4,33 @@ import { Button } from "../ui/button";
 import { Loader2, Hammer, CheckCircle, XCircle, AlertCircle, Check, HelpCircle } from "lucide-react";
 import { PlatformChip } from "./PlatformChip";
 import { WineInstallDialog } from "../wine";
-import { buildScenarioDesktop, checkWineStatus, fetchBuildStatus, type WineCheckResponse } from "../../lib/api";
+import {
+  runPipeline,
+  getPipelineStatus,
+  checkWineStatus,
+  type WineCheckResponse,
+  type PipelineConfig,
+  type BuildStageDetails,
+  type BuildPlatformResult,
+} from "../../lib/api";
 import { writeToClipboard } from "../../lib/browser";
 import { getPlatformIcon, getPlatformName } from "../../domain/download";
+
+/** Maps pipeline status to UI-friendly status */
+function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
+  switch (status) {
+    case "pending":
+    case "running":
+      return "building";
+    case "completed":
+      return "ready";
+    case "failed":
+    case "cancelled":
+      return "failed";
+    default:
+      return "building";
+  }
+}
 
 interface BuildDesktopButtonProps {
   scenarioName: string;
@@ -51,9 +75,17 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   });
 
   const buildMutation = useMutation({
-    mutationFn: (platforms: string[]) => buildScenarioDesktop(scenarioName, platforms),
+    mutationFn: async (platforms: string[]) => {
+      const config: PipelineConfig = {
+        scenario_name: scenarioName,
+        platforms,
+        // Build stage runs after generate, so we don't stop early
+        // The pipeline will execute: bundle → preflight → generate → build
+      };
+      return runPipeline(config);
+    },
     onSuccess: (data) => {
-      setBuildId(data.build_id);
+      setBuildId(data.pipeline_id);
       setMutationError(null);
     },
     onError: (error: Error) => {
@@ -97,19 +129,27 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
   };
 
   // Poll build status if we have a buildId
-  const { data: buildStatus } = useQuery({
+  const { data: pipelineStatus } = useQuery({
     queryKey: ['build-status', buildId],
-    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
+    queryFn: async () => (buildId ? getPipelineStatus(buildId, { verbose: true }) : null),
     enabled: !!buildId,
     refetchInterval: (query) => {
-      // Stop polling if build is complete
+      // Stop polling if pipeline reaches any final state
       const data = query.state.data;
-      if (data?.status === 'ready' || data?.status === 'partial' || data?.status === 'failed') {
+      if (data?.status === 'completed' || data?.status === 'failed' || data?.status === 'cancelled') {
         return false;
       }
       return 3000; // Poll every 3 seconds during build
     },
   });
+
+  // Map pipeline status to UI-friendly build status
+  const buildDetails = pipelineStatus?.stages?.build?.details as BuildStageDetails | undefined;
+  const buildStatus = pipelineStatus ? {
+    status: mapPipelineStatus(pipelineStatus.status),
+    platform_results: buildDetails?.platform_results as Record<string, BuildPlatformResult> | undefined,
+    requested_platforms: buildDetails?.requested_platforms,
+  } : null;
 
   // Refresh scenarios list when build completes
   if ((buildStatus?.status === 'ready' || buildStatus?.status === 'partial') && buildId) {

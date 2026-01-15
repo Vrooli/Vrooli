@@ -68,37 +68,20 @@ func (s *BuildStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the Electron build stage.
 func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
-	// Check for service
 	if s.service == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "build service not configured"
+		failStage(result, s.timeProvider, "build service not configured")
 		return result
 	}
 
-	// Get desktop path from previous stage
 	desktopPath := input.DesktopPath
 	if desktopPath == "" {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "desktop path not available from generation stage"
+		failStage(result, s.timeProvider, "desktop path not available from generation stage")
 		return result
 	}
 
@@ -126,30 +109,22 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Wait for build to complete
 	buildStatus, err := s.waitForBuild(ctx, buildID)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = err.Error()
+		failStage(result, s.timeProvider, err.Error())
 		return result
 	}
 
 	// Check build result
 	switch buildStatus.Status {
 	case "ready":
-		// All platforms built successfully
-		result.Status = StatusCompleted
 		result.Logs = append(result.Logs, "All platforms built successfully")
 	case "partial":
-		// Some platforms failed - still consider it a success if at least one worked
-		result.Status = StatusCompleted
 		result.Logs = append(result.Logs, "Build completed with some platform failures")
 	case "failed":
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
+		errMsg := "build failed"
 		if len(buildStatus.ErrorLog) > 0 {
-			result.Error = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
-		} else {
-			result.Error = "build failed"
+			errMsg = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
 		}
+		failStage(result, s.timeProvider, errMsg)
 		result.Details = buildStatus
 		return result
 	}
@@ -157,8 +132,7 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	// Update input for next stage
 	input.BuildResult = buildStatus
 
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = buildStatus
+	completeStage(result, s.timeProvider, buildStatus)
 
 	// Log platform results
 	for platform, platResult := range buildStatus.PlatformResults {

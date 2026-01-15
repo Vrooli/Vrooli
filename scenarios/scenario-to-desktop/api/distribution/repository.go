@@ -128,7 +128,7 @@ func (r *GlobalRepository) Save(ctx context.Context, config *DistributionConfig)
 
 	// Ensure .vrooli directory exists
 	dir := filepath.Dir(path)
-	if err := r.fs.MkdirAll(dir, 0755); err != nil {
+	if err := r.fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 
@@ -137,7 +137,7 @@ func (r *GlobalRepository) Save(ctx context.Context, config *DistributionConfig)
 		return fmt.Errorf("marshal distribution config: %w", err)
 	}
 
-	if err := r.fs.WriteFile(path, data, 0644); err != nil {
+	if err := r.fs.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write distribution config: %w", err)
 	}
 

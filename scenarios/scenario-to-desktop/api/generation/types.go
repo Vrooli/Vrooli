@@ -162,7 +162,11 @@ type QuickGenerateRequest struct {
 
 // GenerateResponse is the response from generation endpoints.
 type GenerateResponse struct {
-	BuildID             string            `json:"build_id"`
+	// Deprecated: Use PipelineID instead. Will be removed in a future release.
+	BuildID string `json:"build_id"`
+	// PipelineID is the canonical identifier for tracking this build.
+	// Use this with /api/v1/pipeline/{id} endpoints for status and task spawning.
+	PipelineID          string            `json:"pipeline_id"`
 	Status              string            `json:"status"`
 	ScenarioName        string            `json:"scenario_name,omitempty"`
 	DesktopPath         string            `json:"desktop_path"`

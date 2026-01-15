@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -58,16 +56,12 @@ type Server struct {
 	logger      *slog.Logger
 
 	// Domain handlers (screaming architecture)
-	preflightHandler    *preflightdomain.Handler
 	buildHandler        *build.Handler
-	generationHandler   *generation.Handler
-	smokeTestHandler    *smoketest.Handler
 	telemetryHandler    *telemetry.Handler
 	recordsHandler      *records.Handler
 	scenarioHandler     *scenario.Handler
 	systemHandler       *system.Handler
 	pipelineHandler     *pipeline.Handler
-	bundleHandler       *bundle.Handler
 	stateHandler        *state.Handler
 	distributionHandler *distribution.Handler
 
@@ -93,10 +87,9 @@ func NewServer(port int) *Server {
 
 	// ===== Domain Services (Screaming Architecture) =====
 
-	// Preflight domain
+	// Preflight domain (service used by pipeline stage)
 	preflightService := preflightdomain.NewService()
 	preflightService.StartJanitor()
-	preflightHandler := preflightdomain.NewHandler(preflightService)
 
 	// Build domain
 	buildStore := build.NewStore()
@@ -106,9 +99,8 @@ func NewServer(port int) *Server {
 		build.WithHandlerLogger(logger),
 	)
 
-	// Bundle domain
+	// Bundle domain (packager used by pipeline's BundleStage)
 	bundlePackager := bundle.NewPackager()
-	bundleHandler := bundle.NewHandler(bundlePackager)
 
 	// Records domain (created before generation since generation uses recordDeleter)
 	recordsStore, err := records.NewFileStore(filepath.Join(dataDir, "desktop_records_v2.json"))
@@ -116,24 +108,17 @@ func NewServer(port int) *Server {
 		logger.Warn("domain records store unavailable, using nil", "error", err)
 		recordsStore = nil
 	}
-	recordsHandler := records.NewHandler(recordsStore, nil, logger)
+	recordsHandler := records.NewHandler(recordsStore, nil, logger,
+		records.WithScenarioRoot(scenarioRoot),
+	)
 
-	// Generation domain
+	// Generation domain (service used by pipeline stage)
 	generationBuildStore := &generationBuildStoreAdapter{store: buildStore}
 	generationService := generation.NewService(
 		generation.WithVrooliRoot(vrooliRoot),
 		generation.WithTemplateDir(templateDir),
 		generation.WithBuildStore(generationBuildStore),
 		generation.WithLogger(logger),
-	)
-	// Create recordDeleter adapter if store is available
-	var recordDeleter generation.RecordDeleter
-	if recordsStore != nil {
-		recordDeleter = &recordDeleterAdapter{store: recordsStore}
-	}
-	generationHandler := generation.NewHandler(generationService,
-		generation.WithRecordDeleter(recordDeleter),
-		generation.WithHandlerLogger(logger),
 	)
 
 	// Smoke test domain
@@ -147,12 +132,6 @@ func NewServer(port int) *Server {
 		smoketest.WithStore(smokeTestStore),
 		smoketest.WithCancelManager(cancelManager),
 		smoketest.WithPort(port),
-	)
-	smokeTestHandler := smoketest.NewHandler(smokeTestService, smokeTestStore, cancelManager,
-		smoketest.WithOutputPathFunc(func(scenarioName string) string {
-			return filepath.Join(scenarioRoot, scenarioName, "platforms", "electron")
-		}),
-		smoketest.WithPackageFinder(&defaultSmokeTestPackageFinder{}),
 	)
 
 	// Telemetry domain
@@ -200,11 +179,17 @@ func NewServer(port int) *Server {
 	// Create scenario analyzer for generation stage
 	scenarioAnalyzer := generation.NewAnalyzer(vrooliRoot)
 
+	// Create manifest generator for on-demand bundle manifest creation
+	manifestGenerator := pipeline.NewDeploymentManagerGenerator(
+		pipeline.WithGeneratorLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+
 	// Create pipeline stages with their service dependencies
 	pipelineStages := []pipeline.Stage{
 		pipeline.NewBundleStage(
 			pipeline.WithScenarioRoot(scenarioRoot),
 			pipeline.WithBundlePackager(bundlePackager),
+			pipeline.WithManifestGenerator(manifestGenerator),
 		),
 		pipeline.NewPreflightStage(
 			pipeline.WithPreflightService(preflightService),
@@ -228,11 +213,26 @@ func NewServer(port int) *Server {
 		),
 	}
 
-	pipelineOrchestrator := pipeline.NewOrchestrator(
+	// Create file-backed pipeline store for persistence across restarts
+	pipelineDataDir := filepath.Join(dataDir, "pipelines")
+	pipelineStore, err := pipeline.NewFileStore(pipelineDataDir,
+		pipeline.WithFileStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+	if err != nil {
+		logger.Warn("pipeline file store unavailable, using in-memory", "error", err)
+		pipelineStore = nil
+	}
+
+	// Create orchestrator with optional file store
+	orchestratorOpts := []pipeline.OrchestratorOption{
 		pipeline.WithOrchestratorScenarioRoot(scenarioRoot),
 		pipeline.WithLogger(&pipeline.SlogLogger{Logger: logger}),
 		pipeline.WithStages(pipelineStages...),
-	)
+	}
+	if pipelineStore != nil {
+		orchestratorOpts = append(orchestratorOpts, pipeline.WithStore(pipelineStore))
+	}
+	pipelineOrchestrator := pipeline.NewOrchestrator(orchestratorOpts...)
 	pipelineHandler := pipeline.NewHandler(
 		pipeline.WithOrchestrator(pipelineOrchestrator),
 	)
@@ -246,8 +246,8 @@ func NewServer(port int) *Server {
 		ScenarioDescription: "Desktop application packaging, signing, and distribution",
 	})
 
-	// Register tool providers (20 tools across 4 categories)
-	toolReg.RegisterProvider(toolregistry.NewBuildToolProvider())
+	// Register tool providers (pipeline tools plus signing, distribution, and inspection)
+	toolReg.RegisterProvider(toolregistry.NewPipelineToolProvider())
 	toolReg.RegisterProvider(toolregistry.NewSigningToolProvider())
 	toolReg.RegisterProvider(toolregistry.NewDistributionToolProvider())
 	toolReg.RegisterProvider(toolregistry.NewInspectionToolProvider())
@@ -297,10 +297,11 @@ func NewServer(port int) *Server {
 		cancel()
 
 		// Create pipeline store adapter for task service
-		pipelineStoreAdapter := &pipelineStoreAdapter{store: pipelineOrchestrator}
+		// Uses the pipeline orchestrator as the single source of truth for pipeline status
+		pipelineStore := &pipelineStoreAdapter{store: pipelineOrchestrator}
 
 		// Create task service (nil progress hub for now - can add WebSocket later)
-		taskSvc = tasks.NewService(invStore, pipelineStoreAdapter, agentSvc, nil)
+		taskSvc = tasks.NewService(invStore, pipelineStore, agentSvc, nil)
 	}
 
 	// ===== Create Server =====
@@ -312,16 +313,12 @@ func NewServer(port int) *Server {
 		logger:      logger,
 
 		// Domain handlers
-		preflightHandler:  preflightHandler,
-		buildHandler:      buildHandler,
-		generationHandler: generationHandler,
-		smokeTestHandler:  smokeTestHandler,
-		telemetryHandler:  telemetryHandler,
-		recordsHandler:    recordsHandler,
-		scenarioHandler:   scenarioHandler,
-		systemHandler:     systemHandler,
+		buildHandler:        buildHandler,
+		telemetryHandler:    telemetryHandler,
+		recordsHandler:      recordsHandler,
+		scenarioHandler:     scenarioHandler,
+		systemHandler:       systemHandler,
 		pipelineHandler:     pipelineHandler,
-		bundleHandler:       bundleHandler,
 		stateHandler:        stateHandler,
 		distributionHandler: distributionHandler,
 
@@ -334,255 +331,6 @@ func NewServer(port int) *Server {
 	}
 	srv.setupRoutes()
 	return srv
-}
-
-// recordDeleterAdapter adapts records.FileStore to generation.RecordDeleter interface
-type recordDeleterAdapter struct {
-	store *records.FileStore
-}
-
-func (a *recordDeleterAdapter) DeleteByScenario(scenarioName string) int {
-	return a.store.DeleteByScenario(scenarioName)
-}
-
-// systemBuildStoreAdapter adapts build.Store to system.BuildStore interface
-type systemBuildStoreAdapter struct {
-	store *build.InMemoryStore
-}
-
-func (a *systemBuildStoreAdapter) Snapshot() map[string]*system.BuildStatus {
-	snapshot := a.store.Snapshot()
-	result := make(map[string]*system.BuildStatus, len(snapshot))
-	for id, status := range snapshot {
-		result[id] = &system.BuildStatus{
-			Status: status.Status,
-		}
-	}
-	return result
-}
-
-// pipelineStoreAdapter adapts pipeline.Orchestrator to tasks.PipelineStore interface
-type pipelineStoreAdapter struct {
-	store pipeline.Orchestrator
-}
-
-func (a *pipelineStoreAdapter) Get(pipelineID string) (*pipeline.Status, bool) {
-	return a.store.GetStatus(pipelineID)
-}
-
-// generationBuildStoreAdapter adapts build.InMemoryStore to generation.BuildStore interface
-type generationBuildStoreAdapter struct {
-	store *build.InMemoryStore
-}
-
-func (a *generationBuildStoreAdapter) Create(buildID string) *generation.BuildStatus {
-	now := time.Now()
-	status := &generation.BuildStatus{
-		BuildID:   buildID,
-		Status:    "building",
-		StartedAt: now,
-		BuildLog:  []string{},
-		ErrorLog:  []string{},
-		Artifacts: map[string]string{},
-		Metadata:  map[string]interface{}{},
-	}
-	// Save to underlying store
-	a.store.Save(&build.Status{
-		BuildID:   buildID,
-		Status:    "building",
-		CreatedAt: now,
-		BuildLog:  []string{},
-		ErrorLog:  []string{},
-		Artifacts: map[string]string{},
-		Metadata:  map[string]interface{}{},
-	})
-	return status
-}
-
-func (a *generationBuildStoreAdapter) Get(buildID string) (*generation.BuildStatus, bool) {
-	status, ok := a.store.Get(buildID)
-	if !ok {
-		return nil, false
-	}
-	return &generation.BuildStatus{
-		BuildID:     status.BuildID,
-		Status:      status.Status,
-		OutputPath:  status.OutputPath,
-		StartedAt:   status.CreatedAt,
-		CompletedAt: status.CompletedAt,
-		BuildLog:    status.BuildLog,
-		ErrorLog:    status.ErrorLog,
-		Artifacts:   status.Artifacts,
-		Metadata:    status.Metadata,
-	}, true
-}
-
-func (a *generationBuildStoreAdapter) Update(buildID string, fn func(status *generation.BuildStatus)) {
-	a.store.Update(buildID, func(status *build.Status) {
-		// Convert to generation.BuildStatus, apply fn, convert back
-		genStatus := &generation.BuildStatus{
-			BuildID:     status.BuildID,
-			Status:      status.Status,
-			OutputPath:  status.OutputPath,
-			StartedAt:   status.CreatedAt,
-			CompletedAt: status.CompletedAt,
-			BuildLog:    status.BuildLog,
-			ErrorLog:    status.ErrorLog,
-			Artifacts:   status.Artifacts,
-			Metadata:    status.Metadata,
-		}
-		fn(genStatus)
-		// Copy back relevant fields
-		status.Status = genStatus.Status
-		status.OutputPath = genStatus.OutputPath
-		status.CompletedAt = genStatus.CompletedAt
-		status.BuildLog = genStatus.BuildLog
-		status.ErrorLog = genStatus.ErrorLog
-		status.Artifacts = genStatus.Artifacts
-		status.Metadata = genStatus.Metadata
-	})
-}
-
-// toolBuildStoreAdapter adapts build.InMemoryStore to toolexecution.BuildStore interface
-type toolBuildStoreAdapter struct {
-	store *build.InMemoryStore
-}
-
-func (a *toolBuildStoreAdapter) Get(buildID string) (toolexecution.BuildStatus, bool) {
-	status, ok := a.store.Get(buildID)
-	if !ok {
-		return toolexecution.BuildStatus{}, false
-	}
-	return toolexecution.BuildStatus{
-		BuildID:      status.BuildID,
-		ScenarioName: status.ScenarioName,
-		Status:       status.Status,
-		Platforms:    status.Platforms,
-		OutputPath:   status.OutputPath,
-		ErrorLog:     status.ErrorLog,
-		BuildLog:     status.BuildLog,
-		Artifacts:    status.Artifacts,
-		CreatedAt:    status.CreatedAt,
-		CompletedAt:  status.CompletedAt,
-		Metadata:     status.Metadata,
-	}, true
-}
-
-func (a *toolBuildStoreAdapter) Save(status toolexecution.BuildStatus) {
-	a.store.Save(&build.Status{
-		BuildID:      status.BuildID,
-		ScenarioName: status.ScenarioName,
-		Status:       status.Status,
-		Platforms:    status.Platforms,
-		OutputPath:   status.OutputPath,
-		ErrorLog:     status.ErrorLog,
-		BuildLog:     status.BuildLog,
-		Artifacts:    status.Artifacts,
-		CreatedAt:    status.CreatedAt,
-		CompletedAt:  status.CompletedAt,
-		Metadata:     status.Metadata,
-	})
-}
-
-func (a *toolBuildStoreAdapter) Snapshot() map[string]toolexecution.BuildStatus {
-	snapshot := a.store.Snapshot()
-	result := make(map[string]toolexecution.BuildStatus, len(snapshot))
-	for id, status := range snapshot {
-		result[id] = toolexecution.BuildStatus{
-			BuildID:      status.BuildID,
-			ScenarioName: status.ScenarioName,
-			Status:       status.Status,
-			Platforms:    status.Platforms,
-			OutputPath:   status.OutputPath,
-			ErrorLog:     status.ErrorLog,
-			BuildLog:     status.BuildLog,
-			Artifacts:    status.Artifacts,
-			CreatedAt:    status.CreatedAt,
-			CompletedAt:  status.CompletedAt,
-			Metadata:     status.Metadata,
-		}
-	}
-	return result
-}
-
-// defaultSmokeTestPackageFinder is the default package finder for smoke tests
-type defaultSmokeTestPackageFinder struct{}
-
-func (f *defaultSmokeTestPackageFinder) FindBuiltPackage(distPath, platform string) (string, error) {
-	return findBuiltPackageStandalone(distPath, platform)
-}
-
-// findBuiltPackageStandalone finds the built package file for a specific platform.
-// This is a standalone version of the function for use by domain adapters.
-func findBuiltPackageStandalone(distPath, platform string) (string, error) {
-	// Check if dist-electron directory exists
-	if _, err := os.Stat(distPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("dist-electron directory not found at %s", distPath)
-	}
-
-	// Platform-specific file patterns
-	var patterns []string
-	switch platform {
-	case "win":
-		patterns = []string{"*.msi", "*Setup.exe", "*.exe"}
-	case "mac":
-		patterns = []string{"*.pkg", "*.dmg", "*.zip"}
-	case "linux":
-		patterns = []string{"*.AppImage", "*.deb"}
-	default:
-		return "", fmt.Errorf("unknown platform: %s", platform)
-	}
-
-	// Search for matching files
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(filepath.Join(distPath, pattern))
-		if err != nil {
-			continue
-		}
-		if len(matches) > 0 {
-			// Return the first match with platform-specific preferences
-			if platform == "win" && len(matches) > 1 {
-				for _, match := range matches {
-					if strings.HasSuffix(strings.ToLower(match), ".msi") {
-						return match, nil
-					}
-				}
-				for _, match := range matches {
-					if strings.Contains(strings.ToLower(match), "setup") {
-						return match, nil
-					}
-				}
-			}
-			if platform == "mac" && len(matches) > 1 {
-				for _, match := range matches {
-					if strings.HasSuffix(strings.ToLower(match), ".pkg") {
-						return match, nil
-					}
-				}
-				for _, match := range matches {
-					lowerMatch := strings.ToLower(match)
-					if !strings.Contains(lowerMatch, "arm64") && !strings.Contains(lowerMatch, "blockmap") {
-						return match, nil
-					}
-				}
-				for _, match := range matches {
-					if !strings.Contains(strings.ToLower(match), "blockmap") {
-						return match, nil
-					}
-				}
-			}
-			if platform == "mac" {
-				for _, match := range matches {
-					if !strings.Contains(strings.ToLower(match), "blockmap") {
-						return match, nil
-					}
-				}
-			}
-			return matches[0], nil
-		}
-	}
-
-	return "", fmt.Errorf("no built package found for platform %s in %s", platform, distPath)
 }
 
 // setupRoutes configures all API routes
@@ -601,18 +349,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
 	// ===== Domain Handlers (Screaming Architecture) =====
+	// Note: Preflight and Generation are now pipeline-only (no direct routes)
 
-	// Preflight domain: /api/v1/desktop/preflight*, /api/v1/desktop/bundle-manifest
-	s.preflightHandler.RegisterRoutes(s.router)
-
-	// Build domain: /api/v1/desktop/build*, /api/v1/desktop/status/*
+	// Build domain: /api/v1/desktop/download/*, /api/v1/desktop/webhook/*
 	s.buildHandler.RegisterRoutes(s.router)
-
-	// Generation domain: /api/v1/desktop/generate, /api/v1/desktop/generate/quick
-	s.generationHandler.RegisterRoutes(s.router)
-
-	// Smoke test domain: /api/v1/desktop/smoke-test/*
-	s.smokeTestHandler.RegisterRoutes(s.router)
 
 	// Telemetry domain: /api/v1/deployment/telemetry*
 	s.telemetryHandler.RegisterRoutes(s.router)
@@ -644,9 +384,6 @@ func (s *Server) setupRoutes() {
 	// Task orchestration - agent spawning for pipeline investigations
 	s.registerTaskRoutes()
 
-	// Bundle domain: /api/v1/bundle/package, /api/v1/desktop/package
-	s.bundleHandler.RegisterRoutes(s.router)
-
 	// ===== Tool Discovery and Execution Protocol =====
 	// GET /api/v1/tools - Returns complete tool manifest
 	// GET /api/v1/tools/{name} - Returns specific tool definition
@@ -661,20 +398,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/desktop/probe", s.probeEndpointsHandler).Methods("POST")
 	s.router.HandleFunc("/api/v1/desktop/proxy-hints/{scenario_name}", s.proxyHintsHandler).Methods("GET")
 
-	// Desktop test (different from smoke test - runs validation tests)
-	s.router.HandleFunc("/api/v1/desktop/test", s.testDesktopHandler).Methods("POST")
-
 	// Port resolution
 	s.router.HandleFunc("/api/v1/ports/{scenario}/{port_name}", s.getScenarioPortHandler).Methods("GET")
-
-	// Deployment-manager integration
-	s.router.HandleFunc("/api/v1/deployment-manager/bundles/export", s.exportBundleHandler).Methods("POST")
-	s.router.HandleFunc("/api/v1/deployment-manager/build/auto", s.deploymentManagerAutoBuildHandler).Methods("POST")
-	s.router.HandleFunc("/api/v1/deployment-manager/build/auto/{build_id}", s.deploymentManagerAutoBuildStatusHandler).Methods("GET")
-
-	// Test artifacts
-	s.router.HandleFunc("/api/v1/desktop/test-artifacts", s.listTestArtifactsHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/desktop/test-artifacts/cleanup", s.cleanupTestArtifactsHandler).Methods("POST")
 
 	// Docs
 	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")

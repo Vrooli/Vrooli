@@ -18,14 +18,14 @@ import (
 
 // DefaultService is the default implementation of the generation Service.
 type DefaultService struct {
-	vrooliRoot   string
-	templateDir  string
-	builds       BuildStore
-	records      RecordStore
-	analyzer     ScenarioAnalyzer
-	iconSyncer   IconSyncer
+	vrooliRoot     string
+	templateDir    string
+	builds         BuildStore
+	records        RecordStore
+	analyzer       ScenarioAnalyzer
+	iconSyncer     IconSyncer
 	bundlePackager BundlePackager
-	logger       *slog.Logger
+	logger         *slog.Logger
 }
 
 // RecordStore persists desktop app records.
@@ -160,14 +160,14 @@ func (s *DefaultService) QueueBuild(config *DesktopConfig, metadata *ScenarioMet
 	config.OutputPath = outputPath
 
 	buildStatus := &BuildStatus{
-		BuildID:     buildID,
-		Status:      "building",
-		OutputPath:  config.OutputPath,
-		StartedAt:   time.Now(),
-		BuildLog:    []string{},
-		ErrorLog:    []string{},
-		Artifacts:   map[string]string{},
-		Metadata:    map[string]interface{}{},
+		BuildID:    buildID,
+		Status:     "building",
+		OutputPath: config.OutputPath,
+		StartedAt:  time.Now(),
+		BuildLog:   []string{},
+		ErrorLog:   []string{},
+		Artifacts:  map[string]string{},
+		Metadata:   map[string]interface{}{},
 	}
 
 	if metadata != nil {
@@ -282,7 +282,7 @@ func (s *DefaultService) Generate(buildID string, config *DesktopConfig) {
 
 	// Write config to temporary file
 	configPath := filepath.Join(os.TempDir(), fmt.Sprintf("desktop-config-%s.json", buildID))
-	if err := os.WriteFile(configPath, configJSON, 0644); err != nil {
+	if err := os.WriteFile(configPath, configJSON, 0o644); err != nil {
 		s.updateBuildStatus(buildID, func(status *BuildStatus) {
 			status.Status = "failed"
 			status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Failed to write config file: %v", err))
@@ -427,7 +427,7 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		return fmt.Errorf("output path not set")
 	}
 
-	if err := os.MkdirAll(outputPath, 0755); err != nil {
+	if err := os.MkdirAll(outputPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -447,10 +447,10 @@ func (s *DefaultService) generateSigningArtifacts(config *DesktopConfig) error {
 		for relPath, content := range files {
 			fullPath := filepath.Join(outputPath, relPath)
 			dir := filepath.Dir(fullPath)
-			if err := os.MkdirAll(dir, 0755); err != nil {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dir, err)
 			}
-			if err := os.WriteFile(fullPath, content, 0644); err != nil {
+			if err := os.WriteFile(fullPath, content, 0o644); err != nil {
 				return fmt.Errorf("failed to write %s: %w", relPath, err)
 			}
 		}

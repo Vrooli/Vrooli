@@ -248,8 +248,8 @@ func TestQueueBuild_GeneratesUniqueBuildIDs(t *testing.T) {
 
 func TestQueueBuild_LocationModes(t *testing.T) {
 	tests := []struct {
-		name         string
-		locationMode string
+		name          string
+		locationMode  string
 		expectStaging bool
 	}{
 		{"proper mode", "proper", false},

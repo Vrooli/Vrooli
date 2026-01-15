@@ -127,6 +127,16 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 		return nil, fmt.Errorf("scenario_name is required")
 	}
 
+	// Validate stop_after_stage if provided
+	if config.StopAfterStage != "" && !IsValidStageName(config.StopAfterStage) {
+		return nil, fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
+	}
+
+	// Validate resume_from_stage if provided
+	if config.ResumeFromStage != "" && !IsValidStageName(config.ResumeFromStage) {
+		return nil, fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
+	}
+
 	// Apply defaults
 	if len(config.Platforms) == 0 {
 		config.Platforms = []string{currentPlatform()}
@@ -183,9 +193,49 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		Logger:       o.logger,
 	}
 
+	// If resuming, restore input from parent pipeline
+	if config.ParentPipelineID != "" {
+		if parentStatus, ok := o.store.Get(config.ParentPipelineID); ok && parentStatus.ResumedInput != nil {
+			// Copy relevant fields from parent's saved input
+			input.BundleResult = parentStatus.ResumedInput.BundleResult
+			input.PreflightResult = parentStatus.ResumedInput.PreflightResult
+			input.GenerationResult = parentStatus.ResumedInput.GenerationResult
+			input.BuildResult = parentStatus.ResumedInput.BuildResult
+			input.SmokeTestResult = parentStatus.ResumedInput.SmokeTestResult
+			input.DistributionResult = parentStatus.ResumedInput.DistributionResult
+			input.ScenarioMetadata = parentStatus.ResumedInput.ScenarioMetadata
+			input.DesktopPath = parentStatus.ResumedInput.DesktopPath
+			o.logger.Info("Restored input from parent pipeline", "pipeline_id", pipelineID, "parent_id", config.ParentPipelineID)
+		}
+	}
+
+	// Track whether we've reached the resume stage (if resuming)
+	resumeFromStage := config.GetResumeFromStage()
+	reachedResumeStage := resumeFromStage == "" // If not resuming, consider it reached
+
 	// Execute stages sequentially
 	for _, stage := range o.stages {
 		stageName := stage.Name()
+
+		// If resuming, skip stages until we reach the resume point
+		if !reachedResumeStage {
+			if stageName == resumeFromStage {
+				reachedResumeStage = true
+				o.logger.Info("Reached resume stage", "pipeline_id", pipelineID, "stage", stageName)
+			} else {
+				// Mark stage as skipped (resumed from later stage)
+				result := &StageResult{
+					Stage:       stageName,
+					Status:      StatusSkipped,
+					StartedAt:   o.timeProvider.Now(),
+					CompletedAt: o.timeProvider.Now(),
+					Logs:        []string{"Stage skipped - resuming from later stage"},
+				}
+				o.store.UpdateStage(pipelineID, stageName, result)
+				o.logger.Info("Stage skipped (resuming)", "pipeline_id", pipelineID, "stage", stageName)
+				continue
+			}
+		}
 
 		// Check for cancellation
 		select {
@@ -218,6 +268,12 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 			}
 			o.store.UpdateStage(pipelineID, stageName, result)
 			o.logger.Info("Stage skipped", "pipeline_id", pipelineID, "stage", stageName)
+
+			// Even if skipped, check if we should stop after this stage
+			if config.GetStopAfterStage() == stageName {
+				o.stopAfterStage(pipelineID, stageName, input)
+				return
+			}
 			continue
 		}
 
@@ -255,6 +311,12 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 			o.logger.Info("Pipeline cancelled at stage", "pipeline_id", pipelineID, "stage", stageName)
 			return
 		}
+
+		// Check if we should stop after this stage
+		if config.GetStopAfterStage() == stageName {
+			o.stopAfterStage(pipelineID, stageName, input)
+			return
+		}
 	}
 
 	// Collect final artifacts
@@ -271,6 +333,26 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	o.logger.Info("Pipeline completed", "pipeline_id", pipelineID)
 }
 
+// stopAfterStage marks the pipeline as completed after the specified stage and saves input for resumption.
+func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input *StageInput) {
+	finalArtifacts := collectArtifacts(input)
+
+	o.store.Update(pipelineID, func(s *Status) {
+		s.Status = StatusCompleted
+		s.CompletedAt = o.timeProvider.Now()
+		s.CurrentStage = ""
+		s.StoppedAfterStage = stageName
+		s.FinalArtifacts = finalArtifacts
+		// Save the input so it can be restored when resuming
+		s.ResumedInput = input
+	})
+
+	o.logger.Info("Pipeline stopped after stage",
+		"pipeline_id", pipelineID,
+		"stopped_after", stageName,
+	)
+}
+
 // GetStatus retrieves the current status of a pipeline run.
 func (o *DefaultOrchestrator) GetStatus(pipelineID string) (*Status, bool) {
 	return o.store.Get(pipelineID)
@@ -285,6 +367,67 @@ func (o *DefaultOrchestrator) CancelPipeline(pipelineID string) bool {
 	}
 	cancel()
 	return true
+}
+
+// ResumePipeline resumes a stopped pipeline from its next stage.
+func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error) {
+	// Get the parent pipeline
+	parentStatus, ok := o.store.Get(pipelineID)
+	if !ok {
+		return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
+	}
+
+	// Validate parent pipeline can be resumed
+	if !parentStatus.CanResume() {
+		if parentStatus.Status != StatusCompleted {
+			return nil, fmt.Errorf("pipeline cannot be resumed: status is %s (must be completed)", parentStatus.Status)
+		}
+		return nil, fmt.Errorf("pipeline cannot be resumed: was not stopped after a stage")
+	}
+
+	// Determine the resume stage
+	nextStage := parentStatus.GetNextResumeStage()
+	if nextStage == "" {
+		return nil, fmt.Errorf("pipeline cannot be resumed: already completed all stages")
+	}
+
+	// Create the resume config
+	resumeConfig := &Config{
+		ScenarioName:            parentStatus.Config.ScenarioName,
+		Platforms:               parentStatus.Config.Platforms,
+		DeploymentMode:          parentStatus.Config.DeploymentMode,
+		TemplateType:            parentStatus.Config.TemplateType,
+		ProxyURL:                parentStatus.Config.ProxyURL,
+		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
+		Sign:                    parentStatus.Config.Sign,
+		Distribute:              parentStatus.Config.Distribute,
+		DistributionTargets:     parentStatus.Config.DistributionTargets,
+		Version:                 parentStatus.Config.Version,
+		PreflightSecrets:        parentStatus.Config.PreflightSecrets,
+		PreflightTimeoutSeconds: parentStatus.Config.PreflightTimeoutSeconds,
+		// Set the resume configuration
+		ResumeFromStage:  nextStage,
+		ParentPipelineID: pipelineID,
+	}
+
+	// Apply any overrides from the provided config
+	if config != nil {
+		if config.StopAfterStage != "" {
+			resumeConfig.StopAfterStage = config.StopAfterStage
+		}
+		if config.SkipSmokeTest {
+			resumeConfig.SkipSmokeTest = config.SkipSmokeTest
+		}
+		if config.Distribute {
+			resumeConfig.Distribute = config.Distribute
+		}
+		if len(config.DistributionTargets) > 0 {
+			resumeConfig.DistributionTargets = config.DistributionTargets
+		}
+	}
+
+	// Run the resumed pipeline
+	return o.RunPipeline(ctx, resumeConfig)
 }
 
 // ListPipelines returns all tracked pipeline runs.

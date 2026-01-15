@@ -7,8 +7,24 @@ import { Label } from "../ui/label";
 import { Select } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
-import { fetchBuildStatus, probeEndpoints, quickGenerateDesktop, type ProbeResponse } from "../../lib/api";
+import { runPipeline, getPipelineStatus, probeEndpoints, type ProbeResponse, type PipelineConfig, type GenerateStageDetails } from "../../lib/api";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus } from "./types";
+
+/** Maps pipeline status to UI-friendly status */
+function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
+  switch (status) {
+    case "pending":
+    case "running":
+      return "building";
+    case "completed":
+      return "ready";
+    case "failed":
+    case "cancelled":
+      return "failed";
+    default:
+      return "building";
+  }
+}
 import {
   DEFAULT_DEPLOYMENT_MODE,
   DEFAULT_SERVER_TYPE,
@@ -93,18 +109,18 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
         proxy: "Provide the proxy URL you use in the browser.",
         bundle: "Provide the bundle_manifest_path exported by deployment-manager."
       });
-      return quickGenerateDesktop({
+      const config: PipelineConfig = {
         scenario_name: scenario.name,
         template_type: 'universal',
-        deployment_mode: deploymentMode,
+        deployment_mode: deploymentMode as "bundled" | "proxy",
         proxy_url: proxyUrl || undefined,
         bundle_manifest_path: bundleManifestPath || undefined,
-        auto_manage_vrooli: autoManageVrooli,
-        vrooli_binary_path: vrooliBinaryPath
-      });
+        stop_after_stage: 'generate',
+      };
+      return runPipeline(config);
     },
     onSuccess: (data) => {
-      setBuildId(data.build_id);
+      setBuildId(data.pipeline_id);
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
       }, 3000);
@@ -144,18 +160,26 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     }
   });
 
-  const { data: buildStatus } = useQuery({
-    queryKey: ['build-status', buildId],
-    queryFn: async () => (buildId ? fetchBuildStatus(buildId) : null),
+  const { data: pipelineStatus } = useQuery({
+    queryKey: ['generate-status', buildId],
+    queryFn: async () => (buildId ? getPipelineStatus(buildId, { verbose: true }) : null),
     enabled: !!buildId,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.status === 'ready' || data?.status === 'failed') {
+      // Stop polling when pipeline reaches any final state
+      if (data?.status === 'completed' || data?.status === 'failed' || data?.status === 'cancelled') {
         return false;
       }
       return 2000;
     }
   });
+
+  // Map pipeline status to UI-friendly status
+  const buildStatus = pipelineStatus ? {
+    status: mapPipelineStatus(pipelineStatus.status),
+    output_path: (pipelineStatus.stages?.generate?.details as GenerateStageDetails | undefined)?.desktop_path,
+    error_log: pipelineStatus.stages?.generate?.logs,
+  } : null;
 
   const isBuilding = generateMutation.isPending || buildStatus?.status === 'building';
   const isComplete = buildStatus?.status === 'ready';

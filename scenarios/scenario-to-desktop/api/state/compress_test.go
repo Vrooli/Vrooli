@@ -240,11 +240,11 @@ func TestCompressionRatio(t *testing.T) {
 		originalSize   int
 		wantRatio      float64
 	}{
-		{"normal compression", 100, 1000, 0.9},  // 90% compression
-		{"no compression", 1000, 1000, 0},       // 0% compression ratio is correct
-		{"zero original", 100, 0, 0},            // Division by zero case returns 0
-		{"zero compressed", 0, 100, 0},          // Zero compressed returns 0
-		{"50% compression", 500, 1000, 0.5},     // 50% compression
+		{"normal compression", 100, 1000, 0.9}, // 90% compression
+		{"no compression", 1000, 1000, 0},      // 0% compression ratio is correct
+		{"zero original", 100, 0, 0},           // Division by zero case returns 0
+		{"zero compressed", 0, 100, 0},         // Zero compressed returns 0
+		{"50% compression", 500, 1000, 0.5},    // 50% compression
 	}
 
 	for _, tt := range tests {

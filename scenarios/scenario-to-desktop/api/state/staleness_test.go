@@ -188,10 +188,10 @@ func TestStalenessDetector_DetectChanges_GenerateInputsChanged(t *testing.T) {
 
 	// Check with different template and name
 	current := &InputFingerprint{
-		TemplateType:   "basic",         // Changed
-		Framework:      "electron",      // Same
-		DeploymentMode: "bundled",       // Same
-		AppDisplayName: "New App Name",  // Changed
+		TemplateType:   "basic",        // Changed
+		Framework:      "electron",     // Same
+		DeploymentMode: "bundled",      // Same
+		AppDisplayName: "New App Name", // Changed
 	}
 
 	changes, err := detector.DetectChanges(ctx, "test-scenario", current)

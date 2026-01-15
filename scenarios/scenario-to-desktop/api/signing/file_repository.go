@@ -77,7 +77,7 @@ func (r *FileRepository) Save(ctx context.Context, scenario string, config *type
 
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
-	if err := r.fs.MkdirAll(dir, 0755); err != nil {
+	if err := r.fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 
@@ -87,7 +87,7 @@ func (r *FileRepository) Save(ctx context.Context, scenario string, config *type
 		return fmt.Errorf("marshal signing config: %w", err)
 	}
 
-	if err := r.fs.WriteFile(path, data, 0644); err != nil {
+	if err := r.fs.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write signing config: %w", err)
 	}
 

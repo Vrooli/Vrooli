@@ -267,7 +267,6 @@ func (u *S3Uploader) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -413,4 +412,3 @@ func (u *S3Uploader) GetPublicURL(key string) string {
 	}
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", u.target.Bucket, region, key)
 }
-

@@ -49,11 +49,11 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	// Create template directory structure
 	templateDir := filepath.Join(tempDir, "templates")
-	if err := os.MkdirAll(filepath.Join(templateDir, "vanilla"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(templateDir, "vanilla"), 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create template dirs: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(templateDir, "advanced"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(templateDir, "advanced"), 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create advanced template dir: %v", err)
 	}
@@ -101,7 +101,7 @@ func createSampleTemplates(templateDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "basic.json"), basicJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "basic.json"), basicJSON, 0o644); err != nil {
 		return err
 	}
 
@@ -117,7 +117,7 @@ func createSampleTemplates(templateDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "advanced.json"), advancedJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "advanced.json"), advancedJSON, 0o644); err != nil {
 		return err
 	}
 
@@ -133,7 +133,7 @@ func createSampleTemplates(templateDir string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "multi_window.json"), multiWindowJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(templateDir, "advanced", "multi_window.json"), multiWindowJSON, 0o644); err != nil {
 		return err
 	}
 

@@ -16,8 +16,50 @@ import type { ScenarioDesktopStatus, ScenariosResponse } from "./components/scen
 import { StatsPanel } from "./components/StatsPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { Button } from "./components/ui/button";
-import { cancelSmokeTest, fetchBuildStatus, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
-import type { BuildStatus as BuildStatusType, SmokeTestStatus, FormState } from "./lib/api";
+import { cancelSmokeTest, getPipelineStatus, fetchScenarioDesktopStatus, fetchSmokeTestStatus, startSmokeTest } from "./lib/api";
+import type { PipelineStatus, SmokeTestStatus, FormState, GenerateStageDetails } from "./lib/api";
+
+/** Maps pipeline status to legacy UI-friendly status */
+type UiStatus = "building" | "ready" | "partial" | "failed";
+
+/** UI-friendly build status derived from pipeline status */
+interface UiBuildStatus {
+  status: UiStatus;
+  output_path?: string;
+  pipeline_id: string;
+  scenario_name: string;
+}
+
+/** Map PipelineStatus to UiBuildStatus */
+function mapPipelineToUiStatus(pipeline: PipelineStatus): UiBuildStatus {
+  let status: UiStatus;
+  switch (pipeline.status) {
+    case "pending":
+    case "running":
+      status = "building";
+      break;
+    case "completed":
+      status = "ready";
+      break;
+    case "failed":
+    case "cancelled":
+      status = "failed";
+      break;
+    default:
+      status = "building";
+  }
+
+  // Extract output_path from generate stage details if available
+  const generateDetails = pipeline.stages?.generate?.details as GenerateStageDetails | undefined;
+  const outputPath = generateDetails?.desktop_path;
+
+  return {
+    status,
+    output_path: outputPath,
+    pipeline_id: pipeline.pipeline_id,
+    scenario_name: pipeline.scenario_name,
+  };
+}
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
 import { RecordsManager } from "./components/RecordsManager";
@@ -49,7 +91,7 @@ function AppContent() {
   const [selectedTemplate, setSelectedTemplate] = useState(storedState?.selectedTemplate || "basic");
   // Wrapper build state - will be initialized from server-side state
   const [wrapperBuildId, setWrapperBuildId] = useState<string | null>(storedState?.currentBuildId ?? null);
-  const [wrapperBuildStatus, setWrapperBuildStatus] = useState<BuildStatusType | null>(null);
+  const [wrapperBuildStatus, setWrapperBuildStatus] = useState<UiBuildStatus | null>(null);
   const [wrapperBuildInitialized, setWrapperBuildInitialized] = useState(false);
   const [selectedScenarioName, setSelectedScenarioName] = useState(
     initialParams.scenario ?? storedState?.selectedScenarioName ?? ""
@@ -67,10 +109,15 @@ function AppContent() {
 
   const { data: fetchedBuildStatus } = useQuery({
     queryKey: ["build-status-global", wrapperBuildId],
-    queryFn: () => (wrapperBuildId ? fetchBuildStatus(wrapperBuildId) : null),
+    queryFn: async () => {
+      if (!wrapperBuildId) return null;
+      // Use verbose to get generate stage details for output_path
+      const pipeline = await getPipelineStatus(wrapperBuildId, { verbose: true });
+      return mapPipelineToUiStatus(pipeline);
+    },
     enabled: shouldPollBuildStatus,
     refetchInterval: (query) => {
-      const data = query.state.data as BuildStatusType | null;
+      const data = query.state.data as UiBuildStatus | null;
       // Stop polling when build is complete or failed
       return data?.status === "ready" || data?.status === "failed" ? false : 2000;
     },
@@ -120,12 +167,14 @@ function AppContent() {
           setWrapperBuildId(fs.wrapper_build_id);
         }
         // Restore the build status from server - this is the key fix!
-        // Creates a minimal BuildStatus object from persisted state
+        // Creates a minimal UiBuildStatus object from persisted state
         if (fs.wrapper_build_status) {
           setWrapperBuildStatus({
             status: fs.wrapper_build_status,
             output_path: fs.wrapper_output_path ?? undefined,
-          } as BuildStatusType);
+            pipeline_id: fs.wrapper_build_id || "",
+            scenario_name: selectedScenarioName,
+          });
         }
         setWrapperBuildInitialized(true);
       }
@@ -703,7 +752,13 @@ function AppContent() {
                       <BuildStatus
                         buildId={wrapperBuildId}
                         onStatusChange={(status) => {
-                          setWrapperBuildStatus(status);
+                          // Map legacy BuildStatus to UiBuildStatus
+                          setWrapperBuildStatus({
+                            status: status.status,
+                            output_path: status.output_path,
+                            pipeline_id: wrapperBuildId,
+                            scenario_name: status.scenario_name || selectedScenarioName,
+                          });
                         }}
                       />
                     ) : (

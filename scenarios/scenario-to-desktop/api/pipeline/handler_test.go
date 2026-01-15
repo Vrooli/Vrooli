@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,6 +20,8 @@ type mockOrchestrator struct {
 	getFound      bool
 	cancelSuccess bool
 	pipelines     []*Status
+	resumeResult  *Status
+	resumeError   error
 }
 
 func (m *mockOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
@@ -38,6 +41,13 @@ func (m *mockOrchestrator) CancelPipeline(pipelineID string) bool {
 
 func (m *mockOrchestrator) ListPipelines() []*Status {
 	return m.pipelines
+}
+
+func (m *mockOrchestrator) ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error) {
+	if m.resumeError != nil {
+		return nil, m.resumeError
+	}
+	return m.resumeResult, nil
 }
 
 func TestNewHandler(t *testing.T) {
@@ -300,6 +310,147 @@ func TestHandleCancel(t *testing.T) {
 		}
 		if resp.Message != "Pipeline has already completed" {
 			t.Errorf("expected completed message, got %q", resp.Message)
+		}
+	})
+}
+
+func TestHandleResume(t *testing.T) {
+	t.Run("orchestrator not configured", func(t *testing.T) {
+		h := NewHandler()
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/test-id/resume", nil)
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusInternalServerError {
+			t.Errorf("expected status 500, got %d", rr.Code)
+		}
+	})
+
+	t.Run("successful resume", func(t *testing.T) {
+		orch := &mockOrchestrator{
+			resumeResult: &Status{
+				PipelineID: "resumed-123",
+				Status:     StatusRunning,
+				Config: &Config{
+					ScenarioName:     "test",
+					ResumeFromStage:  "generate",
+					ParentPipelineID: "original-123",
+				},
+			},
+		}
+		h := NewHandler(WithOrchestrator(orch), WithBasePath("/api/v1/pipeline"))
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/original-123/resume", nil)
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusAccepted {
+			t.Errorf("expected status 202, got %d", rr.Code)
+		}
+
+		var resp ResumeResponse
+		if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+		if resp.PipelineID != "resumed-123" {
+			t.Errorf("expected pipeline_id 'resumed-123', got %q", resp.PipelineID)
+		}
+		if resp.ParentPipelineID != "original-123" {
+			t.Errorf("expected parent_pipeline_id 'original-123', got %q", resp.ParentPipelineID)
+		}
+		if resp.ResumeFromStage != "generate" {
+			t.Errorf("expected resume_from_stage 'generate', got %q", resp.ResumeFromStage)
+		}
+		if resp.StatusURL != "/api/v1/pipeline/resumed-123" {
+			t.Errorf("expected status URL '/api/v1/pipeline/resumed-123', got %q", resp.StatusURL)
+		}
+	})
+
+	t.Run("pipeline not found", func(t *testing.T) {
+		orch := &mockOrchestrator{
+			resumeError: fmt.Errorf("pipeline not found: nonexistent"),
+		}
+		h := NewHandler(WithOrchestrator(orch))
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/nonexistent/resume", nil)
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("invalid resume state", func(t *testing.T) {
+		orch := &mockOrchestrator{
+			resumeError: fmt.Errorf("pipeline cannot be resumed: status is running (must be completed)"),
+		}
+		h := NewHandler(WithOrchestrator(orch))
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/running-123/resume", nil)
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("with config override", func(t *testing.T) {
+		orch := &mockOrchestrator{
+			resumeResult: &Status{
+				PipelineID: "resumed-456",
+				Status:     StatusRunning,
+				Config: &Config{
+					ScenarioName:     "test",
+					ResumeFromStage:  "generate",
+					StopAfterStage:   "build",
+					ParentPipelineID: "original-456",
+				},
+			},
+		}
+		h := NewHandler(WithOrchestrator(orch))
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		body, _ := json.Marshal(Config{StopAfterStage: "build"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/original-456/resume", bytes.NewBuffer(body))
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusAccepted {
+			t.Errorf("expected status 202, got %d", rr.Code)
+		}
+	})
+
+	t.Run("invalid JSON body", func(t *testing.T) {
+		orch := &mockOrchestrator{}
+		h := NewHandler(WithOrchestrator(orch))
+		r := mux.NewRouter()
+		r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/pipeline/test-123/resume", bytes.NewBufferString("not json"))
+		req.ContentLength = 8 // Set content length to indicate body is present
+		rr := httptest.NewRecorder()
+
+		r.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", rr.Code)
 		}
 	})
 }

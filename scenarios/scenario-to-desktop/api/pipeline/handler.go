@@ -50,6 +50,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// GET /api/v1/pipeline/{id} - get pipeline status
 	r.HandleFunc("/api/v1/pipeline/{id}", h.handleGetStatus).Methods("GET")
 
+	// POST /api/v1/pipeline/{id}/resume - resume a stopped pipeline
+	r.HandleFunc("/api/v1/pipeline/{id}/resume", h.handleResume).Methods("POST")
+
 	// POST /api/v1/pipeline/{id}/cancel - cancel pipeline
 	r.HandleFunc("/api/v1/pipeline/{id}/cancel", h.handleCancel).Methods("POST")
 
@@ -98,6 +101,7 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleGetStatus handles GET /api/v1/pipeline/{id}
+// Supports ?verbose=true to include stage Details and Logs (default: false for minimal response)
 func (h *Handler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
 		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
@@ -114,7 +118,63 @@ func (h *Handler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if verbose output is requested (default: false for minimal AI-friendly response)
+	verbose := r.URL.Query().Get("verbose") == "true"
+	if !verbose {
+		status = stripVerboseFields(status)
+	}
+
 	h.writeJSON(w, http.StatusOK, status)
+}
+
+// handleResume handles POST /api/v1/pipeline/{id}/resume
+func (h *Handler) handleResume(w http.ResponseWriter, r *http.Request) {
+	if h.orchestrator == nil {
+		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		return
+	}
+
+	vars := mux.Vars(r)
+	pipelineID := vars["id"]
+
+	// Parse optional request body for overrides
+	var resumeConfig *Config
+	if r.ContentLength > 0 {
+		var config Config
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			h.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+			return
+		}
+		resumeConfig = &config
+	}
+
+	// Resume the pipeline
+	status, err := h.orchestrator.ResumePipeline(r.Context(), pipelineID, resumeConfig)
+	if err != nil {
+		// Determine error type for appropriate status code
+		errMsg := err.Error()
+		if errMsg == fmt.Sprintf("pipeline not found: %s", pipelineID) {
+			h.writeError(w, http.StatusNotFound, errMsg)
+			return
+		}
+		// Other errors are bad request (invalid resume state)
+		h.writeError(w, http.StatusBadRequest, errMsg)
+		return
+	}
+
+	// Build status URL
+	statusURL := fmt.Sprintf("%s/%s", h.basePath, status.PipelineID)
+
+	// Return response
+	response := ResumeResponse{
+		PipelineID:       status.PipelineID,
+		ParentPipelineID: pipelineID,
+		StatusURL:        statusURL,
+		ResumeFromStage:  status.Config.ResumeFromStage,
+		Message:          fmt.Sprintf("Pipeline resumed from stage: %s", status.Config.ResumeFromStage),
+	}
+
+	h.writeJSON(w, http.StatusAccepted, response)
 }
 
 // handleCancel handles POST /api/v1/pipeline/{id}/cancel
@@ -174,4 +234,18 @@ func (h *Handler) writeJSON(w http.ResponseWriter, status int, data interface{})
 // writeError writes an error response.
 func (h *Handler) writeError(w http.ResponseWriter, status int, message string) {
 	h.writeJSON(w, status, map[string]string{"error": message})
+}
+
+// stripVerboseFields returns a copy of the status with Details and Logs removed from each stage.
+// This provides a minimal response suitable for AI consumption and reduces payload size.
+func stripVerboseFields(status *Status) *Status {
+	stripped := *status
+	stripped.Stages = make(map[string]*StageResult)
+	for name, stage := range status.Stages {
+		s := *stage
+		s.Details = nil // Remove stage-specific details
+		s.Logs = nil    // Remove log messages
+		stripped.Stages[name] = &s
+	}
+	return &stripped
 }

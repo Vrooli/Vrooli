@@ -84,28 +84,14 @@ func (s *GenerateStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the desktop generation stage.
 func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
-	// Check for analyzer (required for scenario analysis)
 	if s.analyzer == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "scenario analyzer not configured"
+		failStage(result, s.timeProvider, "scenario analyzer not configured")
 		return result
 	}
 
@@ -115,9 +101,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// Analyze the scenario
 	metadata, err := s.analyzer.AnalyzeScenario(scenarioName)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("scenario analysis failed: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("scenario analysis failed: %v", err))
 		return result
 	}
 
@@ -126,9 +110,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 
 	// Validate scenario is ready for desktop
 	if err := s.analyzer.ValidateScenarioForDesktop(scenarioName); err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("scenario validation failed: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("scenario validation failed: %v", err))
 		return result
 	}
 
@@ -136,9 +118,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	templateType := input.Config.GetTemplateType()
 	desktopConfig, err := s.analyzer.CreateDesktopConfigFromMetadata(metadata, templateType)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("failed to create desktop config: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("failed to create desktop config: %v", err))
 		return result
 	}
 
@@ -158,11 +138,8 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		fmt.Sprintf("Template type: %s", templateType),
 	)
 
-	// Check for service
 	if s.service == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "generation service not configured"
+		failStage(result, s.timeProvider, "generation service not configured")
 		return result
 	}
 
@@ -173,9 +150,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// Wait for generation to complete (poll with cancellation support)
 	desktopPath, err := s.waitForGeneration(ctx, buildID, buildStatus)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = err.Error()
+		failStage(result, s.timeProvider, err.Error())
 		return result
 	}
 
@@ -187,9 +162,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 		DesktopPath: desktopPath,
 	}
 
-	result.Status = StatusCompleted
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = input.GenerationResult
+	completeStage(result, s.timeProvider, input.GenerationResult)
 	result.Logs = append(result.Logs,
 		fmt.Sprintf("Desktop wrapper generated: %s", desktopPath),
 	)

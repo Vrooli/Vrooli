@@ -11,9 +11,10 @@ import (
 
 // BundleStage implements the bundle packaging stage of the pipeline.
 type BundleStage struct {
-	packager     bundle.Packager
-	timeProvider TimeProvider
-	scenarioRoot string
+	packager          bundle.Packager
+	manifestGenerator ManifestGenerator
+	timeProvider      TimeProvider
+	scenarioRoot      string
 }
 
 // BundleStageOption configures a BundleStage.
@@ -37,6 +38,13 @@ func WithBundleTimeProvider(tp TimeProvider) BundleStageOption {
 func WithScenarioRoot(root string) BundleStageOption {
 	return func(s *BundleStage) {
 		s.scenarioRoot = root
+	}
+}
+
+// WithManifestGenerator sets the manifest generator for on-demand manifest creation.
+func WithManifestGenerator(g ManifestGenerator) BundleStageOption {
+	return func(s *BundleStage) {
+		s.manifestGenerator = g
 	}
 }
 
@@ -74,29 +82,15 @@ func (s *BundleStage) CanSkip(input *StageInput) bool {
 
 // Execute runs the bundle packaging stage.
 func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResult {
-	result := &StageResult{
-		Stage:     s.Name(),
-		Status:    StatusRunning,
-		StartedAt: s.timeProvider.Now(),
-		Logs:      []string{},
-	}
+	result := newStageResult(s.Name(), s.timeProvider)
 
-	// Check if stage should be skipped
 	if s.CanSkip(input) {
-		result.Status = StatusSkipped
-		result.CompletedAt = s.timeProvider.Now()
-		result.Logs = append(result.Logs, "Skipping bundle stage: deployment mode is proxy")
+		skipStage(result, s.timeProvider, "Skipping bundle stage: deployment mode is proxy")
 		return result
 	}
 
-	// Check for cancellation
-	select {
-	case <-ctx.Done():
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "stage cancelled"
+	if checkCancellation(ctx, result, s.timeProvider) {
 		return result
-	default:
 	}
 
 	// Determine scenario path
@@ -111,12 +105,25 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		manifestPath = filepath.Join(scenarioPath, "bundle", "bundle.json")
 	}
 
-	// Check if manifest exists
+	// Check if manifest exists, generate if not
 	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("bundle manifest not found: %s", manifestPath)
-		return result
+		if s.manifestGenerator == nil {
+			failStage(result, s.timeProvider, fmt.Sprintf("bundle manifest not found: %s (no generator configured)", manifestPath))
+			return result
+		}
+
+		result.Logs = append(result.Logs, "Manifest not found, generating via deployment-manager...")
+
+		// Generate manifest
+		outputDir := filepath.Dir(manifestPath)
+		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, input.Config.ScenarioName, outputDir)
+		if genErr != nil {
+			failStage(result, s.timeProvider, fmt.Sprintf("failed to generate manifest: %v", genErr))
+			return result
+		}
+
+		manifestPath = generatedPath
+		result.Logs = append(result.Logs, fmt.Sprintf("Generated manifest: %s", manifestPath))
 	}
 
 	result.Logs = append(result.Logs, fmt.Sprintf("Using manifest: %s", manifestPath))
@@ -124,27 +131,21 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 
 	// Check for packager
 	if s.packager == nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "bundle packager not configured"
+		failStage(result, s.timeProvider, "bundle packager not configured")
 		return result
 	}
 
 	// Run the packager
 	packageResult, err := s.packager.Package(scenarioPath, manifestPath, input.Config.Platforms)
 	if err != nil {
-		result.Status = StatusFailed
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = fmt.Sprintf("bundle packaging failed: %v", err)
+		failStage(result, s.timeProvider, fmt.Sprintf("bundle packaging failed: %v", err))
 		return result
 	}
 
 	// Update input for next stage
 	input.BundleResult = packageResult
 
-	result.Status = StatusCompleted
-	result.CompletedAt = s.timeProvider.Now()
-	result.Details = packageResult
+	completeStage(result, s.timeProvider, packageResult)
 	result.Logs = append(result.Logs,
 		fmt.Sprintf("Bundle created: %s", packageResult.BundleDir),
 		fmt.Sprintf("Total size: %s", packageResult.TotalSizeHuman),

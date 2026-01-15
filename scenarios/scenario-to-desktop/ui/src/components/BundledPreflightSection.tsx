@@ -13,11 +13,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Braces, Copy, Download, LayoutList } from "lucide-react";
 import type {
-  BundlePreflightJobStatusResponse,
   BundlePreflightLogTail,
   BundlePreflightResponse,
   BundlePreflightSecret,
-  BundlePreflightStep
+  BundlePreflightStep,
+  PipelineStatus
 } from "../lib/api";
 import {
   JOB_STEP_STATE_LABELS,
@@ -60,20 +60,16 @@ interface BundledPreflightSectionProps {
   preflightResult: BundlePreflightResponse | null;
   preflightPending: boolean;
   preflightError: string | null;
-  preflightJobStatus?: BundlePreflightJobStatusResponse | null;
+  pipelineStatus?: PipelineStatus | null;
   missingSecrets: BundlePreflightSecret[];
   secretInputs: Record<string, string>;
   preflightOk: boolean;
   preflightOverride: boolean;
-  preflightSessionTTL: number;
-  preflightSessionId?: string | null;
-  preflightSessionExpiresAt?: string | null;
   preflightLogTails?: BundlePreflightLogTail[];
   onOverrideChange: (value: boolean) => void;
-  onSessionTTLChange: (value: number) => void;
   onSecretChange: (id: string, value: string) => void;
   onRun: (secretsOverride?: Record<string, string>) => void;
-  onStopSession: () => void;
+  onCancel?: () => void;
 }
 
 // ============================================================================
@@ -216,20 +212,16 @@ export function BundledPreflightSection({
   preflightResult,
   preflightPending,
   preflightError,
-  preflightJobStatus,
+  pipelineStatus,
   missingSecrets,
   secretInputs,
   preflightOk,
   preflightOverride,
-  preflightSessionTTL,
-  preflightSessionId,
-  preflightSessionExpiresAt,
   preflightLogTails,
   onOverrideChange,
-  onSessionTTLChange,
   onSecretChange,
   onRun,
-  onStopSession
+  onCancel
 }: BundledPreflightSectionProps) {
   const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
@@ -239,12 +231,47 @@ export function BundledPreflightSection({
   // Derived State
   // ============================================================================
 
+  // Map pipeline stages to preflight steps for compatibility with existing UI
   const jobStepById = useMemo(() => {
-    const steps = preflightJobStatus?.steps ?? [];
     const map = new Map<string, BundlePreflightStep>();
-    steps.forEach((step) => map.set(step.id, step));
+    if (!pipelineStatus?.stages) return map;
+
+    // Map pipeline stages to preflight step format
+    const stageToStep = (stageName: string, stage: { status: string; error?: string }): BundlePreflightStep | null => {
+      if (!stage) return null;
+      const stateMap: Record<string, BundlePreflightStep["state"]> = {
+        "pending": "pending",
+        "running": "running",
+        "completed": "pass",
+        "failed": "fail",
+        "cancelled": "fail",
+        "skipped": "skipped"
+      };
+      return {
+        id: stageName,
+        name: stageName.charAt(0).toUpperCase() + stageName.slice(1),
+        state: stateMap[stage.status] || "pending",
+        detail: stage.error
+      };
+    };
+
+    // Add bundle and preflight stages
+    if (pipelineStatus.stages.bundle) {
+      const step = stageToStep("bundle", pipelineStatus.stages.bundle);
+      if (step) map.set("validation", step); // Bundle maps to validation
+    }
+    if (pipelineStatus.stages.preflight) {
+      const step = stageToStep("preflight", pipelineStatus.stages.preflight);
+      if (step) {
+        map.set("secrets", step);
+        map.set("runtime", step);
+        map.set("services", step);
+        map.set("diagnostics", step);
+      }
+    }
+
     return map;
-  }, [preflightJobStatus?.steps]);
+  }, [pipelineStatus?.stages]);
 
   const validation = preflightResult?.validation;
   const readiness = preflightResult?.ready;
@@ -279,7 +306,7 @@ export function BundledPreflightSection({
     portSummary || telemetry?.path || (logTails && logTails.length > 0)
   );
 
-  const hasRun = Boolean(preflightResult || preflightError || preflightJobStatus);
+  const hasRun = Boolean(preflightResult || preflightError || pipelineStatus);
 
   // Filter checks by step
   const validationChecks = checks.filter((check) => check.step === "validation");
@@ -402,40 +429,16 @@ export function BundledPreflightSection({
           >
             {preflightPending ? "Running..." : "Run preflight"}
           </Button>
-          {preflightSessionId && (
+          {preflightPending && onCancel && (
             <Button
               type="button"
               size="sm"
               variant="ghost"
-              onClick={onStopSession}
-              disabled={preflightPending}
+              onClick={onCancel}
             >
-              Stop session
+              Cancel
             </Button>
           )}
-        </div>
-      </div>
-
-      {/* Session TTL control */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="preflight-session-ttl" className="text-[11px] text-slate-400">
-            Session TTL (s)
-          </Label>
-          <Input
-            id="preflight-session-ttl"
-            type="number"
-            min={30}
-            max={900}
-            value={preflightSessionTTL}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (!Number.isNaN(next)) {
-                onSessionTTLChange(Math.min(900, Math.max(30, next)));
-              }
-            }}
-            className="h-7 w-20 text-xs"
-          />
         </div>
       </div>
 
@@ -595,19 +598,11 @@ export function BundledPreflightSection({
                     {typeof readiness?.waited_seconds === "number" && readiness.waited_seconds > 0
                       ? ` Waited ${readiness.waited_seconds}s before capturing status.`
                       : ""}
-                    Auto-refresh updates this snapshot every 10s while the session is active.
                   </p>
-                  {(preflightSessionId || preflightSessionExpiresAt) && (
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Session {preflightSessionId ? preflightSessionId.slice(0, 8) : "active"}
-                      {preflightSessionExpiresAt ? ` · expires ${formatTimestamp(preflightSessionExpiresAt)}` : ""}
-                    </p>
-                  )}
                   <ServicesReadinessGrid
                     readinessDetails={readinessDetails}
                     ports={ports}
                     bundleManifest={bundleManifest}
-                    preflightSessionId={preflightSessionId}
                     snapshotTs={snapshotTs}
                     tick={tick}
                   />

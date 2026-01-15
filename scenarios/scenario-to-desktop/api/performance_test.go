@@ -204,72 +204,10 @@ func TestTemplateListingPerformance(t *testing.T) {
 	})
 }
 
-// TestValidationPerformance tests configuration validation performance
-func TestValidationPerformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping performance test in short mode")
-	}
-
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	server := NewServer(0)
-	baseConfig := func(name string) *DesktopConfig {
-		return &DesktopConfig{
-			AppName:      name,
-			Framework:    "electron",
-			TemplateType: "basic",
-			OutputPath:   "/tmp/test",
-			ServerType:   "static",
-			ServerPath:   "./dist",
-			APIEndpoint:  "http://localhost:3000",
-		}
-	}
-
-	t.Run("ValidConfigValidation", func(t *testing.T) {
-		validationCount := 10000
-		start := time.Now()
-
-		for i := 0; i < validationCount; i++ {
-			config := baseConfig(fmt.Sprintf("App%d", i))
-
-			err := server.validateDesktopConfig(config)
-			if err != nil {
-				t.Errorf("Validation %d failed: %v", i, err)
-			}
-		}
-
-		elapsed := time.Since(start)
-		avgTime := elapsed / time.Duration(validationCount)
-
-		t.Logf("Completed %d validations in %v (avg: %v per validation)", validationCount, elapsed, avgTime)
-
-		// Performance target: < 1µs average per validation
-		if avgTime > 1*time.Microsecond {
-			t.Logf("Average validation time: %v", avgTime)
-		}
-	})
-
-	t.Run("InvalidConfigValidation", func(t *testing.T) {
-		validationCount := 1000
-		start := time.Now()
-
-		for i := 0; i < validationCount; i++ {
-			config := baseConfig(fmt.Sprintf("App%d", i))
-			config.Framework = "invalid"
-
-			err := server.validateDesktopConfig(config)
-			if err == nil {
-				t.Errorf("Expected validation %d to fail", i)
-			}
-		}
-
-		elapsed := time.Since(start)
-		avgTime := elapsed / time.Duration(validationCount)
-
-		t.Logf("Completed %d invalid validations in %v (avg: %v per validation)", validationCount, elapsed, avgTime)
-	})
-}
+// NOTE: TestValidationPerformance was removed as part of the pipeline migration.
+// The validateDesktopConfig function from validation.go has been deprecated
+// in favor of the unified pipeline approach with preflight validation.
+// Validation performance is now tested in preflight/validator_test.go.
 
 // TestWebhookPerformance tests webhook handling performance
 // NOTE: This test validates webhook endpoint exists and responds correctly.
