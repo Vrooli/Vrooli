@@ -238,44 +238,32 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 		maxSteps = 100
 	}
 
-	// Check entitlements if service is available
+	// Check for BYOK key - users with their own API key bypass tier/credit checks
+	hasBYOK := strings.TrimSpace(req.APIKey) != ""
+
+	// Check AI operation permission (tier + credits) unless user has BYOK
 	var userID string
-	if h.entitlementSvc != nil {
+	if h.creditService != nil {
 		userID = entitlement.UserIdentityFromContext(ctx)
 		if userID == "" {
 			userID = "anonymous"
 		}
 
-		// Check tier allows vision navigation
-		ent, err := h.entitlementSvc.GetEntitlement(ctx, userID)
+		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIVisionNavigate, hasBYOK)
 		if err != nil {
-			h.log.WithError(err).Warn("vision_navigation: failed to get entitlement")
-		} else {
-			// Check if tier supports AI (tier limits defined elsewhere)
-			if !h.entitlementSvc.TierCanUseAI(ent.Tier) {
-				RespondError(w, &APIError{
-					Status:  http.StatusForbidden,
-					Code:    "AI_NOT_AVAILABLE",
-					Message: "AI navigation not available for your tier",
-				})
-				return
+			h.log.WithError(err).Warn("vision_navigation: failed to check AI operation permission")
+		} else if !canProceed {
+			status := http.StatusForbidden
+			if errCode == "INSUFFICIENT_CREDITS" {
+				status = http.StatusPaymentRequired
 			}
-		}
-
-		// Check AI credits
-		if h.creditService != nil {
-			canCharge, remaining, err := h.creditService.CanCharge(ctx, userID, credits.OpAIVisionNavigate)
-			if err != nil {
-				h.log.WithError(err).Warn("vision_navigation: failed to check credits")
-			} else if !canCharge {
-				RespondError(w, &APIError{
-					Status:  http.StatusPaymentRequired,
-					Code:    "INSUFFICIENT_CREDITS",
-					Message: fmt.Sprintf("Insufficient AI credits. Remaining: %d", remaining),
-					Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
-				})
-				return
-			}
+			RespondError(w, &APIError{
+				Status:  status,
+				Code:    errCode,
+				Message: errMsg,
+				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
+			})
+			return
 		}
 	}
 

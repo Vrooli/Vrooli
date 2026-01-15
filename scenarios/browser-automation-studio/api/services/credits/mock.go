@@ -16,6 +16,7 @@ type MockService struct {
 	failedOps        []ChargeRequest
 	costs            OperationCosts
 	canChargeFn      func(OperationType) bool
+	aiAvailable      bool // Whether AI features are available (tier check)
 }
 
 // MockServiceOption configures the mock service.
@@ -44,6 +45,13 @@ func WithCanChargeFn(fn func(OperationType) bool) MockServiceOption {
 	}
 }
 
+// WithAINotAvailable configures the mock to deny AI operations (simulates tier restriction).
+func WithAINotAvailable() MockServiceOption {
+	return func(m *MockService) {
+		m.aiAvailable = false
+	}
+}
+
 // Note: WithCosts was intentionally removed. Operation costs are hard-coded
 // to prevent bypassing charges. The mock always uses DefaultOperationCosts().
 
@@ -53,6 +61,7 @@ func NewMockService(opts ...MockServiceOption) *MockService {
 		creditsRemaining: 100, // Default
 		creditsLimit:     100,
 		costs:            DefaultOperationCosts(),
+		aiAvailable:      true, // AI available by default
 	}
 	for _, opt := range opts {
 		opt(m)
@@ -223,6 +232,34 @@ func (m *MockService) GetOperationLog(ctx context.Context, userIdentity, month, 
 		Offset:       offset,
 		HasMore:      offset+len(operations) < total,
 	}, nil
+}
+
+// CanPerformAIOperation implements CreditService.
+func (m *MockService) CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// BYOK bypasses all checks
+	if hasBYOK {
+		return true, "", "", -1, nil
+	}
+
+	// Check if AI is available (tier check simulation)
+	if !m.aiAvailable {
+		return false, "AI_NOT_AVAILABLE", "AI features not available for your tier", 0, nil
+	}
+
+	// Check credits
+	if m.creditsLimit < 0 {
+		return true, "", "", -1, nil // Unlimited
+	}
+
+	cost := m.costs.GetCost(op)
+	if m.creditsRemaining < cost {
+		return false, "INSUFFICIENT_CREDITS", "Insufficient AI credits", m.creditsRemaining, nil
+	}
+
+	return true, "", "", m.creditsRemaining, nil
 }
 
 // Test helpers

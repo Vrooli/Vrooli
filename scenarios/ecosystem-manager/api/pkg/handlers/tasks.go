@@ -139,17 +139,22 @@ func (h *TaskHandlers) buildQueueSteeringRuntime(taskItems []tasks.TaskItem) map
 		}
 
 		idx := state.CurrentIndex
-		isExhausted := state.IsExhausted()
+
+		// Use task.SteeringQueue (the source of truth) for mode, total, and exhausted check,
+		// not state.Queue (which is a snapshot from when execution started).
+		// This ensures UI reflects any queue edits the user made.
+		queueLen := len(task.SteeringQueue)
+		isExhausted := idx >= queueLen
 
 		var mode string
-		if !isExhausted && idx >= 0 && idx < len(state.Queue) {
-			mode = string(state.Queue[idx])
+		if !isExhausted && idx >= 0 && idx < queueLen {
+			mode = task.SteeringQueue[idx]
 		}
 
 		result[task.ID] = queueSteeringRuntime{
 			index:       &idx,
 			mode:        mode,
-			total:       len(state.Queue),
+			total:       queueLen,
 			isExhausted: isExhausted,
 		}
 	}

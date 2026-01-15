@@ -69,6 +69,13 @@ type CreditService interface {
 	// month is in YYYY-MM format, category filters by operation category (ai, execution, export).
 	// Empty category returns all operations.
 	GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
+
+	// CanPerformAIOperation checks if user can perform an AI operation.
+	// Combines BYOK bypass, tier check, and credit check in one call.
+	// Returns (canProceed, errorCode, errorMessage, remaining, error).
+	// errorCode is empty string if canProceed is true.
+	// If hasBYOK is true, bypasses tier and credit checks (user pays their own way).
+	CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
 }
 
 // ChargeRequest encapsulates all information needed to charge credits.

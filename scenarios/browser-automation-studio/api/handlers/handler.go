@@ -322,8 +322,20 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	// Initialize AI subhandlers with dependencies
 	handler.domHandler = aihandlers.NewDOMHandler(log)
 	handler.screenshotHandler = aihandlers.NewScreenshotHandler(log)
-	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log)
-	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler)
+
+	// Initialize element analysis handler with optional credit service
+	elementAnalysisOpts := []aihandlers.ElementAnalysisOption{}
+	if deps.CreditService != nil {
+		elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithElementAnalysisCreditService(deps.CreditService))
+	}
+	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log, elementAnalysisOpts...)
+
+	// Initialize AI analysis handler with optional credit service
+	aiAnalysisOpts := []aihandlers.AIAnalysisOption{}
+	if deps.CreditService != nil {
+		aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisCreditService(deps.CreditService))
+	}
+	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
 
 	// Initialize vision navigation handler with optional credit service
 	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{

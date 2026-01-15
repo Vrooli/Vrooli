@@ -728,7 +728,7 @@ func loadFromEnv() *Config {
 			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
 			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),
 			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
-			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "pro,studio,business"),
+			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
 			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 		Performance: PerformanceConfig{

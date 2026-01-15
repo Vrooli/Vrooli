@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -53,6 +54,22 @@ func NewService(opts ServiceOptions) *Service {
 		costs:          DefaultOperationCosts(),
 		cache:          make(map[string]*usageCache),
 	}
+}
+
+// getEntitlement retrieves the entitlement for a user, checking context first
+// (for middleware overrides like tier testing), then falling back to the entitlement service.
+func (s *Service) getEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error) {
+	// Check context first - respects middleware overrides (e.g., tier override for testing)
+	if ent := entitlement.FromContext(ctx); ent != nil {
+		return ent, nil
+	}
+
+	// Fall back to fetching from entitlement service
+	if s.entitlementSvc == nil {
+		return nil, nil
+	}
+
+	return s.entitlementSvc.GetEntitlement(ctx, userIdentity)
 }
 
 // CanCharge checks if the user has sufficient credits for the operation.
@@ -151,6 +168,41 @@ func (s *Service) ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*Char
 	}
 
 	return s.Charge(ctx, req)
+}
+
+// CanPerformAIOperation checks if user can perform an AI operation.
+// Combines BYOK bypass, tier check, and credit check in one call.
+// Returns (canProceed, errorCode, errorMessage, remaining, error).
+func (s *Service) CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error) {
+	// 1. BYOK users bypass all checks - they pay their own way
+	if hasBYOK {
+		return true, "", "", -1, nil
+	}
+
+	userIdentity = normalizeIdentity(userIdentity)
+
+	// 2. Check tier allows AI (uses context entitlement if available, e.g., from override)
+	ent, err := s.getEntitlement(ctx, userIdentity)
+	if err != nil {
+		s.log.WithError(err).Warn("credits: failed to get entitlement for AI check")
+		// Fail open on entitlement errors
+	} else if ent != nil && s.entitlementSvc != nil && !s.entitlementSvc.TierCanUseAI(ent.Tier) {
+		return false, "AI_NOT_AVAILABLE", "AI features not available for your tier", 0, nil
+	}
+
+	// 3. Check credits
+	canCharge, remaining, err := s.CanCharge(ctx, userIdentity, op)
+	if err != nil {
+		if errors.Is(err, ErrNoCreditsAccess) {
+			return false, "AI_NOT_AVAILABLE", "AI features not available for your tier", 0, nil
+		}
+		return false, "", "", 0, err
+	}
+	if !canCharge {
+		return false, "INSUFFICIENT_CREDITS", fmt.Sprintf("Insufficient AI credits. Remaining: %d", remaining), remaining, nil
+	}
+
+	return true, "", "", remaining, nil
 }
 
 // GetUsage returns the usage summary for a user in the current billing period.
@@ -472,14 +524,16 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 
 // getUserCreditsLimit gets the credit limit for a user based on their entitlement tier.
 func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) (int, error) {
-	if s.entitlementSvc == nil {
-		return -1, nil // Unlimited when no entitlement service
-	}
-
-	ent, err := s.entitlementSvc.GetEntitlement(ctx, userIdentity)
+	// Use helper that checks context first (respects tier overrides)
+	ent, err := s.getEntitlement(ctx, userIdentity)
 	if err != nil {
 		s.log.WithError(err).Warn("Failed to get entitlement, assuming unlimited")
 		return -1, nil // Fail open
+	}
+
+	// No entitlement means no entitlement service configured - unlimited
+	if ent == nil || s.entitlementSvc == nil {
+		return -1, nil
 	}
 
 	return s.entitlementSvc.GetAICreditsLimit(ent.Tier), nil

@@ -10,8 +10,8 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
-	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 )
 

@@ -251,7 +251,6 @@ func TestExtractPageElements_Integration(t *testing.T) {
 		ctx := context.Background()
 
 		elements, pageContext, screenshot, err := handler.extractPageElements(ctx, "https://example.com")
-
 		if err != nil {
 			t.Skipf("Browserless not available: %v", err)
 		}
@@ -329,7 +328,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-
 		if err != nil {
 			t.Skipf("Ollama integration failed: %v", err)
 		}
@@ -356,7 +354,6 @@ func TestGenerateAISuggestions_Integration(t *testing.T) {
 		}
 
 		suggestions, err := handler.generateAISuggestions(ctx, elements, pageContext)
-
 		if err != nil {
 			t.Skipf("Ollama integration failed: %v", err)
 		}
