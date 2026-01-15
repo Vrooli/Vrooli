@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
 )
@@ -144,6 +145,31 @@ func (r *PostgresQueueStateRepository) ResetPosition(taskID string) error {
 	return nil
 }
 
+// SetPosition sets the queue position to a specific index.
+func (r *PostgresQueueStateRepository) SetPosition(taskID string, position int) error {
+	if r.db == nil {
+		return fmt.Errorf("database connection not available")
+	}
+
+	if position < 0 {
+		return fmt.Errorf("position must be non-negative, got %d", position)
+	}
+
+	query := `UPDATE steering_queue_state SET current_index = $2, updated_at = NOW() WHERE task_id = $1`
+
+	result, err := r.db.Exec(query, taskID, position)
+	if err != nil {
+		return fmt.Errorf("failed to set queue position: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("no queue state found for task %s", taskID)
+	}
+
+	return nil
+}
+
 // InMemoryQueueStateRepository implements QueueStateRepository using an in-memory map.
 // Useful for testing and development.
 type InMemoryQueueStateRepository struct {
@@ -201,5 +227,21 @@ func (r *InMemoryQueueStateRepository) ResetPosition(taskID string) error {
 	if state, ok := r.states[taskID]; ok {
 		state.Reset() // Uses existing QueueState.Reset() method
 	}
+	return nil
+}
+
+// SetPosition sets the queue position to a specific index.
+func (r *InMemoryQueueStateRepository) SetPosition(taskID string, position int) error {
+	if position < 0 {
+		return fmt.Errorf("position must be non-negative, got %d", position)
+	}
+
+	state, ok := r.states[taskID]
+	if !ok {
+		return fmt.Errorf("no queue state found for task %s", taskID)
+	}
+
+	state.CurrentIndex = position
+	state.UpdatedAt = time.Now().Format(time.RFC3339)
 	return nil
 }

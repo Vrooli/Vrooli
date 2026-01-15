@@ -423,6 +423,7 @@ func (a *Application) registerTaskRoutes(api *mux.Router) {
 	api.HandleFunc("/tasks/{id}", a.taskHandlers.UpdateTaskHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", a.taskHandlers.DeleteTaskHandler).Methods("DELETE")
 	api.HandleFunc("/tasks/{id}/status", a.taskHandlers.UpdateTaskStatusHandler).Methods("PUT")
+	api.HandleFunc("/tasks/{id}/queue-position", a.taskHandlers.SetQueuePositionHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}/logs", a.taskHandlers.GetTaskLogsHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions", a.taskHandlers.GetExecutionHistoryHandler).Methods("GET")
 	api.HandleFunc("/tasks/{id}/executions/bulk-analysis", a.taskHandlers.GetExecutionBulkAnalysisHandler).Methods("GET")

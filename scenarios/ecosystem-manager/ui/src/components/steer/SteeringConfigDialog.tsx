@@ -29,6 +29,10 @@ interface SteeringConfigDialogProps {
   queueIndex?: number;
   /** Queue progress: whether the queue is fully processed */
   queueExhausted?: boolean;
+  /** Callback to change queue position (for running tasks) */
+  onQueuePositionChange?: (position: number) => void;
+  /** Position currently being changed to (shows loading state) */
+  pendingQueuePosition?: number | null;
 }
 
 const STRATEGY_TABS: { value: SteeringStrategy; label: string; icon: React.ElementType }[] = [
@@ -64,6 +68,8 @@ export function SteeringConfigDialog({
   isLoadingPhases,
   queueIndex,
   queueExhausted,
+  onQueuePositionChange,
+  pendingQueuePosition,
 }: SteeringConfigDialogProps) {
   // Local state for editing
   const [localConfig, setLocalConfig] = useState<SteeringConfig>(value);
@@ -138,6 +144,8 @@ export function SteeringConfigDialog({
                 isLoading={isLoadingPhases}
                 currentIndex={queueIndex}
                 isExhausted={queueExhausted}
+                onPositionChange={onQueuePositionChange}
+                pendingPosition={pendingQueuePosition}
               />
             </TabsContent>
 

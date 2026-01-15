@@ -1000,3 +1000,59 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 
 	writeJSON(w, *updated, http.StatusOK)
 }
+
+// SetQueuePositionHandler sets the steering queue position for a task
+// PUT /api/tasks/{id}/queue-position
+func (h *TaskHandlers) SetQueuePositionHandler(w http.ResponseWriter, r *http.Request) {
+	task, _, ok := h.getTaskFromRequest(r, w)
+	if !ok {
+		return
+	}
+
+	type positionRequest struct {
+		Position int `json:"position"`
+	}
+
+	req, ok := decodeJSONBody[positionRequest](w, r)
+	if !ok {
+		return
+	}
+
+	// Validate task has a steering queue
+	if len(task.SteeringQueue) == 0 {
+		writeError(w, "Task does not have a steering queue", http.StatusBadRequest)
+		return
+	}
+
+	// Validate bounds
+	if req.Position < 0 || req.Position >= len(task.SteeringQueue) {
+		writeError(w, fmt.Sprintf("Position %d out of bounds (0-%d)", req.Position, len(task.SteeringQueue)-1), http.StatusBadRequest)
+		return
+	}
+
+	// Set position
+	if h.queueStateRepo == nil {
+		writeError(w, "Queue state repository not available", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.queueStateRepo.SetPosition(task.ID, req.Position); err != nil {
+		writeError(w, fmt.Sprintf("Failed to set queue position: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Broadcast update
+	if h.wsManager != nil {
+		h.wsManager.BroadcastUpdate("queue_position_changed", map[string]any{
+			"task_id":  task.ID,
+			"position": req.Position,
+			"mode":     task.SteeringQueue[req.Position],
+		})
+	}
+
+	writeJSON(w, map[string]any{
+		"success":  true,
+		"position": req.Position,
+		"mode":     task.SteeringQueue[req.Position],
+	}, http.StatusOK)
+}

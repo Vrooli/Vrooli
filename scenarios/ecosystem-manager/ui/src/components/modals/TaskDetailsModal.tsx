@@ -262,6 +262,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const [phaseDraft, setPhaseDraft] = useState(0);
   const [iterationDraft, setIterationDraft] = useState(0);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [pendingQueuePosition, setPendingQueuePosition] = useState<number | null>(null);
+  // Track the expected position after a successful API call (separate from pending for timing)
+  const expectedQueuePositionRef = useRef<number | null>(null);
   const lastTaskIdRef = useRef<string | null>(null);
   const lastSyncedNotesRef = useRef<string>('');
 
@@ -368,6 +371,17 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     }
   }, [task, autoSteerProfileId, refetchAutoSteerState]);
 
+  // Clear pending queue position when task data reflects the expected change
+  useEffect(() => {
+    if (
+      expectedQueuePositionRef.current !== null &&
+      task?.steering_queue_index === expectedQueuePositionRef.current
+    ) {
+      expectedQueuePositionRef.current = null;
+      setPendingQueuePosition(null);
+    }
+  }, [task?.steering_queue_index]);
+
   // Reset when modal closes
   useEffect(() => {
     if (!open) {
@@ -377,6 +391,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       lastTaskIdRef.current = null;
       lastSyncedNotesRef.current = '';
       setAutoSteerExpanded(false);
+      setPendingQueuePosition(null);
+      expectedQueuePositionRef.current = null;
     }
   }, [open, initialTab]);
 
@@ -743,6 +759,20 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   onChange={setSteeringConfig}
                   queueIndex={task.steering_queue_index}
                   queueExhausted={task.steering_queue_exhausted}
+                  onQueuePositionChange={async (position) => {
+                    setPendingQueuePosition(position);
+                    try {
+                      await api.setQueuePosition(task.id, position);
+                      // Set expected position - pending will clear when task data updates
+                      expectedQueuePositionRef.current = position;
+                    } catch (err) {
+                      console.error('Failed to set queue position:', err);
+                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      // Only clear pending on error - success waits for task data update
+                      setPendingQueuePosition(null);
+                    }
+                  }}
+                  pendingQueuePosition={pendingQueuePosition}
                 />
               </div>
             )}
@@ -758,6 +788,20 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   currentIndex={task.steering_queue_index}
                   isExhausted={task.steering_queue_exhausted}
                   readOnly
+                  onPositionChange={async (position) => {
+                    setPendingQueuePosition(position);
+                    try {
+                      await api.setQueuePosition(task.id, position);
+                      // Set expected position - pending will clear when task data updates
+                      expectedQueuePositionRef.current = position;
+                    } catch (err) {
+                      console.error('Failed to set queue position:', err);
+                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                      // Only clear pending on error - success waits for task data update
+                      setPendingQueuePosition(null);
+                    }
+                  }}
+                  pendingPosition={pendingQueuePosition}
                 />
               </div>
             )}

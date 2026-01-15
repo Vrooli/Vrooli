@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Check, GripVertical, ListOrdered, X } from 'lucide-react';
+import { Check, GripVertical, ListOrdered, Loader2, X } from 'lucide-react';
 import { PhasePicker } from '../PhasePicker';
 import { formatPhaseName } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
@@ -33,6 +33,10 @@ interface QueuePanelProps {
   isExhausted?: boolean;
   /** Disables editing controls when true */
   readOnly?: boolean;
+  /** Called when user clicks an item to jump to that position */
+  onPositionChange?: (position: number) => void;
+  /** Position currently being changed to (shows loading state) */
+  pendingPosition?: number | null;
 }
 
 interface SortableQueueItemProps {
@@ -41,12 +45,16 @@ interface SortableQueueItemProps {
   index: number;
   onRemove: () => void;
   status?: ItemStatus;
+  onClick?: () => void;
+  isPending?: boolean;
 }
 
 interface ReadOnlyQueueItemProps {
   mode: string;
   index: number;
   status: ItemStatus;
+  onClick?: () => void;
+  isPending?: boolean;
 }
 
 function getStatusStyles(status: ItemStatus): string {
@@ -61,15 +69,41 @@ function getStatusStyles(status: ItemStatus): string {
   }
 }
 
-function ReadOnlyQueueItem({ mode, index, status }: ReadOnlyQueueItemProps) {
+function ReadOnlyQueueItem({ mode, index, status, onClick, isPending }: ReadOnlyQueueItemProps) {
+  const isClickable = !!onClick && !isPending;
+  const clickableStyles = isClickable
+    ? 'cursor-pointer hover:bg-cyan-500/15 hover:border-cyan-500/40 transition-colors'
+    : '';
+  const pendingStyles = isPending
+    ? 'ring-2 ring-amber-500/50 bg-amber-500/10 border-amber-500/40'
+    : '';
+
   return (
     <div
       className={`
         flex items-center gap-2 px-3 py-2 rounded-md border
-        ${getStatusStyles(status)}
+        ${isPending ? pendingStyles : getStatusStyles(status)}
+        ${clickableStyles}
       `}
+      onClick={isClickable ? onClick : undefined}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
-      {status === 'completed' ? (
+      {isPending ? (
+        <div className="flex h-4 w-4 items-center justify-center">
+          <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
+        </div>
+      ) : status === 'completed' ? (
         <div className="flex h-4 w-4 items-center justify-center">
           <Check className="h-3.5 w-3.5 text-green-500" />
         </div>
@@ -86,11 +120,13 @@ function ReadOnlyQueueItem({ mode, index, status }: ReadOnlyQueueItemProps) {
       <span className="text-xs text-slate-500 font-mono w-5">{index + 1}.</span>
       <span
         className={`flex-1 text-sm ${
-          status === 'completed'
-            ? 'text-slate-400 line-through'
-            : status === 'current'
-              ? 'text-cyan-100 font-medium'
-              : 'text-cyan-200'
+          isPending
+            ? 'text-amber-200 font-medium'
+            : status === 'completed'
+              ? 'text-slate-400 line-through'
+              : status === 'current'
+                ? 'text-cyan-100 font-medium'
+                : 'text-cyan-200'
         }`}
       >
         {formatPhaseName(mode)}
@@ -99,7 +135,7 @@ function ReadOnlyQueueItem({ mode, index, status }: ReadOnlyQueueItemProps) {
   );
 }
 
-function SortableQueueItem({ id, mode, index, onRemove, status }: SortableQueueItemProps) {
+function SortableQueueItem({ id, mode, index, onRemove, status, onClick, isPending }: SortableQueueItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -109,11 +145,16 @@ function SortableQueueItem({ id, mode, index, onRemove, status }: SortableQueueI
     transition,
   };
 
+  const isClickable = !!onClick && !isPending;
+
   // Combine base styles with status-specific styles
   const getContainerStyles = () => {
     const base = 'flex items-center gap-2 px-3 py-2 rounded-md border';
     const drag = isDragging ? 'opacity-50 shadow-lg ring-2 ring-cyan-500/50' : '';
 
+    if (isPending) {
+      return `${base} ring-2 ring-amber-500/50 bg-amber-500/10 border-amber-500/40 ${drag}`;
+    }
     if (!status || status === 'pending') {
       return `${base} bg-cyan-500/5 border-cyan-500/20 ${drag}`;
     }
@@ -124,6 +165,23 @@ function SortableQueueItem({ id, mode, index, onRemove, status }: SortableQueueI
       return `${base} bg-cyan-500/10 border-cyan-500/40 ring-2 ring-cyan-500/50 ${drag}`;
     }
     return `${base} bg-cyan-500/5 border-cyan-500/20 ${drag}`;
+  };
+
+  const getTextStyles = () => {
+    if (isPending) {
+      return 'flex-1 text-sm text-amber-200 font-medium';
+    }
+    const base = `flex-1 text-sm ${
+      status === 'completed'
+        ? 'text-slate-400 line-through'
+        : status === 'current'
+          ? 'text-cyan-100 font-medium'
+          : 'text-cyan-200'
+    }`;
+    if (isClickable) {
+      return `${base} cursor-pointer hover:text-cyan-50 transition-colors`;
+    }
+    return base;
   };
 
   return (
@@ -137,7 +195,11 @@ function SortableQueueItem({ id, mode, index, onRemove, status }: SortableQueueI
         <GripVertical className="h-4 w-4" />
       </button>
       {/* Status indicator */}
-      {status === 'completed' ? (
+      {isPending ? (
+        <div className="flex h-4 w-4 items-center justify-center">
+          <Loader2 className="h-3.5 w-3.5 text-amber-400 animate-spin" />
+        </div>
+      ) : status === 'completed' ? (
         <div className="flex h-4 w-4 items-center justify-center">
           <Check className="h-3.5 w-3.5 text-green-500" />
         </div>
@@ -151,13 +213,20 @@ function SortableQueueItem({ id, mode, index, onRemove, status }: SortableQueueI
       ) : null}
       <span className="text-xs text-slate-500 font-mono w-5">{index + 1}.</span>
       <span
-        className={`flex-1 text-sm ${
-          status === 'completed'
-            ? 'text-slate-400 line-through'
-            : status === 'current'
-              ? 'text-cyan-100 font-medium'
-              : 'text-cyan-200'
-        }`}
+        className={getTextStyles()}
+        onClick={isClickable ? onClick : undefined}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : undefined}
+        onKeyDown={
+          isClickable
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onClick();
+                }
+              }
+            : undefined
+        }
       >
         {formatPhaseName(mode)}
       </span>
@@ -180,6 +249,8 @@ export function QueuePanel({
   currentIndex,
   isExhausted,
   readOnly,
+  onPositionChange,
+  pendingPosition,
 }: QueuePanelProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -274,6 +345,8 @@ export function QueuePanel({
                 mode={mode}
                 index={index}
                 status={getItemStatus(index)}
+                onClick={onPositionChange ? () => onPositionChange(index) : undefined}
+                isPending={pendingPosition === index}
               />
             ))}
           </div>
@@ -290,6 +363,8 @@ export function QueuePanel({
                     index={index}
                     onRemove={() => handleRemove(index)}
                     status={getItemStatus(index)}
+                    onClick={onPositionChange ? () => onPositionChange(index) : undefined}
+                    isPending={pendingPosition === index}
                   />
                 ))}
               </div>

@@ -15,6 +15,10 @@ interface SteeringConfigPickerProps {
   queueIndex?: number;
   /** Queue progress: whether the queue is fully processed */
   queueExhausted?: boolean;
+  /** Callback to change queue position (for running tasks) */
+  onQueuePositionChange?: (position: number) => void;
+  /** Position currently being changed to (shows loading state) */
+  pendingQueuePosition?: number | null;
 }
 
 interface StrategyDisplay {
@@ -86,6 +90,8 @@ export function SteeringConfigPicker({
   className,
   queueIndex,
   queueExhausted,
+  onQueuePositionChange,
+  pendingQueuePosition,
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
@@ -128,6 +134,8 @@ export function SteeringConfigPicker({
         isLoadingPhases={isLoadingPhases}
         queueIndex={queueIndex}
         queueExhausted={queueExhausted}
+        onQueuePositionChange={onQueuePositionChange}
+        pendingQueuePosition={pendingQueuePosition}
       />
     </>
   );

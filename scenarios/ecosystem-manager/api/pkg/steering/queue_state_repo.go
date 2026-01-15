@@ -21,6 +21,10 @@ type QueueStateRepository interface {
 	// ResetPosition resets the queue position to 0 without deleting the state.
 	// Use this when reactivating a task to allow re-running the full queue.
 	ResetPosition(taskID string) error
+
+	// SetPosition sets the queue position to a specific index.
+	// Returns error if position is negative or if no state exists for the task.
+	SetPosition(taskID string, position int) error
 }
 
 // NewQueueState creates a new QueueState for a task.

@@ -573,6 +573,19 @@ class ApiClient {
     return normalizeTaskTargets(task);
   }
 
+  async setQueuePosition(
+    taskId: string,
+    position: number
+  ): Promise<{ success: boolean; position: number; mode: string }> {
+    return this.fetchJSON<{ success: boolean; position: number; mode: string }>(
+      `/api/tasks/${taskId}/queue-position`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ position }),
+      }
+    );
+  }
+
   async deleteTask(taskId: string): Promise<void> {
     return this.fetchJSON<void>(`/api/tasks/${taskId}`, {
       method: 'DELETE',
