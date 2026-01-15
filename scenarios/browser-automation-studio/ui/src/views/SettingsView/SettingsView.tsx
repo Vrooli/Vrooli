@@ -55,7 +55,10 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string; icon: React.ReactNo
 
 interface SettingsViewProps {
   onBack: () => void;
-  initialTab?: string;
+  /** Currently active tab (controlled by URL in parent) */
+  activeTab: SettingsTab;
+  /** Callback to change active tab (updates URL in parent) */
+  onTabChange: (tab: SettingsTab) => void;
 }
 
 const isValidSpeedProfile = (value: unknown): value is 'instant' | 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' =>
@@ -149,7 +152,7 @@ const coerceOutroCardSettings = (
   };
 };
 
-export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
+export function SettingsView({ onBack, activeTab, onTabChange }: SettingsViewProps) {
   const {
     replay,
     setReplaySetting,
@@ -161,18 +164,8 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
     saveAsPreset,
   } = useSettingsStore();
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
-    (initialTab as SettingsTab) || 'display'
-  );
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(true);
   const hasAppliedServerExtrasRef = useRef(false);
-
-  // Sync activeTab when initialTab prop changes (e.g., navigating from "Open export settings")
-  useEffect(() => {
-    if (initialTab && initialTab !== activeTab) {
-      setActiveTab(initialTab as SettingsTab);
-    }
-  }, [initialTab]); // eslint-disable-line react-hooks/exhaustive-deps -- Only sync when initialTab changes
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
 
@@ -403,7 +396,7 @@ export function SettingsView({ onBack, initialTab }: SettingsViewProps) {
             {SETTINGS_TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => onTabChange(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'border-flow-accent text-surface'

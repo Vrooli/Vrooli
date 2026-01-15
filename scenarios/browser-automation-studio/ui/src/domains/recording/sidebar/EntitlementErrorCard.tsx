@@ -8,14 +8,15 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { Lock, AlertTriangle, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { Lock, AlertTriangle, Settings, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { TierBadge } from '@shared/ui/TierBadge';
 import { UsageMeter } from '@shared/ui/UsageMeter';
 import type { SubscriptionTier } from '@stores/entitlementStore';
 import type { EntitlementErrorCode, EntitlementErrorDetails } from './types';
 
-// Get landing page URL from environment or use default
-const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://browser-automation-studio.com';
+/** Route to the subscription settings tab */
+const SUBSCRIPTION_SETTINGS_URL = '/settings?tab=subscription';
 
 export interface EntitlementErrorCardProps {
   errorCode: EntitlementErrorCode;
@@ -50,25 +51,6 @@ function formatResetDate(resetDateStr?: string): string {
   }
 }
 
-/**
- * Get the upgrade URL with email pre-filled if available.
- */
-function getUpgradeUrl(): string {
-  // Try to get user email from localStorage or entitlement store
-  let email = '';
-  try {
-    const stored = localStorage.getItem('entitlement-user-email');
-    if (stored) {
-      email = stored;
-    }
-  } catch {
-    // localStorage not available
-  }
-
-  const baseUrl = `${LANDING_PAGE_URL}/pricing`;
-  return email ? `${baseUrl}?email=${encodeURIComponent(email)}` : baseUrl;
-}
-
 function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
   const tier = (details?.tier as SubscriptionTier) || 'free';
 
@@ -98,11 +80,9 @@ function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
             <TierBadge tier={tier} size="sm" />
           </div>
 
-          {/* Upgrade CTA */}
-          <a
-            href={getUpgradeUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
+          {/* Manage Subscription CTA */}
+          <Link
+            to={SUBSCRIPTION_SETTINGS_URL}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg
               bg-gradient-to-r from-purple-600 to-blue-600
@@ -111,9 +91,9 @@ function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
               transition-all shadow-md hover:shadow-purple-500/25
             "
           >
-            Upgrade to Pro
-            <ArrowUpRight size={16} />
-          </a>
+            <Settings size={16} />
+            Manage Subscription
+          </Link>
         </div>
       </div>
     </div>
@@ -172,11 +152,9 @@ function CreditErrorCard({ details }: { details?: EntitlementErrorDetails }) {
             <TierBadge tier={tier} size="sm" />
           </div>
 
-          {/* Upgrade CTA */}
-          <a
-            href={getUpgradeUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
+          {/* Manage Subscription CTA */}
+          <Link
+            to={SUBSCRIPTION_SETTINGS_URL}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg
               bg-gradient-to-r from-purple-600 to-blue-600
@@ -185,9 +163,9 @@ function CreditErrorCard({ details }: { details?: EntitlementErrorDetails }) {
               transition-all shadow-md hover:shadow-purple-500/25
             "
           >
-            Upgrade for More Credits
-            <ArrowUpRight size={16} />
-          </a>
+            <Settings size={16} />
+            Manage Subscription
+          </Link>
         </div>
       </div>
     </div>
