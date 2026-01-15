@@ -9,6 +9,7 @@ import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
+import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import {
   LayoutSettingsModal,
@@ -141,6 +142,7 @@ export default function App() {
   const [selectedFiles, setSelectedFiles] = useState<Array<{ path: string; staged: boolean }>>([]);
   const lastSelectedKeyRef = useRef<string | null>(null);
   const [confirmingDiscard, setConfirmingDiscard] = useState<string | null>(null);
+  const [pendingDiscardFiles, setPendingDiscardFiles] = useState<DiscardFile[] | null>(null);
   const [confirmingIgnore, setConfirmingIgnore] = useState<string | null>(null);
   const [lastCommitHash, setLastCommitHash] = useState<string | undefined>();
   const [commitError, setCommitError] = useState<string | undefined>();
@@ -602,6 +604,44 @@ export default function App() {
     [discardMutation, queryClient, selectedFile]
   );
 
+  const handleDiscardMultiple = useCallback(() => {
+    if (!pendingDiscardFiles || pendingDiscardFiles.length === 0) return;
+
+    const trackedPaths = pendingDiscardFiles.filter((f) => !f.untracked).map((f) => f.path);
+    const untrackedPaths = pendingDiscardFiles.filter((f) => f.untracked).map((f) => f.path);
+    const allPaths = pendingDiscardFiles.map((f) => f.path);
+
+    const cleanup = () => {
+      // Clear selection for discarded files
+      if (selectedFile && allPaths.includes(selectedFile)) {
+        setSelectedFile(undefined);
+      }
+      setSelectedFiles((prev) => prev.filter((entry) => entry.staged || !allPaths.includes(entry.path)));
+      setPendingDiscardFiles(null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+    };
+
+    // Handle tracked and untracked separately since API requires specific untracked flag
+    if (trackedPaths.length > 0 && untrackedPaths.length > 0) {
+      // Both types - chain the mutations
+      discardMutation.mutate(
+        { paths: trackedPaths, untracked: false },
+        {
+          onSuccess: () => {
+            discardMutation.mutate(
+              { paths: untrackedPaths, untracked: true },
+              { onSuccess: cleanup }
+            );
+          }
+        }
+      );
+    } else if (trackedPaths.length > 0) {
+      discardMutation.mutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
+    } else if (untrackedPaths.length > 0) {
+      discardMutation.mutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
+    }
+  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile]);
+
   const handleIgnoreFile = useCallback(
     (path: string) => {
       ignoreMutation.mutate(
@@ -620,12 +660,36 @@ export default function App() {
     [ignoreMutation, queryClient, selectedFile]
   );
 
-  const handleConfirmDiscard = useCallback((path: string | null) => {
-    setConfirmingDiscard(path);
-    if (path) {
-      setConfirmingIgnore(null);
-    }
-  }, []);
+  const handleConfirmDiscard = useCallback(
+    (path: string | null) => {
+      if (!path) {
+        setConfirmingDiscard(null);
+        return;
+      }
+
+      // Check if this file is part of a multi-selection
+      const selectedDiscardable = selectedFiles
+        .filter((entry) => !entry.staged)
+        .map((entry) => entry.path);
+      const isInMultiSelection =
+        selectedDiscardable.length > 1 && selectedDiscardable.includes(path);
+
+      if (isInMultiSelection) {
+        // Show modal with all selected files
+        const filesToDiscard: DiscardFile[] = selectedDiscardable.map((p) => ({
+          path: p,
+          untracked: untrackedSet.has(p)
+        }));
+        setPendingDiscardFiles(filesToDiscard);
+        setConfirmingIgnore(null);
+      } else {
+        // Single file - use inline confirmation
+        setConfirmingDiscard(path);
+        setConfirmingIgnore(null);
+      }
+    },
+    [selectedFiles, untrackedSet]
+  );
 
   const handleConfirmIgnore = useCallback((path: string | null) => {
     setConfirmingIgnore(path);
@@ -1693,6 +1757,13 @@ export default function App() {
           behind={upstreamBehind}
           onClose={() => setIsUpstreamInfoOpen(false)}
         />
+        <DiscardConfirmationModal
+          isOpen={pendingDiscardFiles !== null}
+          files={pendingDiscardFiles ?? []}
+          isLoading={discardMutation.isPending}
+          onConfirm={handleDiscardMultiple}
+          onCancel={() => setPendingDiscardFiles(null)}
+        />
       </div>
     );
   }
@@ -1829,6 +1900,13 @@ export default function App() {
         ahead={upstreamAhead}
         behind={upstreamBehind}
         onClose={() => setIsUpstreamInfoOpen(false)}
+      />
+      <DiscardConfirmationModal
+        isOpen={pendingDiscardFiles !== null}
+        files={pendingDiscardFiles ?? []}
+        isLoading={discardMutation.isPending}
+        onConfirm={handleDiscardMultiple}
+        onCancel={() => setPendingDiscardFiles(null)}
       />
     </div>
   );

@@ -36,6 +36,11 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 		return nil, fmt.Errorf("resolve project: %w", err)
 	}
 
+	// Validate folder path is a logical category, not an absolute filesystem path
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		return nil, err
+	}
+
 	if existing, err := s.repo.GetWorkflowByName(ctx, name, normalizeFolderPath(req.FolderPath)); err == nil && existing != nil && existing.ProjectID != nil && *existing.ProjectID == projectID {
 		return nil, ErrWorkflowNameConflict
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) && !errors.Is(err, database.ErrNotFound) {
@@ -241,6 +246,11 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	expected := req.ExpectedVersion
 	if expected != 0 && int32(currentSummary.Version) != expected {
 		return nil, fmt.Errorf("%w: expected %d, found %d", ErrWorkflowVersionConflict, expected, currentSummary.Version)
+	}
+
+	// Validate folder path is a logical category, not an absolute filesystem path
+	if err := validateFolderPath(req.FolderPath); err != nil {
+		return nil, err
 	}
 
 	updated := proto.Clone(currentSummary).(*basapi.WorkflowSummary)

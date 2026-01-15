@@ -3,7 +3,7 @@ package workflow
 import (
 	"context"
 	"fmt"
-	"io/fs"
+	"mime"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +13,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+)
+
+const (
+	// MaxSyncFiles is the maximum number of files to process during sync to prevent runaway operations.
+	MaxSyncFiles = 1000
+	// MaxSyncDepth is the maximum directory depth to traverse during sync.
+	MaxSyncDepth = 4
 )
 
 // syncCacheEntry tracks metadata we compute during synchronization so subsequent API calls can resolve workflow file paths quickly.
@@ -48,6 +55,12 @@ func (s *WorkflowService) lookupWorkflowPath(workflowID uuid.UUID) (syncCacheEnt
 	return entry, entryOK
 }
 
+// SyncProjectWorkflows synchronizes the workflow and asset DB indexes for a project from the filesystem.
+// The filesystem is the source of truth; the DB is an index.
+func (s *WorkflowService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
+	return s.syncProjectWorkflows(ctx, projectID)
+}
+
 func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
 	project, err := s.repo.GetProject(ctx, projectID)
 	if err != nil {
@@ -58,253 +71,310 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	lock.Lock()
 	defer lock.Unlock()
 
-	// Phase 1: Discover and convert external workflows first.
-	// This ensures any workflow JSON files outside workflows/ directory get imported.
-	if err := s.importExternalWorkflows(ctx, project); err != nil {
-		s.log.WithError(err).WithField("project_id", projectID).Warn("Failed to import external workflows")
-		// Continue with native sync even if external import fails
-	}
-
-	// Phase 2: Sync native workflows from workflows/ directory (existing logic).
-	return s.syncNativeWorkflows(ctx, project)
-}
-
-// importExternalWorkflows discovers and converts external workflow files to native format.
-func (s *WorkflowService) importExternalWorkflows(ctx context.Context, project *database.ProjectIndex) error {
-	_ = ctx // context reserved for future use
-
-	// Discover external workflows (not in workflows/ directory)
-	external, err := DiscoverExternalWorkflows(project, 4)
-	if err != nil {
-		return fmt.Errorf("discover external workflows: %w", err)
-	}
-
-	if len(external) == 0 {
-		return nil
-	}
-
-	// Load import manifest to check which files have already been imported
-	manifest, err := LoadImportManifest(project)
-	if err != nil {
-		s.log.WithError(err).Warn("Failed to load import manifest, starting fresh")
-		manifest = &ImportManifest{Entries: make(map[string]ImportedEntry)}
-	}
-
-	manifestUpdated := false
-
-	for _, d := range external {
-		// Skip if already imported and unchanged
-		content, err := os.ReadFile(d.AbsolutePath)
-		if err != nil {
-			s.log.WithError(err).WithField("path", d.RelativePath).Debug("Cannot read external workflow file")
-			continue
-		}
-
-		if manifest.IsImported(d.RelativePath) && !manifest.HasChanged(d.RelativePath, content) {
-			continue
-		}
-
-		// Convert external workflow to native format
-		result, err := ConvertExternalWorkflow(project, content, d.RelativePath)
-		if err != nil {
-			s.log.WithError(err).WithField("path", d.RelativePath).Warn("Failed to convert external workflow")
-			continue
-		}
-
-		// Check for name conflicts before writing
-		conflicting, _ := s.repo.GetWorkflowByName(ctx, result.Workflow.Name, result.Workflow.FolderPath)
-		if conflicting != nil {
-			// If we previously imported this file to this workflow, update it
-			if existingID, ok := manifest.GetWorkflowIDBySource(d.RelativePath); ok && existingID == conflicting.ID {
-				result.Workflow.Id = conflicting.ID.String()
-			} else {
-				s.log.WithFields(logrus.Fields{
-					"source_path":   d.RelativePath,
-					"workflow_name": result.Workflow.Name,
-					"conflict_id":   conflicting.ID,
-				}).Warn("Skipping external workflow that conflicts with existing name/folder_path")
-				continue
-			}
-		}
-
-		// Write converted workflow to workflows/ directory
-		absPath, relPath, err := WriteConvertedWorkflow(project, result)
-		if err != nil {
-			s.log.WithError(err).WithField("path", d.RelativePath).Warn("Failed to write converted workflow")
-			continue
-		}
-
-		// Record in manifest
-		workflowID, _ := uuid.Parse(result.Workflow.Id)
-		manifest.RecordImport(d.RelativePath, workflowID, relPath, content)
-		manifestUpdated = true
-
-		s.log.WithFields(logrus.Fields{
-			"source":      d.RelativePath,
-			"destination": relPath,
-			"workflow_id": workflowID,
-		}).Info("Imported external workflow")
-
-		s.cacheWorkflowPath(workflowID, absPath, relPath)
-	}
-
-	// Save manifest if updated
-	if manifestUpdated {
-		if err := SaveImportManifest(project, manifest); err != nil {
-			s.log.WithError(err).Warn("Failed to save import manifest")
-		}
-	}
-
-	return nil
-}
-
-// syncNativeWorkflows synchronizes native workflows from the workflows/ directory.
-func (s *WorkflowService) syncNativeWorkflows(ctx context.Context, project *database.ProjectIndex) error {
-	workflowsRoot := ProjectWorkflowsDir(project)
-
-	// Discover file snapshots (only if workflows directory exists).
-	snapshots := make(map[uuid.UUID]*workflowProtoSnapshot)
-	var discoveryErr error
-	if info, statErr := os.Stat(workflowsRoot); statErr == nil && info.IsDir() {
-		err := filepath.WalkDir(workflowsRoot, func(path string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(strings.ToLower(d.Name()), workflowFileExt) {
-				return nil
-			}
-			snapshot, readErr := ReadWorkflowSummaryFile(ctx, project, path)
-			if readErr != nil {
-				discoveryErr = readErr
-				return readErr
-			}
-			if snapshot.Workflow == nil || strings.TrimSpace(snapshot.Workflow.Id) == "" {
-				return nil
-			}
-			id, parseErr := uuid.Parse(snapshot.Workflow.Id)
-			if parseErr != nil {
-				return fmt.Errorf("workflow file %s has invalid id: %w", snapshot.RelativePath, parseErr)
-			}
-			snapshots[id] = snapshot
-			s.cacheWorkflowPath(id, snapshot.AbsolutePath, snapshot.RelativePath)
-			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("failed to scan workflow directory: %w", err)
-		}
-		if discoveryErr != nil {
-			return discoveryErr
-		}
-	}
-
+	// Get existing DB records for reconciliation
 	dbWorkflows, err := s.listAllProjectWorkflows(ctx, project.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to list existing workflows: %w", err)
+	}
+	dbAssets, err := s.repo.ListAssetsByProject(ctx, project.ID, 10000, 0)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to list existing assets, continuing with empty list")
+		dbAssets = nil
 	}
 
-	dbByID := make(map[uuid.UUID]*database.WorkflowIndex, len(dbWorkflows))
+	dbWorkflowsByID := make(map[uuid.UUID]*database.WorkflowIndex, len(dbWorkflows))
 	for _, wf := range dbWorkflows {
-		dbByID[wf.ID] = wf
+		dbWorkflowsByID[wf.ID] = wf
+	}
+	dbAssetsByPath := make(map[string]*database.AssetIndex, len(dbAssets))
+	for _, asset := range dbAssets {
+		dbAssetsByPath[asset.FilePath] = asset
 	}
 
-	processed := make(map[uuid.UUID]bool)
+	// Track what we find during the walk
+	seenWorkflowIDs := make(map[uuid.UUID]bool)
+	seenAssetPaths := make(map[string]bool)
+	fileCount := 0
 
-	for id, snapshot := range snapshots {
-		processed[id] = true
-		fileWF := snapshot.Workflow
-		existing, exists := dbByID[id]
-		if !exists {
-			// Check if a workflow with the same name/folder_path already exists
-			// This can happen if the ID in the file doesn't match the DB record
-			conflictingWF, conflictErr := s.repo.GetWorkflowByName(ctx, fileWF.Name, fileWF.FolderPath)
-			if conflictErr == nil && conflictingWF != nil {
-				// Skip this file - there's already a workflow with this name/folder
-				s.log.WithFields(logrus.Fields{
-					"file_id":       id,
-					"file_name":     fileWF.Name,
-					"file_path":     snapshot.RelativePath,
-					"existing_id":   conflictingWF.ID,
-					"existing_name": conflictingWF.Name,
-				}).Warn("Skipping workflow file that conflicts with existing workflow name/folder_path")
-				continue
-			}
-
-			// Create new workflow index from file.
-			index := &database.WorkflowIndex{
-				ID:         id,
-				ProjectID:  &project.ID,
-				Name:       fileWF.Name,
-				FolderPath: normalizeFolderPath(fileWF.FolderPath),
-				FilePath:   snapshot.RelativePath,
-				Version:    int(fileWF.Version),
-			}
-			if err := s.repo.CreateWorkflow(ctx, index); err != nil {
-				return fmt.Errorf("failed to create workflow from file %s: %w", snapshot.RelativePath, err)
-			}
-			if snapshot.NeedsWrite {
-				if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-
-		needsUpdate := false
-		if existing.Name != fileWF.Name {
-			existing.Name = fileWF.Name
-			needsUpdate = true
-		}
-		if normalizeFolderPath(existing.FolderPath) != normalizeFolderPath(fileWF.FolderPath) {
-			existing.FolderPath = normalizeFolderPath(fileWF.FolderPath)
-			needsUpdate = true
-		}
-		if filepath.ToSlash(strings.TrimSpace(existing.FilePath)) != filepath.ToSlash(strings.TrimSpace(snapshot.RelativePath)) {
-			existing.FilePath = snapshot.RelativePath
-			needsUpdate = true
-		}
-		if existing.Version != int(fileWF.Version) && fileWF.Version > 0 {
-			existing.Version = int(fileWF.Version)
-			needsUpdate = true
-		}
-
-		if needsUpdate {
-			if err := s.repo.UpdateWorkflow(ctx, existing); err != nil {
-				return fmt.Errorf("failed to update workflow %s from file: %w", existing.ID, err)
-			}
-			if snapshot.NeedsWrite {
-				if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-
-		if snapshot.NeedsWrite {
-			if _, _, err := WriteWorkflowSummaryFile(project, fileWF, snapshot.RelativePath); err != nil {
-				return err
-			}
-		}
+	projectRoot := strings.TrimSpace(project.FolderPath)
+	if projectRoot == "" {
+		return fmt.Errorf("project has empty folder path")
 	}
 
-	// Remove workflows that no longer have backing files.
-	for id := range dbByID {
-		if processed[id] {
+	// Walk the entire project tree
+	walkErr := filepath.WalkDir(projectRoot, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		// Check file limit
+		if fileCount >= MaxSyncFiles {
+			s.log.WithFields(logrus.Fields{
+				"project_id": project.ID,
+				"limit":      MaxSyncFiles,
+			}).Warn("Max file limit reached during sync, stopping early")
+			return filepath.SkipAll
+		}
+
+		// Skip hidden directories
+		if d.IsDir() && strings.HasPrefix(d.Name(), ".") {
+			return filepath.SkipDir
+		}
+
+		// Calculate relative path and depth
+		relPath, relErr := filepath.Rel(projectRoot, path)
+		if relErr != nil {
+			return nil
+		}
+		relPath = filepath.ToSlash(relPath)
+
+		// Enforce depth limit
+		depth := strings.Count(relPath, "/")
+		if d.IsDir() && depth >= MaxSyncDepth {
+			return filepath.SkipDir
+		}
+
+		// Skip directories
+		if d.IsDir() {
+			return nil
+		}
+
+		fileCount++
+
+		// Get file info
+		info, statErr := d.Info()
+		if statErr != nil {
+			s.log.WithError(statErr).WithField("path", relPath).Debug("Cannot stat file, skipping")
+			return nil
+		}
+
+		// Check if it's a workflow (JSON file with "nodes" array)
+		isWorkflow := false
+		if strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
+			content, readErr := os.ReadFile(path)
+			if readErr == nil && isWorkflowContent(content) {
+				isWorkflow = true
+				if err := s.syncWorkflowFile(ctx, project, path, relPath, content, dbWorkflowsByID, seenWorkflowIDs); err != nil {
+					s.log.WithError(err).WithField("path", relPath).Warn("Failed to sync workflow file")
+				}
+			}
+		}
+
+		// If not a workflow, index as an asset
+		if !isWorkflow {
+			if err := s.syncAssetFile(ctx, project, relPath, info, dbAssetsByPath, seenAssetPaths); err != nil {
+				s.log.WithError(err).WithField("path", relPath).Debug("Failed to sync asset file")
+			}
+		}
+
+		return nil
+	})
+
+	if walkErr != nil && walkErr != filepath.SkipAll {
+		return fmt.Errorf("failed to walk project directory: %w", walkErr)
+	}
+
+	// Reconcile: remove workflows that no longer have backing files
+	for id := range dbWorkflowsByID {
+		if seenWorkflowIDs[id] {
 			continue
 		}
 		if err := s.repo.DeleteWorkflow(ctx, id); err != nil {
-			return fmt.Errorf("failed to delete workflow %s removed from filesystem: %w", id, err)
+			s.log.WithError(err).WithField("workflow_id", id).Warn("Failed to delete stale workflow")
+		} else {
+			s.removeWorkflowPath(id)
 		}
-		s.removeWorkflowPath(id)
+	}
+
+	// Reconcile: remove assets that no longer have backing files
+	for filePath, asset := range dbAssetsByPath {
+		if seenAssetPaths[filePath] {
+			continue
+		}
+		if err := s.repo.DeleteAsset(ctx, asset.ID); err != nil {
+			s.log.WithError(err).WithField("asset_path", filePath).Debug("Failed to delete stale asset")
+		}
 	}
 
 	return nil
 }
 
-// SyncProjectWorkflows synchronizes the workflow DB index for a project from the filesystem.
-// The filesystem is the source of truth; the DB is an index.
-func (s *WorkflowService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
-	return s.syncProjectWorkflows(ctx, projectID)
+// syncWorkflowFile processes a single workflow file during sync.
+func (s *WorkflowService) syncWorkflowFile(
+	ctx context.Context,
+	project *database.ProjectIndex,
+	absPath, relPath string,
+	content []byte,
+	dbWorkflowsByID map[uuid.UUID]*database.WorkflowIndex,
+	seenWorkflowIDs map[uuid.UUID]bool,
+) error {
+	// Check if it's native format (has valid UUID in "id" field)
+	isNative := isNativeWorkflowFormat(content)
+
+	var workflowID uuid.UUID
+	var workflowName string
+	var workflowFolderPath string
+	var workflowVersion int32
+
+	if isNative {
+		// Read the native workflow file
+		snapshot, readErr := ReadWorkflowSummaryFile(ctx, project, absPath)
+		if readErr != nil {
+			return fmt.Errorf("read workflow file: %w", readErr)
+		}
+		if snapshot.Workflow == nil || strings.TrimSpace(snapshot.Workflow.Id) == "" {
+			return fmt.Errorf("workflow file has no ID")
+		}
+
+		id, parseErr := uuid.Parse(snapshot.Workflow.Id)
+		if parseErr != nil {
+			return fmt.Errorf("invalid workflow ID: %w", parseErr)
+		}
+
+		workflowID = id
+		workflowName = snapshot.Workflow.Name
+		workflowFolderPath = snapshot.Workflow.FolderPath
+		workflowVersion = snapshot.Workflow.Version
+
+		// Cache the path
+		s.cacheWorkflowPath(workflowID, absPath, relPath)
+
+		// Write back if normalization was needed
+		if snapshot.NeedsWrite {
+			if _, _, err := WriteWorkflowSummaryFile(project, snapshot.Workflow, relPath); err != nil {
+				s.log.WithError(err).WithField("path", relPath).Warn("Failed to write normalized workflow")
+			}
+		}
+	} else {
+		// External format - convert IN-PLACE
+		result, convErr := ConvertExternalWorkflow(project, content, relPath)
+		if convErr != nil {
+			return fmt.Errorf("convert external workflow: %w", convErr)
+		}
+
+		id, parseErr := uuid.Parse(result.Workflow.Id)
+		if parseErr != nil {
+			return fmt.Errorf("invalid converted workflow ID: %w", parseErr)
+		}
+
+		workflowID = id
+		workflowName = result.Workflow.Name
+		workflowFolderPath = result.Workflow.FolderPath
+		workflowVersion = result.Workflow.Version
+
+		// Write converted workflow IN-PLACE (overwrite original file)
+		if err := WriteWorkflowInPlace(absPath, result.Workflow); err != nil {
+			return fmt.Errorf("write converted workflow in-place: %w", err)
+		}
+
+		s.log.WithFields(logrus.Fields{
+			"path":        relPath,
+			"workflow_id": workflowID,
+		}).Info("Converted external workflow to native format in-place")
+
+		// Cache the path
+		s.cacheWorkflowPath(workflowID, absPath, relPath)
+	}
+
+	seenWorkflowIDs[workflowID] = true
+
+	// Check if workflow exists in DB
+	existing, exists := dbWorkflowsByID[workflowID]
+	if !exists {
+		// Create new workflow index
+		index := &database.WorkflowIndex{
+			ID:         workflowID,
+			ProjectID:  &project.ID,
+			Name:       workflowName,
+			FolderPath: normalizeFolderPath(workflowFolderPath),
+			FilePath:   relPath,
+			Version:    int(workflowVersion),
+		}
+		if err := s.repo.CreateWorkflow(ctx, index); err != nil {
+			return fmt.Errorf("create workflow index: %w", err)
+		}
+		return nil
+	}
+
+	// Update existing workflow if needed
+	needsUpdate := false
+	if existing.Name != workflowName {
+		existing.Name = workflowName
+		needsUpdate = true
+	}
+	if normalizeFolderPath(existing.FolderPath) != normalizeFolderPath(workflowFolderPath) {
+		existing.FolderPath = normalizeFolderPath(workflowFolderPath)
+		needsUpdate = true
+	}
+	if existing.FilePath != relPath {
+		existing.FilePath = relPath
+		needsUpdate = true
+	}
+	if existing.Version != int(workflowVersion) && workflowVersion > 0 {
+		existing.Version = int(workflowVersion)
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		if err := s.repo.UpdateWorkflow(ctx, existing); err != nil {
+			return fmt.Errorf("update workflow index: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// syncAssetFile processes a single asset file during sync.
+func (s *WorkflowService) syncAssetFile(
+	ctx context.Context,
+	project *database.ProjectIndex,
+	relPath string,
+	info os.FileInfo,
+	dbAssetsByPath map[string]*database.AssetIndex,
+	seenAssetPaths map[string]bool,
+) error {
+	seenAssetPaths[relPath] = true
+
+	// Determine MIME type from extension
+	ext := filepath.Ext(relPath)
+	mimeType := mime.TypeByExtension(ext)
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	// Check if asset exists in DB
+	existing, exists := dbAssetsByPath[relPath]
+	if !exists {
+		// Create new asset index
+		asset := &database.AssetIndex{
+			ID:        uuid.New(),
+			ProjectID: project.ID,
+			FilePath:  relPath,
+			FileName:  filepath.Base(relPath),
+			FileSize:  info.Size(),
+			MimeType:  mimeType,
+		}
+		return s.repo.CreateAsset(ctx, asset)
+	}
+
+	// Update existing asset if needed
+	needsUpdate := false
+	if existing.FileName != filepath.Base(relPath) {
+		existing.FileName = filepath.Base(relPath)
+		needsUpdate = true
+	}
+	if existing.FileSize != info.Size() {
+		existing.FileSize = info.Size()
+		needsUpdate = true
+	}
+	if existing.MimeType != mimeType {
+		existing.MimeType = mimeType
+		needsUpdate = true
+	}
+
+	if needsUpdate {
+		return s.repo.UpdateAsset(ctx, existing)
+	}
+
+	return nil
 }

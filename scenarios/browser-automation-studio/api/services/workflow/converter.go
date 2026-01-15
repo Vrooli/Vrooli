@@ -1,9 +1,11 @@
 package workflow
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -184,13 +186,83 @@ func inferFolderPath(sourceRelPath string) string {
 	return normalized
 }
 
-// WriteConvertedWorkflow writes a converted workflow to the native workflows/ directory
+// WriteConvertedWorkflow writes a converted workflow in-place (same directory as source file)
 // and returns the paths used.
 func WriteConvertedWorkflow(project *database.ProjectIndex, result *ConvertResult) (absPath, relPath string, err error) {
 	if project == nil || result == nil || result.Workflow == nil {
 		return "", "", errors.New("invalid input")
 	}
+	if result.SourcePath == "" {
+		return "", "", errors.New("source path is required for in-place conversion")
+	}
 
-	// Write to the standard workflows/ directory
-	return WriteWorkflowSummaryFile(project, result.Workflow, "")
+	// Generate the native filename based on workflow name and ID
+	slug := sanitizeWorkflowSlug(result.Workflow.Name)
+	id, _ := uuid.Parse(result.Workflow.Id)
+	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(id), workflowFileExt)
+
+	// Write in-place: same directory as source file, with native filename
+	sourceDir := filepath.Dir(result.SourcePath)
+	relPath = filepath.Join(sourceDir, fileName)
+	absPath = filepath.Join(project.FolderPath, relPath)
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return "", "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Marshal workflow to JSON
+	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(result.Workflow)
+	if err != nil {
+		return "", "", fmt.Errorf("marshal workflow: %w", err)
+	}
+
+	// Pretty-print the JSON
+	var buf bytes.Buffer
+	if jsonErr := json.Indent(&buf, raw, "", "  "); jsonErr == nil {
+		raw = buf.Bytes()
+	}
+
+	// Write atomically via temp file
+	tmp := absPath + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
+		return "", "", fmt.Errorf("write temp file: %w", err)
+	}
+	if err := os.Rename(tmp, absPath); err != nil {
+		return "", "", fmt.Errorf("rename temp file: %w", err)
+	}
+
+	return absPath, filepath.ToSlash(relPath), nil
+}
+
+// WriteWorkflowInPlace writes a workflow to the exact path specified, overwriting the original file.
+// This is used for in-place conversion of external workflow formats.
+func WriteWorkflowInPlace(absPath string, workflow *basapi.WorkflowSummary) error {
+	if workflow == nil {
+		return errors.New("workflow is nil")
+	}
+
+	// Marshal workflow to JSON using protojson
+	raw, err := protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}.Marshal(workflow)
+	if err != nil {
+		return fmt.Errorf("marshal workflow: %w", err)
+	}
+
+	// Pretty-print the JSON
+	var buf bytes.Buffer
+	if jsonErr := json.Indent(&buf, raw, "", "  "); jsonErr == nil {
+		raw = buf.Bytes()
+	}
+
+	// Write atomically via temp file
+	tmp := absPath + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := os.Rename(tmp, absPath); err != nil {
+		os.Remove(tmp) // Clean up on rename failure
+		return fmt.Errorf("rename temp file: %w", err)
+	}
+
+	return nil
 }

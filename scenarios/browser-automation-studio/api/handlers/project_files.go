@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -168,13 +167,13 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 		if wf == nil {
 			continue
 		}
+		// Use the actual file path from the database (no more workflows/ prefix assumption)
 		filePath := filepath.ToSlash(strings.TrimPrefix(strings.TrimSpace(wf.FilePath), "/"))
-		fullRel := filepath.ToSlash(filepath.Join("workflows", filepath.FromSlash(filePath)))
 		idStr := wf.ID.String()
 		entries = append(entries, &ProjectEntry{
 			ID:         "wf:" + idStr,
 			ProjectID:  projectID.String(),
-			Path:       fullRel,
+			Path:       filePath,
 			Kind:       ProjectEntryKindWorkflowFile,
 			WorkflowID: &idStr,
 			Metadata: map[string]any{
@@ -183,7 +182,8 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 			},
 		})
 
-		dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(fullRel)))
+		// Add parent directories to folder list
+		dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(filePath)))
 		for dir != "." && dir != "" && dir != "/" {
 			folders[dir] = struct{}{}
 			next := filepath.ToSlash(filepath.Dir(filepath.FromSlash(dir)))
@@ -194,44 +194,35 @@ func (h *Handler) GetProjectFileTree(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Optional: include assets directory if present.
-	assetsRoot := filepath.Join(project.FolderPath, "assets")
-	if info, statErr := os.Stat(assetsRoot); statErr == nil && info.IsDir() {
-		folders["assets"] = struct{}{}
-		_ = filepath.WalkDir(assetsRoot, func(abs string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				rel, relErr := filepath.Rel(project.FolderPath, abs)
-				if relErr == nil {
-					rel = filepath.ToSlash(rel)
-					if rel != "." && rel != "" {
-						folders[rel] = struct{}{}
-					}
-				}
-				return nil
-			}
-			rel, relErr := filepath.Rel(project.FolderPath, abs)
-			if relErr != nil {
-				return nil
-			}
-			rel = filepath.ToSlash(rel)
-			stat, statErr := os.Stat(abs)
-			if statErr != nil {
-				return nil
+	// Get assets from database (indexed during sync)
+	assets, assetsErr := h.repo.ListAssetsByProject(ctx, projectID, 10000, 0)
+	if assetsErr == nil {
+		for _, asset := range assets {
+			if asset == nil {
+				continue
 			}
 			entries = append(entries, &ProjectEntry{
-				ID:        "asset:" + rel,
+				ID:        "asset:" + asset.FilePath,
 				ProjectID: projectID.String(),
-				Path:      rel,
+				Path:      asset.FilePath,
 				Kind:      ProjectEntryKindAssetFile,
 				Metadata: map[string]any{
-					"sizeBytes": stat.Size(),
+					"sizeBytes": asset.FileSize,
+					"mimeType":  asset.MimeType,
 				},
 			})
-			return nil
-		})
+
+			// Add parent directories to folder list
+			dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(asset.FilePath)))
+			for dir != "." && dir != "" && dir != "/" {
+				folders[dir] = struct{}{}
+				next := filepath.ToSlash(filepath.Dir(filepath.FromSlash(dir)))
+				if next == dir {
+					break
+				}
+				dir = next
+			}
+		}
 	}
 
 	folderList := make([]string, 0, len(folders))
@@ -291,8 +282,9 @@ func (h *Handler) ReadProjectFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !strings.HasPrefix(filepath.ToSlash(relPath), "workflows/") {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "only workflow files are readable"}))
+	// Check if file is a workflow JSON file
+	if !strings.HasSuffix(strings.ToLower(relPath), ".json") {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "only JSON workflow files are readable"}))
 		return
 	}
 
@@ -590,20 +582,8 @@ func (h *Handler) ResyncProjectFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	workflows, _ := h.repo.ListWorkflowsByProject(ctx, projectID, 10000, 0)
-	assetsIndexed := 0
-	assetsRoot := filepath.Join(project.FolderPath, "assets")
-	if info, statErr := os.Stat(assetsRoot); statErr == nil && info.IsDir() {
-		_ = filepath.WalkDir(assetsRoot, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			if d.IsDir() {
-				return nil
-			}
-			assetsIndexed++
-			return nil
-		})
-	}
+	assets, _ := h.repo.ListAssetsByProject(ctx, projectID, 10000, 0)
+	assetsIndexed := len(assets)
 
 	h.respondSuccess(w, http.StatusOK, ResyncProjectFilesResponse{
 		ProjectID:        projectID.String(),

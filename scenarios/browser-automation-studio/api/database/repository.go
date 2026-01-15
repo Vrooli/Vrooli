@@ -62,6 +62,16 @@ type Repository interface {
 	SetSetting(ctx context.Context, key, value string) error
 	DeleteSetting(ctx context.Context, key string) error
 
+	// Asset operations (project file index)
+	CreateAsset(ctx context.Context, asset *AssetIndex) error
+	GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndex, error)
+	GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndex, error)
+	UpdateAsset(ctx context.Context, asset *AssetIndex) error
+	DeleteAsset(ctx context.Context, id uuid.UUID) error
+	DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error
+	DeleteAssetsByProject(ctx context.Context, projectID uuid.UUID) error
+	ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndex, error)
+
 	// Export operations (exported artifacts metadata)
 	CreateExport(ctx context.Context, export *ExportIndex) error
 	GetExport(ctx context.Context, id uuid.UUID) (*ExportIndex, error)
@@ -96,6 +106,7 @@ const (
 	workflowSelectColumns  = "id, project_id, name, folder_path, file_path, version, created_at, updated_at"
 	executionSelectColumns = "id, workflow_id, status, started_at, completed_at, COALESCE(error_message, '') as error_message, COALESCE(result_path, '') as result_path, resumed_from_id, created_at, updated_at"
 	scheduleSelectColumns  = "id, workflow_id, name, cron_expression, timezone, is_active, parameters_json, next_run_at, last_run_at, created_at, updated_at"
+	assetSelectColumns     = "id, project_id, file_path, file_name, COALESCE(file_size, 0) as file_size, COALESCE(mime_type, '') as mime_type, created_at, updated_at"
 )
 
 func appendLimitOffset(query string, limit, offset int) (string, []any) {
@@ -809,4 +820,96 @@ func (r *repository) DeleteSetting(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to delete setting: %w", err)
 	}
 	return nil
+}
+
+// ============================================================================
+// Asset Operations
+// ============================================================================
+
+func (r *repository) CreateAsset(ctx context.Context, asset *AssetIndex) error {
+	if asset.ID == uuid.Nil {
+		asset.ID = uuid.New()
+	}
+
+	query := `INSERT INTO project_assets (id, project_id, file_path, file_name, file_size, mime_type)
+	          VALUES (:id, :project_id, :file_path, :file_name, :file_size, :mime_type)`
+	_, err := r.db.NamedExecContext(ctx, query, asset)
+	if err != nil {
+		r.log.WithError(err).Error("Failed to create asset")
+		return fmt.Errorf("failed to create asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM project_assets WHERE project_id = ? AND file_path = ?", assetSelectColumns))
+	var asset AssetIndex
+	if err := r.db.GetContext(ctx, &asset, query, projectID, filePath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get asset: %w", err)
+	}
+	return &asset, nil
+}
+
+func (r *repository) GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM project_assets WHERE id = ?", assetSelectColumns))
+	var asset AssetIndex
+	if err := r.db.GetContext(ctx, &asset, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get asset by ID: %w", err)
+	}
+	return &asset, nil
+}
+
+func (r *repository) UpdateAsset(ctx context.Context, asset *AssetIndex) error {
+	query := `UPDATE project_assets SET file_path = :file_path, file_name = :file_name,
+	          file_size = :file_size, mime_type = :mime_type WHERE id = :id`
+	_, err := r.db.NamedExecContext(ctx, query, asset)
+	if err != nil {
+		return fmt.Errorf("failed to update asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAsset(ctx context.Context, id uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE id = ?`)
+	_, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete asset: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE project_id = ? AND file_path = ?`)
+	_, err := r.db.ExecContext(ctx, query, projectID, filePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete asset by path: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) DeleteAssetsByProject(ctx context.Context, projectID uuid.UUID) error {
+	query := r.db.Rebind(`DELETE FROM project_assets WHERE project_id = ?`)
+	_, err := r.db.ExecContext(ctx, query, projectID)
+	if err != nil {
+		return fmt.Errorf("failed to delete assets by project: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM project_assets WHERE project_id = ? ORDER BY file_path ASC", assetSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{projectID}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var assets []*AssetIndex
+	if err := r.db.SelectContext(ctx, &assets, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list assets by project: %w", err)
+	}
+	return assets, nil
 }

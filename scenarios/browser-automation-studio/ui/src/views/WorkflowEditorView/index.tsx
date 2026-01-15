@@ -69,14 +69,16 @@ export default function WorkflowEditorView() {
 
       setProject(foundProject);
       setCurrentProject(foundProject);
-      setSelectedFolder(foundProject.folder_path ?? '/');
+      // Use root folder path for workflow categories, NOT project.folder_path which is the filesystem path
+      setSelectedFolder('/');
 
       // Load the workflow
       try {
         await loadWorkflow(workflowId);
         const loaded = useWorkflowStore.getState().currentWorkflow;
         if (loaded) {
-          setSelectedFolder(loaded.folderPath ?? foundProject.folder_path ?? '/');
+          // Use workflow's logical folder path, fallback to root (NOT project.folder_path which is filesystem path)
+          setSelectedFolder(loaded.folderPath ?? '/');
 
           // Update last edited workflow for "Continue Editing" feature
           const lastEdited: RecentWorkflow = {

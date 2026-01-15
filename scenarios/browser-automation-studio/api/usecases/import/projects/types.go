@@ -25,6 +25,8 @@ type InspectProjectResponse struct {
 	WorkflowCount int `json:"workflow_count,omitempty"`
 	// WorkflowLocations contains relative paths to detected workflow files
 	WorkflowLocations []string `json:"workflow_locations,omitempty"`
+	// V1WorkflowCount is the number of workflows using legacy V1 format that will be converted
+	V1WorkflowCount int `json:"v1_workflow_count,omitempty"`
 }
 
 // ImportProjectRequest is the request for importing a project.

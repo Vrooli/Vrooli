@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/database"
+	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -256,6 +258,22 @@ func (s *Service) InspectFolder(ctx context.Context, folderPath string) (*Inspec
 			Status:      shared.ValidationStatusInfo,
 			Label:       "No workflows found",
 			Description: "No workflow files detected. You can create workflows after import.",
+		})
+	}
+
+	// Check 4b: V1 workflow detection (legacy format that will be converted)
+	tempProject := &database.ProjectIndex{FolderPath: absPath}
+	v1Count, v1Err := workflowservice.CountV1Workflows(tempProject, 4)
+	if v1Err == nil && v1Count > 0 {
+		response.V1WorkflowCount = v1Count
+		response.Validation.AddCheck(shared.ValidationCheck{
+			ID:          "v1_workflows",
+			Status:      shared.ValidationStatusWarn,
+			Label:       "Legacy workflows detected",
+			Description: fmt.Sprintf("Found %d workflow(s) using legacy V1 format. These will be automatically converted to V2 format during import.", v1Count),
+			Context: map[string]any{
+				"v1_count": v1Count,
+			},
 		})
 	}
 

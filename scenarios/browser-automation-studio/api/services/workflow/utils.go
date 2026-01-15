@@ -80,6 +80,35 @@ func normalizeFolderPath(folder string) string {
 	return trimmed
 }
 
+// validateFolderPath checks if a folder path looks like a valid logical workflow category.
+// Returns an error if the path appears to be an absolute filesystem path.
+func validateFolderPath(folder string) error {
+	if folder == "" {
+		return nil
+	}
+	// Check for patterns that indicate an absolute filesystem path rather than a logical category
+	invalidPrefixes := []string{
+		"/home/",
+		"/Users/",
+		"/var/",
+		"/tmp/",
+		"/opt/",
+		"/usr/",
+		"/etc/",
+	}
+	for _, prefix := range invalidPrefixes {
+		if strings.HasPrefix(folder, prefix) {
+			return fmt.Errorf("folder_path appears to be an absolute filesystem path; expected a logical category like '/', '/actions', or '/cases'")
+		}
+	}
+	// Also check if path has more than 4 segments - likely a filesystem path
+	segments := strings.Split(strings.Trim(folder, "/"), "/")
+	if len(segments) > 4 {
+		return fmt.Errorf("folder_path has too many segments (%d); expected a logical category like '/', '/actions', or '/cases/foundation'", len(segments))
+	}
+	return nil
+}
+
 func workflowsSubdir(folderPath string) string {
 	normalized := normalizeFolderPath(folderPath)
 	if normalized == defaultWorkflowFolder {

@@ -214,3 +214,98 @@ func (a *WorkflowSyncAdapter) SyncProjectWorkflows(ctx context.Context, projectI
 
 // Ensure WorkflowSyncAdapter implements WorkflowSyncer
 var _ shared.WorkflowSyncer = (*WorkflowSyncAdapter)(nil)
+
+// AssetAdapter wraps Repository to implement shared.AssetIndexer.
+type AssetAdapter struct {
+	repo database.Repository
+}
+
+// NewAssetAdapter creates a new AssetAdapter.
+func NewAssetAdapter(repo database.Repository) *AssetAdapter {
+	return &AssetAdapter{repo: repo}
+}
+
+// CreateAsset creates a new asset index entry.
+func (a *AssetAdapter) CreateAsset(ctx context.Context, asset *shared.AssetIndexData) error {
+	dbAsset := &database.AssetIndex{
+		ID:        asset.ID,
+		ProjectID: asset.ProjectID,
+		FilePath:  asset.FilePath,
+		FileName:  asset.FileName,
+		FileSize:  asset.FileSize,
+		MimeType:  asset.MimeType,
+	}
+	return a.repo.CreateAsset(ctx, dbAsset)
+}
+
+// GetAsset retrieves an asset by project ID and file path.
+func (a *AssetAdapter) GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*shared.AssetIndexData, error) {
+	asset, err := a.repo.GetAsset(ctx, projectID, filePath)
+	if err != nil {
+		return nil, err
+	}
+	return convertAssetToShared(asset), nil
+}
+
+// GetAssetByID retrieves an asset by ID.
+func (a *AssetAdapter) GetAssetByID(ctx context.Context, id uuid.UUID) (*shared.AssetIndexData, error) {
+	asset, err := a.repo.GetAssetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return convertAssetToShared(asset), nil
+}
+
+// UpdateAsset updates an existing asset index entry.
+func (a *AssetAdapter) UpdateAsset(ctx context.Context, asset *shared.AssetIndexData) error {
+	dbAsset := &database.AssetIndex{
+		ID:        asset.ID,
+		ProjectID: asset.ProjectID,
+		FilePath:  asset.FilePath,
+		FileName:  asset.FileName,
+		FileSize:  asset.FileSize,
+		MimeType:  asset.MimeType,
+	}
+	return a.repo.UpdateAsset(ctx, dbAsset)
+}
+
+// DeleteAsset deletes an asset index entry by ID.
+func (a *AssetAdapter) DeleteAsset(ctx context.Context, id uuid.UUID) error {
+	return a.repo.DeleteAsset(ctx, id)
+}
+
+// DeleteAssetByPath deletes an asset by project ID and file path.
+func (a *AssetAdapter) DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error {
+	return a.repo.DeleteAssetByPath(ctx, projectID, filePath)
+}
+
+// ListAssetsByProject lists all assets for a project with pagination.
+func (a *AssetAdapter) ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*shared.AssetIndexData, error) {
+	assets, err := a.repo.ListAssetsByProject(ctx, projectID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*shared.AssetIndexData, len(assets))
+	for i, asset := range assets {
+		result[i] = convertAssetToShared(asset)
+	}
+	return result, nil
+}
+
+// convertAssetToShared converts a database asset to shared.AssetIndexData.
+func convertAssetToShared(a *database.AssetIndex) *shared.AssetIndexData {
+	if a == nil {
+		return nil
+	}
+	return &shared.AssetIndexData{
+		ID:        a.ID,
+		ProjectID: a.ProjectID,
+		FilePath:  a.FilePath,
+		FileName:  a.FileName,
+		FileSize:  a.FileSize,
+		MimeType:  a.MimeType,
+	}
+}
+
+// Ensure AssetAdapter implements AssetIndexer
+var _ shared.AssetIndexer = (*AssetAdapter)(nil)

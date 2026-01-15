@@ -110,6 +110,41 @@ type WorkflowSyncer interface {
 	SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error
 }
 
+// AssetIndexer abstracts database operations for asset indexing.
+// Assets are non-workflow files within a project that can be used by workflows.
+type AssetIndexer interface {
+	// CreateAsset creates a new asset index entry
+	CreateAsset(ctx context.Context, asset *AssetIndexData) error
+
+	// GetAsset retrieves an asset by project ID and file path
+	GetAsset(ctx context.Context, projectID uuid.UUID, filePath string) (*AssetIndexData, error)
+
+	// GetAssetByID retrieves an asset by ID
+	GetAssetByID(ctx context.Context, id uuid.UUID) (*AssetIndexData, error)
+
+	// UpdateAsset updates an existing asset index entry
+	UpdateAsset(ctx context.Context, asset *AssetIndexData) error
+
+	// DeleteAsset deletes an asset index entry by ID
+	DeleteAsset(ctx context.Context, id uuid.UUID) error
+
+	// DeleteAssetByPath deletes an asset by project ID and file path
+	DeleteAssetByPath(ctx context.Context, projectID uuid.UUID, filePath string) error
+
+	// ListAssetsByProject lists all assets for a project with pagination
+	ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*AssetIndexData, error)
+}
+
+// AssetIndexData represents asset index information.
+type AssetIndexData struct {
+	ID        uuid.UUID `json:"id"`
+	ProjectID uuid.UUID `json:"project_id"`
+	FilePath  string    `json:"file_path"` // Relative path from project root
+	FileName  string    `json:"file_name"`
+	FileSize  int64     `json:"file_size"`
+	MimeType  string    `json:"mime_type"`
+}
+
 // WorkflowValidator abstracts workflow validation operations.
 type WorkflowValidator interface {
 	// ValidateWorkflowJSON validates workflow JSON content
