@@ -469,6 +469,7 @@ func applyUserEditableFields(dst *tasks.TaskItem, src tasks.TaskItem, notesProvi
 	dst.Tags = src.Tags
 	dst.SteerMode = src.SteerMode
 	dst.AutoSteerProfileID = src.AutoSteerProfileID
+	dst.ProcessorAutoRequeue = src.ProcessorAutoRequeue
 	if notesProvided {
 		dst.Notes = src.Notes
 	}
