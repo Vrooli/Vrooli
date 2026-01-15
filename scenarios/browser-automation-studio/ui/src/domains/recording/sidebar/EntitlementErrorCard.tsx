@@ -7,9 +7,9 @@
  * - Credit error (INSUFFICIENT_CREDITS): User has exhausted their AI credits
  */
 
+import { useCallback } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Lock, AlertTriangle, Settings, RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { TierBadge } from '@shared/ui/TierBadge';
 import { UsageMeter } from '@shared/ui/UsageMeter';
 import type { SubscriptionTier } from '@stores/entitlementStore';
@@ -17,6 +17,18 @@ import type { EntitlementErrorCode, EntitlementErrorDetails } from './types';
 
 /** Route to the subscription settings tab */
 const SUBSCRIPTION_SETTINGS_URL = '/settings?tab=subscription';
+
+/**
+ * Navigate to the subscription settings page.
+ * Uses window.location.assign for a full navigation to properly close
+ * the recording modal (which is a full-screen overlay).
+ */
+function useNavigateToSubscription() {
+  return useCallback(() => {
+    // Full page navigation to properly exit the recording modal
+    window.location.assign(SUBSCRIPTION_SETTINGS_URL);
+  }, []);
+}
 
 export interface EntitlementErrorCardProps {
   errorCode: EntitlementErrorCode;
@@ -53,6 +65,7 @@ function formatResetDate(resetDateStr?: string): string {
 
 function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
   const tier = (details?.tier as SubscriptionTier) || 'free';
+  const navigateToSubscription = useNavigateToSubscription();
 
   return (
     <div className="mb-4 mx-2">
@@ -81,8 +94,9 @@ function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
           </div>
 
           {/* Manage Subscription CTA */}
-          <Link
-            to={SUBSCRIPTION_SETTINGS_URL}
+          <button
+            type="button"
+            onClick={navigateToSubscription}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg
               bg-gradient-to-r from-purple-600 to-blue-600
@@ -93,7 +107,7 @@ function TierErrorCard({ details }: { details?: EntitlementErrorDetails }) {
           >
             <Settings size={16} />
             Manage Subscription
-          </Link>
+          </button>
         </div>
       </div>
     </div>
@@ -105,6 +119,7 @@ function CreditErrorCard({ details }: { details?: EntitlementErrorDetails }) {
   const creditsLimit = details?.creditsLimit ?? 0;
   const resetDateStr = details?.resetDate;
   const tier = (details?.tier as SubscriptionTier) || 'free';
+  const navigateToSubscription = useNavigateToSubscription();
 
   // For display purposes, show 100% if we have a limit
   const displayUsed = creditsLimit > 0 ? creditsLimit : creditsUsed;
@@ -153,8 +168,9 @@ function CreditErrorCard({ details }: { details?: EntitlementErrorDetails }) {
           </div>
 
           {/* Manage Subscription CTA */}
-          <Link
-            to={SUBSCRIPTION_SETTINGS_URL}
+          <button
+            type="button"
+            onClick={navigateToSubscription}
             className="
               flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg
               bg-gradient-to-r from-purple-600 to-blue-600
@@ -165,7 +181,7 @@ function CreditErrorCard({ details }: { details?: EntitlementErrorDetails }) {
           >
             <Settings size={16} />
             Manage Subscription
-          </Link>
+          </button>
         </div>
       </div>
     </div>
