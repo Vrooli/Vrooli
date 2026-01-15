@@ -250,6 +250,14 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/history", s.handleAddHistoryEvent).Methods("POST")
 	api.HandleFunc("/deployments/{id}/logs", s.handleGetLogs).Methods("GET")
 
+	// VPS Secrets Management (Post-deployment secret CRUD)
+	secretsMgmtDeps := secrets.ManagementDeps{Repo: s.repo, SSHRunner: s.sshRunner}
+	api.HandleFunc("/deployments/{id}/secrets", secrets.HandleListVPSSecrets(secretsMgmtDeps)).Methods("GET")
+	api.HandleFunc("/deployments/{id}/secrets", secrets.HandleCreateVPSSecret(secretsMgmtDeps)).Methods("POST")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleGetVPSSecret(secretsMgmtDeps)).Methods("GET")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleUpdateVPSSecret(secretsMgmtDeps)).Methods("PUT")
+	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleDeleteVPSSecret(secretsMgmtDeps)).Methods("DELETE")
+
 	// Terminal (Ground Truth Redesign - Phase 8)
 	api.HandleFunc("/deployments/{id}/terminal", s.handleTerminalWebSocket).Methods("GET")
 

@@ -9,13 +9,16 @@ import {
   Shield,
   Download,
   Settings,
+  Plus,
+  Trash2,
+  PenLine,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import type { useDeployment } from "../../hooks/useDeployment";
-import type { BundleSecretPlan, SecretsSummary } from "../../types/secrets";
+import type { BundleSecretPlan, SecretsSummary, CustomSecret } from "../../types/secrets";
 
 interface StepSecretsProps {
   deployment: ReturnType<typeof useDeployment>;
@@ -31,6 +34,11 @@ export function StepSecrets({ deployment }: StepSecretsProps) {
     fetchSecrets,
     providedSecrets,
     setProvidedSecrets,
+    customSecrets,
+    addCustomSecret,
+    removeCustomSecret,
+    updateCustomSecret,
+    customSecretsValidation,
   } = deployment;
 
   // Fetch secrets when step loads (only once per session)
@@ -136,6 +144,15 @@ export function StepSecrets({ deployment }: StepSecretsProps) {
           secrets={remoteFetch}
         />
       )}
+
+      {/* Custom secrets (manually added) */}
+      <CustomSecretsSection
+        customSecrets={customSecrets}
+        validation={customSecretsValidation}
+        onAdd={addCustomSecret}
+        onRemove={removeCustomSecret}
+        onChange={updateCustomSecret}
+      />
     </div>
   );
 }
@@ -331,6 +348,152 @@ function UserPromptSection({
             </span>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function CustomSecretsSection({
+  customSecrets,
+  validation,
+  onAdd,
+  onRemove,
+  onChange,
+}: {
+  customSecrets: CustomSecret[];
+  validation: { errors: Record<string, string>; isValid: boolean };
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onChange: (id: string, field: keyof Omit<CustomSecret, "id">, value: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <PenLine className="h-4 w-4 text-violet-400" />
+          Custom Secrets
+        </CardTitle>
+        <p className="text-sm text-slate-400">
+          Add secrets that weren't automatically detected
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {customSecrets.length === 0 ? (
+            <p className="text-sm text-slate-500 text-center py-4">
+              No custom secrets added. Click the button below to add one.
+            </p>
+          ) : (
+            customSecrets.map((secret) => {
+              const error = validation.errors[secret.id];
+              const hasValue = secret.key.trim() && secret.value.trim();
+
+              return (
+                <div
+                  key={secret.id}
+                  className="p-3 rounded-lg border border-white/10 bg-slate-800/50 space-y-3"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 space-y-3">
+                      {/* Key input */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-400">
+                          Key (environment variable name)
+                        </label>
+                        <Input
+                          type="text"
+                          value={secret.key}
+                          onChange={(e) =>
+                            onChange(secret.id, "key", e.target.value.toUpperCase())
+                          }
+                          placeholder="MY_API_KEY"
+                          className="font-mono uppercase"
+                        />
+                      </div>
+
+                      {/* Value input */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-400">
+                          Value
+                        </label>
+                        <Input
+                          type="password"
+                          value={secret.value}
+                          onChange={(e) => onChange(secret.id, "value", e.target.value)}
+                          placeholder="Enter secret value..."
+                          className="font-mono"
+                        />
+                      </div>
+
+                      {/* Optional description */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-400">
+                          Description (optional)
+                        </label>
+                        <Input
+                          type="text"
+                          value={secret.description || ""}
+                          onChange={(e) =>
+                            onChange(secret.id, "description", e.target.value)
+                          }
+                          placeholder="What is this secret for?"
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => onRemove(secret.id)}
+                      className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Remove secret"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Validation status */}
+                  <div className="flex items-center gap-2 text-xs">
+                    {error ? (
+                      <>
+                        <AlertCircle className="h-3.5 w-3.5 text-red-400" />
+                        <span className="text-red-400">{error}</span>
+                      </>
+                    ) : hasValue ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Valid</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">Enter key and value</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+
+          {/* Add button */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onAdd}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Custom Secret
+          </Button>
+
+          {/* Help text */}
+          <div className="flex items-start gap-2 text-xs text-slate-500">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <span>
+              Custom secrets are for values not detected by the secrets system.
+              Use uppercase letters, numbers, and underscores for keys (e.g., MY_API_KEY).
+            </span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

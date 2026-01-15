@@ -17,6 +17,11 @@ import {
   type ProvidedSecrets,
 } from "../lib/api";
 import {
+  type CustomSecret,
+  isValidSecretKey,
+  isReservedKey,
+} from "../types/secrets";
+import {
   type DeploymentManifest,
   type WizardStep,
   DEFAULT_MANIFEST,
@@ -110,6 +115,9 @@ export function useDeployment() {
   const [isFetchingSecrets, setIsFetchingSecrets] = useState(false);
   const [secretsFetched, setSecretsFetched] = useState(false); // Track if fetch was attempted
   const [providedSecrets, setProvidedSecrets] = useState<ProvidedSecrets>({});
+
+  // Custom secrets state (manually added secrets not detected by secrets-manager)
+  const [customSecrets, setCustomSecrets] = useState<CustomSecret[]>([]);
 
   // Undo/redo history
   const historyRef = useRef<string[]>([]);
@@ -441,6 +449,66 @@ export function useDeployment() {
     setProvidedSecrets(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  // Custom secrets management
+  const addCustomSecret = useCallback(() => {
+    const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setCustomSecrets(prev => [...prev, { id, key: "", value: "", description: "" }]);
+  }, []);
+
+  const removeCustomSecret = useCallback((id: string) => {
+    setCustomSecrets(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const updateCustomSecret = useCallback((id: string, field: keyof Omit<CustomSecret, "id">, value: string) => {
+    setCustomSecrets(prev => prev.map(s =>
+      s.id === id ? { ...s, [field]: value } : s
+    ));
+  }, []);
+
+  // Validate all custom secrets
+  const customSecretsValidation = useMemo(() => {
+    const errors: Record<string, string> = {};
+    const keys = new Set<string>();
+
+    // Also collect keys from auto-detected secrets
+    const autoDetectedKeys = new Set(
+      secretsManifest?.bundle_secrets.map(s => s.target.name || s.id) ?? []
+    );
+
+    for (const secret of customSecrets) {
+      if (!secret.key.trim()) {
+        errors[secret.id] = "Key is required";
+      } else if (!isValidSecretKey(secret.key)) {
+        errors[secret.id] = "Key must be uppercase letters, numbers, and underscores (e.g., MY_API_KEY)";
+      } else if (isReservedKey(secret.key)) {
+        errors[secret.id] = "This key prefix is reserved";
+      } else if (keys.has(secret.key)) {
+        errors[secret.id] = "Duplicate key";
+      } else if (autoDetectedKeys.has(secret.key)) {
+        errors[secret.id] = "This key conflicts with an auto-detected secret";
+      } else if (!secret.value.trim()) {
+        errors[secret.id] = "Value is required";
+      }
+      keys.add(secret.key);
+    }
+
+    return {
+      errors,
+      isValid: Object.keys(errors).length === 0,
+    };
+  }, [customSecrets, secretsManifest]);
+
+  // Merge custom secrets into provided secrets for deployment
+  const mergedProvidedSecrets = useMemo((): ProvidedSecrets => {
+    const merged = { ...providedSecrets };
+    for (const secret of customSecrets) {
+      if (secret.key.trim() && secret.value.trim()) {
+        merged[secret.key] = secret.value;
+      }
+    }
+    return merged;
+  }, [providedSecrets, customSecrets]);
+
   const deploy = useCallback(async () => {
     setDeploymentStatus("deploying");
     setDeploymentError(null);
@@ -474,14 +542,14 @@ export function useDeployment() {
       // This is now non-blocking - it returns immediately.
       // Progress is tracked via SSE on /deployments/{id}/progress
       // and status updates come via the onDeploymentComplete callback
-      await executeDeployment(newDeploymentId, { providedSecrets });
+      await executeDeployment(newDeploymentId, { providedSecrets: mergedProvidedSecrets });
 
       // Status remains "deploying" - will be updated via SSE progress events
     } catch (e) {
       setDeploymentError(e instanceof Error ? e.message : String(e));
       setDeploymentStatus("failed");
     }
-  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, providedSecrets]);
+  }, [parsedManifest, manifestJson, currentStepIndex, sshKeyPath, bundleArtifact, mergedProvidedSecrets]);
 
   // Called when SSE progress stream reports completion or error
   const onDeploymentComplete = useCallback((success: boolean, error?: string) => {
@@ -566,6 +634,7 @@ export function useDeployment() {
     setSecretsError(null);
     setSecretsFetched(false);
     setProvidedSecrets({});
+    setCustomSecrets([]);
     setBundleArtifact(null);
     setBundleError(null);
     setPreflightPassed(null);
@@ -592,6 +661,8 @@ export function useDeployment() {
       case "secrets":
         // Must have completed fetch attempt
         if (!secretsFetched) return false;
+        // Validate custom secrets if any are defined
+        if (customSecrets.length > 0 && !customSecretsValidation.isValid) return false;
         // If no secrets manifest (null response), no secrets required - can proceed
         if (!secretsManifest) return true;
         // Check all required user_prompt secrets are provided
@@ -658,6 +729,13 @@ export function useDeployment() {
     fetchSecrets,
     providedSecrets,
     setProvidedSecrets: updateProvidedSecret,
+
+    // Custom secrets (manually added)
+    customSecrets,
+    addCustomSecret,
+    removeCustomSecret,
+    updateCustomSecret,
+    customSecretsValidation,
 
     // Bundle
     bundleArtifact,

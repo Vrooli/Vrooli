@@ -186,3 +186,215 @@ func BuildJSON(secrets []GeneratedSecret, scenarioID string) ([]byte, error) {
 
 	return payload.MarshalJSON()
 }
+
+// VPSSecretsData represents the complete parsed secrets.json file from VPS.
+type VPSSecretsData struct {
+	Metadata Metadata
+	Secrets  map[string]string
+}
+
+// ReadAllFromVPS reads secrets.json from VPS and returns structured data with metadata.
+// Unlike ReadFromVPS, this preserves the metadata for display purposes.
+func ReadAllFromVPS(
+	ctx context.Context,
+	sshRunner ssh.Runner,
+	cfg ssh.Config,
+	workdir string,
+) (*VPSSecretsData, error) {
+	secretsPath := ssh.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
+
+	// Try to read existing secrets file
+	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", ssh.QuoteSingle(secretsPath))
+	result, err := sshRunner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return nil, fmt.Errorf("read secrets.json: %w", err)
+	}
+
+	// Parse the JSON
+	var rawJSON map[string]interface{}
+	if err := json.Unmarshal([]byte(result.Stdout), &rawJSON); err != nil {
+		// If we can't parse it, return empty data
+		return &VPSSecretsData{
+			Secrets: make(map[string]string),
+		}, nil
+	}
+
+	data := &VPSSecretsData{
+		Secrets: make(map[string]string),
+	}
+
+	// Extract metadata if present
+	if metadataRaw, ok := rawJSON["_metadata"].(map[string]interface{}); ok {
+		if env, ok := metadataRaw["environment"].(string); ok {
+			data.Metadata.Environment = env
+		}
+		if lastUpdated, ok := metadataRaw["last_updated"].(string); ok {
+			if t, err := time.Parse(time.RFC3339, lastUpdated); err == nil {
+				data.Metadata.LastUpdated = t
+			}
+		}
+		if notes, ok := metadataRaw["notes"].(string); ok {
+			data.Metadata.Notes = notes
+		}
+		if generatedBy, ok := metadataRaw["generated_by"].(string); ok {
+			data.Metadata.GeneratedBy = generatedBy
+		}
+		if scenarioID, ok := metadataRaw["scenario_id"].(string); ok {
+			data.Metadata.ScenarioID = scenarioID
+		}
+	}
+
+	// Extract secrets (skip _metadata)
+	for k, v := range rawJSON {
+		if k == "_metadata" {
+			continue
+		}
+		if strVal, ok := v.(string); ok {
+			data.Secrets[k] = strVal
+		}
+	}
+
+	return data, nil
+}
+
+// AddSecretToVPS adds a new secret to the VPS secrets.json file.
+// Returns an error if the key already exists.
+func AddSecretToVPS(
+	ctx context.Context,
+	sshRunner ssh.Runner,
+	cfg ssh.Config,
+	workdir string,
+	key string,
+	value string,
+	scenarioID string,
+) error {
+	// Read existing secrets
+	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	if err != nil {
+		return fmt.Errorf("read existing secrets: %w", err)
+	}
+
+	// Check if key already exists
+	if _, exists := data.Secrets[key]; exists {
+		return fmt.Errorf("secret key %q already exists", key)
+	}
+
+	// Add new secret
+	data.Secrets[key] = value
+
+	// Write back
+	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
+}
+
+// UpdateSecretOnVPS updates an existing secret value on the VPS.
+// Returns an error if the key doesn't exist.
+func UpdateSecretOnVPS(
+	ctx context.Context,
+	sshRunner ssh.Runner,
+	cfg ssh.Config,
+	workdir string,
+	key string,
+	value string,
+	scenarioID string,
+) error {
+	// Read existing secrets
+	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	if err != nil {
+		return fmt.Errorf("read existing secrets: %w", err)
+	}
+
+	// Check if key exists
+	if _, exists := data.Secrets[key]; !exists {
+		return fmt.Errorf("secret key %q not found", key)
+	}
+
+	// Update secret
+	data.Secrets[key] = value
+
+	// Write back
+	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
+}
+
+// DeleteSecretFromVPS removes a secret from the VPS secrets.json file.
+// Returns an error if the key doesn't exist.
+func DeleteSecretFromVPS(
+	ctx context.Context,
+	sshRunner ssh.Runner,
+	cfg ssh.Config,
+	workdir string,
+	key string,
+	scenarioID string,
+) error {
+	// Read existing secrets
+	data, err := ReadAllFromVPS(ctx, sshRunner, cfg, workdir)
+	if err != nil {
+		return fmt.Errorf("read existing secrets: %w", err)
+	}
+
+	// Check if key exists
+	if _, exists := data.Secrets[key]; !exists {
+		return fmt.Errorf("secret key %q not found", key)
+	}
+
+	// Delete secret
+	delete(data.Secrets, key)
+
+	// Write back
+	return writeSecretsData(ctx, sshRunner, cfg, workdir, data, scenarioID)
+}
+
+// writeSecretsData writes the secrets data back to VPS.
+// This is a helper function used by Add, Update, and Delete operations.
+func writeSecretsData(
+	ctx context.Context,
+	sshRunner ssh.Runner,
+	cfg ssh.Config,
+	workdir string,
+	data *VPSSecretsData,
+	scenarioID string,
+) error {
+	// Use the scenario ID from metadata if available, otherwise use provided
+	effectiveScenarioID := scenarioID
+	if data.Metadata.ScenarioID != "" {
+		effectiveScenarioID = data.Metadata.ScenarioID
+	}
+
+	payload := JSONPayload{
+		Metadata: Metadata{
+			Environment: "production",
+			LastUpdated: time.Now().UTC(),
+			Notes:       "Updated via scenario-to-cloud secrets management",
+			GeneratedBy: "scenario-to-cloud",
+			ScenarioID:  effectiveScenarioID,
+		},
+		secrets: data.Secrets,
+	}
+
+	jsonBytes, err := payload.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("marshal secrets.json: %w", err)
+	}
+
+	// Paths on VPS
+	secretsDir := ssh.SafeRemoteJoin(workdir, ".vrooli")
+	secretsPath := ssh.SafeRemoteJoin(secretsDir, "secrets.json")
+
+	// Write secrets.json with proper permissions (600 = owner read/write only)
+	cmd := fmt.Sprintf(
+		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
+		ssh.QuoteSingle(secretsDir),
+		ssh.QuoteSingle(string(jsonBytes)),
+		ssh.QuoteSingle(secretsPath),
+		ssh.QuoteSingle(secretsPath),
+	)
+
+	result, err := sshRunner.Run(ctx, cfg, cmd)
+	if err != nil {
+		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("write secrets.json failed: exit %d, stderr: %s", result.ExitCode, result.Stderr)
+	}
+
+	return nil
+}

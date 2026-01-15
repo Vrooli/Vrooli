@@ -22,6 +22,7 @@ import {
   GitCompare,
   History,
   Search,
+  Key,
 } from "lucide-react";
 import {
   useDeployment,
@@ -36,7 +37,7 @@ import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
 import { cn } from "../../lib/utils";
 import { runPreflight as runPreflightApi, type Deployment, type PreflightCheck, type PreflightResponse } from "../../lib/api";
 import type { StepStatus } from "../../types/progress";
-import { LiveStateTab, FilesTab, DriftTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
+import { LiveStateTab, FilesTab, DriftTab, SecretsTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
 import { Alert } from "../ui/alert";
 import { Stepper, type StepperStatus } from "../ui/stepper";
@@ -71,7 +72,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "history" | "investigations" | "terminal">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "secrets" | "history" | "investigations" | "terminal">("overview");
   const [showInvestigationReport, setShowInvestigationReport] = useState(false);
   const [showRedeployDialog, setShowRedeployDialog] = useState(false);
   const [buildNewBundle, setBuildNewBundle] = useState(false);
@@ -869,6 +870,18 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Drift
         </button>
         <button
+          onClick={() => setActiveTab("secrets")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
+            activeTab === "secrets"
+              ? "bg-slate-800 text-white border-b-2 border-blue-500"
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+          )}
+        >
+          <Key className="h-4 w-4" />
+          Secrets
+        </button>
+        <button
           onClick={() => setActiveTab("history")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
@@ -915,6 +928,9 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       )}
       {activeTab === "drift" && (
         <DriftTab deploymentId={deploymentId} />
+      )}
+      {activeTab === "secrets" && (
+        <SecretsTab deploymentId={deploymentId} />
       )}
       {activeTab === "history" && (
         <HistoryTab deploymentId={deploymentId} />

@@ -9,6 +9,7 @@ export { FileViewer } from "./FileViewer";
 export { QuickAccess } from "./QuickAccess";
 export { BundleInventory } from "./BundleInventory";
 export { DriftTab } from "./DriftTab";
+export { SecretsTab } from "./SecretsTab";
 export { HistoryTab } from "./HistoryTab";
 export { Timeline } from "./Timeline";
 export { LogViewer } from "./LogViewer";

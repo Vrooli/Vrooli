@@ -1979,3 +1979,164 @@ export async function stopTask(
   }
   return res.json() as Promise<{ success: boolean; message: string }>;
 }
+
+// ============================================================================
+// VPS Secrets Management Types & Functions (Post-deployment CRUD)
+// ============================================================================
+
+export type VPSSecretEntry = {
+  key: string;
+  value?: string;
+  masked: boolean;
+  source: string;
+  last_updated?: string;
+};
+
+export type VPSSecretsMetadata = {
+  environment: string;
+  last_updated: string;
+  scenario_id: string;
+  generated_by?: string;
+  notes?: string;
+};
+
+export type ListVPSSecretsResponse = {
+  secrets: VPSSecretEntry[];
+  metadata: VPSSecretsMetadata;
+  timestamp: string;
+};
+
+export type GetVPSSecretResponse = {
+  secret: VPSSecretEntry;
+  timestamp: string;
+};
+
+export type SecretOperationResponse = {
+  ok: boolean;
+  key: string;
+  action: string;
+  message: string;
+  scenario_restart?: boolean;
+  timestamp: string;
+};
+
+/**
+ * List all secrets on a deployed VPS.
+ * Values are masked by default.
+ */
+export async function listVPSSecrets(
+  deploymentId: string
+): Promise<ListVPSSecretsResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list VPS secrets: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ListVPSSecretsResponse>;
+}
+
+/**
+ * Get a single secret from the VPS.
+ * Use reveal=true to get the actual value (otherwise masked).
+ */
+export async function getVPSSecret(
+  deploymentId: string,
+  key: string,
+  reveal = false
+): Promise<GetVPSSecretResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}${reveal ? "?reveal=true" : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<GetVPSSecretResponse>;
+}
+
+/**
+ * Create a new secret on the VPS.
+ */
+export async function createVPSSecret(
+  deploymentId: string,
+  key: string,
+  value: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value, restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to create VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
+
+/**
+ * Update an existing secret on the VPS.
+ */
+export async function updateVPSSecret(
+  deploymentId: string,
+  key: string,
+  value: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value, restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to update VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
+
+/**
+ * Delete a secret from the VPS.
+ * Requires confirmation string "DELETE".
+ */
+export async function deleteVPSSecret(
+  deploymentId: string,
+  key: string,
+  restartScenario = false
+): Promise<SecretOperationResponse> {
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/secrets/${encodeURIComponent(key)}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmation: "DELETE", restart_scenario: restartScenario }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to delete VPS secret: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<SecretOperationResponse>;
+}
