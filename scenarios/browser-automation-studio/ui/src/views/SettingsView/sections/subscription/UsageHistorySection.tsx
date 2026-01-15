@@ -63,7 +63,9 @@ export function UsageHistorySection({ onViewOperations }: UsageHistorySectionPro
   }, []);
 
   const formatMonth = (monthStr: string): string => {
-    const date = new Date(monthStr + '-01');
+    // Parse YYYY-MM directly to avoid timezone issues
+    const [year, month] = monthStr.split('-').map(Number);
+    const date = new Date(year, month - 1, 1); // month is 0-indexed
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 

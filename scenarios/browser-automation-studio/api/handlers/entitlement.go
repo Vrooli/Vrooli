@@ -91,6 +91,11 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 		}
 	}
 
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
+	}
+
 	// Get entitlement
 	overrideTier := h.getOverrideTier(ctx)
 	overrideActive := overrideTier != ""
@@ -323,6 +328,11 @@ func (h *EntitlementHandler) GetUsageHistory(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
+	}
+
 	if h.creditService == nil {
 		http.Error(w, `{"error":{"code":"USAGE_TRACKING_DISABLED","message":"Usage tracking is not available"}}`, http.StatusServiceUnavailable)
 		return
@@ -374,6 +384,11 @@ func (h *EntitlementHandler) GetOperationLog(w http.ResponseWriter, r *http.Requ
 		if saved, err := h.settingsRepo.GetSetting(ctx, "user_identity"); err == nil {
 			userIdentity = saved
 		}
+	}
+
+	// Fall back to "anonymous" for consistent tracking with AI handlers
+	if userIdentity == "" {
+		userIdentity = "anonymous"
 	}
 
 	if h.creditService == nil {

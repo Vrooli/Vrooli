@@ -262,21 +262,21 @@ func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, mont
 		queryMonths = append(queryMonths, m.Format("2006-01"))
 	}
 
-	// Query database for these months
+	// Query database for these months - aggregate across all user_identities for single-user desktop app
 	query := `
 		SELECT billing_month, total_credits_used, total_operations, credits_by_operation, operations_by_type
 		FROM credit_usage
-		WHERE user_identity = $1 AND billing_month = ANY($2)
+		WHERE billing_month = ANY($1)
 		ORDER BY billing_month DESC
 	`
 
-	rows, err := s.db.QueryContext(ctx, query, userIdentity, pq.Array(queryMonths))
+	rows, err := s.db.QueryContext(ctx, query, pq.Array(queryMonths))
 	if err != nil {
 		return nil, false, fmt.Errorf("query usage history: %w", err)
 	}
 	defer rows.Close()
 
-	// Collect results into a map
+	// Collect results into a map, aggregating across all user_identities per month
 	usageByMonth := make(map[string]*usageCache)
 	for rows.Next() {
 		var month string
@@ -287,14 +287,29 @@ func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, mont
 			return nil, false, fmt.Errorf("scan usage row: %w", err)
 		}
 
-		byOperation := make(map[OperationType]int)
-		operationCounts := make(map[OperationType]int)
+		// Get or create the cache entry for this month
+		existing := usageByMonth[month]
+		if existing == nil {
+			existing = &usageCache{
+				totalCreditsUsed: 0,
+				totalOperations:  0,
+				byOperation:      make(map[OperationType]int),
+				operationCounts:  make(map[OperationType]int),
+				month:            month,
+			}
+			usageByMonth[month] = existing
+		}
 
+		// Aggregate totals
+		existing.totalCreditsUsed += totalCreditsUsed
+		existing.totalOperations += totalOperations
+
+		// Aggregate operation breakdowns
 		if len(creditsByOpJSON) > 0 {
 			var rawByOp map[string]int
 			if err := json.Unmarshal(creditsByOpJSON, &rawByOp); err == nil {
 				for k, v := range rawByOp {
-					byOperation[OperationType(k)] = v
+					existing.byOperation[OperationType(k)] += v
 				}
 			}
 		}
@@ -303,17 +318,9 @@ func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, mont
 			var rawCounts map[string]int
 			if err := json.Unmarshal(opCountsJSON, &rawCounts); err == nil {
 				for k, v := range rawCounts {
-					operationCounts[OperationType(k)] = v
+					existing.operationCounts[OperationType(k)] += v
 				}
 			}
-		}
-
-		usageByMonth[month] = &usageCache{
-			totalCreditsUsed: totalCreditsUsed,
-			totalOperations:  totalOperations,
-			byOperation:      byOperation,
-			operationCounts:  operationCounts,
-			month:            month,
 		}
 	}
 
@@ -400,11 +407,11 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 	monthStart := firstDayOfMonth(monthTime)
 	monthEnd := lastDayOfMonth(monthTime)
 
-	// Build category filter
+	// Build category filter - no user_identity filter for single-user desktop app
 	var categoryFilter string
 	var args []interface{}
 
-	args = append(args, userIdentity, monthStart, monthEnd)
+	args = append(args, monthStart, monthEnd)
 
 	if category != "" {
 		// Map category to operation type prefix
@@ -418,11 +425,11 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 		}
 	}
 
-	// Count total
+	// Count total - aggregate all users for single-user desktop app
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*)
 		FROM operation_log
-		WHERE user_identity = $1 AND created_at >= $2 AND created_at <= $3%s
+		WHERE created_at >= $1 AND created_at <= $2%s
 	`, categoryFilter)
 
 	var total int
@@ -430,13 +437,13 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 		return nil, fmt.Errorf("count operations: %w", err)
 	}
 
-	// Query operations
+	// Query operations - aggregate all users for single-user desktop app
 	query := fmt.Sprintf(`
 		SELECT id, operation_type, credits_charged, success, created_at, metadata, error_message
 		FROM operation_log
-		WHERE user_identity = $1 AND created_at >= $2 AND created_at <= $3%s
+		WHERE created_at >= $1 AND created_at <= $2%s
 		ORDER BY created_at DESC
-		LIMIT $4 OFFSET $5
+		LIMIT $3 OFFSET $4
 	`, categoryFilter)
 
 	args = append(args, limit, offset)
@@ -531,54 +538,79 @@ func (s *Service) getRemainingCredits(ctx context.Context, userIdentity string) 
 }
 
 // getUsageFromDB queries the database for credit usage.
+// For single-user desktop apps, this aggregates ALL usage regardless of user_identity.
 func (s *Service) getUsageFromDB(ctx context.Context, userIdentity string) (*usageCache, error) {
 	currentMonth := time.Now().Format("2006-01")
 
+	// Aggregate across all user_identities for single-user desktop app
 	query := `
-		SELECT total_credits_used, total_operations, credits_by_operation, operations_by_type
+		SELECT
+			COALESCE(SUM(total_credits_used), 0),
+			COALESCE(SUM(total_operations), 0),
+			jsonb_object_agg_strict(key, COALESCE(summed.value, 0)) FILTER (WHERE key IS NOT NULL),
+			jsonb_object_agg_strict(key2, COALESCE(summed2.value, 0)) FILTER (WHERE key2 IS NOT NULL)
+		FROM credit_usage,
+		LATERAL (SELECT key, SUM(value::int) as value FROM jsonb_each_text(credits_by_operation) GROUP BY key) summed,
+		LATERAL (SELECT key as key2, SUM(value::int) as value FROM jsonb_each_text(operations_by_type) GROUP BY key) summed2
+		WHERE billing_month = $1
+	`
+
+	// Simpler aggregation query that works better
+	query = `
+		SELECT
+			COALESCE(SUM(total_credits_used), 0) as total_credits,
+			COALESCE(SUM(total_operations), 0) as total_ops
 		FROM credit_usage
-		WHERE user_identity = $1 AND billing_month = $2
+		WHERE billing_month = $1
 	`
 
 	var totalCreditsUsed, totalOperations int
-	var creditsByOpJSON, opCountsJSON []byte
 
-	err := s.db.QueryRowContext(ctx, query, userIdentity, currentMonth).Scan(
-		&totalCreditsUsed, &totalOperations, &creditsByOpJSON, &opCountsJSON,
+	err := s.db.QueryRowContext(ctx, query, currentMonth).Scan(
+		&totalCreditsUsed, &totalOperations,
 	)
-	if err == sql.ErrNoRows {
-		// No usage yet
-		return &usageCache{
-			totalCreditsUsed: 0,
-			totalOperations:  0,
-			byOperation:      make(map[OperationType]int),
-			operationCounts:  make(map[OperationType]int),
-			month:            currentMonth,
-			updatedAt:        time.Now(),
-		}, nil
-	}
-	if err != nil {
+
+	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("query credit usage: %w", err)
 	}
 
-	// Parse JSONB fields
+	// Get detailed breakdown with a separate query
+	breakdownQuery := `
+		SELECT credits_by_operation, operations_by_type
+		FROM credit_usage
+		WHERE billing_month = $1
+	`
+
+	rows, err := s.db.QueryContext(ctx, breakdownQuery, currentMonth)
+	if err != nil {
+		return nil, fmt.Errorf("query credit breakdown: %w", err)
+	}
+	defer rows.Close()
+
 	byOperation := make(map[OperationType]int)
 	operationCounts := make(map[OperationType]int)
 
-	if len(creditsByOpJSON) > 0 {
-		var rawByOp map[string]int
-		if err := json.Unmarshal(creditsByOpJSON, &rawByOp); err == nil {
-			for k, v := range rawByOp {
-				byOperation[OperationType(k)] = v
+	for rows.Next() {
+		var creditsByOpJSON, opCountsJSON []byte
+		if err := rows.Scan(&creditsByOpJSON, &opCountsJSON); err != nil {
+			continue
+		}
+
+		if len(creditsByOpJSON) > 0 {
+			var rawByOp map[string]int
+			if err := json.Unmarshal(creditsByOpJSON, &rawByOp); err == nil {
+				for k, v := range rawByOp {
+					byOperation[OperationType(k)] += v
+				}
 			}
 		}
-	}
 
-	if len(opCountsJSON) > 0 {
-		var rawCounts map[string]int
-		if err := json.Unmarshal(opCountsJSON, &rawCounts); err == nil {
-			for k, v := range rawCounts {
-				operationCounts[OperationType(k)] = v
+		if len(opCountsJSON) > 0 {
+			var rawCounts map[string]int
+			if err := json.Unmarshal(opCountsJSON, &rawCounts); err == nil {
+				for k, v := range rawCounts {
+					operationCounts[OperationType(k)] += v
+				}
 			}
 		}
 	}
