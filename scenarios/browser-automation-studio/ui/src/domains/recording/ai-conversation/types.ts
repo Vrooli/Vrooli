@@ -11,12 +11,15 @@ export type {
   AIMessageRole,
   AIMessageStatus,
   AISettings,
+  EntitlementErrorCode,
+  EntitlementErrorDetails,
 } from '../sidebar/types';
 
 export {
   createUserMessage,
   createAssistantMessage,
   createSystemMessage,
+  createEntitlementErrorMessage,
   DEFAULT_AI_SETTINGS,
 } from '../sidebar/types';
 

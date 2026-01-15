@@ -25,6 +25,22 @@ import type {
 } from './types';
 import { VISION_MODELS } from './types';
 
+/**
+ * Custom error class for AI navigation errors.
+ * Includes error code and additional details from the API.
+ */
+export class AINavigationError extends Error {
+  code: string;
+  details?: Record<string, string>;
+
+  constructor(code: string, message: string, details?: Record<string, string>) {
+    super(message);
+    this.name = 'AINavigationError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
 interface UseAINavigationOptions {
   sessionId: string | null;
   /** Callback when a step is received */
@@ -252,7 +268,11 @@ export function useAINavigation({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Failed to start navigation: ${response.statusText}`);
+          throw new AINavigationError(
+            errorData.code || 'UNKNOWN_ERROR',
+            errorData.message || `Failed to start navigation: ${response.statusText}`,
+            errorData.details,
+          );
         }
 
         // API returns snake_case, convert to camelCase

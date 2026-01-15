@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AIMessage, AIMessageStatus, AINavigationStep } from './types';
 import type { BrowserAction } from '../ai-navigation/types';
+import { EntitlementErrorCard } from './EntitlementErrorCard';
 
 // ============================================================================
 // Icons
@@ -311,6 +312,17 @@ function UserMessage({ message }: { message: AIMessage }) {
 }
 
 function SystemMessage({ message }: { message: AIMessage }) {
+  // Check if this is an entitlement error that needs special rendering
+  if (message.errorCode === 'AI_NOT_AVAILABLE' || message.errorCode === 'INSUFFICIENT_CREDITS') {
+    return (
+      <EntitlementErrorCard
+        errorCode={message.errorCode}
+        details={message.errorDetails}
+      />
+    );
+  }
+
+  // Regular system message
   return (
     <div className="flex justify-center mb-4">
       <div className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg px-3 py-1.5 text-xs max-w-[90%]">

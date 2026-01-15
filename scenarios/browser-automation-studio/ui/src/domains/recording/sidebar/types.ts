@@ -159,6 +159,27 @@ export type AIMessageRole = 'user' | 'assistant' | 'system';
 export type AIMessageStatus = 'pending' | 'running' | 'aborting' | 'completed' | 'failed' | 'aborted' | 'awaiting_human';
 
 /**
+ * Error codes for entitlement-related errors.
+ */
+export type EntitlementErrorCode = 'AI_NOT_AVAILABLE' | 'INSUFFICIENT_CREDITS';
+
+/**
+ * Additional context for entitlement errors.
+ */
+export interface EntitlementErrorDetails {
+  /** Remaining credits (for credit errors) */
+  remaining?: number;
+  /** Credits used this period */
+  creditsUsed?: number;
+  /** Total credit limit for the period */
+  creditsLimit?: number;
+  /** ISO date string for when credits reset */
+  resetDate?: string;
+  /** User's current subscription tier */
+  tier?: string;
+}
+
+/**
  * A message in the AI conversation.
  */
 export interface AIMessage {
@@ -184,6 +205,10 @@ export interface AIMessage {
   canAbort?: boolean;
   /** Human intervention state if awaiting human */
   humanIntervention?: HumanInterventionState;
+  /** Error code for entitlement-related errors (system messages only) */
+  errorCode?: EntitlementErrorCode;
+  /** Additional error context for entitlement errors */
+  errorDetails?: EntitlementErrorDetails;
 }
 
 /**
@@ -224,6 +249,29 @@ export function createSystemMessage(content: string): AIMessage {
     role: 'system',
     content,
     timestamp: new Date(),
+  };
+}
+
+/**
+ * Create a system message for entitlement-related errors.
+ * These messages render with a special professional UI component.
+ */
+export function createEntitlementErrorMessage(
+  errorCode: EntitlementErrorCode,
+  details: EntitlementErrorDetails,
+): AIMessage {
+  const content =
+    errorCode === 'AI_NOT_AVAILABLE'
+      ? 'AI navigation is not available for your current plan'
+      : 'You have used all your AI credits for this month';
+
+  return {
+    id: `system-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    role: 'system',
+    content,
+    timestamp: new Date(),
+    errorCode,
+    errorDetails: details,
   };
 }
 
