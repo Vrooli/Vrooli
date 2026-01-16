@@ -194,7 +194,6 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				if isTerminalStatus(fromStatus) {
 					task.ProcessorAutoRequeue = true
 					task.CooldownUntil = ""
-					effects.ResetSteeringQueue = true
 				}
 
 				task.Status = StatusInProgress
@@ -237,7 +236,6 @@ func lifecycleRules(lc *Lifecycle) map[string]transitionRule {
 				if isTerminalStatus(fromStatus) {
 					task.ProcessorAutoRequeue = true
 					task.CooldownUntil = ""
-					effects.ResetSteeringQueue = true
 				}
 
 				if fromStatus == StatusInProgress {
