@@ -1,11 +1,10 @@
 import { useMemo, type CSSProperties, type ReactNode } from 'react';
-import { ExternalLink, Eye, RefreshCw, SlidersHorizontal, Target, Trash2 } from 'lucide-react';
+import { Eye, RefreshCw, SlidersHorizontal, Target } from 'lucide-react';
 import clsx from 'clsx';
 import { AppsGridSkeleton, ResourcesGridSkeleton } from '@/components/LoadingSkeleton';
 import { selectScreenshotBySurface, useSurfaceMediaStore, type SurfaceType } from '@/state/surfaceMediaStore';
 import { resolveAppIdentifier } from '@/utils/appPreview';
 import type { App, Resource } from '@/types';
-import type { BrowserTabHistoryRecord, BrowserTabRecord } from '@/state/browserTabsStore';
 import {
   buildThumbStyle,
   formatViewCount,
@@ -13,8 +12,6 @@ import {
   getCompletenessLevel,
   getFallbackInitial,
   getStatusClassName,
-  getWebTabFallbackInitial,
-  safeHostname,
 } from './tabSwitcherUtils';
 
 export type SortOption<T extends string> = { value: T; label: string };
@@ -164,56 +161,6 @@ export function ResourceGrid({
   );
 }
 
-export function WebTabGrid({
-  tabs,
-  onOpen,
-  onClose,
-}: {
-  tabs: BrowserTabRecord[];
-  onOpen(tab: BrowserTabRecord): void;
-  onClose(tab: BrowserTabRecord): void;
-}) {
-  return (
-    <div className="tab-switcher__grid">
-      {tabs.map(tab => (
-        <WebTabCard key={tab.id} tab={tab} onOpen={onOpen} onClose={onClose} />
-      ))}
-    </div>
-  );
-}
-
-export function WebHistoryList({
-  entries,
-  onReopen,
-}: {
-  entries: BrowserTabHistoryRecord[];
-  onReopen(entry: BrowserTabHistoryRecord): void;
-}) {
-  if (entries.length === 0) {
-    return <EmptyState message="No history yet." />;
-  }
-  return (
-    <div className="tab-switcher__history">
-      {entries.slice(0, 15).map(entry => (
-        <button
-          key={`${entry.id}-${entry.closedAt}`}
-          type="button"
-          className="tab-switcher__history-row"
-          onClick={() => onReopen(entry)}
-        >
-          <div className="tab-switcher__history-title">
-            <span>{entry.title}</span>
-            <span className="tab-switcher__history-url">{entry.url}</span>
-          </div>
-          <span className="tab-switcher__history-time">
-            {new Date(entry.closedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function EmptyState({
   message,
   onRetry,
@@ -340,76 +287,6 @@ function ResourceTabCard({ resource, onSelect }: { resource: Resource; onSelect(
         </div>
       </div>
     </button>
-  );
-}
-
-function WebTabCard({
-  tab,
-  onOpen,
-  onClose,
-}: {
-  tab: BrowserTabRecord;
-  onOpen(tab: BrowserTabRecord): void;
-  onClose(tab: BrowserTabRecord): void;
-}) {
-  const screenshotSelector = useMemo(() => selectScreenshotBySurface('web', tab.id), [tab.id]);
-  const storedScreenshot = useSurfaceMediaStore(screenshotSelector);
-  const previewImage = storedScreenshot?.dataUrl ?? tab.screenshotData ?? null;
-  const hasPreviewImage = Boolean(previewImage);
-  const faviconUrl = tab.faviconUrl && tab.faviconUrl.trim().length > 0 ? tab.faviconUrl.trim() : null;
-  const fallbackInitial = useMemo(() => getWebTabFallbackInitial(tab), [tab]);
-
-  return (
-    <div className="tab-card tab-card--web">
-      <button
-        type="button"
-        className={clsx(
-          'tab-card__thumb',
-          'tab-card__thumb--web',
-          hasPreviewImage && 'tab-card__thumb--image',
-        )}
-        onClick={() => onOpen(tab)}
-        aria-label={`Open ${tab.title}`}
-        title={storedScreenshot?.note ?? undefined}
-      >
-        {hasPreviewImage ? (
-          <img src={previewImage ?? undefined} alt="" className="tab-card__thumb-media" />
-        ) : (
-          <div className="tab-card__thumb-fallback" aria-hidden>
-            {faviconUrl ? (
-              <img src={faviconUrl} alt="" className="tab-card__thumb-favicon" />
-            ) : null}
-            {fallbackInitial ? (
-              <span className="tab-card__thumb-placeholder">{fallbackInitial}</span>
-            ) : null}
-          </div>
-        )}
-      </button>
-      <div className="tab-card__body">
-        <div className="tab-card__heading">
-          <h4>{tab.title}</h4>
-          <button
-            type="button"
-            className="tab-card__icon-btn"
-            onClick={() => onClose(tab)}
-            aria-label={`Close ${tab.title}`}
-          >
-            <Trash2 size={14} aria-hidden />
-          </button>
-        </div>
-        <div className="tab-card__meta tab-card__meta--spread">
-          <span className="tab-card__chip tab-card__chip--muted">{safeHostname(tab.url)}</span>
-          <button
-            type="button"
-            className="tab-card__icon-btn"
-            onClick={() => onOpen(tab)}
-            aria-label={`Open ${tab.title} in new tab`}
-          >
-            <ExternalLink size={16} aria-hidden />
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

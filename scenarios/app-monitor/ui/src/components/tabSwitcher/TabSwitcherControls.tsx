@@ -1,5 +1,5 @@
-import { FormEvent, type RefObject } from 'react';
-import { Globe, Loader2, Plus, Search, Shuffle, X } from 'lucide-react';
+import type { RefObject } from 'react';
+import { Loader2, Search, Shuffle, X } from 'lucide-react';
 import clsx from 'clsx';
 import { SEGMENTS, type SegmentId } from './tabSwitcherConstants';
 
@@ -32,13 +32,6 @@ export function TabSwitcherControls({
   isAutoNextRunning,
   onAutoNext,
   disableAutoNext,
-  showWebForm,
-  webFormValue,
-  webFormError,
-  webFormErrorId,
-  onWebFormChange,
-  onWebFormSubmit,
-  disableWebFormSubmit,
 }: {
   activeSegment: SegmentId;
   onSegmentSelect: (segmentId: SegmentId) => void;
@@ -50,13 +43,6 @@ export function TabSwitcherControls({
   isAutoNextRunning: boolean;
   onAutoNext: () => void;
   disableAutoNext: boolean;
-  showWebForm: boolean;
-  webFormValue: string;
-  webFormError: string | null;
-  webFormErrorId: string;
-  onWebFormChange: (value: string) => void;
-  onWebFormSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  disableWebFormSubmit: boolean;
 }) {
   return (
     <div className="tab-switcher__controls">
@@ -75,16 +61,6 @@ export function TabSwitcherControls({
           isRunning={isAutoNextRunning}
           onClick={onAutoNext}
           disabled={disableAutoNext}
-        />
-      )}
-      {showWebForm && (
-        <WebTabForm
-          value={webFormValue}
-          onChange={onWebFormChange}
-          onSubmit={onWebFormSubmit}
-          error={webFormError}
-          errorId={webFormErrorId}
-          disableSubmit={disableWebFormSubmit}
         />
       )}
     </div>
@@ -110,7 +86,7 @@ function TabSwitcherSearch({
         ref={inputRef}
         value={value}
         onChange={event => onChange(event.target.value)}
-        placeholder="Search scenarios, resources, or tabs"
+        placeholder="Search scenarios or resources"
         aria-label="Search"
       />
       {value && (
@@ -179,66 +155,5 @@ function AutoNextButton({
         {isRunning ? 'Selecting next scenario…' : 'Auto-next scenario'}
       </span>
     </button>
-  );
-}
-
-function WebTabForm({
-  value,
-  onChange,
-  onSubmit,
-  error,
-  errorId,
-  disableSubmit,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  error: string | null;
-  errorId: string;
-  disableSubmit: boolean;
-}) {
-  return (
-    <>
-      <form className="tab-switcher__web-form" onSubmit={onSubmit}>
-        <Globe size={16} aria-hidden />
-        <input
-          type="text"
-          inputMode="url"
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          value={value}
-          onChange={event => onChange(event.target.value)}
-          placeholder="https://example.com"
-          aria-label="Open a new web tab"
-          aria-invalid={error ? 'true' : 'false'}
-          aria-describedby={error ? errorId : undefined}
-        />
-        {value && (
-          <button
-            type="button"
-            className="tab-switcher__clear"
-            onClick={() => onChange('')}
-            aria-label="Clear URL"
-          >
-            <X size={14} aria-hidden />
-          </button>
-        )}
-        <button
-          type="submit"
-          className="tab-switcher__web-submit"
-          disabled={disableSubmit}
-        >
-          <Plus size={16} aria-hidden />
-          <span>Add tab</span>
-        </button>
-      </form>
-      {error && (
-        <p className="tab-switcher__web-error" role="alert" id={errorId}>
-          {error}
-        </p>
-      )}
-    </>
   );
 }

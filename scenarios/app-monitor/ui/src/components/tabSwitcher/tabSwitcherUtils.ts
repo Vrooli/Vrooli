@@ -1,15 +1,10 @@
 import type { CSSProperties } from 'react';
-import type { BrowserTabRecord } from '@/state/browserTabsStore';
 import type { App, Resource } from '@/types';
 
 export const normalizeSearchValue = (value: string): string => value.trim().toLowerCase();
 
 export const matchesSearch = (value: string | null | undefined, query: string): boolean => (
   Boolean(value && query && value.toLowerCase().includes(query))
-);
-
-export const matchesWebTabSearch = (tab: BrowserTabRecord, query: string): boolean => (
-  !query || matchesSearch(tab.title, query) || matchesSearch(tab.url, query)
 );
 
 export const matchesResourceSearch = (resource: Resource, query: string): boolean => {
@@ -24,47 +19,6 @@ export const matchesResourceSearch = (resource: Resource, query: string): boolea
     resource.id,
   ];
   return haystacks.some(entry => matchesSearch(entry, query));
-};
-
-export const safeHostname = (value: string) => {
-  try {
-    return new URL(value).hostname;
-  } catch (error) {
-    return value;
-  }
-};
-
-export const parseWebTabInput = (value: string): { url: string; title: string } | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const tryParse = (candidate: string) => {
-    try {
-      const normalized = new URL(candidate);
-      return normalized.toString();
-    } catch (error) {
-      return null;
-    }
-  };
-
-  const normalized = tryParse(trimmed)
-    ?? (!trimmed.includes('://') ? tryParse(`https://${trimmed}`) : null);
-
-  if (!normalized) {
-    return null;
-  }
-
-  const hostname = safeHostname(normalized);
-  return {
-    url: normalized,
-    title: hostname && hostname !== normalized ? hostname : normalized,
-  };
 };
 
 export const formatViewCount = (value?: number | string | null): string | null => {
@@ -118,17 +72,4 @@ export const getCompletenessLevel = (score?: number | null): 'none' | 'critical'
   if (score >= 61) return 'medium';   // 61-80: mostly_complete
   if (score >= 41) return 'low';      // 41-60: functional_incomplete
   return 'critical';                  // 0-40: early_stage, foundation_laid
-};
-
-export const getWebTabFallbackInitial = (tab: BrowserTabRecord): string | null => {
-  const hostname = safeHostname(tab.url);
-  if (hostname) {
-    const alpha = hostname.replace(/[^a-zA-Z]/g, '');
-    if (alpha) {
-      return alpha.slice(0, 1).toUpperCase();
-    }
-    return hostname.slice(0, 1).toUpperCase();
-  }
-  const candidate = tab.title?.trim();
-  return candidate && candidate.length > 0 ? candidate.slice(0, 1).toUpperCase() : null;
 };

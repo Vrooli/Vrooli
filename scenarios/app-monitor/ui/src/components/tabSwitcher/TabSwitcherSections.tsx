@@ -1,15 +1,11 @@
 import type { App, Resource } from '@/types';
-import type { BrowserTabHistoryRecord, BrowserTabRecord } from '@/state/browserTabsStore';
 import type { AppSortOption } from '@/hooks/useAppCatalog';
 import type { ResourceSortOption } from '@/hooks/useResourcesCatalog';
 import {
   AppGrid,
-  EmptyState,
   ResourceGrid,
   Section,
   SortControl,
-  WebHistoryList,
-  WebTabGrid,
   type SortOption,
 } from './TabSwitcherCards';
 
@@ -113,53 +109,5 @@ export function ResourcesSection({
         isLoading={isLoading}
       />
     </Section>
-  );
-}
-
-export function WebSection({
-  tabs,
-  historyEntries,
-  showHistory,
-  onOpen,
-  onClose,
-  onReopen,
-}: {
-  tabs: BrowserTabRecord[];
-  historyEntries: BrowserTabHistoryRecord[];
-  showHistory: boolean;
-  onOpen: (tab: BrowserTabRecord) => void;
-  onClose: (tab: BrowserTabRecord) => void;
-  onReopen: (entry: BrowserTabHistoryRecord) => void;
-}) {
-  return (
-    <>
-      <Section
-        title="Active tabs"
-        description={tabs.length === 0 ? undefined : 'Tabs opened through App Monitor.'}
-      >
-        {tabs.length === 0
-          ? <EmptyState message="No active web tabs yet." />
-          : (
-            <WebTabGrid
-              tabs={tabs}
-              onOpen={onOpen}
-              onClose={onClose}
-            />
-          )}
-      </Section>
-      <Section
-        title="History"
-        description={showHistory ? 'Most recently closed tabs.' : undefined}
-      >
-        {showHistory
-          ? (
-            <WebHistoryList
-              entries={historyEntries}
-              onReopen={onReopen}
-            />
-          )
-          : <EmptyState message="No web browsing history yet." />}
-      </Section>
-    </>
   );
 }

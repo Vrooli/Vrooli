@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SetURLSearchParams } from 'react-router-dom';
-import type { BrowserTabHistoryRecord, BrowserTabRecord } from '@/state/browserTabsStore';
 import type { App, Resource } from '@/types';
 import { SEGMENT_QUERY_KEY, SEGMENTS, type SegmentId } from './tabSwitcherConstants';
-import { matchesResourceSearch, matchesWebTabSearch, normalizeSearchValue } from './tabSwitcherUtils';
+import { matchesResourceSearch, normalizeSearchValue } from './tabSwitcherUtils';
 
 export const resolveSegment = (value: string | null): SegmentId => {
-  if (value === 'resources' || value === 'web') {
+  if (value === 'resources') {
     return value;
   }
   return 'apps';
@@ -48,14 +47,10 @@ export function useTabSwitcherSegment({
 
 export function useTabSwitcherFiltering({
   search,
-  browserTabs,
-  browserHistory,
   sortedResources,
   recentApps,
 }: {
   search: string;
-  browserTabs: BrowserTabRecord[];
-  browserHistory: BrowserTabHistoryRecord[];
   sortedResources: Resource[];
   recentApps: App[];
 }) {
@@ -65,27 +60,11 @@ export function useTabSwitcherFiltering({
     sortedResources.filter(resource => matchesResourceSearch(resource, normalizedSearch))
   ), [sortedResources, normalizedSearch]);
 
-  const filteredActiveWebTabs = useMemo(() => (
-    [...browserTabs]
-      .sort((a, b) => b.lastActiveAt - a.lastActiveAt)
-      .filter(tab => matchesWebTabSearch(tab, normalizedSearch))
-  ), [browserTabs, normalizedSearch]);
-
-  const filteredHistoryTabs = useMemo(() => (
-    !normalizedSearch
-      ? browserHistory
-      : browserHistory.filter(tab => matchesWebTabSearch(tab, normalizedSearch))
-  ), [browserHistory, normalizedSearch]);
-
   const showAppHistory = !normalizedSearch && recentApps.length > 0;
-  const showWebHistory = filteredHistoryTabs.length > 0;
 
   return {
     normalizedSearch,
     filteredResources,
-    filteredActiveWebTabs,
-    filteredHistoryTabs,
     showAppHistory,
-    showWebHistory,
   };
 }
