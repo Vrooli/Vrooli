@@ -388,9 +388,14 @@ func (r *ToolRegistry) GetToolsForOpenAI(ctx context.Context, chatID string) ([]
 		return nil, err
 	}
 
-	result := make([]map[string]interface{}, len(tools))
-	for i, tool := range tools {
-		result[i] = domain.ToOpenAIFunction(tool.Tool)
+	var result []map[string]interface{}
+	for _, tool := range tools {
+		// Skip internal tools (status polling, cancellation, etc.)
+		// These are used by the async tracker but should not be visible to AI.
+		if tool.Tool.Metadata != nil && tool.Tool.Metadata.InternalOnly {
+			continue
+		}
+		result = append(result, domain.ToOpenAIFunction(tool.Tool))
 	}
 
 	return result, nil

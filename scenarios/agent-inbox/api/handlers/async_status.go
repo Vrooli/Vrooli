@@ -8,6 +8,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"agent-inbox/services"
@@ -48,6 +49,7 @@ func (h *Handlers) StreamAsyncStatus(w http.ResponseWriter, r *http.Request) {
 	for _, op := range activeOps {
 		data, err := json.Marshal(operationToUpdate(op))
 		if err != nil {
+			log.Printf("[WARN] Failed to marshal async operation status for %s: %v", op.ToolCallID, err)
 			continue
 		}
 		fmt.Fprintf(w, "event: status\ndata: %s\n\n", data)

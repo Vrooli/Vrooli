@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -238,8 +239,14 @@ func (e *ToolExecutor) failRecord(record *domain.ToolCallRecord, err error) *dom
 func (e *ToolExecutor) completeRecord(record *domain.ToolCallRecord, result interface{}) *domain.ToolCallRecord {
 	record.Status = domain.StatusCompleted
 	record.CompletedAt = time.Now()
-	resultJSON, _ := json.Marshal(result)
-	record.Result = string(resultJSON)
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("[WARN] Failed to marshal tool result for %s: %v", record.ToolName, err)
+		// Store a structured error message instead
+		record.Result = fmt.Sprintf(`{"error": "result marshal failed: %s", "raw_type": "%T"}`, err.Error(), result)
+	} else {
+		record.Result = string(resultJSON)
+	}
 	return record
 }
 

@@ -93,6 +93,16 @@ const (
 	ErrCodeSerializationErr ErrorCode = "I003"
 )
 
+// Async operation errors (A prefix)
+const (
+	ErrCodeAsyncOperationNotFound  ErrorCode = "A001"
+	ErrCodeAsyncTrackingFailed     ErrorCode = "A002"
+	ErrCodeAsyncCancellationFailed ErrorCode = "A003"
+	ErrCodeAsyncNoCancellation     ErrorCode = "A004"
+	ErrCodeAsyncTimeout            ErrorCode = "A005"
+	ErrCodeAsyncAlreadyCompleted   ErrorCode = "A006"
+)
+
 // RecoveryAction suggests what the caller should do after an error.
 type RecoveryAction string
 
@@ -340,4 +350,48 @@ func IsUserError(err error) bool {
 		return appErr.Category == CategoryValidation || appErr.Category == CategoryNotFound
 	}
 	return false
+}
+
+// Async operation error constructors
+
+// ErrAsyncOperationNotFound creates a not-found error for missing async operations.
+func ErrAsyncOperationNotFound(toolCallID string) *AppError {
+	return NewError(ErrCodeAsyncOperationNotFound, CategoryNotFound,
+		"async operation not found", ActionVerifyResource).
+		WithDetail("tool_call_id", toolCallID)
+}
+
+// ErrAsyncTrackingFailed creates a dependency error when async tracking fails to start.
+func ErrAsyncTrackingFailed(toolCallID string, err error) *AppError {
+	return NewError(ErrCodeAsyncTrackingFailed, CategoryDependency,
+		"failed to start async tracking", ActionRetryWithBackoff).
+		WithCause(err).WithDetail("tool_call_id", toolCallID)
+}
+
+// ErrAsyncCancellationFailed creates a dependency error when cancellation fails.
+func ErrAsyncCancellationFailed(toolCallID string, err error) *AppError {
+	return NewError(ErrCodeAsyncCancellationFailed, CategoryDependency,
+		"failed to cancel async operation", ActionRetry).
+		WithCause(err).WithDetail("tool_call_id", toolCallID)
+}
+
+// ErrAsyncNoCancellation creates a validation error when cancellation is not supported.
+func ErrAsyncNoCancellation(toolCallID string) *AppError {
+	return NewError(ErrCodeAsyncNoCancellation, CategoryValidation,
+		"async operation does not support cancellation", ActionNone).
+		WithDetail("tool_call_id", toolCallID)
+}
+
+// ErrAsyncTimeout creates a dependency error when an async operation times out.
+func ErrAsyncTimeout(toolCallID string, duration string) *AppError {
+	return NewError(ErrCodeAsyncTimeout, CategoryDependency,
+		fmt.Sprintf("async operation timed out after %s", duration), ActionRetry).
+		WithDetail("tool_call_id", toolCallID).WithDetail("duration", duration)
+}
+
+// ErrAsyncAlreadyCompleted creates a conflict error when operating on a completed async op.
+func ErrAsyncAlreadyCompleted(toolCallID string, status string) *AppError {
+	return NewError(ErrCodeAsyncAlreadyCompleted, CategoryConflict,
+		"async operation has already completed", ActionNone).
+		WithDetail("tool_call_id", toolCallID).WithDetail("status", status)
 }

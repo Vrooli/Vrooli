@@ -177,6 +177,17 @@ type ToolExecutionResult struct {
 	Result             interface{} `json:"result,omitempty"`
 	Error              string      `json:"error,omitempty"`
 	DeactivateTemplate bool        `json:"deactivate_template,omitempty"` // True if this tool was suggested by the active template
+	IsAsync            bool        `json:"is_async,omitempty"`            // True if this tool is running asynchronously
+	AsyncRunID         string      `json:"async_run_id,omitempty"`        // External operation ID for async tracking
+}
+
+// AsyncOperationInfo contains information about an async tool operation.
+// Used to communicate async status to the AI conversation loop.
+type AsyncOperationInfo struct {
+	ToolCallID string `json:"tool_call_id"`
+	ToolName   string `json:"tool_name"`
+	RunID      string `json:"run_id"`
+	Scenario   string `json:"scenario"`
 }
 
 // Succeeded returns true if the tool executed successfully.

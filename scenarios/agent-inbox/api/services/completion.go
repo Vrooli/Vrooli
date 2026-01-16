@@ -14,6 +14,8 @@ import (
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
+
+	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // NewToolExecutionResult creates a ToolExecutionResult from a record and optional error.
@@ -43,17 +45,34 @@ type SkillPayload struct {
 	TargetToolID string   `json:"targetToolId,omitempty"`
 }
 
+// ToolRegistryInterface defines the methods needed by CompletionService.
+// This interface enables dependency injection for testing.
+type ToolRegistryInterface interface {
+	// GetToolByName looks up a tool by name (across all scenarios).
+	GetToolByName(ctx context.Context, toolName string) (*toolspb.ToolDefinition, string, error)
+	// GetToolsForOpenAI returns enabled tools in OpenAI function-calling format.
+	GetToolsForOpenAI(ctx context.Context, chatID string) ([]map[string]interface{}, error)
+	// GetToolApprovalRequired checks if a tool requires approval before execution.
+	GetToolApprovalRequired(ctx context.Context, chatID, toolName string) (bool, domain.ToolConfigurationScope, error)
+}
+
 // CompletionService orchestrates AI chat completion.
 // It handles the decision flow for completing a chat with an AI model,
 // including tool execution when requested by the model.
+//
+// Dependencies are injected via interfaces to enable testing:
+// - CompletionRepository: database operations
+// - ToolExecutorInterface: tool execution
+// - ToolRegistryInterface: tool discovery and configuration
+// - AsyncTrackerInterface: async operation tracking
 type CompletionService struct {
-	repo             *persistence.Repository
-	executor         *integrations.ToolExecutor
-	toolRegistry     *ToolRegistry
+	repo             CompletionRepository
+	executor         ToolExecutorInterface
+	toolRegistry     ToolRegistryInterface
 	contextManager   *ContextManager
 	messageConverter *MessageConverter
 	storage          StorageService
-	asyncTracker     *AsyncTrackerService
+	asyncTracker     AsyncTrackerInterface
 	skills           []SkillPayload // Skills to inject into tool calls as context
 }
 
@@ -72,8 +91,8 @@ func NewCompletionService(repo *persistence.Repository, storage StorageService) 
 }
 
 // NewCompletionServiceWithRegistry creates a completion service with an injected registry.
-// This is the constructor for testing.
-func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *ToolRegistry, storage StorageService) *CompletionService {
+// This is the constructor for testing scenarios that only need registry injection.
+func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry ToolRegistryInterface, storage StorageService) *CompletionService {
 	modelRegistry := NewModelRegistry()
 	return &CompletionService{
 		repo:             repo,
@@ -85,9 +104,34 @@ func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry *To
 	}
 }
 
+// CompletionServiceDeps contains all dependencies for CompletionService.
+// Used by NewCompletionServiceWithDeps for full dependency injection in tests.
+type CompletionServiceDeps struct {
+	Repo         CompletionRepository
+	Executor     ToolExecutorInterface
+	Registry     ToolRegistryInterface
+	AsyncTracker AsyncTrackerInterface
+	Storage      StorageService
+}
+
+// NewCompletionServiceWithDeps creates a completion service with all dependencies injected.
+// This is the primary constructor for unit testing.
+func NewCompletionServiceWithDeps(deps CompletionServiceDeps) *CompletionService {
+	modelRegistry := NewModelRegistry()
+	return &CompletionService{
+		repo:             deps.Repo,
+		executor:         deps.Executor,
+		toolRegistry:     deps.Registry,
+		contextManager:   NewContextManager(modelRegistry, config.Default()),
+		messageConverter: NewMessageConverter(deps.Storage),
+		storage:          deps.Storage,
+		asyncTracker:     deps.AsyncTracker,
+	}
+}
+
 // SetAsyncTracker sets the async tracker for tracking long-running tool operations.
 // This is called after construction to avoid circular dependencies.
-func (s *CompletionService) SetAsyncTracker(tracker *AsyncTrackerService) {
+func (s *CompletionService) SetAsyncTracker(tracker AsyncTrackerInterface) {
 	s.asyncTracker = tracker
 }
 
@@ -224,7 +268,7 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 }
 
 // ToolExecutionOutcome represents the result of attempting to execute tool calls.
-// Some tools may execute immediately, others may require approval.
+// Some tools may execute immediately, others may require approval, and some may run asynchronously.
 type ToolExecutionOutcome struct {
 	// Results contains execution results for tools that ran immediately.
 	Results []domain.ToolExecutionResult
@@ -232,6 +276,10 @@ type ToolExecutionOutcome struct {
 	PendingApprovals []*domain.ToolCallRecord
 	// HasPendingApprovals indicates if any tools are waiting for approval.
 	HasPendingApprovals bool
+	// AsyncOperations contains info about tools running asynchronously.
+	AsyncOperations []domain.AsyncOperationInfo
+	// HasAsyncOperations indicates if any tools are running in the background.
+	HasAsyncOperations bool
 }
 
 // ExecuteToolCalls runs all tool calls from a completion result.
@@ -303,8 +351,13 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 		}
 
 		// Check for async behavior and start tracking if applicable
+		var asyncOpInfo *domain.AsyncOperationInfo
 		if err == nil && s.asyncTracker != nil {
-			s.maybeStartAsyncTracking(ctx, chatID, tc.ID, tc.Function.Name, record)
+			asyncOpInfo = s.maybeStartAsyncTracking(ctx, chatID, tc.ID, tc.Function.Name, record)
+			if asyncOpInfo != nil {
+				outcome.AsyncOperations = append(outcome.AsyncOperations, *asyncOpInfo)
+				outcome.HasAsyncOperations = true
+			}
 		}
 
 		// Save tool response message (parented to the assistant message)
@@ -322,8 +375,13 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 				toolMsg.ID, tc.ID, parentMessageID)
 		}
 
-		// Build result using centralized factory
-		outcome.Results = append(outcome.Results, NewToolExecutionResult(tc.ID, tc.Function.Name, record, err))
+		// Build result using centralized factory (with async info if applicable)
+		execResult := NewToolExecutionResult(tc.ID, tc.Function.Name, record, err)
+		if asyncOpInfo != nil {
+			execResult.IsAsync = true
+			execResult.AsyncRunID = asyncOpInfo.RunID
+		}
+		outcome.Results = append(outcome.Results, execResult)
 	}
 
 	// Update active leaf to the last tool message
@@ -451,31 +509,65 @@ func (s *CompletionService) GetPendingApprovals(ctx context.Context, chatID stri
 	return s.repo.GetPendingApprovals(ctx, chatID)
 }
 
+// SaveToolResult saves a tool execution result as a tool response message.
+// This is used for async tool results that need to be injected into the conversation
+// after the tool completes in the background.
+func (s *CompletionService) SaveToolResult(ctx context.Context, chatID string, result domain.ToolExecutionResult, parentMessageID string) error {
+	// Convert result to JSON
+	var resultJSON string
+	if result.Error != "" {
+		resultJSON = fmt.Sprintf(`{"status": %q, "error": %q}`, result.Status, result.Error)
+	} else {
+		resultBytes, err := json.Marshal(result.Result)
+		if err != nil {
+			resultJSON = fmt.Sprintf(`{"status": %q, "result": "marshal error: %s"}`, result.Status, err.Error())
+		} else {
+			resultJSON = fmt.Sprintf(`{"status": %q, "result": %s}`, result.Status, string(resultBytes))
+		}
+	}
+
+	// Save tool response message
+	toolMsg, err := s.repo.SaveToolResponseMessage(ctx, chatID, result.ToolCallID, resultJSON, parentMessageID)
+	if err != nil {
+		return fmt.Errorf("failed to save tool response message: %w", err)
+	}
+
+	// Update active leaf to the new tool response message
+	if toolMsg != nil {
+		if err := s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID); err != nil {
+			log.Printf("[WARN] Failed to set active leaf for async tool result: %v", err)
+		}
+	}
+
+	return nil
+}
+
 // maybeStartAsyncTracking checks if a tool has AsyncBehavior and starts tracking if so.
-func (s *CompletionService) maybeStartAsyncTracking(ctx context.Context, chatID, toolCallID, toolName string, record *domain.ToolCallRecord) {
+// Returns AsyncOperationInfo if tracking started successfully, nil otherwise.
+func (s *CompletionService) maybeStartAsyncTracking(ctx context.Context, chatID, toolCallID, toolName string, record *domain.ToolCallRecord) *domain.AsyncOperationInfo {
 	// Look up the tool to check for async behavior
 	tool, scenario, err := s.toolRegistry.GetToolByName(ctx, toolName)
 	if err != nil {
 		log.Printf("[DEBUG] Could not look up tool %s for async tracking: %v", toolName, err)
-		return
+		return nil
 	}
 
 	// Check if the tool has async behavior defined
 	if tool.Metadata == nil || tool.Metadata.AsyncBehavior == nil {
-		return
+		return nil
 	}
 
 	asyncBehavior := tool.Metadata.AsyncBehavior
 	if asyncBehavior.StatusPolling == nil {
 		log.Printf("[DEBUG] Tool %s has AsyncBehavior but no StatusPolling configured", toolName)
-		return
+		return nil
 	}
 
 	// Parse the result to extract operation ID
 	var resultData interface{}
 	if err := json.Unmarshal([]byte(record.Result), &resultData); err != nil {
 		log.Printf("[WARN] Failed to parse tool result for async tracking: %v", err)
-		return
+		return nil
 	}
 
 	// Start async tracking
@@ -489,6 +581,23 @@ func (s *CompletionService) maybeStartAsyncTracking(ctx context.Context, chatID,
 		asyncBehavior,
 	); err != nil {
 		log.Printf("[WARN] Failed to start async tracking for %s: %v", toolName, err)
+		return nil
+	}
+
+	// Get the operation to retrieve the extracted run ID
+	op := s.asyncTracker.GetOperation(toolCallID)
+	if op == nil {
+		log.Printf("[WARN] Async tracking started but operation not found: %s", toolCallID)
+		return nil
+	}
+
+	log.Printf("[DEBUG] Async operation started: tool=%s, toolCallID=%s, runID=%s", toolName, toolCallID, op.ExternalRunID)
+
+	return &domain.AsyncOperationInfo{
+		ToolCallID: toolCallID,
+		ToolName:   toolName,
+		RunID:      op.ExternalRunID,
+		Scenario:   scenario,
 	}
 }
 
@@ -611,6 +720,19 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 	// Convert messages with multimodal support
 	orMessages := s.messageConverter.ConvertToOpenRouter(ctx, messages, filteredAttachments)
 
+	// Inject async guidance if operations are active
+	// This tells the AI not to call status/polling tools because results will arrive automatically
+	if s.asyncTracker != nil {
+		activeOps := s.asyncTracker.GetActiveOperations(chatID)
+		if len(activeOps) > 0 {
+			guidance := s.buildAsyncGuidanceMessage(activeOps)
+			orMessages = append([]integrations.OpenRouterMessage{
+				{Role: "system", Content: guidance},
+			}, orMessages...)
+			log.Printf("[DEBUG] Injected async guidance for %d active operations", len(activeOps))
+		}
+	}
+
 	// Determine effective web search setting
 	// Check if any user message has web_search enabled
 	webSearchEnabled := settings.WebSearchEnabled
@@ -676,42 +798,102 @@ func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID
 		log.Printf("[DEBUG] Image generation enabled for model: %s (tools disabled)", settings.Model)
 	}
 
-	// Only add tools for non-image-generation models that have tools enabled
-	if settings.ToolsEnabled && !isImageGen {
-		tools, err := s.toolRegistry.GetToolsForOpenAI(ctx, chatID)
+	// Check for forced tool FIRST, before tools_enabled check.
+	// This allows forcing a tool even when tools_enabled=false or the tool is disabled.
+	var forcedToolDef map[string]interface{}
+	if forcedTool != "" && !isImageGen {
+		var err error
+		forcedToolDef, err = s.getForcedToolDefinition(ctx, forcedTool)
 		if err != nil {
-			// Log but don't fail - tools are optional enhancement
-			log.Printf("warning: failed to get tools from registry: %v", err)
-		} else {
-			req.Tools = tools
+			log.Printf("[WARN] Forced tool '%s' not found or invalid: %v", forcedTool, err)
+			// Continue without forcing - fall through to normal tool handling
 		}
+	}
 
-		// Handle forced tool selection
-		if forcedTool != "" && len(req.Tools) > 0 {
-			parts := strings.SplitN(forcedTool, ":", 2)
-			if len(parts) == 2 {
-				toolName := parts[1]
-				// Validate tool exists in the tools list
-				for _, t := range req.Tools {
-					if fn, ok := t["function"].(map[string]interface{}); ok {
-						if fn["name"] == toolName {
-							req.ToolChoice = integrations.ToolChoiceFunction{
-								Type:     "function",
-								Function: integrations.ToolChoiceFunctionName{Name: toolName},
-							}
-							log.Printf("[DEBUG] Forcing tool: %s", toolName)
-							break
-						}
-					}
+	// Determine if we should include tools:
+	// - If forcing a specific tool, include it (bypasses tools_enabled)
+	// - If tools_enabled, include all enabled tools
+	// - Never include tools for image generation models
+	shouldIncludeTools := (settings.ToolsEnabled || forcedToolDef != nil) && !isImageGen
+
+	if shouldIncludeTools {
+		if forcedToolDef != nil {
+			// Force mode: only send the forced tool
+			// Extract tool name for ToolChoice
+			toolName := ""
+			if fn, ok := forcedToolDef["function"].(map[string]interface{}); ok {
+				if name, ok := fn["name"].(string); ok {
+					toolName = name
 				}
 			}
+
+			req.Tools = []map[string]interface{}{forcedToolDef}
+			req.ToolChoice = integrations.ToolChoiceFunction{
+				Type:     "function",
+				Function: integrations.ToolChoiceFunctionName{Name: toolName},
+			}
+			log.Printf("[DEBUG] Forced tool mode: sending only tool '%s' (tools_enabled=%v)", toolName, settings.ToolsEnabled)
+		} else if settings.ToolsEnabled {
+			// Normal mode: send all enabled tools
+			tools, err := s.toolRegistry.GetToolsForOpenAI(ctx, chatID)
+			if err != nil {
+				// Log but don't fail - tools are optional enhancement
+				log.Printf("warning: failed to get tools from registry: %v", err)
+			} else {
+				req.Tools = tools
+			}
 		}
+	}
+
+	// Validation: log if forced tool was specified but couldn't be set
+	if forcedTool != "" && req.ToolChoice == nil {
+		log.Printf("[ERROR] Forced tool '%s' was specified but not set. Check format: 'scenario:tool_name'", forcedTool)
 	}
 
 	return req, nil
 }
 
 // Note: isImageGenerationModel logic moved to ContextManager.IsImageGenerationModel
+
+// getForcedToolDefinition retrieves a tool by name, bypassing enabled filters.
+// This allows forcing a tool even when tools_enabled=false or the tool is disabled.
+// The forcedTool format is "scenario:tool_name".
+func (s *CompletionService) getForcedToolDefinition(ctx context.Context, forcedTool string) (map[string]interface{}, error) {
+	parts := strings.SplitN(forcedTool, ":", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid forced tool format: expected 'scenario:tool_name', got '%s'", forcedTool)
+	}
+
+	toolName := parts[1]
+
+	// Get the tool directly by name (bypasses enabled filter)
+	toolDef, _, err := s.toolRegistry.GetToolByName(ctx, toolName)
+	if err != nil {
+		return nil, fmt.Errorf("tool '%s' not found: %w", toolName, err)
+	}
+
+	// Convert to OpenAI format
+	openAITool := domain.ToOpenAIFunction(toolDef)
+	return openAITool, nil
+}
+
+// buildAsyncGuidanceMessage creates a system message that instructs the AI
+// about active async operations. This prevents the AI from calling status/polling
+// tools repeatedly, as results will be delivered automatically when ready.
+func (s *CompletionService) buildAsyncGuidanceMessage(ops []*AsyncOperation) string {
+	var toolNames []string
+	for _, op := range ops {
+		toolNames = append(toolNames, op.ToolName)
+	}
+
+	return fmt.Sprintf(
+		"IMPORTANT: The following tools are currently executing asynchronously: %s. "+
+			"You will receive their results automatically when they complete. "+
+			"DO NOT call any status-checking or polling tools - the results will be delivered to you without any action on your part. "+
+			"Please wait patiently or continue with other tasks while these operations complete.",
+		strings.Join(toolNames, ", "),
+	)
+}
 
 // ManualExecutionResult contains the result of manually executing a tool.
 type ManualExecutionResult struct {

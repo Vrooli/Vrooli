@@ -319,6 +319,9 @@ func mapCompletionErrorToStatus(err error) int {
 // can respond to tool results. This continues until the AI responds without tool calls
 // or a maximum iteration limit is reached.
 //
+// For async tools, the loop waits for completion callbacks before continuing.
+// This ensures the AI receives async results automatically without manual polling.
+//
 // The response arrives as Server-Sent Events (SSE) that must be parsed,
 // accumulated, and forwarded to the client.
 func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Request, body interface{ Read([]byte) (int, error) }, chatID, model string, svc *services.CompletionService) {
@@ -343,16 +346,35 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 		// Parse and accumulate streaming chunks
 		result := parseStreamingChunks(currentBody, sw)
 
-		// Handle the completion result
-		messageID, hasPendingApprovals := h.handleCompletionResultWithStatus(r, sw, svc, chatID, model, result)
+		// Handle the completion result (returns full info including async operations)
+		execResult := h.handleCompletionResultFull(r, sw, svc, chatID, model, result)
 
 		// Fetch and save generation stats asynchronously (non-blocking)
-		h.fetchAndSaveGenerationStats(chatID, messageID, model, result.ResponseID, result.Usage)
+		h.fetchAndSaveGenerationStats(chatID, execResult.MessageID, model, result.ResponseID, result.Usage)
 
 		// If there are pending approvals, stop and wait for user action
-		if hasPendingApprovals {
+		if execResult.HasPendingApprovals {
 			log.Printf("[DEBUG] Stopping auto-continue: pending approvals")
 			break
+		}
+
+		// If there are async operations, wait for them to complete
+		if execResult.HasAsyncOperations {
+			log.Printf("[DEBUG] Async operations detected, waiting for completion (count=%d)", len(execResult.AsyncOperations))
+
+			// Notify client that we're waiting for async operations
+			sw.WriteAsyncWaiting(execResult.AsyncOperations)
+
+			// Wait for async operations to complete
+			completed := h.waitForAsyncCompletion(r.Context(), chatID, sw, svc, execResult.AsyncOperations)
+			if !completed {
+				log.Printf("[DEBUG] Async wait interrupted or timed out")
+				break
+			}
+
+			// After async completion, continue the loop to let AI respond to results
+			log.Printf("[DEBUG] Async operations completed, continuing loop")
+			// Fall through to make follow-up request with async results
 		}
 
 		// If no tool calls were made, we're done
@@ -410,6 +432,104 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 	}
 
 	sw.WriteDone()
+}
+
+// waitForAsyncCompletion waits for all async operations to complete.
+// Returns true if all operations completed successfully, false if interrupted or timed out.
+// Sends progress updates to the client via SSE as operations complete.
+func (h *Handlers) waitForAsyncCompletion(ctx context.Context, chatID string, sw *StreamWriter, svc *services.CompletionService, asyncOps []domain.AsyncOperationInfo) bool {
+	if len(asyncOps) == 0 {
+		return true
+	}
+
+	// Register completion callback to receive async results
+	completionCh := h.AsyncTracker.RegisterCompletionCallback(chatID)
+	defer h.AsyncTracker.UnregisterCompletionCallback(chatID)
+
+	// Track which operations we're waiting for
+	pendingOps := make(map[string]bool)
+	for _, op := range asyncOps {
+		pendingOps[op.ToolCallID] = true
+	}
+
+	log.Printf("[DEBUG] Waiting for %d async operations", len(pendingOps))
+
+	// Wait for all operations to complete
+	for len(pendingOps) > 0 {
+		select {
+		case <-ctx.Done():
+			log.Printf("[DEBUG] Context cancelled while waiting for async operations")
+			return false
+
+		case event, ok := <-completionCh:
+			if !ok {
+				log.Printf("[DEBUG] Completion channel closed")
+				return false
+			}
+
+			// Only process events for operations we're tracking
+			if !pendingOps[event.ToolCallID] {
+				log.Printf("[DEBUG] Received completion for untracked operation: %s", event.ToolCallID)
+				continue
+			}
+
+			// Mark this operation as complete
+			delete(pendingOps, event.ToolCallID)
+
+			// Notify client of completion
+			sw.WriteAsyncCompleted(event.ToolCallID, event.ToolName, event.Status, event.Result, event.Error)
+
+			// Save the async result as a tool response message for the AI conversation
+			if err := h.saveAsyncResultAsToolResponse(ctx, chatID, event, svc); err != nil {
+				log.Printf("[WARN] Failed to save async result as tool response: %v", err)
+			}
+
+			log.Printf("[DEBUG] Async operation completed: %s (status=%s, remaining=%d)",
+				event.ToolCallID, event.Status, len(pendingOps))
+		}
+	}
+
+	log.Printf("[DEBUG] All async operations completed")
+	return true
+}
+
+// saveAsyncResultAsToolResponse saves the async operation result as a tool response message.
+// This ensures the AI sees the result in subsequent completions.
+func (h *Handlers) saveAsyncResultAsToolResponse(ctx context.Context, chatID string, event services.AsyncCompletionEvent, svc *services.CompletionService) error {
+	// Build the tool result to save
+	var resultContent interface{}
+	if event.Error != "" {
+		resultContent = map[string]interface{}{
+			"status": event.Status,
+			"error":  event.Error,
+		}
+	} else {
+		resultContent = map[string]interface{}{
+			"status": event.Status,
+			"result": event.Result,
+		}
+	}
+
+	// Save as a tool response message
+	toolResult := domain.ToolExecutionResult{
+		ToolCallID: event.ToolCallID,
+		ToolName:   event.ToolName,
+		Status:     event.Status,
+		Result:     resultContent,
+	}
+	if event.Error != "" {
+		toolResult.Error = event.Error
+	}
+
+	// Get the assistant message that contains the tool call to use as parent
+	// The tool response should be parented to the message containing the tool call
+	parentMessageID, err := h.Repo.GetActiveLeaf(ctx, chatID)
+	if err != nil {
+		log.Printf("[WARN] Failed to get active leaf for async result: %v", err)
+	}
+
+	// Save the tool result as a message
+	return svc.SaveToolResult(ctx, chatID, toolResult, parentMessageID)
 }
 
 // parseStreamingChunks reads and accumulates SSE chunks into a CompletionResult.
@@ -550,13 +670,20 @@ func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.St
 // we simply save the message and update the preview.
 // Returns the message ID of the saved message (empty if none saved).
 func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) string {
-	messageID, _ := h.handleCompletionResultWithStatus(r, sw, svc, chatID, model, result)
-	return messageID
+	res := h.handleCompletionResultFull(r, sw, svc, chatID, model, result)
+	return res.MessageID
 }
 
 // handleCompletionResultWithStatus is like handleCompletionResult but also returns
 // whether there are pending approvals. This is used by the auto-continue loop.
 func (h *Handlers) handleCompletionResultWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) (string, bool) {
+	res := h.handleCompletionResultFull(r, sw, svc, chatID, model, result)
+	return res.MessageID, res.HasPendingApprovals
+}
+
+// handleCompletionResultFull processes a completed AI response and returns full execution info.
+// This includes async operation tracking for tools that run in the background.
+func (h *Handlers) handleCompletionResultFull(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) ToolExecutionStreamResult {
 	ctx := r.Context()
 
 	// Get the active leaf (the user message that triggered this completion)
@@ -564,16 +691,24 @@ func (h *Handlers) handleCompletionResultWithStatus(r *http.Request, sw *StreamW
 	parentMessageID, _ := h.Repo.GetActiveLeaf(ctx, chatID)
 
 	if result.RequiresToolExecution() {
-		return h.handleToolCallsStreamingWithStatus(r, sw, svc, chatID, model, result, parentMessageID)
+		return h.handleToolCallsStreamingFull(r, sw, svc, chatID, model, result, parentMessageID)
 	} else if result.HasResponse() {
 		// Save regular message (text and/or images)
 		msg, _ := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 		svc.UpdateChatPreview(ctx, chatID, result)
 		if msg != nil {
-			return msg.ID, false
+			return ToolExecutionStreamResult{MessageID: msg.ID}
 		}
 	}
-	return "", false
+	return ToolExecutionStreamResult{}
+}
+
+// ToolExecutionStreamResult contains the results of streaming tool execution.
+type ToolExecutionStreamResult struct {
+	MessageID           string
+	HasPendingApprovals bool
+	HasAsyncOperations  bool
+	AsyncOperations     []domain.AsyncOperationInfo
 }
 
 // handleToolCallsStreaming executes tool calls during a streaming response.
@@ -584,20 +719,27 @@ func (h *Handlers) handleCompletionResultWithStatus(r *http.Request, sw *StreamW
 // deterministic ordering. Errors are reported via SSE events but do not
 // stop subsequent tool execution - this allows partial success scenarios.
 func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) string {
-	messageID, _ := h.handleToolCallsStreamingWithStatus(r, sw, svc, chatID, model, result, parentMessageID)
-	return messageID
+	res := h.handleToolCallsStreamingFull(r, sw, svc, chatID, model, result, parentMessageID)
+	return res.MessageID
 }
 
 // handleToolCallsStreamingWithStatus is like handleToolCallsStreaming but also returns
 // whether there are pending approvals. This is used by the auto-continue loop.
 func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) (string, bool) {
+	res := h.handleToolCallsStreamingFull(r, sw, svc, chatID, model, result, parentMessageID)
+	return res.MessageID, res.HasPendingApprovals
+}
+
+// handleToolCallsStreamingFull executes tool calls and returns full result including async info.
+func (h *Handlers) handleToolCallsStreamingFull(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) ToolExecutionStreamResult {
 	ctx := r.Context()
+	res := ToolExecutionStreamResult{}
 
 	// Save the assistant message with tool calls (parented to the user message)
 	msg, err := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
 	if err != nil {
 		sw.WriteError(err)
-		return "", false
+		return res
 	}
 
 	svc.UpdateChatPreview(ctx, chatID, result)
@@ -609,13 +751,14 @@ func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *Strea
 		messageID = msg.ID
 		assistantMessageID = msg.ID // Tool responses are parented to the assistant message
 	}
+	res.MessageID = messageID
 
 	// Fetch active template tool IDs for template deactivation detection
 	activeTemplateToolIDs, _ := h.Repo.GetActiveTemplateToolIDs(ctx, chatID)
 	templateDeactivated := false
 
 	var toolErrors []error
-	var hasPendingApprovals bool
+	var allAsyncOps []domain.AsyncOperationInfo
 
 	for _, tc := range result.ToolCalls {
 		sw.WriteToolCallStart(tc)
@@ -628,11 +771,16 @@ func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *Strea
 
 		if outcome != nil {
 			if outcome.HasPendingApprovals {
-				hasPendingApprovals = true
+				res.HasPendingApprovals = true
 				// Write pending approval event for each pending tool
 				for _, pending := range outcome.PendingApprovals {
 					sw.WriteToolCallPendingApproval(pending)
 				}
+			}
+
+			// Collect async operations
+			if outcome.HasAsyncOperations {
+				allAsyncOps = append(allAsyncOps, outcome.AsyncOperations...)
 			}
 
 			if len(outcome.Results) > 0 {
@@ -659,19 +807,25 @@ func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *Strea
 		}
 	}
 
+	// Update result with collected async operations
+	if len(allAsyncOps) > 0 {
+		res.HasAsyncOperations = true
+		res.AsyncOperations = allAsyncOps
+	}
+
 	// Report aggregated warning if any tools failed
 	if len(toolErrors) > 0 {
 		sw.WriteWarning(domain.ErrCodeToolExecutionFailed, fmt.Sprintf("%d tool(s) encountered errors", len(toolErrors)))
 	}
 
 	// Signal completion status
-	if hasPendingApprovals {
+	if res.HasPendingApprovals {
 		sw.WriteAwaitingApprovals()
 	} else {
 		sw.WriteToolCallsComplete()
 	}
 
-	return messageID, hasPendingApprovals
+	return res
 }
 
 // handleNonStreamingResponse processes a non-streaming AI response.

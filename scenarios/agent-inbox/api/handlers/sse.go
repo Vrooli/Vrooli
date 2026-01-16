@@ -278,3 +278,70 @@ func (sw *StreamWriter) WriteDone() {
 		"completion_id": sw.completionID,
 	})
 }
+
+// WriteAsyncWaiting signals that async tool operations are running.
+// The AI conversation is paused while waiting for these operations to complete.
+// Operations will be automatically injected when they finish.
+func (sw *StreamWriter) WriteAsyncWaiting(operations []domain.AsyncOperationInfo) {
+	ops := make([]map[string]interface{}, len(operations))
+	for i, op := range operations {
+		ops[i] = map[string]interface{}{
+			"tool_call_id": op.ToolCallID,
+			"tool_name":    op.ToolName,
+			"run_id":       op.RunID,
+			"scenario":     op.Scenario,
+		}
+	}
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "async_waiting",
+		"operations":    ops,
+		"message":       "Tools are running asynchronously. Results will be injected automatically when complete.",
+		"completion_id": sw.completionID,
+	})
+}
+
+// WriteAsyncProgress sends a progress update for an async operation.
+func (sw *StreamWriter) WriteAsyncProgress(toolCallID string, status string, progress *int, message string) {
+	event := map[string]interface{}{
+		"type":          "async_progress",
+		"tool_call_id":  toolCallID,
+		"status":        status,
+		"completion_id": sw.completionID,
+	}
+	if progress != nil {
+		event["progress"] = *progress
+	}
+	if message != "" {
+		event["message"] = message
+	}
+	sw.WriteEvent(event)
+}
+
+// WriteAsyncCompleted signals that an async operation has completed.
+// The result is automatically injected into the conversation.
+func (sw *StreamWriter) WriteAsyncCompleted(toolCallID, toolName, status string, result interface{}, errMsg string) {
+	event := map[string]interface{}{
+		"type":          "async_completed",
+		"tool_call_id":  toolCallID,
+		"tool_name":     toolName,
+		"status":        status,
+		"completion_id": sw.completionID,
+	}
+	if result != nil {
+		event["result"] = result
+	}
+	if errMsg != "" {
+		event["error"] = errMsg
+	}
+	sw.WriteEvent(event)
+}
+
+// WriteSystemMessage sends a system message to be displayed to the user.
+// Used for informational messages like async waiting notifications.
+func (sw *StreamWriter) WriteSystemMessage(message string) {
+	sw.WriteEvent(map[string]interface{}{
+		"type":          "system_message",
+		"message":       message,
+		"completion_id": sw.completionID,
+	})
+}
