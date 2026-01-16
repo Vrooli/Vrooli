@@ -1,8 +1,31 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { getLandingConfig, type LandingConfigResponse, type Variant as LandingVariant } from '../../shared/api';
+import { getLandingConfig, isApiError, type LandingConfigResponse, type Variant as LandingVariant } from '../../shared/api';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 
 export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
+
+/**
+ * Structured logging for variant loading failures.
+ * Provides context for debugging while avoiding sensitive data exposure.
+ */
+function logVariantError(context: string, error: unknown, metadata?: Record<string, unknown>) {
+  const errorInfo = {
+    context,
+    timestamp: new Date().toISOString(),
+    errorType: isApiError(error) ? error.type : 'unknown',
+    errorMessage: error instanceof Error ? error.message : String(error),
+    retryable: isApiError(error) ? error.retryable : false,
+    ...metadata,
+  };
+
+  // Log structured error for debugging (visible in browser devtools)
+  console.error('[LandingVariantProvider]', JSON.stringify(errorInfo, null, 2));
+
+  // Expose a global hook for external monitoring tools
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('landing:variant:error', { detail: errorInfo }));
+  }
+}
 // Note: local_storage resolution is retained for backward compatibility in consumers,
 // but we no longer persist/read variant assignments locally. Variants are resolved server-side
 // unless explicitly pinned via URL param.
@@ -80,14 +103,28 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
 
       applyConfig(landingConfig, landingConfig.fallback ? 'fallback' : nextResolution, note);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Failed to load variant:', message);
+      // Structured logging for better observability
+      const urlSlug = getVariantSlugFromUrl();
+      logVariantError('loadVariant', err, {
+        requestedSlug: urlSlug,
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      });
+
+      const message = isApiError(err) ? err.userMessage : (err instanceof Error ? err.message : 'Unknown error');
 
       try {
         const fallbackConfig = getFallbackLandingConfig();
         applyConfig(fallbackConfig, 'fallback', `API unavailable: ${message}`);
+
+        // Log successful fallback activation
+        console.info('[LandingVariantProvider] Fallback activated', {
+          reason: message,
+          fallbackVariant: fallbackConfig.variant?.slug,
+        });
       } catch (fallbackErr) {
-        console.error('Failed to load fallback landing config:', fallbackErr);
+        logVariantError('loadFallback', fallbackErr, {
+          originalError: message,
+        });
         setError(message);
         setResolution('unknown');
         setStatusNote(message);

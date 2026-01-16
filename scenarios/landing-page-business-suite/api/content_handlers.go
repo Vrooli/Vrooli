@@ -16,17 +16,17 @@ func handleGetPublicSections(contentService *ContentService) http.HandlerFunc {
 
 		variantID, err := strconv.ParseInt(variantIDStr, 10, 64)
 		if err != nil {
-			http.Error(w, `{"error": "Invalid variant ID"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid variant ID", ApiErrorTypeValidation)
 			return
 		}
 
 		sections, err := contentService.GetPublicSections(variantID)
 		if err != nil {
-			logStructuredError("Failed to get public sections", map[string]interface{}{
+			logStructuredError("public_sections_get_failed", map[string]interface{}{
 				"variant_id": variantID,
 				"error":      err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to retrieve sections"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve sections. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -34,7 +34,9 @@ func handleGetPublicSections(contentService *ContentService) http.HandlerFunc {
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"sections": sections,
 		}); err != nil {
-			http.Error(w, `{"error": "Failed to encode sections"}`, http.StatusInternalServerError)
+			logStructuredError("public_sections_encode_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}
 }
@@ -47,17 +49,17 @@ func handleGetSections(contentService *ContentService) http.HandlerFunc {
 
 		variantID, err := strconv.ParseInt(variantIDStr, 10, 64)
 		if err != nil {
-			http.Error(w, `{"error": "Invalid variant ID"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid variant ID", ApiErrorTypeValidation)
 			return
 		}
 
 		sections, err := contentService.GetSections(variantID)
 		if err != nil {
-			logStructuredError("Failed to get sections", map[string]interface{}{
+			logStructuredError("sections_get_failed", map[string]interface{}{
 				"variant_id": variantID,
 				"error":      err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to retrieve sections"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve sections. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
@@ -65,7 +67,9 @@ func handleGetSections(contentService *ContentService) http.HandlerFunc {
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"sections": sections,
 		}); err != nil {
-			http.Error(w, `{"error": "Failed to encode sections"}`, http.StatusInternalServerError)
+			logStructuredError("sections_encode_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}
 }
@@ -78,27 +82,30 @@ func handleGetSection(contentService *ContentService) http.HandlerFunc {
 
 		sectionID, err := strconv.ParseInt(sectionIDStr, 10, 64)
 		if err != nil {
-			http.Error(w, `{"error": "Invalid section ID"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid section ID", ApiErrorTypeValidation)
 			return
 		}
 
 		section, err := contentService.GetSection(sectionID)
 		if err != nil {
 			if err.Error() == "section not found" {
-				http.Error(w, `{"error": "Section not found"}`, http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "Section not found", ApiErrorTypeNotFound)
 				return
 			}
-			logStructuredError("Failed to get section", map[string]interface{}{
+			logStructuredError("section_get_failed", map[string]interface{}{
 				"section_id": sectionID,
 				"error":      err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to retrieve section"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to retrieve section. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(section); err != nil {
-			http.Error(w, `{"error": "Failed to encode section"}`, http.StatusInternalServerError)
+			logStructuredError("section_encode_failed", map[string]interface{}{
+				"section_id": sectionID,
+				"error":      err.Error(),
+			})
 		}
 	}
 }
@@ -111,7 +118,7 @@ func handleUpdateSection(contentService *ContentService) http.HandlerFunc {
 
 		sectionID, err := strconv.ParseInt(sectionIDStr, 10, 64)
 		if err != nil {
-			http.Error(w, `{"error": "Invalid section ID"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid section ID", ApiErrorTypeValidation)
 			return
 		}
 
@@ -120,29 +127,29 @@ func handleUpdateSection(contentService *ContentService) http.HandlerFunc {
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 			return
 		}
 
 		if payload.Content == nil {
-			http.Error(w, `{"error": "Content field is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Content field is required", ApiErrorTypeValidation)
 			return
 		}
 
 		if err := contentService.UpdateSection(sectionID, payload.Content); err != nil {
 			if err.Error() == "section not found" {
-				http.Error(w, `{"error": "Section not found"}`, http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "Section not found", ApiErrorTypeNotFound)
 				return
 			}
-			logStructuredError("Failed to update section", map[string]interface{}{
+			logStructuredError("section_update_failed", map[string]interface{}{
 				"section_id": sectionID,
 				"error":      err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to update section"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update section. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
-		logStructured("Section updated", map[string]interface{}{
+		logStructured("section_updated", map[string]interface{}{
 			"section_id": sectionID,
 		})
 
@@ -151,7 +158,10 @@ func handleUpdateSection(contentService *ContentService) http.HandlerFunc {
 			"success": true,
 			"message": "Section updated successfully",
 		}); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+			logStructuredError("section_update_response_encode_failed", map[string]interface{}{
+				"section_id": sectionID,
+				"error":      err.Error(),
+			})
 		}
 	}
 }
@@ -162,35 +172,35 @@ func handleCreateSection(contentService *ContentService) http.HandlerFunc {
 		var section ContentSection
 
 		if err := json.NewDecoder(r.Body).Decode(&section); err != nil {
-			http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 			return
 		}
 
 		if section.VariantID == 0 {
-			http.Error(w, `{"error": "variant_id is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "variant_id is required", ApiErrorTypeValidation)
 			return
 		}
 		if section.SectionType == "" {
-			http.Error(w, `{"error": "section_type is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "section_type is required", ApiErrorTypeValidation)
 			return
 		}
 		if section.Content == nil {
-			http.Error(w, `{"error": "content is required"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "content is required", ApiErrorTypeValidation)
 			return
 		}
 
 		created, err := contentService.CreateSection(section)
 		if err != nil {
-			logStructuredError("Failed to create section", map[string]interface{}{
+			logStructuredError("section_create_failed", map[string]interface{}{
 				"variant_id":   section.VariantID,
 				"section_type": section.SectionType,
 				"error":        err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to create section"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to create section. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
-		logStructured("Section created", map[string]interface{}{
+		logStructured("section_created", map[string]interface{}{
 			"section_id":   created.ID,
 			"variant_id":   created.VariantID,
 			"section_type": created.SectionType,
@@ -199,7 +209,9 @@ func handleCreateSection(contentService *ContentService) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		if err := json.NewEncoder(w).Encode(created); err != nil {
-			http.Error(w, `{"error": "Failed to encode section"}`, http.StatusInternalServerError)
+			logStructuredError("section_create_response_encode_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
 		}
 	}
 }
@@ -212,24 +224,24 @@ func handleDeleteSection(contentService *ContentService) http.HandlerFunc {
 
 		sectionID, err := strconv.ParseInt(sectionIDStr, 10, 64)
 		if err != nil {
-			http.Error(w, `{"error": "Invalid section ID"}`, http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid section ID", ApiErrorTypeValidation)
 			return
 		}
 
 		if err := contentService.DeleteSection(sectionID); err != nil {
 			if err.Error() == "section not found" {
-				http.Error(w, `{"error": "Section not found"}`, http.StatusNotFound)
+				writeJSONError(w, http.StatusNotFound, "Section not found", ApiErrorTypeNotFound)
 				return
 			}
-			logStructuredError("Failed to delete section", map[string]interface{}{
+			logStructuredError("section_delete_failed", map[string]interface{}{
 				"section_id": sectionID,
 				"error":      err.Error(),
 			})
-			http.Error(w, `{"error": "Failed to delete section"}`, http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to delete section. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 
-		logStructured("Section deleted", map[string]interface{}{
+		logStructured("section_deleted", map[string]interface{}{
 			"section_id": sectionID,
 		})
 
@@ -238,7 +250,10 @@ func handleDeleteSection(contentService *ContentService) http.HandlerFunc {
 			"success": true,
 			"message": "Section deleted successfully",
 		}); err != nil {
-			http.Error(w, `{"error": "Failed to encode response"}`, http.StatusInternalServerError)
+			logStructuredError("section_delete_response_encode_failed", map[string]interface{}{
+				"section_id": sectionID,
+				"error":      err.Error(),
+			})
 		}
 	}
 }

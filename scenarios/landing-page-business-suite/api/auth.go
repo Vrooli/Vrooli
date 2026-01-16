@@ -159,7 +159,7 @@ func buildLoginResponse(email string, authenticated bool) LoginResponse {
 func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 		return
 	}
 
@@ -175,14 +175,13 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 			"level": "warn",
 			"email": req.Email,
 		})
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
 		return
 	} else if err != nil {
-		logStructured("login_db_error", map[string]interface{}{
-			"level": "error",
+		logStructuredError("login_db_error", map[string]interface{}{
 			"error": err.Error(),
 		})
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Unable to verify credentials. Please try again.", ApiErrorTypeServerError)
 		return
 	}
 
@@ -192,7 +191,7 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 			"level": "warn",
 			"email": req.Email,
 		})
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
 		return
 	}
 
@@ -208,11 +207,10 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	session.Options.Path = "/"
 	session.Options.SameSite = http.SameSiteLaxMode
 	if err := session.Save(r, w); err != nil {
-		logStructured("session_save_error", map[string]interface{}{
-			"level": "error",
+		logStructuredError("session_save_error", map[string]interface{}{
 			"error": err.Error(),
 		})
-		http.Error(w, "Session error", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Failed to create session. Please try again.", ApiErrorTypeServerError)
 		return
 	}
 
@@ -224,7 +222,9 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 	// Return user data
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(buildLoginResponse(req.Email, true)); err != nil {
-		http.Error(w, "Failed to encode login response", http.StatusInternalServerError)
+		logStructuredError("login_response_encode_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 }
 
@@ -272,7 +272,7 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		session, _ := sessionStore.Get(r, "admin_session")
 		email, ok := session.Values["email"].(string)
 		if !ok || email == "" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 			return
 		}
 		next(w, r)
@@ -313,26 +313,28 @@ func sessionAdminEmail(r *http.Request) (string, bool) {
 func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
 	email, ok := sessionAdminEmail(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
 	}
 
 	var storedEmail, passwordHash string
 	err := s.db.QueryRow(`SELECT email, password_hash FROM admin_users WHERE email = $1`, email).Scan(&storedEmail, &passwordHash)
 	if err == sql.ErrNoRows {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
 	} else if err != nil {
 		logStructuredError("admin_profile_lookup_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
-		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Failed to load profile. Please try again.", ApiErrorTypeServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(storedEmail, passwordHash)); err != nil {
-		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+		logStructuredError("admin_profile_encode_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 }
 
@@ -340,13 +342,13 @@ func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request) {
 	currentEmail, ok := sessionAdminEmail(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
 	}
 
 	var req AdminProfileUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 		return
 	}
 
@@ -355,11 +357,11 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 	req.NewPassword = strings.TrimSpace(req.NewPassword)
 
 	if req.CurrentPassword == "" {
-		http.Error(w, "Current password is required", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Current password is required", ApiErrorTypeValidation)
 		return
 	}
 	if req.NewEmail == "" && req.NewPassword == "" {
-		http.Error(w, "Provide a new email or password to update", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "Provide a new email or password to update", ApiErrorTypeValidation)
 		return
 	}
 
@@ -368,34 +370,37 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 	err := s.db.QueryRow(`SELECT id, email, password_hash FROM admin_users WHERE email = $1`, currentEmail).
 		Scan(&adminID, &storedEmail, &passwordHash)
 	if err == sql.ErrNoRows {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
 		return
 	} else if err != nil {
 		logStructuredError("admin_profile_load_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
-		http.Error(w, "Failed to load admin profile", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Failed to load admin profile. Please try again.", ApiErrorTypeServerError)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.CurrentPassword)); err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
 		return
 	}
 
 	targetEmail := storedEmail
 	if req.NewEmail != "" && !strings.EqualFold(req.NewEmail, storedEmail) {
 		if !strings.Contains(req.NewEmail, "@") || len(req.NewEmail) < 5 {
-			http.Error(w, "Invalid email address", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "Invalid email address", ApiErrorTypeValidation)
 			return
 		}
 		var exists int
 		if err := s.db.QueryRow(`SELECT COUNT(*) FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`, req.NewEmail, adminID).Scan(&exists); err != nil {
-			http.Error(w, "Failed to validate email", http.StatusInternalServerError)
+			logStructuredError("admin_email_validation_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+			writeJSONError(w, http.StatusInternalServerError, "Failed to validate email. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 		if exists > 0 {
-			http.Error(w, "Email already in use", http.StatusConflict)
+			writeJSONError(w, http.StatusConflict, "Email already in use", ApiErrorTypeValidation)
 			return
 		}
 		targetEmail = req.NewEmail
@@ -404,19 +409,22 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 	targetPasswordHash := passwordHash
 	if req.NewPassword != "" {
 		if err := validateAdminPasswordUpdate(req.NewPassword, passwordHash); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 		if err != nil {
-			http.Error(w, "Failed to process password", http.StatusInternalServerError)
+			logStructuredError("admin_password_hash_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+			writeJSONError(w, http.StatusInternalServerError, "Failed to process password. Please try again.", ApiErrorTypeServerError)
 			return
 		}
 		targetPasswordHash = string(hashed)
 	}
 
 	if targetEmail == storedEmail && targetPasswordHash == passwordHash {
-		http.Error(w, "No changes detected", http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "No changes detected", ApiErrorTypeValidation)
 		return
 	}
 
@@ -424,7 +432,7 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 		logStructuredError("admin_profile_update_failed", map[string]interface{}{
 			"error": err.Error(),
 		})
-		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Failed to update profile. Please try again.", ApiErrorTypeServerError)
 		return
 	}
 
@@ -440,7 +448,9 @@ func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(targetEmail, targetPasswordHash)); err != nil {
-		http.Error(w, "Failed to encode profile", http.StatusInternalServerError)
+		logStructuredError("admin_profile_update_encode_failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 	}
 }
 

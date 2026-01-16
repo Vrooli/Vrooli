@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft } from 'lucide-react';
+import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft, WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 
@@ -41,6 +41,12 @@ const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode
   },
 ];
 
+interface FeedbackError {
+  message: string;
+  type: 'network' | 'server' | 'validation' | 'unknown';
+  retryable: boolean;
+}
+
 export function FeedbackPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FeedbackFormData>({
@@ -52,31 +58,91 @@ export function FeedbackPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FeedbackError | null>(null);
+  const [lastFormSnapshot, setLastFormSnapshot] = useState<FeedbackFormData | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+    setLastFormSnapshot({ ...form });
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
+        const status = response.status;
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to submit feedback');
+
+        if (status >= 500) {
+          throw { type: 'server', message: data.error || 'Our servers are experiencing issues. Please try again later.' };
+        }
+        if (status === 400 || status === 422) {
+          throw { type: 'validation', message: data.error || 'Please check your input and try again.' };
+        }
+        throw { type: 'unknown', message: data.error || 'Failed to submit feedback' };
       }
 
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      clearTimeout(timeoutId);
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError({
+          message: 'The request took too long. Please try again.',
+          type: 'network',
+          retryable: true,
+        });
+      } else if (err instanceof TypeError) {
+        // Network error
+        setError({
+          message: 'Unable to reach the server. Please check your connection and try again.',
+          type: 'network',
+          retryable: true,
+        });
+      } else if (typeof err === 'object' && err !== null && 'type' in err) {
+        // Classified error from above
+        const classified = err as { type: string; message: string };
+        setError({
+          message: classified.message,
+          type: classified.type as FeedbackError['type'],
+          retryable: classified.type !== 'validation',
+        });
+      } else {
+        setError({
+          message: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+          type: 'unknown',
+          retryable: true,
+        });
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    if (lastFormSnapshot) {
+      setForm(lastFormSnapshot);
+    }
+    setError(null);
+    // Trigger form submission on next tick
+    setTimeout(() => {
+      const formElement = document.querySelector('form');
+      if (formElement) {
+        formElement.requestSubmit();
+      }
+    }, 0);
   };
 
   const selectedType = feedbackTypes.find((t) => t.value === form.type);
@@ -244,8 +310,62 @@ export function FeedbackPage() {
               </div>
 
               {error && (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-                  {error}
+                <div className={`rounded-lg border p-4 ${
+                  error.type === 'network'
+                    ? 'border-amber-500/30 bg-amber-500/10'
+                    : error.type === 'server'
+                      ? 'border-orange-500/30 bg-orange-500/10'
+                      : 'border-rose-500/30 bg-rose-500/10'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {error.type === 'network' ? (
+                      <WifiOff className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                        error.type === 'server' ? 'text-orange-400' : 'text-rose-400'
+                      }`} />
+                    )}
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${
+                        error.type === 'network'
+                          ? 'text-amber-300'
+                          : error.type === 'server'
+                            ? 'text-orange-300'
+                            : 'text-rose-300'
+                      }`}>
+                        {error.type === 'network'
+                          ? 'Connection Issue'
+                          : error.type === 'server'
+                            ? 'Server Error'
+                            : 'Submission Failed'}
+                      </p>
+                      <p className={`text-sm mt-1 ${
+                        error.type === 'network'
+                          ? 'text-amber-200/80'
+                          : error.type === 'server'
+                            ? 'text-orange-200/80'
+                            : 'text-rose-200/80'
+                      }`}>
+                        {error.message}
+                      </p>
+                      {error.retryable && (
+                        <button
+                          type="button"
+                          onClick={handleRetry}
+                          className={`mt-2 inline-flex items-center gap-1 text-xs underline underline-offset-2 ${
+                            error.type === 'network'
+                              ? 'text-amber-300 hover:text-amber-200'
+                              : error.type === 'server'
+                                ? 'text-orange-300 hover:text-orange-200'
+                                : 'text-rose-300 hover:text-rose-200'
+                          }`}
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Retry
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 

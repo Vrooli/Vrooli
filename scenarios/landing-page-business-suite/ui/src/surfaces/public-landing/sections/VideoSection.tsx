@@ -62,13 +62,9 @@ export function VideoSection(props: VideoSectionProps) {
   const caption = resolved.caption;
   const rawVideoUrl = typeof resolved.videoUrl === 'string' ? resolved.videoUrl.trim() : '';
 
-  if (!rawVideoUrl) {
-    return null;
-  }
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const youtubeId = getYouTubeId(rawVideoUrl);
-  const embedUrl = getVideoEmbedUrl(rawVideoUrl);
+  // Extract video info before any hooks (must be called unconditionally)
+  const youtubeId = rawVideoUrl ? getYouTubeId(rawVideoUrl) : null;
+  const embedUrl = rawVideoUrl ? getVideoEmbedUrl(rawVideoUrl) : null;
   const derivedThumbnailUrl = !resolved.thumbnailUrl && youtubeId
     ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
     : null;
@@ -76,11 +72,18 @@ export function VideoSection(props: VideoSectionProps) {
     ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`
     : null;
 
+  // All hooks must be called before any conditional returns
+  const [isPlaying, setIsPlaying] = useState(false);
   const [posterUrl, setPosterUrl] = useState<string | null>(resolved.thumbnailUrl ?? derivedThumbnailUrl);
 
   useEffect(() => {
     setPosterUrl(resolved.thumbnailUrl ?? derivedThumbnailUrl);
   }, [resolved.thumbnailUrl, derivedThumbnailUrl]);
+
+  // Early returns after all hooks
+  if (!rawVideoUrl) {
+    return null;
+  }
 
   if (!embedUrl) {
     console.error("[VideoSection] Invalid video URL:", rawVideoUrl);

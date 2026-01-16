@@ -6,6 +6,7 @@ import type { IDisposable, editor as MonacoEditor, Uri as MonacoUri } from 'mona
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { useToast } from '../../../shared/ui/Toast';
 import {
   type Variant,
   type ContentSection,
@@ -90,6 +91,8 @@ export function VariantEditor() {
   const [snapshotSaving, setSnapshotSaving] = useState(false);
   const [schemaIssues, setSchemaIssues] = useState<string[]>([]);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  // [REQ:SIGNAL-FEEDBACK] Success feedback for completed operations
+  const toast = useToast();
   const isJsonTab = activeTab === 'json';
   const currentSaving = isJsonTab ? snapshotSaving : saving;
   const savingLabel = isJsonTab
@@ -158,7 +161,8 @@ export function VariantEditor() {
     if (!isNew && slug) {
       fetchVariant();
     }
-  }, [slug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchVariant is stable via slug dep
+  }, [isNew, slug]);
 
   useEffect(() => {
     const fetchVariantSpaceData = async () => {
@@ -264,14 +268,20 @@ export function VariantEditor() {
           name: saved.name,
           surface: 'variant',
         });
+        // [REQ:SIGNAL-FEEDBACK] Success notification for new variant creation
+        toast.success(`Variant "${saved.name}" created`, 'Variant created');
         navigate(`/admin/customization/variants/${saved.slug}`);
       } else if (slug) {
         await fetchVariant();
+        // [REQ:SIGNAL-FEEDBACK] Success notification for variant update
+        toast.success('Variant settings saved', 'Changes saved');
       }
 
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save variant');
+      // [REQ:SIGNAL-FEEDBACK] Error toast for failed save
+      toast.error('Failed to save variant changes');
       console.error('Variant save error:', err);
     } finally {
       setSaving(false);
@@ -291,11 +301,15 @@ export function VariantEditor() {
       const saved = await persistVariantSnapshot(slug, parsed);
       setSnapshotDraft(JSON.stringify(saved, null, 2));
       await fetchVariant();
+      // [REQ:SIGNAL-FEEDBACK] Success notification for JSON save
+      toast.success('Variant JSON applied successfully', 'JSON saved');
     } catch (err) {
       if (err instanceof SyntaxError) {
         setSnapshotError(`Invalid JSON: ${err.message}`);
+        toast.error('Invalid JSON syntax');
       } else {
         setSnapshotError(err instanceof Error ? err.message : 'Failed to save variant JSON');
+        toast.error('Failed to apply variant JSON');
       }
     } finally {
       setSnapshotSaving(false);
@@ -679,8 +693,8 @@ export function VariantEditor() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {sections
-                        .sort((a, b) => a.order - b.order)
+                      {[...sections]
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
                         .map((section) => (
                           <div
                             key={section.id}
@@ -781,7 +795,9 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
 
   const handleNavLabelChange = (index: number, value: string) => {
     updateConfig((draft) => {
-      draft.nav.links[index].label = value;
+      const link = draft.nav.links[index];
+      if (!link) return;
+      link.label = value;
     });
   };
 
@@ -841,15 +857,18 @@ function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderC
 
   const handleVisibilityToggle = (index: number, key: 'desktop' | 'mobile', value: boolean) => {
     updateConfig((draft) => {
-      draft.nav.links[index].visible_on = {
-        desktop: key === 'desktop' ? value : draft.nav.links[index].visible_on?.desktop ?? true,
-        mobile: key === 'mobile' ? value : draft.nav.links[index].visible_on?.mobile ?? true,
+      const link = draft.nav.links[index];
+      if (!link) return;
+      link.visible_on = {
+        desktop: key === 'desktop' ? value : link.visible_on?.desktop ?? true,
+        mobile: key === 'mobile' ? value : link.visible_on?.mobile ?? true,
       };
     });
   };
 
   const handleRemoveLink = (index: number) => {
     updateConfig((draft) => {
+      if (index < 0 || index >= draft.nav.links.length) return;
       draft.nav.links.splice(index, 1);
     });
   };

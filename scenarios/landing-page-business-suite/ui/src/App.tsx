@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
 import { LandingVariantProvider } from './app/providers/LandingVariantProvider';
+import { ErrorBoundary } from './shared/ui/ErrorBoundary';
+import { ToastProvider } from './shared/ui/Toast';
 import { ProtectedRoute } from './surfaces/admin-portal/components/ProtectedRoute';
 import { AdminLogin } from './surfaces/admin-portal/routes/AdminLogin';
 import { AdminHome } from './surfaces/admin-portal/routes/AdminHome';
@@ -21,128 +23,196 @@ import { ProfileSettings } from './surfaces/admin-portal/routes/ProfileSettings'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AdminAuthProvider>
-        <LandingVariantProvider>
-          <Routes>
-            <Route path="/" element={<PublicLanding />} />
-            <Route path="/health" element={<PublicLanding />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/feedback" element={<FeedbackPage />} />
+    <ErrorBoundary level="app" name="App">
+      <BrowserRouter>
+        <ToastProvider>
+          <AdminAuthProvider>
+            <LandingVariantProvider>
+            <Routes>
+              {/* Public routes */}
+              <Route
+                path="/"
+                element={
+                  <ErrorBoundary level="route" name="PublicLanding">
+                    <PublicLanding />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/health"
+                element={
+                  <ErrorBoundary level="route" name="Health">
+                    <PublicLanding />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <ErrorBoundary level="route" name="Checkout">
+                    <CheckoutPage />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/feedback"
+                element={
+                  <ErrorBoundary level="route" name="Feedback">
+                    <FeedbackPage />
+                  </ErrorBoundary>
+                }
+              />
 
-            <Route path="/admin/login" element={<AdminLogin />} />
+              {/* Admin login (unprotected) */}
+              <Route
+                path="/admin/login"
+                element={
+                  <ErrorBoundary level="route" name="AdminLogin">
+                    <AdminLogin />
+                  </ErrorBoundary>
+                }
+              />
 
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <AdminHome />
-                </ProtectedRoute>
-              }
-            />
+              {/* Protected admin routes */}
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AdminHome">
+                      <AdminHome />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/admin/analytics"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/analytics/:variantSlug"
-              element={
-                <ProtectedRoute>
-                  <AdminAnalytics />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AdminAnalytics">
+                      <AdminAnalytics />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics/:variantSlug"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AdminAnalyticsVariant">
+                      <AdminAnalytics />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/admin/customization"
-              element={
-                <ProtectedRoute>
-                  <Customization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/billing"
-              element={
-                <ProtectedRoute>
-                  <BillingSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/downloads"
-              element={
-                <ProtectedRoute>
-                  <DownloadSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/branding"
-              element={
-                <ProtectedRoute>
-                  <BrandingSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/profile"
-              element={
-                <ProtectedRoute>
-                  <ProfileSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/docs"
-              element={
-                <ProtectedRoute>
-                  <DocsViewer />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/feedback"
-              element={
-                <ProtectedRoute>
-                  <FeedbackManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/agent"
-              element={
-                <ProtectedRoute>
-                  <AgentCustomization />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:slug"
-              element={
-                <ProtectedRoute>
-                  <VariantEditor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/customization/variants/:variantSlug/sections/:sectionId"
-              element={
-                <ProtectedRoute>
-                  <SectionEditor />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/customization"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="Customization">
+                      <Customization />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/billing"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="BillingSettings">
+                      <BillingSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/downloads"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="DownloadSettings">
+                      <DownloadSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/branding"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="BrandingSettings">
+                      <BrandingSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/profile"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="ProfileSettings">
+                      <ProfileSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/docs"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="DocsViewer">
+                      <DocsViewer />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/feedback"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="FeedbackManagement">
+                      <FeedbackManagement />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/customization/agent"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AgentCustomization">
+                      <AgentCustomization />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/customization/variants/:slug"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="VariantEditor">
+                      <VariantEditor />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/customization/variants/:variantSlug/sections/:sectionId"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="SectionEditor">
+                      <SectionEditor />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </LandingVariantProvider>
-      </AdminAuthProvider>
-    </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+            </LandingVariantProvider>
+          </AdminAuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

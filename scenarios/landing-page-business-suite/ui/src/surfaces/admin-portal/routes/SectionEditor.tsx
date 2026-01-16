@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Eye, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Button } from '../../../shared/ui/button';
+import { useToast } from '../../../shared/ui/Toast';
 import { getLandingConfig, listVariants, type ContentSection, type LandingConfigResponse, type LandingSection, type Variant } from '../../../shared/api';
 import { useDebounce } from '../../../shared/hooks/useDebounce';
 import {
@@ -82,6 +83,8 @@ export function SectionEditor() {
   const compareConfigCache = useRef<Map<string, LandingConfigResponse>>(new Map());
   const [reorderingSectionId, setReorderingSectionId] = useState<number | null>(null);
   const [reorderError, setReorderError] = useState<string | null>(null);
+  // [REQ:SIGNAL-FEEDBACK] Success feedback for completed operations
+  const toast = useToast();
 
   // Form state
   const [sectionType, setSectionType] = useState<ContentSection['section_type']>('hero');
@@ -101,6 +104,7 @@ export function SectionEditor() {
     if (!isNew && numericSectionId !== null) {
       fetchSection();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSection is stable via numericSectionId dep
   }, [isNew, numericSectionId]);
 
   useEffect(() => {
@@ -246,7 +250,8 @@ export function SectionEditor() {
 
   const handleSave = async () => {
     if (!variantSlug) {
-      alert('Variant slug is required');
+      // [REQ:SIGNAL-FEEDBACK] Error feedback for missing variant
+      toast.error('Variant slug is required to save section');
       return;
     }
 
@@ -256,20 +261,25 @@ export function SectionEditor() {
       if (isNew) {
         // Note: This is a simplified version. In a real app, you'd fetch the variant ID
         // For now, we'll assume variant ID is stored or fetched separately
-        alert('Creating new sections requires variant ID. This is a placeholder.');
+        toast.warning('Creating new sections requires variant ID. This is a placeholder.');
         return;
       }
 
       if (numericSectionId === null) {
         setError('Section ID is missing.');
+        toast.error('Cannot save: section ID is missing');
         return;
       }
 
       const state = await persistExistingSectionContent(numericSectionId, content);
       applySectionState(state);
       setError(null);
+      // [REQ:SIGNAL-FEEDBACK] Success notification for section save
+      toast.success(`${sectionType} section saved`, 'Section updated');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save section');
+      // [REQ:SIGNAL-FEEDBACK] Error toast for failed save
+      toast.error('Failed to save section changes');
       console.error('Section save error:', err);
     } finally {
       setSaving(false);
@@ -386,17 +396,16 @@ export function SectionEditor() {
   }, [compareVariantSlug, variantOptions]);
   const timelineSections = useMemo(() => {
     const sections = previewConfig?.sections ?? [];
-    return [...sections].sort((a, b) => a.order - b.order);
+    return [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [previewConfig]);
   const comparisonSection = useMemo(() => {
     if (!compareConfig) {
       return null;
     }
-    return (
-      compareConfig.sections
-        ?.filter((section) => section.section_type === sectionType)
-        .sort((a, b) => a.order - b.order)[0] ?? null
-    );
+    const matchingSections = (compareConfig.sections ?? [])
+      .filter((section) => section.section_type === sectionType)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    return matchingSections[0] ?? null;
   }, [compareConfig, sectionType]);
   const comparisonContent = comparisonSection?.content ?? {};
   const comparisonEnabled = comparisonSection?.enabled !== false;
@@ -424,14 +433,17 @@ export function SectionEditor() {
           updateSectionOrder(neighbor.id, target.order),
         ]);
         await refreshPreviewConfig();
+        // [REQ:SIGNAL-FEEDBACK] Success notification for section reorder
+        toast.success(`Section moved ${direction}`, 'Order updated');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to reorder sections';
         setReorderError(message);
+        toast.error('Failed to reorder sections');
       } finally {
         setReorderingSectionId(null);
       }
     },
-    [timelineSections, refreshPreviewConfig],
+    [timelineSections, refreshPreviewConfig, toast],
   );
 
   if (loading) {
@@ -517,7 +529,7 @@ export function SectionEditor() {
               error={variantContextError}
               loading={variantContextLoading}
             />
-            <StylingGuardrailsCard variantSlug={variantContext?.variant.slug ?? variantSlug} />
+            <StylingGuardrailsCard variantSlug={variantContext?.variant?.slug ?? variantSlug} />
             {/* Section Settings */}
             <div className="bg-white/5 border border-white/10 rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Section Settings</h2>

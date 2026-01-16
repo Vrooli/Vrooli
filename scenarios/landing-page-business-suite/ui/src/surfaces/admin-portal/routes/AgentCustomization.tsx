@@ -4,6 +4,7 @@ import { Sparkles, ArrowLeft, Upload } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { InlineAlert, useInlineAlert } from '../../../shared/ui/InlineAlert';
 import { triggerAgentCustomization } from '../../../shared/api';
 
 /**
@@ -21,12 +22,15 @@ export function AgentCustomization() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ job_id: string; status: string; agent_id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { alert: validationAlert, showWarning, clearAlert: clearValidationAlert } = useInlineAlert();
 
   const handleSubmit = async () => {
     if (!brief.trim()) {
-      alert('Please provide a brief for the agent');
+      showWarning('Please provide a brief for the agent', 'Missing Input');
       return;
     }
+    // Clear any prior validation warning
+    clearValidationAlert();
 
     try {
       setSubmitting(true);
@@ -82,6 +86,15 @@ export function AgentCustomization() {
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">
             <p className="text-red-400">{error}</p>
           </div>
+        )}
+
+        {validationAlert && (
+          <InlineAlert
+            {...validationAlert}
+            onDismiss={clearValidationAlert}
+            className="mb-6"
+            data-testid="agent-validation-alert"
+          />
         )}
 
         {result ? (

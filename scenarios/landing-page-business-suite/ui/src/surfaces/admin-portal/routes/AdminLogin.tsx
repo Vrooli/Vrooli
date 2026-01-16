@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
+import { isApiError } from '../../../shared/api';
 
 /**
  * Admin login page - implements ADMIN-AUTH requirement (OT-P0-008)
@@ -15,21 +16,48 @@ import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
 export function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<{ message: string; type: 'auth' | 'network' | 'server' | 'unknown' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAdminAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
     setIsLoading(true);
 
     try {
       await login(email, password);
       navigate('/admin');
     } catch (err) {
-      setError('Invalid email or password');
+      // Classify the error for appropriate user messaging
+      if (isApiError(err, 'network')) {
+        setError({
+          message: 'Unable to connect. Please check your internet connection and try again.',
+          type: 'network',
+        });
+      } else if (isApiError(err, 'timeout')) {
+        setError({
+          message: 'The server is taking too long to respond. Please try again.',
+          type: 'network',
+        });
+      } else if (isApiError(err, 'server_error')) {
+        setError({
+          message: 'The server encountered an error. Please try again later.',
+          type: 'server',
+        });
+      } else if (isApiError(err, 'unauthorized')) {
+        setError({
+          message: 'Invalid email or password.',
+          type: 'auth',
+        });
+      } else {
+        // Default to auth error for unclassified failures (security: don't reveal system details)
+        setError({
+          message: 'Invalid email or password.',
+          type: 'auth',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -102,8 +130,42 @@ export function AdminLogin() {
 
             {/* Error Message */}
             {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4" data-testid="admin-login-error">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div
+                className={`rounded-lg border p-4 ${
+                  error.type === 'network'
+                    ? 'border-amber-500/20 bg-amber-500/10'
+                    : error.type === 'server'
+                      ? 'border-orange-500/20 bg-orange-500/10'
+                      : 'border-red-500/20 bg-red-500/10'
+                }`}
+                data-testid="admin-login-error"
+              >
+                <div className="flex items-start gap-3">
+                  {error.type === 'network' && (
+                    <WifiOff className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1">
+                    <p className={`text-sm ${
+                      error.type === 'network'
+                        ? 'text-amber-400'
+                        : error.type === 'server'
+                          ? 'text-orange-400'
+                          : 'text-red-400'
+                    }`}>
+                      {error.message}
+                    </p>
+                    {error.type === 'network' && (
+                      <button
+                        type="button"
+                        onClick={handleSubmit}
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 underline underline-offset-2"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Retry
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

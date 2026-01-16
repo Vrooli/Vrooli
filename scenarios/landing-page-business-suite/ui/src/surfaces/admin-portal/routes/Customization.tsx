@@ -4,6 +4,9 @@ import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { ErrorBoundary } from '../../../shared/ui/ErrorBoundary';
+import { InlineAlert, useInlineAlert } from '../../../shared/ui/InlineAlert';
+import { useToast } from '../../../shared/ui/Toast';
 import { listVariants, archiveVariant, deleteVariant, updateVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
 import { loadVariantEditorData } from '../controllers/variantEditorController';
@@ -46,6 +49,10 @@ export function Customization() {
   const focusSectionIdParam = searchParams.get('focusSectionId');
   const focusSectionType = searchParams.get('focusSectionType');
   const focusSectionId = focusSectionIdParam ? Number(focusSectionIdParam) : null;
+  // [REQ:FAILURE-TOPOGRAPHY] Graceful error handling with retry support
+  const { alert: operationAlert, showError: showOperationError, clearAlert: clearOperationAlert } = useInlineAlert({ autoDismissMs: 8000 });
+  // [REQ:SIGNAL-FEEDBACK] Success feedback for completed operations
+  const toast = useToast();
 
   useEffect(() => {
     fetchVariants();
@@ -74,8 +81,11 @@ export function Customization() {
     try {
       await archiveVariant(slug);
       await fetchVariants();
+      // [REQ:SIGNAL-FEEDBACK] Success notification for completed archive
+      toast.success(`Variant "${slug}" archived`, 'Variant archived');
     } catch (err) {
-      alert(`Failed to archive variant: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // [REQ:FAILURE-TOPOGRAPHY] Graceful error with retry capability
+      showOperationError(err, () => handleArchive(slug));
     }
   };
 
@@ -87,8 +97,11 @@ export function Customization() {
     try {
       await deleteVariant(slug);
       await fetchVariants();
+      // [REQ:SIGNAL-FEEDBACK] Success notification for completed deletion
+      toast.success(`Variant "${slug}" permanently deleted`, 'Variant deleted');
     } catch (err) {
-      alert(`Failed to delete variant: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // [REQ:FAILURE-TOPOGRAPHY] Graceful error with retry capability
+      showOperationError(err, () => handleDelete(slug));
     }
   };
 
@@ -104,8 +117,11 @@ export function Customization() {
         setVariants((prev) =>
           prev.map((v) => (v.slug === slug ? { ...v, weight: nextWeight } : v))
         );
+        // [REQ:SIGNAL-FEEDBACK] Success notification for weight update
+        toast.success(`Traffic weight updated to ${nextWeight}%`, 'Weight saved');
       } catch (err) {
-        alert(`Failed to update weight: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        // [REQ:FAILURE-TOPOGRAPHY] Graceful error with retry capability
+        showOperationError(err, () => persistWeight(slug, nextWeight));
         setWeightDrafts((prev) => ({
           ...prev,
           [slug]: currentVariant.weight ?? 0,
@@ -114,7 +130,7 @@ export function Customization() {
         setSavingWeights((prev) => ({ ...prev, [slug]: false }));
       }
     },
-    [savingWeights, variants]
+    [savingWeights, variants, showOperationError, toast]
   );
 
   const fetchAnalyticsSnapshot = async () => {
@@ -148,7 +164,7 @@ export function Customization() {
   );
   const statsBySlug = useMemo(() => {
     const map = new Map<string, VariantStats>();
-    analytics?.variant_stats.forEach((stat) => map.set(stat.variant_slug, stat));
+    (analytics?.variant_stats ?? []).forEach((stat) => map.set(stat.variant_slug, stat));
     return map;
   }, [analytics]);
   const totalAssignedWeight = activeVariants.reduce((sum, variant) => sum + getWeight(variant), 0);
@@ -417,19 +433,31 @@ export function Customization() {
           onClearFilters={clearVariantFilters}
         />
 
-      <ExperienceOpsPanel
-        totalWeight={totalAssignedWeight}
-        variantCount={activeVariants.length}
-        weightStatus={weightStatus}
-        staleVariants={staleVariants}
-        neverUpdatedVariants={neverUpdatedVariants}
-        underperforming={underperformingStat ? { stats: underperformingStat, variant: underperformingVariant } : null}
-        analyticsRangeDays={SNAPSHOT_DAYS}
-        onEditVariant={(slug) => navigate(`/admin/customization/variants/${slug}`)}
-        onViewAnalytics={(slug) => navigate(`/admin/analytics?variant=${slug}`)}
-        onHighlightVariant={highlightVariantInList}
-        onEditSection={(slug, options) => navigateToSectionEditor(slug, options)}
-      />
+        {/* [REQ:FAILURE-TOPOGRAPHY] Inline error alerts for variant operations */}
+        {operationAlert && (
+          <InlineAlert
+            {...operationAlert}
+            onDismiss={clearOperationAlert}
+            className="mb-6"
+            data-testid="customization-operation-alert"
+          />
+        )}
+
+      <ErrorBoundary level="section" name="ExperienceOpsPanel">
+        <ExperienceOpsPanel
+          totalWeight={totalAssignedWeight}
+          variantCount={activeVariants.length}
+          weightStatus={weightStatus}
+          staleVariants={staleVariants}
+          neverUpdatedVariants={neverUpdatedVariants}
+          underperforming={underperformingStat ? { stats: underperformingStat, variant: underperformingVariant } : null}
+          analyticsRangeDays={SNAPSHOT_DAYS}
+          onEditVariant={(slug) => navigate(`/admin/customization/variants/${slug}`)}
+          onViewAnalytics={(slug) => navigate(`/admin/analytics?variant=${slug}`)}
+          onHighlightVariant={highlightVariantInList}
+          onEditSection={(slug, options) => navigateToSectionEditor(slug, options)}
+        />
+      </ErrorBoundary>
 
       <VariantListSummary
         activeCount={activeVariants.length}

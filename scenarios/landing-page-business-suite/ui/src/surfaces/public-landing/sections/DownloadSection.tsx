@@ -123,12 +123,14 @@ function getVariantLabel(installer: DownloadAsset): string {
 }
 
 export function DownloadSection({ content, downloads }: DownloadSectionProps) {
+  // Compute filtered apps before any hooks
   const filteredApps = (downloads ?? []).filter(hasInstallTargets);
-  if (filteredApps.length === 0) return null;
+  const hasApps = filteredApps.length > 0;
 
   const title = content?.title || 'Download Vrooli Ascension';
   const subtitle = content?.subtitle || 'Install now and start automating today.';
 
+  // All hooks must be called before any conditional returns
   const { trackDownload } = useMetrics();
   const [downloadStatus, setDownloadStatus] = useState<Record<string, DownloadStatus>>({});
   const { email, setEmail, entitlements, loading: entitlementsLoading, error: entitlementsError, refresh } = useEntitlements();
@@ -138,7 +140,8 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   const [showSubscriptionInput, setShowSubscriptionInput] = useState(false);
 
   const detectedPlatform = useMemo(() => detectPlatform(), []);
-  const activeApp = filteredApps[0];
+  // Use first filtered app, or undefined if none
+  const activeApp = hasApps ? filteredApps[0] : undefined;
 
   // Group installers by platform
   const platformGroups = useMemo<PlatformGroup[]>(() => {
@@ -169,10 +172,20 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   const handleDownload = useCallback(
     async (download: DownloadAsset, assetKey: string) => {
+      // Guard against undefined activeApp (should not happen as early return prevents render)
+      const appKey = download.app_key || activeApp?.app_key;
+      if (!appKey) {
+        setDownloadStatus((prev) => ({
+          ...prev,
+          [assetKey]: { loading: false, message: 'App configuration error.' },
+        }));
+        return;
+      }
+
       setDownloadStatus((prev) => ({ ...prev, [assetKey]: { loading: true } }));
 
       try {
-        const asset = await requestDownload(download.app_key || activeApp.app_key, download.platform, email.trim() || undefined);
+        const asset = await requestDownload(appKey, download.platform, email.trim() || undefined);
         const artifactUrl = sanitizeArtifactUrl(asset?.artifact_url);
 
         if (!artifactUrl) {
@@ -193,7 +206,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
         }
 
         trackDownload({
-          app_key: activeApp.app_key,
+          app_key: appKey,
           platform: download.platform,
           release_version: download.release_version,
           requires_entitlement: download.requires_entitlement,
@@ -244,6 +257,11 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   const platformInfo = PLATFORM_DISPLAY[recommendedGroup?.platform] ?? PLATFORM_DISPLAY.windows;
   const isRecommended = recommendedGroup?.platform === detectedPlatform;
+
+  // Early return after all hooks have been called
+  if (!hasApps || !activeApp) {
+    return null;
+  }
 
   const renderDownloadButton = (installer: DownloadAsset, isPrimary: boolean = false) => {
     const assetKey = getDownloadAssetKey(installer);
