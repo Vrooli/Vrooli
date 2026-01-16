@@ -6,7 +6,6 @@
 import { describe, it, expect } from "vitest";
 import {
   applyToggleUpdate,
-  findTool,
   groupToolsByScenario,
   getToolsNeedingToggle,
   countEnabledTools,
@@ -15,6 +14,13 @@ import {
   verifyOnlyOneToolChanged,
 } from "./toolToggleLogic";
 import type { EffectiveTool, ToolSet } from "./api";
+
+// Helper to get array element with type safety
+function getElement<T>(arr: T[], index: number): T {
+  const element = arr[index];
+  if (element === undefined) throw new Error(`Expected element at index ${index}`);
+  return element;
+}
 
 // Helper to create mock tools
 function createMockTool(
@@ -59,9 +65,9 @@ describe("applyToggleUpdate", () => {
 
     const updated = applyToggleUpdate(toolSet, "scenario-a", "tool1", false);
 
-    expect(updated.tools[0].enabled).toBe(false); // Changed
-    expect(updated.tools[1].enabled).toBe(true); // Unchanged
-    expect(updated.tools[2].enabled).toBe(false); // Unchanged
+    expect(getElement(updated.tools, 0).enabled).toBe(false); // Changed
+    expect(getElement(updated.tools, 1).enabled).toBe(true); // Unchanged
+    expect(getElement(updated.tools, 2).enabled).toBe(false); // Unchanged
   });
 
   it("should not affect tools with same name in different scenario", () => {
@@ -73,8 +79,8 @@ describe("applyToggleUpdate", () => {
 
     const updated = applyToggleUpdate(toolSet, "scenario-a", "tool1", false);
 
-    expect(updated.tools[0].enabled).toBe(false); // Changed
-    expect(updated.tools[1].enabled).toBe(true); // Unchanged - same name, different scenario
+    expect(getElement(updated.tools, 0).enabled).toBe(false); // Changed
+    expect(getElement(updated.tools, 1).enabled).toBe(true); // Unchanged - same name, different scenario
   });
 
   it("should set source to 'global' when no chatId provided", () => {
@@ -83,7 +89,7 @@ describe("applyToggleUpdate", () => {
 
     const updated = applyToggleUpdate(toolSet, "scenario-a", "tool1", true);
 
-    expect(updated.tools[0].source).toBe("global");
+    expect(getElement(updated.tools, 0).source).toBe("global");
   });
 
   it("should set source to 'chat' when chatId is provided", () => {
@@ -92,7 +98,7 @@ describe("applyToggleUpdate", () => {
 
     const updated = applyToggleUpdate(toolSet, "scenario-a", "tool1", true, "chat-123");
 
-    expect(updated.tools[0].source).toBe("chat");
+    expect(getElement(updated.tools, 0).source).toBe("chat");
   });
 
   it("should create new tool objects only for changed tool", () => {
@@ -105,12 +111,12 @@ describe("applyToggleUpdate", () => {
     const updated = applyToggleUpdate(toolSet, "scenario-a", "tool1", false);
 
     // Changed tool should be a new object
-    expect(updated.tools[0]).not.toBe(toolSet.tools[0]);
+    expect(getElement(updated.tools, 0)).not.toBe(getElement(toolSet.tools, 0));
     // Unchanged tool should be a new object too (due to map creating new array)
     // But importantly, the VALUES should be unchanged
-    expect(updated.tools[1].enabled).toBe(toolSet.tools[1].enabled);
-    expect(updated.tools[1].scenario).toBe(toolSet.tools[1].scenario);
-    expect(updated.tools[1].tool.name).toBe(toolSet.tools[1].tool.name);
+    expect(getElement(updated.tools, 1).enabled).toBe(getElement(toolSet.tools, 1).enabled);
+    expect(getElement(updated.tools, 1).scenario).toBe(getElement(toolSet.tools, 1).scenario);
+    expect(getElement(updated.tools, 1).tool.name).toBe(getElement(toolSet.tools, 1).tool.name);
   });
 
   it("should handle sequential updates correctly", () => {
@@ -123,21 +129,21 @@ describe("applyToggleUpdate", () => {
 
     // Disable tool1
     toolSet = applyToggleUpdate(toolSet, "scenario-a", "tool1", false);
-    expect(toolSet.tools[0].enabled).toBe(false);
-    expect(toolSet.tools[1].enabled).toBe(true);
-    expect(toolSet.tools[2].enabled).toBe(true);
+    expect(getElement(toolSet.tools, 0).enabled).toBe(false);
+    expect(getElement(toolSet.tools, 1).enabled).toBe(true);
+    expect(getElement(toolSet.tools, 2).enabled).toBe(true);
 
     // Disable tool2
     toolSet = applyToggleUpdate(toolSet, "scenario-a", "tool2", false);
-    expect(toolSet.tools[0].enabled).toBe(false);
-    expect(toolSet.tools[1].enabled).toBe(false);
-    expect(toolSet.tools[2].enabled).toBe(true);
+    expect(getElement(toolSet.tools, 0).enabled).toBe(false);
+    expect(getElement(toolSet.tools, 1).enabled).toBe(false);
+    expect(getElement(toolSet.tools, 2).enabled).toBe(true);
 
     // Disable tool3
     toolSet = applyToggleUpdate(toolSet, "scenario-a", "tool3", false);
-    expect(toolSet.tools[0].enabled).toBe(false);
-    expect(toolSet.tools[1].enabled).toBe(false);
-    expect(toolSet.tools[2].enabled).toBe(false);
+    expect(getElement(toolSet.tools, 0).enabled).toBe(false);
+    expect(getElement(toolSet.tools, 1).enabled).toBe(false);
+    expect(getElement(toolSet.tools, 2).enabled).toBe(false);
   });
 });
 

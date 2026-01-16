@@ -110,7 +110,7 @@ export function verifyOnlyOneToolChanged(
     const beforeTool = before.tools[i];
     const afterTool = after.tools[i];
 
-    if (beforeTool.enabled !== afterTool.enabled) {
+    if (beforeTool && afterTool && beforeTool.enabled !== afterTool.enabled) {
       changedTools.push(`${afterTool.scenario}:${afterTool.tool.name}`);
     }
   }

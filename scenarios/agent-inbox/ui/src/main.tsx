@@ -5,17 +5,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./styles.css";
 
-// DEBUG: Global render sequence tracker to correlate renders across components
-// This helps identify React's concurrent render restarts
-declare global {
-  interface Window {
-    __RENDER_SEQ__: number;
-    __getNextRenderSeq__: () => number;
-  }
-}
-window.__RENDER_SEQ__ = 0;
-window.__getNextRenderSeq__ = () => ++window.__RENDER_SEQ__;
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -40,7 +29,11 @@ if (window.top !== window.self) {
 // borderline render counts over React's 50-render limit. Temporarily disabled
 // while investigating "too many re-renders" issue.
 // TODO: Re-enable StrictMode after fixing the render loop issue
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+ReactDOM.createRoot(rootElement).render(
   <ErrorBoundary
     critical
     name="Root"

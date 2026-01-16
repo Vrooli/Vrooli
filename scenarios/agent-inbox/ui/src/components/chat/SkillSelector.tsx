@@ -21,7 +21,7 @@ import {
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { Skill, SkillSource } from "@/lib/types/templates";
+import type { Skill } from "@/lib/types/templates";
 import { SkillEditorModal } from "@/components/settings/SkillEditorModal";
 import { createSkill as apiCreateSkill } from "@/data/skills";
 
@@ -128,7 +128,10 @@ export function SkillSelector({
         atPath.push(skill);
       } else if (skill.modes.length > currentModePath.length) {
         // Has deeper levels - add next submode
-        submodesSet.add(skill.modes[currentModePath.length]);
+        const nextMode = skill.modes[currentModePath.length];
+        if (nextMode) {
+          submodesSet.add(nextMode);
+        }
       }
     }
 
@@ -145,10 +148,11 @@ export function SkillSelector({
 
     for (const skill of displaySkills) {
       const category = skill.modes?.[0] || skill.category || "Other";
+      const categorySkills = grouped.get(category) ?? [];
       if (!grouped.has(category)) {
-        grouped.set(category, []);
+        grouped.set(category, categorySkills);
       }
-      grouped.get(category)!.push(skill);
+      categorySkills.push(skill);
     }
 
     return grouped;

@@ -24,7 +24,6 @@ import { useModeHistory } from "../../hooks/useModeHistory";
 import { useAIMerge } from "../../hooks/useAIMerge";
 import { supportsImages, supportsPDFs, supportsTools } from "../../lib/modelCapabilities";
 import { getTemplateById } from "@/data/templates";
-import { getSkillById } from "@/data/skills";
 import type { Model, Message } from "../../lib/api";
 import type { SkillPayload, SlashCommand, Template, MergeAction } from "@/lib/types/templates";
 
@@ -83,7 +82,7 @@ export function MessageInput({
   currentModel = null,
   chatId,
   chatWebSearchDefault = false,
-  onChatWebSearchDefaultChange,
+  onChatWebSearchDefaultChange: _onChatWebSearchDefaultChange,
   editingMessage,
   onCancelEdit,
   onSubmitEdit,
@@ -149,11 +148,8 @@ export function MessageInput({
   } = useAttachments();
 
   // Get tools for force tool selection (only if enabled and have chatId)
-  // DEBUG: Track what chatId is being passed
-  const messageInputToolsChatId = enableForceTools && chatId ? chatId : undefined;
-  console.log(`[MessageInput] useTools call - enableForceTools: ${enableForceTools}, chatId prop: ${chatId}, computed chatId: ${messageInputToolsChatId}`);
-  const { toolsByScenario, enabledTools } = useTools({
-    chatId: messageInputToolsChatId,
+  const { toolsByScenario, enabledTools: _enabledTools } = useTools({
+    chatId: enableForceTools && chatId ? chatId : undefined,
     enabled: enableForceTools && !!chatId,
   });
 
@@ -422,7 +418,7 @@ export function MessageInput({
       const slashMatch = lineBeforeCursor.match(/^\/(\S*)$/);
 
       if (slashMatch) {
-        const query = slashMatch[1];
+        const query = slashMatch[1] ?? "";
         setSlashQuery(query);
         setSlashPopupOpen(true);
         setSlashSelectedIndex(0);
@@ -489,7 +485,7 @@ export function MessageInput({
               );
               setMessage(mergedContent);
               // Don't set template - the merged content is the final message
-            } catch (error) {
+            } catch {
               // On error, just overwrite
               setMessage("");
               setActiveTemplate(pendingTemplate);

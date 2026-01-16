@@ -24,7 +24,7 @@ import { ToolConfiguration } from "../settings/ToolConfiguration";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
 import { useQueryClient } from "@tanstack/react-query";
-import type { EffectiveTool, Chat } from "../../lib/api";
+import type { EffectiveTool } from "../../lib/api";
 import { updateChat } from "../../lib/api";
 
 interface ChatToolsSelectorProps {

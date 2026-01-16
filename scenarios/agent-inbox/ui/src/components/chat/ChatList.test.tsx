@@ -4,11 +4,18 @@
  * [REQ:NAME-004]
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ChatList } from "./ChatList";
 import type { Chat, Label } from "../../lib/api";
+
+// Helper to get first element or throw
+function getFirstElement(elements: HTMLElement[]): HTMLElement {
+  const first = elements[0];
+  if (!first) throw new Error("Expected at least one element");
+  return first;
+}
 
 // Mock the searchChats API
 vi.mock("../../lib/api", async (importOriginal) => {
@@ -129,7 +136,7 @@ describe("ChatList", () => {
     it("shows tooltip hint for renaming on hover", () => {
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       expect(chatName).toHaveAttribute("title", "Double-click to rename");
     });
 
@@ -137,7 +144,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       expect(screen.getByTestId("inline-rename-input")).toBeInTheDocument();
@@ -147,7 +154,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input") as HTMLInputElement;
@@ -158,7 +165,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input");
@@ -172,7 +179,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input");
@@ -188,7 +195,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input");
@@ -203,7 +210,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       await user.click(screen.getByTestId("inline-rename-cancel"));
@@ -216,7 +223,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       // Press Enter without changing the name
@@ -229,7 +236,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input");
@@ -243,7 +250,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       const input = screen.getByTestId("inline-rename-input");
@@ -257,7 +264,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       // Clear the call count after entering edit mode
@@ -275,7 +282,7 @@ describe("ChatList", () => {
       const user = userEvent.setup();
       render(<ChatList {...defaultProps} onRenameChat={undefined} />, { wrapper: createWrapper() });
 
-      const chatName = screen.getAllByTestId("chat-name")[0];
+      const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
       // Should not enter edit mode

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -25,7 +25,9 @@ const PRESET_COLORS = [
   "#06b6d4", // Cyan
   "#3b82f6", // Blue
   "#64748b", // Slate
-];
+] as const;
+
+const DEFAULT_COLOR = PRESET_COLORS[0];
 
 export function LabelManager({
   open,
@@ -35,14 +37,14 @@ export function LabelManager({
   onDeleteLabel,
 }: LabelManagerProps) {
   const [newLabelName, setNewLabelName] = useState("");
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_COLOR);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const handleCreateLabel = () => {
     if (newLabelName.trim()) {
       onCreateLabel({ name: newLabelName.trim(), color: selectedColor });
       setNewLabelName("");
-      setSelectedColor(PRESET_COLORS[0]);
+      setSelectedColor(DEFAULT_COLOR);
     }
   };
 

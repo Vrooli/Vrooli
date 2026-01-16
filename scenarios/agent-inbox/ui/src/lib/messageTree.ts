@@ -101,7 +101,8 @@ export function computeVisibleMessages(
     // This prevents creating new arrays that could trigger cascading useMemo recalculations.
     const isSorted = messages.every((msg, i) => {
       if (i === 0) return true;
-      return new Date(messages[i - 1].created_at).getTime() <= new Date(msg.created_at).getTime();
+      const prevMsg = messages[i - 1];
+      return prevMsg ? new Date(prevMsg.created_at).getTime() <= new Date(msg.created_at).getTime() : true;
     });
     if (isSorted) {
       return messages;

@@ -49,9 +49,6 @@ export interface UseAsyncStatusOptions {
 // CRITICAL: Using inline [] creates new array on every render, causing infinite re-render loops
 const EMPTY_OPERATIONS: AsyncStatusUpdate[] = [];
 
-// DEBUG: Track renders
-let useAsyncStatusRenderCount = 0;
-
 /**
  * Hook for tracking async tool operations via Server-Sent Events.
  *
@@ -63,9 +60,6 @@ export function useAsyncStatus(
   chatId: string | null,
   options: UseAsyncStatusOptions = {}
 ) {
-  // DEBUG: Track renders
-  useAsyncStatusRenderCount++;
-  console.log(`[useAsyncStatus] Render #${useAsyncStatusRenderCount}`, { chatId });
   const { completedRemovalDelay = 3000, autoConnect = true } = options;
 
   const [operations, setOperations] = useState<Map<string, AsyncStatusUpdate>>(

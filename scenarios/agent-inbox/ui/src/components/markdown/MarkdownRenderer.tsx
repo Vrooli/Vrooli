@@ -61,7 +61,7 @@ interface MarkdownRendererProps {
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
-  isStreaming = false,
+  isStreaming: _isStreaming = false,
 }: MarkdownRendererProps) {
   // Memoize the components object to prevent recreation
   const components = useMemo(

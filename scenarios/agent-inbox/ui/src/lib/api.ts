@@ -1050,8 +1050,9 @@ export async function exportChat(chatId: string, format: ExportFormat = "markdow
   let filename = `chat.${format === "markdown" ? "md" : format}`;
   if (contentDisposition) {
     const match = contentDisposition.match(/filename="([^"]+)"/);
-    if (match) {
-      filename = match[1];
+    const extractedFilename = match?.[1];
+    if (extractedFilename) {
+      filename = extractedFilename;
     }
   }
 
@@ -1738,7 +1739,7 @@ export async function exportTemplates(): Promise<Template[]> {
 // Skills API
 // ============================================================================
 
-import type { Skill, SkillSource, SkillWithSource } from "@/lib/types/templates";
+import type { Skill, SkillSource } from "@/lib/types/templates";
 
 export interface SkillResponse extends Skill {
   source: SkillSource;

@@ -66,9 +66,6 @@ export interface UseChatsOptions {
   onTemplateDeactivated?: () => void;
 }
 
-// DEBUG: Track renders
-let useChatsRenderCount = 0;
-
 export function useChats(options: UseChatsOptions = {}) {
   const { initialChatId, onChatChange, onTemplateDeactivated } = options;
   const queryClient = useQueryClient();
@@ -78,10 +75,6 @@ export function useChats(options: UseChatsOptions = {}) {
   // Delegate to focused hooks
   const completion = useCompletion({ onTemplateDeactivated });
   const labelOps = useLabels();
-
-  // DEBUG: Track renders
-  useChatsRenderCount++;
-  console.log(`[useChats] Render #${useChatsRenderCount}`, { selectedChatId, isGenerating: completion.isGenerating });
 
   // Fetch chats based on current view
   // NOTE: Use stable EMPTY_CHATS constant instead of `= []` to prevent
@@ -346,15 +339,11 @@ export function useChats(options: UseChatsOptions = {}) {
       // This avoids the need for refetchQueries, which causes cascading re-renders.
       // We add the message directly to the cache, then start the completion.
       // For fresh chats, old might be null/undefined - in that case, create a minimal structure.
-      console.log("[useChats] *** ABOUT TO setQueryData *** chatId:", chatId, "timestamp:", Date.now());
-      console.log("[useChats] Current render count state at setQueryData call: useChatsRenderCount=", useChatsRenderCount);
       queryClient.setQueryData(["chat", chatId], (old: typeof chatData) => {
-        console.log("[useChats] INSIDE setQueryData updater, old:", old ? "exists" : "null", "old?.messages?.length:", old?.messages?.length);
         if (!old) {
           // Fresh chat - create minimal structure with the new message
           // The full chat data will be fetched later via invalidation
           // IMPORTANT: Include required fields to avoid crashes in ChatHeader/ChatToolsSelector
-          console.log("[useChats] Creating fresh chat structure");
           return {
             chat: {
               id: chatId,
@@ -372,13 +361,11 @@ export function useChats(options: UseChatsOptions = {}) {
             tool_call_records: [],
           };
         }
-        console.log("[useChats] Appending message to existing chat, current count:", old.messages?.length);
         return {
           ...old,
           messages: [...(old.messages || []), newMessage],
         };
       });
-      console.log("[useChats] AFTER setQueryData");
       // NOTE: Don't invalidate ["chats"] here - we do it once at the end.
 
       // CRITICAL: Defer runCompletion to the next event loop tick.
@@ -386,10 +373,8 @@ export function useChats(options: UseChatsOptions = {}) {
       // If we call setIsGenerating(true) while those renders are still processing,
       // React detects nested state updates and throws "too many re-renders" (Error #310).
       // Using setTimeout(0) ensures React finishes the current render batch first.
-      console.log("[useChats] Deferring runCompletion to next tick");
       await new Promise<void>((resolve) => {
         setTimeout(() => {
-          console.log("[useChats] Running deferred completion");
           resolve();
         }, 0);
       });

@@ -52,7 +52,7 @@ export function ChatHeader({
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("markdown");
+  const [_exportFormat, _setExportFormat] = useState<ExportFormat>("markdown");
   const [isExporting, setIsExporting] = useState(false);
   const [newName, setNewName] = useState(chat.name ?? "");
 

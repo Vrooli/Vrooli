@@ -156,8 +156,9 @@ export function useAttachments(): UseAttachmentsReturn {
 
   const getUploadedIds = useCallback((): string[] => {
     return attachments
-      .filter((att) => att.uploadStatus === "uploaded" && att.serverId)
-      .map((att) => att.serverId!);
+      .filter((att): att is typeof att & { serverId: string } =>
+        att.uploadStatus === "uploaded" && !!att.serverId)
+      .map((att) => att.serverId);
   }, [attachments]);
 
   return {

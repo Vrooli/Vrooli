@@ -144,9 +144,11 @@ export function SchemaFormField({
   // Handle array
   if (type === "array" && schema.items) {
     const arrayValue = (value as unknown[]) ?? [];
+    // Capture items so TypeScript tracks the narrowing in nested closures
+    const itemSchema = schema.items;
 
     const addItem = () => {
-      const newItem = getDefaultValue(schema.items!);
+      const newItem = getDefaultValue(itemSchema);
       onChange([...arrayValue, newItem]);
     };
 
@@ -177,7 +179,7 @@ export function SchemaFormField({
               <div className="flex-1">
                 <SchemaFormField
                   name={`${name}[${index}]`}
-                  schema={schema.items!}
+                  schema={itemSchema}
                   value={item}
                   onChange={(v) => updateItem(index, v)}
                   disabled={disabled}

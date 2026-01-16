@@ -10,7 +10,7 @@
  * - State reset after message send
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   getAllTemplates,
   fillTemplateContent,
@@ -329,7 +329,10 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
         }
 
         // Add the next level mode
-        submodes.add(t.modes[path.length]);
+        const nextMode = t.modes[path.length];
+        if (nextMode) {
+          submodes.add(nextMode);
+        }
       });
 
       return Array.from(submodes).sort();
@@ -354,10 +357,11 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
       setActiveTemplateState({ template, variableValues });
 
       // Auto-attach suggested skills
-      if (template.suggestedSkillIds?.length) {
+      const suggestedSkills = template.suggestedSkillIds;
+      if (suggestedSkills?.length) {
         setSelectedSkillIds((prev) => {
           const newIds = new Set(prev);
-          for (const skillId of template.suggestedSkillIds!) {
+          for (const skillId of suggestedSkills) {
             newIds.add(skillId);
           }
           return Array.from(newIds);

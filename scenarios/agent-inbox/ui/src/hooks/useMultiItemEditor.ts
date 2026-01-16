@@ -112,12 +112,13 @@ export function useMultiItemEditor<T extends BaseItem>({
   const expandToItem = useCallback(
     (itemId: string) => {
       const item = items.find((i) => i.id === itemId);
-      if (!item?.modes) return;
+      const itemModes = item?.modes;
+      if (!itemModes) return;
 
       setExpandedNodes((prev) => {
         const next = new Set(prev);
         let path = "";
-        for (const mode of item.modes!) {
+        for (const mode of itemModes) {
           path = path ? `${path}/${mode}` : mode;
           next.add(path);
         }
@@ -251,7 +252,7 @@ export function useMultiItemEditor<T extends BaseItem>({
   }, []);
 
   // Computed set of dirty item IDs for the sidebar
-  const dirtyItemIdsSet = useMemo(() => {
+  const _dirtyItemIdsSet = useMemo(() => {
     return new Set(getDirtyItemIds());
   }, [getDirtyItemIds]);
 

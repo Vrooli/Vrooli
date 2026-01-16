@@ -92,23 +92,9 @@ export interface UseToolsReturn {
  * // Chat-specific tools
  * const { toolSet, toggleTool } = useTools({ chatId: "abc-123" });
  */
-// DEBUG: Track renders
-let useToolsRenderCount = 0;
-
 export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   const { chatId, enabled = true } = options;
   const queryClient = useQueryClient();
-
-  // DEBUG: Track renders and identify call sources
-  useToolsRenderCount++;
-  const stackTrace = chatId === undefined ? new Error().stack?.split('\n').slice(1, 4).join(' <- ') : undefined;
-  console.log(`[useTools] Render #${useToolsRenderCount}`, {
-    chatId,
-    chatIdIsUndefined: chatId === undefined,
-    enabled,
-    // Only log stack trace for undefined chatId calls to help identify source
-    ...(chatId === undefined && { callStack: stackTrace })
-  });
 
   // Fetch tool set (global or chat-specific)
   // CRITICAL: Use aggressive caching to prevent cascading re-renders.

@@ -32,6 +32,9 @@ const DEFAULT_SIBLING_INFO = { current: 1, total: 1, siblings: EMPTY_SIBLINGS };
 // CRITICAL: Using `new Map()` inside a component creates new reference each render
 const EMPTY_SIBLING_MAP: Map<string, { current: number; total: number; siblings: Message[] }> = new Map();
 
+// Stable empty array for filtered messages when messages is empty
+const EMPTY_MESSAGES: Message[] = [];
+
 interface MessageListProps {
   messages: Message[];
   /** All messages including non-visible branches (for sibling computation) */
@@ -70,17 +73,6 @@ interface MessageListProps {
   isForking?: boolean;
 }
 
-// DEBUG: Track renders globally to detect loops
-let messageListRenderCount = 0;
-// DEBUG: Track hook execution order to detect conditional hook issues
-let currentRenderHookIndex = 0;
-// DEBUG: Track history of render hook counts to detect mismatch
-const renderHookHistory: Array<{ renderNum: number; hookCount: number; messagesLength: number; tookEarlyReturn: boolean; completed: boolean }> = [];
-// DEBUG: Track if a render is in progress (to detect interruptions)
-let renderInProgress: { renderNum: number; globalSeq: number; startTime: number } | null = null;
-// DEBUG: Track the last messages reference to detect changes
-let lastMessagesRef: unknown = null;
-
 // Inner implementation of MessageList - will be wrapped with memo
 function MessageListInner({
   messages,
@@ -105,64 +97,17 @@ function MessageListInner({
   isRegenerating = false,
   isForking = false,
 }: MessageListProps) {
-  // DEBUG: Track renders and reset hook counter
-  messageListRenderCount++;
-  currentRenderHookIndex = 0;
-  const globalSeq = typeof window !== 'undefined' && window.__getNextRenderSeq__ ? window.__getNextRenderSeq__() : 0;
-
-  // DEBUG: Check if previous render was interrupted
-  if (renderInProgress) {
-    console.log(`[MessageList] !!! PREVIOUS RENDER #${renderInProgress.renderNum} (globalSeq: ${renderInProgress.globalSeq}) WAS INTERRUPTED !!! It never completed.`);
-  }
-
-  // Mark this render as in progress
-  renderInProgress = { renderNum: messageListRenderCount, globalSeq, startTime: Date.now() };
-
-  // DEBUG: Check if messages reference changed
-  const messagesRefChanged = messages !== lastMessagesRef;
-  const previousMessagesLength = Array.isArray(lastMessagesRef) ? (lastMessagesRef as unknown[]).length : 'N/A';
-  lastMessagesRef = messages;
-
-  // DEBUG: Log render start with critical state that could affect hook paths
-  console.log(`[MessageList] ===== RENDER #${messageListRenderCount} (global seq: ${globalSeq}) START =====`, {
-    messagesLength: messages?.length,
-    messagesIsArray: Array.isArray(messages),
-    messagesUndefined: messages === undefined,
-    messagesNull: messages === null,
-    allMessagesLength: allMessages?.length,
-    toolCallRecordsLength: toolCallRecords?.length,
-    isGenerating,
-    // Check early return condition RIGHT AT START
-    wouldEarlyReturn: messages?.length === 0 && !isGenerating,
-    // Track reference changes
-    messagesRefChanged,
-    previousMessagesLength,
-  });
-
   // Use allMessages for sibling computation, fallback to visible messages
   const messagesForSiblings = allMessages ?? messages;
 
-  // DEBUG: Log hook #1
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(endRef)`);
   const endRef = useRef<HTMLDivElement>(null);
-
-  // DEBUG: Log hook #2
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(messageRefs)`);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Ref for debouncing auto-scroll to prevent rapid scroll triggers during streaming
-  // DEBUG: Log hook #3
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(scrollTimeoutRef)`);
   const scrollTimeoutRef = useRef<number | null>(null);
 
   // Clear stale message refs when messages change to prevent memory leaks
   // and stale data issues when switching between chats
-  // DEBUG: Log hook #4
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(clearStaleRefs)`);
   useEffect(() => {
     const currentMessageIds = new Set(messages.map((m) => m.id));
     // Remove refs for messages that are no longer in the list
@@ -177,11 +122,7 @@ function MessageListInner({
   // IDs from OpenRouter are strings like "call_abc123", stored as-is in both
   // messages.tool_calls and tool_calls.id. Normalize by removing dashes for
   // backward compatibility with any legacy UUID-formatted records.
-  // DEBUG: Log hook #5
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(toolCallRecordMap) - BEFORE`);
   const toolCallRecordMap = useMemo(() => {
-    console.log("[MessageList] INSIDE toolCallRecordMap useMemo, toolCallRecords:", toolCallRecords.length);
     const map = new Map<string, ToolCallRecord>();
     for (const record of toolCallRecords) {
       // Store with both original and normalized ID for robust lookup
@@ -193,18 +134,13 @@ function MessageListInner({
     }
     return map;
   }, [toolCallRecords]);
-  console.log("[MessageList] AFTER toolCallRecordMap useMemo (hook #5 complete)");
 
   // OPTIMIZATION: Precompute siblingInfo for all assistant messages at the list level.
   // Previously, each MessageBubble computed getSiblingInfo(allMessages, message.id),
   // which built a message map and did filtering N times for N messages.
   // By computing once here and passing down, we reduce O(N²) to O(N) complexity.
   // CRITICAL: Return stable EMPTY_SIBLING_MAP when no messages to prevent new reference.
-  // DEBUG: Log hook #6
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(siblingInfoMap) - BEFORE`);
   const siblingInfoMap = useMemo(() => {
-    console.log("[MessageList] INSIDE siblingInfoMap useMemo, messagesForSiblings:", messagesForSiblings?.length, "messages:", messages.length);
     if (!messagesForSiblings || messagesForSiblings.length === 0) {
       return EMPTY_SIBLING_MAP;
     }
@@ -217,12 +153,8 @@ function MessageListInner({
     }
     return map;
   }, [messagesForSiblings, messages]);
-  console.log("[MessageList] AFTER siblingInfoMap useMemo (hook #6 complete)");
 
   // Scroll to specific message when navigating from search
-  // DEBUG: Log hook #7
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(scrollToMessage)`);
   useEffect(() => {
     if (scrollToMessageId) {
       const messageEl = messageRefs.current.get(scrollToMessageId);
@@ -247,9 +179,6 @@ function MessageListInner({
   // interact with browser reflow and cause React reconciliation issues.
   // Uses stable primitive dependencies instead of array references to prevent
   // unnecessary effect runs.
-  // DEBUG: Log hook #8
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(autoScroll)`);
   useEffect(() => {
     if (!scrollToMessageId) {
       // Clear any pending scroll
@@ -273,12 +202,9 @@ function MessageListInner({
   // Filter out tool messages whose results are already displayed inline in the
   // preceding assistant message's ToolCallItem. Only show tool messages as a
   // fallback when there's no ToolCallRecord with a result.
-  // DEBUG: Log hook #9
-  currentRenderHookIndex++;
-  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(filteredMessages) - ABOUT TO CALL useMemo, render #${messageListRenderCount}, globalSeq: ${globalSeq}`);
-
+  // CRITICAL: Return stable EMPTY_MESSAGES when messages is empty to prevent new references.
   const filteredMessages = useMemo(() => {
-    console.log("[MessageList] INSIDE filteredMessages useMemo callback executing, messages:", messages?.length, "isArray:", Array.isArray(messages));
+    if (messages.length === 0) return EMPTY_MESSAGES;
     return messages.filter((message) => {
       // Only filter tool messages
       if (message.role !== "tool" || !message.tool_call_id) {
@@ -295,16 +221,10 @@ function MessageListInner({
     });
   }, [messages, toolCallRecordMap]);
 
-  // Record this render in history
-  renderHookHistory.push({ renderNum: messageListRenderCount, hookCount: currentRenderHookIndex, messagesLength: messages?.length ?? -1, tookEarlyReturn: false, completed: true });
-  renderInProgress = null; // Mark render as completed
-  console.log(`[MessageList] ===== RENDER #${messageListRenderCount} COMPLETE ===== Total hooks: ${currentRenderHookIndex}. History now:`, renderHookHistory.slice(-5));
-
   // IMPORTANT: Early return MUST be AFTER all hooks to satisfy React's Rules of Hooks.
   // Previously this was between hooks #8 and #9, causing Error #310 when messages
   // changed from 0 to 1 (hook count changed from 8 to 9).
   if (messages.length === 0 && !isGenerating) {
-    console.log(`[MessageList] Empty state - returning empty UI, render #${messageListRenderCount}`);
     return (
       <div className="flex-1 flex items-center justify-center p-8" data-testid="empty-messages">
         <div className="text-center max-w-sm">
@@ -966,7 +886,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
               <Wrench className="h-3 w-3" />
               Using tools
             </div>
-            {message.tool_calls!.map((tc: ToolCall) => (
+            {(message.tool_calls ?? []).map((tc: ToolCall) => (
               <ToolCallItem
                 key={tc.id}
                 toolCall={tc}
@@ -1041,7 +961,7 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
                 <Wrench className="h-3 w-3" />
                 Using tools
               </div>
-              {message.tool_calls!.map((tc: ToolCall) => (
+              {(message.tool_calls ?? []).map((tc: ToolCall) => (
                 <ToolCallItem
                   key={tc.id}
                   toolCall={tc}

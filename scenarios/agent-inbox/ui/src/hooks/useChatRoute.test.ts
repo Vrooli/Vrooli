@@ -8,7 +8,7 @@ import { useChatRoute, usePopStateListener } from "./useChatRoute";
 
 // Mock window.history and location
 const originalLocation = window.location;
-const originalHistory = window.history;
+const _originalHistory = window.history;
 
 describe("useChatRoute", () => {
   let mockPathname = "/";

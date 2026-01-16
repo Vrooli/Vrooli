@@ -24,15 +24,8 @@ import {
 // which changes references and triggers infinite re-render loops via useMemo dependencies
 const EMPTY_LABELS: Label[] = [];
 
-// DEBUG: Track renders
-let useLabelsRenderCount = 0;
-
 export function useLabels() {
   const queryClient = useQueryClient();
-
-  // DEBUG: Track renders
-  useLabelsRenderCount++;
-  console.log(`[useLabels] Render #${useLabelsRenderCount}`);
 
   // Fetch labels
   // NOTE: Use stable EMPTY_LABELS constant instead of `= []`

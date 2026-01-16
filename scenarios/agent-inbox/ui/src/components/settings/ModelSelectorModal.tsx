@@ -86,8 +86,9 @@ function getProvider(model: Model): string {
     return model.provider;
   }
   const parts = model.id.split("/");
-  if (parts.length >= 2) {
-    return parts[0];
+  const firstPart = parts[0];
+  if (parts.length >= 2 && firstPart) {
+    return firstPart;
   }
   return "other";
 }
@@ -251,10 +252,11 @@ export function ModelSelectorModal({
     const groups = new Map<string, Model[]>();
     for (const model of filteredModels) {
       const provider = getProvider(model);
+      const providerModels = groups.get(provider) ?? [];
       if (!groups.has(provider)) {
-        groups.set(provider, []);
+        groups.set(provider, providerModels);
       }
-      groups.get(provider)!.push(model);
+      providerModels.push(model);
     }
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredModels, sortBy]);

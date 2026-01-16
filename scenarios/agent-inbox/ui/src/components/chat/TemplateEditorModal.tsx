@@ -441,8 +441,8 @@ export function TemplateEditorModal({
   const selectedCountByScenario = useMemo(() => {
     const counts = new Map<string, number>();
     for (const toolId of selectedToolIds) {
-      const [scenario] = toolId.split(":");
-      counts.set(scenario, (counts.get(scenario) || 0) + 1);
+      const scenario = toolId.split(":")[0] ?? toolId;
+      counts.set(scenario, (counts.get(scenario) ?? 0) + 1);
     }
     return counts;
   }, [selectedToolIds]);

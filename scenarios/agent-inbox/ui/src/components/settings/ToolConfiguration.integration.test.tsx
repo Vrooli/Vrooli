@@ -3,7 +3,7 @@
  * These tests verify the component's toggle behavior with multiple tools.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { ToolConfiguration } from "./ToolConfiguration";
 import type { EffectiveTool, ScenarioStatus, ToolCategory } from "../../lib/api";

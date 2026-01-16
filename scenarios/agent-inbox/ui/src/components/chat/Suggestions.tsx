@@ -121,8 +121,9 @@ export function Suggestions({
       // At root - show top-level modes
       const availableModes = new Set<string>();
       templatesList.forEach((t) => {
-        if (t.modes && t.modes.length > 0) {
-          availableModes.add(t.modes[0]);
+        const firstMode = t.modes?.[0];
+        if (firstMode) {
+          availableModes.add(firstMode);
         }
       });
 
@@ -156,7 +157,10 @@ export function Suggestions({
         pathTemplates.push(t);
       } else {
         // Template is deeper - add next level as submode
-        submodesSet.add(t.modes[currentModePath.length]);
+        const nextMode = t.modes[currentModePath.length];
+        if (nextMode) {
+          submodesSet.add(nextMode);
+        }
       }
     });
 

@@ -77,23 +77,15 @@ const EMPTY_IMAGES: string[] = [];
 const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_APPROVALS: PendingApproval[] = [];
 
-// DEBUG: Track renders
-let completionRenderCount = 0;
-
 export function useCompletion(options?: UseCompletionOptions): CompletionState & CompletionActions {
   const { onTemplateDeactivated } = options || {};
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // DEBUG: Track renders
-  completionRenderCount++;
-  console.log(`[useCompletion] Render #${completionRenderCount}`, { isGenerating });
-
   const [streamingContent, setStreamingContent] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>(EMPTY_IMAGES);
   const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>(EMPTY_TOOL_CALLS);
   const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>(EMPTY_APPROVALS);
   const [awaitingApprovals, setAwaitingApprovals] = useState(false);
-  const [isProcessingApproval, setIsProcessingApproval] = useState(false);
+  const [_isProcessingApproval, setIsProcessingApproval] = useState(false);
 
   // Track current request to prevent stale updates from race conditions
   const currentRequestIdRef = useRef<number>(0);
@@ -133,20 +125,23 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
 
         case "image_generated":
           if (event.image_url) {
+            const imageUrl = event.image_url;
             startTransition(() => {
-              setGeneratedImages((prev) => [...prev, event.image_url!]);
+              setGeneratedImages((prev) => [...prev, imageUrl]);
             });
           }
           break;
 
         case "tool_call_start":
           if (event.tool_id && event.tool_name) {
+            const toolId = event.tool_id;
+            const toolName = event.tool_name;
             startTransition(() => {
               setActiveToolCalls((prev) => [
                 ...prev,
                 {
-                  id: event.tool_id!,
-                  name: event.tool_name!,
+                  id: toolId,
+                  name: toolName,
                   arguments: event.arguments || "{}",
                   status: "running",
                 },
@@ -191,13 +186,16 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
         case "tool_pending_approval":
           // A tool requires approval before execution
           if (event.tool_call_id && event.tool_name) {
+            const toolCallId = event.tool_call_id;
+            const toolName = event.tool_name;
+            const toolArgs = event.arguments || "{}";
             startTransition(() => {
               setPendingApprovals((prev) => [
                 ...prev,
                 {
-                  id: event.tool_call_id!,
-                  toolName: event.tool_name!,
-                  arguments: event.arguments || "{}",
+                  id: toolCallId,
+                  toolName: toolName,
+                  arguments: toolArgs,
                   startedAt: new Date().toISOString(),
                 },
               ]);
@@ -205,9 +203,9 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
               setActiveToolCalls((prev) => [
                 ...prev,
                 {
-                  id: event.tool_call_id!,
-                  name: event.tool_name!,
-                  arguments: event.arguments || "{}",
+                  id: toolCallId,
+                  name: toolName,
+                  arguments: toolArgs,
                   status: "pending_approval",
                 },
               ]);
@@ -256,11 +254,9 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
 
   const runCompletion = useCallback(
     async (chatId: string, options?: CompletionOptions) => {
-      console.log("[useCompletion] runCompletion called for chatId:", chatId);
       // Prevent overlapping completions which can cause render storms
       // during rapid state transitions (e.g., fresh chat message send)
       if (isCompletionInFlightRef.current) {
-        console.warn("[useCompletion] Ignoring runCompletion - already in flight");
         return;
       }
       isCompletionInFlightRef.current = true;
@@ -280,12 +276,8 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
       // CRITICAL: isGenerating is urgent (affects UI immediately), but other resets
       // can be batched via startTransition to prevent render storms during the
       // critical fresh-chat-to-generating transition.
-      console.log("[useCompletion] *** ABOUT TO SET isGenerating = true *** timestamp:", Date.now());
       setIsGenerating(true);
-      console.log("[useCompletion] *** AFTER setIsGenerating(true) *** timestamp:", Date.now());
-      console.log("[useCompletion] Starting transition for other state resets");
       startTransition(() => {
-        console.log("[useCompletion] Inside startTransition - resetting state, timestamp:", Date.now());
         setStreamingContent("");
         setGeneratedImages(EMPTY_IMAGES);
         setActiveToolCalls(EMPTY_TOOL_CALLS);

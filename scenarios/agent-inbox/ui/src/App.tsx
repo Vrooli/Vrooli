@@ -20,14 +20,7 @@ import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
 import type { TemplateWithSource } from "./lib/types/templates";
 
-// DEBUG: Track renders
-let appRenderCount = 0;
-
 function AppContent() {
-  appRenderCount++;
-  const globalSeq = typeof window !== 'undefined' && window.__getNextRenderSeq__ ? window.__getNextRenderSeq__() : 0;
-  console.log(`[AppContent] Render #${appRenderCount} (global seq: ${globalSeq}) START`);
-
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
@@ -58,7 +51,6 @@ function AppContent() {
     templateDeactivateRef.current?.();
   }, []);
 
-  console.log(`[AppContent] BEFORE useChats`);
   const {
     // State
     selectedChatId,
@@ -124,25 +116,16 @@ function AppContent() {
     onChatChange: handleChatChange,
     onTemplateDeactivated: handleTemplateDeactivated,
   });
-  console.log(`[AppContent] AFTER useChats, selectedChatId:`, selectedChatId, "chatData?.chat?.id:", chatData?.chat?.id);
 
   // Track async operations for the selected chat
-  console.log(`[AppContent] BEFORE useAsyncStatus, selectedChatId:`, selectedChatId);
   const {
     operations: asyncOperations,
     cancelOperation: cancelAsyncOperation,
   } = useAsyncStatus(selectedChatId);
-  console.log(`[AppContent] AFTER useAsyncStatus`);
 
   // Template-to-tool linking: manage active template state and tool enablement
-  // DEBUG: Track what chatId is being passed to useTools
-  const toolsChatId = selectedChatId ?? undefined;
-  console.log(`[AppContent] BEFORE useTools, chatId being passed:`, toolsChatId, "selectedChatId:", selectedChatId);
-  const { enableToolsByIds } = useTools({ chatId: toolsChatId });
-  console.log(`[AppContent] AFTER useTools`);
-  console.log(`[AppContent] BEFORE useActiveTemplate`);
+  const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
-  console.log(`[AppContent] AFTER useActiveTemplate`);
 
   // Update the ref so the deactivation callback can use the activeTemplate
   // Guard: Only deactivate if chatData matches selectedChatId to prevent
@@ -384,7 +367,9 @@ function AppContent() {
   const handleOpenFocused = useCallback(() => {
     if (focusedIndex >= 0 && focusedIndex < visibleChats.length) {
       const chat = visibleChats[focusedIndex];
-      handleSelectChat(chat.id);
+      if (chat) {
+        handleSelectChat(chat.id);
+      }
     }
   }, [focusedIndex, visibleChats, handleSelectChat]);
 

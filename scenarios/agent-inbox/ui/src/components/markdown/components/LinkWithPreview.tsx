@@ -13,7 +13,7 @@ interface LinkWithPreviewProps extends ComponentPropsWithoutRef<"a"> {
  * Opens in new tab, shows preview in tooltip on hover.
  */
 export function LinkWithPreview({ href, children, ...props }: LinkWithPreviewProps) {
-  const [hovered, setHovered] = useState(false);
+  const [_hovered, setHovered] = useState(false);
   const { preview, isLoading, fetch } = useLinkPreview(href || "");
 
   const handleMouseEnter = () => {

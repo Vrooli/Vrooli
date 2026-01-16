@@ -63,16 +63,10 @@ export interface UseActiveTemplateReturn {
 // infinite re-render loops when used as a dependency in hooks.
 const EMPTY_TOOL_IDS: string[] = [];
 
-// DEBUG: Track renders
-let activeTemplateRenderCount = 0;
-
 export function useActiveTemplate(
   chatId: string | undefined,
   chat?: Chat
 ): UseActiveTemplateReturn {
-  activeTemplateRenderCount++;
-  console.log(`[useActiveTemplate] Render #${activeTemplateRenderCount}`, { chatId, chatIdFromChat: chat?.id });
-
   const queryClient = useQueryClient();
 
   // Guard: Check if chat data is stale (chatId doesn't match chat.id)

@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useCallback, type ReactNode } from "react";
-import { ChevronRight, ChevronDown, ChevronLeft, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronRight, ChevronDown, FolderOpen, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 // Tree node structure
 export interface TreeNode {
@@ -82,6 +82,7 @@ function buildTree<T extends BaseItem>(items: T[]): TreeNode[] {
 
     for (let i = 0; i < modes.length; i++) {
       const mode = modes[i];
+      if (!mode) continue;
       currentPath = currentPath ? `${currentPath}/${mode}` : mode;
 
       let node = nodeMap.get(currentPath);
@@ -242,7 +243,7 @@ export function ItemTreeSidebar<T extends BaseItem>({
   const treeData = useMemo(() => buildTree(items), [items]);
 
   // Auto-expand nodes that contain the selected item
-  const expandToItem = useCallback(
+  const _expandToItem = useCallback(
     (itemId: string) => {
       const item = items.find((i) => i.id === itemId);
       if (!item?.modes) return;

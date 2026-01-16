@@ -100,7 +100,9 @@ describe("useTools - Optimistic Update Verification", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     // Snapshot before toggle
-    const toolSetBefore = result.current.toolSet!;
+    const toolSetBefore = result.current.toolSet;
+    expect(toolSetBefore).toBeDefined();
+    if (!toolSetBefore) throw new Error("toolSetBefore is undefined");
 
     // Toggle tool2
     act(() => {
@@ -116,7 +118,9 @@ describe("useTools - Optimistic Update Verification", () => {
     });
 
     // Verify only tool2 changed
-    const toolSetAfter = result.current.toolSet!;
+    const toolSetAfter = result.current.toolSet;
+    expect(toolSetAfter).toBeDefined();
+    if (!toolSetAfter) throw new Error("toolSetAfter is undefined");
     const verification = verifyOnlyOneToolChanged(
       toolSetBefore,
       toolSetAfter,
@@ -347,9 +351,10 @@ describe("useTools - toolsByScenario derivation", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     // Initial state - both enabled
-    const scenarioAToolsBefore = result.current.toolsByScenario.get("scenario-a")!;
-    expect(scenarioAToolsBefore[0].enabled).toBe(true);
-    expect(scenarioAToolsBefore[1].enabled).toBe(true);
+    const scenarioAToolsBefore = result.current.toolsByScenario.get("scenario-a");
+    expect(scenarioAToolsBefore).toBeDefined();
+    expect(scenarioAToolsBefore?.[0]?.enabled).toBe(true);
+    expect(scenarioAToolsBefore?.[1]?.enabled).toBe(true);
 
     // Toggle tool1
     await act(async () => {
@@ -363,9 +368,10 @@ describe("useTools - toolsByScenario derivation", () => {
 
     // After optimistic update
     await waitFor(() => {
-      const scenarioAToolsAfter = result.current.toolsByScenario.get("scenario-a")!;
-      expect(scenarioAToolsAfter[0].enabled).toBe(false); // tool1 disabled
-      expect(scenarioAToolsAfter[1].enabled).toBe(true);  // tool2 still enabled
+      const scenarioAToolsAfter = result.current.toolsByScenario.get("scenario-a");
+      expect(scenarioAToolsAfter).toBeDefined();
+      expect(scenarioAToolsAfter?.[0]?.enabled).toBe(false); // tool1 disabled
+      expect(scenarioAToolsAfter?.[1]?.enabled).toBe(true);  // tool2 still enabled
     });
   });
 });

@@ -46,7 +46,7 @@ import {
   updateDefaultSkill as updateDefaultSkillFromAPI,
 } from "../../lib/api";
 import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
-import type { TemplateWithSource, SkillWithSource, Skill, SkillSource } from "../../lib/types/templates";
+import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types/templates";
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
