@@ -1,11 +1,22 @@
 import { useState, useCallback } from 'react';
-import { Mail, Loader2, Check, X, RefreshCw } from 'lucide-react';
+import { Mail, Loader2, Check, X, RefreshCw, Crown, ArrowUpRight } from 'lucide-react';
 import { useEntitlementStore, isValidEmail } from '@stores/entitlementStore';
 import toast from 'react-hot-toast';
 
+// Get landing page URL from environment or use default
+const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://vrooli.com';
+
 export function EmailInputSection() {
-  const { userEmail, setUserEmail, clearUserEmail, isLoading, error } = useEntitlementStore();
+  const { userEmail, setUserEmail, clearUserEmail, isLoading, error, status } = useEntitlementStore();
   const [inputEmail, setInputEmail] = useState(userEmail);
+
+  // Show "Get Subscription" link when status is inactive
+  const showGetSubscription = status?.status === 'inactive' || status?.status === 'canceled';
+
+  // Build checkout URL with email pre-filled
+  const checkoutUrl = userEmail
+    ? `${LANDING_PAGE_URL}/checkout?plan=pro&email=${encodeURIComponent(userEmail)}`
+    : `${LANDING_PAGE_URL}/checkout?plan=pro`;
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -86,6 +97,26 @@ export function EmailInputSection() {
             <X size={14} />
             {displayError}
           </p>
+        )}
+
+        {/* Show inactive status message with Get Subscription link */}
+        {hasStoredEmail && showGetSubscription && !displayError && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 border border-gray-700">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <X size={14} className="text-gray-500" />
+              <span>No active subscription found for this email.</span>
+            </div>
+            <a
+              href={checkoutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              <Crown size={14} />
+              Get Subscription
+              <ArrowUpRight size={12} />
+            </a>
+          </div>
         )}
 
         <div className="flex items-center gap-3">

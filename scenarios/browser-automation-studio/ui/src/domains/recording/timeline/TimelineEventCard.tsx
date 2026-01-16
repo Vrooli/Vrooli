@@ -155,6 +155,40 @@ function getActionIcon(actionType: string) {
           />
         </svg>
       );
+    // Page event icons
+    case 'page_created':
+      return (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+          />
+        </svg>
+      );
+    case 'page_navigated':
+      return (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      );
+    case 'page_closed':
+      return (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      );
     default:
       return (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -171,8 +205,18 @@ function getActionIcon(actionType: string) {
 
 /** Format action type for display */
 function formatActionType(actionType: string): string {
-  // Capitalize first letter
-  return actionType.charAt(0).toUpperCase() + actionType.slice(1);
+  // Handle page event types with friendly labels
+  switch (actionType) {
+    case 'page_created':
+      return 'Tab opened';
+    case 'page_navigated':
+      return 'Tab navigated';
+    case 'page_closed':
+      return 'Tab closed';
+    default:
+      // Capitalize first letter for action types
+      return actionType.charAt(0).toUpperCase() + actionType.slice(1);
+  }
 }
 
 /** Get status indicator */
@@ -318,11 +362,14 @@ export function TimelineEventCard({
   const isCompleted = execStatus === 'completed' || item.success === true;
   const isFailed = execStatus === 'failed' || item.success === false;
 
+  // Check if this is a page event (informational only, non-selectable)
+  const isPageEvent = item.entryType === 'page_event';
+
   return (
     <div
       className={`py-2 px-3 transition-colors border-b border-gray-200 dark:border-gray-700 ${
         isExpanded ? 'bg-gray-50 dark:bg-gray-800/50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-      } ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-l-blue-500' : ''} ${
+      } ${isSelected && !isPageEvent ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-l-blue-500' : ''} ${
         isFailed ? 'border-l-2 border-l-red-400' : ''
       } ${
         isRunning ? 'bg-blue-50/50 dark:bg-blue-900/20 border-l-4 border-l-blue-500 animate-pulse' : ''
@@ -330,6 +377,8 @@ export function TimelineEventCard({
         isPending && !isRunning ? 'opacity-60' : ''
       } ${
         isCompleted ? 'border-l-2 border-l-green-500' : ''
+      } ${
+        isPageEvent ? 'bg-gray-50/50 dark:bg-gray-800/30 border-l-2 border-l-gray-300 dark:border-l-gray-600' : ''
       }`}
     >
       {/* Card header */}
@@ -345,8 +394,8 @@ export function TimelineEventCard({
           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${pageColor}`} />
         )}
 
-        {/* Checkbox (selection mode) or Index */}
-        {isSelectionMode ? (
+        {/* Checkbox (selection mode) or Index - page events are not selectable */}
+        {isSelectionMode && !isPageEvent ? (
           <label
             className="flex-shrink-0 flex items-center justify-center w-6 h-6"
             onClick={(e) => e.stopPropagation()}
@@ -359,8 +408,12 @@ export function TimelineEventCard({
             />
           </label>
         ) : (
-          <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-xs font-mono text-gray-400 bg-gray-100 dark:bg-gray-800 rounded">
-            {index + 1}
+          <span className={`flex-shrink-0 w-6 h-6 flex items-center justify-center text-xs font-mono ${
+            isPageEvent
+              ? 'text-gray-300 dark:text-gray-600'
+              : 'text-gray-400 bg-gray-100 dark:bg-gray-800'
+          } rounded`}>
+            {isPageEvent ? '•' : index + 1}
           </span>
         )}
 
@@ -370,11 +423,18 @@ export function TimelineEventCard({
         </span>
 
         {/* Label */}
-        <span className="flex-1 text-sm leading-snug break-words">
+        <span className={`flex-1 text-sm leading-snug break-words ${isPageEvent ? 'text-gray-500 dark:text-gray-400 italic' : ''}`}>
           {formatActionType(item.actionType)}
-          {item.selector && (
+          {/* Show selector for actions */}
+          {item.selector && !isPageEvent && (
             <span className="ml-1 text-gray-500 dark:text-gray-400 font-mono text-xs truncate max-w-[200px] inline-block align-middle">
               {item.selector.length > 30 ? `${item.selector.slice(0, 30)}...` : item.selector}
+            </span>
+          )}
+          {/* Show URL for page events */}
+          {isPageEvent && item.url && (
+            <span className="ml-1 text-gray-400 dark:text-gray-500 font-mono text-xs truncate max-w-[200px] inline-block align-middle">
+              {item.url.length > 40 ? `${item.url.slice(0, 40)}...` : item.url}
             </span>
           )}
         </span>
@@ -390,8 +450,8 @@ export function TimelineEventCard({
           <span className="flex-shrink-0 text-xs text-gray-400 font-mono">{item.durationMs}ms</span>
         )}
 
-        {/* Delete button */}
-        {onDelete && (
+        {/* Delete button - not shown for page events (informational only) */}
+        {onDelete && !isPageEvent && (
           <button
             onClick={handleDeleteClick}
             className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors"

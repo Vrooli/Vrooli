@@ -3,7 +3,7 @@ import { useEntitlementStore, TIER_CONFIG } from '@stores/entitlementStore';
 import type { SubscriptionTier } from '@stores/entitlementStore';
 
 // Get landing page URL from environment or use default
-const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://browser-automation-studio.com';
+const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://vrooli.com';
 
 interface TierComparisonItem {
   tier: SubscriptionTier;
@@ -45,14 +45,17 @@ export function UpgradePromptSection() {
     return null;
   }
 
-  // Build upgrade URL with email pre-filled
-  const upgradeUrl = userEmail
-    ? `${LANDING_PAGE_URL}/pricing?email=${encodeURIComponent(userEmail)}`
-    : `${LANDING_PAGE_URL}/pricing`;
-
-  // Get tiers to show (tiers higher than current)
+  // Determine recommended upgrade tier (Pro by default, or next tier up)
   const tierOrder: SubscriptionTier[] = ['free', 'solo', 'pro', 'studio', 'business'];
   const currentIndex = tierOrder.indexOf(currentTier);
+  const recommendedTier = currentIndex < 2 ? 'pro' : tierOrder[Math.min(currentIndex + 1, tierOrder.length - 1)];
+
+  // Build upgrade URL with plan and email pre-filled
+  const upgradeUrl = userEmail
+    ? `${LANDING_PAGE_URL}/checkout?plan=${recommendedTier}&email=${encodeURIComponent(userEmail)}`
+    : `${LANDING_PAGE_URL}/checkout?plan=${recommendedTier}`;
+
+  // Get tiers to show (tiers higher than current)
   const availableUpgrades = TIER_COMPARISON.filter((item) => {
     const itemIndex = tierOrder.indexOf(item.tier);
     return itemIndex > currentIndex;

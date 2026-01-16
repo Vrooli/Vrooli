@@ -337,6 +337,16 @@ export default defineConfig({
         resolve: { alias: ALIASES },
         test: {
           ...PROJECT_BASE_TEST_CONFIG,
+          name: 'subscription',
+          include: ['src/views/SettingsView/sections/subscription/**/*.test.{ts,tsx}'],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
           name: 'components',
           include: ['src/components/**/*.test.{ts,tsx}'],
           pool: 'threads',

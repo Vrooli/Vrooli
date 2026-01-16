@@ -30,6 +30,8 @@ import (
 )
 
 const OverrideTierSettingKey = "entitlement_override_tier"
+const ApiSourceSettingKey = "entitlement_api_source"
+const LocalApiPortSettingKey = "entitlement_local_api_port"
 
 // Tier represents a subscription tier with its capabilities.
 type Tier string

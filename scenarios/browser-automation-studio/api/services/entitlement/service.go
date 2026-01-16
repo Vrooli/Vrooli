@@ -27,6 +27,11 @@ type Service struct {
 	// Offline tracking
 	lastSuccessfulFetch time.Time
 	offlineMu           sync.RWMutex
+
+	// API source override (for dev mode)
+	apiSourceMu sync.RWMutex
+	apiSource   string // "production", "local", or "disabled"
+	localPort   int    // Port for local LPBS API
 }
 
 // NewService creates a new entitlement service.
@@ -39,7 +44,34 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 		},
 		cache:               make(map[string]*Entitlement),
 		lastSuccessfulFetch: time.Now(), // Assume online at startup
+		apiSource:           "production",
+		localPort:           15000, // Default LPBS API port range start
 	}
+}
+
+// SetApiSource sets the API source for entitlement verification.
+// source can be "production", "local", or "disabled".
+// localPort is the port for local LPBS API (used when source is "local").
+func (s *Service) SetApiSource(source string, localPort int) {
+	s.apiSourceMu.Lock()
+	defer s.apiSourceMu.Unlock()
+
+	s.apiSource = source
+	if localPort > 0 {
+		s.localPort = localPort
+	}
+
+	// Clear cache when switching sources to get fresh data
+	s.cacheMu.Lock()
+	s.cache = make(map[string]*Entitlement)
+	s.cacheMu.Unlock()
+}
+
+// GetApiSource returns the current API source configuration.
+func (s *Service) GetApiSource() (source string, localPort int) {
+	s.apiSourceMu.RLock()
+	defer s.apiSourceMu.RUnlock()
+	return s.apiSource, s.localPort
 }
 
 // GetEntitlement retrieves the entitlement for a user, using cache when available.
@@ -174,12 +206,32 @@ func (s *Service) BuildOverrideEntitlement(userIdentity string, tier Tier) *Enti
 
 // fetchEntitlement calls the remote entitlement service.
 func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*Entitlement, error) {
-	if s.cfg.ServiceURL == "" {
-		return nil, fmt.Errorf("entitlement service URL not configured")
+	// Get current API source
+	s.apiSourceMu.RLock()
+	apiSource := s.apiSource
+	localPort := s.localPort
+	s.apiSourceMu.RUnlock()
+
+	// If disabled, return nil to use default tier
+	if apiSource == "disabled" {
+		return nil, fmt.Errorf("API source is disabled")
+	}
+
+	// Determine the service URL based on api source
+	var serviceURL string
+	if apiSource == "local" {
+		serviceURL = fmt.Sprintf("http://localhost:%d", localPort)
+	} else {
+		// Production: use configured service URL
+		serviceURL = s.cfg.ServiceURL
+		if serviceURL == "" {
+			// Default to vrooli.com for production
+			serviceURL = "https://vrooli.com"
+		}
 	}
 
 	// Build request URL
-	reqURL, err := url.Parse(s.cfg.ServiceURL)
+	reqURL, err := url.Parse(serviceURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid service URL: %w", err)
 	}

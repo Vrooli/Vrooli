@@ -12,12 +12,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useWebSocket, type WebSocketMessage } from '@/contexts/WebSocketContext';
 import type { RecordedAction } from '../types/types';
-import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus } from '../types/timeline-unified';
+import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus, UseTimelineEntry } from '../types/timeline-unified';
 import {
   recordedActionToTimelineItem,
   timelineEntryToRecordedAction,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
+  useTimelineEntryToTimelineItem,
 } from '../types/timeline-unified';
 import { mergeConsecutiveActions } from '../utils/mergeActions';
 
@@ -40,8 +41,10 @@ export interface UseUnifiedTimelineOptions {
   mode: TimelineMode;
   /** Execution ID for execution mode */
   executionId?: string | null;
-  /** Optional: Pre-existing recorded actions (for recording mode) */
+  /** Optional: Pre-existing recorded actions (for recording mode) - legacy fallback */
   initialActions?: RecordedAction[];
+  /** Optional: Timeline entries from useTimeline hook (preferred for recording mode) */
+  initialTimelineEntries?: UseTimelineEntry[];
   /** Optional: Workflow nodes for pre-populating timeline in execution mode */
   workflowNodes?: WorkflowNode[];
   /** Optional: Workflow edges for pre-populating timeline in execution mode */
@@ -85,6 +88,7 @@ export function useUnifiedTimeline({
   mode,
   executionId,
   initialActions = [],
+  initialTimelineEntries,
   workflowNodes,
   workflowEdges,
   onItemsReceived,
@@ -116,14 +120,54 @@ export function useUnifiedTimeline({
     prevModeRef.current = mode;
   }, [mode]);
 
-  // Update items when initialActions change (recording mode)
+  // Update items when timeline entries or actions change (recording mode)
+  // Prefer timeline entries (from useTimeline) over actions (from useRecordMode)
   useEffect(() => {
     if (mode === 'recording') {
-      const newItems = mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action));
-      setItems(newItems);
+      if (initialTimelineEntries && initialTimelineEntries.length > 0) {
+        // Preferred path: use timeline entries from useTimeline
+        // Separate actions and page events
+        const actionEntries = initialTimelineEntries.filter(e => e.type === 'action' && e.action);
+        const pageEventEntries = initialTimelineEntries.filter(e => e.type === 'page_event');
+
+        // Convert action entries to RecordedActions for merging
+        const actionsForMerging: RecordedAction[] = actionEntries.map(e => ({
+          id: e.action!.id,
+          sessionId: '',
+          sequenceNum: e.action!.sequenceNum,
+          timestamp: e.action!.timestamp,
+          actionType: e.action!.actionType as RecordedAction['actionType'],
+          url: e.action!.url ?? '',
+          selector: e.action!.selector ? { primary: e.action!.selector.primary, candidates: [] } : undefined,
+          payload: e.action!.payload,
+          confidence: e.action!.confidence,
+          pageId: e.pageId,
+          pageTitle: e.action!.pageTitle,
+        }));
+
+        // Merge consecutive actions (typing) for readability
+        const mergedActionRecords = mergeConsecutiveActions(actionsForMerging);
+        const actionItems = mergedActionRecords.map(action => recordedActionToTimelineItem(action));
+
+        // Convert page events (no merging needed)
+        const pageEventItems = pageEventEntries.map(useTimelineEntryToTimelineItem);
+
+        // Combine and sort by timestamp
+        const allItems = [...actionItems, ...pageEventItems].sort(
+          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
+        );
+        setItems(allItems);
+      } else if (initialActions.length > 0) {
+        // Fallback: use legacy actions from useRecordMode
+        const newItems = mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action));
+        setItems(newItems);
+      } else {
+        // No data - clear items
+        setItems([]);
+      }
       prePopulatedWorkflowRef.current = null; // Reset when switching to recording
     }
-  }, [mode, initialActions]);
+  }, [mode, initialActions, initialTimelineEntries]);
 
   // Pre-populate timeline with workflow steps when entering execution mode
   useEffect(() => {

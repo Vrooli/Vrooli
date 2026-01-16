@@ -41,13 +41,13 @@ import type { InsertedAction } from './InsertNodeModal';
 import { useActionSelection } from './hooks/useActionSelection';
 import { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
 import { usePages } from './hooks/usePages';
+import { useTimeline } from './hooks/useTimeline';
 import { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
 import { PreviewSettingsPanel } from '@/domains/preview-settings';
 import { ViewportProvider } from './context';
 import { mergeConsecutiveActions } from './utils/mergeActions';
-import { recordedActionToTimelineItem } from './types/timeline-unified';
 import { getConfig } from '@/config';
 import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
@@ -369,13 +369,7 @@ export function RecordModePage({
     isReplaying,
     lowConfidenceCount,
     mediumConfidenceCount,
-  } = useRecordMode({
-    sessionId,
-    pollInterval: 500, // Poll every 500ms for faster feedback
-    onActionsReceived: (newActions) => {
-      console.log('New actions received:', newActions.length);
-    },
-  });
+  } = useRecordMode({ sessionId });
 
   // Handle Execute button click - opens workflow picker with optional confirmation
   const handleExecuteClick = useCallback(async () => {
@@ -510,22 +504,6 @@ export function RecordModePage({
     fetchWorkflowDefinition();
   }, [selectedWorkflowId, mode]);
 
-  // Unified timeline for both recording and execution modes
-  // TODO: Use clearTimelineItems, getRecordedActions, and timelineStats when fully integrated
-  const {
-    items: timelineItems,
-    isLive: isTimelineLive,
-    clearItems: _clearTimelineItems,
-    getRecordedActions: _getRecordedActions,
-    stats: _timelineStats,
-  } = useUnifiedTimeline({
-    mode,
-    executionId,
-    initialActions: actions,
-    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
-    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
-  });
-
   // Page tracking for multi-tab recording
   const [recentActivityPageId, setRecentActivityPageId] = useState<string | null>(null);
   const {
@@ -579,15 +557,42 @@ export function RecordModePage({
     },
   });
 
+  // Unified timeline data source for recording mode
+  // Fetches from /timeline endpoint which includes both actions AND page events
+  const {
+    entries: timelineEntries,
+    // isLoading and error are handled by useTimeline internally
+  } = useTimeline({
+    sessionId,
+    pages: openPages,
+  });
+
+  // Unified timeline for both recording and execution modes
+  // Uses timeline entries (preferred) or falls back to actions
+  const {
+    items: timelineItems,
+    isLive: isTimelineLive,
+  } = useUnifiedTimeline({
+    mode,
+    executionId,
+    initialActions: actions,
+    initialTimelineEntries: mode === 'recording' ? timelineEntries : undefined,
+    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
+    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
+  });
+
   const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
 
+  // Merge timeline items with AI steps for the final display
   const mergedTimelineItems = useMemo(() => {
     if (mode !== 'recording') return timelineItems;
     // If we have AI steps, merge them with the recorded actions
+    // Note: timelineItems already includes page events from useUnifiedTimeline
     if (aiSteps.length > 0) {
       return mergeActionsWithAISteps(mergedActions, aiSteps);
     }
-    return mergedActions.map((action) => recordedActionToTimelineItem(action));
+    // Use timeline items directly (already processed by useUnifiedTimeline)
+    return timelineItems;
   }, [mergedActions, mode, timelineItems, aiSteps]);
 
   // Page color palette for visual distinction in multi-tab recording
@@ -655,9 +660,10 @@ export function RecordModePage({
   );
 
   // Use unified timeline items count for selection
+  // Note: In recording mode, use mergedTimelineItems which may include page events
   const timelineItemCount = useMemo(() => {
-    return mode === 'recording' ? mergedActions.length : timelineItems.length;
-  }, [mergedActions.length, mode, timelineItems.length]);
+    return mode === 'recording' ? mergedTimelineItems.length : timelineItems.length;
+  }, [mergedTimelineItems.length, mode, timelineItems.length]);
 
   // Selection state for multi-step workflow creation
   const {
@@ -670,6 +676,32 @@ export function RecordModePage({
     selectNone,
     exitSelectionMode,
   } = useActionSelection({ actionCount: timelineItemCount });
+
+  // Filter selected indices to exclude page events and map to action indices
+  // This is needed because mergedTimelineItems includes page events but workflows
+  // should only contain actions
+  const selectedActionIndices = useMemo(() => {
+    if (mode !== 'recording') return selectedIndicesArray;
+
+    const actionIndices: number[] = [];
+    let actionCounter = 0;
+
+    for (let i = 0; i < mergedTimelineItems.length; i++) {
+      const item = mergedTimelineItems[i];
+      const isPageEvent = item.entryType === 'page_event';
+
+      if (!isPageEvent) {
+        // This is an action - check if it's selected
+        if (selectedIndices.has(i)) {
+          actionIndices.push(actionCounter);
+        }
+        actionCounter++;
+      }
+      // Page events are skipped (not added to actionIndices)
+    }
+
+    return actionIndices;
+  }, [mode, selectedIndicesArray, selectedIndices, mergedTimelineItems]);
 
   const lastActionUrl = actions.length > 0 ? actions[actions.length - 1]?.url ?? '' : '';
 
@@ -1269,7 +1301,7 @@ export function RecordModePage({
           {rightPanelView === 'create-workflow' && (
             <WorkflowCreationForm
               actions={actions}
-              selectedIndices={selectedIndicesArray}
+              selectedIndices={selectedActionIndices}
               sessionProfiles={sessionProfiles.profiles}
               sessionProfilesLoading={sessionProfiles.loading}
               isReplaying={isReplaying}

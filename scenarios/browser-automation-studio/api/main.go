@@ -582,6 +582,9 @@ func main() {
 		r.Get("/entitlement/override", entitlementHandler.GetEntitlementOverride)
 		r.Post("/entitlement/override", entitlementHandler.SetEntitlementOverride)
 		r.Delete("/entitlement/override", entitlementHandler.ClearEntitlementOverride)
+		r.Get("/entitlement/api-source", entitlementHandler.GetApiSource)
+		r.Post("/entitlement/api-source", entitlementHandler.SetApiSource)
+		r.Delete("/entitlement/api-source", entitlementHandler.ClearApiSource)
 
 		// UX metrics routes (Pro tier and above)
 		r.Get("/executions/{id}/ux-metrics", uxHandler.GetExecutionMetrics)

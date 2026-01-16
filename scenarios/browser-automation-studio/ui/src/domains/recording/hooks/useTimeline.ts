@@ -141,10 +141,11 @@ export function useTimeline({
   const [totalEntries, setTotalEntries] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
-  const { lastMessage } = useWebSocket();
+  const { lastMessage, send, isConnected } = useWebSocket();
   const apiUrl = getApiBase();
   const onEntryReceivedRef = useRef(onEntryReceived);
   onEntryReceivedRef.current = onEntryReceived;
+  const subscribedSessionRef = useRef<string | null>(null);
 
   // Assign colors to pages based on creation order
   const pageColorMap = useMemo(() => {
@@ -201,6 +202,33 @@ export function useTimeline({
       setHasMore(false);
     }
   }, [sessionId, refreshTimeline]);
+
+  // Subscribe to recording session for real-time timeline updates
+  useEffect(() => {
+    if (!isConnected || !sessionId) {
+      return;
+    }
+
+    // Unsubscribe from previous session if different
+    if (subscribedSessionRef.current && subscribedSessionRef.current !== sessionId) {
+      send({ type: 'unsubscribe_recording', session_id: subscribedSessionRef.current });
+      subscribedSessionRef.current = null;
+    }
+
+    // Subscribe to new session
+    if (subscribedSessionRef.current !== sessionId) {
+      send({ type: 'subscribe_recording', session_id: sessionId });
+      subscribedSessionRef.current = sessionId;
+    }
+
+    // Cleanup: unsubscribe when unmounting or sessionId changes
+    return () => {
+      if (subscribedSessionRef.current) {
+        send({ type: 'unsubscribe_recording', session_id: subscribedSessionRef.current });
+        subscribedSessionRef.current = null;
+      }
+    };
+  }, [isConnected, sessionId, send]);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {

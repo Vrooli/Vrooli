@@ -496,6 +496,128 @@ func (h *EntitlementHandler) ClearEntitlementOverride(w http.ResponseWriter, r *
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ApiSourceResponse represents the API source configuration response.
+type ApiSourceResponse struct {
+	Source    string `json:"source"`     // "production", "local", or "disabled"
+	LocalPort int    `json:"local_port"` // Port for local LPBS API
+}
+
+// GetApiSource handles GET /api/v1/entitlement/api-source
+// Returns the current API source configuration.
+func (h *EntitlementHandler) GetApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	source := "production" // Default
+	localPort := 15000     // Default LPBS API port range start
+
+	if h.settingsRepo != nil {
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.ApiSourceSettingKey); err == nil && saved != "" {
+			source = saved
+		}
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.LocalApiPortSettingKey); err == nil && saved != "" {
+			if port, err := strconv.Atoi(saved); err == nil && port > 0 {
+				localPort = port
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ApiSourceResponse{
+		Source:    source,
+		LocalPort: localPort,
+	})
+}
+
+// SetApiSourceRequest represents the request to set API source.
+type SetApiSourceRequest struct {
+	Source    string `json:"source"`
+	LocalPort int    `json:"local_port,omitempty"`
+}
+
+// SetApiSource handles POST /api/v1/entitlement/api-source
+// Sets the API source for entitlement verification.
+func (h *EntitlementHandler) SetApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if h.settingsRepo == nil {
+		http.Error(w, `{"error":{"code":"SETTINGS_UNAVAILABLE","message":"Settings storage unavailable"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	var req SetApiSourceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":{"code":"INVALID_REQUEST","message":"Invalid JSON body"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Validate source
+	source := strings.TrimSpace(strings.ToLower(req.Source))
+	if source != "production" && source != "local" && source != "disabled" {
+		http.Error(w, `{"error":{"code":"INVALID_SOURCE","message":"Source must be 'production', 'local', or 'disabled'"}}`, http.StatusBadRequest)
+		return
+	}
+
+	// Save source
+	if err := h.settingsRepo.SetSetting(ctx, entitlement.ApiSourceSettingKey, source); err != nil {
+		http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to save API source"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Save local port if provided
+	if req.LocalPort > 0 {
+		if err := h.settingsRepo.SetSetting(ctx, entitlement.LocalApiPortSettingKey, strconv.Itoa(req.LocalPort)); err != nil {
+			http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to save local API port"}}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Update the entitlement service with the new source
+	h.service.SetApiSource(source, req.LocalPort)
+
+	// Get current local port for response
+	localPort := req.LocalPort
+	if localPort == 0 {
+		if saved, err := h.settingsRepo.GetSetting(ctx, entitlement.LocalApiPortSettingKey); err == nil && saved != "" {
+			if port, err := strconv.Atoi(saved); err == nil && port > 0 {
+				localPort = port
+			}
+		}
+		if localPort == 0 {
+			localPort = 15000
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ApiSourceResponse{
+		Source:    source,
+		LocalPort: localPort,
+	})
+}
+
+// ClearApiSource handles DELETE /api/v1/entitlement/api-source
+// Resets API source to production default.
+func (h *EntitlementHandler) ClearApiSource(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), constants.DefaultRequestTimeout)
+	defer cancel()
+
+	if h.settingsRepo == nil {
+		http.Error(w, `{"error":{"code":"SETTINGS_UNAVAILABLE","message":"Settings storage unavailable"}}`, http.StatusServiceUnavailable)
+		return
+	}
+
+	if err := h.settingsRepo.SetSetting(ctx, entitlement.ApiSourceSettingKey, "production"); err != nil {
+		http.Error(w, `{"error":{"code":"SAVE_FAILED","message":"Failed to reset API source"}}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Update the entitlement service
+	h.service.SetApiSource("production", 0)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *EntitlementHandler) getOverrideTier(ctx context.Context) entitlement.Tier {
 	if h.settingsRepo == nil {
 		return ""

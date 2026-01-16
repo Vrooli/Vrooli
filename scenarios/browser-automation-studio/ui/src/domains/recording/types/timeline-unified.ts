@@ -188,6 +188,88 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
   };
 }
 
+/**
+ * TimelineEntry type from useTimeline hook.
+ * Re-declared here to avoid circular imports.
+ */
+export interface UseTimelineEntry {
+  id: string;
+  type: 'action' | 'page_event';
+  timestamp: string;
+  pageId: string;
+  action?: {
+    id: string;
+    actionType: string;
+    url?: string;
+    sequenceNum: number;
+    timestamp: string;
+    selector?: { primary: string };
+    payload?: Record<string, unknown>;
+    confidence: number;
+    pageTitle?: string;
+  };
+  pageEvent?: {
+    id: string;
+    type: 'page_created' | 'page_navigated' | 'page_closed';
+    pageId: string;
+    url?: string;
+    title?: string;
+    openerId?: string;
+    timestamp: string;
+  };
+}
+
+/**
+ * Convert a useTimeline TimelineEntry to a TimelineItem.
+ * Handles both action entries and page event entries.
+ * This is for entries from the /timeline API endpoint (useTimeline hook).
+ */
+export function useTimelineEntryToTimelineItem(
+  entry: UseTimelineEntry,
+): TimelineItem {
+  // Handle page events
+  if (entry.type === 'page_event' && entry.pageEvent) {
+    return {
+      id: entry.id,
+      sequenceNum: 0, // Page events don't have sequence numbers
+      timestamp: new Date(entry.timestamp),
+      actionType: entry.pageEvent.type, // page_created, page_navigated, page_closed
+      mode: 'recording',
+      pageId: entry.pageId,
+      entryType: 'page_event',
+      pageEventType: entry.pageEvent.type,
+      url: entry.pageEvent.url,
+      pageTitle: entry.pageEvent.title,
+    };
+  }
+
+  // Handle action entries
+  if (entry.action) {
+    return {
+      id: entry.action.id,
+      sequenceNum: entry.action.sequenceNum,
+      timestamp: new Date(entry.action.timestamp),
+      actionType: entry.action.actionType,
+      selector: entry.action.selector?.primary,
+      url: entry.action.url,
+      success: true, // Recording actions are successful captures
+      mode: 'recording',
+      pageId: entry.pageId,
+      entryType: 'action',
+      pageTitle: entry.action.pageTitle,
+    };
+  }
+
+  // Fallback for malformed entries
+  return {
+    id: entry.id,
+    sequenceNum: 0,
+    timestamp: new Date(entry.timestamp),
+    actionType: 'unknown',
+    mode: 'recording',
+    entryType: 'action',
+  };
+}
 
 /**
  * Convert ActionType enum to display string.

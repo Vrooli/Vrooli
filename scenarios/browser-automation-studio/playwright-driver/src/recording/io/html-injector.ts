@@ -203,10 +203,15 @@ async function handleRouteForInjection(
   }
 
   try {
-    // IMPORTANT: Don't follow redirects! If we follow redirects, the browser's URL
-    // won't match the final content URL. JavaScript checking location.href would see
-    // the original URL, not the redirect destination, which can cause redirect loops.
-    // Let the browser handle redirects naturally - we'll inject on the final destination.
+    // Follow redirects to get the final content. With rebrowser-playwright, if we
+    // return a 3xx response via route.fulfill(), the browser follows the redirect
+    // but the new request does NOT go through our route handler again (anti-detection).
+    // By following redirects ourselves, we ensure we can inject into the final HTML.
+    //
+    // Note: The browser's URL bar will show the original URL (e.g., wikipedia.com)
+    // not the redirect destination (e.g., www.wikipedia.org). JavaScript on the page
+    // checking location.href will see the original URL. This is generally acceptable
+    // for recording purposes.
 
     // Step 1: Log before fetch
     logger.info(scopedLog(LogContext.INJECTION, 'fetching document for injection'), {
@@ -215,7 +220,7 @@ async function handleRouteForInjection(
     });
 
     const response = await route.fetch({
-      maxRedirects: 0,
+      maxRedirects: 10, // Follow redirects to get final content
       timeout: 30000, // 30s timeout to prevent hanging
     });
 

@@ -1,8 +1,11 @@
-import { CheckCircle, Clock, AlertTriangle, XCircle, CloudOff, RefreshCw, Loader2, type LucideIcon } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, XCircle, CloudOff, RefreshCw, Loader2, Crown, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import { useEntitlementStore, STATUS_CONFIG, TIER_CONFIG } from '@stores/entitlementStore';
 import type { SubscriptionStatus } from '@stores/entitlementStore';
 import { TierBadge } from '@shared/ui';
 import { formatDistanceToNow } from 'date-fns';
+
+// Get landing page URL from environment or use default
+const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://vrooli.com';
 
 const STATUS_ICONS: Record<'check' | 'clock' | 'alert' | 'x', LucideIcon> = {
   check: CheckCircle,
@@ -12,7 +15,7 @@ const STATUS_ICONS: Record<'check' | 'clock' | 'alert' | 'x', LucideIcon> = {
 };
 
 export function SubscriptionStatusCard() {
-  const { status, isLoading, isOffline, lastFetched, refreshEntitlement } = useEntitlementStore();
+  const { status, isLoading, isOffline, lastFetched, refreshEntitlement, userEmail } = useEntitlementStore();
 
   if (!status) {
     return (
@@ -28,6 +31,14 @@ export function SubscriptionStatusCard() {
   const statusConfig = STATUS_CONFIG[status.status as SubscriptionStatus] || STATUS_CONFIG.inactive;
   const StatusIcon = STATUS_ICONS[statusConfig.icon];
   const tierConfig = TIER_CONFIG[status.tier];
+
+  // Build checkout URL for inactive users
+  const checkoutUrl = userEmail
+    ? `${LANDING_PAGE_URL}/checkout?plan=pro&email=${encodeURIComponent(userEmail)}`
+    : `${LANDING_PAGE_URL}/checkout?plan=pro`;
+
+  // Show "Get Subscription" for inactive/canceled statuses
+  const showGetSubscription = status.status === 'inactive' || status.status === 'canceled';
 
   return (
     <div className={`rounded-xl border ${tierConfig.borderColor} ${tierConfig.bgColor} p-6`}>
@@ -81,6 +92,28 @@ export function SubscriptionStatusCard() {
           <p className="text-xs text-gray-500">
             Last updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
           </p>
+        </div>
+      )}
+
+      {/* Get Subscription CTA for inactive users */}
+      {showGetSubscription && (
+        <div className="mt-4 pt-4 border-t border-gray-700/50">
+          <a
+            href={checkoutUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="
+              flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg
+              bg-gradient-to-r from-purple-600 to-blue-600
+              hover:from-purple-500 hover:to-blue-500
+              text-white font-medium
+              transition-all shadow-lg hover:shadow-purple-500/25
+            "
+          >
+            <Crown size={18} />
+            Get Subscription
+            <ArrowUpRight size={16} />
+          </a>
         </div>
       )}
     </div>

@@ -3,8 +3,11 @@
  *
  * Manages recording state and API interactions for Record Mode.
  * Responsibilities are split into two layers:
- * - Transport: API/WebSocket/polling + recording lifecycle
+ * - Transport: API calls for recording lifecycle (start/stop/generate/validate/replay)
  * - Editing: local action mutations and confidence bookkeeping
+ *
+ * Note: Timeline data (actions + page events) is now managed by useTimeline hook.
+ * This hook focuses on recording lifecycle and action editing.
  */
 
 import {
@@ -17,12 +20,9 @@ import {
   type SetStateAction,
 } from 'react';
 import { getApiBase } from '@/config';
-import { useWebSocket } from '@/contexts/WebSocketContext';
 import type {
   RecordedAction,
-  StartRecordingResponse,
   StopRecordingResponse,
-  GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
   SelectorSet,
@@ -32,9 +32,6 @@ import type { WorkflowSettingsTyped } from '@/types/workflow';
 
 interface UseRecordModeOptions {
   sessionId: string | null;
-  pollInterval?: number;
-  onActionsReceived?: (actions: RecordedAction[]) => void;
-  useWebSocketUpdates?: boolean;
 }
 
 /** Minimal action data for inserting a new step */
@@ -59,7 +56,6 @@ interface UseRecordModeReturn {
   updatePayload: (index: number, payload: Record<string, unknown>) => void;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
-  refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
   isReplaying: boolean;
   lowConfidenceCount: number;
@@ -89,15 +85,11 @@ interface UseRecordingTransportReturn {
   stopRecording: () => Promise<void>;
   generateWorkflow: (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped) => Promise<GenerateWorkflowResponse>;
   validateSelector: (selector: string) => Promise<SelectorValidation>;
-  refreshActions: () => Promise<void>;
   replayPreview: (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]) => Promise<ReplayPreviewResponse>;
 }
 
 function useRecordingTransport({
   sessionId,
-  pollInterval,
-  onActionsReceived,
-  useWebSocketUpdates,
   apiUrl,
 }: UseRecordingTransportOptions): UseRecordingTransportReturn {
   const [isRecording, setIsRecording] = useState(false);
@@ -109,124 +101,13 @@ function useRecordingTransport({
 
   const sessionIdRef = useRef<string | null>(sessionId ?? null);
   sessionIdRef.current = sessionId ?? null;
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastActionCountRef = useRef(0);
-  const wsSubscribedRef = useRef(false);
-
-  const { isConnected, lastMessage, send } = useWebSocket();
-
-  const setActionsWithSync = useCallback<ActionSetter>(
-    (next) => {
-      setActions((prev) => {
-        const resolved = typeof next === 'function' ? (next as (p: RecordedAction[]) => RecordedAction[])(prev) : next;
-        lastActionCountRef.current = resolved.length;
-        return resolved;
-      });
-    },
-    []
-  );
 
   useEffect(() => {
-    setActionsWithSync([]);
+    setActions([]);
     setRecordingId(null);
     setIsRecording(false);
     setError(null);
-  }, [sessionId, setActionsWithSync]);
-
-  const refreshActions = useCallback(async () => {
-    const currentSessionId = sessionIdRef.current;
-    if (!currentSessionId) return;
-
-    try {
-      const previousCount = lastActionCountRef.current;
-      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/actions`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch actions: ${response.statusText}`);
-      }
-
-      const data: GetActionsResponse = await response.json();
-      const actionsFromApi = Array.isArray(data.actions) ? data.actions : [];
-      setActionsWithSync(actionsFromApi);
-
-      if (actionsFromApi.length > previousCount && onActionsReceived) {
-        const newActions = actionsFromApi.slice(previousCount);
-        onActionsReceived(newActions);
-      }
-    } catch (err) {
-      console.error('Failed to refresh actions:', err);
-    }
-  }, [apiUrl, onActionsReceived, setActionsWithSync]);
-
-  useEffect(() => {
-    const currentSessionId = sessionIdRef.current;
-    if (isRecording && useWebSocketUpdates && isConnected && currentSessionId && !wsSubscribedRef.current) {
-      send({ type: 'subscribe_recording', session_id: currentSessionId });
-      wsSubscribedRef.current = true;
-      console.log('[useRecordMode] Subscribed to recording WebSocket updates');
-    }
-
-    if (!isRecording && wsSubscribedRef.current) {
-      send({ type: 'unsubscribe_recording' });
-      wsSubscribedRef.current = false;
-      console.log('[useRecordMode] Unsubscribed from recording WebSocket updates');
-    }
-
-    return () => {
-      if (wsSubscribedRef.current) {
-        send({ type: 'unsubscribe_recording' });
-        wsSubscribedRef.current = false;
-      }
-    };
-  }, [isRecording, useWebSocketUpdates, isConnected, sessionId, send]);
-
-  useEffect(() => {
-    if (!lastMessage) return;
-
-    const msg = lastMessage as { type: string; action?: unknown; session_id?: string };
-    if (msg.type === 'recording_action' && msg.action) {
-      const action = msg.action as RecordedAction;
-
-      setActionsWithSync((prev) => {
-        const exists = prev.some((a) => a.id === action.id);
-        if (exists) return prev;
-
-        const newActions = [...prev, action];
-        if (onActionsReceived) {
-          onActionsReceived([action]);
-        }
-        return newActions;
-      });
-
-      console.log('[useRecordMode] Received action via WebSocket:', action.actionType);
-    }
-  }, [lastMessage, onActionsReceived, setActionsWithSync]);
-
-  // Only poll if WebSocket is NOT connected/subscribed (fallback mode)
-  // When WebSocket is working, we get real-time action updates without polling
-  useEffect(() => {
-    const wsActive = useWebSocketUpdates && isConnected && wsSubscribedRef.current;
-    const shouldPoll = isRecording && (pollInterval ?? 0) > 0 && !wsActive;
-    const intervalMs = pollInterval && pollInterval > 0 ? pollInterval : 2000;
-
-    if (shouldPoll) {
-      pollTimerRef.current = setInterval(() => {
-        void refreshActions();
-      }, intervalMs);
-      console.log('[useRecordMode] Started action polling (WebSocket fallback)');
-    } else if (wsActive && pollTimerRef.current) {
-      // Clear polling if WebSocket became active
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-      console.log('[useRecordMode] Stopped action polling (WebSocket active)');
-    }
-
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [isRecording, pollInterval, refreshActions, useWebSocketUpdates, isConnected]);
+  }, [sessionId]);
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
@@ -245,22 +126,34 @@ function useRecordingTransport({
         body: JSON.stringify({ session_id: currentSessionId }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to start recording: ${response.statusText}`);
+      const data = await response.json().catch(() => ({}));
+
+      // Handle 409 Conflict: Recording is already in progress for this session.
+      // This happens when the page is refreshed - React state is lost but the
+      // playwright-driver still has an active recording. We treat this as a
+      // successful state sync rather than an error.
+      if (response.status === 409 && data.error === 'RECORDING_IN_PROGRESS') {
+        console.log('Recording already in progress, syncing state:', data.recording_id);
+        setRecordingId(data.recording_id || null);
+        setIsRecording(true);
+        // Don't clear actions - they may be streaming in via WebSocket
+        return;
       }
 
-      const data: StartRecordingResponse = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || `Failed to start recording: ${response.statusText}`);
+      }
+
       setRecordingId(data.recording_id);
       setIsRecording(true);
-      setActionsWithSync([]);
+      setActions([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start recording');
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, setActionsWithSync]);
+  }, [apiUrl]);
 
   const stopRecording = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
@@ -283,8 +176,6 @@ function useRecordingTransport({
       }
 
       const data: StopRecordingResponse = await response.json();
-
-      await refreshActions();
       setIsRecording(false);
       console.log('Recording stopped:', data);
     } catch (err) {
@@ -293,7 +184,7 @@ function useRecordingTransport({
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, refreshActions]);
+  }, [apiUrl]);
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
@@ -421,7 +312,7 @@ function useRecordingTransport({
     isRecording,
     recordingId,
     actions,
-    setActions: setActionsWithSync,
+    setActions,
     isLoading,
     isReplaying,
     error,
@@ -429,7 +320,6 @@ function useRecordingTransport({
     stopRecording,
     generateWorkflow,
     validateSelector,
-    refreshActions,
     replayPreview,
   };
 }
@@ -532,17 +422,11 @@ function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): 
 
 export function useRecordMode({
   sessionId,
-  pollInterval = 5000,
-  onActionsReceived,
-  useWebSocketUpdates = true,
 }: UseRecordModeOptions): UseRecordModeReturn {
   const apiUrl = getApiBase();
 
   const transport = useRecordingTransport({
     sessionId,
-    pollInterval,
-    onActionsReceived,
-    useWebSocketUpdates,
     apiUrl,
   });
 
@@ -563,7 +447,6 @@ export function useRecordMode({
     updatePayload: editing.updatePayload,
     generateWorkflow: transport.generateWorkflow,
     validateSelector: transport.validateSelector,
-    refreshActions: transport.refreshActions,
     replayPreview: transport.replayPreview,
     isReplaying: transport.isReplaying,
     lowConfidenceCount: editing.lowConfidenceCount,

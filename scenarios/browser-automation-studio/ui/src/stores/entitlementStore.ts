@@ -11,6 +11,14 @@ const joinApi = (base: string, path: string): string => {
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
 
+// API source types for dev mode switching
+export type ApiSource = 'production' | 'local' | 'disabled';
+
+export interface ApiSourceConfig {
+  source: ApiSource;
+  localPort: number;
+}
+
 // API response type from backend
 export interface EntitlementStatusResponse {
   user_identity: string;
@@ -88,6 +96,10 @@ interface EntitlementState {
   lastFetched: Date | null;
   isOffline: boolean;
 
+  // API source state (for dev mode)
+  apiSource: ApiSource;
+  localApiPort: number;
+
   // Usage history state
   usageHistory: UsagePeriod[];
   historyLoading: boolean;
@@ -104,6 +116,10 @@ interface EntitlementState {
   refreshEntitlement: () => Promise<void>;
   getUserEmail: () => Promise<string>;
   setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
+
+  // API source actions (for dev mode)
+  getApiSource: () => Promise<void>;
+  setApiSource: (source: ApiSource, localPort?: number) => Promise<void>;
 
   // Usage history actions
   fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
@@ -173,6 +189,10 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   error: null,
   lastFetched: null,
   isOffline: false,
+
+  // API source state (for dev mode)
+  apiSource: 'production' as ApiSource,
+  localApiPort: 15000, // Default LPBS API port range start
 
   // Usage history state
   usageHistory: [],
@@ -369,6 +389,71 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       await get().fetchStatus();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to set override tier';
+      set({
+        error: errorMessage,
+        isLoading: false,
+      });
+    }
+  },
+
+  // API source actions (for dev mode)
+  getApiSource: async () => {
+    try {
+      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        // Default to production if endpoint doesn't exist or fails
+        return;
+      }
+
+      const data = await response.json();
+      set({
+        apiSource: (data.source || 'production') as ApiSource,
+        localApiPort: data.local_port || 15000,
+      });
+    } catch {
+      // Silently fail - defaults are fine
+    }
+  },
+
+  setApiSource: async (source: ApiSource, localPort?: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const body: Record<string, unknown> = { source };
+      if (localPort !== undefined) {
+        body.local_port = localPort;
+      }
+
+      const response = await fetch(joinApi(API_BASE, 'entitlement/api-source'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok && response.status !== 204) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to set API source: ${response.status}`);
+      }
+
+      set({
+        apiSource: source,
+        localApiPort: localPort ?? get().localApiPort,
+        isLoading: false,
+      });
+
+      // Refresh entitlement status with new API source
+      await get().fetchStatus();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to set API source';
       set({
         error: errorMessage,
         isLoading: false,
