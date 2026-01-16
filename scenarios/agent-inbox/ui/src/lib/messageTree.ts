@@ -10,6 +10,11 @@
 
 import type { Message } from "./api";
 
+// Stable empty array constant to prevent creating new references on every call.
+// CRITICAL: Returning `[]` creates a NEW array each time, which can cause
+// infinite re-render loops when used with useMemo dependencies.
+const EMPTY_MESSAGES: Message[] = [];
+
 /**
  * Normalize parent_message_id to handle empty strings as null.
  * The backend may return "" for messages without a parent.
@@ -83,13 +88,24 @@ export function computeVisibleMessages(
   messages: Message[],
   activeLeafId?: string
 ): Message[] {
-  if (messages.length === 0) return [];
+  // Use stable EMPTY_MESSAGES constant instead of [] to prevent new reference each call
+  if (messages.length === 0) return EMPTY_MESSAGES;
 
   // Check if this is a legacy linear chat (no branching data)
   // A chat has tree data if any message has a non-empty parent_message_id
   const hasTreeData = messages.some(hasParent);
   if (!hasTreeData) {
     // Legacy behavior: sort by created_at
+    // OPTIMIZATION: If messages are already sorted (common case for fresh chats with
+    // sequential message creation), return the original array to maintain reference stability.
+    // This prevents creating new arrays that could trigger cascading useMemo recalculations.
+    const isSorted = messages.every((msg, i) => {
+      if (i === 0) return true;
+      return new Date(messages[i - 1].created_at).getTime() <= new Date(msg.created_at).getTime();
+    });
+    if (isSorted) {
+      return messages;
+    }
     return [...messages].sort((a, b) =>
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
@@ -103,7 +119,7 @@ export function computeVisibleMessages(
     activeLeafId = sorted[0]?.id;
   }
 
-  if (!activeLeafId) return [];
+  if (!activeLeafId) return EMPTY_MESSAGES;
 
   // Get the path from root to active leaf
   const activePath = new Set(getPathToMessage(messages, activeLeafId));

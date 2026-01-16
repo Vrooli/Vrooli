@@ -20,7 +20,14 @@ import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
 import type { TemplateWithSource } from "./lib/types/templates";
 
+// DEBUG: Track renders
+let appRenderCount = 0;
+
 function AppContent() {
+  appRenderCount++;
+  const globalSeq = typeof window !== 'undefined' && window.__getNextRenderSeq__ ? window.__getNextRenderSeq__() : 0;
+  console.log(`[AppContent] Render #${appRenderCount} (global seq: ${globalSeq}) START`);
+
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
@@ -51,6 +58,7 @@ function AppContent() {
     templateDeactivateRef.current?.();
   }, []);
 
+  console.log(`[AppContent] BEFORE useChats`);
   const {
     // State
     selectedChatId,
@@ -116,20 +124,33 @@ function AppContent() {
     onChatChange: handleChatChange,
     onTemplateDeactivated: handleTemplateDeactivated,
   });
+  console.log(`[AppContent] AFTER useChats, selectedChatId:`, selectedChatId, "chatData?.chat?.id:", chatData?.chat?.id);
 
   // Track async operations for the selected chat
+  console.log(`[AppContent] BEFORE useAsyncStatus, selectedChatId:`, selectedChatId);
   const {
     operations: asyncOperations,
     cancelOperation: cancelAsyncOperation,
   } = useAsyncStatus(selectedChatId);
+  console.log(`[AppContent] AFTER useAsyncStatus`);
 
   // Template-to-tool linking: manage active template state and tool enablement
-  const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
+  // DEBUG: Track what chatId is being passed to useTools
+  const toolsChatId = selectedChatId ?? undefined;
+  console.log(`[AppContent] BEFORE useTools, chatId being passed:`, toolsChatId, "selectedChatId:", selectedChatId);
+  const { enableToolsByIds } = useTools({ chatId: toolsChatId });
+  console.log(`[AppContent] AFTER useTools`);
+  console.log(`[AppContent] BEFORE useActiveTemplate`);
   const activeTemplate = useActiveTemplate(selectedChatId ?? undefined, chatData?.chat);
+  console.log(`[AppContent] AFTER useActiveTemplate`);
 
   // Update the ref so the deactivation callback can use the activeTemplate
   // Guard: Only deactivate if chatData matches selectedChatId to prevent
   // deactivating the wrong chat during transitions
+  //
+  // CRITICAL: Depend on activeTemplate.deactivate specifically, NOT the whole
+  // activeTemplate object. The object has properties like isUpdating that change,
+  // which would cause this effect to run unnecessarily during critical transitions.
   useEffect(() => {
     templateDeactivateRef.current = () => {
       // Safety check: Only proceed if we have valid, matching chat data
@@ -137,9 +158,12 @@ function AppContent() {
         activeTemplate.deactivate();
       }
     };
-  }, [activeTemplate, selectedChatId, chatData?.chat?.id]);
+  }, [activeTemplate.deactivate, selectedChatId, chatData?.chat?.id]);
 
   // Handle template activation (when user selects a template with suggested tools)
+  // CRITICAL: Depend on activeTemplate.activate specifically, NOT the whole activeTemplate
+  // object. The object has properties like isUpdating that change frequently, which would
+  // cause this callback to get a new reference and cascade re-renders through ChatView.
   const handleTemplateActivated = useCallback(
     async (templateId: string, toolIds: string[]) => {
       if (!selectedChatId) return;
@@ -148,7 +172,7 @@ function AppContent() {
       // Then activate the template at the chat level
       await activeTemplate.activate(templateId, toolIds);
     },
-    [selectedChatId, enableToolsByIds, activeTemplate]
+    [selectedChatId, enableToolsByIds, activeTemplate.activate]
   );
 
   // Handle browser back/forward navigation
@@ -243,6 +267,83 @@ function AppContent() {
   const handleDeselectChat = useCallback(() => {
     selectChat("");
   }, [selectChat]);
+
+  // CRITICAL: Memoize ALL callback props passed to ChatView to prevent
+  // creating new function references on every render. New references cause
+  // unnecessary child re-renders during critical transitions (like message send)
+  // which can contribute to "too many re-renders" errors.
+  const handleScrollComplete = useCallback(() => {
+    setScrollToMessageId(null);
+  }, []);
+
+  const handleUpdateChatFromView = useCallback(
+    (data: Parameters<typeof updateChat>[0]["data"]) => {
+      if (selectedChatId) {
+        updateChat({ chatId: selectedChatId, data });
+      }
+    },
+    [selectedChatId, updateChat]
+  );
+
+  const handleToggleReadFromView = useCallback(() => {
+    if (selectedChatId) {
+      toggleRead({ chatId: selectedChatId });
+    }
+  }, [selectedChatId, toggleRead]);
+
+  const handleToggleStarFromView = useCallback(() => {
+    if (selectedChatId) {
+      toggleStar({ chatId: selectedChatId });
+    }
+  }, [selectedChatId, toggleStar]);
+
+  const handleToggleArchiveFromView = useCallback(() => {
+    if (selectedChatId) {
+      toggleArchive({ chatId: selectedChatId });
+    }
+  }, [selectedChatId, toggleArchive]);
+
+  const handleDeleteChatFromView = useCallback(() => {
+    if (selectedChatId) {
+      deleteChat(selectedChatId);
+    }
+  }, [selectedChatId, deleteChat]);
+
+  const handleAssignLabelFromView = useCallback(
+    (labelId: string) => {
+      if (selectedChatId) {
+        assignLabel({ chatId: selectedChatId, labelId });
+      }
+    },
+    [selectedChatId, assignLabel]
+  );
+
+  const handleRemoveLabelFromView = useCallback(
+    (labelId: string) => {
+      if (selectedChatId) {
+        removeLabel({ chatId: selectedChatId, labelId });
+      }
+    },
+    [selectedChatId, removeLabel]
+  );
+
+  const handleRegenerateMessageFromView = useCallback(
+    (messageId: string) => {
+      if (selectedChatId) {
+        regenerateMessage(selectedChatId, messageId);
+      }
+    },
+    [selectedChatId, regenerateMessage]
+  );
+
+  const handleSubmitEditFromView = useCallback(
+    (payload: Parameters<typeof editMessageAndComplete>[1]) => {
+      if (editingMessage) {
+        editMessageAndComplete(editingMessage.id, payload);
+      }
+    },
+    [editingMessage, editMessageAndComplete]
+  );
 
   // Keyboard shortcuts
   const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats || !!settingsEditingTemplate;
@@ -541,17 +642,17 @@ function AppContent() {
               activeToolCalls={activeToolCalls}
               generatedImages={generatedImages}
               scrollToMessageId={scrollToMessageId}
-              onScrollComplete={() => setScrollToMessageId(null)}
+              onScrollComplete={handleScrollComplete}
               onSendMessage={sendMessage}
-              onUpdateChat={(data) => updateChat({ chatId: selectedChatId, data })}
-              onToggleRead={() => toggleRead({ chatId: selectedChatId })}
-              onToggleStar={() => toggleStar({ chatId: selectedChatId })}
-              onToggleArchive={() => toggleArchive({ chatId: selectedChatId })}
-              onDeleteChat={() => deleteChat(selectedChatId)}
-              onAssignLabel={(labelId) => assignLabel({ chatId: selectedChatId, labelId })}
-              onRemoveLabel={(labelId) => removeLabel({ chatId: selectedChatId, labelId })}
+              onUpdateChat={handleUpdateChatFromView}
+              onToggleRead={handleToggleReadFromView}
+              onToggleStar={handleToggleStarFromView}
+              onToggleArchive={handleToggleArchiveFromView}
+              onDeleteChat={handleDeleteChatFromView}
+              onAssignLabel={handleAssignLabelFromView}
+              onRemoveLabel={handleRemoveLabelFromView}
               viewMode={viewMode}
-              onRegenerateMessage={(messageId) => regenerateMessage(selectedChatId, messageId)}
+              onRegenerateMessage={handleRegenerateMessageFromView}
               onSelectBranch={selectBranch}
               onForkConversation={forkConversation}
               isRegenerating={isRegenerating}
@@ -559,11 +660,7 @@ function AppContent() {
               editingMessage={editingMessage}
               onEditMessage={setEditingMessage}
               onCancelEdit={cancelEdit}
-              onSubmitEdit={(payload) => {
-                if (editingMessage) {
-                  editMessageAndComplete(editingMessage.id, payload);
-                }
-              }}
+              onSubmitEdit={handleSubmitEditFromView}
               asyncOperations={asyncOperations}
               onCancelAsyncOperation={cancelAsyncOperation}
               onTemplateActivated={handleTemplateActivated}
@@ -603,32 +700,31 @@ function AppContent() {
         />
       </ErrorBoundary>
 
-      {/* Template Editor from Settings */}
-      <ErrorBoundary name="TemplateEditor">
-        <TemplateEditorModal
-          open={!!settingsEditingTemplate}
-          onClose={() => {
-            setSettingsEditingTemplate(null);
-            setSettingsAllTemplates([]);
-          }}
-          onSave={handleSaveTemplateFromSettings}
-          template={settingsEditingTemplate || undefined}
-          templateSource={settingsEditingTemplate?.source}
-          // Multi-item mode props for sidebar navigation
-          allTemplates={settingsAllTemplates}
-          onSelectTemplate={(template) => {
-            setSettingsEditingTemplate(template);
-          }}
-          onSaveAll={async (updates) => {
-            // Import batch save function
-            const { updateTemplates, getAllTemplates } = await import("./data/templates");
-            await updateTemplates(updates);
-            // Refresh templates list
-            const updated = await getAllTemplates();
-            setSettingsAllTemplates(updated);
-          }}
-        />
-      </ErrorBoundary>
+      {/* Template Editor from Settings - Only render when open to avoid useTools cascade */}
+      {!!settingsEditingTemplate && (
+        <ErrorBoundary name="TemplateEditor">
+          <TemplateEditorModal
+            open={!!settingsEditingTemplate}
+            onClose={() => {
+              setSettingsEditingTemplate(null);
+              setSettingsAllTemplates([]);
+            }}
+            onSave={handleSaveTemplateFromSettings}
+            template={settingsEditingTemplate || undefined}
+            templateSource={settingsEditingTemplate?.source}
+            allTemplates={settingsAllTemplates}
+            onSelectTemplate={(template) => {
+              setSettingsEditingTemplate(template);
+            }}
+            onSaveAll={async (updates) => {
+              const { updateTemplates, getAllTemplates } = await import("./data/templates");
+              await updateTemplates(updates);
+              const updated = await getAllTemplates();
+              setSettingsAllTemplates(updated);
+            }}
+          />
+        </ErrorBoundary>
+      )}
 
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcuts

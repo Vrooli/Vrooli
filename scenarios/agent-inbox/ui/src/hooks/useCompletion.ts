@@ -18,7 +18,7 @@
  * a custom `completeChat` function via dependency injection or
  * by mocking the api module.
  */
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, startTransition, useMemo } from "react";
 import { completeChat, approveToolCall, rejectToolCall, StreamingEvent, ApprovalResult, SkillPayloadForAPI } from "../lib/api";
 
 export interface ActiveToolCall {
@@ -77,9 +77,17 @@ const EMPTY_IMAGES: string[] = [];
 const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_APPROVALS: PendingApproval[] = [];
 
+// DEBUG: Track renders
+let completionRenderCount = 0;
+
 export function useCompletion(options?: UseCompletionOptions): CompletionState & CompletionActions {
   const { onTemplateDeactivated } = options || {};
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // DEBUG: Track renders
+  completionRenderCount++;
+  console.log(`[useCompletion] Render #${completionRenderCount}`, { isGenerating });
+
   const [streamingContent, setStreamingContent] = useState("");
   const [generatedImages, setGeneratedImages] = useState<string[]>(EMPTY_IMAGES);
   const [activeToolCalls, setActiveToolCalls] = useState<ActiveToolCall[]>(EMPTY_TOOL_CALLS);
@@ -102,6 +110,10 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
   }, []);
 
   // Create event handler with request ID guard
+  // CRITICAL: SSE events from EventSource are NOT automatically batched by React 18.
+  // We use startTransition to mark state updates as non-urgent, which allows React
+  // to batch them more effectively and prevents "too many re-renders" errors during
+  // rapid streaming updates.
   const createEventHandler = useCallback((requestId: number) => {
     return (event: StreamingEvent) => {
       // Guard: Only process events for the current request
@@ -112,44 +124,53 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
       switch (event.type) {
         case "content":
           if (event.content) {
-            setStreamingContent((prev) => prev + event.content);
+            // Content updates are frequent but non-urgent - use transition
+            startTransition(() => {
+              setStreamingContent((prev) => prev + event.content);
+            });
           }
           break;
 
         case "image_generated":
           if (event.image_url) {
-            setGeneratedImages((prev) => [...prev, event.image_url!]);
+            startTransition(() => {
+              setGeneratedImages((prev) => [...prev, event.image_url!]);
+            });
           }
           break;
 
         case "tool_call_start":
           if (event.tool_id && event.tool_name) {
-            setActiveToolCalls((prev) => [
-              ...prev,
-              {
-                id: event.tool_id!,
-                name: event.tool_name!,
-                arguments: event.arguments || "{}",
-                status: "running",
-              },
-            ]);
+            startTransition(() => {
+              setActiveToolCalls((prev) => [
+                ...prev,
+                {
+                  id: event.tool_id!,
+                  name: event.tool_name!,
+                  arguments: event.arguments || "{}",
+                  status: "running",
+                },
+              ]);
+            });
           }
           break;
 
         case "tool_call_result":
           if (event.tool_id) {
-            setActiveToolCalls((prev) =>
-              prev.map((tc) =>
-                tc.id === event.tool_id
-                  ? {
-                      ...tc,
-                      status: event.status === "completed" ? "completed" : "failed",
-                      result: event.result,
-                      error: event.error,
-                    }
-                  : tc
-              )
-            );
+            startTransition(() => {
+              setActiveToolCalls((prev) =>
+                prev.map((tc) =>
+                  tc.id === event.tool_id
+                    ? {
+                        ...tc,
+                        status: event.status === "completed" ? "completed" : "failed",
+                        result: event.result,
+                        error: event.error,
+                      }
+                    : tc
+                )
+              );
+            });
             // Check if a template's suggested tool was used
             // CRITICAL: Defer this callback to avoid React Error #310
             // ("Cannot update a component while rendering a different component").
@@ -170,30 +191,33 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
         case "tool_pending_approval":
           // A tool requires approval before execution
           if (event.tool_call_id && event.tool_name) {
-            setPendingApprovals((prev) => [
-              ...prev,
-              {
-                id: event.tool_call_id!,
-                toolName: event.tool_name!,
-                arguments: event.arguments || "{}",
-                startedAt: new Date().toISOString(),
-              },
-            ]);
-            // Also add to active tool calls with pending status
-            setActiveToolCalls((prev) => [
-              ...prev,
-              {
-                id: event.tool_call_id!,
-                name: event.tool_name!,
-                arguments: event.arguments || "{}",
-                status: "pending_approval",
-              },
-            ]);
+            startTransition(() => {
+              setPendingApprovals((prev) => [
+                ...prev,
+                {
+                  id: event.tool_call_id!,
+                  toolName: event.tool_name!,
+                  arguments: event.arguments || "{}",
+                  startedAt: new Date().toISOString(),
+                },
+              ]);
+              // Also add to active tool calls with pending status
+              setActiveToolCalls((prev) => [
+                ...prev,
+                {
+                  id: event.tool_call_id!,
+                  name: event.tool_name!,
+                  arguments: event.arguments || "{}",
+                  status: "pending_approval",
+                },
+              ]);
+            });
           }
           break;
 
         case "awaiting_approvals":
           // Signal that we're waiting for user to approve pending tool calls
+          // These are urgent state changes that affect UI flow
           setAwaitingApprovals(true);
           setIsGenerating(false);
           break;
@@ -205,6 +229,10 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
     };
   }, [onTemplateDeactivated]);
 
+  // Track if a completion is currently in flight to prevent overlapping requests
+  // NOTE: Defined here before cancelCompletion so it can be referenced
+  const isCompletionInFlightRef = useRef(false);
+
   const cancelCompletion = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -212,16 +240,31 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
     }
     // Invalidate current request ID to reject any pending state updates
     currentRequestIdRef.current = 0;
+    // Clear in-flight flag since we're cancelling
+    isCompletionInFlightRef.current = false;
+    // Batch all state resets to minimize render cycles
+    // isGenerating is urgent, others can be deferred
     setIsGenerating(false);
-    setStreamingContent("");
-    setGeneratedImages(EMPTY_IMAGES);
-    setActiveToolCalls(EMPTY_TOOL_CALLS);
-    setPendingApprovals(EMPTY_APPROVALS);
-    setAwaitingApprovals(false);
+    startTransition(() => {
+      setStreamingContent("");
+      setGeneratedImages(EMPTY_IMAGES);
+      setActiveToolCalls(EMPTY_TOOL_CALLS);
+      setPendingApprovals(EMPTY_APPROVALS);
+      setAwaitingApprovals(false);
+    });
   }, []);
 
   const runCompletion = useCallback(
     async (chatId: string, options?: CompletionOptions) => {
+      console.log("[useCompletion] runCompletion called for chatId:", chatId);
+      // Prevent overlapping completions which can cause render storms
+      // during rapid state transitions (e.g., fresh chat message send)
+      if (isCompletionInFlightRef.current) {
+        console.warn("[useCompletion] Ignoring runCompletion - already in flight");
+        return;
+      }
+      isCompletionInFlightRef.current = true;
+
       // Cancel any existing request before starting new one
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -234,12 +277,21 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
       currentRequestIdRef.current = requestId;
 
       // Reset state for new request
+      // CRITICAL: isGenerating is urgent (affects UI immediately), but other resets
+      // can be batched via startTransition to prevent render storms during the
+      // critical fresh-chat-to-generating transition.
+      console.log("[useCompletion] *** ABOUT TO SET isGenerating = true *** timestamp:", Date.now());
       setIsGenerating(true);
-      setStreamingContent("");
-      setGeneratedImages(EMPTY_IMAGES);
-      setActiveToolCalls(EMPTY_TOOL_CALLS);
-      setPendingApprovals(EMPTY_APPROVALS);
-      setAwaitingApprovals(false);
+      console.log("[useCompletion] *** AFTER setIsGenerating(true) *** timestamp:", Date.now());
+      console.log("[useCompletion] Starting transition for other state resets");
+      startTransition(() => {
+        console.log("[useCompletion] Inside startTransition - resetting state, timestamp:", Date.now());
+        setStreamingContent("");
+        setGeneratedImages(EMPTY_IMAGES);
+        setActiveToolCalls(EMPTY_TOOL_CALLS);
+        setPendingApprovals(EMPTY_APPROVALS);
+        setAwaitingApprovals(false);
+      });
 
       try {
         await completeChat(chatId, {
@@ -253,20 +305,26 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
         // Only reset state if this is still the active request
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
-          setStreamingContent("");
-          setGeneratedImages(EMPTY_IMAGES);
-          setActiveToolCalls(EMPTY_TOOL_CALLS);
-          // Note: Don't reset pendingApprovals here as we might be awaiting approvals
+          // Batch non-urgent resets via transition
+          startTransition(() => {
+            setStreamingContent("");
+            setGeneratedImages(EMPTY_IMAGES);
+            setActiveToolCalls(EMPTY_TOOL_CALLS);
+            // Note: Don't reset pendingApprovals here as we might be awaiting approvals
+          });
         }
       } catch (error) {
         // Only handle errors for the active request
         if (currentRequestIdRef.current === requestId) {
           setIsGenerating(false);
-          setStreamingContent("");
-          setGeneratedImages(EMPTY_IMAGES);
-          setActiveToolCalls(EMPTY_TOOL_CALLS);
-          setPendingApprovals(EMPTY_APPROVALS);
-          setAwaitingApprovals(false);
+          // Batch non-urgent resets via transition
+          startTransition(() => {
+            setStreamingContent("");
+            setGeneratedImages(EMPTY_IMAGES);
+            setActiveToolCalls(EMPTY_TOOL_CALLS);
+            setPendingApprovals(EMPTY_APPROVALS);
+            setAwaitingApprovals(false);
+          });
 
           // Don't throw on abort - it's intentional cancellation
           if (error instanceof Error && error.name === "AbortError") {
@@ -276,6 +334,9 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
           console.error("Chat completion failed:", error);
           throw error;
         }
+      } finally {
+        // Always clear the in-flight flag when completion ends
+        isCompletionInFlightRef.current = false;
       }
     },
     [createEventHandler]
@@ -325,8 +386,15 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
       try {
         await rejectToolCall(toolCallId, chatId, reason);
 
-        // Remove from pending approvals
-        setPendingApprovals((prev) => prev.filter((p) => p.id !== toolCallId));
+        // Remove from pending approvals and check if we should clear awaiting state
+        // CRITICAL: Do NOT call setState inside another setState's updater function.
+        // That's a React anti-pattern that can cause "too many re-renders" errors.
+        // Instead, we calculate the new state and then update both values.
+        let newPendingApprovals: PendingApproval[] = [];
+        setPendingApprovals((prev) => {
+          newPendingApprovals = prev.filter((p) => p.id !== toolCallId);
+          return newPendingApprovals;
+        });
 
         // Update active tool call status
         setActiveToolCalls((prev) =>
@@ -337,13 +405,11 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
           )
         );
 
-        // If no more pending approvals, clear the awaiting state
-        setPendingApprovals((current) => {
-          if (current.length === 0) {
-            setAwaitingApprovals(false);
-          }
-          return current;
-        });
+        // Clear awaiting state if no more pending approvals
+        // This is safe to do outside the updater since we captured the new value above
+        if (newPendingApprovals.length === 0) {
+          setAwaitingApprovals(false);
+        }
       } finally {
         setIsProcessingApproval(false);
       }
@@ -355,20 +421,39 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
     cancelCompletion();
   }, [cancelCompletion]);
 
-  return {
-    // State
-    isGenerating,
-    streamingContent,
-    generatedImages,
-    activeToolCalls,
-    pendingApprovals,
-    awaitingApprovals,
+  // CRITICAL: Memoize the return object to prevent creating new object references
+  // on every render. Without this, every render creates a new object that triggers
+  // re-renders in consuming components (useChats, App.tsx), potentially causing
+  // "too many re-renders" errors during rapid state transitions.
+  return useMemo(
+    () => ({
+      // State
+      isGenerating,
+      streamingContent,
+      generatedImages,
+      activeToolCalls,
+      pendingApprovals,
+      awaitingApprovals,
 
-    // Actions
-    runCompletion,
-    resetCompletion,
-    cancelCompletion,
-    approveTool,
-    rejectTool,
-  };
+      // Actions
+      runCompletion,
+      resetCompletion,
+      cancelCompletion,
+      approveTool,
+      rejectTool,
+    }),
+    [
+      isGenerating,
+      streamingContent,
+      generatedImages,
+      activeToolCalls,
+      pendingApprovals,
+      awaitingApprovals,
+      runCompletion,
+      resetCompletion,
+      cancelCompletion,
+      approveTool,
+      rejectTool,
+    ]
+  );
 }

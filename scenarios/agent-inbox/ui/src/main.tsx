@@ -1,10 +1,20 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import App from "./App";
 import "./styles.css";
+
+// DEBUG: Global render sequence tracker to correlate renders across components
+// This helps identify React's concurrent render restarts
+declare global {
+  interface Window {
+    __RENDER_SEQ__: number;
+    __getNextRenderSeq__: () => number;
+  }
+}
+window.__RENDER_SEQ__ = 0;
+window.__getNextRenderSeq__ = () => ++window.__RENDER_SEQ__;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,19 +35,22 @@ if (window.top !== window.self) {
   initIframeBridgeChild();
 }
 
+// NOTE: StrictMode intentionally double-renders components to detect side effects.
+// During rapid state transitions (like fresh chat message send), this can push
+// borderline render counts over React's 50-render limit. Temporarily disabled
+// while investigating "too many re-renders" issue.
+// TODO: Re-enable StrictMode after fixing the render loop issue
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary
-      critical
-      name="Root"
-      onError={(error, errorInfo) => {
-        // Log critical errors for debugging
-        console.error("[CriticalError] App crashed:", error, errorInfo);
-      }}
-    >
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
+  <ErrorBoundary
+    critical
+    name="Root"
+    onError={(error, errorInfo) => {
+      // Log critical errors for debugging
+      console.error("[CriticalError] App crashed:", error, errorInfo);
+    }}
+  >
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </ErrorBoundary>
 );

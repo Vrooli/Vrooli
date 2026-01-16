@@ -49,6 +49,9 @@ export interface UseAsyncStatusOptions {
 // CRITICAL: Using inline [] creates new array on every render, causing infinite re-render loops
 const EMPTY_OPERATIONS: AsyncStatusUpdate[] = [];
 
+// DEBUG: Track renders
+let useAsyncStatusRenderCount = 0;
+
 /**
  * Hook for tracking async tool operations via Server-Sent Events.
  *
@@ -60,6 +63,9 @@ export function useAsyncStatus(
   chatId: string | null,
   options: UseAsyncStatusOptions = {}
 ) {
+  // DEBUG: Track renders
+  useAsyncStatusRenderCount++;
+  console.log(`[useAsyncStatus] Render #${useAsyncStatusRenderCount}`, { chatId });
   const { completedRemovalDelay = 3000, autoConnect = true } = options;
 
   const [operations, setOperations] = useState<Map<string, AsyncStatusUpdate>>(
@@ -136,11 +142,9 @@ export function useAsyncStatus(
       setError("Connection lost. Reconnecting...");
     };
 
-    // Handle 'connected' event
-    eventSource.addEventListener("connected", () => {
-      setIsConnected(true);
-      setError(null);
-    });
+    // NOTE: The 'connected' event handler was removed because onopen already
+    // sets isConnected. Having both caused redundant state updates that
+    // contributed to render storms during chat transitions.
 
     // Handle 'status' events
     eventSource.addEventListener("status", (event) => {
@@ -201,16 +205,25 @@ export function useAsyncStatus(
     [operations]
   );
 
-  return {
-    /** Array of active async operations */
-    operations: operationsArray,
-    /** Whether SSE connection is established */
-    isConnected,
-    /** Connection error message, if any */
-    error,
-    /** Cancel a running operation */
-    cancelOperation,
-    /** Number of active operations */
-    activeCount: operations.size,
-  };
+  // Compute activeCount outside useMemo to avoid operations.size causing issues
+  const activeCount = operations.size;
+
+  // CRITICAL: Memoize the return object to prevent creating new object references
+  // on every render. Without this, every render creates a new object that triggers
+  // re-renders in consuming components, potentially causing "too many re-renders" errors.
+  return useMemo(
+    () => ({
+      /** Array of active async operations */
+      operations: operationsArray,
+      /** Whether SSE connection is established */
+      isConnected,
+      /** Connection error message, if any */
+      error,
+      /** Cancel a running operation */
+      cancelOperation,
+      /** Number of active operations */
+      activeCount,
+    }),
+    [operationsArray, isConnected, error, cancelOperation, activeCount]
+  );
 }

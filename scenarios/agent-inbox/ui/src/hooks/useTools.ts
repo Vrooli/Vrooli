@@ -38,6 +38,13 @@ export const toolQueryKeys = {
   scenarios: () => [...toolQueryKeys.all, "scenarios"] as const,
 };
 
+// Stable empty arrays/maps to prevent creating new references on every render.
+// CRITICAL: Using inline [] or new Map() creates new references that can trigger
+// infinite re-render loops when used in dependencies or passed to memoized components.
+const EMPTY_TOOLS: EffectiveTool[] = [];
+const EMPTY_SCENARIO_MAP: Map<string, EffectiveTool[]> = new Map();
+const EMPTY_CATEGORY_MAP: Map<string, EffectiveTool[]> = new Map();
+
 export interface UseToolsOptions {
   /** Chat ID for chat-specific tool configurations */
   chatId?: string;
@@ -85,11 +92,29 @@ export interface UseToolsReturn {
  * // Chat-specific tools
  * const { toolSet, toggleTool } = useTools({ chatId: "abc-123" });
  */
+// DEBUG: Track renders
+let useToolsRenderCount = 0;
+
 export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   const { chatId, enabled = true } = options;
   const queryClient = useQueryClient();
 
+  // DEBUG: Track renders and identify call sources
+  useToolsRenderCount++;
+  const stackTrace = chatId === undefined ? new Error().stack?.split('\n').slice(1, 4).join(' <- ') : undefined;
+  console.log(`[useTools] Render #${useToolsRenderCount}`, {
+    chatId,
+    chatIdIsUndefined: chatId === undefined,
+    enabled,
+    // Only log stack trace for undefined chatId calls to help identify source
+    ...(chatId === undefined && { callStack: stackTrace })
+  });
+
   // Fetch tool set (global or chat-specific)
+  // CRITICAL: Use aggressive caching to prevent cascading re-renders.
+  // Multiple components use useTools with different chatId values. Without
+  // these options, each query refetch triggers re-renders in ALL useTools
+  // instances, creating exponential render storms during rapid state transitions.
   const {
     data: toolSet,
     isLoading,
@@ -99,7 +124,11 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     queryKey: toolQueryKeys.toolSet(chatId),
     queryFn: () => fetchToolSet(chatId),
     enabled,
-    staleTime: 60_000, // 1 minute
+    staleTime: 60_000, // 1 minute - data considered fresh
+    gcTime: 300_000, // 5 minutes - keep in cache
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   // Fetch scenario statuses
@@ -111,7 +140,11 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     queryKey: toolQueryKeys.scenarios(),
     queryFn: fetchScenarioStatuses,
     enabled,
-    staleTime: 30_000, // 30 seconds
+    staleTime: 30_000, // 30 seconds - data considered fresh
+    gcTime: 300_000, // 5 minutes - keep in cache
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   // Toggle tool enabled state
@@ -260,18 +293,22 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   });
 
   // Derived data: enabled tools only
-  // CRITICAL: Must memoize to prevent creating new arrays on every render
-  // which would cause infinite re-render loops in consuming components
-  const enabledTools = useMemo(
-    () => toolSet?.tools.filter((t) => t.enabled) ?? [],
-    [toolSet?.tools]
-  );
+  // CRITICAL: Must memoize AND use stable empty array to prevent creating
+  // new references on every render which causes infinite re-render loops.
+  const enabledTools = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_TOOLS;
+    const filtered = tools.filter((t) => t.enabled);
+    return filtered.length === 0 ? EMPTY_TOOLS : filtered;
+  }, [toolSet?.tools]);
 
   // Derived data: tools grouped by scenario
-  // CRITICAL: Must memoize Map creation to prevent new references on every render
+  // CRITICAL: Must memoize AND use stable empty map to prevent new references on every render
   const toolsByScenario = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_SCENARIO_MAP;
     const map = new Map<string, EffectiveTool[]>();
-    for (const tool of toolSet?.tools ?? []) {
+    for (const tool of tools) {
       const existing = map.get(tool.scenario) ?? [];
       map.set(tool.scenario, [...existing, tool]);
     }
@@ -279,10 +316,12 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   }, [toolSet?.tools]);
 
   // Derived data: tools grouped by category
-  // CRITICAL: Must memoize Map creation to prevent new references on every render
+  // CRITICAL: Must memoize AND use stable empty map to prevent new references on every render
   const toolsByCategory = useMemo(() => {
+    const tools = toolSet?.tools;
+    if (!tools || tools.length === 0) return EMPTY_CATEGORY_MAP;
     const map = new Map<string, EffectiveTool[]>();
-    for (const tool of toolSet?.tools ?? []) {
+    for (const tool of tools) {
       const category = tool.tool.category ?? "uncategorized";
       const existing = map.get(category) ?? [];
       map.set(category, [...existing, tool]);
@@ -290,41 +329,41 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
     return map;
   }, [toolSet?.tools]);
 
-  return {
-    // Data
-    toolSet,
-    scenarios,
-    enabledTools,
-    toolsByScenario,
-    toolsByCategory,
-
-    // Loading states
-    isLoading,
-    isLoadingScenarios,
-    isSyncing: syncMutation.isPending,
-    isUpdating: toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending,
-
-    // Error states
-    error: error as Error | null,
-    scenariosError: scenariosError as Error | null,
-
-    // Actions
-    toggleTool: async (scenario, toolName, enabled) => {
+  // CRITICAL: Memoize action functions to prevent creating new references on every render.
+  // These functions are used as dependencies in consuming components (e.g., App.tsx's
+  // handleTemplateActivated depends on enableToolsByIds). Without memoization, every
+  // render creates new function references, causing cascading re-renders.
+  const toggleTool = useCallback(
+    async (scenario: string, toolName: string, enabled: boolean) => {
       await toggleMutation.mutateAsync({ scenario, toolName, enabled });
     },
-    setApproval: async (scenario, toolName, override) => {
+    [toggleMutation.mutateAsync]
+  );
+
+  const setApproval = useCallback(
+    async (scenario: string, toolName: string, override: ApprovalOverride) => {
       await approvalMutation.mutateAsync({ scenario, toolName, override });
     },
-    resetTool: async (scenario, toolName) => {
+    [approvalMutation.mutateAsync]
+  );
+
+  const resetTool = useCallback(
+    async (scenario: string, toolName: string) => {
       await resetMutation.mutateAsync({ scenario, toolName });
     },
-    syncDiscoveredTools: async () => {
-      return await syncMutation.mutateAsync();
-    },
-    refetch: () => {
-      refetch();
-    },
-    enableToolsByIds: async (toolIds: string[]) => {
+    [resetMutation.mutateAsync]
+  );
+
+  const syncDiscoveredTools = useCallback(async () => {
+    return await syncMutation.mutateAsync();
+  }, [syncMutation.mutateAsync]);
+
+  const refetchTools = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const enableToolsByIds = useCallback(
+    async (toolIds: string[]) => {
       // Enable tools in sequence to avoid race conditions with optimistic updates
       for (const toolId of toolIds) {
         const parts = toolId.split(':');
@@ -350,7 +389,65 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
         }
       }
     },
-  };
+    [toolsByScenario, toggleMutation.mutateAsync]
+  );
+
+  // Compute derived values outside useMemo to avoid including mutation objects in deps
+  const isSyncing = syncMutation.isPending;
+  const isUpdating = toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending;
+  const errorValue = error as Error | null;
+  const scenariosErrorValue = scenariosError as Error | null;
+
+  // CRITICAL: Memoize the return object to prevent creating new object references
+  // on every render. Without this, every render creates a new object that triggers
+  // re-renders in consuming components, potentially causing "too many re-renders" errors.
+  return useMemo(
+    () => ({
+      // Data
+      toolSet,
+      scenarios,
+      enabledTools,
+      toolsByScenario,
+      toolsByCategory,
+
+      // Loading states
+      isLoading,
+      isLoadingScenarios,
+      isSyncing,
+      isUpdating,
+
+      // Error states
+      error: errorValue,
+      scenariosError: scenariosErrorValue,
+
+      // Actions - use memoized callbacks defined above
+      toggleTool,
+      setApproval,
+      resetTool,
+      syncDiscoveredTools,
+      refetch: refetchTools,
+      enableToolsByIds,
+    }),
+    [
+      toolSet,
+      scenarios,
+      enabledTools,
+      toolsByScenario,
+      toolsByCategory,
+      isLoading,
+      isLoadingScenarios,
+      isSyncing,
+      isUpdating,
+      errorValue,
+      scenariosErrorValue,
+      toggleTool,
+      setApproval,
+      resetTool,
+      syncDiscoveredTools,
+      refetchTools,
+      enableToolsByIds,
+    ]
+  );
 }
 
 /**

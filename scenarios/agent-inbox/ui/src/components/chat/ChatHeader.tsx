@@ -54,7 +54,7 @@ export function ChatHeader({
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("markdown");
   const [isExporting, setIsExporting] = useState(false);
-  const [newName, setNewName] = useState(chat.name);
+  const [newName, setNewName] = useState(chat.name ?? "");
 
   const handleExport = async (format: ExportFormat) => {
     try {

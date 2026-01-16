@@ -63,10 +63,16 @@ export interface UseActiveTemplateReturn {
 // infinite re-render loops when used as a dependency in hooks.
 const EMPTY_TOOL_IDS: string[] = [];
 
+// DEBUG: Track renders
+let activeTemplateRenderCount = 0;
+
 export function useActiveTemplate(
   chatId: string | undefined,
   chat?: Chat
 ): UseActiveTemplateReturn {
+  activeTemplateRenderCount++;
+  console.log(`[useActiveTemplate] Render #${activeTemplateRenderCount}`, { chatId, chatIdFromChat: chat?.id });
+
   const queryClient = useQueryClient();
 
   // Guard: Check if chat data is stale (chatId doesn't match chat.id)
@@ -164,16 +170,22 @@ export function useActiveTemplate(
   // CRITICAL: Use useCallback to stabilize function references.
   // Without this, new function references are created on every render,
   // causing useEffect dependencies in consuming components to fire repeatedly.
+  //
+  // NOTE: We depend on mutateAsync specifically (which is stable) rather than
+  // the whole mutation object (which has changing properties like isPending).
+  // This prevents unnecessary callback recreation when mutation state changes.
   const activate = useCallback(
     async (templateId: string, toolIds: string[]) => {
+      if (!chatId) throw new Error("Chat ID required to activate template");
       await activateMutation.mutateAsync({ templateId, toolIds });
     },
-    [activateMutation]
+    [chatId, activateMutation.mutateAsync]
   );
 
   const deactivate = useCallback(async () => {
+    if (!chatId) throw new Error("Chat ID required to deactivate template");
     await deactivateMutation.mutateAsync();
-  }, [deactivateMutation]);
+  }, [chatId, deactivateMutation.mutateAsync]);
 
   const isUpdating = activateMutation.isPending || deactivateMutation.isPending;
 

@@ -149,8 +149,11 @@ export function MessageInput({
   } = useAttachments();
 
   // Get tools for force tool selection (only if enabled and have chatId)
+  // DEBUG: Track what chatId is being passed
+  const messageInputToolsChatId = enableForceTools && chatId ? chatId : undefined;
+  console.log(`[MessageInput] useTools call - enableForceTools: ${enableForceTools}, chatId prop: ${chatId}, computed chatId: ${messageInputToolsChatId}`);
   const { toolsByScenario, enabledTools } = useTools({
-    chatId: enableForceTools && chatId ? chatId : undefined,
+    chatId: messageInputToolsChatId,
     enabled: enableForceTools && !!chatId,
   });
 
@@ -919,14 +922,16 @@ export function MessageInput({
         onClear={handleClearForcedTool}
       />
 
-      {/* Template Editor Modal */}
-      <TemplateEditorModal
-        open={showTemplateEditor}
-        onClose={handleCloseTemplateEditor}
-        template={editingTemplate}
-        defaultModes={defaultEditorModes}
-        onSave={handleSaveTemplate}
-      />
+      {/* Template Editor Modal - Only render when open to avoid useTools cascade */}
+      {showTemplateEditor && (
+        <TemplateEditorModal
+          open={showTemplateEditor}
+          onClose={handleCloseTemplateEditor}
+          template={editingTemplate}
+          defaultModes={defaultEditorModes}
+          onSave={handleSaveTemplate}
+        />
+      )}
     </div>
   );
 }

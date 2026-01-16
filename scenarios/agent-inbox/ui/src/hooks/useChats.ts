@@ -66,6 +66,9 @@ export interface UseChatsOptions {
   onTemplateDeactivated?: () => void;
 }
 
+// DEBUG: Track renders
+let useChatsRenderCount = 0;
+
 export function useChats(options: UseChatsOptions = {}) {
   const { initialChatId, onChatChange, onTemplateDeactivated } = options;
   const queryClient = useQueryClient();
@@ -76,9 +79,15 @@ export function useChats(options: UseChatsOptions = {}) {
   const completion = useCompletion({ onTemplateDeactivated });
   const labelOps = useLabels();
 
+  // DEBUG: Track renders
+  useChatsRenderCount++;
+  console.log(`[useChats] Render #${useChatsRenderCount}`, { selectedChatId, isGenerating: completion.isGenerating });
+
   // Fetch chats based on current view
   // NOTE: Use stable EMPTY_CHATS constant instead of `= []` to prevent
   // creating new array references on every render when data is undefined
+  // CRITICAL: Use aggressive caching to prevent cascading re-renders during
+  // rapid state transitions (e.g., fresh chat message send).
   const {
     data: chatsData,
     isLoading: loadingChats,
@@ -90,11 +99,17 @@ export function useChats(options: UseChatsOptions = {}) {
         archived: currentView === "archived",
         starred: currentView === "starred",
       }),
+    staleTime: 5000, // 5 seconds - data considered fresh
     refetchInterval: 10000,
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
   const chats = chatsData ?? EMPTY_CHATS;
 
   // Fetch selected chat with messages
+  // CRITICAL: staleTime prevents rapid refetches during chat transitions.
+  // Without this, each cache update from refetchQueries triggers re-renders
+  // in all subscribers, which can cascade and cause "too many re-renders" errors.
   const {
     data: chatData,
     isLoading: loadingChat,
@@ -103,13 +118,21 @@ export function useChats(options: UseChatsOptions = {}) {
     queryKey: ["chat", selectedChatId],
     queryFn: () => (selectedChatId ? fetchChat(selectedChatId) : null),
     enabled: !!selectedChatId,
+    staleTime: 1000, // Data considered fresh for 1 second
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Fetch available models
   // NOTE: Use stable EMPTY_MODELS constant instead of `= []`
+  // Models rarely change - use aggressive caching
   const { data: modelsData } = useQuery({
     queryKey: ["models"],
     queryFn: fetchModels,
+    staleTime: 300_000, // 5 minutes - models rarely change
+    gcTime: 600_000, // 10 minutes - keep in cache
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
   const models = modelsData ?? EMPTY_MODELS;
 
@@ -298,7 +321,8 @@ export function useChats(options: UseChatsOptions = {}) {
         setIsEditing(false);
       }
     },
-    [selectedChatId, isEditing, completion, queryClient]
+    // CRITICAL: Use completion.runCompletion, not the whole completion object (see sendMessageAndComplete)
+    [selectedChatId, isEditing, completion.runCompletion, queryClient]
   );
 
   // Cancel edit mode
@@ -310,15 +334,65 @@ export function useChats(options: UseChatsOptions = {}) {
   const sendMessageAndComplete = useCallback(
     async (chatId: string, payload: MessagePayload, needsAutoName: boolean) => {
       // Add user message with attachments, web search, and skills settings
-      await addMessage(chatId, {
+      const newMessage = await addMessage(chatId, {
         role: "user",
         content: payload.content.trim(),
         attachment_ids: payload.attachmentIds.length > 0 ? payload.attachmentIds : undefined,
         web_search: payload.webSearchEnabled ? true : undefined,
         skill_ids: payload.skillIds && payload.skillIds.length > 0 ? payload.skillIds : undefined,
       });
-      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+
+      // CRITICAL: Optimistically update the cache with the new message.
+      // This avoids the need for refetchQueries, which causes cascading re-renders.
+      // We add the message directly to the cache, then start the completion.
+      // For fresh chats, old might be null/undefined - in that case, create a minimal structure.
+      console.log("[useChats] *** ABOUT TO setQueryData *** chatId:", chatId, "timestamp:", Date.now());
+      console.log("[useChats] Current render count state at setQueryData call: useChatsRenderCount=", useChatsRenderCount);
+      queryClient.setQueryData(["chat", chatId], (old: typeof chatData) => {
+        console.log("[useChats] INSIDE setQueryData updater, old:", old ? "exists" : "null", "old?.messages?.length:", old?.messages?.length);
+        if (!old) {
+          // Fresh chat - create minimal structure with the new message
+          // The full chat data will be fetched later via invalidation
+          // IMPORTANT: Include required fields to avoid crashes in ChatHeader/ChatToolsSelector
+          console.log("[useChats] Creating fresh chat structure");
+          return {
+            chat: {
+              id: chatId,
+              name: "New Chat",
+              model: "default",
+              is_read: true,
+              is_starred: false,
+              is_archived: false,
+              tools_enabled: true,
+              label_ids: [],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as typeof chatData extends { chat: infer C } ? C : never,
+            messages: [newMessage],
+            tool_call_records: [],
+          };
+        }
+        console.log("[useChats] Appending message to existing chat, current count:", old.messages?.length);
+        return {
+          ...old,
+          messages: [...(old.messages || []), newMessage],
+        };
+      });
+      console.log("[useChats] AFTER setQueryData");
+      // NOTE: Don't invalidate ["chats"] here - we do it once at the end.
+
+      // CRITICAL: Defer runCompletion to the next event loop tick.
+      // The setQueryData above triggers synchronous re-renders in react-query subscribers.
+      // If we call setIsGenerating(true) while those renders are still processing,
+      // React detects nested state updates and throws "too many re-renders" (Error #310).
+      // Using setTimeout(0) ensures React finishes the current render batch first.
+      console.log("[useChats] Deferring runCompletion to next tick");
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          console.log("[useChats] Running deferred completion");
+          resolve();
+        }, 0);
+      });
 
       // Run AI completion with optional forced tool and skills
       try {
@@ -326,24 +400,35 @@ export function useChats(options: UseChatsOptions = {}) {
           forcedTool: payload.forcedTool,
           skills: payload.skills,
         });
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
 
-        // Auto-name if needed
+        // Auto-name if needed (do this before final invalidation)
         if (needsAutoName) {
           try {
             await autoNameChat(chatId);
-            queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-            queryClient.invalidateQueries({ queryKey: ["chats"] });
           } catch (e) {
             console.error("Auto-naming failed:", e);
           }
         }
+
+        // CRITICAL: Single batch of invalidations at the END of all operations.
+        // Multiple invalidateQueries calls in rapid succession each trigger background
+        // refetches that update the cache, causing cascading re-renders which can
+        // exceed React's 50-render limit ("too many re-renders" error).
+        // By consolidating to a single invalidation point, we minimize render cycles.
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
       } catch (error) {
         console.error("Chat completion failed:", error);
+        // Still invalidate on error to ensure UI is in sync
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
       }
     },
-    [queryClient, completion]
+    // CRITICAL: Depend on completion.runCompletion specifically, NOT the whole completion object.
+    // While useCompletion's return is memoized, its values change when state changes (e.g., isGenerating).
+    // Using the whole object would cause sendMessageAndComplete to be recreated whenever any
+    // completion state changes, cascading through all callbacks that depend on it.
+    [queryClient, completion.runCompletion]
   );
 
   // Create a new chat and immediately send a message
@@ -359,14 +444,16 @@ export function useChats(options: UseChatsOptions = {}) {
 
         setSelectedChatId(chatId);
         onChatChange?.(chatId);
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
+        // NOTE: Don't invalidate ["chats"] here - sendMessageAndComplete handles it at the end.
+        // Removing this prevents redundant invalidations that cause render storms during
+        // the fresh chat transition.
 
         await sendMessageAndComplete(chatId, payload, true);
       } catch (error) {
         console.error("Failed to create chat with message:", error);
       }
     },
-    [completion.isGenerating, queryClient, sendMessageAndComplete, onChatChange]
+    [completion.isGenerating, sendMessageAndComplete, onChatChange]
   );
 
   // Send message to existing chat
@@ -448,7 +535,8 @@ export function useChats(options: UseChatsOptions = {}) {
         queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
       }
     },
-    [selectedChatId, completion, queryClient]
+    // CRITICAL: Use completion.approveTool, not the whole completion object
+    [selectedChatId, completion.approveTool, queryClient]
   );
 
   const rejectTool = useCallback(
@@ -458,88 +546,211 @@ export function useChats(options: UseChatsOptions = {}) {
       // Refetch chat after rejection
       queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
     },
-    [selectedChatId, completion, queryClient]
+    // CRITICAL: Use completion.rejectTool, not the whole completion object
+    [selectedChatId, completion.rejectTool, queryClient]
   );
 
-  return {
-    // State
-    selectedChatId,
-    currentView,
-    isGenerating: completion.isGenerating,
-    streamingContent: completion.streamingContent,
-    activeToolCalls: completion.activeToolCalls,
-    pendingApprovals: completion.pendingApprovals,
-    awaitingApprovals: completion.awaitingApprovals,
-    isRegenerating,
-    regeneratingContent,
-    generatedImages: completion.generatedImages,
-    // Edit state
-    editingMessage,
-    isEditing,
+  // CRITICAL: Memoize action functions that wrap mutation.mutate to prevent
+  // creating new references on every render. These are passed down to children
+  // and would cause cascading re-renders without memoization.
+  const createChatAction = useCallback(
+    (params?: Parameters<typeof createChat>[0]) => createChatMutation.mutate(params),
+    [createChatMutation.mutate]
+  );
+  const deleteChatAction = useCallback(
+    (chatId: string) => deleteChatMutation.mutate(chatId),
+    [deleteChatMutation.mutate]
+  );
+  const updateChatAction = useCallback(
+    (params: Parameters<typeof updateChatMutation.mutate>[0]) => updateChatMutation.mutate(params),
+    [updateChatMutation.mutate]
+  );
+  const toggleReadAction = useCallback(
+    (params: Parameters<typeof toggleReadMutation.mutate>[0]) => toggleReadMutation.mutate(params),
+    [toggleReadMutation.mutate]
+  );
+  const toggleArchiveAction = useCallback(
+    (params: Parameters<typeof toggleArchiveMutation.mutate>[0]) => toggleArchiveMutation.mutate(params),
+    [toggleArchiveMutation.mutate]
+  );
+  const toggleStarAction = useCallback(
+    (params: Parameters<typeof toggleStarMutation.mutate>[0]) => toggleStarMutation.mutate(params),
+    [toggleStarMutation.mutate]
+  );
+  const autoNameChatAction = useCallback(
+    (chatId: string) => autoNameChatMutation.mutate(chatId),
+    [autoNameChatMutation.mutate]
+  );
+  const bulkOperateAction = useCallback(
+    (params: Parameters<typeof bulkOperateMutation.mutate>[0]) => bulkOperateMutation.mutate(params),
+    [bulkOperateMutation.mutate]
+  );
 
-    // Data
-    chats,
-    chatData,
-    models,
-    labels: labelOps.labels,
+  // Extract pending states outside useMemo to avoid including mutation objects in deps
+  const isCreatingChat = createChatMutation.isPending;
+  const isDeletingChat = deleteChatMutation.isPending;
+  const isDeletingAllChats = deleteAllChatsMutation.isPending;
+  const isUpdatingChat = updateChatMutation.isPending;
+  const isAutoNaming = autoNameChatMutation.isPending;
+  const isSelectingBranch = selectBranchMutation.isPending;
+  const isBulkOperating = bulkOperateMutation.isPending;
+  const isForking = forkChatMutation.isPending;
 
-    // Loading states
-    loadingChats,
-    loadingChat,
+  // Extract completion state values for stable dependencies
+  const isGenerating = completion.isGenerating;
+  const streamingContent = completion.streamingContent;
+  const activeToolCalls = completion.activeToolCalls;
+  const pendingApprovals = completion.pendingApprovals;
+  const awaitingApprovals = completion.awaitingApprovals;
+  const generatedImages = completion.generatedImages;
 
-    // Errors
-    chatsError,
-    chatError,
+  // Extract label ops for stable dependencies
+  const labels = labelOps.labels;
+  const createLabelAction = labelOps.createLabel;
+  const deleteLabelAction = labelOps.deleteLabel;
+  const assignLabelAction = labelOps.assignLabel;
+  const removeLabelAction = labelOps.removeLabel;
 
-    // Actions
-    setCurrentView,
-    selectChat,
-    sendMessage,
-    createChatWithMessage,
+  // CRITICAL: Memoize the return object to prevent creating new object references
+  // on every render. Without this, every render creates a new object that triggers
+  // re-renders in AppContent and all children, potentially causing "too many re-renders"
+  // errors during rapid state transitions.
+  return useMemo(
+    () => ({
+      // State
+      selectedChatId,
+      currentView,
+      isGenerating,
+      streamingContent,
+      activeToolCalls,
+      pendingApprovals,
+      awaitingApprovals,
+      isRegenerating,
+      regeneratingContent,
+      generatedImages,
+      // Edit state
+      editingMessage,
+      isEditing,
 
-    // Chat mutations
-    createChat: createChatMutation.mutate,
-    deleteChat: deleteChatMutation.mutate,
-    deleteAllChats: deleteAllChatsMutation.mutateAsync,
-    updateChat: updateChatMutation.mutate,
-    toggleRead: toggleReadMutation.mutate,
-    toggleArchive: toggleArchiveMutation.mutate,
-    toggleStar: toggleStarMutation.mutate,
-    autoNameChat: autoNameChatMutation.mutate,
+      // Data
+      chats,
+      chatData,
+      models,
+      labels,
 
-    // Branching operations (ChatGPT-style regeneration)
-    regenerateMessage,
-    selectBranch,
+      // Loading states
+      loadingChats,
+      loadingChat,
 
-    // Edit operations
-    setEditingMessage,
-    editMessageAndComplete,
-    cancelEdit,
+      // Errors
+      chatsError,
+      chatError,
 
-    // Bulk operations
-    bulkOperate: bulkOperateMutation.mutate,
+      // Actions
+      setCurrentView,
+      selectChat,
+      sendMessage,
+      createChatWithMessage,
 
-    // Fork conversation
-    forkConversation,
+      // Chat mutations - use memoized callbacks
+      createChat: createChatAction,
+      deleteChat: deleteChatAction,
+      deleteAllChats: deleteAllChatsMutation.mutateAsync,
+      updateChat: updateChatAction,
+      toggleRead: toggleReadAction,
+      toggleArchive: toggleArchiveAction,
+      toggleStar: toggleStarAction,
+      autoNameChat: autoNameChatAction,
 
-    // Tool approval actions
-    approveTool,
-    rejectTool,
+      // Branching operations (ChatGPT-style regeneration)
+      regenerateMessage,
+      selectBranch,
 
-    // Label operations (delegated)
-    createLabel: labelOps.createLabel,
-    deleteLabel: labelOps.deleteLabel,
-    assignLabel: labelOps.assignLabel,
-    removeLabel: labelOps.removeLabel,
+      // Edit operations
+      setEditingMessage,
+      editMessageAndComplete,
+      cancelEdit,
 
-    // Mutation states
-    isCreatingChat: createChatMutation.isPending,
-    isDeletingChat: deleteChatMutation.isPending,
-    isDeletingAllChats: deleteAllChatsMutation.isPending,
-    isUpdatingChat: updateChatMutation.isPending,
-    isAutoNaming: autoNameChatMutation.isPending,
-    isSelectingBranch: selectBranchMutation.isPending,
-    isBulkOperating: bulkOperateMutation.isPending,
-    isForking: forkChatMutation.isPending,
-  };
+      // Bulk operations
+      bulkOperate: bulkOperateAction,
+
+      // Fork conversation
+      forkConversation,
+
+      // Tool approval actions
+      approveTool,
+      rejectTool,
+
+      // Label operations (delegated)
+      createLabel: createLabelAction,
+      deleteLabel: deleteLabelAction,
+      assignLabel: assignLabelAction,
+      removeLabel: removeLabelAction,
+
+      // Mutation states
+      isCreatingChat,
+      isDeletingChat,
+      isDeletingAllChats,
+      isUpdatingChat,
+      isAutoNaming,
+      isSelectingBranch,
+      isBulkOperating,
+      isForking,
+    }),
+    [
+      selectedChatId,
+      currentView,
+      isGenerating,
+      streamingContent,
+      activeToolCalls,
+      pendingApprovals,
+      awaitingApprovals,
+      isRegenerating,
+      regeneratingContent,
+      generatedImages,
+      editingMessage,
+      isEditing,
+      chats,
+      chatData,
+      models,
+      labels,
+      loadingChats,
+      loadingChat,
+      chatsError,
+      chatError,
+      setCurrentView,
+      selectChat,
+      sendMessage,
+      createChatWithMessage,
+      createChatAction,
+      deleteChatAction,
+      deleteAllChatsMutation.mutateAsync,
+      updateChatAction,
+      toggleReadAction,
+      toggleArchiveAction,
+      toggleStarAction,
+      autoNameChatAction,
+      regenerateMessage,
+      selectBranch,
+      setEditingMessage,
+      editMessageAndComplete,
+      cancelEdit,
+      bulkOperateAction,
+      forkConversation,
+      approveTool,
+      rejectTool,
+      createLabelAction,
+      deleteLabelAction,
+      assignLabelAction,
+      removeLabelAction,
+      isCreatingChat,
+      isDeletingChat,
+      isDeletingAllChats,
+      isUpdatingChat,
+      isAutoNaming,
+      isSelectingBranch,
+      isBulkOperating,
+      isForking,
+    ]
+  );
 }

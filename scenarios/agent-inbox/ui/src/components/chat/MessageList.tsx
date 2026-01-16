@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useCallback, useMemo } from "react";
+import { memo, useEffect, useRef, useState, forwardRef, useCallback, useMemo } from "react";
 import {
   Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
@@ -21,6 +21,16 @@ const EMPTY_IMAGES: string[] = [];
 const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_TOOL_RECORDS: ToolCallRecord[] = [];
 const EMPTY_APPROVALS: PendingApproval[] = [];
+const EMPTY_SIBLINGS: Message[] = [];
+
+// Stable default for sibling info to prevent creating new objects in useMemo
+// CRITICAL: Returning { siblings: [] } creates a NEW array each time, which changes
+// references and triggers useCallback dependencies like handlePreviousVersion to recreate
+const DEFAULT_SIBLING_INFO = { current: 1, total: 1, siblings: EMPTY_SIBLINGS };
+
+// Stable empty map for sibling info when there are no messages
+// CRITICAL: Using `new Map()` inside a component creates new reference each render
+const EMPTY_SIBLING_MAP: Map<string, { current: number; total: number; siblings: Message[] }> = new Map();
 
 interface MessageListProps {
   messages: Message[];
@@ -60,7 +70,19 @@ interface MessageListProps {
   isForking?: boolean;
 }
 
-export function MessageList({
+// DEBUG: Track renders globally to detect loops
+let messageListRenderCount = 0;
+// DEBUG: Track hook execution order to detect conditional hook issues
+let currentRenderHookIndex = 0;
+// DEBUG: Track history of render hook counts to detect mismatch
+const renderHookHistory: Array<{ renderNum: number; hookCount: number; messagesLength: number; tookEarlyReturn: boolean; completed: boolean }> = [];
+// DEBUG: Track if a render is in progress (to detect interruptions)
+let renderInProgress: { renderNum: number; globalSeq: number; startTime: number } | null = null;
+// DEBUG: Track the last messages reference to detect changes
+let lastMessagesRef: unknown = null;
+
+// Inner implementation of MessageList - will be wrapped with memo
+function MessageListInner({
   messages,
   allMessages,
   isGenerating,
@@ -83,13 +105,64 @@ export function MessageList({
   isRegenerating = false,
   isForking = false,
 }: MessageListProps) {
+  // DEBUG: Track renders and reset hook counter
+  messageListRenderCount++;
+  currentRenderHookIndex = 0;
+  const globalSeq = typeof window !== 'undefined' && window.__getNextRenderSeq__ ? window.__getNextRenderSeq__() : 0;
+
+  // DEBUG: Check if previous render was interrupted
+  if (renderInProgress) {
+    console.log(`[MessageList] !!! PREVIOUS RENDER #${renderInProgress.renderNum} (globalSeq: ${renderInProgress.globalSeq}) WAS INTERRUPTED !!! It never completed.`);
+  }
+
+  // Mark this render as in progress
+  renderInProgress = { renderNum: messageListRenderCount, globalSeq, startTime: Date.now() };
+
+  // DEBUG: Check if messages reference changed
+  const messagesRefChanged = messages !== lastMessagesRef;
+  const previousMessagesLength = Array.isArray(lastMessagesRef) ? (lastMessagesRef as unknown[]).length : 'N/A';
+  lastMessagesRef = messages;
+
+  // DEBUG: Log render start with critical state that could affect hook paths
+  console.log(`[MessageList] ===== RENDER #${messageListRenderCount} (global seq: ${globalSeq}) START =====`, {
+    messagesLength: messages?.length,
+    messagesIsArray: Array.isArray(messages),
+    messagesUndefined: messages === undefined,
+    messagesNull: messages === null,
+    allMessagesLength: allMessages?.length,
+    toolCallRecordsLength: toolCallRecords?.length,
+    isGenerating,
+    // Check early return condition RIGHT AT START
+    wouldEarlyReturn: messages?.length === 0 && !isGenerating,
+    // Track reference changes
+    messagesRefChanged,
+    previousMessagesLength,
+  });
+
   // Use allMessages for sibling computation, fallback to visible messages
   const messagesForSiblings = allMessages ?? messages;
+
+  // DEBUG: Log hook #1
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(endRef)`);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // DEBUG: Log hook #2
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(messageRefs)`);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Ref for debouncing auto-scroll to prevent rapid scroll triggers during streaming
+  // DEBUG: Log hook #3
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useRef(scrollTimeoutRef)`);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
   // Clear stale message refs when messages change to prevent memory leaks
   // and stale data issues when switching between chats
+  // DEBUG: Log hook #4
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(clearStaleRefs)`);
   useEffect(() => {
     const currentMessageIds = new Set(messages.map((m) => m.id));
     // Remove refs for messages that are no longer in the list
@@ -104,7 +177,11 @@ export function MessageList({
   // IDs from OpenRouter are strings like "call_abc123", stored as-is in both
   // messages.tool_calls and tool_calls.id. Normalize by removing dashes for
   // backward compatibility with any legacy UUID-formatted records.
+  // DEBUG: Log hook #5
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(toolCallRecordMap) - BEFORE`);
   const toolCallRecordMap = useMemo(() => {
+    console.log("[MessageList] INSIDE toolCallRecordMap useMemo, toolCallRecords:", toolCallRecords.length);
     const map = new Map<string, ToolCallRecord>();
     for (const record of toolCallRecords) {
       // Store with both original and normalized ID for robust lookup
@@ -116,8 +193,36 @@ export function MessageList({
     }
     return map;
   }, [toolCallRecords]);
+  console.log("[MessageList] AFTER toolCallRecordMap useMemo (hook #5 complete)");
+
+  // OPTIMIZATION: Precompute siblingInfo for all assistant messages at the list level.
+  // Previously, each MessageBubble computed getSiblingInfo(allMessages, message.id),
+  // which built a message map and did filtering N times for N messages.
+  // By computing once here and passing down, we reduce O(N²) to O(N) complexity.
+  // CRITICAL: Return stable EMPTY_SIBLING_MAP when no messages to prevent new reference.
+  // DEBUG: Log hook #6
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(siblingInfoMap) - BEFORE`);
+  const siblingInfoMap = useMemo(() => {
+    console.log("[MessageList] INSIDE siblingInfoMap useMemo, messagesForSiblings:", messagesForSiblings?.length, "messages:", messages.length);
+    if (!messagesForSiblings || messagesForSiblings.length === 0) {
+      return EMPTY_SIBLING_MAP;
+    }
+    const map = new Map<string, { current: number; total: number; siblings: Message[] }>();
+    // Only compute for assistant messages (they're the only ones with version pickers)
+    for (const message of messages) {
+      if (message.role === "assistant") {
+        map.set(message.id, getSiblingInfo(messagesForSiblings, message.id));
+      }
+    }
+    return map;
+  }, [messagesForSiblings, messages]);
+  console.log("[MessageList] AFTER siblingInfoMap useMemo (hook #6 complete)");
 
   // Scroll to specific message when navigating from search
+  // DEBUG: Log hook #7
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(scrollToMessage)`);
   useEffect(() => {
     if (scrollToMessageId) {
       const messageEl = messageRefs.current.get(scrollToMessageId);
@@ -138,35 +243,42 @@ export function MessageList({
   }, [scrollToMessageId, onScrollComplete, messages]);
 
   // Auto-scroll to end for new messages/streaming
+  // DEBOUNCED: Use timeout to prevent rapid scroll triggers during streaming which can
+  // interact with browser reflow and cause React reconciliation issues.
+  // Uses stable primitive dependencies instead of array references to prevent
+  // unnecessary effect runs.
+  // DEBUG: Log hook #8
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useEffect(autoScroll)`);
   useEffect(() => {
     if (!scrollToMessageId) {
-      endRef.current?.scrollIntoView({ behavior: "smooth" });
+      // Clear any pending scroll
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      // Debounce the scroll with a small delay
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        endRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
     }
-  }, [messages, streamingContent, activeToolCalls, scrollToMessageId]);
-
-  if (messages.length === 0 && !isGenerating) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-8" data-testid="empty-messages">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center mx-auto mb-4">
-            <Bot className="h-8 w-8 text-indigo-400" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Start a conversation</h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Type a message below to begin chatting with the AI assistant. Ask questions, request
-            help with tasks, or just have a conversation.
-          </p>
-        </div>
-      </div>
-    );
-  }
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [messages.length, Boolean(streamingContent), activeToolCalls.length, scrollToMessageId]);
 
   const isCompact = viewMode === "compact";
 
   // Filter out tool messages whose results are already displayed inline in the
   // preceding assistant message's ToolCallItem. Only show tool messages as a
   // fallback when there's no ToolCallRecord with a result.
+  // DEBUG: Log hook #9
+  currentRenderHookIndex++;
+  console.log(`[MessageList] Hook #${currentRenderHookIndex}: useMemo(filteredMessages) - ABOUT TO CALL useMemo, render #${messageListRenderCount}, globalSeq: ${globalSeq}`);
+
   const filteredMessages = useMemo(() => {
+    console.log("[MessageList] INSIDE filteredMessages useMemo callback executing, messages:", messages?.length, "isArray:", Array.isArray(messages));
     return messages.filter((message) => {
       // Only filter tool messages
       if (message.role !== "tool" || !message.tool_call_id) {
@@ -183,6 +295,32 @@ export function MessageList({
     });
   }, [messages, toolCallRecordMap]);
 
+  // Record this render in history
+  renderHookHistory.push({ renderNum: messageListRenderCount, hookCount: currentRenderHookIndex, messagesLength: messages?.length ?? -1, tookEarlyReturn: false, completed: true });
+  renderInProgress = null; // Mark render as completed
+  console.log(`[MessageList] ===== RENDER #${messageListRenderCount} COMPLETE ===== Total hooks: ${currentRenderHookIndex}. History now:`, renderHookHistory.slice(-5));
+
+  // IMPORTANT: Early return MUST be AFTER all hooks to satisfy React's Rules of Hooks.
+  // Previously this was between hooks #8 and #9, causing Error #310 when messages
+  // changed from 0 to 1 (hook count changed from 8 to 9).
+  if (messages.length === 0 && !isGenerating) {
+    console.log(`[MessageList] Empty state - returning empty UI, render #${messageListRenderCount}`);
+    return (
+      <div className="flex-1 flex items-center justify-center p-8" data-testid="empty-messages">
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 flex items-center justify-center mx-auto mb-4">
+            <Bot className="h-8 w-8 text-indigo-400" />
+          </div>
+          <h3 className="text-lg font-medium text-slate-900 dark:text-white mb-2">Start a conversation</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Type a message below to begin chatting with the AI assistant. Ask questions, request
+            help with tasks, or just have a conversation.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex-1 overflow-y-auto p-4 ${isCompact ? "space-y-2" : "space-y-4"}`} data-testid="message-list">
       {filteredMessages.map((message) => (
@@ -191,6 +329,7 @@ export function MessageList({
           message={message}
           viewMode={viewMode}
           allMessages={messagesForSiblings}
+          siblingInfo={siblingInfoMap.get(message.id) ?? DEFAULT_SIBLING_INFO}
           toolCallRecordMap={toolCallRecordMap}
           onRegenerate={onRegenerateMessage}
           onSelectBranch={onSelectBranch}
@@ -356,6 +495,10 @@ export function MessageList({
     </div>
   );
 }
+
+// Export MessageList with simple memo wrapper (no custom comparison)
+// The parent component (ChatView) is responsible for passing stable props
+export const MessageList = memo(MessageListInner);
 
 // Action button component for consistent styling
 interface ActionButtonProps {
@@ -558,8 +701,10 @@ function MessageAttachments({ attachments, isUser = false, compact = false }: Me
 interface MessageBubbleProps {
   message: Message;
   viewMode: ViewMode;
-  /** All messages for computing siblings */
+  /** All messages for computing siblings (used for navigation) */
   allMessages: Message[];
+  /** Precomputed sibling info from parent (avoids recomputation per bubble) */
+  siblingInfo: { current: number; total: number; siblings: Message[] };
   /** Map of tool_call_id to ToolCallRecord for status lookup */
   toolCallRecordMap: Map<string, ToolCallRecord>;
   /** Called when user requests regeneration */
@@ -576,8 +721,9 @@ interface MessageBubbleProps {
   isForking?: boolean;
 }
 
-const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubble(
-  { message, viewMode, allMessages, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, onEdit, isRegenerating = false, isForking = false },
+// Inner component for MessageBubble - will be wrapped with memo
+const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubbleInner(
+  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, onEdit, isRegenerating = false, isForking = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -588,14 +734,8 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   const hasToolCalls = message.role === "assistant" && message.tool_calls && message.tool_calls.length > 0;
   const isCompact = viewMode === "compact";
 
-  // Compute sibling info for version picker
-  const siblingInfo = useMemo(() => {
-    if (!isAssistant || !allMessages || allMessages.length === 0) {
-      return { current: 1, total: 1, siblings: [] };
-    }
-    return getSiblingInfo(allMessages, message.id);
-  }, [isAssistant, allMessages, message.id]);
-
+  // siblingInfo is now passed from parent (MessageList) to avoid N calls to getSiblingInfo.
+  // This reduces O(N²) complexity to O(N) for sibling computation.
   const hasSiblings = siblingInfo.total > 1;
 
   // State for text-to-speech
@@ -686,33 +826,21 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
   }, [onFork, message.id, handleComingSoon]);
 
   // Version picker navigation handlers
+  // NOTE: siblingInfo is NOT in dependencies - it was only used for debug logging
+  // and including it caused callback recreation cascades (siblingInfo object changes often)
   const handlePreviousVersion = useCallback(() => {
-    console.log("[VersionPicker] Previous clicked", {
-      messageId: message.id,
-      hasOnSelectBranch: !!onSelectBranch,
-      allMessagesCount: allMessages.length,
-      siblingInfo,
-    });
     if (!onSelectBranch) {
-      console.log("[VersionPicker] No onSelectBranch handler!");
       return;
     }
     const prevSibling = getPreviousSibling(allMessages, message.id);
-    console.log("[VersionPicker] Previous sibling:", prevSibling);
     if (prevSibling) {
-      console.log("[VersionPicker] Selecting branch:", prevSibling.id);
       onSelectBranch(prevSibling.id);
     }
-  }, [onSelectBranch, allMessages, message.id, siblingInfo]);
+  }, [onSelectBranch, allMessages, message.id]);
 
   const handleNextVersion = useCallback(() => {
-    console.log("[VersionPicker] Next clicked", {
-      messageId: message.id,
-      hasOnSelectBranch: !!onSelectBranch,
-    });
     if (!onSelectBranch) return;
     const nextSibling = getNextSibling(allMessages, message.id);
-    console.log("[VersionPicker] Next sibling:", nextSibling);
     if (nextSibling) {
       onSelectBranch(nextSibling.id);
     }
@@ -976,3 +1104,6 @@ const MessageBubble = forwardRef<HTMLDivElement, MessageBubbleProps>(function Me
     </div>
   );
 });
+
+// Wrap MessageBubble with simple memo (no custom comparison)
+const MessageBubble = memo(MessageBubbleInner) as typeof MessageBubbleInner;

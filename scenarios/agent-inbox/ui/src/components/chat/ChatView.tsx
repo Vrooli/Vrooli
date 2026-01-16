@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
@@ -18,6 +18,7 @@ const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_IMAGES: string[] = [];
 const EMPTY_ASYNC_OPS: AsyncStatusUpdate[] = [];
 const EMPTY_MESSAGES: Message[] = [];
+const EMPTY_TOOL_RECORDS: import("../../lib/api").ToolCallRecord[] = [];
 
 interface ChatViewProps {
   chatData: ChatWithMessages | null;
@@ -96,6 +97,21 @@ export function ChatView({
   activeTemplateId,
   onTemplateDeactivate,
 }: ChatViewProps) {
+  // DEBUG: Track renders
+  const renderCount = useRef(0);
+  renderCount.current++;
+  const globalSeq = typeof window !== 'undefined' && window.__getNextRenderSeq__ ? window.__getNextRenderSeq__() : 0;
+  console.log(`[ChatView] ===== Render #${renderCount.current} (global seq: ${globalSeq}) START =====`, {
+    chatId: chatData?.chat?.id,
+    messageCount: chatData?.messages?.length,
+    messagesIsArray: Array.isArray(chatData?.messages),
+    messagesUndefined: chatData?.messages === undefined,
+    messagesNull: chatData?.messages === null,
+    chatDataExists: !!chatData,
+    isLoading,
+    isGenerating,
+  });
+
   // Compute visible messages based on the active branch
   // This filters the full message tree to only show the active path
   // NOTE: Must be called before any early returns to satisfy React's rules of hooks
@@ -105,20 +121,53 @@ export function ChatView({
   // The nullish coalescing operator (??) only handles null/undefined, but [] is truthy.
   // Without this check, an empty messages array from the API would create a new
   // reference on every render, potentially causing infinite re-render loops (React #310).
+  console.log("[ChatView] BEFORE allMessages useMemo, chatData?.messages:", chatData?.messages?.length);
   const allMessages = useMemo(() => {
+    console.log("[ChatView] INSIDE allMessages useMemo");
     const messages = chatData?.messages;
     if (!messages || messages.length === 0) {
+      console.log("[ChatView] allMessages returning EMPTY_MESSAGES");
       return EMPTY_MESSAGES;
     }
+    console.log("[ChatView] allMessages returning messages array, length:", messages.length);
     return messages;
   }, [chatData?.messages]);
+  console.log("[ChatView] AFTER allMessages useMemo, result length:", allMessages.length);
   const activeLeafId = chatData?.chat?.active_leaf_message_id ?? null;
 
   // CRITICAL: Must use stable EMPTY_MESSAGES, not inline [] which creates new reference each time
+  // NOTE: Do NOT include `chatData` in dependencies! The computation only uses `allMessages` and
+  // `activeLeafId`. Including `chatData` causes unnecessary recalculations whenever ANY chatData
+  // property changes (tool_call_records, chat name, etc.), potentially creating cascading re-renders.
+  console.log("[ChatView] BEFORE visibleMessages useMemo");
   const visibleMessages = useMemo(() => {
-    if (!chatData || allMessages.length === 0) return EMPTY_MESSAGES;
+    console.log("[ChatView] INSIDE visibleMessages useMemo, allMessages:", allMessages.length, "activeLeafId:", activeLeafId);
+    if (allMessages.length === 0) return EMPTY_MESSAGES;
     return computeVisibleMessages(allMessages, activeLeafId ?? undefined);
-  }, [chatData, allMessages, activeLeafId]);
+  }, [allMessages, activeLeafId]);
+  console.log("[ChatView] AFTER visibleMessages useMemo, result length:", visibleMessages.length);
+
+  // NOTE: We previously used useDeferredValue here to try to reduce render storms, but it caused
+  // a critical bug: the deferred values would lag behind, creating a mismatch where ChatView had
+  // messages but MessageList received an empty array. This caused "too many re-renders" errors
+  // because MessageList's useMemo calculations would see inconsistent state (isGenerating=true
+  // but messages=[]).
+
+  // Memoize tool call records to prevent cascading re-renders in MessageList
+  // CRITICAL: The API returns a NEW empty array [] on each response. The default parameter
+  // `= EMPTY_TOOL_RECORDS` in MessageList only applies for `undefined`, NOT for `[]`.
+  // Without this memoization, each query cache update creates new array references,
+  // causing useMemo dependency chains to recalculate and potentially infinite render loops.
+  console.log("[ChatView] BEFORE stableToolCallRecords useMemo");
+  const stableToolCallRecords = useMemo(() => {
+    console.log("[ChatView] INSIDE stableToolCallRecords useMemo, records:", chatData?.tool_call_records?.length);
+    const records = chatData?.tool_call_records;
+    if (!records || records.length === 0) {
+      return EMPTY_TOOL_RECORDS;
+    }
+    return records;
+  }, [chatData?.tool_call_records]);
+  console.log("[ChatView] AFTER stableToolCallRecords useMemo");
 
   if (isLoading) {
     return (
@@ -142,7 +191,7 @@ export function ChatView({
           chat={chatData.chat}
           models={models}
           labels={labels}
-          onUpdateChat={(data) => onUpdateChat(data)}
+          onUpdateChat={onUpdateChat}
           onToggleRead={onToggleRead}
           onToggleStar={onToggleStar}
           onToggleArchive={onToggleArchive}
@@ -170,7 +219,7 @@ export function ChatView({
           streamingContent={streamingContent}
           activeToolCalls={activeToolCalls}
           generatedImages={generatedImages}
-          toolCallRecords={chatData.tool_call_records}
+          toolCallRecords={stableToolCallRecords}
           scrollToMessageId={scrollToMessageId}
           onScrollComplete={onScrollComplete}
           viewMode={viewMode}

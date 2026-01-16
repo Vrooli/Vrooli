@@ -8,6 +8,7 @@
  * label API functions or provide test data via React Query's
  * test utilities.
  */
+import { useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchLabels,
@@ -23,11 +24,20 @@ import {
 // which changes references and triggers infinite re-render loops via useMemo dependencies
 const EMPTY_LABELS: Label[] = [];
 
+// DEBUG: Track renders
+let useLabelsRenderCount = 0;
+
 export function useLabels() {
   const queryClient = useQueryClient();
 
+  // DEBUG: Track renders
+  useLabelsRenderCount++;
+  console.log(`[useLabels] Render #${useLabelsRenderCount}`);
+
   // Fetch labels
   // NOTE: Use stable EMPTY_LABELS constant instead of `= []`
+  // CRITICAL: Use aggressive caching to prevent cascading re-renders during
+  // rapid state transitions (e.g., fresh chat message send).
   const {
     data: labelsData,
     isLoading: loadingLabels,
@@ -35,6 +45,10 @@ export function useLabels() {
   } = useQuery({
     queryKey: ["labels"],
     queryFn: fetchLabels,
+    staleTime: 60_000, // 1 minute - data considered fresh
+    gcTime: 300_000, // 5 minutes - keep in cache
+    refetchOnMount: false, // Don't refetch when component mounts
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
   const labels = labelsData ?? EMPTY_LABELS;
 
@@ -75,26 +89,66 @@ export function useLabels() {
     },
   });
 
-  return {
-    // Data
-    labels,
+  // CRITICAL: Memoize action functions to prevent creating new references on every render.
+  // Without this, every useLabels render creates new function references that cascade
+  // through useChats to all consuming components.
+  const createLabelAction = useCallback(
+    (data: Parameters<typeof createLabel>[0]) => createLabelMutation.mutate(data),
+    [createLabelMutation.mutate]
+  );
+  const deleteLabelAction = useCallback(
+    (labelId: string) => deleteLabelMutation.mutate(labelId),
+    [deleteLabelMutation.mutate]
+  );
+  const assignLabelAction = useCallback(
+    (params: { chatId: string; labelId: string }) => assignLabelMutation.mutate(params),
+    [assignLabelMutation.mutate]
+  );
+  const removeLabelAction = useCallback(
+    (params: { chatId: string; labelId: string }) => removeLabelMutation.mutate(params),
+    [removeLabelMutation.mutate]
+  );
 
-    // Loading states
-    loadingLabels,
+  // Extract pending states outside useMemo to avoid including mutation objects in deps
+  const isCreatingLabel = createLabelMutation.isPending;
+  const isDeletingLabel = deleteLabelMutation.isPending;
 
-    // Errors
-    labelsError,
+  // CRITICAL: Memoize the return object to prevent creating new object references
+  // on every render. Without this, every render creates a new object that cascades
+  // through useChats to all consuming components, contributing to render storms.
+  return useMemo(
+    () => ({
+      // Data
+      labels,
 
-    // Actions
-    createLabel: createLabelMutation.mutate,
-    deleteLabel: deleteLabelMutation.mutate,
-    assignLabel: assignLabelMutation.mutate,
-    removeLabel: removeLabelMutation.mutate,
+      // Loading states
+      loadingLabels,
 
-    // Mutation states
-    isCreatingLabel: createLabelMutation.isPending,
-    isDeletingLabel: deleteLabelMutation.isPending,
-  };
+      // Errors
+      labelsError,
+
+      // Actions - use memoized callbacks
+      createLabel: createLabelAction,
+      deleteLabel: deleteLabelAction,
+      assignLabel: assignLabelAction,
+      removeLabel: removeLabelAction,
+
+      // Mutation states
+      isCreatingLabel,
+      isDeletingLabel,
+    }),
+    [
+      labels,
+      loadingLabels,
+      labelsError,
+      createLabelAction,
+      deleteLabelAction,
+      assignLabelAction,
+      removeLabelAction,
+      isCreatingLabel,
+      isDeletingLabel,
+    ]
+  );
 }
 
 // Re-export Label type for convenience
