@@ -252,5 +252,38 @@
     "type": "application-template",
     "version": "1.0.0"
   },
+  "deployment": {
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "secrets": [
+          {
+            "secret_id": "ADMIN_DEFAULT_EMAIL",
+            "classification": "user",
+            "label": "Admin Email",
+            "description": "Email address for the default admin account. Used for logging into the admin portal.",
+            "required": false,
+            "default_hint": "Defaults to admin@localhost if not set"
+          },
+          {
+            "secret_id": "ADMIN_DEFAULT_PASSWORD",
+            "classification": "user",
+            "label": "Admin Password",
+            "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
+            "required": false,
+            "default_hint": "Minimum 12 characters with letters and numbers (defaults to 'changeme123' if not set)"
+          },
+          {
+            "secret_id": "SESSION_SECRET",
+            "classification": "service",
+            "label": "Session Secret",
+            "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
+            "required": true,
+            "default_hint": "Generate with: openssl rand -base64 32"
+          }
+        ]
+      }
+    }
+  },
   "version": "1.0.0"
 }

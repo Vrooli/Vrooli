@@ -86,6 +86,29 @@ On first run, a default admin account is seeded:
 
 **⚠️ CRITICAL: Change the default email and password immediately in production!**
 
+#### Option 1: Environment Variable Override (Recommended for Deployments)
+
+Override the default credentials using environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ADMIN_DEFAULT_EMAIL` | Admin account email | `admin@localhost` |
+| `ADMIN_DEFAULT_PASSWORD` | Admin account password (plaintext, hashed on startup) | `changeme123` |
+
+**For scenario-to-cloud deployments:**
+1. Navigate to the Secrets Tab in scenario-to-cloud
+2. Add `ADMIN_DEFAULT_EMAIL` with your desired admin email
+3. Add `ADMIN_DEFAULT_PASSWORD` with a strong password (12+ chars, letters and numbers)
+4. Check "Restart scenario after changes"
+5. The scenario will restart with the new credentials
+
+On startup, the API reads these environment variables, hashes the password, and seeds/updates the admin user. This approach is ideal for:
+- Cloud deployments where you want consistent credentials across restarts
+- Automated provisioning where credentials come from a secrets manager
+- Scenarios where manual login to change credentials isn't feasible initially
+
+#### Option 2: Admin Portal (Post-Deployment)
+
 Use the admin portal ( `/admin/profile` ) to rotate credentials:
 - Enter your current password, provide a new email, and save.
 - Enter your current password, choose a strong new password (12+ chars, letters and numbers), and save.
@@ -321,12 +344,18 @@ db.QueryRow("SELECT * FROM admin_users WHERE email = '" + email + "'")
 | `SESSION_SECRET` | Encrypts session cookies | **Yes** in production |
 | `STRIPE_WEBHOOK_SECRET` | Verifies Stripe webhooks | Yes if using Stripe |
 | `DATABASE_URL` | Database connection (use SSL) | Yes |
+| `ADMIN_DEFAULT_EMAIL` | Override default admin email | No (default: `admin@localhost`) |
+| `ADMIN_DEFAULT_PASSWORD` | Override default admin password | No (default: `changeme123`) |
 
 ### Recommended Settings
 
 ```bash
 # Generate secure values
 SESSION_SECRET=$(openssl rand -base64 32)
+
+# Admin credentials (override defaults for production)
+ADMIN_DEFAULT_EMAIL=admin@yourdomain.com
+ADMIN_DEFAULT_PASSWORD=$(openssl rand -base64 16)  # Strong random password
 
 # Stripe keys from dashboard
 STRIPE_PUBLISHABLE_KEY=pk_live_xxx
@@ -343,7 +372,7 @@ DATABASE_URL=postgres://user:pass@host:5432/db?sslmode=require
 
 ### Pre-Deployment
 
-- [ ] **Change default admin password** - `admin@localhost` / `changeme123` must be changed via `/admin/profile`
+- [ ] **Change default admin credentials** - Either set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` environment variables, or change via `/admin/profile` after first login
 - [ ] **Set SESSION_SECRET** - Generate cryptographically random 32+ byte key
 - [ ] **Enable HTTPS** - All traffic must be encrypted
 - [ ] **Set Secure cookie flag** - Modify `auth.go` line 99: `session.Options.Secure = true`

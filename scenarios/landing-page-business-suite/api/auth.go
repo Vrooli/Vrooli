@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"unicode"
 
@@ -16,17 +17,115 @@ import (
 const (
 	defaultAdminEmail        = "admin@localhost"
 	defaultAdminPasswordHash = "$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG" // changeme123
+	seededAdminID            = 1                                                              // Reserved ID for the seeded/default admin account
 )
+
+// resolveSecret implements the same 3-layer secret resolution as the shell secrets::resolve().
+// Priority: 1) Environment variable, 2) .vrooli/secrets.json, 3) empty string
+func resolveSecret(key string) string {
+	// Layer 1: Environment variable
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+
+	// Layer 2: .vrooli/secrets.json (used by scenario-to-cloud deployments)
+	secretsFile := findSecretsFile()
+	if secretsFile != "" {
+		if value := readSecretFromJSON(secretsFile, key); value != "" {
+			return value
+		}
+	}
+
+	// Layer 3: Not found
+	return ""
+}
+
+// findSecretsFile locates .vrooli/secrets.json by walking up from cwd or using VROOLI_ROOT
+func findSecretsFile() string {
+	// Try VROOLI_ROOT first (production deployments set this)
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		candidate := filepath.Join(root, ".vrooli", "secrets.json")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	// Walk up from current working directory to find .vrooli/secrets.json
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	dir := cwd
+	for {
+		candidate := filepath.Join(dir, ".vrooli", "secrets.json")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // Reached root
+		}
+		dir = parent
+	}
+
+	return ""
+}
+
+// readSecretFromJSON reads a single key from a JSON file
+func readSecretFromJSON(filePath, key string) string {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return ""
+	}
+
+	var secrets map[string]interface{}
+	if err := json.Unmarshal(data, &secrets); err != nil {
+		return ""
+	}
+
+	if value, ok := secrets[key]; ok {
+		if str, ok := value.(string); ok {
+			return strings.TrimSpace(str)
+		}
+	}
+
+	return ""
+}
+
+// getAdminDefaults returns admin email and password hash.
+// Resolution order: environment variables -> .vrooli/secrets.json -> hardcoded defaults.
+// This enables customization via scenario-to-cloud's Secrets Tab.
+func getAdminDefaults() (email string, passwordHash string, err error) {
+	email = resolveSecret("ADMIN_DEFAULT_EMAIL")
+	if email == "" {
+		email = defaultAdminEmail
+	}
+
+	// Check for plaintext password override (will be hashed)
+	plaintextPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
+	if plaintextPassword != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), bcrypt.DefaultCost)
+		if err != nil {
+			return "", "", fmt.Errorf("hash admin password: %w", err)
+		}
+		return email, string(hash), nil
+	}
+
+	// Fall back to default hash
+	return email, defaultAdminPasswordHash, nil
+}
 
 var sessionStore *sessions.CookieStore
 
 func initSessionStore() {
-	secret := os.Getenv("SESSION_SECRET")
+	secret := resolveSecret("SESSION_SECRET")
 	if secret == "" {
 		logStructured("session_secret_missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "SESSION_SECRET not set; using placeholder for development",
-			"action":  "Set SESSION_SECRET environment variable before starting the server",
+			"action":  "Set SESSION_SECRET in environment or .vrooli/secrets.json",
 		})
 		secret = "dev-session-placeholder"
 	}
@@ -193,10 +292,11 @@ type AdminProfileUpdateRequest struct {
 }
 
 func buildAdminProfileResponse(email, passwordHash string) AdminProfileResponse {
+	envEmail, envHash, _ := getAdminDefaults()
 	return AdminProfileResponse{
 		Email:             email,
-		IsDefaultEmail:    strings.EqualFold(email, defaultAdminEmail),
-		IsDefaultPassword: passwordHash == defaultAdminPasswordHash,
+		IsDefaultEmail:    strings.EqualFold(email, envEmail),
+		IsDefaultPassword: passwordHash == envHash,
 	}
 }
 
@@ -364,7 +464,8 @@ func validateAdminPasswordUpdate(candidate, currentHash string) error {
 	if bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(candidate)) == nil {
 		return fmt.Errorf("New password must be different from the current password")
 	}
-	if bcrypt.CompareHashAndPassword([]byte(defaultAdminPasswordHash), []byte(candidate)) == nil {
+	_, envHash, _ := getAdminDefaults()
+	if bcrypt.CompareHashAndPassword([]byte(envHash), []byte(candidate)) == nil {
 		return fmt.Errorf("New password cannot use the default credential")
 	}
 	return nil

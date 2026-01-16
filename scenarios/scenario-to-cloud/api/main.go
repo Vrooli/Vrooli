@@ -258,6 +258,9 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleUpdateVPSSecret(secretsMgmtDeps)).Methods("PUT")
 	api.HandleFunc("/deployments/{id}/secrets/{key}", secrets.HandleDeleteVPSSecret(secretsMgmtDeps)).Methods("DELETE")
 
+	// Expected Secrets (secrets defined in scenario's service.json)
+	api.HandleFunc("/deployments/{id}/expected-secrets", s.handleGetExpectedSecrets).Methods("GET")
+
 	// Terminal (Ground Truth Redesign - Phase 8)
 	api.HandleFunc("/deployments/{id}/terminal", s.handleTerminalWebSocket).Methods("GET")
 

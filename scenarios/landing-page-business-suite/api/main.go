@@ -332,14 +332,41 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to apply schema: %w", err)
 	}
 
-	// Seed default admin user for local use
+	// Seed admin user, using secrets from env vars or .vrooli/secrets.json (scenario-to-cloud Secrets Tab)
+	// Log secrets resolution source for debugging
+	if secretsFile := findSecretsFile(); secretsFile != "" {
+		logStructured("secrets_file_found", map[string]interface{}{
+			"level": "info",
+			"path":  secretsFile,
+		})
+	}
+
+	adminEmail, adminPasswordHash, err := getAdminDefaults()
+	if err != nil {
+		return fmt.Errorf("failed to get admin defaults: %w", err)
+	}
+
+	// Upsert the seeded admin at reserved ID. This ensures credential changes work correctly:
+	// - Default → Custom: updates email and password at id=1
+	// - Custom → Different Custom: updates email and password at id=1
+	// - Custom → Default: updates email and password at id=1
+	// No orphan accounts are created regardless of email changes.
 	if _, err := db.Exec(
-		`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)
-		 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-		defaultAdminEmail,
-		defaultAdminPasswordHash,
+		`INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
+		 ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, password_hash = EXCLUDED.password_hash`,
+		seededAdminID,
+		adminEmail,
+		adminPasswordHash,
 	); err != nil {
 		return fmt.Errorf("failed to seed admin user: %w", err)
+	}
+
+	// Log if custom credentials were configured
+	if adminEmail != defaultAdminEmail {
+		logStructured("admin_user_seeded_custom", map[string]interface{}{
+			"level": "info",
+			"email": adminEmail,
+		})
 	}
 
 	if _, err := db.Exec(`

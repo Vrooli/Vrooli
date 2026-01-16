@@ -26,7 +26,11 @@ Email: admin@localhost
 Password: changeme123
 ```
 
--> **Important**: Change these credentials immediately in production via the **Profile** page (`/admin/profile`) to remove seeded defaults.
+-> **Important**: Change these credentials immediately in production!
+
+**Options for changing credentials:**
+1. **Environment variables** (recommended for deployments): Set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` before starting the scenario. For scenario-to-cloud deployments, add these via the Secrets Tab.
+2. **Admin portal**: Change via the **Profile** page (`/admin/profile`) after logging in.
 
 ---
 

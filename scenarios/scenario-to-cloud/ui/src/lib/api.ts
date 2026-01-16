@@ -2140,3 +2140,60 @@ export async function deleteVPSSecret(
   }
   return res.json() as Promise<SecretOperationResponse>;
 }
+
+// ============================================================================
+// Expected Secrets Types & Functions (from scenario's service.json)
+// ============================================================================
+
+export type ExpectedSecret = {
+  secret_id: string;
+  classification?: "infrastructure" | "service" | "user";
+  label?: string;
+  description?: string;
+  required: boolean;
+  default_hint?: string;
+  configured: boolean; // Always false from API; UI computes actual status
+};
+
+export type ExpectedSecretsSummary = {
+  total: number;
+  configured: number;
+  missing: number;
+  required: number;
+};
+
+export type ExpectedSecretsResponse = {
+  scenario_id: string;
+  tier: string;
+  expected_secrets: ExpectedSecret[];
+  summary: ExpectedSecretsSummary;
+  timestamp: string;
+};
+
+/**
+ * Get expected secrets for a deployment based on the scenario's service.json.
+ * These are the secrets the scenario defines as needed for operation.
+ * The UI should compare with VPS secrets to determine actual configuration status.
+ */
+export async function getExpectedSecrets(
+  deploymentId: string,
+  tier?: string
+): Promise<ExpectedSecretsResponse> {
+  const params = new URLSearchParams();
+  if (tier) params.set("tier", tier);
+  const queryString = params.toString();
+
+  const url = buildApiUrl(
+    `/deployments/${encodeURIComponent(deploymentId)}/expected-secrets${queryString ? `?${queryString}` : ""}`,
+    { baseUrl: API_BASE }
+  );
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get expected secrets: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<ExpectedSecretsResponse>;
+}

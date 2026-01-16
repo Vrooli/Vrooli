@@ -446,7 +446,8 @@
       "type": "object",
       "properties": {
         "secret_id": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique identifier for the secret (e.g., 'ADMIN_DEFAULT_PASSWORD')"
         },
         "classification": {
           "type": "string",
@@ -454,13 +455,32 @@
             "infrastructure",
             "service",
             "user"
-          ]
+          ],
+          "description": "Category of secret: infrastructure (system), service (scenario-specific), user (end-user provided)"
         },
         "strategy_ref": {
-          "type": "string"
+          "type": "string",
+          "description": "Reference to a secret handling strategy"
         },
         "notes": {
-          "type": "string"
+          "type": "string",
+          "description": "Internal notes about the secret"
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable display name for UI (e.g., 'Admin Password')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed explanation of the secret's purpose for users"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this secret is required for the scenario to function (default: true)"
+        },
+        "default_hint": {
+          "type": "string",
+          "description": "Hint for what value to provide (e.g., 'Generate a random 32-character string')"
         }
       },
       "required": [

@@ -111,7 +111,13 @@ Email: admin@localhost
 Password: changeme123
 ```
 
-Visit `/admin/profile` after your first login to change the email and rotate the password. This removes the seeded default credentials from your deployment.
+**For production deployments**, override these defaults using environment variables:
+- `ADMIN_DEFAULT_EMAIL` - Your admin email
+- `ADMIN_DEFAULT_PASSWORD` - Your admin password (12+ chars, letters and numbers)
+
+For scenario-to-cloud deployments, add these via the **Secrets Tab** and restart the scenario.
+
+Alternatively, visit `/admin/profile` after your first login to change credentials manually.
 
 ---
 
