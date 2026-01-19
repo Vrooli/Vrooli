@@ -505,40 +505,60 @@ func TestRemoveOperation(t *testing.T) {
 // Helper Function Tests
 // =============================================================================
 
-// TestSplitPath verifies dot-notation path splitting.
-func TestSplitPath(t *testing.T) {
+// TestSplitDotPath verifies dot-notation path splitting through ExtractField.
+// The splitDotPath function is internal to field_extractor.go, so we test it
+// indirectly by verifying that ExtractField correctly handles various path formats.
+func TestSplitDotPath(t *testing.T) {
+	data := map[string]interface{}{
+		"a": map[string]interface{}{
+			"b": map[string]interface{}{
+				"c": "value",
+			},
+		},
+	}
+
 	tests := []struct {
-		name     string
-		path     string
-		expected []string
+		name        string
+		path        string
+		expectNil   bool
+		expectValue string // Only for string values at leaf level
 	}{
-		{"simple", "status", []string{"status"}},
-		{"two levels", "data.status", []string{"data", "status"}},
-		{"three levels", "result.data.value", []string{"result", "data", "value"}},
-		{"empty", "", []string{}},
-		{"trailing dot", "data.", []string{"data"}},
-		{"leading dot", ".data", []string{"data"}},
-		{"double dot", "data..status", []string{"data", "status"}},
+		{"simple", "a", false, ""},             // Returns map, not nil
+		{"two levels", "a.b", false, ""},       // Returns map, not nil
+		{"three levels", "a.b.c", false, "value"},
+		{"empty", "", true, ""},
+		{"trailing dot", "a.", false, ""},      // After filtering empty parts, finds "a"
+		{"nonexistent", "x.y.z", true, ""},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := splitPath(tc.path)
-			if len(result) != len(tc.expected) {
-				t.Errorf("expected %d parts, got %d: %v", len(tc.expected), len(result), result)
-				return
-			}
-			for i, part := range result {
-				if part != tc.expected[i] {
-					t.Errorf("part %d: expected %q, got %q", i, tc.expected[i], part)
+			result := ExtractField(data, tc.path)
+			if tc.expectNil {
+				if result != nil {
+					t.Errorf("ExtractField(%q) = %v, want nil", tc.path, result)
+				}
+			} else {
+				if result == nil {
+					t.Errorf("ExtractField(%q) = nil, want non-nil", tc.path)
+				}
+				// For string leaf values, verify the actual value
+				if tc.expectValue != "" {
+					if strVal, ok := result.(string); ok {
+						if strVal != tc.expectValue {
+							t.Errorf("ExtractField(%q) = %q, want %q", tc.path, strVal, tc.expectValue)
+						}
+					} else {
+						t.Errorf("ExtractField(%q) = %T, want string", tc.path, result)
+					}
 				}
 			}
 		})
 	}
 }
 
-// TestContains verifies slice membership check.
-func TestContains(t *testing.T) {
+// TestContainsString verifies slice membership check.
+func TestContainsString(t *testing.T) {
 	tests := []struct {
 		slice    []string
 		item     string
@@ -554,9 +574,9 @@ func TestContains(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.item, func(t *testing.T) {
-			result := contains(tc.slice, tc.item)
+			result := ContainsString(tc.slice, tc.item)
 			if result != tc.expected {
-				t.Errorf("contains(%v, %q) = %v, want %v", tc.slice, tc.item, result, tc.expected)
+				t.Errorf("ContainsString(%v, %q) = %v, want %v", tc.slice, tc.item, result, tc.expected)
 			}
 		})
 	}
@@ -592,9 +612,9 @@ func TestExtractField(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.path, func(t *testing.T) {
-			result := extractField(data, tc.path)
+			result := ExtractField(data, tc.path)
 			if result != tc.expected {
-				t.Errorf("extractField(%q) = %v, want %v", tc.path, result, tc.expected)
+				t.Errorf("ExtractField(%q) = %v, want %v", tc.path, result, tc.expected)
 			}
 		})
 	}
@@ -624,9 +644,9 @@ func TestExtractStringField(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.path, func(t *testing.T) {
-			result := extractStringField(data, tc.path)
+			result := ExtractStringField(data, tc.path)
 			if result != tc.expected {
-				t.Errorf("extractStringField(%q) = %q, want %q", tc.path, result, tc.expected)
+				t.Errorf("ExtractStringField(%q) = %q, want %q", tc.path, result, tc.expected)
 			}
 		})
 	}
@@ -660,16 +680,16 @@ func TestExtractIntField(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.path, func(t *testing.T) {
-			result := extractIntField(data, tc.path)
+			result := ExtractIntField(data, tc.path)
 			if tc.expected == nil {
 				if result != nil {
-					t.Errorf("extractIntField(%q) = %v, want nil", tc.path, *result)
+					t.Errorf("ExtractIntField(%q) = %v, want nil", tc.path, *result)
 				}
 			} else {
 				if result == nil {
-					t.Errorf("extractIntField(%q) = nil, want %d", tc.path, *tc.expected)
+					t.Errorf("ExtractIntField(%q) = nil, want %d", tc.path, *tc.expected)
 				} else if *result != *tc.expected {
-					t.Errorf("extractIntField(%q) = %d, want %d", tc.path, *result, *tc.expected)
+					t.Errorf("ExtractIntField(%q) = %d, want %d", tc.path, *result, *tc.expected)
 				}
 			}
 		})

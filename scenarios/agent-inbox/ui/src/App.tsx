@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Menu, X, ChevronLeft, Star } from "lucide-react";
+import { Menu, X, ChevronLeft, Star, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus } from "./hooks/useAsyncStatus";
 import { useTools } from "./hooks/useTools";
@@ -20,6 +20,59 @@ import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
 import type { TemplateWithSource } from "./lib/types/templates";
 
+// Sidebar collapsed state persistence (desktop)
+const SIDEBAR_COLLAPSED_KEY = "agent-inbox:sidebar-collapsed";
+
+function getSidebarCollapsed(): boolean {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
+  }
+  return false;
+}
+
+function setSidebarCollapsed(collapsed: boolean): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+  }
+}
+
+// Chat list open state persistence (mobile)
+const CHAT_LIST_OPEN_KEY = "agent-inbox:chat-list-open";
+
+function getChatListOpen(): boolean {
+  if (typeof window !== "undefined") {
+    // Default to false (closed) so drawer doesn't cover main content
+    return localStorage.getItem(CHAT_LIST_OPEN_KEY) === "true";
+  }
+  return false;
+}
+
+function setChatListOpenStorage(open: boolean): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CHAT_LIST_OPEN_KEY, String(open));
+  }
+}
+
+// Hook to detect if screen is mobile (below lg breakpoint)
+function useIsMobile(breakpoint = 1024): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < breakpoint;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < breakpoint);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [breakpoint]);
+
+  return isMobile;
+}
+
 function AppContent() {
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -28,8 +81,16 @@ function AppContent() {
   const [settingsEditingTemplate, setSettingsEditingTemplate] = useState<TemplateWithSource | null>(null);
   const [settingsAllTemplates, setSettingsAllTemplates] = useState<TemplateWithSource[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chatListOpen, setChatListOpen] = useState(true);
+  const [chatListOpen, setChatListOpenState] = useState(getChatListOpen);
+
+  // Wrapper to persist chat list state to localStorage
+  const setChatListOpen = useCallback((open: boolean) => {
+    setChatListOpenState(open);
+    setChatListOpenStorage(open);
+  }, []);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
   const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
+  const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Focused chat index for j/k navigation (separate from selected chat)
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -227,6 +288,14 @@ function AppContent() {
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewModeState(mode);
     setViewMode(mode);
+  }, []);
+
+  const handleToggleSidebarCollapsed = useCallback(() => {
+    setSidebarCollapsedState((prev) => {
+      const newValue = !prev;
+      setSidebarCollapsed(newValue);
+      return newValue;
+    });
   }, []);
 
   const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource, allTemplates: TemplateWithSource[]) => {
@@ -603,6 +672,8 @@ function AppContent() {
             onRenameChat={(chatId, newName) => updateChat({ chatId, data: { name: newName } })}
             onBulkOperate={(chatIds, operation, labelId) => bulkOperate({ chatIds, operation, labelId })}
             isBulkOperating={isBulkOperating}
+            isCollapsed={sidebarCollapsed && !isMobile}
+            onToggleCollapsed={handleToggleSidebarCollapsed}
           />
         </ErrorBoundary>
       </div>

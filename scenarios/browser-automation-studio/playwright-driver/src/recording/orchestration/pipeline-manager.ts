@@ -540,8 +540,18 @@ export class RecordingPipelineManager {
 
     const generation = this.stateMachine.getGeneration();
 
+    // CRITICAL: Dispatch RECORDING_STARTED BEFORE setting event handler
+    // This ensures events are accepted immediately when handler is set.
+    // Previously, events arriving between setEventHandler and RECORDING_STARTED
+    // were dropped because handleRawEvent checks phase === 'capturing'.
+    this.stateMachine.dispatch({
+      type: 'RECORDING_STARTED',
+      startedAt: new Date().toISOString(),
+    });
+
     try {
       // Set event handler on context initializer so route events reach us
+      // NOTE: Phase is now 'capturing' so events will be accepted immediately
       this.contextInitializer.setEventHandler((rawEvent: RawBrowserEvent) => {
         this.handleRawEvent(rawEvent);
       });
@@ -569,11 +579,8 @@ export class RecordingPipelineManager {
       // Start loop detection
       this.startLoopDetection(generation);
 
-      // Transition to 'capturing'
-      this.stateMachine.dispatch({
-        type: 'RECORDING_STARTED',
-        startedAt: new Date().toISOString(),
-      });
+      // NOTE: RECORDING_STARTED was already dispatched above (before setEventHandler)
+      // to ensure events are accepted immediately when handler is set.
 
       this.logger.info(scopedLog(LogContext.RECORDING, 'recording started'), {
         sessionId: this.sessionId,

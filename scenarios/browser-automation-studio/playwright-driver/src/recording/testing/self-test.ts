@@ -779,6 +779,72 @@ export async function runRecordingPipelineTest(
       addStep('simulate_input', false, Date.now() - inputStart, error instanceof Error ? error.message : String(error));
     }
 
+    // Step 6b: Test scroll event capture
+    const scrollStart = Date.now();
+    try {
+      // Clear received events to isolate scroll test
+      const eventsBeforeScroll = receivedEvents.length;
+
+      // Simulate a real scroll using CDP (like how a real user would scroll)
+      await simulateRealScroll(page, 200);
+      await sleep(700); // Wait for scroll debounce (CONFIG.SCROLL_DEBOUNCE_MS = 500) + propagation
+
+      // Check if scroll event was captured
+      const scrollReceived = receivedEvents.slice(eventsBeforeScroll).some(e => e.actionType === 'scroll');
+      addStep('simulate_scroll', scrollReceived, Date.now() - scrollStart, scrollReceived ? undefined : 'Scroll event not received', {
+        eventsBeforeScroll,
+        eventsAfterScroll: receivedEvents.length,
+        newEventTypes: receivedEvents.slice(eventsBeforeScroll).map(e => e.actionType),
+      });
+    } catch (error) {
+      addStep('simulate_scroll', false, Date.now() - scrollStart, error instanceof Error ? error.message : String(error));
+    }
+
+    // Step 6c: Test focus event capture (if input element exists)
+    const focusStart = Date.now();
+    try {
+      const inputSelector = 'input[type="text"], input:not([type]), textarea';
+      const inputExists = await page.$(inputSelector);
+
+      if (!inputExists) {
+        // No input on page - skip this test (not a failure, just not applicable)
+        addStep('simulate_focus', true, Date.now() - focusStart, undefined, {
+          skipped: true,
+          reason: 'No input element found on page',
+        });
+      } else {
+        // Clear received events to isolate focus test
+        const eventsBeforeFocus = receivedEvents.length;
+
+        // First blur any focused element - use type assertion for browser DOM
+        await page.evaluate(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const doc = document as any;
+          const active = doc.activeElement;
+          if (active && typeof active.blur === 'function') {
+            active.blur();
+          }
+        });
+        await sleep(100);
+
+        // Focus the input element
+        const focusSuccess = await simulateFocusEvent(page, inputSelector);
+        await sleep(300); // Wait for events to propagate
+
+        // Check if focus event was captured
+        const focusReceived = receivedEvents.slice(eventsBeforeFocus).some(e => e.actionType === 'focus');
+        addStep('simulate_focus', focusReceived || !focusSuccess, Date.now() - focusStart,
+          focusReceived ? undefined : (focusSuccess ? 'Focus event not received' : 'Could not focus element'), {
+          focusSuccess,
+          eventsBeforeFocus,
+          eventsAfterFocus: receivedEvents.length,
+          newEventTypes: receivedEvents.slice(eventsBeforeFocus).map(e => e.actionType),
+        });
+      }
+    } catch (error) {
+      addStep('simulate_focus', false, Date.now() - focusStart, error instanceof Error ? error.message : String(error));
+    }
+
     // Step 7: Query final telemetry and stats
     const finalStart = Date.now();
     try {
@@ -794,14 +860,36 @@ export async function runRecordingPipelineTest(
     }
 
     // Determine overall success
+    // CRITICAL: All core event types must pass (not just one of them)
+    // This prevents false positives where e.g. clicks work but scroll events are lost
     const clickStep = steps.find(s => s.name === 'simulate_click');
     const inputStep = steps.find(s => s.name === 'simulate_input');
-    const overallSuccess = (clickStep?.passed || false) || (inputStep?.passed || false);
+    const scrollStep = steps.find(s => s.name === 'simulate_scroll');
+    const focusStep = steps.find(s => s.name === 'simulate_focus');
+
+    // Required tests must pass (click and scroll are always expected to work)
+    const clickPassed = clickStep?.passed || false;
+    const scrollPassed = scrollStep?.passed || false;
+
+    // Optional tests pass if they succeeded OR were skipped
+    const inputPassed = inputStep?.passed || (inputStep?.details as { skipped?: boolean })?.skipped || false;
+    const focusPassed = focusStep?.passed || (focusStep?.details as { skipped?: boolean })?.skipped || false;
+
+    // All core event types must work for the test to pass
+    const overallSuccess = clickPassed && scrollPassed && inputPassed && focusPassed;
 
     if (!overallSuccess) {
+      const failedTests: string[] = [];
+      if (!clickPassed) failedTests.push('click');
+      if (!scrollPassed) failedTests.push('scroll');
+      if (!inputPassed) failedTests.push('input');
+      if (!focusPassed) failedTests.push('focus');
+
       // Determine failure point from diagnostics
-      return buildResult(false, 'unknown', 'No events were received during the test', steps, diagnostics, startTime, [
+      return buildResult(false, 'event_capture', `Event capture failed for: ${failedTests.join(', ')}`, steps, diagnostics, startTime, [
         'Check the detailed step results for more information',
+        'Verify route handlers are receiving events (check routeStatsAfter.eventsReceived)',
+        'Verify browser script is detecting events (check telemetryAfter.eventsDetected)',
         'Run the debug endpoint to see current state',
       ]);
     }
@@ -1369,5 +1457,49 @@ async function simulateRealType(page: Page, text: string): Promise<void> {
     logger.debug(scopedLog(LogContext.RECORDING, 'simulated real type'), { text });
   } finally {
     await client.detach().catch(() => {});
+  }
+}
+
+/**
+ * Simulate a real scroll using CDP Input.dispatchMouseEvent with wheel type.
+ */
+async function simulateRealScroll(page: Page, deltaY: number = 200): Promise<void> {
+  const client = await page.context().newCDPSession(page);
+  try {
+    // Get viewport center
+    const viewport = page.viewportSize();
+    const x = (viewport?.width || 800) / 2;
+    const y = (viewport?.height || 600) / 2;
+
+    // Dispatch mouse wheel event
+    await client.send('Input.dispatchMouseEvent', {
+      type: 'mouseWheel',
+      x,
+      y,
+      deltaX: 0,
+      deltaY,
+    });
+
+    logger.debug(scopedLog(LogContext.RECORDING, 'simulated real scroll'), { deltaY, x, y });
+  } finally {
+    await client.detach().catch(() => {});
+  }
+}
+
+/**
+ * Simulate a focus event by focusing an input element (if available).
+ */
+async function simulateFocusEvent(page: Page, selector: string): Promise<boolean> {
+  try {
+    const element = await page.$(selector);
+    if (!element) {
+      return false;
+    }
+
+    await page.focus(selector);
+    logger.debug(scopedLog(LogContext.RECORDING, 'simulated focus event'), { selector });
+    return true;
+  } catch {
+    return false;
   }
 }

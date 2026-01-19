@@ -19,6 +19,8 @@ import {
   MailOpen,
   MailCheck,
   ArchiveRestore,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -51,6 +53,9 @@ interface SidebarProps {
   // Bulk selection props
   onBulkOperate?: (chatIds: string[], operation: BulkOperation, labelId?: string) => void;
   isBulkOperating?: boolean;
+  // Collapsed state (desktop only)
+  isCollapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 const navItems: { id: View; label: string; icon: typeof Mail }[] = [
@@ -78,6 +83,8 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     onRenameChat,
     onBulkOperate,
     isBulkOperating = false,
+    isCollapsed = false,
+    onToggleCollapsed,
   },
   ref
 ) {
@@ -242,6 +249,101 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
 
   const { emptyMessage } = viewLabels[currentView];
 
+  // Collapsed sidebar view (desktop only)
+  if (isCollapsed) {
+    return (
+      <aside
+        className="hidden lg:flex w-16 border-r border-white/10 flex-col bg-slate-950 shrink-0 h-full"
+        data-testid="sidebar-collapsed"
+      >
+        {/* Expand button */}
+        <div className="p-2 border-b border-white/10 shrink-0">
+          <Tooltip content="Expand sidebar" side="right">
+            <button
+              onClick={onToggleCollapsed}
+              className="w-full p-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+              data-testid="expand-sidebar-button"
+            >
+              <PanelLeft className="h-5 w-5" />
+            </button>
+          </Tooltip>
+        </div>
+
+        {/* New Chat button */}
+        <div className="p-2 border-b border-white/10 shrink-0">
+          <Tooltip content="New Chat" side="right">
+            <button
+              onClick={onNewChat}
+              disabled={isCreatingChat}
+              className="w-full p-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors flex items-center justify-center"
+              data-testid="new-chat-button-collapsed"
+            >
+              {isCreatingChat ? (
+                <Loader2 className="h-5 w-5 animate-spin text-white" />
+              ) : (
+                <Plus className="h-5 w-5 text-white" />
+              )}
+            </button>
+          </Tooltip>
+        </div>
+
+        {/* Navigation Icons */}
+        <div className="p-2 border-b border-white/10 shrink-0 flex flex-col gap-1">
+          {navItems.map(({ id, label, icon: Icon }) => {
+            const count = chatCounts?.[id];
+            const isActive = currentView === id;
+
+            return (
+              <Tooltip key={id} content={`${label}${count ? ` (${count})` : ""}`} side="right">
+                <button
+                  onClick={() => onViewChange(id)}
+                  className={`relative w-full p-2.5 rounded-lg transition-colors flex items-center justify-center ${
+                    isActive
+                      ? "bg-white/10 text-white"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  }`}
+                  data-testid={`nav-${id}-collapsed`}
+                >
+                  <Icon className={`h-5 w-5 ${isActive && id === "starred" ? "text-yellow-400" : ""}`} />
+                  {count !== undefined && count > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 text-[10px] font-medium bg-indigo-500 text-white rounded-full flex items-center justify-center">
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
+            );
+          })}
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Footer Icons */}
+        <div className="p-2 border-t border-white/10 shrink-0 flex flex-col gap-1">
+          <Tooltip content="Keyboard shortcuts" side="right">
+            <button
+              onClick={onShowKeyboardShortcuts}
+              className="w-full p-2.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+              data-testid="sidebar-shortcuts-button-collapsed"
+            >
+              <Keyboard className="h-5 w-5" />
+            </button>
+          </Tooltip>
+          <Tooltip content="Settings" side="right">
+            <button
+              onClick={onOpenSettings}
+              className="w-full p-2.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
+              data-testid="sidebar-settings-button-collapsed"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+          </Tooltip>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
       className="w-80 border-r border-white/10 flex flex-col bg-slate-950 shrink-0 h-full"
@@ -253,6 +355,18 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
           <MessageSquare className="h-5 w-5 text-indigo-400" />
           <h1 className="text-base font-semibold text-white">Agent Inbox</h1>
           <div className="flex-1" />
+          {/* Collapse button - desktop only */}
+          {onToggleCollapsed && (
+            <Tooltip content="Collapse sidebar">
+              <button
+                onClick={onToggleCollapsed}
+                className="hidden lg:flex p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition-colors"
+                data-testid="collapse-sidebar-button"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </Tooltip>
+          )}
           {onBulkOperate && displayChats.length > 0 && !search.isActive && (
             <Tooltip content={selectionMode ? "Cancel selection" : "Select multiple"}>
               <button

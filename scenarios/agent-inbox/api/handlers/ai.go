@@ -324,6 +324,8 @@ func mapCompletionErrorToStatus(err error) int {
 //
 // The response arrives as Server-Sent Events (SSE) that must be parsed,
 // accumulated, and forwarded to the client.
+//
+// The maximum iteration limit is configured via services.MaxAutoContinueIterations.
 func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Request, body interface{ Read([]byte) (int, error) }, chatID, model string, svc *services.CompletionService) {
 	// Setup SSE response
 	sw := SetupSSEResponse(w, r)
@@ -332,14 +334,12 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Maximum iterations to prevent infinite loops (tool call -> response -> tool call -> ...)
-	const maxIterations = 10
 	iteration := 0
 
 	// Current response body to process
 	currentBody := body
 
-	for iteration < maxIterations {
+	for iteration < services.MaxAutoContinueIterations {
 		iteration++
 		log.Printf("[DEBUG] handleStreamingResponse iteration %d", iteration)
 
@@ -427,8 +427,8 @@ func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Reques
 		// Note: resp.Body will be closed when we exit the loop or on next iteration
 	}
 
-	if iteration >= maxIterations {
-		log.Printf("[WARN] Auto-continue reached max iterations (%d)", maxIterations)
+	if iteration >= services.MaxAutoContinueIterations {
+		log.Printf("[WARN] Auto-continue reached max iterations (%d)", services.MaxAutoContinueIterations)
 	}
 
 	sw.WriteDone()
@@ -537,10 +537,9 @@ func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *Strea
 	acc := domain.NewStreamingAccumulator()
 	scanner := bufio.NewScanner(body)
 	// Increase buffer size to handle large SSE chunks (e.g., generated images as base64)
-	// Default is 64KB, we increase to 16MB for large image data URLs
-	const maxScanTokenSize = 16 * 1024 * 1024
-	buf := make([]byte, maxScanTokenSize)
-	scanner.Buffer(buf, maxScanTokenSize)
+	// Size is configured in services.MaxSSEScanTokenSize
+	buf := make([]byte, services.MaxSSEScanTokenSize)
+	scanner.Buffer(buf, services.MaxSSEScanTokenSize)
 
 	lineCount := 0
 	dataLineCount := 0

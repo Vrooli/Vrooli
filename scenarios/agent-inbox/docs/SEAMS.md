@@ -235,6 +235,93 @@ func (e *ToolExecutor) ExecuteTool(ctx, chatID, toolCallID, toolName, args) (*To
 
 ---
 
+### Seam: Async Tracker Service
+
+**Location**: `api/services/async_tracker.go`
+
+**Purpose**: Tracks long-running tool operations via background polling and provides status updates to UI (SSE) and AI conversation loop (completion callbacks).
+
+**Architecture**:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Tool Execution Returns run_id                     │
+│                                │                                     │
+│                                ▼                                     │
+│                    ┌──────────────────────────┐                     │
+│                    │   StartTracking()        │                     │
+│                    │   - Extracts operation ID│                     │
+│                    │   - Starts poll goroutine│                     │
+│                    └───────────┬──────────────┘                     │
+│                                │                                     │
+│            ┌───────────────────┼───────────────────┐                │
+│            ▼                   ▼                   ▼                │
+│   ┌─────────────────┐  ┌─────────────┐  ┌─────────────────────┐    │
+│   │ SSE Subscribers │  │  Poll Loop  │  │ Completion Callback │    │
+│   │ (UI real-time)  │◀─│ (background)│─▶│   (AI resumption)   │    │
+│   └─────────────────┘  └─────────────┘  └─────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Files**:
+| File | Purpose |
+|------|---------|
+| `async_tracker.go` | Core service: operation lifecycle, polling, notifications |
+| `async_config.go` | Tunable configuration constants (intervals, buffers, timeouts) |
+| `field_extractor.go` | Utilities for extracting values from nested maps via dot notation |
+| `interfaces.go` | `AsyncTrackerInterface` for dependency injection |
+
+**Substitution Points**:
+- For **tests**: Use `AsyncTrackerInterface` mock, or `AddTestOperation()` helper
+- For **different polling strategies**: Modify `pollLoop()` in async_tracker.go
+- For **custom notifications**: Add new subscriber/callback patterns
+
+**Key Interface**:
+```go
+type AsyncTrackerInterface interface {
+    GetActiveOperations(chatID string) []*AsyncOperation
+    GetOperation(toolCallID string) *AsyncOperation
+    StartTracking(ctx, toolCallID, chatID, toolName, scenario, result, asyncBehavior) error
+}
+```
+
+**Notification Systems**:
+
+1. **SSE Subscribers** (for UI):
+```go
+// Preferred method with ID-based tracking
+sub := tracker.SubscribeWithID(chatID)
+for update := range sub.Channel {
+    // Send to SSE client
+}
+tracker.UnsubscribeByID(sub)
+```
+
+2. **Completion Callbacks** (for AI loop):
+```go
+completionCh := tracker.RegisterCompletionCallback(chatID)
+defer tracker.UnregisterCompletionCallback(chatID)
+for event := range completionCh {
+    // Async operation completed, continue AI conversation
+}
+```
+
+**Configuration** (in `async_config.go`):
+| Constant | Default | Purpose |
+|----------|---------|---------|
+| `DefaultPollInterval` | 5s | Time between status checks |
+| `DefaultMaxPollDuration` | 1h | Timeout for polling |
+| `SubscriberChannelBufferSize` | 100 | Buffer for SSE update channels |
+| `CompletionCallbackBufferSize` | 10 | Buffer for AI completion notifications |
+| `DefaultCleanupInterval` | 5m | How often cleanup runs |
+| `DefaultCleanupRetention` | 30m | How long to keep completed operations |
+
+**Operation Lifecycle**:
+```
+pending → running → completed | failed | timeout | cancelled
+```
+
+---
+
 ## UI Architecture
 
 ```
@@ -365,6 +452,50 @@ func setupTestServer(t *testing.T) *TestServer {
 2. Add case in `ToolExecutor.ExecuteTool()` (`api/integrations/tool_executor.go`)
 3. Update UI tool call display if needed (`ui/src/components/chat/MessageList.tsx`)
 
+### New Async Tool
+
+To make a tool run asynchronously (tracked via polling):
+
+1. **Tool must return an operation ID**: The tool's response should include a unique identifier for the running operation (e.g., `run_id`, `job_id`).
+
+2. **Define AsyncBehavior in tool manifest**: In the tool's protobuf definition or manifest, configure:
+```protobuf
+message AsyncBehavior {
+  StatusPolling status_polling = 1;           // Required: how to poll
+  CompletionConditions completion_conditions = 2;  // Required: when done
+  ProgressTracking progress_tracking = 3;     // Optional: progress updates
+  CancellationBehavior cancellation = 4;      // Optional: cancel support
+}
+
+message StatusPolling {
+  string status_tool = 1;          // Tool name to call for status
+  string operation_id_field = 2;   // Path to operation ID in result (dot notation)
+  string status_tool_id_param = 3; // Parameter name for ID in status tool
+  int32 poll_interval_seconds = 4; // How often to poll (default: 5s)
+  int32 max_poll_duration_seconds = 5; // Timeout (default: 1h)
+}
+
+message CompletionConditions {
+  string status_field = 1;         // Path to status in status tool response
+  repeated string success_values = 2;  // Status values indicating success
+  repeated string failure_values = 3;  // Status values indicating failure
+  string error_field = 5;          // Path to error message
+  string result_field = 7;         // Path to final result
+}
+```
+
+3. **Create a status-checking tool**: The async tracker will call this tool to check progress:
+   - Takes the operation ID as a parameter
+   - Returns current status, optional progress, optional result
+
+4. **Example**: For a code generation tool:
+```
+Tool: generate_code → returns { run_id: "gen_123" }
+Status tool: check_generation_status({ run_id: "gen_123" })
+  → returns { status: "running", progress: 45 }
+  → eventually: { status: "completed", result: { code: "..." } }
+```
+
 ### New Integration
 
 1. Create client in `api/integrations/new_service.go`
@@ -390,6 +521,8 @@ func setupTestServer(t *testing.T) *TestServer {
 
 ## Configuration Reference
 
+### Environment Variables
+
 | Variable | Layer | Purpose |
 |----------|-------|---------|
 | `API_PORT` | API | Server listen port |
@@ -400,6 +533,22 @@ func setupTestServer(t *testing.T) *TestServer {
 | `AGENT_MANAGER_API_URL` | API | Agent-manager service URL |
 | `CORS_ALLOWED_ORIGINS` | API | Allowed CORS origins |
 | `UI_PORT` | UI | Vite dev server port |
+
+### Async Tracking Constants (api/services/async_config.go)
+
+These are compile-time constants that can be adjusted for different deployment scenarios:
+
+| Constant | Default | Purpose |
+|----------|---------|---------|
+| `DefaultPollInterval` | 5s | Default time between status tool calls |
+| `MinPollInterval` | 1s | Minimum allowed poll interval |
+| `DefaultMaxPollDuration` | 1h | Default timeout for async operations |
+| `SubscriberChannelBufferSize` | 100 | Buffer size for SSE subscriber channels |
+| `CompletionCallbackBufferSize` | 10 | Buffer size for AI completion notifications |
+| `DefaultCleanupInterval` | 5m | How often cleanup routine runs |
+| `DefaultCleanupRetention` | 30m | How long completed operations are kept |
+| `MaxAutoContinueIterations` | 10 | Max tool call → response loops |
+| `MaxSSEScanTokenSize` | 16MB | Buffer for SSE line scanning (handles base64 images) |
 
 ---
 

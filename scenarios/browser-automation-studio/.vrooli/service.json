@@ -109,6 +109,11 @@
             "source_dir": "ui/src"
           },
           {
+            "type": "ui-bundle",
+            "bundle_path": "playwright-driver/dist/server.js",
+            "source_dir": "playwright-driver/src"
+          },
+          {
             "type": "cli",
             "command": "browser-automation-studio",
             "targets": [
