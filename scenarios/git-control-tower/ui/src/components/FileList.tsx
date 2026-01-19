@@ -1,4 +1,13 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo, createContext, useContext } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  memo,
+  createContext,
+  useContext,
+} from "react";
 import {
   File,
   FilePlus,
@@ -14,7 +23,7 @@ import {
   Loader2,
   ShieldCheck,
   Settings,
-  MoreVertical
+  MoreVertical,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -44,8 +53,18 @@ interface FileListProps {
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
-  syncStatus?: { ahead: number; behind: number; canPush: boolean; canPull: boolean; warning?: string };
-  approvedChanges?: { available: boolean; committableFiles: number; warning?: string };
+  syncStatus?: {
+    ahead: number;
+    behind: number;
+    canPush: boolean;
+    canPull: boolean;
+    warning?: string;
+  };
+  approvedChanges?: {
+    available: boolean;
+    committableFiles: number;
+    warning?: string;
+  };
   approvedPaths?: Set<string>;
   onStageApproved?: () => void;
   isStagingApproved?: boolean;
@@ -53,7 +72,11 @@ interface FileListProps {
   onPull?: () => void;
   isPushing?: boolean;
   isPulling?: boolean;
-  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
+  onSelectFile: (
+    path: string,
+    staged: boolean,
+    event: React.MouseEvent<HTMLLIElement>,
+  ) => void;
   onStageFile: (path: string) => void;
   onUnstageFile: (path: string) => void;
   onDiscardFile: (path: string, untracked: boolean) => void;
@@ -90,7 +113,11 @@ interface FileSectionProps {
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
-  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
+  onSelectFile: (
+    path: string,
+    staged: boolean,
+    event: React.MouseEvent<HTMLLIElement>,
+  ) => void;
   onAction: (path: string) => void;
   actionIcon: React.ReactNode;
   actionLabel: string;
@@ -114,10 +141,13 @@ const statusStyleMap = {
   A: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10",
   R: "text-cyan-300 border-cyan-500/40 bg-cyan-500/10",
   U: "text-red-300 border-red-500/40 bg-red-500/10",
-  "?": "text-slate-300 border-slate-500/40 bg-slate-500/10"
+  "?": "text-slate-300 border-slate-500/40 bg-slate-500/10",
 };
 
-function summarizeFileStats(paths: string[], stats?: Record<string, DiffStats>) {
+function summarizeFileStats(
+  paths: string[],
+  stats?: Record<string, DiffStats>,
+) {
   if (!stats) return undefined;
   const summary = { additions: 0, deletions: 0, files: 0 };
   let hasStats = false;
@@ -138,7 +168,7 @@ function hasLineStats(stats?: DiffStats) {
 
 function LineStats({
   stats,
-  compact = false
+  compact = false,
 }: {
   stats?: DiffStats;
   compact?: boolean;
@@ -193,8 +223,10 @@ function formatPath(path: string, maxChars: number) {
 
 function getStatusBadge(code: string | undefined, category: FileCategory) {
   if (!code) {
-    if (category === "untracked") return { label: "?", style: statusStyleMap["?"] };
-    if (category === "conflicts") return { label: "U", style: statusStyleMap.U };
+    if (category === "untracked")
+      return { label: "?", style: statusStyleMap["?"] };
+    if (category === "conflicts")
+      return { label: "U", style: statusStyleMap.U };
     return { label: "M", style: statusStyleMap.M };
   }
 
@@ -204,7 +236,8 @@ function getStatusBadge(code: string | undefined, category: FileCategory) {
   if (normalized.includes("A")) return { label: "A", style: statusStyleMap.A };
   if (normalized.includes("R")) return { label: "R", style: statusStyleMap.R };
   if (normalized.includes("U")) return { label: "U", style: statusStyleMap.U };
-  if (normalized.includes("?")) return { label: "?", style: statusStyleMap["?"] };
+  if (normalized.includes("?"))
+    return { label: "?", style: statusStyleMap["?"] };
 
   return { label: "M", style: statusStyleMap.M };
 }
@@ -227,7 +260,11 @@ interface FileRowProps {
   ignoreTestId: string;
   actionIcon: React.ReactNode;
   actionLabel: string;
-  onSelectFile: (path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => void;
+  onSelectFile: (
+    path: string,
+    staged: boolean,
+    event: React.MouseEvent<HTMLLIElement>,
+  ) => void;
   onAction: (path: string) => void;
   onDiscard?: (path: string) => void;
   onConfirmDiscard?: (path: string | null) => void;
@@ -264,7 +301,7 @@ const FileRow = memo(function FileRow({
   onConfirmIgnore,
   confirmingDiscard,
   confirmingIgnore,
-  onOpenMobileActions
+  onOpenMobileActions,
 }: FileRowProps) {
   const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
@@ -292,7 +329,9 @@ const FileRow = memo(function FileRow({
       >
         {badge.label}
       </span>
-      <File className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`} />
+      <File
+        className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4 w-4" : "h-3.5 w-3.5"}`}
+      />
       <div className="flex-1 min-w-0 overflow-hidden">
         <span className="font-mono text-xs truncate block w-full" title={file}>
           {displayPath}
@@ -320,7 +359,10 @@ const FileRow = memo(function FileRow({
       )}
 
       {isConfirmingIgnore && onConfirmIgnore && onIgnore && (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <span className="text-xs text-amber-300 mr-1">Ignore?</span>
           <button
             className="px-1.5 py-0.5 text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 rounded transition-colors"
@@ -344,7 +386,10 @@ const FileRow = memo(function FileRow({
       )}
 
       {isConfirmingDiscard && onConfirmDiscard && onDiscard && (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <span className="text-xs text-red-400 mr-1">Discard?</span>
           <button
             className="px-1.5 py-0.5 text-xs bg-red-600 hover:bg-red-500 text-white rounded transition-colors"
@@ -497,13 +542,14 @@ function FileSection({
   isIgnoring,
   confirmingIgnore,
   onConfirmIgnore,
-  onOpenMobileActions
+  onOpenMobileActions,
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const isStaged = category === "staged";
   const canDiscard = category === "unstaged" || category === "untracked";
-  const selectedKeys = selectedKeySet ?? new Set(selectedFiles?.map(selectionKey));
+  const selectedKeys =
+    selectedKeySet ?? new Set(selectedFiles?.map(selectionKey));
 
   const entries = useMemo(
     () =>
@@ -515,10 +561,19 @@ function FileSection({
           badge,
           displayPath: formatPath(file, maxPathChars),
           isBinary: binaryFiles?.has(file) ?? false,
-          isApproved: approvedFiles?.has(file) ?? false
+          isApproved: approvedFiles?.has(file) ?? false,
         };
       }),
-    [files, fileStatuses, category, maxPathChars, selectionKey, isStaged, binaryFiles, approvedFiles]
+    [
+      files,
+      fileStatuses,
+      category,
+      maxPathChars,
+      selectionKey,
+      isStaged,
+      binaryFiles,
+      approvedFiles,
+    ],
   );
 
   if (files.length === 0) return null;
@@ -621,16 +676,23 @@ export function FileList({
   onToggleGrouping,
   onOpenGroupingSettings,
   onStagePaths,
-  onDiscardPaths
+  onDiscardPaths,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
-  const hasUnstaged = (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
+  const hasUnstaged =
+    (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
-  const binarySet = useMemo(() => new Set(files?.binary ?? []), [files?.binary]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const binarySet = useMemo(
+    () => new Set(files?.binary ?? []),
+    [files?.binary],
+  );
 
   // Mobile file actions state
   const [mobileActionFile, setMobileActionFile] = useState<string | null>(null);
@@ -640,7 +702,13 @@ export function FileList({
     const isUnstaged = files?.unstaged?.includes(mobileActionFile) ?? false;
     const isUntracked = files?.untracked?.includes(mobileActionFile) ?? false;
     const isConflict = files?.conflicts?.includes(mobileActionFile) ?? false;
-    return { path: mobileActionFile, isStaged, isUnstaged, isUntracked, isConflict };
+    return {
+      path: mobileActionFile,
+      isStaged,
+      isUnstaged,
+      isUntracked,
+      isConflict,
+    };
   }, [mobileActionFile, files]);
   const normalizedRules = useMemo(
     () =>
@@ -655,24 +723,34 @@ export function FileList({
             .map((prefix) => normalizePrefix(prefix))
             .filter((prefix) => prefix);
           if (normalizedPrefixes.length === 0) return null;
-          const fallbackLabel = rawPrefixes.find((prefix) => prefix.trim()) ?? "";
+          const fallbackLabel =
+            rawPrefixes.find((prefix) => prefix.trim()) ?? "";
           return {
             ...rule,
             mode: rule.mode ?? "prefix",
             normalizedPrefixes,
-            label: rule.label.trim() || fallbackLabel.trim()
+            label: rule.label.trim() || fallbackLabel.trim(),
           };
         })
         .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule)),
-    [groupingRules]
+    [groupingRules],
   );
   const groupingAvailable = normalizedRules.length > 0;
   const groupingActive = groupingEnabled && groupingAvailable;
   const totalStats = useMemo(() => {
     if (!files) return undefined;
-    const stagedStats = summarizeFileStats(files.staged ?? [], fileStats?.staged);
-    const unstagedStats = summarizeFileStats(files.unstaged ?? [], fileStats?.unstaged);
-    const untrackedStats = summarizeFileStats(files.untracked ?? [], fileStats?.untracked);
+    const stagedStats = summarizeFileStats(
+      files.staged ?? [],
+      fileStats?.staged,
+    );
+    const unstagedStats = summarizeFileStats(
+      files.unstaged ?? [],
+      fileStats?.unstaged,
+    );
+    const untrackedStats = summarizeFileStats(
+      files.untracked ?? [],
+      fileStats?.untracked,
+    );
     const summary = { additions: 0, deletions: 0, files: 0 };
     const sources = [stagedStats, unstagedStats, untrackedStats];
     let hasStats = false;
@@ -687,17 +765,33 @@ export function FileList({
   }, [files, fileStats]);
   const handleDiscardUnstaged = useCallback(
     (path: string) => onDiscardFile(path, false),
-    [onDiscardFile]
+    [onDiscardFile],
   );
   const showApprovedBanner = Boolean(
-    approvedChanges?.available && (approvedChanges.committableFiles ?? 0) > 0
+    approvedChanges?.available && (approvedChanges.committableFiles ?? 0) > 0,
   );
-  const showSync = Boolean(syncStatus && (syncStatus.ahead > 0 || syncStatus.behind > 0));
+  const showSync = Boolean(
+    syncStatus && (syncStatus.ahead > 0 || syncStatus.behind > 0),
+  );
   const handleDiscardUntracked = useCallback(
     (path: string) => onDiscardFile(path, true),
-    [onDiscardFile]
+    [onDiscardFile],
   );
-  const handleIgnoreFile = useCallback((path: string) => onIgnoreFile(path), [onIgnoreFile]);
+  const handleIgnoreFile = useCallback(
+    (path: string) => onIgnoreFile(path),
+    [onIgnoreFile],
+  );
+  const toggleGroupCollapse = useCallback((groupId: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!scrollAreaRef.current || typeof ResizeObserver === "undefined") return;
@@ -750,8 +844,8 @@ export function FileList({
             conflicts: [],
             staged: [],
             unstaged: [],
-            untracked: []
-          }
+            untracked: [],
+          },
         });
         groupOrder.push(id);
       }
@@ -769,8 +863,8 @@ export function FileList({
         conflicts: [] as string[],
         staged: [] as string[],
         unstaged: [] as string[],
-        untracked: [] as string[]
-      }
+        untracked: [] as string[],
+      },
     };
 
     const addFile = (file: string, category: FileCategory) => {
@@ -781,7 +875,9 @@ export function FileList({
             const rest = file.slice(normalizedPrefix.length);
             const segment = rest.split("/")[0];
             const segmentLabel = segment || rule.label;
-            const segmentPrefix = segment ? `${normalizedPrefix}${segment}/` : normalizedPrefix;
+            const segmentPrefix = segment
+              ? `${normalizedPrefix}${segment}/`
+              : normalizedPrefix;
             const groupId = segment ? `${rule.id}:${segment}` : rule.id;
             const group = ensureGroup(groupId, segmentLabel, segmentPrefix);
             group.files[category].push(file);
@@ -808,7 +904,7 @@ export function FileList({
             group.files.staged.length +
             group.files.unstaged.length +
             group.files.untracked.length >
-          0
+          0,
       );
     const hasOther =
       otherGroup.files.conflicts.length +
@@ -818,7 +914,9 @@ export function FileList({
       0;
 
     const formattedGroups = filledGroups.map((group) => {
-      const prefixes = Array.from(group.displayPrefixes).filter((prefix) => prefix);
+      const prefixes = Array.from(group.displayPrefixes).filter(
+        (prefix) => prefix,
+      );
       let displayPrefix = "";
       if (prefixes.length === 1) {
         displayPrefix = prefixes[0];
@@ -833,8 +931,8 @@ export function FileList({
       ...formattedGroups,
       {
         ...otherGroup,
-        displayPrefix: ""
-      }
+        displayPrefix: "",
+      },
     ];
   }, [files, groupingActive, normalizedRules]);
 
@@ -848,547 +946,656 @@ export function FileList({
 
   return (
     <MobileContext.Provider value={isMobile}>
-    <Card
-      className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto"}`}
-      data-testid="file-list-panel"
-    >
-      <CardHeader className="flex-row items-center justify-between space-y-0 py-3 gap-2 min-w-0">
-        <CardTitle className="flex items-center gap-2 min-w-0">
-          <button
-            className="p-1 rounded hover:bg-slate-800/70 transition-colors"
-            onClick={handleToggleCollapse}
-            aria-label={collapsed ? "Expand changes" : "Collapse changes"}
-            type="button"
-          >
-            {collapsed ? (
-              <ChevronRight className="h-3 w-3 text-slate-400" />
-            ) : (
-              <ChevronDown className="h-3 w-3 text-slate-400" />
-            )}
-          </button>
-          <span className="truncate">Changes</span>
-          <LineStats stats={totalStats} />
-        </CardTitle>
-        <div className="flex flex-wrap gap-2 justify-end min-w-0">
-          {hasUnstaged && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onStageAll}
-              disabled={isStaging}
-              className="min-w-0 whitespace-normal px-3"
-              data-testid="stage-all-button"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Stage All
-            </Button>
-          )}
-          {hasStaged && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onUnstageAll}
-              disabled={isStaging}
-              className="min-w-0 whitespace-normal px-3"
-              data-testid="unstage-all-button"
-            >
-              <Minus className="h-3 w-3 mr-1" />
-              Unstage All
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleToggleGrouping}
-            disabled={!groupingAvailable}
-            className={`min-w-0 whitespace-normal px-3 ${
-              groupingActive ? "bg-white/10 text-white" : ""
-            }`}
-            data-testid="toggle-grouping-button"
-          >
-            Group
-          </Button>
-          <button
-            type="button"
-            onClick={handleOpenGroupingSettings}
-            className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-white/10 transition-colors"
-            title="Grouping settings"
-            aria-label="Grouping settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-        </div>
-      </CardHeader>
-
-      {!collapsed && (
-        <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
-          {showApprovedBanner && (
-            <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
-                  <span>Approved changes ready</span>
-                  <span className="text-emerald-300">
-                    {approvedChanges?.committableFiles ?? 0} file
-                    {(approvedChanges?.committableFiles ?? 0) !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onStageApproved}
-                  disabled={isStagingApproved}
-                  className="h-7 px-2"
-                  data-testid="stage-approved-button"
-                >
-                  Stage approved
-                </Button>
-              </div>
-              {approvedChanges?.warning && (
-                <div className="mt-1 text-[11px] text-emerald-300/80">
-                  {approvedChanges.warning}
-                </div>
-              )}
-            </div>
-          )}
-          {showSync && (
-            <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Sync</span>
-                  {syncStatus?.ahead ? (
-                    <span className="text-emerald-300">{syncStatus.ahead} ahead</span>
-                  ) : null}
-                  {syncStatus?.behind ? (
-                    <span className="text-amber-300">{syncStatus.behind} behind</span>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-1">
-                  {syncStatus?.behind ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onPull}
-                      disabled={isPulling || !syncStatus?.canPull}
-                      title={syncStatus?.warning || "Pull from remote"}
-                      className="h-7 px-2"
-                    >
-                      Pull
-                    </Button>
-                  ) : null}
-                  {syncStatus?.ahead ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={onPush}
-                      disabled={isPushing || !syncStatus?.canPush}
-                      title={syncStatus?.warning || "Push to remote"}
-                      className="h-7 px-2"
-                    >
-                      Push
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              {syncStatus?.warning && (
-                <div className="mt-1 text-[11px] text-amber-400">{syncStatus.warning}</div>
-              )}
-            </div>
-          )}
-          <ScrollArea className="h-full min-w-0 px-2 pt-2 select-none" ref={scrollAreaRef}>
-          <div style={{ paddingBottom: 72 }}>
-          {groupingActive
-            ? groupedSections.map((group) => {
-                const stageable = [
-                  ...group.files.unstaged,
-                  ...group.files.untracked,
-                  ...group.files.conflicts
-                ];
-                const discardTracked = group.files.unstaged;
-                const discardUntracked = group.files.untracked;
-                const discardCount = discardTracked.length + discardUntracked.length;
-                const groupCount =
-                  group.files.conflicts.length +
-                  group.files.staged.length +
-                  group.files.unstaged.length +
-                  group.files.untracked.length;
-
-                return (
-                  <div
-                    key={group.id}
-                    className="mb-4 rounded-lg border border-slate-800/80 bg-slate-950/40"
-                    data-testid={`file-group-${group.id}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-slate-800/70">
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                          {group.label}
-                        </div>
-                        {group.displayPrefix && (
-                          <div className="text-[11px] text-slate-500">{group.displayPrefix}</div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>{groupCount} files</span>
-                        {stageable.length > 0 && onStagePaths && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onStagePaths(stageable)}
-                            disabled={isStaging}
-                            className="h-7 px-2"
-                          >
-                            Stage All
-                          </Button>
-                        )}
-                        {discardCount > 0 && onDiscardPaths && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setConfirmingGroup(group.id)}
-                            disabled={isDiscarding}
-                            className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
-                          >
-                            Discard All
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    {confirmingGroup === group.id && discardCount > 0 && (
-                      <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
-                        <span>Discard {discardCount} changes in this group?</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
-                            onClick={() => {
-                              if (discardTracked.length > 0) {
-                                onDiscardPaths?.(discardTracked, false);
-                              }
-                              if (discardUntracked.length > 0) {
-                                onDiscardPaths?.(discardUntracked, true);
-                              }
-                              setConfirmingGroup(null);
-                            }}
-                          >
-                            Discard
-                          </button>
-                          <button
-                            type="button"
-                            className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
-                            onClick={() => setConfirmingGroup(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    <div className="px-2 py-2">
-                      <FileSection
-                        key={`${group.id}-conflicts`}
-                        title="Conflicts"
-                        category="conflicts"
-                        files={group.files.conflicts}
-                        fileStatuses={files?.statuses}
-                        binaryFiles={binarySet}
-                        approvedFiles={approvedPaths}
-                        maxPathChars={maxPathChars}
-                        icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-                        selectedFiles={selectedFiles}
-                        selectedKeySet={selectedKeySet}
-                        selectionKey={selectionKey}
-                        onSelectFile={onSelectFile}
-                        onAction={onStageFile}
-                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                        actionLabel="Stage file"
-                        isLoading={isStaging}
-                        changeStats={summarizeFileStats(group.files.conflicts, fileStats?.unstaged)}
-                        onIgnore={handleIgnoreFile}
-                        isIgnoring={isIgnoring}
-                        confirmingIgnore={confirmingIgnore}
-                        onConfirmIgnore={onConfirmIgnore}
-                        onOpenMobileActions={setMobileActionFile}
-                      />
-                      <FileSection
-                        key={`${group.id}-staged`}
-                        title="Staged"
-                        category="staged"
-                        files={group.files.staged}
-                        fileStatuses={files?.statuses}
-                        binaryFiles={binarySet}
-                        approvedFiles={approvedPaths}
-                        maxPathChars={maxPathChars}
-                        icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
-                        selectedFiles={selectedFiles}
-                        selectedKeySet={selectedKeySet}
-                        selectionKey={selectionKey}
-                        onSelectFile={onSelectFile}
-                        onAction={onUnstageFile}
-                        actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
-                        actionLabel="Unstage file"
-                        isLoading={isStaging}
-                        changeStats={summarizeFileStats(group.files.staged, fileStats?.staged)}
-                        onIgnore={handleIgnoreFile}
-                        isIgnoring={isIgnoring}
-                        confirmingIgnore={confirmingIgnore}
-                        onConfirmIgnore={onConfirmIgnore}
-                        onOpenMobileActions={setMobileActionFile}
-                      />
-                      <FileSection
-                        key={`${group.id}-unstaged`}
-                        title="Modified"
-                        category="unstaged"
-                        files={group.files.unstaged}
-                        fileStatuses={files?.statuses}
-                        binaryFiles={binarySet}
-                        approvedFiles={approvedPaths}
-                        maxPathChars={maxPathChars}
-                        icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
-                        selectedFiles={selectedFiles}
-                        selectedKeySet={selectedKeySet}
-                        selectionKey={selectionKey}
-                        onSelectFile={onSelectFile}
-                        onAction={onStageFile}
-                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                        actionLabel="Stage file"
-                        isLoading={isStaging}
-                        changeStats={summarizeFileStats(group.files.unstaged, fileStats?.unstaged)}
-                        onDiscard={handleDiscardUnstaged}
-                        isDiscarding={isDiscarding}
-                        confirmingDiscard={confirmingDiscard}
-                        onConfirmDiscard={onConfirmDiscard}
-                        onIgnore={handleIgnoreFile}
-                        isIgnoring={isIgnoring}
-                        confirmingIgnore={confirmingIgnore}
-                        onConfirmIgnore={onConfirmIgnore}
-                        onOpenMobileActions={setMobileActionFile}
-                      />
-                      <FileSection
-                        key={`${group.id}-untracked`}
-                        title="Untracked"
-                        category="untracked"
-                        files={group.files.untracked}
-                        fileStatuses={files?.statuses}
-                        binaryFiles={binarySet}
-                        approvedFiles={approvedPaths}
-                        maxPathChars={maxPathChars}
-                        icon={<File className="h-3.5 w-3.5 text-slate-500" />}
-                        selectedFiles={selectedFiles}
-                        selectedKeySet={selectedKeySet}
-                        selectionKey={selectionKey}
-                        onSelectFile={onSelectFile}
-                        onAction={onStageFile}
-                        actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                        actionLabel="Stage file"
-                        isLoading={isStaging}
-                        changeStats={summarizeFileStats(group.files.untracked, fileStats?.untracked)}
-                        defaultExpanded={false}
-                        onDiscard={handleDiscardUntracked}
-                        isDiscarding={isDiscarding}
-                        confirmingDiscard={confirmingDiscard}
-                        onConfirmDiscard={onConfirmDiscard}
-                        onIgnore={handleIgnoreFile}
-                        isIgnoring={isIgnoring}
-                        confirmingIgnore={confirmingIgnore}
-                        onConfirmIgnore={onConfirmIgnore}
-                        onOpenMobileActions={setMobileActionFile}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            : (
-              <>
-                {/* Conflicts - Always show first if any */}
-                <FileSection
-                  title="Conflicts"
-                  category="conflicts"
-                  files={files?.conflicts ?? []}
-                  fileStatuses={files?.statuses}
-                  binaryFiles={binarySet}
-                  approvedFiles={approvedPaths}
-                  maxPathChars={maxPathChars}
-                  icon={<AlertTriangle className="h-3.5 w-3.5 text-red-500" />}
-                  selectedFiles={selectedFiles}
-                  selectedKeySet={selectedKeySet}
-                  selectionKey={selectionKey}
-                  onSelectFile={onSelectFile}
-                  onAction={onStageFile}
-                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                  actionLabel="Stage file"
-                  isLoading={isStaging}
-                  changeStats={summarizeFileStats(files?.conflicts ?? [], fileStats?.unstaged)}
-                  onIgnore={handleIgnoreFile}
-                  isIgnoring={isIgnoring}
-                  confirmingIgnore={confirmingIgnore}
-                  onConfirmIgnore={onConfirmIgnore}
-                  onOpenMobileActions={setMobileActionFile}
-                />
-
-                {/* Staged Changes */}
-                <FileSection
-                  title="Staged"
-                  category="staged"
-                  files={files?.staged ?? []}
-                  fileStatuses={files?.statuses}
-                  binaryFiles={binarySet}
-                  approvedFiles={approvedPaths}
-                  maxPathChars={maxPathChars}
-                  icon={<FilePlus className="h-3.5 w-3.5 text-emerald-500" />}
-                  selectedFiles={selectedFiles}
-                  selectedKeySet={selectedKeySet}
-                  selectionKey={selectionKey}
-                  onSelectFile={onSelectFile}
-                  onAction={onUnstageFile}
-                  actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
-                  actionLabel="Unstage file"
-                  isLoading={isStaging}
-                  changeStats={summarizeFileStats(files?.staged ?? [], fileStats?.staged)}
-                  onIgnore={handleIgnoreFile}
-                  isIgnoring={isIgnoring}
-                  confirmingIgnore={confirmingIgnore}
-                  onConfirmIgnore={onConfirmIgnore}
-                  onOpenMobileActions={setMobileActionFile}
-                />
-
-                {/* Unstaged Changes */}
-                <FileSection
-                  title="Modified"
-                  category="unstaged"
-                  files={files?.unstaged ?? []}
-                  fileStatuses={files?.statuses}
-                  binaryFiles={binarySet}
-                  approvedFiles={approvedPaths}
-                  maxPathChars={maxPathChars}
-                  icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
-                  selectedFiles={selectedFiles}
-                  selectedKeySet={selectedKeySet}
-                  selectionKey={selectionKey}
-                  onSelectFile={onSelectFile}
-                  onAction={onStageFile}
-                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                  actionLabel="Stage file"
-                  isLoading={isStaging}
-                  changeStats={summarizeFileStats(files?.unstaged ?? [], fileStats?.unstaged)}
-                  onDiscard={handleDiscardUnstaged}
-                  isDiscarding={isDiscarding}
-                  confirmingDiscard={confirmingDiscard}
-                  onConfirmDiscard={onConfirmDiscard}
-                  onIgnore={handleIgnoreFile}
-                  isIgnoring={isIgnoring}
-                  confirmingIgnore={confirmingIgnore}
-                  onConfirmIgnore={onConfirmIgnore}
-                  onOpenMobileActions={setMobileActionFile}
-                />
-
-                {/* Untracked Files */}
-                <FileSection
-                  title="Untracked"
-                  category="untracked"
-                  files={files?.untracked ?? []}
-                  fileStatuses={files?.statuses}
-                  binaryFiles={binarySet}
-                  approvedFiles={approvedPaths}
-                  maxPathChars={maxPathChars}
-                  icon={<File className="h-3.5 w-3.5 text-slate-500" />}
-                  selectedFiles={selectedFiles}
-                  selectedKeySet={selectedKeySet}
-                  selectionKey={selectionKey}
-                  onSelectFile={onSelectFile}
-                  onAction={onStageFile}
-                  actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                  actionLabel="Stage file"
-                  isLoading={isStaging}
-                  changeStats={summarizeFileStats(files?.untracked ?? [], fileStats?.untracked)}
-                  defaultExpanded={false}
-                  onDiscard={handleDiscardUntracked}
-                  isDiscarding={isDiscarding}
-                  confirmingDiscard={confirmingDiscard}
-                  onConfirmDiscard={onConfirmDiscard}
-                  onIgnore={handleIgnoreFile}
-                  isIgnoring={isIgnoring}
-                  confirmingIgnore={confirmingIgnore}
-                  onConfirmIgnore={onConfirmIgnore}
-                  onOpenMobileActions={setMobileActionFile}
-                />
-              </>
-            )}
-
-          {/* Empty State */}
-          {files && totalFilesCount === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center" data-testid="empty-state">
-              <File className="h-8 w-8 text-slate-700 mb-3" />
-              <p className="text-sm text-slate-500">No changes detected</p>
-              <p className="text-xs text-slate-600 mt-1">
-                Working directory is clean
-              </p>
-            </div>
-          )}
-          </div>
-        </ScrollArea>
-        </CardContent>
-      )}
-    </Card>
-
-    {/* Mobile file action bottom sheet */}
-    {isMobile && mobileActionFileInfo && (
-      <BottomSheet
-        isOpen={Boolean(mobileActionFile)}
-        onClose={() => setMobileActionFile(null)}
-        title={mobileActionFileInfo.path.split("/").pop() || mobileActionFileInfo.path}
+      <Card
+        className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto"}`}
+        data-testid="file-list-panel"
       >
-        <div className="space-y-1">
-          {/* Stage/Unstage action */}
-          {mobileActionFileInfo.isStaged && (
-            <BottomSheetAction
-              icon={<Minus className="h-5 w-5 text-slate-300" />}
-              label="Unstage"
-              description="Remove from staged changes"
-              onClick={() => {
-                onUnstageFile(mobileActionFileInfo.path);
-                setMobileActionFile(null);
-              }}
-            />
-          )}
-          {(mobileActionFileInfo.isUnstaged || mobileActionFileInfo.isUntracked || mobileActionFileInfo.isConflict) && (
-            <BottomSheetAction
-              icon={<Plus className="h-5 w-5 text-emerald-300" />}
-              label="Stage"
-              description="Add to staged changes"
-              onClick={() => {
-                onStageFile(mobileActionFileInfo.path);
-                setMobileActionFile(null);
-              }}
-            />
-          )}
+        <CardHeader className="flex-row items-center justify-between space-y-0 py-3 gap-2 min-w-0">
+          <CardTitle className="flex items-center gap-2 min-w-0">
+            <button
+              className="p-1 rounded hover:bg-slate-800/70 transition-colors"
+              onClick={handleToggleCollapse}
+              aria-label={collapsed ? "Expand changes" : "Collapse changes"}
+              type="button"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-3 w-3 text-slate-400" />
+              ) : (
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              )}
+            </button>
+            <span className="truncate">Changes</span>
+            <LineStats stats={totalStats} />
+          </CardTitle>
+          <div className="flex flex-wrap gap-2 justify-end min-w-0">
+            {hasUnstaged && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onStageAll}
+                disabled={isStaging}
+                className="min-w-0 whitespace-normal px-3"
+                data-testid="stage-all-button"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Stage All
+              </Button>
+            )}
+            {hasStaged && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onUnstageAll}
+                disabled={isStaging}
+                className="min-w-0 whitespace-normal px-3"
+                data-testid="unstage-all-button"
+              >
+                <Minus className="h-3 w-3 mr-1" />
+                Unstage All
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToggleGrouping}
+              disabled={!groupingAvailable}
+              className={`min-w-0 whitespace-normal px-3 ${
+                groupingActive ? "bg-white/10 text-white" : ""
+              }`}
+              data-testid="toggle-grouping-button"
+            >
+              Group
+            </Button>
+            <button
+              type="button"
+              onClick={handleOpenGroupingSettings}
+              className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/20 text-slate-200 hover:bg-white/10 transition-colors"
+              title="Grouping settings"
+              aria-label="Grouping settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
+        </CardHeader>
 
-          {/* Ignore action */}
-          <BottomSheetAction
-            icon={<EyeOff className="h-5 w-5 text-amber-300" />}
-            label="Ignore"
-            description="Add to .gitignore"
-            onClick={() => {
-              onIgnoreFile(mobileActionFileInfo.path);
-              setMobileActionFile(null);
-            }}
-          />
+        {!collapsed && (
+          <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
+            {showApprovedBanner && (
+              <div className="mx-2 mt-2 mb-1 rounded-md border border-emerald-800/50 bg-emerald-950/20 p-2 text-xs text-emerald-200">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />
+                    <span>Approved changes ready</span>
+                    <span className="text-emerald-300">
+                      {approvedChanges?.committableFiles ?? 0} file
+                      {(approvedChanges?.committableFiles ?? 0) !== 1
+                        ? "s"
+                        : ""}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onStageApproved}
+                    disabled={isStagingApproved}
+                    className="h-7 px-2"
+                    data-testid="stage-approved-button"
+                  >
+                    Stage approved
+                  </Button>
+                </div>
+                {approvedChanges?.warning && (
+                  <div className="mt-1 text-[11px] text-emerald-300/80">
+                    {approvedChanges.warning}
+                  </div>
+                )}
+              </div>
+            )}
+            {showSync && (
+              <div className="mx-2 mt-2 mb-1 rounded-md border border-slate-800/60 bg-slate-900/50 p-2 text-xs text-slate-300">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">Sync</span>
+                    {syncStatus?.ahead ? (
+                      <span className="text-emerald-300">
+                        {syncStatus.ahead} ahead
+                      </span>
+                    ) : null}
+                    {syncStatus?.behind ? (
+                      <span className="text-amber-300">
+                        {syncStatus.behind} behind
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {syncStatus?.behind ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onPull}
+                        disabled={isPulling || !syncStatus?.canPull}
+                        title={syncStatus?.warning || "Pull from remote"}
+                        className="h-7 px-2"
+                      >
+                        Pull
+                      </Button>
+                    ) : null}
+                    {syncStatus?.ahead ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onPush}
+                        disabled={isPushing || !syncStatus?.canPush}
+                        title={syncStatus?.warning || "Push to remote"}
+                        className="h-7 px-2"
+                      >
+                        Push
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                {syncStatus?.warning && (
+                  <div className="mt-1 text-[11px] text-amber-400">
+                    {syncStatus.warning}
+                  </div>
+                )}
+              </div>
+            )}
+            <ScrollArea
+              className="h-full min-w-0 px-2 pt-2 select-none"
+              ref={scrollAreaRef}
+            >
+              <div style={{ paddingBottom: 72 }}>
+                {groupingActive ? (
+                  groupedSections.map((group) => {
+                    const stageable = [
+                      ...group.files.unstaged,
+                      ...group.files.untracked,
+                      ...group.files.conflicts,
+                    ];
+                    const discardTracked = group.files.unstaged;
+                    const discardUntracked = group.files.untracked;
+                    const discardCount =
+                      discardTracked.length + discardUntracked.length;
+                    const groupCount =
+                      group.files.conflicts.length +
+                      group.files.staged.length +
+                      group.files.unstaged.length +
+                      group.files.untracked.length;
+                    const isGroupCollapsed = collapsedGroups.has(group.id);
 
-          {/* Discard action - only for unstaged/untracked */}
-          {(mobileActionFileInfo.isUnstaged || mobileActionFileInfo.isUntracked) && (
+                    return (
+                      <div
+                        key={group.id}
+                        className="mb-4 rounded-lg border border-slate-800/80 bg-slate-950/40"
+                        data-testid={`file-group-${group.id}`}
+                      >
+                        <div
+                          className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
+                        >
+                          <button
+                            type="button"
+                            className="flex items-center gap-2 min-w-0 hover:bg-slate-800/30 rounded px-1 -ml-1 transition-colors"
+                            onClick={() => toggleGroupCollapse(group.id)}
+                            data-testid={`file-group-toggle-${group.id}`}
+                          >
+                            {isGroupCollapsed ? (
+                              <ChevronRight className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0 text-left">
+                              <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                                {group.label}
+                              </div>
+                              {group.displayPrefix && (
+                                <div className="text-[11px] text-slate-500">
+                                  {group.displayPrefix}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <span>{groupCount} files</span>
+                            {!isGroupCollapsed &&
+                              stageable.length > 0 &&
+                              onStagePaths && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onStagePaths(stageable)}
+                                  disabled={isStaging}
+                                  className="h-7 px-2"
+                                >
+                                  Stage All
+                                </Button>
+                              )}
+                            {!isGroupCollapsed &&
+                              discardCount > 0 &&
+                              onDiscardPaths && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setConfirmingGroup(group.id)}
+                                  disabled={isDiscarding}
+                                  className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
+                                >
+                                  Discard All
+                                </Button>
+                              )}
+                          </div>
+                        </div>
+                        {!isGroupCollapsed && (
+                          <>
+                            {confirmingGroup === group.id &&
+                              discardCount > 0 && (
+                                <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
+                                  <span>
+                                    Discard {discardCount} changes in this
+                                    group?
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
+                                      onClick={() => {
+                                        if (discardTracked.length > 0) {
+                                          onDiscardPaths?.(
+                                            discardTracked,
+                                            false,
+                                          );
+                                        }
+                                        if (discardUntracked.length > 0) {
+                                          onDiscardPaths?.(
+                                            discardUntracked,
+                                            true,
+                                          );
+                                        }
+                                        setConfirmingGroup(null);
+                                      }}
+                                    >
+                                      Discard
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
+                                      onClick={() => setConfirmingGroup(null)}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            <div className="px-2 py-2">
+                              <FileSection
+                                key={`${group.id}-conflicts`}
+                                title="Conflicts"
+                                category="conflicts"
+                                files={group.files.conflicts}
+                                fileStatuses={files?.statuses}
+                                binaryFiles={binarySet}
+                                approvedFiles={approvedPaths}
+                                maxPathChars={maxPathChars}
+                                icon={
+                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                                }
+                                selectedFiles={selectedFiles}
+                                selectedKeySet={selectedKeySet}
+                                selectionKey={selectionKey}
+                                onSelectFile={onSelectFile}
+                                onAction={onStageFile}
+                                actionIcon={
+                                  <Plus className="h-3 w-3 text-slate-400" />
+                                }
+                                actionLabel="Stage file"
+                                isLoading={isStaging}
+                                changeStats={summarizeFileStats(
+                                  group.files.conflicts,
+                                  fileStats?.unstaged,
+                                )}
+                                onIgnore={handleIgnoreFile}
+                                isIgnoring={isIgnoring}
+                                confirmingIgnore={confirmingIgnore}
+                                onConfirmIgnore={onConfirmIgnore}
+                                onOpenMobileActions={setMobileActionFile}
+                              />
+                              <FileSection
+                                key={`${group.id}-staged`}
+                                title="Staged"
+                                category="staged"
+                                files={group.files.staged}
+                                fileStatuses={files?.statuses}
+                                binaryFiles={binarySet}
+                                approvedFiles={approvedPaths}
+                                maxPathChars={maxPathChars}
+                                icon={
+                                  <FilePlus className="h-3.5 w-3.5 text-emerald-500" />
+                                }
+                                selectedFiles={selectedFiles}
+                                selectedKeySet={selectedKeySet}
+                                selectionKey={selectionKey}
+                                onSelectFile={onSelectFile}
+                                onAction={onUnstageFile}
+                                actionIcon={
+                                  <Minus className="h-3 w-3 text-slate-400" />
+                                }
+                                actionLabel="Unstage file"
+                                isLoading={isStaging}
+                                changeStats={summarizeFileStats(
+                                  group.files.staged,
+                                  fileStats?.staged,
+                                )}
+                                onIgnore={handleIgnoreFile}
+                                isIgnoring={isIgnoring}
+                                confirmingIgnore={confirmingIgnore}
+                                onConfirmIgnore={onConfirmIgnore}
+                                onOpenMobileActions={setMobileActionFile}
+                              />
+                              <FileSection
+                                key={`${group.id}-unstaged`}
+                                title="Modified"
+                                category="unstaged"
+                                files={group.files.unstaged}
+                                fileStatuses={files?.statuses}
+                                binaryFiles={binarySet}
+                                approvedFiles={approvedPaths}
+                                maxPathChars={maxPathChars}
+                                icon={
+                                  <FileX className="h-3.5 w-3.5 text-amber-500" />
+                                }
+                                selectedFiles={selectedFiles}
+                                selectedKeySet={selectedKeySet}
+                                selectionKey={selectionKey}
+                                onSelectFile={onSelectFile}
+                                onAction={onStageFile}
+                                actionIcon={
+                                  <Plus className="h-3 w-3 text-slate-400" />
+                                }
+                                actionLabel="Stage file"
+                                isLoading={isStaging}
+                                changeStats={summarizeFileStats(
+                                  group.files.unstaged,
+                                  fileStats?.unstaged,
+                                )}
+                                onDiscard={handleDiscardUnstaged}
+                                isDiscarding={isDiscarding}
+                                confirmingDiscard={confirmingDiscard}
+                                onConfirmDiscard={onConfirmDiscard}
+                                onIgnore={handleIgnoreFile}
+                                isIgnoring={isIgnoring}
+                                confirmingIgnore={confirmingIgnore}
+                                onConfirmIgnore={onConfirmIgnore}
+                                onOpenMobileActions={setMobileActionFile}
+                              />
+                              <FileSection
+                                key={`${group.id}-untracked`}
+                                title="Untracked"
+                                category="untracked"
+                                files={group.files.untracked}
+                                fileStatuses={files?.statuses}
+                                binaryFiles={binarySet}
+                                approvedFiles={approvedPaths}
+                                maxPathChars={maxPathChars}
+                                icon={
+                                  <File className="h-3.5 w-3.5 text-slate-500" />
+                                }
+                                selectedFiles={selectedFiles}
+                                selectedKeySet={selectedKeySet}
+                                selectionKey={selectionKey}
+                                onSelectFile={onSelectFile}
+                                onAction={onStageFile}
+                                actionIcon={
+                                  <Plus className="h-3 w-3 text-slate-400" />
+                                }
+                                actionLabel="Stage file"
+                                isLoading={isStaging}
+                                changeStats={summarizeFileStats(
+                                  group.files.untracked,
+                                  fileStats?.untracked,
+                                )}
+                                defaultExpanded={false}
+                                onDiscard={handleDiscardUntracked}
+                                isDiscarding={isDiscarding}
+                                confirmingDiscard={confirmingDiscard}
+                                onConfirmDiscard={onConfirmDiscard}
+                                onIgnore={handleIgnoreFile}
+                                isIgnoring={isIgnoring}
+                                confirmingIgnore={confirmingIgnore}
+                                onConfirmIgnore={onConfirmIgnore}
+                                onOpenMobileActions={setMobileActionFile}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <>
+                    {/* Conflicts - Always show first if any */}
+                    <FileSection
+                      title="Conflicts"
+                      category="conflicts"
+                      files={files?.conflicts ?? []}
+                      fileStatuses={files?.statuses}
+                      binaryFiles={binarySet}
+                      approvedFiles={approvedPaths}
+                      maxPathChars={maxPathChars}
+                      icon={
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                      }
+                      selectedFiles={selectedFiles}
+                      selectedKeySet={selectedKeySet}
+                      selectionKey={selectionKey}
+                      onSelectFile={onSelectFile}
+                      onAction={onStageFile}
+                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                      actionLabel="Stage file"
+                      isLoading={isStaging}
+                      changeStats={summarizeFileStats(
+                        files?.conflicts ?? [],
+                        fileStats?.unstaged,
+                      )}
+                      onIgnore={handleIgnoreFile}
+                      isIgnoring={isIgnoring}
+                      confirmingIgnore={confirmingIgnore}
+                      onConfirmIgnore={onConfirmIgnore}
+                      onOpenMobileActions={setMobileActionFile}
+                    />
+
+                    {/* Staged Changes */}
+                    <FileSection
+                      title="Staged"
+                      category="staged"
+                      files={files?.staged ?? []}
+                      fileStatuses={files?.statuses}
+                      binaryFiles={binarySet}
+                      approvedFiles={approvedPaths}
+                      maxPathChars={maxPathChars}
+                      icon={
+                        <FilePlus className="h-3.5 w-3.5 text-emerald-500" />
+                      }
+                      selectedFiles={selectedFiles}
+                      selectedKeySet={selectedKeySet}
+                      selectionKey={selectionKey}
+                      onSelectFile={onSelectFile}
+                      onAction={onUnstageFile}
+                      actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
+                      actionLabel="Unstage file"
+                      isLoading={isStaging}
+                      changeStats={summarizeFileStats(
+                        files?.staged ?? [],
+                        fileStats?.staged,
+                      )}
+                      onIgnore={handleIgnoreFile}
+                      isIgnoring={isIgnoring}
+                      confirmingIgnore={confirmingIgnore}
+                      onConfirmIgnore={onConfirmIgnore}
+                      onOpenMobileActions={setMobileActionFile}
+                    />
+
+                    {/* Unstaged Changes */}
+                    <FileSection
+                      title="Modified"
+                      category="unstaged"
+                      files={files?.unstaged ?? []}
+                      fileStatuses={files?.statuses}
+                      binaryFiles={binarySet}
+                      approvedFiles={approvedPaths}
+                      maxPathChars={maxPathChars}
+                      icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
+                      selectedFiles={selectedFiles}
+                      selectedKeySet={selectedKeySet}
+                      selectionKey={selectionKey}
+                      onSelectFile={onSelectFile}
+                      onAction={onStageFile}
+                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                      actionLabel="Stage file"
+                      isLoading={isStaging}
+                      changeStats={summarizeFileStats(
+                        files?.unstaged ?? [],
+                        fileStats?.unstaged,
+                      )}
+                      onDiscard={handleDiscardUnstaged}
+                      isDiscarding={isDiscarding}
+                      confirmingDiscard={confirmingDiscard}
+                      onConfirmDiscard={onConfirmDiscard}
+                      onIgnore={handleIgnoreFile}
+                      isIgnoring={isIgnoring}
+                      confirmingIgnore={confirmingIgnore}
+                      onConfirmIgnore={onConfirmIgnore}
+                      onOpenMobileActions={setMobileActionFile}
+                    />
+
+                    {/* Untracked Files */}
+                    <FileSection
+                      title="Untracked"
+                      category="untracked"
+                      files={files?.untracked ?? []}
+                      fileStatuses={files?.statuses}
+                      binaryFiles={binarySet}
+                      approvedFiles={approvedPaths}
+                      maxPathChars={maxPathChars}
+                      icon={<File className="h-3.5 w-3.5 text-slate-500" />}
+                      selectedFiles={selectedFiles}
+                      selectedKeySet={selectedKeySet}
+                      selectionKey={selectionKey}
+                      onSelectFile={onSelectFile}
+                      onAction={onStageFile}
+                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
+                      actionLabel="Stage file"
+                      isLoading={isStaging}
+                      changeStats={summarizeFileStats(
+                        files?.untracked ?? [],
+                        fileStats?.untracked,
+                      )}
+                      defaultExpanded={false}
+                      onDiscard={handleDiscardUntracked}
+                      isDiscarding={isDiscarding}
+                      confirmingDiscard={confirmingDiscard}
+                      onConfirmDiscard={onConfirmDiscard}
+                      onIgnore={handleIgnoreFile}
+                      isIgnoring={isIgnoring}
+                      confirmingIgnore={confirmingIgnore}
+                      onConfirmIgnore={onConfirmIgnore}
+                      onOpenMobileActions={setMobileActionFile}
+                    />
+                  </>
+                )}
+
+                {/* Empty State */}
+                {files && totalFilesCount === 0 && (
+                  <div
+                    className="flex flex-col items-center justify-center py-12 text-center"
+                    data-testid="empty-state"
+                  >
+                    <File className="h-8 w-8 text-slate-700 mb-3" />
+                    <p className="text-sm text-slate-500">
+                      No changes detected
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Working directory is clean
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Mobile file action bottom sheet */}
+      {isMobile && mobileActionFileInfo && (
+        <BottomSheet
+          isOpen={Boolean(mobileActionFile)}
+          onClose={() => setMobileActionFile(null)}
+          title={
+            mobileActionFileInfo.path.split("/").pop() ||
+            mobileActionFileInfo.path
+          }
+        >
+          <div className="space-y-1">
+            {/* Stage/Unstage action */}
+            {mobileActionFileInfo.isStaged && (
+              <BottomSheetAction
+                icon={<Minus className="h-5 w-5 text-slate-300" />}
+                label="Unstage"
+                description="Remove from staged changes"
+                onClick={() => {
+                  onUnstageFile(mobileActionFileInfo.path);
+                  setMobileActionFile(null);
+                }}
+              />
+            )}
+            {(mobileActionFileInfo.isUnstaged ||
+              mobileActionFileInfo.isUntracked ||
+              mobileActionFileInfo.isConflict) && (
+              <BottomSheetAction
+                icon={<Plus className="h-5 w-5 text-emerald-300" />}
+                label="Stage"
+                description="Add to staged changes"
+                onClick={() => {
+                  onStageFile(mobileActionFileInfo.path);
+                  setMobileActionFile(null);
+                }}
+              />
+            )}
+
+            {/* Ignore action */}
             <BottomSheetAction
-              icon={<Trash2 className="h-5 w-5 text-red-400" />}
-              label="Discard Changes"
-              description={mobileActionFileInfo.isUntracked ? "Delete this file" : "Revert to last commit"}
-              variant="danger"
+              icon={<EyeOff className="h-5 w-5 text-amber-300" />}
+              label="Ignore"
+              description="Add to .gitignore"
               onClick={() => {
-                onDiscardFile(mobileActionFileInfo.path, mobileActionFileInfo.isUntracked);
+                onIgnoreFile(mobileActionFileInfo.path);
                 setMobileActionFile(null);
               }}
             />
-          )}
-        </div>
-      </BottomSheet>
-    )}
+
+            {/* Discard action - only for unstaged/untracked */}
+            {(mobileActionFileInfo.isUnstaged ||
+              mobileActionFileInfo.isUntracked) && (
+              <BottomSheetAction
+                icon={<Trash2 className="h-5 w-5 text-red-400" />}
+                label="Discard Changes"
+                description={
+                  mobileActionFileInfo.isUntracked
+                    ? "Delete this file"
+                    : "Revert to last commit"
+                }
+                variant="danger"
+                onClick={() => {
+                  onDiscardFile(
+                    mobileActionFileInfo.path,
+                    mobileActionFileInfo.isUntracked,
+                  );
+                  setMobileActionFile(null);
+                }}
+              />
+            )}
+          </div>
+        </BottomSheet>
+      )}
     </MobileContext.Provider>
   );
 }
