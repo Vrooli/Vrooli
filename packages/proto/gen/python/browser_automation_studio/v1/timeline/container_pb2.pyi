@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ExecutionTimeline(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "workflow_id", "status", "progress", "started_at", "completed_at", "entries", "logs")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]

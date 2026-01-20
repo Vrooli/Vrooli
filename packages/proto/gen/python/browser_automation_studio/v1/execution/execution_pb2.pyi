@@ -17,7 +17,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ArtifactCollectionConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("profile", "collect_screenshots", "collect_dom_snapshots", "collect_console_logs", "collect_network_events", "collect_extracted_data", "collect_assertions", "collect_cursor_trails", "collect_telemetry", "max_screenshot_bytes", "max_dom_snapshot_bytes", "max_console_entry_bytes", "max_network_preview_bytes")
     PROFILE_FIELD_NUMBER: _ClassVar[int]
     COLLECT_SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
     COLLECT_DOM_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
@@ -47,30 +47,30 @@ class ArtifactCollectionConfig(_message.Message):
     def __init__(self, profile: _Optional[str] = ..., collect_screenshots: _Optional[bool] = ..., collect_dom_snapshots: _Optional[bool] = ..., collect_console_logs: _Optional[bool] = ..., collect_network_events: _Optional[bool] = ..., collect_extracted_data: _Optional[bool] = ..., collect_assertions: _Optional[bool] = ..., collect_cursor_trails: _Optional[bool] = ..., collect_telemetry: _Optional[bool] = ..., max_screenshot_bytes: _Optional[int] = ..., max_dom_snapshot_bytes: _Optional[int] = ..., max_console_entry_bytes: _Optional[int] = ..., max_network_preview_bytes: _Optional[int] = ...) -> None: ...
 
 class ExecutionParameters(_message.Message):
-    __slots__ = ()
+    __slots__ = ("start_url", "variables", "viewport_width", "viewport_height", "headless", "user_agent", "locale", "timeout_ms", "project_root", "initial_params", "initial_store", "env", "artifact_config", "browser_profile", "session_profile_id", "navigation_wait_until", "continue_on_error")
     class VariablesEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     class InitialParamsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     class InitialStoreEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     class EnvEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -113,16 +113,16 @@ class ExecutionParameters(_message.Message):
     def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., session_profile_id: _Optional[str] = ..., navigation_wait_until: _Optional[_Union[_action_pb2.NavigateWaitEvent, str]] = ..., continue_on_error: _Optional[bool] = ...) -> None: ...
 
 class ExecutionResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "steps_executed", "steps_failed", "final_url", "error", "error_code", "extracted_data", "screenshot_artifacts")
     class ExtractedDataEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: _types_pb2.JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     class ScreenshotArtifactsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: int
@@ -147,7 +147,7 @@ class ExecutionResult(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., steps_executed: _Optional[int] = ..., steps_failed: _Optional[int] = ..., final_url: _Optional[str] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., screenshot_artifacts: _Optional[_Mapping[int, str]] = ...) -> None: ...
 
 class TriggerMetadata(_message.Message):
-    __slots__ = ()
+    __slots__ = ("user_id", "client_id", "schedule_id", "webhook_id", "external_request_id", "source_ip", "user_agent")
     USER_ID_FIELD_NUMBER: _ClassVar[int]
     CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCHEDULE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -165,7 +165,7 @@ class TriggerMetadata(_message.Message):
     def __init__(self, user_id: _Optional[str] = ..., client_id: _Optional[str] = ..., schedule_id: _Optional[str] = ..., webhook_id: _Optional[str] = ..., external_request_id: _Optional[str] = ..., source_ip: _Optional[str] = ..., user_agent: _Optional[str] = ...) -> None: ...
 
 class Execution(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "workflow_id", "workflow_version", "status", "trigger_type", "started_at", "completed_at", "last_heartbeat_at", "error", "progress", "current_step", "created_at", "updated_at", "parameters", "result", "trigger_metadata", "trace_id", "correlation_id", "request_id", "resumed_from")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -209,7 +209,7 @@ class Execution(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., workflow_id: _Optional[str] = ..., workflow_version: _Optional[int] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., trigger_type: _Optional[_Union[_shared_pb2.TriggerType, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_heartbeat_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., progress: _Optional[int] = ..., current_step: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ..., result: _Optional[_Union[ExecutionResult, _Mapping]] = ..., trigger_metadata: _Optional[_Union[TriggerMetadata, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., request_id: _Optional[str] = ..., resumed_from: _Optional[str] = ...) -> None: ...
 
 class ExecuteAdhocRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("flow_definition", "wait_for_completion", "metadata", "parameters")
     FLOW_DEFINITION_FIELD_NUMBER: _ClassVar[int]
     WAIT_FOR_COMPLETION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
@@ -221,7 +221,7 @@ class ExecuteAdhocRequest(_message.Message):
     def __init__(self, flow_definition: _Optional[_Union[_definition_pb2.WorkflowDefinitionV2, _Mapping]] = ..., wait_for_completion: _Optional[bool] = ..., metadata: _Optional[_Union[ExecutionMetadata, _Mapping]] = ..., parameters: _Optional[_Union[ExecutionParameters, _Mapping]] = ...) -> None: ...
 
 class ExecutionMetadata(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "description")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     name: str
@@ -229,7 +229,7 @@ class ExecutionMetadata(_message.Message):
     def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
 
 class ExecuteAdhocResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "status", "workflow_id", "message", "completed_at", "error")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_ID_FIELD_NUMBER: _ClassVar[int]
@@ -245,7 +245,7 @@ class ExecuteAdhocResponse(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., workflow_id: _Optional[str] = ..., message: _Optional[str] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ExecutionScreenshot(_message.Message):
-    __slots__ = ()
+    __slots__ = ("screenshot", "step_index", "node_id", "step_label", "timestamp")
     SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -259,7 +259,7 @@ class ExecutionScreenshot(_message.Message):
     def __init__(self, screenshot: _Optional[_Union[_telemetry_pb2.TimelineScreenshot, _Mapping]] = ..., step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., step_label: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetScreenshotsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "screenshots", "total")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     SCREENSHOTS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
@@ -269,7 +269,7 @@ class GetScreenshotsResponse(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., screenshots: _Optional[_Iterable[_Union[ExecutionScreenshot, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
 
 class ExecutionExportPreview(_message.Message):
-    __slots__ = ()
+    __slots__ = ("execution_id", "spec_id", "status", "message", "captured_frame_count", "available_asset_count", "total_duration_ms", "package")
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     SPEC_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -289,7 +289,7 @@ class ExecutionExportPreview(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
 
 class ExecutorMetrics(_message.Message):
-    __slots__ = ()
+    __slots__ = ("memory_bytes", "cpu_percent", "active_pages")
     MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
     CPU_PERCENT_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_PAGES_FIELD_NUMBER: _ClassVar[int]
@@ -299,7 +299,7 @@ class ExecutorMetrics(_message.Message):
     def __init__(self, memory_bytes: _Optional[int] = ..., cpu_percent: _Optional[float] = ..., active_pages: _Optional[int] = ...) -> None: ...
 
 class PerformanceMetrics(_message.Message):
-    __slots__ = ()
+    __slots__ = ("network_requests", "bytes_transferred", "dom_nodes", "js_heap_bytes", "ttfb_ms", "lcp_ms", "fid_ms", "cls")
     NETWORK_REQUESTS_FIELD_NUMBER: _ClassVar[int]
     BYTES_TRANSFERRED_FIELD_NUMBER: _ClassVar[int]
     DOM_NODES_FIELD_NUMBER: _ClassVar[int]

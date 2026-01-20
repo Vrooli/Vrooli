@@ -227,7 +227,7 @@ STALE_RUN_ACTION_FAIL: StaleRunAction
 STALE_RUN_ACTION_ALERT: StaleRunAction
 
 class SandboxFileCriteria(_message.Message):
-    __slots__ = ()
+    __slots__ = ("path_globs", "extensions")
     PATH_GLOBS_FIELD_NUMBER: _ClassVar[int]
     EXTENSIONS_FIELD_NUMBER: _ClassVar[int]
     path_globs: _containers.RepeatedScalarFieldContainer[str]
@@ -235,7 +235,7 @@ class SandboxFileCriteria(_message.Message):
     def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SandboxAcceptanceConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_FIELD_NUMBER: _ClassVar[int]
     DENY_FIELD_NUMBER: _ClassVar[int]
@@ -251,7 +251,7 @@ class SandboxAcceptanceConfig(_message.Message):
     def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")
     STOP_ON_FIELD_NUMBER: _ClassVar[int]
     DELETE_ON_FIELD_NUMBER: _ClassVar[int]
     TTL_FIELD_NUMBER: _ClassVar[int]
@@ -263,7 +263,7 @@ class SandboxLifecycleConfig(_message.Message):
     def __init__(self, stop_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., delete_on: _Optional[_Iterable[_Union[SandboxLifecycleEvent, str]]] = ..., ttl: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., idle_timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class SandboxConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("lifecycle", "acceptance")
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     lifecycle: SandboxLifecycleConfig

@@ -14,7 +14,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Run(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "task_id", "agent_profile_id", "tag", "sandbox_id", "run_mode", "status", "started_at", "ended_at", "phase", "last_checkpoint_id", "last_heartbeat", "progress_percent", "idempotency_key", "summary", "error_msg", "exit_code", "approval_state", "approved_by", "approved_at", "resolved_config", "diff_path", "log_path", "changed_files", "total_size_bytes", "session_id", "created_at", "updated_at", "actions")
     ID_FIELD_NUMBER: _ClassVar[int]
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -76,7 +76,7 @@ class Run(_message.Message):
     def __init__(self, id: _Optional[str] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ended_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., last_checkpoint_id: _Optional[str] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., progress_percent: _Optional[int] = ..., idempotency_key: _Optional[str] = ..., summary: _Optional[_Union[RunSummary, _Mapping]] = ..., error_msg: _Optional[str] = ..., exit_code: _Optional[int] = ..., approval_state: _Optional[_Union[_types_pb2.ApprovalState, str]] = ..., approved_by: _Optional[str] = ..., approved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_config: _Optional[_Union[_profile_pb2.RunConfig, _Mapping]] = ..., diff_path: _Optional[str] = ..., log_path: _Optional[str] = ..., changed_files: _Optional[int] = ..., total_size_bytes: _Optional[int] = ..., session_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actions: _Optional[_Union[RunActions, _Mapping]] = ...) -> None: ...
 
 class RunActions(_message.Message):
-    __slots__ = ()
+    __slots__ = ("can_investigate", "can_apply_investigation", "can_delete", "can_stop", "can_retry", "can_continue", "can_approve", "can_reject", "can_review", "can_extract_recommendations", "can_regenerate_recommendations")
     CAN_INVESTIGATE_FIELD_NUMBER: _ClassVar[int]
     CAN_APPLY_INVESTIGATION_FIELD_NUMBER: _ClassVar[int]
     CAN_DELETE_FIELD_NUMBER: _ClassVar[int]
@@ -102,7 +102,7 @@ class RunActions(_message.Message):
     def __init__(self, can_investigate: _Optional[bool] = ..., can_apply_investigation: _Optional[bool] = ..., can_delete: _Optional[bool] = ..., can_stop: _Optional[bool] = ..., can_retry: _Optional[bool] = ..., can_continue: _Optional[bool] = ..., can_approve: _Optional[bool] = ..., can_reject: _Optional[bool] = ..., can_review: _Optional[bool] = ..., can_extract_recommendations: _Optional[bool] = ..., can_regenerate_recommendations: _Optional[bool] = ...) -> None: ...
 
 class RunSummary(_message.Message):
-    __slots__ = ()
+    __slots__ = ("description", "files_modified", "files_created", "files_deleted", "tokens_used", "turns_used", "cost_estimate")
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FILES_MODIFIED_FIELD_NUMBER: _ClassVar[int]
     FILES_CREATED_FIELD_NUMBER: _ClassVar[int]
@@ -120,9 +120,9 @@ class RunSummary(_message.Message):
     def __init__(self, description: _Optional[str] = ..., files_modified: _Optional[_Iterable[str]] = ..., files_created: _Optional[_Iterable[str]] = ..., files_deleted: _Optional[_Iterable[str]] = ..., tokens_used: _Optional[int] = ..., turns_used: _Optional[int] = ..., cost_estimate: _Optional[float] = ...) -> None: ...
 
 class RunCheckpoint(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "phase", "step_within_phase", "sandbox_id", "work_dir", "lock_id", "last_event_sequence", "last_heartbeat", "retry_count", "saved_at", "metadata")
     class MetadataEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -153,7 +153,7 @@ class RunCheckpoint(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., step_within_phase: _Optional[int] = ..., sandbox_id: _Optional[str] = ..., work_dir: _Optional[str] = ..., lock_id: _Optional[str] = ..., last_event_sequence: _Optional[int] = ..., last_heartbeat: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retry_count: _Optional[int] = ..., saved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., metadata: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class RunProgress(_message.Message):
-    __slots__ = ()
+    __slots__ = ("phase", "phase_description", "percent_complete", "current_action", "elapsed_time", "estimated_remaining", "last_update")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PHASE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PERCENT_COMPLETE_FIELD_NUMBER: _ClassVar[int]
@@ -171,7 +171,7 @@ class RunProgress(_message.Message):
     def __init__(self, phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., phase_description: _Optional[str] = ..., percent_complete: _Optional[int] = ..., current_action: _Optional[str] = ..., elapsed_time: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., last_update: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class IdempotencyRecord(_message.Message):
-    __slots__ = ()
+    __slots__ = ("key", "status", "entity_id", "entity_type", "created_at", "expires_at", "response")
     KEY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ENTITY_ID_FIELD_NUMBER: _ClassVar[int]
@@ -189,7 +189,7 @@ class IdempotencyRecord(_message.Message):
     def __init__(self, key: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.IdempotencyStatus, str]] = ..., entity_id: _Optional[str] = ..., entity_type: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., response: _Optional[bytes] = ...) -> None: ...
 
 class RunnerStatus(_message.Message):
-    __slots__ = ()
+    __slots__ = ("runner_type", "available", "message", "install_hint", "supported_models", "capabilities")
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -205,7 +205,7 @@ class RunnerStatus(_message.Message):
     def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., install_hint: _Optional[str] = ..., supported_models: _Optional[_Iterable[str]] = ..., capabilities: _Optional[_Union[RunnerCapabilities, _Mapping]] = ...) -> None: ...
 
 class RunnerCapabilities(_message.Message):
-    __slots__ = ()
+    __slots__ = ("supports_streaming", "supports_messages", "supports_tool_events", "supports_cost_tracking", "supports_cancellation", "max_turns", "supports_continuation")
     SUPPORTS_STREAMING_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_MESSAGES_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_TOOL_EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -223,9 +223,9 @@ class RunnerCapabilities(_message.Message):
     def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ...) -> None: ...
 
 class ProbeResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "latency_ms", "error", "details")
     class DetailsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -242,7 +242,7 @@ class ProbeResult(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., error: _Optional[str] = ..., details: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class StopAllResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("stopped_count", "failures")
     STOPPED_COUNT_FIELD_NUMBER: _ClassVar[int]
     FAILURES_FIELD_NUMBER: _ClassVar[int]
     stopped_count: int
@@ -250,7 +250,7 @@ class StopAllResult(_message.Message):
     def __init__(self, stopped_count: _Optional[int] = ..., failures: _Optional[_Iterable[_Union[StopFailure, _Mapping]]] = ...) -> None: ...
 
 class StopFailure(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "error")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     run_id: str
@@ -258,7 +258,7 @@ class StopFailure(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
 
 class ApproveResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "files_applied", "commit_hash", "message")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     FILES_APPLIED_FIELD_NUMBER: _ClassVar[int]
     COMMIT_HASH_FIELD_NUMBER: _ClassVar[int]
@@ -270,7 +270,7 @@ class ApproveResult(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., files_applied: _Optional[int] = ..., commit_hash: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class RunDiff(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "content", "files", "generated_at")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
@@ -282,7 +282,7 @@ class RunDiff(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., content: _Optional[str] = ..., files: _Optional[_Iterable[_Union[FileDiff, _Mapping]]] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class FileDiff(_message.Message):
-    __slots__ = ()
+    __slots__ = ("path", "change_type", "additions", "deletions", "is_binary", "patch")
     PATH_FIELD_NUMBER: _ClassVar[int]
     CHANGE_TYPE_FIELD_NUMBER: _ClassVar[int]
     ADDITIONS_FIELD_NUMBER: _ClassVar[int]
@@ -298,7 +298,7 @@ class FileDiff(_message.Message):
     def __init__(self, path: _Optional[str] = ..., change_type: _Optional[str] = ..., additions: _Optional[int] = ..., deletions: _Optional[int] = ..., is_binary: _Optional[bool] = ..., patch: _Optional[str] = ...) -> None: ...
 
 class ContinueRunRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "message")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
@@ -306,7 +306,7 @@ class ContinueRunRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ContinueRunResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success", "run", "error", "error_code")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     RUN_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
@@ -318,7 +318,7 @@ class ContinueRunResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., run: _Optional[_Union[Run, _Mapping]] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ...) -> None: ...
 
 class DeleteRunMessageRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "event_id")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     run_id: str
@@ -326,7 +326,7 @@ class DeleteRunMessageRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., event_id: _Optional[str] = ...) -> None: ...
 
 class DeleteRunMessageResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("success",)
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     success: bool
     def __init__(self, success: _Optional[bool] = ...) -> None: ...

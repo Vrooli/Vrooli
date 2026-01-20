@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Value(_message.Message):
-    __slots__ = ()
+    __slots__ = ("null_value", "bool_value", "int64_value", "uint64_value", "double_value", "string_value", "bytes_value", "enum_value", "object_value", "map_value", "list_value", "type_value")
     NULL_VALUE_FIELD_NUMBER: _ClassVar[int]
     BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
     INT64_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -37,7 +37,7 @@ class Value(_message.Message):
     def __init__(self, null_value: _Optional[_Union[_struct_pb2.NullValue, str]] = ..., bool_value: _Optional[bool] = ..., int64_value: _Optional[int] = ..., uint64_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., bytes_value: _Optional[bytes] = ..., enum_value: _Optional[_Union[EnumValue, _Mapping]] = ..., object_value: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., map_value: _Optional[_Union[MapValue, _Mapping]] = ..., list_value: _Optional[_Union[ListValue, _Mapping]] = ..., type_value: _Optional[str] = ...) -> None: ...
 
 class EnumValue(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "value")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     type: str
@@ -45,15 +45,15 @@ class EnumValue(_message.Message):
     def __init__(self, type: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
 
 class ListValue(_message.Message):
-    __slots__ = ()
+    __slots__ = ("values",)
     VALUES_FIELD_NUMBER: _ClassVar[int]
     values: _containers.RepeatedCompositeFieldContainer[Value]
     def __init__(self, values: _Optional[_Iterable[_Union[Value, _Mapping]]] = ...) -> None: ...
 
 class MapValue(_message.Message):
-    __slots__ = ()
+    __slots__ = ("entries",)
     class Entry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: Value

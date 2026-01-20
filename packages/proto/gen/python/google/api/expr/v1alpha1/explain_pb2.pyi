@@ -8,9 +8,9 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Explain(_message.Message):
-    __slots__ = ()
+    __slots__ = ("values", "expr_steps")
     class ExprStep(_message.Message):
-        __slots__ = ()
+        __slots__ = ("id", "value_index")
         ID_FIELD_NUMBER: _ClassVar[int]
         VALUE_INDEX_FIELD_NUMBER: _ClassVar[int]
         id: int

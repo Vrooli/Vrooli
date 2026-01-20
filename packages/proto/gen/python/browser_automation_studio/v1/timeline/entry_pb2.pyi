@@ -30,7 +30,7 @@ TIMELINE_MESSAGE_TYPE_HEARTBEAT: TimelineMessageType
 TIMELINE_MESSAGE_TYPE_LOG: TimelineMessageType
 
 class TimelineEntry(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "sequence_num", "step_index", "node_id", "timestamp", "duration_ms", "total_duration_ms", "action", "telemetry", "context", "aggregates", "trace_id", "correlation_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_NUM_FIELD_NUMBER: _ClassVar[int]
     STEP_INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -60,7 +60,7 @@ class TimelineEntry(_message.Message):
     def __init__(self, id: _Optional[str] = ..., sequence_num: _Optional[int] = ..., step_index: _Optional[int] = ..., node_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ..., telemetry: _Optional[_Union[_telemetry_pb2.ActionTelemetry, _Mapping]] = ..., context: _Optional[_Union[_shared_pb2.EventContext, _Mapping]] = ..., aggregates: _Optional[_Union[TimelineEntryAggregates, _Mapping]] = ..., trace_id: _Optional[str] = ..., correlation_id: _Optional[str] = ...) -> None: ...
 
 class TimelineEntryAggregates(_message.Message):
-    __slots__ = ()
+    __slots__ = ("status", "final_url", "console_log_count", "network_event_count", "artifacts", "extracted_data_preview", "focused_element", "progress")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FINAL_URL_FIELD_NUMBER: _ClassVar[int]
     CONSOLE_LOG_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -80,9 +80,9 @@ class TimelineEntryAggregates(_message.Message):
     def __init__(self, status: _Optional[_Union[_shared_pb2.StepStatus, str]] = ..., final_url: _Optional[str] = ..., console_log_count: _Optional[int] = ..., network_event_count: _Optional[int] = ..., artifacts: _Optional[_Iterable[_Union[TimelineArtifact, _Mapping]]] = ..., extracted_data_preview: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., focused_element: _Optional[_Union[ElementFocus, _Mapping]] = ..., progress: _Optional[int] = ...) -> None: ...
 
 class TimelineArtifact(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "type", "label", "storage_url", "thumbnail_url", "content_type", "size_bytes", "step_index", "payload")
     class PayloadEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -109,7 +109,7 @@ class TimelineArtifact(_message.Message):
     def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_shared_pb2.ArtifactType, str]] = ..., label: _Optional[str] = ..., storage_url: _Optional[str] = ..., thumbnail_url: _Optional[str] = ..., content_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., step_index: _Optional[int] = ..., payload: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class ElementFocus(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "bounding_box")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     BOUNDING_BOX_FIELD_NUMBER: _ClassVar[int]
     selector: str
@@ -117,7 +117,7 @@ class ElementFocus(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ...) -> None: ...
 
 class TimelineLog(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "level", "message", "step_name", "timestamp")
     ID_FIELD_NUMBER: _ClassVar[int]
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
@@ -131,7 +131,7 @@ class TimelineLog(_message.Message):
     def __init__(self, id: _Optional[str] = ..., level: _Optional[_Union[_shared_pb2.LogLevel, str]] = ..., message: _Optional[str] = ..., step_name: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class TimelineStreamMessage(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "entry", "status", "heartbeat", "log")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ENTRY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -145,7 +145,7 @@ class TimelineStreamMessage(_message.Message):
     def __init__(self, type: _Optional[_Union[TimelineMessageType, str]] = ..., entry: _Optional[_Union[TimelineEntry, _Mapping]] = ..., status: _Optional[_Union[TimelineStatusUpdate, _Mapping]] = ..., heartbeat: _Optional[_Union[TimelineHeartbeat, _Mapping]] = ..., log: _Optional[_Union[TimelineLog, _Mapping]] = ...) -> None: ...
 
 class TimelineStatusUpdate(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "status", "progress", "entry_count", "error")
     ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PROGRESS_FIELD_NUMBER: _ClassVar[int]
@@ -159,7 +159,7 @@ class TimelineStatusUpdate(_message.Message):
     def __init__(self, id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExecutionStatus, str]] = ..., progress: _Optional[int] = ..., entry_count: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
 
 class TimelineHeartbeat(_message.Message):
-    __slots__ = ()
+    __slots__ = ("timestamp", "session_id")
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     timestamp: _timestamp_pb2.Timestamp

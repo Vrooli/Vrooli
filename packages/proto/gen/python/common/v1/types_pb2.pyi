@@ -20,7 +20,7 @@ HEALTH_STATUS_DEGRADED: HealthStatus
 HEALTH_STATUS_UNHEALTHY: HealthStatus
 
 class JsonValue(_message.Message):
-    __slots__ = ()
+    __slots__ = ("bool_value", "int_value", "double_value", "string_value", "object_value", "list_value", "null_value", "bytes_value")
     BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
     INT_VALUE_FIELD_NUMBER: _ClassVar[int]
     DOUBLE_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -40,9 +40,9 @@ class JsonValue(_message.Message):
     def __init__(self, bool_value: _Optional[bool] = ..., int_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., object_value: _Optional[_Union[JsonObject, _Mapping]] = ..., list_value: _Optional[_Union[JsonList, _Mapping]] = ..., null_value: _Optional[_Union[_struct_pb2.NullValue, str]] = ..., bytes_value: _Optional[bytes] = ...) -> None: ...
 
 class JsonObject(_message.Message):
-    __slots__ = ()
+    __slots__ = ("fields",)
     class FieldsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -53,13 +53,13 @@ class JsonObject(_message.Message):
     def __init__(self, fields: _Optional[_Mapping[str, JsonValue]] = ...) -> None: ...
 
 class JsonList(_message.Message):
-    __slots__ = ()
+    __slots__ = ("values",)
     VALUES_FIELD_NUMBER: _ClassVar[int]
     values: _containers.RepeatedCompositeFieldContainer[JsonValue]
     def __init__(self, values: _Optional[_Iterable[_Union[JsonValue, _Mapping]]] = ...) -> None: ...
 
 class PaginationRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("limit", "offset")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     limit: int
@@ -67,7 +67,7 @@ class PaginationRequest(_message.Message):
     def __init__(self, limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class PaginationResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("total", "limit", "offset", "has_more")
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
@@ -79,7 +79,7 @@ class PaginationResponse(_message.Message):
     def __init__(self, total: _Optional[int] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., has_more: _Optional[bool] = ...) -> None: ...
 
 class ErrorResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("code", "message", "details")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     DETAILS_FIELD_NUMBER: _ClassVar[int]
@@ -89,16 +89,16 @@ class ErrorResponse(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., details: _Optional[_Union[JsonObject, _Mapping]] = ...) -> None: ...
 
 class HealthResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("status", "service", "timestamp", "readiness", "version", "dependencies", "metrics")
     class DependenciesEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
         value: JsonValue
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[JsonValue, _Mapping]] = ...) -> None: ...
     class MetricsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str

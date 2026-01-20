@@ -11,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ToolManifest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("protocol_version", "scenario", "tools", "categories", "generated_at", "capabilities")
     PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     TOOLS_FIELD_NUMBER: _ClassVar[int]
@@ -27,7 +27,7 @@ class ToolManifest(_message.Message):
     def __init__(self, protocol_version: _Optional[str] = ..., scenario: _Optional[_Union[ScenarioInfo, _Mapping]] = ..., tools: _Optional[_Iterable[_Union[_tool_pb2.ToolDefinition, _Mapping]]] = ..., categories: _Optional[_Iterable[_Union[_tool_pb2.ToolCategory, _Mapping]]] = ..., generated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., capabilities: _Optional[_Union[ManifestCapabilities, _Mapping]] = ...) -> None: ...
 
 class ScenarioInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "version", "description", "base_url", "health_endpoint", "execute_endpoint_template")
     NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -43,7 +43,7 @@ class ScenarioInfo(_message.Message):
     def __init__(self, name: _Optional[str] = ..., version: _Optional[str] = ..., description: _Optional[str] = ..., base_url: _Optional[str] = ..., health_endpoint: _Optional[str] = ..., execute_endpoint_template: _Optional[str] = ...) -> None: ...
 
 class ManifestCapabilities(_message.Message):
-    __slots__ = ()
+    __slots__ = ("supports_async", "supports_websocket_status", "websocket_endpoint", "supports_batch_execution", "supports_caching", "cache_ttl_seconds")
     SUPPORTS_ASYNC_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_WEBSOCKET_STATUS_FIELD_NUMBER: _ClassVar[int]
     WEBSOCKET_ENDPOINT_FIELD_NUMBER: _ClassVar[int]

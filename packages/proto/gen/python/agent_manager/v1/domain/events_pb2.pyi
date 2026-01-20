@@ -45,7 +45,7 @@ AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_UNSUBSCRIBE_ALL: AgentManagerWsClientMessag
 AGENT_MANAGER_WS_CLIENT_MESSAGE_TYPE_PING: AgentManagerWsClientMessageType
 
 class RunEvent(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "run_id", "sequence", "event_type", "timestamp", "log", "message", "message_deleted", "tool_call", "tool_result", "status", "metric", "artifact", "error", "progress", "cost", "rate_limit")
     ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
@@ -83,7 +83,7 @@ class RunEvent(_message.Message):
     def __init__(self, id: _Optional[str] = ..., run_id: _Optional[str] = ..., sequence: _Optional[int] = ..., event_type: _Optional[_Union[_types_pb2.RunEventType, str]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., log: _Optional[_Union[LogEventData, _Mapping]] = ..., message: _Optional[_Union[MessageEventData, _Mapping]] = ..., message_deleted: _Optional[_Union[MessageDeletedEventData, _Mapping]] = ..., tool_call: _Optional[_Union[ToolCallEventData, _Mapping]] = ..., tool_result: _Optional[_Union[ToolResultEventData, _Mapping]] = ..., status: _Optional[_Union[StatusEventData, _Mapping]] = ..., metric: _Optional[_Union[MetricEventData, _Mapping]] = ..., artifact: _Optional[_Union[ArtifactEventData, _Mapping]] = ..., error: _Optional[_Union[ErrorEventData, _Mapping]] = ..., progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., cost: _Optional[_Union[CostEventData, _Mapping]] = ..., rate_limit: _Optional[_Union[RateLimitEventData, _Mapping]] = ...) -> None: ...
 
 class AgentManagerWsMessage(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "run_id", "run_event", "run_status", "task_status", "run_progress", "connected", "pong")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_EVENT_FIELD_NUMBER: _ClassVar[int]
@@ -103,7 +103,7 @@ class AgentManagerWsMessage(_message.Message):
     def __init__(self, type: _Optional[_Union[AgentManagerWsMessageType, str]] = ..., run_id: _Optional[str] = ..., run_event: _Optional[_Union[RunEvent, _Mapping]] = ..., run_status: _Optional[_Union[RunStatusUpdate, _Mapping]] = ..., task_status: _Optional[_Union[TaskStatusUpdate, _Mapping]] = ..., run_progress: _Optional[_Union[ProgressEventData, _Mapping]] = ..., connected: _Optional[_Union[WsConnected, _Mapping]] = ..., pong: _Optional[_Union[WsPong, _Mapping]] = ...) -> None: ...
 
 class RunStatusUpdate(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id", "status")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
@@ -111,7 +111,7 @@ class RunStatusUpdate(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.RunStatus, str]] = ...) -> None: ...
 
 class TaskStatusUpdate(_message.Message):
-    __slots__ = ()
+    __slots__ = ("task_id", "status")
     TASK_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     task_id: str
@@ -119,7 +119,7 @@ class TaskStatusUpdate(_message.Message):
     def __init__(self, task_id: _Optional[str] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ...) -> None: ...
 
 class WsConnected(_message.Message):
-    __slots__ = ()
+    __slots__ = ("message", "timestamp")
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     message: str
@@ -127,13 +127,13 @@ class WsConnected(_message.Message):
     def __init__(self, message: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class WsPong(_message.Message):
-    __slots__ = ()
+    __slots__ = ("timestamp",)
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     timestamp: _timestamp_pb2.Timestamp
     def __init__(self, timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class AgentManagerWsClientMessage(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "run_subscription")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     RUN_SUBSCRIPTION_FIELD_NUMBER: _ClassVar[int]
     type: AgentManagerWsClientMessageType
@@ -141,13 +141,13 @@ class AgentManagerWsClientMessage(_message.Message):
     def __init__(self, type: _Optional[_Union[AgentManagerWsClientMessageType, str]] = ..., run_subscription: _Optional[_Union[RunSubscription, _Mapping]] = ...) -> None: ...
 
 class RunSubscription(_message.Message):
-    __slots__ = ()
+    __slots__ = ("run_id",)
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     def __init__(self, run_id: _Optional[str] = ...) -> None: ...
 
 class LogEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("level", "message")
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     level: str
@@ -155,7 +155,7 @@ class LogEventData(_message.Message):
     def __init__(self, level: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class MessageEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("role", "content")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     role: str
@@ -163,13 +163,13 @@ class MessageEventData(_message.Message):
     def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
 
 class MessageDeletedEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("target_event_id",)
     TARGET_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     target_event_id: str
     def __init__(self, target_event_id: _Optional[str] = ...) -> None: ...
 
 class ToolCallEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("tool_name", "input", "tool_call_id")
     TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
     INPUT_FIELD_NUMBER: _ClassVar[int]
     TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -179,7 +179,7 @@ class ToolCallEventData(_message.Message):
     def __init__(self, tool_name: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., tool_call_id: _Optional[str] = ...) -> None: ...
 
 class ToolResultEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("tool_name", "tool_call_id", "output", "error", "success")
     TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
     TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
@@ -193,7 +193,7 @@ class ToolResultEventData(_message.Message):
     def __init__(self, tool_name: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., success: _Optional[bool] = ...) -> None: ...
 
 class StatusEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("old_status", "new_status", "reason")
     OLD_STATUS_FIELD_NUMBER: _ClassVar[int]
     NEW_STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -203,9 +203,9 @@ class StatusEventData(_message.Message):
     def __init__(self, old_status: _Optional[str] = ..., new_status: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class MetricEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "value", "unit", "tags")
     class TagsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -222,7 +222,7 @@ class MetricEventData(_message.Message):
     def __init__(self, name: _Optional[str] = ..., value: _Optional[float] = ..., unit: _Optional[str] = ..., tags: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class ArtifactEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "path", "size", "mime_type")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     SIZE_FIELD_NUMBER: _ClassVar[int]
@@ -234,7 +234,7 @@ class ArtifactEventData(_message.Message):
     def __init__(self, type: _Optional[str] = ..., path: _Optional[str] = ..., size: _Optional[int] = ..., mime_type: _Optional[str] = ...) -> None: ...
 
 class ErrorEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("code", "message", "retryable", "recovery", "stack_trace", "details")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     RETRYABLE_FIELD_NUMBER: _ClassVar[int]
@@ -250,7 +250,7 @@ class ErrorEventData(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ..., recovery: _Optional[_Union[_types_pb2.RecoveryAction, str]] = ..., stack_trace: _Optional[str] = ..., details: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class ProgressEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("phase", "percent_complete", "current_action", "turns_completed", "turns_total", "tokens_used", "elapsed_seconds", "estimated_remaining")
     PHASE_FIELD_NUMBER: _ClassVar[int]
     PERCENT_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_ACTION_FIELD_NUMBER: _ClassVar[int]
@@ -270,7 +270,7 @@ class ProgressEventData(_message.Message):
     def __init__(self, phase: _Optional[_Union[_types_pb2.RunPhase, str]] = ..., percent_complete: _Optional[int] = ..., current_action: _Optional[str] = ..., turns_completed: _Optional[int] = ..., turns_total: _Optional[int] = ..., tokens_used: _Optional[int] = ..., elapsed_seconds: _Optional[float] = ..., estimated_remaining: _Optional[float] = ...) -> None: ...
 
 class CostEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_cost_usd", "service_tier", "model", "web_search_requests", "server_tool_use_requests")
     INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     CACHE_CREATION_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -292,7 +292,7 @@ class CostEventData(_message.Message):
     def __init__(self, input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., total_cost_usd: _Optional[float] = ..., service_tier: _Optional[str] = ..., model: _Optional[str] = ..., web_search_requests: _Optional[int] = ..., server_tool_use_requests: _Optional[int] = ...) -> None: ...
 
 class RateLimitEventData(_message.Message):
-    __slots__ = ()
+    __slots__ = ("limit_type", "reset_time", "retry_after", "current_used", "limit", "message")
     LIMIT_TYPE_FIELD_NUMBER: _ClassVar[int]
     RESET_TIME_FIELD_NUMBER: _ClassVar[int]
     RETRY_AFTER_FIELD_NUMBER: _ClassVar[int]

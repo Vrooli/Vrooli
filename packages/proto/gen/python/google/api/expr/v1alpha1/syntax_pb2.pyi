@@ -13,7 +13,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ParsedExpr(_message.Message):
-    __slots__ = ()
+    __slots__ = ("expr", "source_info")
     EXPR_FIELD_NUMBER: _ClassVar[int]
     SOURCE_INFO_FIELD_NUMBER: _ClassVar[int]
     expr: Expr
@@ -21,14 +21,14 @@ class ParsedExpr(_message.Message):
     def __init__(self, expr: _Optional[_Union[Expr, _Mapping]] = ..., source_info: _Optional[_Union[SourceInfo, _Mapping]] = ...) -> None: ...
 
 class Expr(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "const_expr", "ident_expr", "select_expr", "call_expr", "list_expr", "struct_expr", "comprehension_expr")
     class Ident(_message.Message):
-        __slots__ = ()
+        __slots__ = ("name",)
         NAME_FIELD_NUMBER: _ClassVar[int]
         name: str
         def __init__(self, name: _Optional[str] = ...) -> None: ...
     class Select(_message.Message):
-        __slots__ = ()
+        __slots__ = ("operand", "field", "test_only")
         OPERAND_FIELD_NUMBER: _ClassVar[int]
         FIELD_FIELD_NUMBER: _ClassVar[int]
         TEST_ONLY_FIELD_NUMBER: _ClassVar[int]
@@ -37,7 +37,7 @@ class Expr(_message.Message):
         test_only: bool
         def __init__(self, operand: _Optional[_Union[Expr, _Mapping]] = ..., field: _Optional[str] = ..., test_only: _Optional[bool] = ...) -> None: ...
     class Call(_message.Message):
-        __slots__ = ()
+        __slots__ = ("target", "function", "args")
         TARGET_FIELD_NUMBER: _ClassVar[int]
         FUNCTION_FIELD_NUMBER: _ClassVar[int]
         ARGS_FIELD_NUMBER: _ClassVar[int]
@@ -46,16 +46,16 @@ class Expr(_message.Message):
         args: _containers.RepeatedCompositeFieldContainer[Expr]
         def __init__(self, target: _Optional[_Union[Expr, _Mapping]] = ..., function: _Optional[str] = ..., args: _Optional[_Iterable[_Union[Expr, _Mapping]]] = ...) -> None: ...
     class CreateList(_message.Message):
-        __slots__ = ()
+        __slots__ = ("elements", "optional_indices")
         ELEMENTS_FIELD_NUMBER: _ClassVar[int]
         OPTIONAL_INDICES_FIELD_NUMBER: _ClassVar[int]
         elements: _containers.RepeatedCompositeFieldContainer[Expr]
         optional_indices: _containers.RepeatedScalarFieldContainer[int]
         def __init__(self, elements: _Optional[_Iterable[_Union[Expr, _Mapping]]] = ..., optional_indices: _Optional[_Iterable[int]] = ...) -> None: ...
     class CreateStruct(_message.Message):
-        __slots__ = ()
+        __slots__ = ("message_name", "entries")
         class Entry(_message.Message):
-            __slots__ = ()
+            __slots__ = ("id", "field_key", "map_key", "value", "optional_entry")
             ID_FIELD_NUMBER: _ClassVar[int]
             FIELD_KEY_FIELD_NUMBER: _ClassVar[int]
             MAP_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -73,7 +73,7 @@ class Expr(_message.Message):
         entries: _containers.RepeatedCompositeFieldContainer[Expr.CreateStruct.Entry]
         def __init__(self, message_name: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[Expr.CreateStruct.Entry, _Mapping]]] = ...) -> None: ...
     class Comprehension(_message.Message):
-        __slots__ = ()
+        __slots__ = ("iter_var", "iter_var2", "iter_range", "accu_var", "accu_init", "loop_condition", "loop_step", "result")
         ITER_VAR_FIELD_NUMBER: _ClassVar[int]
         ITER_VAR2_FIELD_NUMBER: _ClassVar[int]
         ITER_RANGE_FIELD_NUMBER: _ClassVar[int]
@@ -110,7 +110,7 @@ class Expr(_message.Message):
     def __init__(self, id: _Optional[int] = ..., const_expr: _Optional[_Union[Constant, _Mapping]] = ..., ident_expr: _Optional[_Union[Expr.Ident, _Mapping]] = ..., select_expr: _Optional[_Union[Expr.Select, _Mapping]] = ..., call_expr: _Optional[_Union[Expr.Call, _Mapping]] = ..., list_expr: _Optional[_Union[Expr.CreateList, _Mapping]] = ..., struct_expr: _Optional[_Union[Expr.CreateStruct, _Mapping]] = ..., comprehension_expr: _Optional[_Union[Expr.Comprehension, _Mapping]] = ...) -> None: ...
 
 class Constant(_message.Message):
-    __slots__ = ()
+    __slots__ = ("null_value", "bool_value", "int64_value", "uint64_value", "double_value", "string_value", "bytes_value", "duration_value", "timestamp_value")
     NULL_VALUE_FIELD_NUMBER: _ClassVar[int]
     BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
     INT64_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -132,9 +132,9 @@ class Constant(_message.Message):
     def __init__(self, null_value: _Optional[_Union[_struct_pb2.NullValue, str]] = ..., bool_value: _Optional[bool] = ..., int64_value: _Optional[int] = ..., uint64_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., bytes_value: _Optional[bytes] = ..., duration_value: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., timestamp_value: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class SourceInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("syntax_version", "location", "line_offsets", "positions", "macro_calls", "extensions")
     class Extension(_message.Message):
-        __slots__ = ()
+        __slots__ = ("id", "affected_components", "version")
         class Component(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
             __slots__ = ()
             COMPONENT_UNSPECIFIED: _ClassVar[SourceInfo.Extension.Component]
@@ -146,7 +146,7 @@ class SourceInfo(_message.Message):
         COMPONENT_TYPE_CHECKER: SourceInfo.Extension.Component
         COMPONENT_RUNTIME: SourceInfo.Extension.Component
         class Version(_message.Message):
-            __slots__ = ()
+            __slots__ = ("major", "minor")
             MAJOR_FIELD_NUMBER: _ClassVar[int]
             MINOR_FIELD_NUMBER: _ClassVar[int]
             major: int
@@ -160,14 +160,14 @@ class SourceInfo(_message.Message):
         version: SourceInfo.Extension.Version
         def __init__(self, id: _Optional[str] = ..., affected_components: _Optional[_Iterable[_Union[SourceInfo.Extension.Component, str]]] = ..., version: _Optional[_Union[SourceInfo.Extension.Version, _Mapping]] = ...) -> None: ...
     class PositionsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: int
         value: int
         def __init__(self, key: _Optional[int] = ..., value: _Optional[int] = ...) -> None: ...
     class MacroCallsEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: int
@@ -188,7 +188,7 @@ class SourceInfo(_message.Message):
     def __init__(self, syntax_version: _Optional[str] = ..., location: _Optional[str] = ..., line_offsets: _Optional[_Iterable[int]] = ..., positions: _Optional[_Mapping[int, int]] = ..., macro_calls: _Optional[_Mapping[int, Expr]] = ..., extensions: _Optional[_Iterable[_Union[SourceInfo.Extension, _Mapping]]] = ...) -> None: ...
 
 class SourcePosition(_message.Message):
-    __slots__ = ()
+    __slots__ = ("location", "offset", "line", "column")
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]

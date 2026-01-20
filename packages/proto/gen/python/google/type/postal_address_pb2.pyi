@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PostalAddress(_message.Message):
-    __slots__ = ()
+    __slots__ = ("revision", "region_code", "language_code", "postal_code", "sorting_code", "administrative_area", "locality", "sublocality", "address_lines", "recipients", "organization")
     REVISION_FIELD_NUMBER: _ClassVar[int]
     REGION_CODE_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_CODE_FIELD_NUMBER: _ClassVar[int]

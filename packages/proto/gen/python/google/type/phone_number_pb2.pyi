@@ -6,9 +6,9 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PhoneNumber(_message.Message):
-    __slots__ = ()
+    __slots__ = ("e164_number", "short_code", "extension")
     class ShortCode(_message.Message):
-        __slots__ = ()
+        __slots__ = ("region_code", "number")
         REGION_CODE_FIELD_NUMBER: _ClassVar[int]
         NUMBER_FIELD_NUMBER: _ClassVar[int]
         region_code: str

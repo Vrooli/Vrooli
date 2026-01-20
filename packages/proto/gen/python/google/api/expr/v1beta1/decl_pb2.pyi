@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Decl(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "name", "doc", "ident", "function")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DOC_FIELD_NUMBER: _ClassVar[int]
@@ -22,7 +22,7 @@ class Decl(_message.Message):
     def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., doc: _Optional[str] = ..., ident: _Optional[_Union[IdentDecl, _Mapping]] = ..., function: _Optional[_Union[FunctionDecl, _Mapping]] = ...) -> None: ...
 
 class DeclType(_message.Message):
-    __slots__ = ()
+    __slots__ = ("id", "type", "type_params")
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_PARAMS_FIELD_NUMBER: _ClassVar[int]
@@ -32,7 +32,7 @@ class DeclType(_message.Message):
     def __init__(self, id: _Optional[int] = ..., type: _Optional[str] = ..., type_params: _Optional[_Iterable[_Union[DeclType, _Mapping]]] = ...) -> None: ...
 
 class IdentDecl(_message.Message):
-    __slots__ = ()
+    __slots__ = ("type", "value")
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     type: DeclType
@@ -40,7 +40,7 @@ class IdentDecl(_message.Message):
     def __init__(self, type: _Optional[_Union[DeclType, _Mapping]] = ..., value: _Optional[_Union[_expr_pb2.Expr, _Mapping]] = ...) -> None: ...
 
 class FunctionDecl(_message.Message):
-    __slots__ = ()
+    __slots__ = ("args", "return_type", "receiver_function")
     ARGS_FIELD_NUMBER: _ClassVar[int]
     RETURN_TYPE_FIELD_NUMBER: _ClassVar[int]
     RECEIVER_FUNCTION_FIELD_NUMBER: _ClassVar[int]

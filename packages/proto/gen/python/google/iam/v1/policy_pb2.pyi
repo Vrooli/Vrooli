@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Policy(_message.Message):
-    __slots__ = ()
+    __slots__ = ("version", "bindings", "audit_configs", "etag")
     VERSION_FIELD_NUMBER: _ClassVar[int]
     BINDINGS_FIELD_NUMBER: _ClassVar[int]
     AUDIT_CONFIGS_FIELD_NUMBER: _ClassVar[int]
@@ -21,7 +21,7 @@ class Policy(_message.Message):
     def __init__(self, version: _Optional[int] = ..., bindings: _Optional[_Iterable[_Union[Binding, _Mapping]]] = ..., audit_configs: _Optional[_Iterable[_Union[AuditConfig, _Mapping]]] = ..., etag: _Optional[bytes] = ...) -> None: ...
 
 class Binding(_message.Message):
-    __slots__ = ()
+    __slots__ = ("role", "members", "condition")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     MEMBERS_FIELD_NUMBER: _ClassVar[int]
     CONDITION_FIELD_NUMBER: _ClassVar[int]
@@ -31,7 +31,7 @@ class Binding(_message.Message):
     def __init__(self, role: _Optional[str] = ..., members: _Optional[_Iterable[str]] = ..., condition: _Optional[_Union[_expr_pb2.Expr, _Mapping]] = ...) -> None: ...
 
 class AuditConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("service", "audit_log_configs")
     SERVICE_FIELD_NUMBER: _ClassVar[int]
     AUDIT_LOG_CONFIGS_FIELD_NUMBER: _ClassVar[int]
     service: str
@@ -39,7 +39,7 @@ class AuditConfig(_message.Message):
     def __init__(self, service: _Optional[str] = ..., audit_log_configs: _Optional[_Iterable[_Union[AuditLogConfig, _Mapping]]] = ...) -> None: ...
 
 class AuditLogConfig(_message.Message):
-    __slots__ = ()
+    __slots__ = ("log_type", "exempted_members")
     class LogType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         LOG_TYPE_UNSPECIFIED: _ClassVar[AuditLogConfig.LogType]
@@ -57,7 +57,7 @@ class AuditLogConfig(_message.Message):
     def __init__(self, log_type: _Optional[_Union[AuditLogConfig.LogType, str]] = ..., exempted_members: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class PolicyDelta(_message.Message):
-    __slots__ = ()
+    __slots__ = ("binding_deltas", "audit_config_deltas")
     BINDING_DELTAS_FIELD_NUMBER: _ClassVar[int]
     AUDIT_CONFIG_DELTAS_FIELD_NUMBER: _ClassVar[int]
     binding_deltas: _containers.RepeatedCompositeFieldContainer[BindingDelta]
@@ -65,7 +65,7 @@ class PolicyDelta(_message.Message):
     def __init__(self, binding_deltas: _Optional[_Iterable[_Union[BindingDelta, _Mapping]]] = ..., audit_config_deltas: _Optional[_Iterable[_Union[AuditConfigDelta, _Mapping]]] = ...) -> None: ...
 
 class BindingDelta(_message.Message):
-    __slots__ = ()
+    __slots__ = ("action", "role", "member", "condition")
     class Action(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         ACTION_UNSPECIFIED: _ClassVar[BindingDelta.Action]
@@ -85,7 +85,7 @@ class BindingDelta(_message.Message):
     def __init__(self, action: _Optional[_Union[BindingDelta.Action, str]] = ..., role: _Optional[str] = ..., member: _Optional[str] = ..., condition: _Optional[_Union[_expr_pb2.Expr, _Mapping]] = ...) -> None: ...
 
 class AuditConfigDelta(_message.Message):
-    __slots__ = ()
+    __slots__ = ("action", "service", "exempted_member", "log_type")
     class Action(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         ACTION_UNSPECIFIED: _ClassVar[AuditConfigDelta.Action]

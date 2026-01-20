@@ -19,7 +19,7 @@ OPERATION_INFO_FIELD_NUMBER: _ClassVar[int]
 operation_info: _descriptor.FieldDescriptor
 
 class Operation(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "metadata", "done", "error", "response")
     NAME_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     DONE_FIELD_NUMBER: _ClassVar[int]
@@ -33,13 +33,13 @@ class Operation(_message.Message):
     def __init__(self, name: _Optional[str] = ..., metadata: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., done: _Optional[bool] = ..., error: _Optional[_Union[_status_pb2.Status, _Mapping]] = ..., response: _Optional[_Union[_any_pb2.Any, _Mapping]] = ...) -> None: ...
 
 class GetOperationRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class ListOperationsRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "filter", "page_size", "page_token", "return_partial_success")
     NAME_FIELD_NUMBER: _ClassVar[int]
     FILTER_FIELD_NUMBER: _ClassVar[int]
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
@@ -53,7 +53,7 @@ class ListOperationsRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., filter: _Optional[str] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ..., return_partial_success: _Optional[bool] = ...) -> None: ...
 
 class ListOperationsResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("operations", "next_page_token", "unreachable")
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
     NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     UNREACHABLE_FIELD_NUMBER: _ClassVar[int]
@@ -63,19 +63,19 @@ class ListOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[Operation, _Mapping]]] = ..., next_page_token: _Optional[str] = ..., unreachable: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CancelOperationRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class DeleteOperationRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name",)
     NAME_FIELD_NUMBER: _ClassVar[int]
     name: str
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class WaitOperationRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("name", "timeout")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
     name: str
@@ -83,7 +83,7 @@ class WaitOperationRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ...) -> None: ...
 
 class OperationInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("response_type", "metadata_type")
     RESPONSE_TYPE_FIELD_NUMBER: _ClassVar[int]
     METADATA_TYPE_FIELD_NUMBER: _ClassVar[int]
     response_type: str

@@ -43,9 +43,9 @@ INTRO_PRICING_TYPE_FLAT_AMOUNT: IntroPricingType
 INTRO_PRICING_TYPE_PERCENTAGE: IntroPricingType
 
 class Bundle(_message.Message):
-    __slots__ = ()
+    __slots__ = ("bundle_key", "name", "stripe_product_id", "credits_per_usd", "display_credits_multiplier", "display_credits_label", "environment", "metadata")
     class MetadataEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -70,9 +70,9 @@ class Bundle(_message.Message):
     def __init__(self, bundle_key: _Optional[str] = ..., name: _Optional[str] = ..., stripe_product_id: _Optional[str] = ..., credits_per_usd: _Optional[int] = ..., display_credits_multiplier: _Optional[float] = ..., display_credits_label: _Optional[str] = ..., environment: _Optional[str] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class PlanOption(_message.Message):
-    __slots__ = ()
+    __slots__ = ("plan_name", "plan_tier", "billing_interval", "amount_cents", "currency", "intro_enabled", "intro_type", "intro_amount_cents", "intro_periods", "intro_price_lookup_key", "stripe_price_id", "monthly_included_credits", "one_time_bonus_credits", "plan_rank", "bonus_type", "kind", "is_variable_amount", "display_enabled", "bundle_key", "display_weight", "metadata")
     class MetadataEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
@@ -123,7 +123,7 @@ class PlanOption(_message.Message):
     def __init__(self, plan_name: _Optional[str] = ..., plan_tier: _Optional[str] = ..., billing_interval: _Optional[_Union[BillingInterval, str]] = ..., amount_cents: _Optional[int] = ..., currency: _Optional[str] = ..., intro_enabled: _Optional[bool] = ..., intro_type: _Optional[_Union[IntroPricingType, str]] = ..., intro_amount_cents: _Optional[int] = ..., intro_periods: _Optional[int] = ..., intro_price_lookup_key: _Optional[str] = ..., stripe_price_id: _Optional[str] = ..., monthly_included_credits: _Optional[int] = ..., one_time_bonus_credits: _Optional[int] = ..., plan_rank: _Optional[int] = ..., bonus_type: _Optional[str] = ..., kind: _Optional[_Union[PlanKind, str]] = ..., is_variable_amount: _Optional[bool] = ..., display_enabled: _Optional[bool] = ..., bundle_key: _Optional[str] = ..., display_weight: _Optional[int] = ..., metadata: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ...) -> None: ...
 
 class PricingOverview(_message.Message):
-    __slots__ = ()
+    __slots__ = ("bundle", "monthly", "yearly", "updated_at")
     BUNDLE_FIELD_NUMBER: _ClassVar[int]
     MONTHLY_FIELD_NUMBER: _ClassVar[int]
     YEARLY_FIELD_NUMBER: _ClassVar[int]
@@ -135,7 +135,7 @@ class PricingOverview(_message.Message):
     def __init__(self, bundle: _Optional[_Union[Bundle, _Mapping]] = ..., monthly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., yearly: _Optional[_Iterable[_Union[PlanOption, _Mapping]]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class GetPricingRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("bundle_key", "include_hidden")
     BUNDLE_KEY_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_HIDDEN_FIELD_NUMBER: _ClassVar[int]
     bundle_key: str
@@ -143,7 +143,7 @@ class GetPricingRequest(_message.Message):
     def __init__(self, bundle_key: _Optional[str] = ..., include_hidden: _Optional[bool] = ...) -> None: ...
 
 class GetPricingResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("pricing",)
     PRICING_FIELD_NUMBER: _ClassVar[int]
     pricing: PricingOverview
     def __init__(self, pricing: _Optional[_Union[PricingOverview, _Mapping]] = ...) -> None: ...

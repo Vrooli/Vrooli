@@ -20,13 +20,13 @@ API_VISIBILITY_FIELD_NUMBER: _ClassVar[int]
 api_visibility: _descriptor.FieldDescriptor
 
 class Visibility(_message.Message):
-    __slots__ = ()
+    __slots__ = ("rules",)
     RULES_FIELD_NUMBER: _ClassVar[int]
     rules: _containers.RepeatedCompositeFieldContainer[VisibilityRule]
     def __init__(self, rules: _Optional[_Iterable[_Union[VisibilityRule, _Mapping]]] = ...) -> None: ...
 
 class VisibilityRule(_message.Message):
-    __slots__ = ()
+    __slots__ = ("selector", "restriction")
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     RESTRICTION_FIELD_NUMBER: _ClassVar[int]
     selector: str

@@ -237,7 +237,7 @@ HIGHLIGHT_COLOR_GRAY: HighlightColor
 HIGHLIGHT_COLOR_BLACK: HighlightColor
 
 class RetryAttempt(_message.Message):
-    __slots__ = ()
+    __slots__ = ("attempt", "success", "duration_ms", "error")
     ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     DURATION_MS_FIELD_NUMBER: _ClassVar[int]
@@ -249,7 +249,7 @@ class RetryAttempt(_message.Message):
     def __init__(self, attempt: _Optional[int] = ..., success: _Optional[bool] = ..., duration_ms: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
 
 class RetryStatus(_message.Message):
-    __slots__ = ()
+    __slots__ = ("current_attempt", "max_attempts", "delay_ms", "backoff_factor", "configured", "history")
     CURRENT_ATTEMPT_FIELD_NUMBER: _ClassVar[int]
     MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
     DELAY_MS_FIELD_NUMBER: _ClassVar[int]
@@ -265,7 +265,7 @@ class RetryStatus(_message.Message):
     def __init__(self, current_attempt: _Optional[int] = ..., max_attempts: _Optional[int] = ..., delay_ms: _Optional[int] = ..., backoff_factor: _Optional[float] = ..., configured: _Optional[bool] = ..., history: _Optional[_Iterable[_Union[RetryAttempt, _Mapping]]] = ...) -> None: ...
 
 class AssertionResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("mode", "selector", "expected", "actual", "success", "negated", "case_sensitive", "message")
     MODE_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_FIELD_NUMBER: _ClassVar[int]
@@ -285,9 +285,9 @@ class AssertionResult(_message.Message):
     def __init__(self, mode: _Optional[_Union[AssertionMode, str]] = ..., selector: _Optional[str] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., success: _Optional[bool] = ..., negated: _Optional[bool] = ..., case_sensitive: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class EventContext(_message.Message):
-    __slots__ = ()
+    __slots__ = ("session_id", "execution_id", "source", "needs_confirmation", "success", "error", "error_code", "retry_status", "assertion", "extracted_data")
     class ExtractedDataEntry(_message.Message):
-        __slots__ = ()
+        __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
