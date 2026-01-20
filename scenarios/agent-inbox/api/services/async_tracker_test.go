@@ -40,7 +40,7 @@ func waitForCompletion(t *testing.T, ch <-chan AsyncCompletionEvent, timeout tim
 
 // TestNewAsyncTrackerService verifies the service initializes correctly.
 func TestNewAsyncTrackerService(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	if svc == nil {
 		t.Fatal("expected non-nil service")
@@ -61,7 +61,7 @@ func TestNewAsyncTrackerService(t *testing.T) {
 
 // TestStartTracking_MissingAsyncBehavior verifies error when no async config is provided.
 func TestStartTracking_MissingAsyncBehavior(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	err := svc.StartTracking(context.Background(), "tc-1", "chat-1", "tool", "scenario", nil, nil)
 	if err == nil {
@@ -71,7 +71,7 @@ func TestStartTracking_MissingAsyncBehavior(t *testing.T) {
 
 // TestStartTracking_MissingStatusPolling verifies error when status polling config is missing.
 func TestStartTracking_MissingStatusPolling(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 	asyncBehavior := &toolspb.AsyncBehavior{} // No StatusPolling
 
 	err := svc.StartTracking(context.Background(), "tc-1", "chat-1", "tool", "scenario", nil, asyncBehavior)
@@ -82,7 +82,7 @@ func TestStartTracking_MissingStatusPolling(t *testing.T) {
 
 // TestStartTracking_ExtractsOperationID verifies the operation ID is extracted from the result.
 func TestStartTracking_ExtractsOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Cancel context immediately to stop polling
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,7 +128,7 @@ func TestStartTracking_ExtractsOperationID(t *testing.T) {
 
 // TestStartTracking_MissingOperationID verifies error when run_id field is missing.
 func TestStartTracking_MissingOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	asyncBehavior := &toolspb.AsyncBehavior{
 		StatusPolling: &toolspb.StatusPolling{
@@ -150,7 +150,7 @@ func TestStartTracking_MissingOperationID(t *testing.T) {
 
 // TestSubscribeWithID verifies ID-based subscription tracking.
 func TestSubscribeWithID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	sub := svc.SubscribeWithID("chat-1")
 	if sub == nil {
@@ -182,7 +182,7 @@ func TestSubscribeWithID(t *testing.T) {
 
 // TestUnsubscribeByID verifies subscription cleanup.
 func TestUnsubscribeByID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	sub := svc.SubscribeWithID("chat-1")
 	svc.UnsubscribeByID(sub)
@@ -200,7 +200,7 @@ func TestUnsubscribeByID(t *testing.T) {
 
 // TestRegisterCompletionCallback verifies callback registration.
 func TestRegisterCompletionCallback(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	ch := svc.RegisterCompletionCallback("chat-1")
 	if ch == nil {
@@ -220,7 +220,7 @@ func TestRegisterCompletionCallback(t *testing.T) {
 
 // TestUnregisterCompletionCallback verifies callback cleanup.
 func TestUnregisterCompletionCallback(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	svc.RegisterCompletionCallback("chat-1")
 	svc.UnregisterCompletionCallback("chat-1")
@@ -235,7 +235,7 @@ func TestUnregisterCompletionCallback(t *testing.T) {
 
 // TestStopTracking verifies operation cancellation and callback trigger.
 func TestStopTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Register completion callback first
 	completionCh := svc.RegisterCompletionCallback("chat-1")
@@ -285,7 +285,7 @@ func TestStopTracking(t *testing.T) {
 
 // TestGetActiveOperations verifies filtering by chat ID and completion status.
 func TestGetActiveOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	now := time.Now()
 	completed := now.Add(-time.Minute)
@@ -322,7 +322,7 @@ func TestGetActiveOperations(t *testing.T) {
 
 // TestCleanupStaleOperations verifies removal of old completed operations.
 func TestCleanupStaleOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	now := time.Now()
 	old := now.Add(-2 * time.Hour)
@@ -369,7 +369,7 @@ func TestCleanupStaleOperations(t *testing.T) {
 
 // TestGetOperationCount verifies operation counting.
 func TestGetOperationCount(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	if svc.GetOperationCount() != 0 {
 		t.Error("expected 0 operations initially")
@@ -387,7 +387,7 @@ func TestGetOperationCount(t *testing.T) {
 
 // TestSnapshotOperation verifies safe copying of immutable fields.
 func TestSnapshotOperation(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	asyncBehavior := &toolspb.AsyncBehavior{
 		StatusPolling: &toolspb.StatusPolling{
@@ -435,7 +435,7 @@ func TestSnapshotOperation(t *testing.T) {
 
 // TestSnapshotOperation_NotFound verifies behavior when operation doesn't exist.
 func TestSnapshotOperation_NotFound(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	snap, ok := svc.snapshotOperation("nonexistent")
 	if ok {
@@ -448,7 +448,7 @@ func TestSnapshotOperation_NotFound(t *testing.T) {
 
 // TestMultipleSubscribersReceiveUpdates verifies updates go to all subscribers.
 func TestMultipleSubscribersReceiveUpdates(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Create multiple subscribers
 	sub1 := svc.SubscribeWithID("chat-1")
@@ -479,7 +479,7 @@ func TestMultipleSubscribersReceiveUpdates(t *testing.T) {
 
 // TestRemoveOperation verifies explicit operation removal.
 func TestRemoveOperation(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -706,7 +706,7 @@ func intPtr(i int) *int {
 
 // TestProcessStatusResult_SuccessCompletion verifies success detection.
 func TestProcessStatusResult_SuccessCompletion(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Subscribe to receive updates
 	sub := svc.SubscribeWithID("chat-1")
@@ -750,7 +750,7 @@ func TestProcessStatusResult_SuccessCompletion(t *testing.T) {
 
 // TestProcessStatusResult_FailureCompletion verifies failure detection.
 func TestProcessStatusResult_FailureCompletion(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
@@ -789,7 +789,7 @@ func TestProcessStatusResult_FailureCompletion(t *testing.T) {
 
 // TestProcessStatusResult_InProgress verifies non-terminal status handling.
 func TestProcessStatusResult_InProgress(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
@@ -826,7 +826,7 @@ func TestProcessStatusResult_InProgress(t *testing.T) {
 
 // TestProcessStatusResult_WithProgressTracking verifies progress extraction.
 func TestProcessStatusResult_WithProgressTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
@@ -870,7 +870,7 @@ func TestProcessStatusResult_WithProgressTracking(t *testing.T) {
 
 // TestProcessStatusResult_InvalidResult verifies handling of non-map results.
 func TestProcessStatusResult_InvalidResult(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID: "tc-1",
@@ -901,7 +901,7 @@ func TestProcessStatusResult_InvalidResult(t *testing.T) {
 
 // TestHandleTimeout verifies timeout handling.
 func TestHandleTimeout(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Register completion callback
 	completionCh := svc.RegisterCompletionCallback("chat-1")
@@ -955,7 +955,7 @@ func TestHandleTimeout(t *testing.T) {
 
 // TestCancelOperation_NoCancelTool verifies operation with no cancel tool configured.
 func TestCancelOperation_NoCancelTool(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Create operation without cancellation config
 	op := &AsyncOperation{
@@ -982,7 +982,7 @@ func TestCancelOperation_NoCancelTool(t *testing.T) {
 
 // TestCancelOperation_NotFound verifies error for non-existent operation.
 func TestCancelOperation_NotFound(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	err := svc.CancelOperation(context.Background(), "nonexistent")
 	if err == nil {
@@ -998,7 +998,7 @@ func TestCancelOperation_NotFound(t *testing.T) {
 func TestCancelOperation_WithCancelTool_NilExecutor(t *testing.T) {
 	t.Skip("Skipping: CancelOperation panics with nil executor when cancel tool configured - known limitation")
 
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	op := &AsyncOperation{
 		ToolCallID:    "tc-1",
@@ -1025,9 +1025,236 @@ func TestCancelOperation_WithCancelTool_NilExecutor(t *testing.T) {
 // ExtractOperationID Tests
 // =============================================================================
 
+// =============================================================================
+// Backoff Configuration Tests
+// =============================================================================
+
+// TestSnapshotOperation_BackoffDefaults verifies default backoff values.
+func TestSnapshotOperation_BackoffDefaults(t *testing.T) {
+	svc := NewAsyncTrackerService(nil, nil, nil)
+
+	// Operation with no backoff config
+	svc.mu.Lock()
+	svc.operations["tc-1"] = &AsyncOperation{
+		ToolCallID: "tc-1",
+		AsyncBehavior: &toolspb.AsyncBehavior{
+			StatusPolling: &toolspb.StatusPolling{
+				PollIntervalSeconds: 5,
+			},
+		},
+	}
+	svc.mu.Unlock()
+
+	snap, ok := svc.snapshotOperation("tc-1")
+	if !ok {
+		t.Fatal("expected snapshot")
+	}
+
+	// Default: no backoff (multiplier = 1.0)
+	if snap.BackoffMultiplier != 1.0 {
+		t.Errorf("expected default multiplier=1.0, got %f", snap.BackoffMultiplier)
+	}
+	// Initial should be the configured poll interval
+	if snap.BackoffInitial != 5*time.Second {
+		t.Errorf("expected initial=5s, got %v", snap.BackoffInitial)
+	}
+	// Max should equal initial when no backoff
+	if snap.BackoffMax != 5*time.Second {
+		t.Errorf("expected max=5s (same as initial), got %v", snap.BackoffMax)
+	}
+}
+
+// TestSnapshotOperation_BackoffFromProto verifies backoff config extraction.
+func TestSnapshotOperation_BackoffFromProto(t *testing.T) {
+	svc := NewAsyncTrackerService(nil, nil, nil)
+
+	// Operation with full backoff config
+	svc.mu.Lock()
+	svc.operations["tc-1"] = &AsyncOperation{
+		ToolCallID: "tc-1",
+		AsyncBehavior: &toolspb.AsyncBehavior{
+			StatusPolling: &toolspb.StatusPolling{
+				PollIntervalSeconds: 5,
+				Backoff: &toolspb.PollingBackoff{
+					InitialIntervalSeconds: 2,
+					MaxIntervalSeconds:     30,
+					Multiplier:             1.5,
+				},
+			},
+		},
+	}
+	svc.mu.Unlock()
+
+	snap, ok := svc.snapshotOperation("tc-1")
+	if !ok {
+		t.Fatal("expected snapshot")
+	}
+
+	if snap.BackoffInitial != 2*time.Second {
+		t.Errorf("expected initial=2s, got %v", snap.BackoffInitial)
+	}
+	if snap.BackoffMax != 30*time.Second {
+		t.Errorf("expected max=30s, got %v", snap.BackoffMax)
+	}
+	if snap.BackoffMultiplier != 1.5 {
+		t.Errorf("expected multiplier=1.5, got %f", snap.BackoffMultiplier)
+	}
+}
+
+// TestSnapshotOperation_BackoffMinInterval verifies minimum interval enforcement.
+func TestSnapshotOperation_BackoffMinInterval(t *testing.T) {
+	svc := NewAsyncTrackerService(nil, nil, nil)
+
+	// Operation with too-low interval (below MinPollInterval)
+	svc.mu.Lock()
+	svc.operations["tc-1"] = &AsyncOperation{
+		ToolCallID: "tc-1",
+		AsyncBehavior: &toolspb.AsyncBehavior{
+			StatusPolling: &toolspb.StatusPolling{
+				PollIntervalSeconds: 0, // Below minimum
+				Backoff: &toolspb.PollingBackoff{
+					InitialIntervalSeconds: 0, // Also below minimum
+					MaxIntervalSeconds:     60,
+					Multiplier:             2.0,
+				},
+			},
+		},
+	}
+	svc.mu.Unlock()
+
+	snap, ok := svc.snapshotOperation("tc-1")
+	if !ok {
+		t.Fatal("expected snapshot")
+	}
+
+	// Should fall back to default, not go below minimum
+	if snap.BackoffInitial < MinPollInterval {
+		t.Errorf("expected initial >= %v (MinPollInterval), got %v", MinPollInterval, snap.BackoffInitial)
+	}
+}
+
+// TestSnapshotOperation_BackoffInvalidMultiplier verifies multiplier validation.
+func TestSnapshotOperation_BackoffInvalidMultiplier(t *testing.T) {
+	svc := NewAsyncTrackerService(nil, nil, nil)
+
+	// Operation with invalid multiplier (< 1.0)
+	svc.mu.Lock()
+	svc.operations["tc-1"] = &AsyncOperation{
+		ToolCallID: "tc-1",
+		AsyncBehavior: &toolspb.AsyncBehavior{
+			StatusPolling: &toolspb.StatusPolling{
+				PollIntervalSeconds: 5,
+				Backoff: &toolspb.PollingBackoff{
+					InitialIntervalSeconds: 5,
+					MaxIntervalSeconds:     30,
+					Multiplier:             0.5, // Invalid - less than 1.0
+				},
+			},
+		},
+	}
+	svc.mu.Unlock()
+
+	snap, ok := svc.snapshotOperation("tc-1")
+	if !ok {
+		t.Fatal("expected snapshot")
+	}
+
+	// Invalid multiplier should result in no backoff (1.0)
+	if snap.BackoffMultiplier != 1.0 {
+		t.Errorf("expected multiplier=1.0 for invalid config, got %f", snap.BackoffMultiplier)
+	}
+}
+
+// TestBackoffCalculation verifies the backoff interval growth calculation.
+func TestBackoffCalculation(t *testing.T) {
+	// This tests the math used in pollLoop for interval growth
+	tests := []struct {
+		name       string
+		initial    time.Duration
+		max        time.Duration
+		multiplier float64
+		iterations int
+		expected   []time.Duration // Expected intervals after each iteration
+	}{
+		{
+			name:       "standard backoff",
+			initial:    2 * time.Second,
+			max:        30 * time.Second,
+			multiplier: 1.5,
+			iterations: 5,
+			expected: []time.Duration{
+				2 * time.Second,  // Initial
+				3 * time.Second,  // 2 * 1.5 = 3
+				4500 * time.Millisecond, // 3 * 1.5 = 4.5
+				6750 * time.Millisecond, // 4.5 * 1.5 = 6.75
+				10125 * time.Millisecond, // 6.75 * 1.5 = 10.125
+			},
+		},
+		{
+			name:       "hits max",
+			initial:    5 * time.Second,
+			max:        10 * time.Second,
+			multiplier: 2.0,
+			iterations: 4,
+			expected: []time.Duration{
+				5 * time.Second,  // Initial
+				10 * time.Second, // 5 * 2 = 10 (at max)
+				10 * time.Second, // Capped at max
+				10 * time.Second, // Capped at max
+			},
+		},
+		{
+			name:       "no backoff",
+			initial:    5 * time.Second,
+			max:        5 * time.Second,
+			multiplier: 1.0,
+			iterations: 3,
+			expected: []time.Duration{
+				5 * time.Second, // No change
+				5 * time.Second, // No change
+				5 * time.Second, // No change
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			currentInterval := tc.initial
+
+			for i, expected := range tc.expected {
+				// First iteration uses initial interval
+				if i == 0 {
+					if currentInterval != expected {
+						t.Errorf("iteration %d: expected %v, got %v", i, expected, currentInterval)
+					}
+					continue
+				}
+
+				// Calculate next interval (same logic as pollLoop)
+				if tc.multiplier > 1.0 {
+					nextInterval := time.Duration(float64(currentInterval) * tc.multiplier)
+					if nextInterval > tc.max {
+						nextInterval = tc.max
+					}
+					currentInterval = nextInterval
+				}
+
+				// Allow 1ms tolerance for floating point
+				diff := currentInterval - expected
+				if diff < 0 {
+					diff = -diff
+				}
+				if diff > time.Millisecond {
+					t.Errorf("iteration %d: expected ~%v, got %v", i, expected, currentInterval)
+				}
+			}
+		})
+	}
+}
+
 // TestExtractOperationID verifies operation ID extraction.
 func TestExtractOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	tests := []struct {
 		name      string

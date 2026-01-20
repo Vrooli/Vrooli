@@ -169,7 +169,7 @@ func TestIntegration_InternalToolsFilteredFromAI(t *testing.T) {
 // TestIntegration_AsyncGuidanceWithActiveOperations verifies that when there
 // are active async operations, the guidance message is properly constructed.
 func TestIntegration_AsyncGuidanceWithActiveOperations(t *testing.T) {
-	tracker := NewAsyncTrackerService(nil, nil)
+	tracker := NewAsyncTrackerService(nil, nil, nil)
 
 	// Add active operations
 	tracker.AddTestOperation(&AsyncOperation{
@@ -216,7 +216,7 @@ func TestIntegration_AsyncGuidanceWithActiveOperations(t *testing.T) {
 // TestIntegration_AsyncGuidanceNotInjectedWhenNoOps verifies that async guidance
 // is not injected when there are no active operations.
 func TestIntegration_AsyncGuidanceNotInjectedWhenNoOps(t *testing.T) {
-	tracker := NewAsyncTrackerService(nil, nil)
+	tracker := NewAsyncTrackerService(nil, nil, nil)
 
 	// No operations added
 
@@ -232,7 +232,7 @@ func TestIntegration_AsyncGuidanceNotInjectedWhenNoOps(t *testing.T) {
 // TestIntegration_AsyncGuidanceOnlyForSpecificChat verifies that async guidance
 // is only injected for the chat with active operations, not all chats.
 func TestIntegration_AsyncGuidanceOnlyForSpecificChat(t *testing.T) {
-	tracker := NewAsyncTrackerService(nil, nil)
+	tracker := NewAsyncTrackerService(nil, nil, nil)
 
 	// Add operation for chat-1
 	tracker.AddTestOperation(&AsyncOperation{
@@ -324,7 +324,7 @@ func TestIntegration_ConcurrentForcedToolLookup(t *testing.T) {
 
 // TestIntegration_ConcurrentAsyncGuidance verifies thread-safe async guidance building.
 func TestIntegration_ConcurrentAsyncGuidance(t *testing.T) {
-	tracker := NewAsyncTrackerService(nil, nil)
+	tracker := NewAsyncTrackerService(nil, nil, nil)
 
 	// Add operations
 	for i := 0; i < 5; i++ {

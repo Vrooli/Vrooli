@@ -40,14 +40,14 @@ func (h *Handlers) StreamAsyncStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Subscribe to updates
-	updates := h.AsyncTracker.Subscribe(chatID)
-	defer h.AsyncTracker.Unsubscribe(chatID, updates)
+	// Subscribe to updates using ID-based tracking (preferred over deprecated pointer comparison)
+	sub := h.AsyncTracker.SubscribeWithID(chatID)
+	defer h.AsyncTracker.UnsubscribeByID(sub)
 
 	// Send initial state of active operations
 	activeOps := h.AsyncTracker.GetActiveOperations(chatID)
 	for _, op := range activeOps {
-		data, err := json.Marshal(operationToUpdate(op))
+		data, err := json.Marshal(services.BuildUpdateFromOperation(op))
 		if err != nil {
 			log.Printf("[WARN] Failed to marshal async operation status for %s: %v", op.ToolCallID, err)
 			continue
@@ -66,7 +66,7 @@ func (h *Handlers) StreamAsyncStatus(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			// Client disconnected
 			return
-		case update, ok := <-updates:
+		case update, ok := <-sub.Channel:
 			if !ok {
 				// Channel closed
 				return
@@ -140,19 +140,3 @@ func (h *Handlers) CancelAsyncOperation(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// operationToUpdate converts an AsyncOperation to an AsyncStatusUpdate.
-func operationToUpdate(op *services.AsyncOperation) services.AsyncStatusUpdate {
-	return services.AsyncStatusUpdate{
-		ToolCallID: op.ToolCallID,
-		ChatID:     op.ChatID,
-		ToolName:   op.ToolName,
-		Status:     op.Status,
-		Progress:   op.Progress,
-		Message:    op.Message,
-		Phase:      op.Phase,
-		Result:     op.Result,
-		Error:      op.Error,
-		IsTerminal: op.CompletedAt != nil,
-		UpdatedAt:  op.UpdatedAt,
-	}
-}

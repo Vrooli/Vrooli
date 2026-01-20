@@ -268,6 +268,40 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 		// Template-to-tool linking: track active template and its suggested tools
 		{"add chats.active_template_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_template_id TEXT`},
 		{"add chats.active_template_tool_ids", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS active_template_tool_ids TEXT[]`},
+		// Async operation persistence for crash recovery
+		{"create async_operations table", `
+			CREATE TABLE IF NOT EXISTS async_operations (
+				tool_call_id TEXT PRIMARY KEY,
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				tool_name TEXT NOT NULL,
+				scenario_name TEXT NOT NULL,
+				operation_id TEXT NOT NULL,
+				status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'polling', 'completed', 'failed', 'cancelled', 'timeout')),
+				progress INTEGER,
+				message TEXT,
+				phase TEXT,
+				result JSONB,
+				error TEXT,
+				async_behavior JSONB NOT NULL,
+				started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				completed_at TIMESTAMPTZ
+			)`},
+		{"create idx_async_operations_chat_id", `CREATE INDEX IF NOT EXISTS idx_async_operations_chat_id ON async_operations(chat_id)`},
+		{"create idx_async_operations_status", `CREATE INDEX IF NOT EXISTS idx_async_operations_status ON async_operations(status) WHERE status NOT IN ('completed', 'failed', 'cancelled', 'timeout')`},
+		// Async completion events for multi-consumer callbacks
+		{"create async_completion_events table", `
+			CREATE TABLE IF NOT EXISTS async_completion_events (
+				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+				chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+				tool_call_id TEXT NOT NULL,
+				tool_name TEXT NOT NULL,
+				status TEXT NOT NULL,
+				result JSONB,
+				error TEXT,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			)`},
+		{"create idx_completion_events_chat_created", `CREATE INDEX IF NOT EXISTS idx_completion_events_chat_created ON async_completion_events(chat_id, created_at)`},
 	}
 
 	for _, m := range migrations {

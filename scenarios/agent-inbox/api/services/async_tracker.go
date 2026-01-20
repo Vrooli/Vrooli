@@ -138,6 +138,10 @@ type AsyncTrackerService struct {
 	// Dependencies
 	toolRegistry *ToolRegistry
 	toolExecutor *integrations.ToolExecutor
+
+	// Optional persistence layer for crash recovery
+	// If nil, operations are tracked in-memory only (original behavior)
+	repo AsyncOperationRepository
 }
 
 // Subscription represents an active subscriber for async status updates.
@@ -205,6 +209,11 @@ type OperationSnapshot struct {
 	ExternalRunID string
 	AsyncBehavior *toolspb.AsyncBehavior
 	StartedAt     time.Time
+
+	// Backoff configuration (extracted from AsyncBehavior for convenience)
+	BackoffInitial    time.Duration // Initial polling interval
+	BackoffMax        time.Duration // Maximum polling interval after backoff
+	BackoffMultiplier float64       // Multiplier applied after each poll
 }
 
 // snapshotOperation creates a read-only snapshot of immutable operation fields.
@@ -218,7 +227,7 @@ func (s *AsyncTrackerService) snapshotOperation(toolCallID string) (*OperationSn
 		return nil, false
 	}
 
-	return &OperationSnapshot{
+	snap := &OperationSnapshot{
 		ToolCallID:    op.ToolCallID,
 		ChatID:        op.ChatID,
 		ToolName:      op.ToolName,
@@ -226,11 +235,48 @@ func (s *AsyncTrackerService) snapshotOperation(toolCallID string) (*OperationSn
 		ExternalRunID: op.ExternalRunID,
 		AsyncBehavior: op.AsyncBehavior, // Pointer to immutable proto struct
 		StartedAt:     op.StartedAt,
-	}, true
+	}
+
+	// Extract backoff configuration from proto (use defaults if not configured)
+	snap.BackoffInitial = DefaultPollInterval
+	snap.BackoffMax = DefaultPollInterval // No backoff by default
+	snap.BackoffMultiplier = 1.0          // No backoff by default
+
+	if op.AsyncBehavior != nil && op.AsyncBehavior.StatusPolling != nil {
+		polling := op.AsyncBehavior.StatusPolling
+
+		// Use configured base interval if valid
+		if polling.PollIntervalSeconds > 0 {
+			interval := time.Duration(polling.PollIntervalSeconds) * time.Second
+			if interval >= MinPollInterval {
+				snap.BackoffInitial = interval
+				snap.BackoffMax = interval // Default max to initial if no backoff config
+			}
+		}
+
+		// Apply backoff config if present
+		if backoff := polling.GetBackoff(); backoff != nil {
+			if backoff.InitialIntervalSeconds > 0 {
+				initial := time.Duration(backoff.InitialIntervalSeconds) * time.Second
+				if initial >= MinPollInterval {
+					snap.BackoffInitial = initial
+				}
+			}
+			if backoff.MaxIntervalSeconds > 0 {
+				snap.BackoffMax = time.Duration(backoff.MaxIntervalSeconds) * time.Second
+			}
+			if backoff.Multiplier >= 1.0 {
+				snap.BackoffMultiplier = float64(backoff.Multiplier)
+			}
+		}
+	}
+
+	return snap, true
 }
 
 // NewAsyncTrackerService creates a new AsyncTrackerService.
-func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolExecutor) *AsyncTrackerService {
+// The repository parameter is optional - if nil, operations are tracked in-memory only.
+func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolExecutor, repo AsyncOperationRepository) *AsyncTrackerService {
 	return &AsyncTrackerService{
 		operations:          make(map[string]*AsyncOperation),
 		subscribers:         make(map[string][]chan<- AsyncStatusUpdate),
@@ -240,7 +286,151 @@ func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolE
 		cancelFuncs:         make(map[string]context.CancelFunc),
 		toolRegistry:        registry,
 		toolExecutor:        executor,
+		repo:                repo,
 	}
+}
+
+// SetRepository sets the optional persistence repository.
+// Can be called after construction if the repository isn't available at creation time.
+func (s *AsyncTrackerService) SetRepository(repo AsyncOperationRepository) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.repo = repo
+}
+
+// RecoverOperations loads active operations from the database and resumes polling.
+// Called during service initialization for crash recovery.
+// Uses fresh status check approach - queries current status before resuming polling.
+func (s *AsyncTrackerService) RecoverOperations(ctx context.Context) error {
+	s.mu.RLock()
+	repo := s.repo
+	s.mu.RUnlock()
+
+	if repo == nil {
+		return nil // No repository configured, nothing to recover
+	}
+
+	records, err := repo.GetAllActiveAsyncOperations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get active operations for recovery: %w", err)
+	}
+
+	if len(records) == 0 {
+		log.Printf("[INFO] No async operations to recover")
+		return nil
+	}
+
+	log.Printf("[INFO] Recovering %d async operations", len(records))
+
+	for _, record := range records {
+		// Reconstruct the AsyncOperation from the record
+		var asyncBehavior toolspb.AsyncBehavior
+		if err := json.Unmarshal(record.AsyncBehavior, &asyncBehavior); err != nil {
+			log.Printf("[WARN] Failed to unmarshal async behavior for %s: %v", record.ToolCallID, err)
+			continue
+		}
+
+		op := &AsyncOperation{
+			ToolCallID:    record.ToolCallID,
+			ChatID:        record.ChatID,
+			ToolName:      record.ToolName,
+			Scenario:      record.ScenarioName,
+			ExternalRunID: record.OperationID,
+			AsyncBehavior: &asyncBehavior,
+			Status:        record.Status,
+			Progress:      record.Progress,
+			Message:       record.Message,
+			Phase:         record.Phase,
+			Error:         record.Error,
+			StartedAt:     record.StartedAt,
+			UpdatedAt:     record.UpdatedAt,
+			CompletedAt:   record.CompletedAt,
+		}
+
+		// Parse result if present
+		if len(record.Result) > 0 {
+			var result interface{}
+			if err := json.Unmarshal(record.Result, &result); err == nil {
+				op.Result = result
+			}
+		}
+
+		// Store in memory
+		s.mu.Lock()
+		s.operations[record.ToolCallID] = op
+		s.mu.Unlock()
+
+		// Start recovery goroutine with fresh status check
+		go s.recoverOperation(ctx, op)
+	}
+
+	return nil
+}
+
+// recoverOperation performs a fresh status check and resumes polling if still active.
+// This is safer than resuming mid-poll as it gets the current state from the external service.
+func (s *AsyncTrackerService) recoverOperation(ctx context.Context, op *AsyncOperation) {
+	log.Printf("[INFO] Recovering operation %s (status=%s)", op.ToolCallID, op.Status)
+
+	// Create snapshot for the status check
+	snap, ok := s.snapshotOperation(op.ToolCallID)
+	if !ok {
+		log.Printf("[WARN] Recovery: operation %s disappeared before recovery", op.ToolCallID)
+		return
+	}
+
+	// Perform immediate fresh status check
+	statusResult, err := s.callStatusToolWithSnapshot(ctx, snap)
+	if err != nil {
+		log.Printf("[WARN] Recovery status check failed for %s: %v", op.ToolCallID, err)
+		// Continue to poll loop anyway - it will handle retries
+	} else {
+		// Process the result - this may mark as complete if operation finished while we were down
+		conditions := snap.AsyncBehavior.CompletionConditions
+		isTerminal, status := s.processStatusResult(op, statusResult, conditions)
+		if isTerminal {
+			log.Printf("[INFO] Recovery: operation %s already completed (status=%s)", op.ToolCallID, status)
+			return
+		}
+	}
+
+	// Create cancellable context for polling
+	pollCtx, cancel := context.WithCancel(ctx)
+	s.mu.Lock()
+	s.cancelFuncs[op.ToolCallID] = cancel
+	s.mu.Unlock()
+
+	// Start polling loop
+	s.pollLoop(pollCtx, op)
+}
+
+// Shutdown gracefully stops all active polling and persists state.
+// Should be called before server shutdown.
+func (s *AsyncTrackerService) Shutdown(ctx context.Context) error {
+	log.Printf("[INFO] AsyncTrackerService shutting down...")
+
+	s.mu.Lock()
+	repo := s.repo
+	toolCallIDs := make([]string, 0, len(s.cancelFuncs))
+
+	// Cancel all polling goroutines
+	for toolCallID, cancel := range s.cancelFuncs {
+		toolCallIDs = append(toolCallIDs, toolCallID)
+		cancel()
+	}
+	s.mu.Unlock()
+
+	// Mark interrupted operations in database (outside lock to avoid blocking)
+	if repo != nil {
+		for _, toolCallID := range toolCallIDs {
+			if err := repo.UpdateAsyncOperationStatus(ctx, toolCallID, "polling"); err != nil {
+				log.Printf("[WARN] Failed to update status for %s during shutdown: %v", toolCallID, err)
+			}
+		}
+	}
+
+	log.Printf("[INFO] AsyncTrackerService shutdown complete (%d operations paused)", len(toolCallIDs))
+	return nil
 }
 
 // StartTracking begins tracking an async tool operation.
@@ -277,13 +467,39 @@ func (s *AsyncTrackerService) StartTracking(
 		UpdatedAt:     time.Now(),
 	}
 
-	// Store the operation
+	// Store the operation and build initial update while holding lock
 	s.mu.Lock()
 	s.operations[toolCallID] = op
+	initialUpdate := buildUpdateFromOp(op, false)
+	repo := s.repo // Capture repo reference while holding lock
 	s.mu.Unlock()
 
+	// Persist to database if repository is configured (graceful degradation if fails)
+	if repo != nil {
+		asyncBehaviorJSON, err := json.Marshal(asyncBehavior)
+		if err != nil {
+			log.Printf("[WARN] Failed to marshal async behavior for %s: %v", toolCallID, err)
+		} else {
+			record := &AsyncOperationRecord{
+				ToolCallID:    toolCallID,
+				ChatID:        chatID,
+				ToolName:      toolName,
+				ScenarioName:  scenario,
+				OperationID:   externalRunID,
+				Status:        AsyncStatusPending,
+				AsyncBehavior: asyncBehaviorJSON,
+				StartedAt:     op.StartedAt,
+				UpdatedAt:     op.UpdatedAt,
+			}
+			if err := repo.CreateAsyncOperation(ctx, record); err != nil {
+				log.Printf("[WARN] Failed to persist async operation %s: %v", toolCallID, err)
+				// Continue with in-memory tracking
+			}
+		}
+	}
+
 	// Push initial update to subscribers so UI shows the operation immediately
-	s.pushUpdate(op, false)
+	s.pushUpdateData(chatID, initialUpdate)
 
 	// Create cancellable context for polling
 	pollCtx, cancel := context.WithCancel(ctx)
@@ -319,7 +535,22 @@ func (s *AsyncTrackerService) StopTracking(toolCallID string) {
 		op.CompletedAt = &now
 		op.UpdatedAt = now
 	}
+	repo := s.repo // Capture repo reference while holding lock
 	s.mu.Unlock()
+
+	// Persist the cancellation to database
+	if repo != nil && op != nil {
+		record := &AsyncOperationRecord{
+			ToolCallID:  toolCallID,
+			Status:      op.Status,
+			Error:       op.Error,
+			UpdatedAt:   op.UpdatedAt,
+			CompletedAt: op.CompletedAt,
+		}
+		if err := repo.UpdateAsyncOperation(context.Background(), record); err != nil {
+			log.Printf("[WARN] Failed to persist cancelled operation %s: %v", toolCallID, err)
+		}
+	}
 
 	// Trigger completion callback outside of lock
 	if op != nil {
@@ -541,15 +772,13 @@ func (s *AsyncTrackerService) UnregisterCompletionCallback(chatID string) {
 
 // triggerCompletionCallback sends a completion event to the registered callback.
 // Called when an operation reaches a terminal state (completed, failed, timeout, cancelled).
+// Also persists the event to the database for multi-consumer support.
 // MUST be called while NOT holding the mutex (to avoid deadlock).
 func (s *AsyncTrackerService) triggerCompletionCallback(op *AsyncOperation, status string) {
 	s.mu.RLock()
 	ch, ok := s.completionCallbacks[op.ChatID]
+	repo := s.repo
 	s.mu.RUnlock()
-
-	if !ok {
-		return
-	}
 
 	event := AsyncCompletionEvent{
 		ToolCallID: op.ToolCallID,
@@ -561,6 +790,32 @@ func (s *AsyncTrackerService) triggerCompletionCallback(op *AsyncOperation, stat
 		Error:      op.Error,
 	}
 
+	// Persist completion event for multi-consumer support
+	if repo != nil {
+		var resultJSON json.RawMessage
+		if op.Result != nil {
+			if data, err := json.Marshal(op.Result); err == nil {
+				resultJSON = data
+			}
+		}
+		eventRecord := &AsyncCompletionEventRecord{
+			ChatID:     op.ChatID,
+			ToolCallID: op.ToolCallID,
+			ToolName:   op.ToolName,
+			Status:     status,
+			Result:     resultJSON,
+			Error:      op.Error,
+		}
+		if err := repo.CreateCompletionEvent(context.Background(), eventRecord); err != nil {
+			log.Printf("[WARN] Failed to persist completion event for %s: %v", op.ToolCallID, err)
+		}
+	}
+
+	// Send to in-memory callback channel if registered
+	if !ok {
+		return
+	}
+
 	select {
 	case ch <- event:
 		log.Printf("[DEBUG] Sent completion event for %s (status=%s)", op.ToolCallID, status)
@@ -569,8 +824,48 @@ func (s *AsyncTrackerService) triggerCompletionCallback(op *AsyncOperation, stat
 	}
 }
 
+// GetCompletionEvents retrieves completion events for a chat since a given time.
+// This enables multi-consumer callbacks - any handler can query for events
+// that occurred since their last check, rather than relying on a single channel.
+//
+// Returns nil (not an error) if the repository is not configured.
+// This allows graceful degradation to the in-memory callback system.
+func (s *AsyncTrackerService) GetCompletionEvents(ctx context.Context, chatID string, since time.Time) ([]AsyncCompletionEvent, error) {
+	s.mu.RLock()
+	repo := s.repo
+	s.mu.RUnlock()
+
+	if repo == nil {
+		return nil, nil
+	}
+
+	records, err := repo.GetCompletionEventsSince(ctx, chatID, since)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get completion events: %w", err)
+	}
+
+	events := make([]AsyncCompletionEvent, 0, len(records))
+	for _, r := range records {
+		var result interface{}
+		if len(r.Result) > 0 {
+			_ = json.Unmarshal(r.Result, &result)
+		}
+		events = append(events, AsyncCompletionEvent{
+			ToolCallID: r.ToolCallID,
+			ChatID:     r.ChatID,
+			ToolName:   r.ToolName,
+			Status:     r.Status,
+			Result:     result,
+			Error:      r.Error,
+		})
+	}
+
+	return events, nil
+}
+
 // pollLoop runs the background polling for an operation.
 // Uses OperationSnapshot for immutable config to avoid race conditions.
+// Implements exponential backoff when configured via AsyncBehavior.StatusPolling.Backoff.
 func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) {
 	// Snapshot immutable fields at the start to avoid repeated lock acquisitions
 	// and potential race conditions when reading config.
@@ -583,12 +878,6 @@ func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) 
 	polling := snap.AsyncBehavior.StatusPolling
 	conditions := snap.AsyncBehavior.CompletionConditions
 
-	// Use configured poll interval, with reasonable defaults and minimums
-	interval := time.Duration(polling.PollIntervalSeconds) * time.Second
-	if interval < MinPollInterval {
-		interval = DefaultPollInterval
-	}
-
 	// Use configured max duration, with reasonable default
 	maxDuration := time.Duration(polling.MaxPollDurationSeconds) * time.Second
 	if maxDuration <= 0 {
@@ -596,15 +885,27 @@ func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) 
 	}
 
 	deadline := snap.StartedAt.Add(maxDuration)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+
+	// Initialize dynamic interval for exponential backoff
+	// Backoff config is pre-extracted in snapshotOperation for thread-safe access
+	currentInterval := snap.BackoffInitial
+
+	// Log backoff configuration if enabled
+	if snap.BackoffMultiplier > 1.0 {
+		log.Printf("[DEBUG] pollLoop: starting with backoff for %s (initial=%v, max=%v, multiplier=%.2f)",
+			snap.ToolCallID, snap.BackoffInitial, snap.BackoffMax, snap.BackoffMultiplier)
+	}
+
+	// Use timer instead of ticker for dynamic intervals
+	timer := time.NewTimer(currentInterval)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Printf("Polling cancelled for %s", snap.ToolCallID)
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			if time.Now().After(deadline) {
 				s.handleTimeout(op)
 				return
@@ -614,7 +915,9 @@ func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) 
 			statusResult, err := s.callStatusToolWithSnapshot(ctx, snap)
 			if err != nil {
 				log.Printf("Error polling status for %s: %v", snap.ToolCallID, err)
-				continue // Keep trying
+				// Continue polling despite error - reset timer with current interval
+				timer.Reset(currentInterval)
+				continue
 			}
 
 			// Process the status result
@@ -623,37 +926,24 @@ func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) 
 				log.Printf("Operation %s reached terminal status: %s", snap.ToolCallID, status)
 				return
 			}
+
+			// Calculate next interval with exponential backoff
+			if snap.BackoffMultiplier > 1.0 {
+				nextInterval := time.Duration(float64(currentInterval) * snap.BackoffMultiplier)
+				if nextInterval > snap.BackoffMax {
+					nextInterval = snap.BackoffMax
+				}
+				if nextInterval != currentInterval {
+					log.Printf("[DEBUG] pollLoop: backoff %s interval %v -> %v",
+						snap.ToolCallID, currentInterval, nextInterval)
+				}
+				currentInterval = nextInterval
+			}
+
+			// Reset timer with (potentially new) interval
+			timer.Reset(currentInterval)
 		}
 	}
-}
-
-// callStatusTool invokes the status tool to check operation progress.
-// Deprecated: Use callStatusToolWithSnapshot instead to avoid race conditions.
-func (s *AsyncTrackerService) callStatusTool(ctx context.Context, op *AsyncOperation) (interface{}, error) {
-	polling := op.AsyncBehavior.StatusPolling
-
-	// Build arguments for status tool
-	args := map[string]interface{}{
-		polling.StatusToolIdParam: op.ExternalRunID,
-	}
-	argsJSON, _ := json.Marshal(args)
-
-	// Execute the status tool
-	record, err := s.toolExecutor.ExecuteTool(ctx, op.ChatID, "", polling.StatusTool, string(argsJSON))
-	if err != nil {
-		return nil, err
-	}
-	if record.Status == domain.StatusFailed {
-		return nil, fmt.Errorf("status tool failed: %s", record.ErrorMessage)
-	}
-
-	// Parse the result
-	var result interface{}
-	if err := json.Unmarshal([]byte(record.Result), &result); err != nil {
-		return nil, fmt.Errorf("failed to parse status result: %w", err)
-	}
-
-	return result, nil
 }
 
 // callStatusToolWithSnapshot invokes the status tool using immutable snapshot data.
@@ -755,10 +1045,37 @@ func (s *AsyncTrackerService) processStatusResult(op *AsyncOperation, result int
 
 	// Build update struct while holding the lock to avoid race condition
 	update := buildUpdateFromOp(op, isTerminal)
+	repo := s.repo // Capture repo reference while holding lock
+	toolCallID := op.ToolCallID
+	chatID := op.ChatID
 	s.mu.Unlock()
 
+	// Persist update to database
+	if repo != nil {
+		var resultJSON json.RawMessage
+		if op.Result != nil {
+			if data, err := json.Marshal(op.Result); err == nil {
+				resultJSON = data
+			}
+		}
+		record := &AsyncOperationRecord{
+			ToolCallID:  toolCallID,
+			Status:      op.Status,
+			Progress:    op.Progress,
+			Message:     op.Message,
+			Phase:       op.Phase,
+			Result:      resultJSON,
+			Error:       op.Error,
+			UpdatedAt:   op.UpdatedAt,
+			CompletedAt: op.CompletedAt,
+		}
+		if err := repo.UpdateAsyncOperation(context.Background(), record); err != nil {
+			log.Printf("[WARN] Failed to persist operation update for %s: %v", toolCallID, err)
+		}
+	}
+
 	// Push update to subscribers (using pre-built update)
-	s.pushUpdateData(op.ChatID, update)
+	s.pushUpdateData(chatID, update)
 
 	// If terminal, trigger completion callback for AI conversation resumption
 	if isTerminal {
@@ -781,7 +1098,22 @@ func (s *AsyncTrackerService) handleTimeout(op *AsyncOperation) {
 	update := buildUpdateFromOp(op, true)
 	chatID := op.ChatID
 	toolCallID := op.ToolCallID
+	repo := s.repo
 	s.mu.Unlock()
+
+	// Persist timeout to database
+	if repo != nil {
+		record := &AsyncOperationRecord{
+			ToolCallID:  toolCallID,
+			Status:      op.Status,
+			Error:       op.Error,
+			UpdatedAt:   op.UpdatedAt,
+			CompletedAt: op.CompletedAt,
+		}
+		if err := repo.UpdateAsyncOperation(context.Background(), record); err != nil {
+			log.Printf("[WARN] Failed to persist timeout for %s: %v", toolCallID, err)
+		}
+	}
 
 	s.pushUpdateData(chatID, update)
 
@@ -809,12 +1141,11 @@ func buildUpdateFromOp(op *AsyncOperation, isTerminal bool) AsyncStatusUpdate {
 	}
 }
 
-// pushUpdate sends an update to all subscribers for the chat.
-// WARNING: This reads from op without holding the lock, which is a race condition.
-// Prefer using pushUpdateData with a pre-built update instead.
-func (s *AsyncTrackerService) pushUpdate(op *AsyncOperation, isTerminal bool) {
-	// Build update - this is racy but kept for backwards compatibility
-	update := AsyncStatusUpdate{
+// BuildUpdateFromOperation creates an AsyncStatusUpdate from an operation.
+// This is the public API for converting operations to updates (e.g., for HTTP handlers).
+// Terminal status is determined by whether CompletedAt is set.
+func BuildUpdateFromOperation(op *AsyncOperation) AsyncStatusUpdate {
+	return AsyncStatusUpdate{
 		ToolCallID: op.ToolCallID,
 		ChatID:     op.ChatID,
 		ToolName:   op.ToolName,
@@ -824,15 +1155,13 @@ func (s *AsyncTrackerService) pushUpdate(op *AsyncOperation, isTerminal bool) {
 		Phase:      op.Phase,
 		Result:     op.Result,
 		Error:      op.Error,
-		IsTerminal: isTerminal,
+		IsTerminal: op.CompletedAt != nil,
 		UpdatedAt:  op.UpdatedAt,
 	}
-
-	s.pushUpdateData(op.ChatID, update)
 }
 
 // pushUpdateData sends a pre-built update to all subscribers for the chat.
-// This is the race-safe version that should be preferred over pushUpdate.
+// Always build the update while holding the mutex, then pass it here.
 func (s *AsyncTrackerService) pushUpdateData(chatID string, update AsyncStatusUpdate) {
 	s.mu.RLock()
 	// Get old-style subscribers

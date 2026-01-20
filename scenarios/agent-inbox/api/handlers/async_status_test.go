@@ -123,7 +123,7 @@ func (m *mockAsyncTracker) SendUpdate(chatID string, update services.AsyncStatus
 // setupTestHandler creates a Handlers instance with the mock tracker.
 func setupTestHandler(tracker *mockAsyncTracker) *Handlers {
 	// Create a real AsyncTrackerService for the actual Handlers struct
-	realTracker := services.NewAsyncTrackerService(nil, nil)
+	realTracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: realTracker,
 	}
@@ -136,7 +136,7 @@ func setupTestHandlerWithMock() (*mux.Router, *Handlers, *mockAsyncTracker) {
 	mock := newMockAsyncTracker()
 	// Use a real AsyncTrackerService but wrap it for tests
 	// For these tests we need to test against the real handler using the real service
-	realTracker := services.NewAsyncTrackerService(nil, nil)
+	realTracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: realTracker,
 	}
@@ -182,7 +182,7 @@ func TestGetAsyncOperations_Success(t *testing.T) {
 // TestGetAsyncOperations_EmptyChatID verifies error for missing chat ID.
 func TestGetAsyncOperations_EmptyChatID(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
 	}
 
 	// Create a router that doesn't set the id variable
@@ -225,7 +225,7 @@ func TestGetAsyncOperations_NoOperations(t *testing.T) {
 
 // TestCancelAsyncOperation_Success verifies successful cancellation.
 func TestCancelAsyncOperation_Success(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -266,7 +266,7 @@ func TestCancelAsyncOperation_Success(t *testing.T) {
 // TestCancelAsyncOperation_NotFound verifies 404 for unknown operation.
 func TestCancelAsyncOperation_NotFound(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -284,7 +284,7 @@ func TestCancelAsyncOperation_NotFound(t *testing.T) {
 
 // TestCancelAsyncOperation_WrongChat verifies 403 when operation belongs to different chat.
 func TestCancelAsyncOperation_WrongChat(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -313,7 +313,7 @@ func TestCancelAsyncOperation_WrongChat(t *testing.T) {
 // TestCancelAsyncOperation_MissingParams verifies 400 for missing parameters.
 func TestCancelAsyncOperation_MissingParams(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
 	}
 
 	tests := []struct {
@@ -345,7 +345,7 @@ func TestCancelAsyncOperation_MissingParams(t *testing.T) {
 // TestStreamAsyncStatus_SetsSSEHeaders verifies correct SSE headers are set.
 func TestStreamAsyncStatus_SetsSSEHeaders(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -378,7 +378,7 @@ func TestStreamAsyncStatus_SetsSSEHeaders(t *testing.T) {
 // TestStreamAsyncStatus_SendsConnectedEvent verifies connected event is sent.
 func TestStreamAsyncStatus_SendsConnectedEvent(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -404,7 +404,7 @@ func TestStreamAsyncStatus_SendsConnectedEvent(t *testing.T) {
 
 // TestStreamAsyncStatus_SendsActiveOperations verifies initial operations are sent.
 func TestStreamAsyncStatus_SendsActiveOperations(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -441,7 +441,7 @@ func TestStreamAsyncStatus_SendsActiveOperations(t *testing.T) {
 
 // TestStreamAsyncStatus_ClientDisconnect verifies cleanup on client disconnect.
 func TestStreamAsyncStatus_ClientDisconnect(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -531,7 +531,7 @@ func TestOperationToUpdate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			update := operationToUpdate(tc.op)
+			update := services.BuildUpdateFromOperation(tc.op)
 
 			if update.ToolCallID != tc.op.ToolCallID {
 				t.Errorf("ToolCallID mismatch: got %s, want %s", update.ToolCallID, tc.op.ToolCallID)

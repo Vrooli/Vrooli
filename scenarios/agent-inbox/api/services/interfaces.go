@@ -4,6 +4,8 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"agent-inbox/domain"
 
@@ -68,6 +70,61 @@ type AsyncTrackerInterface interface {
 
 	// StartTracking begins tracking an async operation with polling.
 	StartTracking(ctx context.Context, toolCallID, chatID, toolName, scenario string, toolResult interface{}, asyncBehavior *toolspb.AsyncBehavior) error
+}
+
+// =============================================================================
+// Async Operation Repository Interface
+// =============================================================================
+
+// AsyncOperationRecord represents a persisted async operation.
+// Defined here to avoid circular imports between services and persistence packages.
+type AsyncOperationRecord struct {
+	ToolCallID    string
+	ChatID        string
+	ToolName      string
+	ScenarioName  string
+	OperationID   string
+	Status        string
+	Progress      *int
+	Message       string
+	Phase         string
+	Result        json.RawMessage
+	Error         string
+	AsyncBehavior json.RawMessage
+	StartedAt     time.Time
+	UpdatedAt     time.Time
+	CompletedAt   *time.Time
+}
+
+// AsyncCompletionEventRecord represents a persisted completion event.
+type AsyncCompletionEventRecord struct {
+	ID         string
+	ChatID     string
+	ToolCallID string
+	ToolName   string
+	Status     string
+	Result     json.RawMessage
+	Error      string
+	CreatedAt  time.Time
+}
+
+// AsyncOperationRepository defines persistence operations for async tracking.
+// This interface enables crash recovery and multi-consumer callbacks.
+type AsyncOperationRepository interface {
+	// Operation CRUD
+	CreateAsyncOperation(ctx context.Context, op *AsyncOperationRecord) error
+	UpdateAsyncOperation(ctx context.Context, op *AsyncOperationRecord) error
+	GetAsyncOperationByToolCallID(ctx context.Context, toolCallID string) (*AsyncOperationRecord, error)
+	GetActiveAsyncOperationsByChatID(ctx context.Context, chatID string) ([]*AsyncOperationRecord, error)
+	GetAllActiveAsyncOperations(ctx context.Context) ([]*AsyncOperationRecord, error)
+	DeleteAsyncOperation(ctx context.Context, toolCallID string) error
+	CleanupCompletedAsyncOperations(ctx context.Context, olderThan time.Duration) (int64, error)
+	UpdateAsyncOperationStatus(ctx context.Context, toolCallID, status string) error
+
+	// Completion events for multi-consumer callbacks
+	CreateCompletionEvent(ctx context.Context, event *AsyncCompletionEventRecord) error
+	GetCompletionEventsSince(ctx context.Context, chatID string, since time.Time) ([]*AsyncCompletionEventRecord, error)
+	CleanupOldCompletionEvents(ctx context.Context, olderThan time.Duration) (int64, error)
 }
 
 // =============================================================================

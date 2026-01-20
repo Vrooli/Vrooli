@@ -17,7 +17,7 @@ import (
 // TestAsyncFlow_OperationLifecycle verifies the full lifecycle of an async operation
 // from creation through completion including subscriber notifications.
 func TestAsyncFlow_OperationLifecycle(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Subscribe to updates
 	sub := svc.SubscribeWithID("chat-1")
@@ -98,7 +98,7 @@ func TestAsyncFlow_OperationLifecycle(t *testing.T) {
 
 // TestAsyncFlow_MultipleOperationsParallel verifies handling of multiple concurrent operations.
 func TestAsyncFlow_MultipleOperationsParallel(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	const numOps = 10
 	var wg sync.WaitGroup
@@ -185,7 +185,7 @@ drainLoop:
 
 // TestAsyncFlow_CleanupRemovesStaleOperations verifies cleanup of old operations.
 func TestAsyncFlow_CleanupRemovesStaleOperations(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	now := time.Now()
 	old := now.Add(-2 * time.Hour)
@@ -253,7 +253,7 @@ func TestAsyncFlow_CleanupRemovesStaleOperations(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentStartTracking verifies thread safety of StartTracking.
 func TestAsyncTracker_ConcurrentStartTracking(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -286,7 +286,7 @@ func TestAsyncTracker_ConcurrentStartTracking(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentSubscribeUnsubscribe verifies thread safety of subscriptions.
 func TestAsyncTracker_ConcurrentSubscribeUnsubscribe(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	const goroutines = 50
 	var wg sync.WaitGroup
@@ -326,7 +326,7 @@ func TestAsyncTracker_ConcurrentSubscribeUnsubscribe(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentPushUpdate verifies thread safety of update pushing.
 func TestAsyncTracker_ConcurrentPushUpdate(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Create multiple subscribers
 	const subscribers = 5
@@ -381,7 +381,7 @@ func TestAsyncTracker_ConcurrentPushUpdate(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentCompletionCallbacks verifies callback thread safety.
 func TestAsyncTracker_ConcurrentCompletionCallbacks(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	const goroutines = 20
 	var wg sync.WaitGroup
@@ -418,7 +418,7 @@ func TestAsyncTracker_NoGoroutineLeakOnStop(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 	baseline := runtime.NumGoroutine()
 
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Create operations with cancel funcs
 	const ops = 10
@@ -467,7 +467,7 @@ func TestAsyncTracker_NoGoroutineLeakOnStop(t *testing.T) {
 
 // TestAsyncTracker_ConcurrentOperationAccess verifies concurrent read/write of operations.
 func TestAsyncTracker_ConcurrentOperationAccess(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil)
+	svc := NewAsyncTrackerService(nil, nil, nil)
 
 	// Pre-populate some operations
 	for i := 0; i < 10; i++ {

@@ -56,7 +56,7 @@ func setupTestServer(t *testing.T) *TestServer {
 	storageCfg := config.GetStorageConfig()
 	storage := services.NewLocalStorageService(storageCfg)
 
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage)
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage, nil)
 	router := mux.NewRouter()
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)

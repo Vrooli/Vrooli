@@ -37,10 +37,15 @@ type Handlers struct {
 }
 
 // New creates a new Handlers instance with all dependencies.
-func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService) *Handlers {
+// If asyncTracker is nil, a new one is created without persistence.
+func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService) *Handlers {
 	toolExecutor := integrations.NewToolExecutor()
 	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
-	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor)
+
+	// Use provided tracker or create one without persistence
+	if asyncTracker == nil {
+		asyncTracker = services.NewAsyncTrackerService(toolRegistry, toolExecutor, nil)
+	}
 
 	return &Handlers{
 		Repo:          repo,
