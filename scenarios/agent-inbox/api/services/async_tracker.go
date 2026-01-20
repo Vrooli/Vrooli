@@ -1250,6 +1250,62 @@ func (s *AsyncTrackerService) CancelOperation(ctx context.Context, toolCallID st
 	return nil
 }
 
+// ForceRefresh performs an immediate status poll for an operation, bypassing the normal interval.
+// This is useful for manual refresh requests from the UI.
+// Returns the updated AsyncStatusUpdate and any error encountered.
+func (s *AsyncTrackerService) ForceRefresh(ctx context.Context, toolCallID string) (*AsyncStatusUpdate, error) {
+	// Get the operation
+	s.mu.RLock()
+	op := s.operations[toolCallID]
+	s.mu.RUnlock()
+
+	if op == nil {
+		return nil, fmt.Errorf("operation not found: %s", toolCallID)
+	}
+
+	// Check if operation is already terminal
+	if op.CompletedAt != nil {
+		// Return current status without polling
+		s.mu.RLock()
+		update := buildUpdateFromOp(op, true)
+		s.mu.RUnlock()
+		return &update, nil
+	}
+
+	// Get snapshot for polling
+	snap, ok := s.snapshotOperation(toolCallID)
+	if !ok {
+		return nil, fmt.Errorf("failed to snapshot operation: %s", toolCallID)
+	}
+
+	// Verify we have the necessary configuration
+	if snap.AsyncBehavior == nil || snap.AsyncBehavior.StatusPolling == nil {
+		return nil, fmt.Errorf("operation %s does not have status polling configured", toolCallID)
+	}
+
+	// Call the status tool immediately
+	statusResult, err := s.callStatusToolWithSnapshot(ctx, snap)
+	if err != nil {
+		// Still return current status with the error
+		s.mu.RLock()
+		update := buildUpdateFromOp(op, false)
+		update.Error = fmt.Sprintf("Refresh failed: %v", err)
+		s.mu.RUnlock()
+		return &update, nil // Return update with error, not an error return
+	}
+
+	// Process the result (this updates the operation and pushes to subscribers)
+	conditions := snap.AsyncBehavior.CompletionConditions
+	isTerminal, _ := s.processStatusResult(op, statusResult, conditions)
+
+	// Return the updated status
+	s.mu.RLock()
+	update := buildUpdateFromOp(op, isTerminal)
+	s.mu.RUnlock()
+
+	return &update, nil
+}
+
 // -----------------------------------------------------------------------------
 // Helper Functions
 // -----------------------------------------------------------------------------

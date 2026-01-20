@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
-import { AsyncOperationsPanel } from "./AsyncOperationCard";
+import { AsyncStatusBar } from "./AsyncStatusBar";
+import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
+import type { AsyncResultReference } from "./AsyncResultChip";
 import type { ChatWithMessages, Model, Label, Message } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
@@ -53,7 +55,16 @@ interface ChatViewProps {
   onSubmitEdit?: (payload: MessagePayload) => void;
   // Async operations
   asyncOperations?: AsyncStatusUpdate[];
+  activeAsyncOperations?: AsyncStatusUpdate[];
+  completedAsyncOperations?: AsyncStatusUpdate[];
   onCancelAsyncOperation?: (toolCallId: string) => Promise<void>;
+  onRefreshAsyncOperation?: (toolCallId: string) => Promise<AsyncStatusUpdate>;
+  onFetchAsyncHistory?: () => Promise<void>;
+  hasMoreAsyncHistory?: boolean;
+  // Async result references
+  asyncReferences?: AsyncResultReference[];
+  onInsertAsyncReference?: (operation: AsyncStatusUpdate) => void;
+  onRemoveAsyncReference?: (toolCallId: string) => void;
   // Template activation (for template-to-tool linking)
   onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
   /** Currently active template ID (for UI indicator) */
@@ -61,6 +72,9 @@ interface ChatViewProps {
   /** Callback to deactivate the active template */
   onTemplateDeactivate?: () => void;
 }
+
+// Stable empty array for async references
+const EMPTY_ASYNC_REFS: AsyncResultReference[] = [];
 
 export function ChatView({
   chatData,
@@ -92,11 +106,56 @@ export function ChatView({
   onCancelEdit,
   onSubmitEdit,
   asyncOperations = EMPTY_ASYNC_OPS,
+  activeAsyncOperations = EMPTY_ASYNC_OPS,
+  completedAsyncOperations = EMPTY_ASYNC_OPS,
   onCancelAsyncOperation,
+  onRefreshAsyncOperation,
+  onFetchAsyncHistory,
+  hasMoreAsyncHistory = false,
+  asyncReferences = EMPTY_ASYNC_REFS,
+  onInsertAsyncReference,
+  onRemoveAsyncReference,
   onTemplateActivated,
   activeTemplateId,
   onTemplateDeactivate,
 }: ChatViewProps) {
+  // Async operations drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedOperation, setSelectedOperation] = useState<AsyncStatusUpdate | null>(null);
+  const [statusBarCollapsed, setStatusBarCollapsed] = useState(false);
+
+  // Handle opening the drawer for a specific operation or history view
+  const handleOpenDrawer = useCallback((operation?: AsyncStatusUpdate) => {
+    setSelectedOperation(operation ?? null);
+    setDrawerOpen(true);
+  }, []);
+
+  // Handle inserting an async reference
+  const handleInsertReference = useCallback((operation: AsyncStatusUpdate) => {
+    onInsertAsyncReference?.(operation);
+    setDrawerOpen(false);
+  }, [onInsertAsyncReference]);
+
+  // Handle refresh with Promise wrapper
+  const handleRefreshOperation = useCallback(async (toolCallId: string) => {
+    if (onRefreshAsyncOperation) {
+      await onRefreshAsyncOperation(toolCallId);
+    }
+  }, [onRefreshAsyncOperation]);
+
+  // Handle cancel with Promise wrapper
+  const handleCancelOperation = useCallback(async (toolCallId: string) => {
+    if (onCancelAsyncOperation) {
+      await onCancelAsyncOperation(toolCallId);
+    }
+  }, [onCancelAsyncOperation]);
+
+  // Handle load more history
+  const handleLoadMoreHistory = useCallback(async () => {
+    if (onFetchAsyncHistory) {
+      await onFetchAsyncHistory();
+    }
+  }, [onFetchAsyncHistory]);
   // Compute visible messages based on the active branch
   // This filters the full message tree to only show the active path
   // NOTE: Must be called before any early returns to satisfy React's rules of hooks
@@ -175,15 +234,33 @@ export function ChatView({
         />
       </ErrorBoundary>
 
-      {/* Async Operations Panel - shows active long-running tool operations */}
-      {asyncOperations.length > 0 && (
-        <ErrorBoundary name="AsyncOperationsPanel">
-          <AsyncOperationsPanel
+      {/* Async Status Bar - compact view of active/recent operations */}
+      {(activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (
+        <ErrorBoundary name="AsyncStatusBar">
+          <AsyncStatusBar
             operations={asyncOperations}
-            onCancel={onCancelAsyncOperation}
+            completedCount={completedAsyncOperations.length}
+            onRefresh={handleRefreshOperation}
+            onCancel={handleCancelOperation}
+            onOpenDrawer={handleOpenDrawer}
+            isCollapsed={statusBarCollapsed}
+            onToggleCollapse={() => setStatusBarCollapsed(!statusBarCollapsed)}
           />
         </ErrorBoundary>
       )}
+
+      {/* Async Operation Drawer - for details and history */}
+      <AsyncOperationDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        operation={selectedOperation}
+        completedOperations={completedAsyncOperations}
+        onRefresh={handleRefreshOperation}
+        onCancel={handleCancelOperation}
+        onInsertReference={handleInsertReference}
+        onLoadMoreHistory={handleLoadMoreHistory}
+        hasMoreHistory={hasMoreAsyncHistory}
+      />
 
       <ErrorBoundary name="MessageList">
         <MessageList

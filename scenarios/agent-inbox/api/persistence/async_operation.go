@@ -211,6 +211,42 @@ func (r *Repository) UpdateAsyncOperationStatus(ctx context.Context, toolCallID,
 	return nil
 }
 
+// GetCompletedAsyncOperationsByChatID retrieves completed async operations for a chat with pagination.
+// Returns operations in descending order by completion time (most recent first).
+func (r *Repository) GetCompletedAsyncOperationsByChatID(ctx context.Context, chatID string, limit, offset int) ([]*AsyncOperationRecord, int, error) {
+	// First get the total count
+	var total int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM async_operations
+		WHERE chat_id = $1 AND status IN ('completed', 'failed', 'cancelled', 'timeout')
+	`, chatID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count completed async operations: %w", err)
+	}
+
+	// Then get the paginated results
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT tool_call_id, chat_id, tool_name, scenario_name, operation_id,
+			   status, progress, message, phase, result, error, async_behavior,
+			   started_at, updated_at, completed_at
+		FROM async_operations
+		WHERE chat_id = $1 AND status IN ('completed', 'failed', 'cancelled', 'timeout')
+		ORDER BY completed_at DESC
+		LIMIT $2 OFFSET $3
+	`, chatID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get completed async operations: %w", err)
+	}
+	defer rows.Close()
+
+	ops, err := scanAsyncOperations(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return ops, total, nil
+}
+
 // Async Completion Events Persistence
 // These methods enable multi-consumer callbacks by persisting completion events.
 

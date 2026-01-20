@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Menu, X, ChevronLeft, Star, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useChats } from "./hooks/useChats";
-import { useAsyncStatus } from "./hooks/useAsyncStatus";
+import { useAsyncStatus, type AsyncStatusUpdate } from "./hooks/useAsyncStatus";
 import { useTools } from "./hooks/useTools";
 import { useActiveTemplate } from "./hooks/useActiveTemplate";
 import { useChatRoute, usePopStateListener } from "./hooks/useChatRoute";
@@ -181,8 +181,76 @@ function AppContent() {
   // Track async operations for the selected chat
   const {
     operations: asyncOperations,
+    activeOperations: activeAsyncOperations,
+    completedOperations: completedAsyncOperations,
     cancelOperation: cancelAsyncOperation,
+    refreshOperation: refreshAsyncOperation,
+    fetchHistory: fetchAsyncHistory,
   } = useAsyncStatus(selectedChatId);
+
+  // Async result references for including in follow-up messages
+  const [asyncReferences, setAsyncReferences] = useState<Array<{
+    tool_call_id: string;
+    tool_name: string;
+    status: string;
+    summary: string;
+  }>>([]);
+
+  // Track history pagination
+  const [asyncHistoryOffset, setAsyncHistoryOffset] = useState(0);
+  const [hasMoreAsyncHistory, setHasMoreAsyncHistory] = useState(true);
+
+  // Handle inserting an async result reference
+  const handleInsertAsyncReference = useCallback((op: AsyncStatusUpdate) => {
+    const summarizeResult = (result: unknown, maxLength = 100): string => {
+      if (result === null || result === undefined) return "No result data";
+      if (typeof result === "string") {
+        return result.length > maxLength ? result.slice(0, maxLength - 3) + "..." : result;
+      }
+      if (typeof result === "object") {
+        const obj = result as Record<string, unknown>;
+        if (typeof obj.message === "string") {
+          return obj.message.length > maxLength ? obj.message.slice(0, maxLength - 3) + "..." : obj.message;
+        }
+        if (typeof obj.summary === "string") {
+          return obj.summary.length > maxLength ? obj.summary.slice(0, maxLength - 3) + "..." : obj.summary;
+        }
+        if (Array.isArray(obj.files)) {
+          return `Created ${obj.files.length} file${obj.files.length !== 1 ? "s" : ""}`;
+        }
+      }
+      return "Result available";
+    };
+
+    setAsyncReferences((prev) => [
+      ...prev.filter((r) => r.tool_call_id !== op.tool_call_id),
+      {
+        tool_call_id: op.tool_call_id,
+        tool_name: op.tool_name,
+        status: op.status,
+        summary: summarizeResult(op.result, 100),
+      },
+    ]);
+  }, []);
+
+  // Handle removing an async result reference
+  const handleRemoveAsyncReference = useCallback((toolCallId: string) => {
+    setAsyncReferences((prev) => prev.filter((r) => r.tool_call_id !== toolCallId));
+  }, []);
+
+  // Handle fetching more async history
+  const handleFetchAsyncHistory = useCallback(async () => {
+    const result = await fetchAsyncHistory(20, asyncHistoryOffset);
+    setAsyncHistoryOffset((prev) => prev + result.operations.length);
+    setHasMoreAsyncHistory(result.hasMore);
+  }, [fetchAsyncHistory, asyncHistoryOffset]);
+
+  // Reset async references when chat changes
+  useEffect(() => {
+    setAsyncReferences([]);
+    setAsyncHistoryOffset(0);
+    setHasMoreAsyncHistory(true);
+  }, [selectedChatId]);
 
   // Template-to-tool linking: manage active template state and tool enablement
   const { enableToolsByIds } = useTools({ chatId: selectedChatId ?? undefined });
@@ -718,7 +786,15 @@ function AppContent() {
               onCancelEdit={cancelEdit}
               onSubmitEdit={handleSubmitEditFromView}
               asyncOperations={asyncOperations}
+              activeAsyncOperations={activeAsyncOperations}
+              completedAsyncOperations={completedAsyncOperations}
               onCancelAsyncOperation={cancelAsyncOperation}
+              onRefreshAsyncOperation={refreshAsyncOperation}
+              onFetchAsyncHistory={handleFetchAsyncHistory}
+              hasMoreAsyncHistory={hasMoreAsyncHistory}
+              asyncReferences={asyncReferences}
+              onInsertAsyncReference={handleInsertAsyncReference}
+              onRemoveAsyncReference={handleRemoveAsyncReference}
               onTemplateActivated={handleTemplateActivated}
               activeTemplateId={activeTemplate.activeTemplateId}
               onTemplateDeactivate={activeTemplate.deactivate}

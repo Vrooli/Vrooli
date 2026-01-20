@@ -180,6 +180,18 @@ func (a *asyncRepoAdapter) UpdateAsyncOperationStatus(ctx context.Context, toolC
 	return a.repo.UpdateAsyncOperationStatus(ctx, toolCallID, status)
 }
 
+func (a *asyncRepoAdapter) GetCompletedAsyncOperationsByChatID(ctx context.Context, chatID string, limit, offset int) ([]*services.AsyncOperationRecord, int, error) {
+	recs, total, err := a.repo.GetCompletedAsyncOperationsByChatID(ctx, chatID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	result := make([]*services.AsyncOperationRecord, len(recs))
+	for i, rec := range recs {
+		result[i] = toServiceRecord(rec)
+	}
+	return result, total, nil
+}
+
 func (a *asyncRepoAdapter) CreateCompletionEvent(ctx context.Context, event *services.AsyncCompletionEventRecord) error {
 	return a.repo.CreateCompletionEvent(ctx, toPersistenceEvent(event))
 }

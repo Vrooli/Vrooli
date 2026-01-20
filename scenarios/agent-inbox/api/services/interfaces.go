@@ -120,6 +120,7 @@ type AsyncOperationRepository interface {
 	DeleteAsyncOperation(ctx context.Context, toolCallID string) error
 	CleanupCompletedAsyncOperations(ctx context.Context, olderThan time.Duration) (int64, error)
 	UpdateAsyncOperationStatus(ctx context.Context, toolCallID, status string) error
+	GetCompletedAsyncOperationsByChatID(ctx context.Context, chatID string, limit, offset int) ([]*AsyncOperationRecord, int, error)
 
 	// Completion events for multi-consumer callbacks
 	CreateCompletionEvent(ctx context.Context, event *AsyncCompletionEventRecord) error

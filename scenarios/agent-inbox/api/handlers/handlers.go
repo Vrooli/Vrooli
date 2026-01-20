@@ -112,7 +112,9 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	// Async Tool Operations (SSE for real-time updates)
 	r.HandleFunc("/api/v1/chats/{id}/async-status", h.StreamAsyncStatus).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/async-operations", h.GetAsyncOperations).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations/history", h.GetAsyncOperationHistory).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/async-operations/{toolCallId}/cancel", h.CancelAsyncOperation).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/async-operations/{toolCallId}/refresh", h.RefreshAsyncOperation).Methods("POST", "OPTIONS")
 
 	// Settings
 	r.HandleFunc("/api/v1/settings/yolo-mode", h.GetYoloMode).Methods("GET", "OPTIONS")
