@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -745,5 +747,24 @@ func performStartupHealthCheck(log *logrus.Logger) error {
 		return fmt.Errorf("%d startup health check(s) failed", len(errors))
 	}
 
+	return nil
+}
+
+// checkPortAvailable checks if a TCP port is available for binding.
+// Returns nil if available, or an error with diagnostic hints if unavailable.
+func checkPortAvailable(port string) error {
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("invalid port number: %s", port)
+	}
+	if portNum < 0 || portNum > 65535 {
+		return fmt.Errorf("port out of valid range (0-65535): %d", portNum)
+	}
+
+	listener, err := net.Listen("tcp", "127.0.0.1:"+port)
+	if err != nil {
+		return fmt.Errorf("port %s unavailable (hint: use 'lsof -i :%s' or 'ss -tlnp | grep %s' to find the process)", port, port, port)
+	}
+	listener.Close()
 	return nil
 }

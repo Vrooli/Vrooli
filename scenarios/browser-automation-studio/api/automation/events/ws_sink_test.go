@@ -68,6 +68,12 @@ func (s *stubHub) HasExecutionFrameSubscribers(executionID string) bool { return
 
 func (s *stubHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
 
+func (s *stubHub) BroadcastPageEvent(sessionID string, event any) {}
+
+func (s *stubHub) BroadcastPageSwitch(sessionID, activePageID string) {}
+
+func (s *stubHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
+
 func (c *closingHub) CloseExecution(executionID uuid.UUID) {
 	c.stubHub.mu.Lock()
 	c.closed = append(c.closed, executionID)
@@ -308,6 +314,12 @@ func (b *blockingHub) BroadcastPerfStats(sessionID string, stats any) {}
 func (b *blockingHub) HasExecutionFrameSubscribers(executionID string) bool { return false }
 
 func (b *blockingHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {}
+
+func (b *blockingHub) BroadcastPageEvent(sessionID string, event any) {}
+
+func (b *blockingHub) BroadcastPageSwitch(sessionID, activePageID string) {}
+
+func (b *blockingHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
 
 func (b *blockingHub) BroadcastEnvelope(event any) {
 	<-b.unblock

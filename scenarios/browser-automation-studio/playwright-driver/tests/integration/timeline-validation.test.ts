@@ -491,6 +491,65 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       // CRITICAL: Events after navigation must be captured
       expect(postNavClicks.length).toBeGreaterThan(0);
     });
+
+    it('[CRITICAL] should capture navigation events with correct ActionType', async () => {
+      await page.goto(server.getUrl('/interactive-page'));
+      await waitForScriptReady(page, 5000);
+
+      await pipelineManager.startRecording({
+        sessionId: 'e2e-test-session',
+        recordingId: 'nav-capture-test',
+        onEntry: (entry) => capturedEntries.push(entry),
+      });
+
+      // Click navigation link to trigger navigation
+      await page.click('#nav-link');
+      await page.waitForURL('**/page-2', { timeout: 5000 });
+      await page.waitForTimeout(500);
+
+      await pipelineManager.stopRecording();
+
+      // Specifically validate NAVIGATE action type
+      const navEvents = capturedEntries.filter(e => getActionType(e) === ActionType.NAVIGATE);
+
+      console.log('Navigation capture test:', {
+        navEvents: navEvents.length,
+        totalEntries: capturedEntries.length,
+        navUrls: navEvents.map(e => e.telemetry?.url || e.url),
+      });
+
+      expect(navEvents.length).toBeGreaterThan(0);
+
+      // Validate the navigation event has correct structure (check both telemetry.url and top-level url)
+      const navToPage2 = navEvents.find(e =>
+        e.telemetry?.url?.includes('/page-2') || e.url?.includes('/page-2')
+      );
+      expect(navToPage2).toBeDefined();
+      expect(navToPage2?.action?.type).toBe(ActionType.NAVIGATE);
+    });
+
+    it('should have clean state after resetStats()', async () => {
+      // Navigate to trigger injection
+      await page.goto(server.getUrl('/interactive-page'));
+      await waitForScriptReady(page, 5000);
+
+      // Verify stats were accumulated
+      const statsAfterNav = initializer.getInjectionStats();
+      expect(statsAfterNav.attempted).toBeGreaterThan(0);
+
+      // Reset stats
+      initializer.resetStats();
+
+      // Verify stats are zeroed
+      const statsAfterReset = initializer.getInjectionStats();
+      expect(statsAfterReset.attempted).toBe(0);
+      expect(statsAfterReset.successful).toBe(0);
+      expect(statsAfterReset.failed).toBe(0);
+
+      const routeStatsAfterReset = initializer.getRouteHandlerStats();
+      expect(routeStatsAfterReset.eventsReceived).toBe(0);
+      expect(routeStatsAfterReset.eventsProcessed).toBe(0);
+    });
   });
 
   describe('timeline entry structure validation', () => {

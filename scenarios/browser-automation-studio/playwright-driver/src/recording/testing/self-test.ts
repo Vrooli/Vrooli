@@ -36,7 +36,7 @@ import type { RecordingPipelineManager } from '../orchestration/pipeline-manager
 import type { TimelineEntry } from '../../proto/recording';
 import { ActionType } from '../../proto/recording';
 import { logger, scopedLog, LogContext } from '../../utils';
-import { verifyScriptInjection } from '../validation/verification';
+import { verifyScriptInjection, waitForScriptReady } from '../validation/verification';
 
 // =============================================================================
 // Types
@@ -474,7 +474,10 @@ export async function runRecordingPipelineTest(
   let recordingStarted = false;
 
   try {
-    // Get initial stats
+    // Reset stats before test to ensure clean slate (prevents cumulative stats from previous runs)
+    contextInitializer.resetStats();
+
+    // Get initial stats (should now be zeroed)
     diagnostics.routeStatsBefore = contextInitializer.getRouteHandlerStats();
 
     // Step 1: Navigate to external URL
@@ -785,6 +788,19 @@ export async function runRecordingPipelineTest(
       // Clear received events to isolate scroll test
       const eventsBeforeScroll = receivedEvents.length;
 
+      // Ensure page has scrollable content by setting body height via CDP
+      // This is necessary because external URLs like example.com may not have enough content to scroll
+      const scrollClient = await page.context().newCDPSession(page);
+      try {
+        await scrollClient.send('Runtime.evaluate', {
+          expression: `document.body.style.minHeight = '200vh'`,
+        });
+      } finally {
+        await scrollClient.detach().catch(() => {});
+      }
+
+      await sleep(100); // Let layout settle
+
       // Simulate a real scroll using CDP (like how a real user would scroll)
       await simulateRealScroll(page, 200);
       await sleep(700); // Wait for scroll debounce (CONFIG.SCROLL_DEBOUNCE_MS = 500) + propagation
@@ -845,6 +861,53 @@ export async function runRecordingPipelineTest(
       addStep('simulate_focus', false, Date.now() - focusStart, error instanceof Error ? error.message : String(error));
     }
 
+    // Step 6d: Test navigation event capture
+    const navTestStart = Date.now();
+    try {
+      const eventsBeforeNav = receivedEvents.length;
+
+      // Find a navigation link on the page (avoid blank targets, anchors, and javascript links)
+      const navLink = await page.$('a[href]:not([target="_blank"]):not([href^="#"]):not([href^="javascript:"])');
+
+      if (!navLink) {
+        addStep('simulate_navigation', true, Date.now() - navTestStart, undefined, {
+          skipped: true,
+          reason: 'No navigation link found on page',
+        });
+      } else {
+        const href = await navLink.getAttribute('href');
+
+        // Click the link to trigger navigation
+        await navLink.click();
+
+        // Wait for navigation with timeout
+        try {
+          await page.waitForLoadState('domcontentloaded', { timeout: 3000 });
+          await waitForScriptReady(page, 3000); // Re-verify injection after nav
+        } catch {
+          // Navigation may not complete (e.g., same-page, prevented)
+        }
+
+        await sleep(500);
+
+        // Check if navigate event was captured
+        const navReceived = receivedEvents.slice(eventsBeforeNav).some(e =>
+          e.actionType === 'navigate'
+        );
+
+        addStep('simulate_navigation', navReceived, Date.now() - navTestStart,
+          navReceived ? undefined : 'Navigation event not received', {
+          eventsBeforeNav,
+          eventsAfterNav: receivedEvents.length,
+          newEventTypes: receivedEvents.slice(eventsBeforeNav).map(e => e.actionType),
+          targetUrl: href,
+        });
+      }
+    } catch (error) {
+      addStep('simulate_navigation', false, Date.now() - navTestStart,
+        error instanceof Error ? error.message : String(error));
+    }
+
     // Step 7: Query final telemetry and stats
     const finalStart = Date.now();
     try {
@@ -866,6 +929,7 @@ export async function runRecordingPipelineTest(
     const inputStep = steps.find(s => s.name === 'simulate_input');
     const scrollStep = steps.find(s => s.name === 'simulate_scroll');
     const focusStep = steps.find(s => s.name === 'simulate_focus');
+    const navStep = steps.find(s => s.name === 'simulate_navigation');
 
     // Required tests must pass (click and scroll are always expected to work)
     const clickPassed = clickStep?.passed || false;
@@ -874,9 +938,10 @@ export async function runRecordingPipelineTest(
     // Optional tests pass if they succeeded OR were skipped
     const inputPassed = inputStep?.passed || (inputStep?.details as { skipped?: boolean })?.skipped || false;
     const focusPassed = focusStep?.passed || (focusStep?.details as { skipped?: boolean })?.skipped || false;
+    const navPassed = navStep?.passed || (navStep?.details as { skipped?: boolean })?.skipped || false;
 
     // All core event types must work for the test to pass
-    const overallSuccess = clickPassed && scrollPassed && inputPassed && focusPassed;
+    const overallSuccess = clickPassed && scrollPassed && inputPassed && focusPassed && navPassed;
 
     if (!overallSuccess) {
       const failedTests: string[] = [];
@@ -884,6 +949,7 @@ export async function runRecordingPipelineTest(
       if (!scrollPassed) failedTests.push('scroll');
       if (!inputPassed) failedTests.push('input');
       if (!focusPassed) failedTests.push('focus');
+      if (!navPassed) failedTests.push('navigation');
 
       // Determine failure point from diagnostics
       return buildResult(false, 'event_capture', `Event capture failed for: ${failedTests.join(', ')}`, steps, diagnostics, startTime, [

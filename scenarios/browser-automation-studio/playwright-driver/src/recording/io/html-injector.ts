@@ -81,6 +81,22 @@ export function cloneInjectionStats(stats: InjectionStats): InjectionStats {
 }
 
 /**
+ * Resets injection stats to initial values.
+ * Useful for clearing state between test runs to prevent cumulative stats.
+ */
+export function resetInjectionStats(stats: InjectionStats): void {
+  stats.attempted = 0;
+  stats.successful = 0;
+  stats.failed = 0;
+  stats.skipped = 0;
+  stats.total = 0;
+  stats.methods.head = 0;
+  stats.methods.HEAD = 0;
+  stats.methods.doctype = 0;
+  stats.methods.prepend = 0;
+}
+
+/**
  * Options for setting up HTML injection.
  */
 export interface HtmlInjectorOptions {
@@ -320,6 +336,7 @@ export async function setupHtmlInjectionRoute(
   options: HtmlInjectorOptions
 ): Promise<{
   getStats: () => InjectionStats;
+  resetStats: () => void;
 }> {
   const { bindingName, logger, diagnosticsEnabled = false, onFirstInjection } = options;
 
@@ -365,5 +382,6 @@ export async function setupHtmlInjectionRoute(
 
   return {
     getStats: () => cloneInjectionStats(stats),
+    resetStats: () => resetInjectionStats(stats),
   };
 }

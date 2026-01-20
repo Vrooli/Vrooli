@@ -550,17 +550,18 @@ describe('RecordingContextInitializer', () => {
 
   describe('redirect handling', () => {
     /**
-     * CRITICAL: These tests verify the fix for navigation loops.
+     * CRITICAL: These tests verify correct redirect handling behavior.
      *
-     * When route.fetch() follows redirects, the browser's URL doesn't match
-     * the final content URL. JavaScript checking location.href would see
-     * the original URL, not the redirect destination, causing redirect loops.
+     * With rebrowser-playwright, if we return a 3xx response via route.fulfill(),
+     * the browser follows the redirect but the new request does NOT go through
+     * our route handler again (anti-detection feature). By following redirects
+     * ourselves (maxRedirects: 10), we ensure we can inject into the final HTML.
      *
-     * The fix: Don't follow redirects (maxRedirects: 0). Let the browser
-     * handle redirects naturally - we inject on the final destination.
+     * Note: The browser's URL bar will show the original URL (e.g., wikipedia.com)
+     * not the redirect destination. This is acceptable for recording purposes.
      */
 
-    it('should call route.fetch() with maxRedirects: 0 to prevent URL mismatch loops', async () => {
+    it('should call route.fetch() with maxRedirects: 10 to follow redirects for injection', async () => {
       const { context, routeHandlers } = createMockContext();
 
       await initializer.initialize(context);
@@ -577,10 +578,10 @@ describe('RecordingContextInitializer', () => {
 
       await handler!(route);
 
-      // Verify fetch was called with maxRedirects: 0
+      // Verify fetch follows redirects (anti-detection workaround)
       expect(route.fetch).toHaveBeenCalledWith(
         expect.objectContaining({
-          maxRedirects: 0,
+          maxRedirects: 10,
         })
       );
     });
@@ -731,20 +732,27 @@ describe('RecordingContextInitializer', () => {
     });
   });
 
-  describe('page navigation listener (route persistence fix)', () => {
+  describe('page event route setup (architectural note)', () => {
     /**
-     * CRITICAL: These tests verify the fix for page.route() loss after navigation.
+     * ARCHITECTURAL NOTE: Navigation listener setup was moved to pipeline-manager.ts
      *
      * With rebrowser-playwright, page.route() handlers do NOT persist across navigation.
-     * After a page.goto() or link click, the event route is silently lost, and events
-     * stop flowing through the pipeline.
+     * After a page.goto() or link click, the event route is silently lost.
      *
-     * The fix: Set up a 'load' event listener on each page that re-registers the
-     * event route after every navigation.
+     * The fix is implemented in pipeline-manager.ts (not here) which:
+     * 1. Sets up 'load' event listeners on each page during recording
+     * 2. Re-registers event routes after each navigation
+     *
+     * This separation allows:
+     * - Context initialization to remain simple (one-time setup)
+     * - Navigation listeners to only be active during recording
+     * - No duplicate listeners when recording starts/stops multiple times
+     *
+     * @see pipeline-manager.ts - setupNavigationListeners() method
      */
 
-    it('should set up navigation listener on existing pages during initialization', async () => {
-      const { page, pageListeners } = createMockPage();
+    it('should set up page.route for event URL but NOT navigation listeners', async () => {
+      const { page, pageListeners, pageRouteHandlers } = createMockPage();
       const mockContext = {
         route: jest.fn(),
         pages: jest.fn().mockReturnValue([page]),
@@ -756,12 +764,16 @@ describe('RecordingContextInitializer', () => {
 
       // Should have set up page.route for event URL
       expect(page.route).toHaveBeenCalled();
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
+        (k) => k.includes('__vrooli_recording_event__')
+      );
+      expect(eventRoutePattern).toBeDefined();
 
-      // Should have set up 'load' listener
-      expect(pageListeners.has('load')).toBe(true);
+      // Should NOT set up 'load' listener (handled by pipeline-manager during recording)
+      expect(pageListeners.has('load')).toBe(false);
     });
 
-    it('should set up navigation listener on new pages', async () => {
+    it('should set up event route for new pages via context.on("page") but NOT navigation listeners', async () => {
       const contextPageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
       const mockContext = {
         route: jest.fn(),
@@ -777,7 +789,7 @@ describe('RecordingContextInitializer', () => {
       await initializer.initialize(mockContext);
 
       // Simulate new page creation
-      const { page, pageListeners } = createMockPage();
+      const { page, pageListeners, pageRouteHandlers } = createMockPage();
       const pageHandler = contextPageListeners.get('page')?.[0];
       expect(pageHandler).toBeDefined();
 
@@ -785,99 +797,13 @@ describe('RecordingContextInitializer', () => {
 
       // Should have set up page.route for event URL
       expect(page.route).toHaveBeenCalled();
-
-      // Should have set up 'load' listener on new page
-      expect(pageListeners.has('load')).toBe(true);
-    });
-
-    it('should re-register event route when page load event fires', async () => {
-      const { page, pageListeners, pageRouteHandlers } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Initially, page.route should have been called once
-      const initialRouteCallCount = (page.route as jest.Mock).mock.calls.length;
-      expect(initialRouteCallCount).toBeGreaterThan(0);
-
-      // Simulate navigation by firing the 'load' event
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBeGreaterThan(0);
-
-      // Fire the load event
-      await loadHandlers[0]!();
-
-      // page.route should have been called again (force re-registration)
-      const afterLoadRouteCallCount = (page.route as jest.Mock).mock.calls.length;
-      expect(afterLoadRouteCallCount).toBeGreaterThan(initialRouteCallCount);
-    });
-
-    it('should NOT set up duplicate navigation listeners (idempotent)', async () => {
-      const { page, pageListeners } = createMockPage();
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([page]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Manually call setupPageNavigationListener again
-      initializer.setupPageNavigationListener(page);
-      initializer.setupPageNavigationListener(page);
-
-      // Should only have ONE 'load' listener despite multiple calls
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBe(1);
-    });
-
-    it('should handle navigation listener errors gracefully', async () => {
-      const pageListeners = new Map<string, Array<(...args: unknown[]) => void>>();
-      let routeCallCount = 0;
-      const mockPage = {
-        url: jest.fn().mockReturnValue('https://example.com'),
-        on: jest.fn().mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
-          const handlers = pageListeners.get(event) || [];
-          handlers.push(handler);
-          pageListeners.set(event, handlers);
-        }),
-        off: jest.fn(),
-        // First call succeeds (during initialization), subsequent calls fail (simulating navigation issue)
-        route: jest.fn().mockImplementation(async () => {
-          routeCallCount++;
-          if (routeCallCount > 1) {
-            throw new Error('Route setup failed');
-          }
-        }),
-      };
-
-      const mockContext = {
-        route: jest.fn(),
-        pages: jest.fn().mockReturnValue([mockPage]),
-        on: jest.fn(),
-        off: jest.fn(),
-      } as unknown as jest.Mocked<BrowserContext>;
-
-      await initializer.initialize(mockContext);
-
-      // Should have set up 'load' listener
-      const loadHandlers = pageListeners.get('load') || [];
-      expect(loadHandlers.length).toBeGreaterThan(0);
-
-      // Fire the load event - should not throw even though route fails
-      await loadHandlers[0]!();
-
-      // Error should be logged
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('failed to re-register event route'),
-        expect.anything()
+      const eventRoutePattern = Array.from(pageRouteHandlers.keys()).find(
+        (k) => k.includes('__vrooli_recording_event__')
       );
+      expect(eventRoutePattern).toBeDefined();
+
+      // Should NOT set up 'load' listener (handled by pipeline-manager during recording)
+      expect(pageListeners.has('load')).toBe(false);
     });
   });
 

@@ -85,6 +85,19 @@ export function cloneRouteHandlerStats(stats: RouteHandlerStats): RouteHandlerSt
 }
 
 /**
+ * Resets route handler stats to initial values.
+ * Useful for clearing state between test runs to prevent cumulative stats.
+ */
+export function resetRouteHandlerStats(stats: RouteHandlerStats): void {
+  stats.eventsReceived = 0;
+  stats.eventsProcessed = 0;
+  stats.eventsDroppedNoHandler = 0;
+  stats.eventsWithErrors = 0;
+  stats.lastEventAt = null;
+  stats.lastEventType = null;
+}
+
+/**
  * Options for setting up event routes.
  */
 export interface EventRouteOptions {
@@ -102,6 +115,8 @@ export interface EventRouteManager {
   setupPageEventRoute: (page: Page, options?: { force?: boolean }) => Promise<void>;
   /** Get current stats */
   getStats: () => RouteHandlerStats;
+  /** Reset stats to initial values (for clean test runs) */
+  resetStats: () => void;
   /** Check if event route is set up for a page */
   hasEventRoute: (page: Page) => boolean;
 }
@@ -272,6 +287,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
   return {
     setupPageEventRoute,
     getStats: () => cloneRouteHandlerStats(stats),
+    resetStats: () => resetRouteHandlerStats(stats),
     hasEventRoute: (page: Page) => pagesWithEventRoute.has(page),
   };
 }

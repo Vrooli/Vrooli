@@ -156,6 +156,7 @@ export class RecordingContextInitializer {
 
   // Stats from injection module (updated after initialization)
   private injectionStatsGetter: (() => InjectionStats) | null = null;
+  private injectionStatsResetter: (() => void) | null = null;
 
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
@@ -185,6 +186,22 @@ export class RecordingContextInitializer {
       return this.eventRouteManager.getStats();
     }
     return createRouteHandlerStats();
+  }
+
+  /**
+   * Reset all stats (injection and route handler) to initial values.
+   * Useful for clearing state between test runs to prevent cumulative stats.
+   *
+   * This ensures consistent test results by starting from a clean slate.
+   */
+  resetStats(): void {
+    if (this.injectionStatsResetter) {
+      this.injectionStatsResetter();
+    }
+    if (this.eventRouteManager) {
+      this.eventRouteManager.resetStats();
+    }
+    this.logger.debug(scopedLog(LogContext.RECORDING, 'stats reset to initial values'));
   }
 
   /**
@@ -258,6 +275,7 @@ export class RecordingContextInitializer {
     });
 
     this.injectionStatsGetter = injectionResult.getStats;
+    this.injectionStatsResetter = injectionResult.resetStats;
 
     // Set up page-level event routes for all existing pages
     // NOTE: Navigation listeners are NOT set up here - they are handled by

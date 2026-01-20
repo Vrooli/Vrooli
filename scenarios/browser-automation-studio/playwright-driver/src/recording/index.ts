@@ -212,11 +212,13 @@ export {
   setupHtmlInjectionRoute,
   injectScriptIntoHtml,
   createInjectionStats,
+  resetInjectionStats,
 } from './io/html-injector';
 
 export {
   createEventRouteManager,
   createRouteHandlerStats,
+  resetRouteHandlerStats,
 } from './io/event-route';
 
 export type { EventRouteManager } from './io/event-route';
