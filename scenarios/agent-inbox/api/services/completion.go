@@ -13,7 +13,6 @@ import (
 	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
-	"agent-inbox/persistence"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
@@ -76,48 +75,25 @@ type CompletionService struct {
 	skills           []SkillPayload // Skills to inject into tool calls as context
 }
 
-// NewCompletionService creates a new completion service.
-func NewCompletionService(repo *persistence.Repository, storage StorageService) *CompletionService {
-	modelRegistry := NewModelRegistry()
-	executor := integrations.NewToolExecutor()
-	return &CompletionService{
-		repo:             repo,
-		executor:         executor,
-		toolRegistry:     NewToolRegistry(repo, executor),
-		contextManager:   NewContextManager(modelRegistry, config.Default()),
-		messageConverter: NewMessageConverter(storage),
-		storage:          storage,
-	}
-}
-
-// NewCompletionServiceWithRegistry creates a completion service with an injected registry.
-// This is the constructor for testing scenarios that only need registry injection.
-func NewCompletionServiceWithRegistry(repo *persistence.Repository, registry ToolRegistryInterface, storage StorageService) *CompletionService {
-	modelRegistry := NewModelRegistry()
-	return &CompletionService{
-		repo:             repo,
-		executor:         integrations.NewToolExecutor(),
-		toolRegistry:     registry,
-		contextManager:   NewContextManager(modelRegistry, config.Default()),
-		messageConverter: NewMessageConverter(storage),
-		storage:          storage,
-	}
-}
-
 // CompletionServiceDeps contains all dependencies for CompletionService.
 // Used by NewCompletionServiceWithDeps for full dependency injection in tests.
 type CompletionServiceDeps struct {
-	Repo         CompletionRepository
-	Executor     ToolExecutorInterface
-	Registry     ToolRegistryInterface
-	AsyncTracker AsyncTrackerInterface
-	Storage      StorageService
+	Repo          CompletionRepository
+	Executor      ToolExecutorInterface
+	Registry      ToolRegistryInterface
+	AsyncTracker  AsyncTrackerInterface
+	Storage       StorageService
+	ModelRegistry *ModelRegistry // Optional: if nil, a new one is created
 }
 
 // NewCompletionServiceWithDeps creates a completion service with all dependencies injected.
-// This is the primary constructor for unit testing.
+// This is the primary constructor for production use and unit testing.
+// If deps.ModelRegistry is nil, a new one is created.
 func NewCompletionServiceWithDeps(deps CompletionServiceDeps) *CompletionService {
-	modelRegistry := NewModelRegistry()
+	modelRegistry := deps.ModelRegistry
+	if modelRegistry == nil {
+		modelRegistry = NewModelRegistry()
+	}
 	return &CompletionService{
 		repo:             deps.Repo,
 		executor:         deps.Executor,

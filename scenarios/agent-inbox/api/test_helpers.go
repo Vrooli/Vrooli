@@ -56,7 +56,12 @@ func setupTestServer(t *testing.T) *TestServer {
 	storageCfg := config.GetStorageConfig()
 	storage := services.NewLocalStorageService(storageCfg)
 
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage, nil)
+	// Create shared dependencies explicitly (no nil fallbacks)
+	toolExecutor := integrations.NewToolExecutor()
+	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
+	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor, nil)
+
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
 	router := mux.NewRouter()
 	router.Use(middleware.Logging)
 	router.Use(middleware.CORS)

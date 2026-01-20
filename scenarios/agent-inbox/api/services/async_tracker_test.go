@@ -48,9 +48,6 @@ func TestNewAsyncTrackerService(t *testing.T) {
 	if svc.operations == nil {
 		t.Error("expected operations map to be initialized")
 	}
-	if svc.subscribers == nil {
-		t.Error("expected subscribers map to be initialized")
-	}
 	if svc.subscriptions == nil {
 		t.Error("expected subscriptions map to be initialized")
 	}

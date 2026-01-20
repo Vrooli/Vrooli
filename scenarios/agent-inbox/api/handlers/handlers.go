@@ -37,16 +37,9 @@ type Handlers struct {
 }
 
 // New creates a new Handlers instance with all dependencies.
-// If asyncTracker is nil, a new one is created without persistence.
-func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService) *Handlers {
-	toolExecutor := integrations.NewToolExecutor()
-	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
-
-	// Use provided tracker or create one without persistence
-	if asyncTracker == nil {
-		asyncTracker = services.NewAsyncTrackerService(toolRegistry, toolExecutor, nil)
-	}
-
+// All parameters are required - callers must create the dependencies explicitly.
+// This ensures consistent dependency sharing and makes the architecture explicit.
+func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService, toolExecutor *integrations.ToolExecutor, toolRegistry *services.ToolRegistry) *Handlers {
 	return &Handlers{
 		Repo:          repo,
 		OllamaClient:  ollamaClient,
@@ -173,10 +166,18 @@ func (h *Handlers) JSONError(w http.ResponseWriter, message string, status int) 
 
 // NewCompletionService creates a completion service with async tracker configured.
 // This is the preferred way to create completion services in handlers.
+// Uses the shared toolExecutor, toolRegistry, and modelRegistry to ensure:
+// 1. Tools registered by handlers.ToolRegistry are available for both AI tool execution and async polling
+// 2. A single ModelRegistry cache is shared across all completion services (reduces API calls)
 func (h *Handlers) NewCompletionService() *services.CompletionService {
-	svc := services.NewCompletionService(h.Repo, h.Storage)
-	svc.SetAsyncTracker(h.AsyncTracker)
-	return svc
+	return services.NewCompletionServiceWithDeps(services.CompletionServiceDeps{
+		Repo:          h.Repo,
+		Executor:      h.ToolExecutor,
+		Registry:      h.ToolRegistry,
+		AsyncTracker:  h.AsyncTracker,
+		Storage:       h.Storage,
+		ModelRegistry: h.ModelRegistry,
+	})
 }
 
 // Validation helpers

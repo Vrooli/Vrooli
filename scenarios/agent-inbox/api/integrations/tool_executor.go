@@ -43,24 +43,13 @@ type ScenarioHandler interface {
 type ToolExecutor struct {
 	mu       sync.RWMutex
 	handlers map[string]ScenarioHandler // scenario name -> handler
-
-	// Legacy support: direct tool handlers for backward compatibility
-	legacyHandlers map[string]legacyToolHandler
-}
-
-// legacyToolHandler is the old-style handler function signature.
-// Kept for backward compatibility during migration.
-type legacyToolHandler struct {
-	handler      func(ctx context.Context, args map[string]interface{}) (interface{}, error)
-	scenarioName string
 }
 
 // NewToolExecutor creates a new tool executor.
 // Scenario handlers are registered automatically by the ToolRegistry when tools are refreshed.
 func NewToolExecutor() *ToolExecutor {
 	return &ToolExecutor{
-		handlers:       make(map[string]ScenarioHandler),
-		legacyHandlers: make(map[string]legacyToolHandler),
+		handlers: make(map[string]ScenarioHandler),
 	}
 }
 
@@ -68,8 +57,7 @@ func NewToolExecutor() *ToolExecutor {
 // This is the constructor for testing.
 func NewToolExecutorWithHandlers(handlers ...ScenarioHandler) *ToolExecutor {
 	e := &ToolExecutor{
-		handlers:       make(map[string]ScenarioHandler),
-		legacyHandlers: make(map[string]legacyToolHandler),
+		handlers: make(map[string]ScenarioHandler),
 	}
 
 	for _, h := range handlers {
@@ -119,8 +107,7 @@ func (e *ToolExecutor) IsKnownTool(toolName string) bool {
 		}
 	}
 
-	_, exists := e.legacyHandlers[toolName]
-	return exists
+	return false
 }
 
 // GetToolScenario returns the scenario that provides a tool.
@@ -132,10 +119,6 @@ func (e *ToolExecutor) GetToolScenario(toolName string) string {
 		if handler.CanHandle(toolName) {
 			return handler.Scenario()
 		}
-	}
-
-	if legacy, exists := e.legacyHandlers[toolName]; exists {
-		return legacy.scenarioName
 	}
 
 	return ""
@@ -194,7 +177,6 @@ func (e *ToolExecutor) routeToHandler(ctx context.Context, toolName string, args
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	// Try scenario handlers first
 	for _, handler := range e.handlers {
 		if handler.CanHandle(toolName) {
 			result, err := handler.Execute(ctx, toolName, args)
@@ -204,13 +186,6 @@ func (e *ToolExecutor) routeToHandler(ctx context.Context, toolName string, args
 
 			return result, err
 		}
-	}
-
-	// Fall back to legacy handlers
-	if legacy, exists := e.legacyHandlers[toolName]; exists {
-		result, err := legacy.handler(ctx, args)
-		e.extractExternalRunID(result, record)
-		return result, err
 	}
 
 	return nil, &UnknownToolError{ToolName: toolName}

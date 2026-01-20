@@ -21,42 +21,14 @@ import (
 type mockAsyncTracker struct {
 	mu                  sync.Mutex
 	operations          map[string]*services.AsyncOperation
-	subscribers         map[string]chan services.AsyncStatusUpdate
-	subscribeCalls      []string
-	unsubscribeCalls    []unsubscribeCall
 	cancelCalls         []string
 	cancelError         error
 	subscribeWithIDFunc func(chatID string) *services.Subscription
 }
 
-type unsubscribeCall struct {
-	ChatID  string
-	Channel chan services.AsyncStatusUpdate
-}
-
 func newMockAsyncTracker() *mockAsyncTracker {
 	return &mockAsyncTracker{
-		operations:  make(map[string]*services.AsyncOperation),
-		subscribers: make(map[string]chan services.AsyncStatusUpdate),
-	}
-}
-
-func (m *mockAsyncTracker) Subscribe(chatID string) chan services.AsyncStatusUpdate {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.subscribeCalls = append(m.subscribeCalls, chatID)
-	ch := make(chan services.AsyncStatusUpdate, 10)
-	m.subscribers[chatID] = ch
-	return ch
-}
-
-func (m *mockAsyncTracker) Unsubscribe(chatID string, ch chan services.AsyncStatusUpdate) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.unsubscribeCalls = append(m.unsubscribeCalls, unsubscribeCall{ChatID: chatID, Channel: ch})
-	if sub, ok := m.subscribers[chatID]; ok && sub == ch {
-		delete(m.subscribers, chatID)
-		close(ch)
+		operations: make(map[string]*services.AsyncOperation),
 	}
 }
 
@@ -105,19 +77,6 @@ func (m *mockAsyncTracker) AddOperation(op *services.AsyncOperation) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.operations[op.ToolCallID] = op
-}
-
-// SendUpdate sends an update to subscribers.
-func (m *mockAsyncTracker) SendUpdate(chatID string, update services.AsyncStatusUpdate) {
-	m.mu.Lock()
-	ch, ok := m.subscribers[chatID]
-	m.mu.Unlock()
-	if ok {
-		select {
-		case ch <- update:
-		default:
-		}
-	}
 }
 
 // setupTestHandler creates a Handlers instance with the mock tracker.
@@ -602,11 +561,11 @@ data: {"status":"running"}
 
 // Ensure mock fulfills requirements - compile-time check
 var _ interface {
-	Subscribe(chatID string) chan services.AsyncStatusUpdate
-	Unsubscribe(chatID string, ch chan services.AsyncStatusUpdate)
 	GetActiveOperations(chatID string) []*services.AsyncOperation
 	GetOperation(toolCallID string) *services.AsyncOperation
 	CancelOperation(ctx context.Context, toolCallID string) error
+	SubscribeWithID(chatID string) *services.Subscription
+	UnsubscribeByID(sub *services.Subscription)
 } = (*mockAsyncTracker)(nil)
 
 // Ensure errors is imported (used in mock)

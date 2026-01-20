@@ -54,17 +54,6 @@ func NewToolRegistry(repo *persistence.Repository, toolExecutor *integrations.To
 	}
 }
 
-// NewToolRegistryWithDeps creates a ToolRegistry with injected dependencies.
-// This is the constructor for testing.
-func NewToolRegistryWithDeps(client *integrations.ScenarioClient, repo *persistence.Repository, cfg *config.Config, toolExecutor *integrations.ToolExecutor) *ToolRegistry {
-	return &ToolRegistry{
-		scenarioClient: client,
-		repo:           repo,
-		cfg:            cfg,
-		toolExecutor:   toolExecutor,
-	}
-}
-
 // RefreshTools fetches tools from scenarios and updates the cache.
 // If AutoDiscovery is enabled, it discovers scenarios via vrooli CLI.
 // Otherwise, it uses the explicit Scenarios list from config.

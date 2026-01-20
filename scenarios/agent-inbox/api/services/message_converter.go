@@ -135,24 +135,3 @@ func HasPDFAttachment(attachments []domain.Attachment) bool {
 	return false
 }
 
-// ConvertMessagesLegacy converts map-based messages to OpenRouter format.
-// This is kept for backward compatibility with existing code.
-func ConvertMessagesLegacy(messages []map[string]interface{}) []integrations.OpenRouterMessage {
-	result := make([]integrations.OpenRouterMessage, len(messages))
-	for i, m := range messages {
-		msg := integrations.OpenRouterMessage{
-			Role: m["role"].(string),
-		}
-		if content, ok := m["content"].(string); ok {
-			msg.Content = content
-		}
-		if tcid, ok := m["tool_call_id"].(string); ok {
-			msg.ToolCallID = tcid
-		}
-		if tcs, ok := m["tool_calls"].([]domain.ToolCall); ok {
-			msg.ToolCalls = tcs
-		}
-		result[i] = msg
-	}
-	return result
-}

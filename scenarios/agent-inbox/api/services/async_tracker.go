@@ -120,11 +120,7 @@ type AsyncTrackerService struct {
 	// Active operations being tracked
 	operations map[string]*AsyncOperation // toolCallID -> operation
 
-	// Subscribers for status updates (chatID -> channels)
-	// Deprecated: Use subscriptions/chatSubs instead for ID-based tracking
-	subscribers map[string][]chan<- AsyncStatusUpdate
-
-	// ID-based subscription tracking (replaces fragile pointer comparison)
+	// ID-based subscription tracking
 	subscriptions map[string]*Subscription // subscriptionID -> Subscription
 	chatSubs      map[string][]string      // chatID -> []subscriptionID
 
@@ -176,9 +172,11 @@ type AsyncOperation struct {
 	Progress      *int                   `json:"progress,omitempty"`
 	Message       string                 `json:"message,omitempty"`
 	Phase         string                 `json:"phase,omitempty"`
-	Result        interface{}            `json:"result,omitempty"`
-	Error         string                 `json:"error,omitempty"`
-	StartedAt     time.Time              `json:"started_at"`
+	Result            interface{}            `json:"result,omitempty"`
+	Error             string                 `json:"error,omitempty"`
+	ConsecutiveErrors int                    `json:"-"` // Track consecutive poll failures (not serialized)
+	LastPollError     string                 `json:"-"` // Most recent poll error message (not serialized)
+	StartedAt         time.Time              `json:"started_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`
 	CompletedAt   *time.Time             `json:"completed_at,omitempty"`
 }
@@ -279,7 +277,6 @@ func (s *AsyncTrackerService) snapshotOperation(toolCallID string) (*OperationSn
 func NewAsyncTrackerService(registry *ToolRegistry, executor *integrations.ToolExecutor, repo AsyncOperationRepository) *AsyncTrackerService {
 	return &AsyncTrackerService{
 		operations:          make(map[string]*AsyncOperation),
-		subscribers:         make(map[string][]chan<- AsyncStatusUpdate),
 		subscriptions:       make(map[string]*Subscription),
 		chatSubs:            make(map[string][]string),
 		completionCallbacks: make(map[string]chan<- AsyncCompletionEvent),
@@ -639,44 +636,6 @@ func (s *AsyncTrackerService) GetActiveOperations(chatID string) []*AsyncOperati
 	return result
 }
 
-// Subscribe creates a channel for receiving updates for a chat.
-// The caller is responsible for calling Unsubscribe when done.
-//
-// Deprecated: Use SubscribeWithID instead for safer subscription management.
-// This method uses pointer comparison for unsubscription which is fragile.
-func (s *AsyncTrackerService) Subscribe(chatID string) <-chan AsyncStatusUpdate {
-	ch := make(chan AsyncStatusUpdate, SubscriberChannelBufferSize)
-
-	s.mu.Lock()
-	s.subscribers[chatID] = append(s.subscribers[chatID], ch)
-	s.mu.Unlock()
-
-	return ch
-}
-
-// Unsubscribe removes a subscriber channel.
-// Deprecated: Use UnsubscribeByID instead for safer subscription management.
-func (s *AsyncTrackerService) Unsubscribe(chatID string, ch <-chan AsyncStatusUpdate) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	subs := s.subscribers[chatID]
-	for i, sub := range subs {
-		// Compare channel addresses by converting to bidirectional channel type
-		// Note: This works because we know the channel was created as bidirectional
-		if fmt.Sprintf("%p", sub) == fmt.Sprintf("%p", ch) {
-			s.subscribers[chatID] = append(subs[:i], subs[i+1:]...)
-			close(sub)
-			break
-		}
-	}
-
-	// Clean up empty subscriber lists
-	if len(s.subscribers[chatID]) == 0 {
-		delete(s.subscribers, chatID)
-	}
-}
-
 // SubscribeWithID creates a subscription with a unique ID for safe tracking.
 // Returns a Subscription that can be passed to UnsubscribeByID.
 //
@@ -915,10 +874,29 @@ func (s *AsyncTrackerService) pollLoop(ctx context.Context, op *AsyncOperation) 
 			statusResult, err := s.callStatusToolWithSnapshot(ctx, snap)
 			if err != nil {
 				log.Printf("Error polling status for %s: %v", snap.ToolCallID, err)
+
+				// Track consecutive errors
+				s.mu.Lock()
+				op.ConsecutiveErrors++
+				op.LastPollError = err.Error()
+				errorCount := op.ConsecutiveErrors
+				s.mu.Unlock()
+
+				// Push error update to UI after 2+ consecutive failures
+				if errorCount >= 2 {
+					s.pushPollErrorUpdate(snap.ChatID, snap.ToolCallID, err.Error(), errorCount)
+				}
+
 				// Continue polling despite error - reset timer with current interval
 				timer.Reset(currentInterval)
 				continue
 			}
+
+			// Reset error count on successful poll
+			s.mu.Lock()
+			op.ConsecutiveErrors = 0
+			op.LastPollError = ""
+			s.mu.Unlock()
 
 			// Process the status result
 			terminal, status := s.processStatusResult(op, statusResult, conditions)
@@ -992,14 +970,19 @@ func (s *AsyncTrackerService) callStatusToolWithSnapshot(ctx context.Context, sn
 func (s *AsyncTrackerService) processStatusResult(op *AsyncOperation, result interface{}, conditions *toolspb.CompletionConditions) (bool, string) {
 	resultMap, ok := result.(map[string]interface{})
 	if !ok {
+		log.Printf("[WARN] processStatusResult: result is not a map for operation %s: %T", op.ToolCallID, result)
 		return false, ""
 	}
 
 	// Extract status using the configured field path
 	status := ExtractStringField(resultMap, conditions.StatusField)
 	if status == "" {
+		log.Printf("[WARN] processStatusResult: failed to extract status using path %q for operation %s, result: %+v",
+			conditions.StatusField, op.ToolCallID, resultMap)
 		return false, ""
 	}
+
+	log.Printf("[DEBUG] processStatusResult: operation %s status updated to %q", op.ToolCallID, status)
 
 	// Update operation and build update struct inside lock to avoid race
 	s.mu.Lock()
@@ -1164,31 +1147,18 @@ func BuildUpdateFromOperation(op *AsyncOperation) AsyncStatusUpdate {
 // Always build the update while holding the mutex, then pass it here.
 func (s *AsyncTrackerService) pushUpdateData(chatID string, update AsyncStatusUpdate) {
 	s.mu.RLock()
-	// Get old-style subscribers
-	oldSubs := s.subscribers[chatID]
-	// Get new ID-based subscription IDs
 	subIDs := s.chatSubs[chatID]
 	// Copy subscription pointers to avoid holding lock during send
-	newSubs := make([]*Subscription, 0, len(subIDs))
+	subs := make([]*Subscription, 0, len(subIDs))
 	for _, id := range subIDs {
 		if sub := s.subscriptions[id]; sub != nil {
-			newSubs = append(newSubs, sub)
+			subs = append(subs, sub)
 		}
 	}
 	s.mu.RUnlock()
 
-	// Send to old-style subscribers
-	for _, ch := range oldSubs {
-		select {
-		case ch <- update:
-		default:
-			// Channel full, skip this update
-			log.Printf("Warning: subscriber channel full for chat %s", chatID)
-		}
-	}
-
-	// Send to new ID-based subscribers
-	for _, sub := range newSubs {
+	// Send to subscribers
+	for _, sub := range subs {
 		select {
 		case sub.Channel <- update:
 		default:
@@ -1196,6 +1166,32 @@ func (s *AsyncTrackerService) pushUpdateData(chatID string, update AsyncStatusUp
 			log.Printf("Warning: subscriber channel full for chat %s (sub=%s)", chatID, sub.ID)
 		}
 	}
+}
+
+// pushPollErrorUpdate sends a poll error notification to subscribers.
+// Called when consecutive poll failures occur to surface errors to the UI.
+func (s *AsyncTrackerService) pushPollErrorUpdate(chatID, toolCallID, errMsg string, errorCount int) {
+	s.mu.RLock()
+	op := s.operations[toolCallID]
+	s.mu.RUnlock()
+
+	if op == nil {
+		return
+	}
+
+	update := AsyncStatusUpdate{
+		ToolCallID: toolCallID,
+		ChatID:     chatID,
+		ToolName:   op.ToolName,
+		Status:     op.Status,
+		Progress:   op.Progress,
+		Message:    op.Message,
+		Phase:      op.Phase,
+		Error:      fmt.Sprintf("Status check failed (%d attempts): %s", errorCount, errMsg),
+		IsTerminal: false,
+		UpdatedAt:  time.Now(),
+	}
+	s.pushUpdateData(chatID, update)
 }
 
 // extractOperationID extracts the operation ID from the tool result.

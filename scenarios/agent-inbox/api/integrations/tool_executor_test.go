@@ -68,9 +68,6 @@ func TestNewToolExecutor(t *testing.T) {
 	if exec.handlers == nil {
 		t.Error("expected handlers map to be initialized")
 	}
-	if exec.legacyHandlers == nil {
-		t.Error("expected legacyHandlers map to be initialized")
-	}
 }
 
 // TestNewToolExecutorWithHandlers verifies initialization with handlers.

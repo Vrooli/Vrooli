@@ -259,8 +259,11 @@ func main() {
 		log.Printf("warning: failed to create skill directories: %v", err)
 	}
 
-	// Create handlers with all dependencies (pass pre-configured async tracker)
-	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker)
+	// Create handlers with all dependencies (pass pre-configured async tracker, shared executor, and registry)
+	// IMPORTANT: Pass the same toolExecutor AND toolRegistry to handlers so that:
+	// 1. Tools registered by handlers.ToolRegistry are available to asyncTracker for status polling
+	// 2. A single ToolRegistry cache is shared across all completion services
+	h := handlers.New(repo, integrations.NewOllamaClient(), storage, asyncTracker, toolExecutor, toolRegistry)
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
 
