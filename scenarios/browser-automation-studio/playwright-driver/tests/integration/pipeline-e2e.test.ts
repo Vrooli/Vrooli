@@ -434,7 +434,8 @@ describe('Pipeline E2E Tests', () => {
       expect(statsAfterReset.attempted).toBe(0);
       expect(statsAfterReset.successful).toBe(0);
       expect(statsAfterReset.failed).toBe(0);
-      expect(statsAfterReset.skipped).toBe(0);
+      expect(statsAfterReset.avgInjectionTimeMs).toBe(0);
+      expect(statsAfterReset.lastInjectionAt).toBeNull();
     });
 
     it('should reset route handler stats correctly', async () => {

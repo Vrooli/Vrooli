@@ -42,11 +42,6 @@ import { playwrightProvider } from '../../playwright';
 
 // Import composed modules
 import {
-  setupHtmlInjectionRoute,
-  type InjectionStats,
-  createInjectionStats,
-} from './html-injector';
-import {
   createEventRouteManager,
   type EventRouteManager,
   type RouteHandlerStats,
@@ -65,10 +60,9 @@ import {
 } from '../injection';
 
 // =============================================================================
-// Types - Re-export from composed modules for backward compatibility
+// Types - Re-export from composed modules
 // =============================================================================
 
-export type { InjectionStats } from './html-injector';
 export type { RouteHandlerStats, RecordingEventHandler } from './event-route';
 export type { InjectionStrategyName, InjectionStrategyStats } from '../injection';
 
@@ -185,13 +179,8 @@ export class RecordingContextInitializer {
   // Composed modules
   private eventRouteManager: EventRouteManager | null = null;
 
-  // Injection strategy (new DI system)
+  // Injection strategy (DI system)
   private injectionStrategy: InjectionStrategy | null = null;
-
-  // Stats from injection module (updated after initialization)
-  // Legacy: used for route-injection backward compatibility
-  private injectionStatsGetter: (() => InjectionStats) | null = null;
-  private injectionStatsResetter: (() => void) | null = null;
 
   constructor(options: RecordingContextOptions = {}) {
     this.bindingName = options.bindingName ?? DEFAULT_RECORDING_BINDING_NAME;
@@ -206,37 +195,7 @@ export class RecordingContextInitializer {
    * Get current injection statistics.
    * Returns a copy to prevent external mutation.
    */
-  getInjectionStats(): InjectionStats {
-    // If using new injection strategy system, convert stats format
-    if (this.injectionStrategy) {
-      const strategyStats = this.injectionStrategy.getStats();
-      return {
-        attempted: strategyStats.attempted,
-        successful: strategyStats.successful,
-        failed: strategyStats.failed,
-        skipped: 0, // New system doesn't track skipped
-        total: strategyStats.attempted,
-        methods: {
-          head: 0,
-          HEAD: 0,
-          doctype: 0,
-          prepend: 0,
-        },
-      };
-    }
-
-    // Legacy: use route-injection stats getter
-    if (this.injectionStatsGetter) {
-      return this.injectionStatsGetter();
-    }
-    return createInjectionStats();
-  }
-
-  /**
-   * Get injection strategy statistics.
-   * Returns stats specific to the injection strategy system.
-   */
-  getInjectionStrategyStats(): InjectionStrategyStats {
+  getInjectionStats(): InjectionStrategyStats {
     if (this.injectionStrategy) {
       return this.injectionStrategy.getStats();
     }
@@ -268,13 +227,8 @@ export class RecordingContextInitializer {
    * This ensures consistent test results by starting from a clean slate.
    */
   resetStats(): void {
-    // New injection strategy system
     if (this.injectionStrategy) {
       this.injectionStrategy.resetStats();
-    }
-    // Legacy: route-injection stats resetter
-    if (this.injectionStatsResetter) {
-      this.injectionStatsResetter();
     }
     if (this.eventRouteManager) {
       this.eventRouteManager.resetStats();
@@ -343,64 +297,32 @@ export class RecordingContextInitializer {
       getEventHandler: () => this.eventHandler,
     });
 
-    // Use the new injection strategy system
-    // For backward compatibility, 'route-injection' and 'auto' on standard playwright
-    // will fall back to the legacy setupHtmlInjectionRoute for now
-    const shouldUseLegacyInjection =
-      strategyToUse === 'route-injection' ||
-      (strategyToUse === 'auto' && !playwrightProvider.name.toLowerCase().includes('rebrowser'));
+    // Create and initialize injection strategy
+    this.injectionStrategy = createInjectionStrategy({
+      strategyName: strategyToUse,
+      providerName: playwrightProvider.name,
+      logger: this.logger,
+    });
 
-    if (shouldUseLegacyInjection) {
-      // Legacy: use route-injection via setupHtmlInjectionRoute
-      this.logger.debug(scopedLog(LogContext.INJECTION, 'using legacy route-injection'), {
-        reason: strategyToUse === 'route-injection' ? 'explicitly requested' : 'auto-selected for standard playwright',
-      });
+    this.logger.info(scopedLog(LogContext.INJECTION, 'using injection strategy'), {
+      strategy: this.injectionStrategy.name,
+      provider: playwrightProvider.name,
+    });
 
-      const injectionResult = await setupHtmlInjectionRoute(context, {
-        bindingName: this.bindingName,
-        logger: this.logger,
-        diagnosticsEnabled: this.diagnosticsEnabled,
-        onFirstInjection: () => {
-          if (this.runSanityCheck && !this.sanityCheckRun) {
-            this.triggerSanityCheck().catch((err) => {
-              this.logger.error(scopedLog(LogContext.RECORDING, 'sanity check failed'), {
-                error: err instanceof Error ? err.message : String(err),
-              });
+    await this.injectionStrategy.initialize(context, {
+      bindingName: this.bindingName,
+      logger: this.logger,
+      diagnosticsEnabled: this.diagnosticsEnabled,
+      onFirstInjection: () => {
+        if (this.runSanityCheck && !this.sanityCheckRun) {
+          this.triggerSanityCheck().catch((err) => {
+            this.logger.error(scopedLog(LogContext.RECORDING, 'sanity check failed'), {
+              error: err instanceof Error ? err.message : String(err),
             });
-          }
-        },
-      });
-
-      this.injectionStatsGetter = injectionResult.getStats;
-      this.injectionStatsResetter = injectionResult.resetStats;
-    } else {
-      // New: use injection strategy system
-      this.injectionStrategy = createInjectionStrategy({
-        strategyName: strategyToUse,
-        providerName: playwrightProvider.name,
-        logger: this.logger,
-      });
-
-      this.logger.info(scopedLog(LogContext.INJECTION, 'using injection strategy'), {
-        strategy: this.injectionStrategy.name,
-        provider: playwrightProvider.name,
-      });
-
-      await this.injectionStrategy.initialize(context, {
-        bindingName: this.bindingName,
-        logger: this.logger,
-        diagnosticsEnabled: this.diagnosticsEnabled,
-        onFirstInjection: () => {
-          if (this.runSanityCheck && !this.sanityCheckRun) {
-            this.triggerSanityCheck().catch((err) => {
-              this.logger.error(scopedLog(LogContext.RECORDING, 'sanity check failed'), {
-                error: err instanceof Error ? err.message : String(err),
-              });
-            });
-          }
-        },
-      });
-    }
+          });
+        }
+      },
+    });
 
     // Set up page-level event routes for all existing pages
     // NOTE: Navigation listeners are NOT set up here - they are handled by
@@ -436,7 +358,7 @@ export class RecordingContextInitializer {
     this.initialized = true;
     this.logger.info(scopedLog(LogContext.RECORDING, 'recording context initialized'), {
       bindingName: this.bindingName,
-      injectionStrategy: this.injectionStrategy?.name ?? 'route-injection (legacy)',
+      injectionStrategy: this.injectionStrategy?.name ?? 'unknown',
     });
   }
 

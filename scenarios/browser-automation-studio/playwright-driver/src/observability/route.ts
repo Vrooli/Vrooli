@@ -151,14 +151,8 @@ function aggregateRecordingStats(
       attempted: 0,
       successful: 0,
       failed: 0,
-      skipped: 0,
-      total: 0,
-      methods: {
-        head: 0,
-        HEAD: 0,
-        doctype: 0,
-        prepend: 0,
-      },
+      avgInjectionTimeMs: 0,
+      lastInjectionAt: null,
     },
     route_handler_stats: {
       eventsReceived: 0,
@@ -194,12 +188,17 @@ function aggregateRecordingStats(
         aggregated.injection_stats.attempted += injectionStats.attempted;
         aggregated.injection_stats.successful += injectionStats.successful;
         aggregated.injection_stats.failed += injectionStats.failed;
-        aggregated.injection_stats.skipped += injectionStats.skipped;
-        aggregated.injection_stats.total = aggregated.injection_stats.attempted;
-        aggregated.injection_stats.methods.head += injectionStats.methods.head;
-        aggregated.injection_stats.methods.HEAD += injectionStats.methods.HEAD;
-        aggregated.injection_stats.methods.doctype += injectionStats.methods.doctype;
-        aggregated.injection_stats.methods.prepend += injectionStats.methods.prepend;
+
+        // Track most recent injection time across all sessions
+        if (
+          injectionStats.lastInjectionAt &&
+          (!aggregated.injection_stats.lastInjectionAt ||
+            injectionStats.lastInjectionAt > aggregated.injection_stats.lastInjectionAt)
+        ) {
+          aggregated.injection_stats.lastInjectionAt = injectionStats.lastInjectionAt;
+        }
+
+        // Note: avgInjectionTimeMs is not aggregated since averaging averages is misleading
 
         // Aggregate route handler stats
         aggregated.route_handler_stats!.eventsReceived += routeStats.eventsReceived;

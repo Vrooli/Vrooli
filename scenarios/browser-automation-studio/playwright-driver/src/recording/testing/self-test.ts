@@ -1029,7 +1029,8 @@ export interface ExternalUrlTestResult {
     attempted: number;
     successful: number;
     failed: number;
-    skipped: number;
+    avgInjectionTimeMs: number;
+    lastInjectionAt: string | null;
   };
 }
 

@@ -20,12 +20,10 @@ import * as http from 'http';
 import {
   createRecordingContextInitializer,
   RecordingContextInitializer,
-} from '../../src/recording/context-initializer';
-import {
   verifyScriptInjection,
   assertScriptInjected,
   waitForScriptReady,
-} from '../../src/recording/verification';
+} from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording/types';
 
 // Increase timeout for browser operations

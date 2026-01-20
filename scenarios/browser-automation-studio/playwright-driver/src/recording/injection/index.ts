@@ -74,9 +74,13 @@ export {
   createInitScriptInjectionStrategy,
   CDPInjectionStrategy,
   createCDPInjectionStrategy,
-  RouteInjectionStrategy,
-  createRouteInjectionStrategy,
 } from './strategies';
+
+/**
+ * @deprecated Use InitScriptInjectionStrategy instead. RouteInjectionStrategy only works with standard Playwright
+ * and is broken with rebrowser-playwright due to anti-detection patches.
+ */
+export { RouteInjectionStrategy, createRouteInjectionStrategy } from './strategies';
 
 // Factory
 export {

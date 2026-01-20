@@ -202,19 +202,12 @@ export {
 export type {
   RecordingEventHandler,
   RecordingContextOptions,
-  InjectionStats,
+  InjectionStrategyStats,
   RouteHandlerStats,
   SanityCheckResult,
 } from './io/context-initializer';
 
 // Specialized modules (for advanced usage)
-export {
-  setupHtmlInjectionRoute,
-  injectScriptIntoHtml,
-  createInjectionStats,
-  resetInjectionStats,
-} from './io/html-injector';
-
 export {
   createEventRouteManager,
   createRouteHandlerStats,
@@ -222,6 +215,41 @@ export {
 } from './io/event-route';
 
 export type { EventRouteManager } from './io/event-route';
+
+// =============================================================================
+// INJECTION STRATEGY SYSTEM
+// =============================================================================
+
+export {
+  createInjectionStrategy,
+  createInjectionStrategyByName,
+  getStrategyFromEnv,
+  isDiagnosticsEnabled as isInjectionDiagnosticsEnabled,
+  selectStrategyForProvider,
+  InjectionStrategyFactory,
+  InitScriptInjectionStrategy,
+  CDPInjectionStrategy,
+  /** @deprecated Use InitScriptInjectionStrategy instead. RouteInjectionStrategy only works with standard Playwright. */
+  RouteInjectionStrategy,
+  createInitScriptInjectionStrategy,
+  createCDPInjectionStrategy,
+  /** @deprecated Use createInitScriptInjectionStrategy instead. */
+  createRouteInjectionStrategy,
+  InjectionAutoDetector,
+  createInjectionAutoDetector,
+  detectWorkingStrategy,
+  createInitialStats as createInjectionStrategyStats,
+} from './injection';
+
+export type {
+  InjectionStrategy,
+  InjectionStrategyName,
+  InjectionResult as InjectionStrategyResult,
+  InjectionStrategyOptions,
+  InjectionStrategyFactoryOptions,
+  AutoDetectorOptions,
+  AutoDetectionResult,
+} from './injection';
 
 // Init script generation for context.addInitScript()
 export {

@@ -256,7 +256,8 @@ export async function handleRecordDebug(
         attempted: injectionStats.attempted,
         successful: injectionStats.successful,
         failed: injectionStats.failed,
-        skipped: injectionStats.skipped,
+        avgInjectionTimeMs: injectionStats.avgInjectionTimeMs,
+        lastInjectionAt: injectionStats.lastInjectionAt,
       } : null,
       browser_script: browserScriptState,
       diagnostics: {

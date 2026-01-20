@@ -40,7 +40,7 @@
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 import type winston from 'winston';
 import { verifyScriptInjection, type InjectionVerification } from '../validation/verification';
-import type { RecordingContextInitializer, InjectionStats } from '../io/context-initializer';
+import type { RecordingContextInitializer, InjectionStrategyStats } from '../io/context-initializer';
 import { playwrightProvider } from '../../playwright';
 import { logger as defaultLogger, LogContext, scopedLog } from '../../utils';
 
@@ -133,7 +133,7 @@ export interface RecordingDiagnosticResult {
   /** Script injection verification result */
   scriptVerification?: InjectionVerification;
   /** Injection statistics from context initializer */
-  injectionStats?: InjectionStats;
+  injectionStats?: InjectionStrategyStats;
   /** Provider information */
   provider: {
     name: string;
@@ -291,7 +291,7 @@ export const DIAGNOSTIC_CODES = {
  */
 function buildChecksArray(
   scriptVerification: InjectionVerification | undefined,
-  injectionStats: InjectionStats | undefined,
+  injectionStats: InjectionStrategyStats | undefined,
   eventFlowTest: EventFlowTestResult | undefined,
   level: RecordingDiagnosticLevel
 ): DiagnosticCheck[] {
@@ -541,7 +541,7 @@ export async function runRecordingDiagnostics(
   };
 
   // Get injection stats if available
-  let injectionStats: InjectionStats | undefined;
+  let injectionStats: InjectionStrategyStats | undefined;
   if (contextInitializer) {
     injectionStats = contextInitializer.getInjectionStats();
     checkInjectionStats(injectionStats, issues);
@@ -601,7 +601,7 @@ export async function runRecordingDiagnostics(
 /**
  * Check injection statistics for issues.
  */
-function checkInjectionStats(stats: InjectionStats, issues: DiagnosticIssue[]): void {
+function checkInjectionStats(stats: InjectionStrategyStats, issues: DiagnosticIssue[]): void {
   if (stats.attempted === 0) {
     issues.push({
       code: DIAGNOSTIC_CODES.INJECTION_NO_ATTEMPTS,
@@ -1501,7 +1501,8 @@ export function formatDiagnosticReport(result: RecordingDiagnosticResult): strin
     lines.push(`  Attempted: ${result.injectionStats.attempted}`);
     lines.push(`  Successful: ${result.injectionStats.successful}`);
     lines.push(`  Failed: ${result.injectionStats.failed}`);
-    lines.push(`  Skipped: ${result.injectionStats.skipped}`);
+    lines.push(`  Avg Time: ${result.injectionStats.avgInjectionTimeMs.toFixed(1)}ms`);
+    lines.push(`  Last Injection: ${result.injectionStats.lastInjectionAt || 'N/A'}`);
     lines.push('');
   }
 
