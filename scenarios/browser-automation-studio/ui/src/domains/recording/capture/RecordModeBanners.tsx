@@ -1,3 +1,15 @@
+/** Error details for the error details modal */
+export interface ErrorDetails {
+  message: string;
+  timestamp: Date;
+  source: 'session' | 'frame' | 'recording' | 'api' | 'unknown';
+  code?: string;
+  sessionId?: string;
+  url?: string;
+  stackTrace?: string;
+  rawError?: unknown;
+}
+
 interface ErrorBannerProps {
   message: string;
   /** Retry state for session creation failures */
@@ -9,9 +21,15 @@ interface ErrorBannerProps {
   };
   /** Callback for manual retry */
   onRetry?: () => void;
+  /** Callback to dismiss the error banner */
+  onDismiss?: () => void;
+  /** Callback to show error details modal */
+  onShowDetails?: () => void;
+  /** Whether this error has detailed information available */
+  hasDetails?: boolean;
 }
 
-export function ErrorBanner({ message, retryState, onRetry }: ErrorBannerProps) {
+export function ErrorBanner({ message, retryState, onRetry, onDismiss, onShowDetails, hasDetails }: ErrorBannerProps) {
   // Calculate seconds until next retry for display
   const secondsUntilRetry = retryState?.nextRetryAt
     ? Math.max(0, Math.ceil((retryState.nextRetryAt - Date.now()) / 1000))
@@ -43,14 +61,35 @@ export function ErrorBanner({ message, retryState, onRetry }: ErrorBannerProps) 
             )}
           </p>
         </div>
-        {retryState?.maxRetriesExceeded && onRetry && (
-          <button
-            onClick={onRetry}
-            className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors flex-shrink-0"
-          >
-            Retry
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {hasDetails && onShowDetails && (
+            <button
+              onClick={onShowDetails}
+              className="px-2.5 py-1 text-xs font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/40 hover:bg-red-200 dark:hover:bg-red-800/60 rounded-md transition-colors"
+            >
+              Details
+            </button>
+          )}
+          {retryState?.maxRetriesExceeded && onRetry && (
+            <button
+              onClick={onRetry}
+              className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+            >
+              Retry
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              className="p-1 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 rounded-md transition-colors"
+              aria-label="Dismiss error"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

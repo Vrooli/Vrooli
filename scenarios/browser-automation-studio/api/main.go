@@ -305,6 +305,10 @@ func main() {
 	// BYOK middleware - extracts OpenRouter API key from request header for AI requests
 	r.Use(byokMiddleware.InjectBYOKKey)
 
+	// Correlation ID middleware - generates and propagates correlation IDs for request tracing
+	correlationMiddleware := middleware.NewCorrelationMiddleware(log)
+	r.Use(correlationMiddleware.InjectCorrelationID)
+
 	// Routes
 	// Health endpoint using api-core/health for standardized response format
 	playwrightURL := os.Getenv(driver.PlaywrightDriverEnv)
@@ -623,6 +627,9 @@ func main() {
 			envVar := chi.URLParam(req, "envVar")
 			handler.ResetConfig(w, req, envVar)
 		})
+		// Debug mode management - enable verbose logging temporarily
+		r.Get("/observability/debug-mode", handler.GetDebugMode)
+		r.Post("/observability/debug-mode", handler.SetDebugMode)
 	})
 
 	// Initialize and start the workflow scheduler

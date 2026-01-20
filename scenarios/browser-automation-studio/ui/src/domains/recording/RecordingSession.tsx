@@ -24,8 +24,8 @@ import { useCallback, useEffect, useRef, useState, useMemo, useId, type ReactNod
 import { useNavigate } from 'react-router-dom';
 import { RecordingHeader } from './capture/RecordingHeader';
 import { TabBar } from './capture/TabBar';
-import { ErrorBanner, UnstableSelectorsBanner } from './capture/RecordModeBanners';
-import { ClearActionsModal } from './capture/RecordModeModals';
+import { ErrorBanner, UnstableSelectorsBanner, type ErrorDetails } from './capture/RecordModeBanners';
+import { ClearActionsModal, ErrorDetailsModal } from './capture/RecordModeModals';
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
@@ -250,6 +250,21 @@ export function RecordModePage({
   // Confirmation dialog for unsaved actions
   const { dialogState: confirmDialogState, confirm, close: closeConfirmDialog } = useConfirmDialog();
 
+  // Error management state for enhanced error banner
+  const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
+  const [showErrorDetailsModal, setShowErrorDetailsModal] = useState(false);
+  const [dismissedErrors, setDismissedErrors] = useState<Set<string>>(new Set());
+
+  // Show error details modal
+  const handleShowErrorDetails = useCallback(() => {
+    setShowErrorDetailsModal(true);
+  }, []);
+
+  // Close error details modal
+  const handleCloseErrorDetails = useCallback(() => {
+    setShowErrorDetailsModal(false);
+  }, []);
+
   // Execution store for status tracking
   const currentExecution = useExecutionStore(s => s.currentExecution);
   const stopExecution = useExecutionStore(s => s.stopExecution);
@@ -370,6 +385,46 @@ export function RecordModePage({
     lowConfidenceCount,
     mediumConfidenceCount,
   } = useRecordMode({ sessionId });
+
+  // Helper to create error details from session or recording errors
+  const createErrorDetails = useCallback((
+    message: string,
+    source: ErrorDetails['source'],
+    rawError?: unknown
+  ): ErrorDetails => ({
+    message,
+    timestamp: new Date(),
+    source,
+    sessionId: sessionId ?? undefined,
+    url: undefined,
+    code: typeof rawError === 'object' && rawError !== null && 'code' in rawError
+      ? String((rawError as { code: unknown }).code)
+      : undefined,
+    stackTrace: rawError instanceof Error ? rawError.stack : undefined,
+    rawError,
+  }), [sessionId]);
+
+  // Dismiss error handler - clear error details and add to dismissed set
+  const handleDismissError = useCallback(() => {
+    const errorMessage = sessionError ?? error;
+    if (errorMessage && errorDetails) {
+      const errorKey = `${errorDetails.source}-${errorMessage}`;
+      setDismissedErrors(prev => new Set(prev).add(errorKey));
+    }
+    setErrorDetails(null);
+  }, [sessionError, error, errorDetails]);
+
+  // Update error details when sessionError or error changes
+  useEffect(() => {
+    const errorMessage = sessionError ?? error;
+    if (errorMessage) {
+      const source: ErrorDetails['source'] = sessionError ? 'session' : 'recording';
+      const errorKey = `${source}-${errorMessage}`;
+      if (!dismissedErrors.has(errorKey)) {
+        setErrorDetails(createErrorDetails(errorMessage, source));
+      }
+    }
+  }, [sessionError, error, createErrorDetails, dismissedErrors]);
 
   // Handle Execute button click - opens workflow picker with optional confirmation
   const handleExecuteClick = useCallback(async () => {
@@ -1106,13 +1161,23 @@ export function RecordModePage({
       />
 
       {/* Error display - pass retry state for session errors */}
-      {displayError && (
+      {displayError && !dismissedErrors.has(`${errorDetails?.source ?? 'unknown'}-${displayError}`) && (
         <ErrorBanner
           message={displayError}
           retryState={sessionError ? retryState : undefined}
           onRetry={sessionError ? retrySession : undefined}
+          onDismiss={handleDismissError}
+          onShowDetails={handleShowErrorDetails}
+          hasDetails={!!errorDetails}
         />
       )}
+
+      {/* Error details modal */}
+      <ErrorDetailsModal
+        open={showErrorDetailsModal}
+        error={errorDetails}
+        onClose={handleCloseErrorDetails}
+      />
 
       {/* Unstable selectors warning banner */}
       {!isRecording && lowConfidenceCount > 0 && (

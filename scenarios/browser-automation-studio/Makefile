@@ -12,7 +12,7 @@
 #   make clean - Clean build artifacts
 #   make run - Start this scenario in lifecycle-managed mode
 
-.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check health diag diag-quick pipeline-test sessions triage
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -130,6 +130,41 @@ check: ## Format, lint, and test code (pre-commit workflow)
 	@$(MAKE) fmt
 	@$(MAKE) lint
 	@$(MAKE) test
+
+# API Configuration for Diagnostics
+# Port is dynamically assigned - check vrooli scenario status for actual port
+API_PORT ?= 19771
+API_URL ?= http://localhost:$(API_PORT)
+
+# Diagnostics Targets (for debugging recording/session issues)
+health: ## Check API health status
+	@echo "$(BLUE)🏥 Checking health...$(RESET)"
+	@curl -s "$(API_URL)/health" | jq . || echo '{"error": "API unreachable at $(API_URL)"}'
+
+diag: ## Run full diagnostics (JSON output)
+	@echo "$(BLUE)🔬 Running full diagnostics...$(RESET)" >&2
+	@curl -s -X POST "$(API_URL)/api/v1/observability/diagnostics/run" \
+		-H "Content-Type: application/json" \
+		-d '{"level": "full"}' | jq .
+
+diag-quick: ## Run quick diagnostics (JSON output)
+	@echo "$(BLUE)🔬 Running quick diagnostics...$(RESET)" >&2
+	@curl -s -X POST "$(API_URL)/api/v1/observability/diagnostics/run" \
+		-H "Content-Type: application/json" \
+		-d '{"level": "quick"}' | jq .
+
+pipeline-test: ## Run pipeline self-test (JSON output)
+	@echo "$(BLUE)🧪 Running pipeline test...$(RESET)" >&2
+	@curl -s -X POST "$(API_URL)/api/v1/observability/pipeline-test" | jq .
+
+sessions: ## List active recording sessions
+	@echo "$(BLUE)📋 Active sessions:$(RESET)" >&2
+	@curl -s "$(API_URL)/api/v1/observability/sessions" | jq .
+
+triage: ## Full triage workflow (health + sessions + diag + pipeline)
+	@echo "$(BLUE)🏥 === TRIAGE REPORT ===$(RESET)" >&2
+	@echo "$(YELLOW)Timestamp: $$(date -Iseconds)$(RESET)" >&2
+	@./scripts/triage.sh
 
 # Shortcuts
 r: run
