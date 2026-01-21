@@ -8,6 +8,13 @@
       "jtbd": "testing",
       "conversionStyle": "technical"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - E2E Tests That Replay Like Movies",
+      "description": "Your workflows are your tests. Build in Vrooli Ascension, run in CI, share MP4 evidence.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Your workflows are your tests. Build in Vrooli Ascension, run in CI, share MP4 evidence.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

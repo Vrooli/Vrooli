@@ -8,6 +8,13 @@
       "jtbd": "testing",
       "conversionStyle": "technical"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - QA Replay Evidence for Every Regression",
+      "description": "Flows become living tests. Failures replay so devs see exactly what broke.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Flows become living tests. Failures replay so devs see exactly what broke.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

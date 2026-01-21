@@ -8,7 +8,7 @@ import (
 )
 
 // handleMetricsTrack handles POST /api/v1/metrics/track
-// Tracks analytics events with variant_id for A/B testing
+// Tracks analytics events with variant_slug for A/B testing
 // Implements OT-P0-019: Event variant tagging
 // [REQ:SIGNAL-FEEDBACK] Provides structured logging for observability
 func handleMetricsTrack(service *MetricsService) http.HandlerFunc {
@@ -27,17 +27,17 @@ func handleMetricsTrack(service *MetricsService) http.HandlerFunc {
 			var validationErr *MetricValidationError
 			if errors.As(err, &validationErr) {
 				logStructured("metrics_track_validation_failed", map[string]interface{}{
-					"event_type": event.EventType,
-					"variant_id": event.VariantID,
-					"reason":     validationErr.Reason,
+					"event_type":   event.EventType,
+					"variant_slug": event.VariantSlug,
+					"reason":       validationErr.Reason,
 				})
 				writeJSONError(w, http.StatusBadRequest, validationErr.Reason, ApiErrorTypeValidation)
 				return
 			}
 			logStructuredError("metrics_track_failed", map[string]interface{}{
-				"event_type": event.EventType,
-				"variant_id": event.VariantID,
-				"error":      err.Error(),
+				"event_type":   event.EventType,
+				"variant_slug": event.VariantSlug,
+				"error":        err.Error(),
 			})
 			writeJSONError(w, http.StatusInternalServerError, "Failed to track event. Please try again.", ApiErrorTypeServerError)
 			return
@@ -45,9 +45,9 @@ func handleMetricsTrack(service *MetricsService) http.HandlerFunc {
 
 		// Log successful event tracking for observability
 		logStructured("metrics_event_tracked", map[string]interface{}{
-			"event_type": event.EventType,
-			"variant_id": event.VariantID,
-			"session_id": event.SessionID,
+			"event_type":   event.EventType,
+			"variant_slug": event.VariantSlug,
+			"session_id":   event.SessionID,
 		})
 
 		w.Header().Set("Content-Type", "application/json")

@@ -8,6 +8,13 @@
       "jtbd": "automation",
       "conversionStyle": "visionary"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - Visual Automation with Agent Loops",
+      "description": "Visually program the browser. Replace brittle scripts with agent-powered automation.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Visually program the browser. Replace brittle scripts with agent-powered automation.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

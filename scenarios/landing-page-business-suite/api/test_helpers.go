@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -55,11 +57,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to seed default data: %v", err)
 	}
 
-	variantService := NewVariantService(db, defaultVariantSpace)
-	contentService := NewContentService(db)
-	if err := syncVariantSnapshots(variantService, contentService); err != nil {
-		t.Fatalf("Failed to sync variant snapshots: %v", err)
-	}
+	// NOTE: syncVariantSnapshots has been removed.
+	// Variant configuration is now loaded from JSON files via ConfigStore.
+	// For tests that need ConfigStore, use setupTestConfigStore().
 
 	return db
 }
@@ -121,6 +121,53 @@ func startTestContainerDB(t *testing.T) string {
 	return testContainerURL
 }
 
+// setupTestConfigStore creates a ConfigStore for testing using the project's JSON files
+func setupTestConfigStore(t *testing.T) *ConfigStore {
+	t.Helper()
+
+	// Find the variants directory - look up from the api directory
+	variantsDir := ""
+	brandingPath := ""
+
+	candidates := []string{
+		filepath.Join("..", ".vrooli", "variants"),
+		filepath.Join(".", ".vrooli", "variants"),
+		filepath.Join("..", "..", ".vrooli", "variants"),
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			variantsDir = candidate
+			break
+		}
+	}
+
+	brandingCandidates := []string{
+		filepath.Join("..", ".vrooli", "branding.json"),
+		filepath.Join(".", ".vrooli", "branding.json"),
+		filepath.Join("..", "..", ".vrooli", "branding.json"),
+	}
+	for _, candidate := range brandingCandidates {
+		if _, err := os.Stat(candidate); err == nil {
+			brandingPath = candidate
+			break
+		}
+	}
+
+	if variantsDir == "" {
+		t.Skip("variants directory not found - skipping ConfigStore test")
+	}
+	if brandingPath == "" {
+		t.Skip("branding.json not found - skipping ConfigStore test")
+	}
+
+	cs := NewConfigStore(variantsDir, brandingPath, nil) // nil uses defaultVariantSpace
+	if err := cs.LoadAll(); err != nil {
+		t.Fatalf("Failed to load ConfigStore: %v", err)
+	}
+
+	return cs
+}
+
 // setupTestServer creates a complete test server instance with all services initialized
 //nolint:unused // helper retained for future handler tests
 func setupTestServer(t *testing.T) (*Server, func()) {
@@ -141,24 +188,33 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 	}
 
+	// Initialize ConfigStore from JSON files
+	configStore := setupTestConfigStore(t)
+
 	// Initialize all services
-	variantService := NewVariantService(db, defaultVariantSpace)
 	metricsService := NewMetricsService(db)
 	planService := NewPlanService(db)
 	paymentSettings := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
-	contentService := NewContentService(db)
+	downloadService := NewDownloadService(db)
+	seoService := NewSEOServiceWithConfigStore(configStore)
+	feedbackService := NewFeedbackService(db)
+	emailService := NewEmailService()
 
 	server := &Server{
-		config:          config,
-		db:              db,
-		variantSpace:    defaultVariantSpace,
-		variantService:  variantService,
-		metricsService:  metricsService,
-		stripeService:   stripeService,
-		contentService:  contentService,
-		planService:     planService,
-		paymentSettings: paymentSettings,
+		config:               config,
+		db:                   db,
+		variantSpace:         defaultVariantSpace,
+		configStore:          configStore,
+		metricsService:       metricsService,
+		stripeService:        stripeService,
+		planService:          planService,
+		downloadService:      downloadService,
+		paymentSettings:      paymentSettings,
+		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService),
+		seoService:           seoService,
+		feedbackService:      feedbackService,
+		emailService:         emailService,
 	}
 
 	cleanup := func() {
@@ -198,34 +254,61 @@ func resetStripeTestData(t *testing.T, db *sql.DB) {
 	}
 }
 
-// createTestVariant is a helper to create a test variant for content tests
+// DEPRECATED: createTestVariant creates a test variant in the database.
+// The 'variants' table has been removed - variants are now stored in JSON files.
+// This function is retained for legacy test compatibility only.
+// For new tests, use setupTestConfigStore() instead.
+//
+//nolint:unused // retained for legacy tests that depend on database-backed variants
 func createTestVariant(t *testing.T, db *sql.DB) int64 {
-	// Clean up any existing test variant first
-	if _, err := db.Exec("DELETE FROM variants WHERE slug = 'test-variant'"); err != nil {
-		t.Fatalf("failed to cleanup test variant: %v", err)
-	}
+	t.Skip("variants table removed - use ConfigStore for variant tests")
+	return 0
+}
 
-	query := `
-		INSERT INTO variants (slug, name, description, weight, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id
-	`
+// writeSnapshot writes a variant snapshot to a JSON file for testing
+func writeSnapshot(t *testing.T, dir string, snapshot VariantSnapshotInput) {
+	t.Helper()
 
-	var id int64
-	err := db.QueryRow(
-		query,
-		"test-variant",
-		"Test Variant",
-		"Test description",
-		50,
-		"active",
-		time.Now(),
-		time.Now(),
-	).Scan(&id)
-
+	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
-		t.Fatalf("Failed to create test variant: %v", err)
+		t.Fatalf("marshal snapshot: %v", err)
 	}
 
-	return id
+	path := filepath.Join(dir, snapshot.Variant.Slug+".json")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write snapshot: %v", err)
+	}
+}
+
+// boolPtr returns a pointer to the given bool value (test helper)
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+// defaultAxesSelection returns default axes selection for testing
+func defaultAxesSelection() map[string]string {
+	return map[string]string{
+		"persona":         "ops_leader",
+		"jtbd":            "launch_bundle",
+		"conversionStyle": "demo_led",
+	}
+}
+
+// testVariantSpace creates a variant space for testing
+func testVariantSpace() *VariantSpace {
+	return &VariantSpace{
+		Name:          "test-space",
+		SchemaVersion: 1,
+		Axes: map[string]*AxisDefinition{
+			"persona": {
+				Variants: []AxisVariant{{ID: "ops_leader", Label: "Ops Leader"}},
+			},
+			"jtbd": {
+				Variants: []AxisVariant{{ID: "launch_bundle", Label: "Launch bundle"}},
+			},
+			"conversionStyle": {
+				Variants: []AxisVariant{{ID: "demo_led", Label: "Demo-led"}},
+			},
+		},
+	}
 }

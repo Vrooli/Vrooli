@@ -5,16 +5,10 @@ import (
 	"net/http"
 )
 
-// handleGetBranding returns the site branding configuration
-func handleGetBranding(bs *BrandingService) http.HandlerFunc {
+// handleGetBranding returns the site branding configuration (from ConfigStore)
+func handleGetBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		branding, err := bs.Get()
-		if err != nil {
-			logStructuredError("get_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to get branding", http.StatusInternalServerError)
-			return
-		}
-
+		branding := cs.GetBranding()
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(branding); err != nil {
 			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
@@ -22,8 +16,8 @@ func handleGetBranding(bs *BrandingService) http.HandlerFunc {
 	}
 }
 
-// handleUpdateBranding updates the site branding configuration
-func handleUpdateBranding(bs *BrandingService) http.HandlerFunc {
+// handleUpdateBranding updates the site branding configuration (writes to JSON file)
+func handleUpdateBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req BrandingUpdateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -31,7 +25,7 @@ func handleUpdateBranding(bs *BrandingService) http.HandlerFunc {
 			return
 		}
 
-		branding, err := bs.Update(&req)
+		branding, err := cs.UpdateBranding(&req)
 		if err != nil {
 			logStructuredError("update_branding_failed", map[string]interface{}{"error": err.Error()})
 			http.Error(w, "Failed to update branding", http.StatusInternalServerError)
@@ -45,8 +39,8 @@ func handleUpdateBranding(bs *BrandingService) http.HandlerFunc {
 	}
 }
 
-// handleClearBrandingField clears a specific branding field
-func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
+// handleClearBrandingField clears a specific branding field (writes to JSON file)
+func handleClearBrandingField(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Field string `json:"field"`
@@ -61,7 +55,7 @@ func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
 			return
 		}
 
-		if err := bs.ClearField(req.Field); err != nil {
+		if err := cs.ClearBrandingField(req.Field); err != nil {
 			logStructuredError("clear_branding_field_failed", map[string]interface{}{
 				"field": req.Field,
 				"error": err.Error(),
@@ -71,12 +65,7 @@ func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
 		}
 
 		// Return updated branding
-		branding, err := bs.Get()
-		if err != nil {
-			http.Error(w, "Failed to get updated branding", http.StatusInternalServerError)
-			return
-		}
-
+		branding := cs.GetBranding()
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(branding); err != nil {
 			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
@@ -84,15 +73,10 @@ func handleClearBrandingField(bs *BrandingService) http.HandlerFunc {
 	}
 }
 
-// handleGetPublicBranding returns public branding info (no auth required)
-func handleGetPublicBranding(bs *BrandingService) http.HandlerFunc {
+// handleGetPublicBranding returns public branding info (no auth required, from ConfigStore)
+func handleGetPublicBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		branding, err := bs.Get()
-		if err != nil {
-			logStructuredError("get_public_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to get branding", http.StatusInternalServerError)
-			return
-		}
+		branding := cs.GetBranding()
 
 		// Return only public-safe fields
 		publicBranding := map[string]interface{}{

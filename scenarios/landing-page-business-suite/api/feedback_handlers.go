@@ -9,8 +9,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// handleFeedbackCreate handles POST /api/v1/feedback (public endpoint)
-func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, emailSvc *EmailService) http.HandlerFunc {
+// NOTE: handleFeedbackCreate (database-backed BrandingService) has been removed.
+// Branding is now stored in JSON files (.vrooli/branding.json) and accessed via ConfigStore.
+
+// handleFeedbackCreateWithConfigStore handles POST /api/v1/feedback using ConfigStore for branding (public endpoint)
+func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, emailSvc *EmailService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input CreateFeedbackInput
 		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -58,12 +61,15 @@ func handleFeedbackCreate(svc *FeedbackService, brandingSvc *BrandingService, em
 
 		// Send email notification if support email and SMTP are configured
 		go func() {
-			branding, err := brandingSvc.Get()
-			if err != nil {
-				logStructuredError("feedback_email_branding_fetch_failed", map[string]interface{}{"error": err.Error()})
-				return
+			branding := cs.GetBranding()
+			// Convert SiteBranding to the format expected by EmailService
+			dbBranding := &SiteBranding{
+				SiteName:         branding.SiteName,
+				SupportEmail:     branding.SupportEmail,
+				DefaultTitle:     branding.DefaultTitle,
+				ThemePrimaryColor: branding.ThemePrimaryColor,
 			}
-			if err := emailSvc.SendFeedbackNotification(branding, feedback); err != nil {
+			if err := emailSvc.SendFeedbackNotification(dbBranding, feedback); err != nil {
 				logStructuredError("feedback_email_send_failed", map[string]interface{}{"error": err.Error()})
 			}
 		}()

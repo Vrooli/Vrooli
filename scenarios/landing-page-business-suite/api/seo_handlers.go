@@ -42,8 +42,11 @@ func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 	}
 }
 
-// handleUpdateVariantSEO updates SEO config for a variant
-func handleUpdateVariantSEO(variantService *VariantService) http.HandlerFunc {
+// NOTE: handleUpdateVariantSEO (database-backed VariantService) has been removed.
+// Variant SEO config is now stored in JSON files (.vrooli/variants/*.json) and accessed via ConfigStore.
+
+// handleUpdateVariantSEOConfigStore updates SEO config for a variant via ConfigStore
+func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		slug := vars["slug"]
@@ -53,24 +56,33 @@ func handleUpdateVariantSEO(variantService *VariantService) http.HandlerFunc {
 			return
 		}
 
-		var seoConfig VariantSEOConfig
+		var seoConfig json.RawMessage
 		if err := json.NewDecoder(r.Body).Decode(&seoConfig); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		if err := variantService.UpdateSEOConfigBySlug(slug, seoConfig); err != nil {
+		// Get existing variant
+		variant, err := cs.GetVariant(slug)
+		if err != nil {
 			logStructuredError("update_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			status := http.StatusInternalServerError
-			if strings.Contains(strings.ToLower(err.Error()), "not found") {
-				status = http.StatusNotFound
-			} else if strings.Contains(err.Error(), "slug") {
-				status = http.StatusBadRequest
-			}
-			http.Error(w, "failed to update SEO config", status)
+			http.Error(w, "variant not found", http.StatusNotFound)
+			return
+		}
+
+		// Update SEO config
+		variant.Variant.SEOConfig = seoConfig
+
+		// Save variant
+		if err := cs.SaveVariant(slug, variant); err != nil {
+			logStructuredError("update_variant_seo_save_failed", map[string]interface{}{
+				"slug":  slug,
+				"error": err.Error(),
+			})
+			http.Error(w, "failed to save SEO config", http.StatusInternalServerError)
 			return
 		}
 

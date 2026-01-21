@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/branding.json",
+  "title": "Site Branding Configuration",
+  "description": "Site-wide branding settings for the landing page",
+  "type": "object",
+  "required": ["site_name"],
+  "properties": {
+    "site_name": {
+      "type": "string",
+      "description": "The name of the site displayed in headers and metadata"
+    },
+    "tagline": {
+      "type": "string",
+      "description": "Short tagline or subtitle for the site"
+    },
+    "logo_url": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "URL to the main logo image"
+    },
+    "logo_icon_url": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "URL to a smaller icon version of the logo"
+    },
+    "favicon_url": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "URL to the favicon"
+    },
+    "apple_touch_icon_url": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "URL to the Apple touch icon"
+    },
+    "default_title": {
+      "type": "string",
+      "description": "Default page title for SEO (used when variant doesn't specify)"
+    },
+    "default_description": {
+      "type": "string",
+      "description": "Default meta description for SEO"
+    },
+    "default_og_image_url": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Default Open Graph image URL"
+    },
+    "theme_primary_color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "Primary theme color in hex format"
+    },
+    "theme_background_color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "Background color in hex format"
+    },
+    "canonical_base_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Base URL for canonical links"
+    },
+    "google_site_verification": {
+      "type": "string",
+      "description": "Google site verification code"
+    },
+    "robots_txt": {
+      "type": "string",
+      "description": "Contents of robots.txt file"
+    },
+    "support_chat_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL for support chat widget"
+    },
+    "support_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Support email address"
+    },
+    "smtp_host": {
+      "type": "string",
+      "description": "SMTP server hostname for email notifications"
+    },
+    "smtp_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 587,
+      "description": "SMTP server port"
+    },
+    "smtp_username": {
+      "type": "string",
+      "description": "SMTP authentication username"
+    },
+    "smtp_password": {
+      "type": "string",
+      "description": "SMTP authentication password"
+    },
+    "smtp_from": {
+      "type": "string",
+      "description": "From address for outgoing emails"
+    }
+  },
+  "additionalProperties": false
+}

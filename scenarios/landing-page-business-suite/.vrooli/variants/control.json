@@ -8,6 +8,13 @@
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - Record Once, Automate Forever",
+      "description": "Automate browser workflows and turn recordings into polished demo videos. No sales calls, no per-seat pricing.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Automate browser workflows and turn recordings into polished demo videos. No sales calls, no per-seat pricing.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

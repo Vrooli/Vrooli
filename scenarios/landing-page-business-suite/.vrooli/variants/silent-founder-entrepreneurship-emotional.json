@@ -8,6 +8,13 @@
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - Build Your Business Quietly",
+      "description": "Record once, automate forever. Turn every recording into a polished, professional demo video.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Record once, automate forever. Turn every recording into a polished, professional demo video.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

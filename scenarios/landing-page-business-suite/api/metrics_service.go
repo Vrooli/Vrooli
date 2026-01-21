@@ -44,17 +44,16 @@ func NewMetricsService(db *sql.DB) *MetricsService {
 
 // MetricEvent represents an analytics event
 type MetricEvent struct {
-	EventType string                 `json:"event_type"`
-	VariantID int                    `json:"variant_id"`
-	EventData map[string]interface{} `json:"event_data,omitempty"`
-	SessionID string                 `json:"session_id"`
-	VisitorID string                 `json:"visitor_id,omitempty"`
-	EventID   string                 `json:"event_id,omitempty"` // Client-generated unique ID for idempotency
+	EventType   string                 `json:"event_type"`
+	VariantSlug string                 `json:"variant_slug"`
+	EventData   map[string]interface{} `json:"event_data,omitempty"`
+	SessionID   string                 `json:"session_id"`
+	VisitorID   string                 `json:"visitor_id,omitempty"`
+	EventID     string                 `json:"event_id,omitempty"` // Client-generated unique ID for idempotency
 }
 
 // VariantStats represents aggregated stats for a variant
 type VariantStats struct {
-	VariantID      int     `json:"variant_id"`
 	VariantSlug    string  `json:"variant_slug"`
 	VariantName    string  `json:"variant_name"`
 	Views          int64   `json:"views"`
@@ -118,10 +117,10 @@ func (s *MetricsService) TrackEvent(event MetricEvent) error {
 
 	// Insert event
 	query := `
-		INSERT INTO metrics_events (variant_id, event_type, event_data, session_id, visitor_id)
+		INSERT INTO metrics_events (variant_slug, event_type, event_data, session_id, visitor_id)
 		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err = s.db.Exec(query, event.VariantID, event.EventType, eventDataJSON, event.SessionID, event.VisitorID)
+	_, err = s.db.Exec(query, event.VariantSlug, event.EventType, eventDataJSON, event.SessionID, event.VisitorID)
 	if err != nil {
 		return fmt.Errorf("failed to insert event: %w", err)
 	}
@@ -136,8 +135,8 @@ func validateMetricEvent(event MetricEvent) error {
 	if _, ok := validEventTypes[event.EventType]; !ok {
 		return &MetricValidationError{Field: "event_type", Reason: fmt.Sprintf("invalid event_type: %s", event.EventType)}
 	}
-	if event.VariantID <= 0 {
-		return &MetricValidationError{Field: "variant_id", Reason: "variant_id is required"}
+	if strings.TrimSpace(event.VariantSlug) == "" {
+		return &MetricValidationError{Field: "variant_slug", Reason: "variant_slug is required"}
 	}
 	if strings.TrimSpace(event.SessionID) == "" {
 		return &MetricValidationError{Field: "session_id", Reason: "session_id is required"}
@@ -147,40 +146,38 @@ func validateMetricEvent(event MetricEvent) error {
 
 // generateEventID creates a unique event ID based on event attributes
 func generateEventID(event MetricEvent) string {
-	// Create deterministic hash from session_id + event_type + timestamp (rounded to second)
+	// Create deterministic hash from session_id + event_type + variant_slug + timestamp (rounded to second)
 	timestamp := time.Now().Unix()
-	input := fmt.Sprintf("%s:%s:%d:%d", event.SessionID, event.EventType, event.VariantID, timestamp)
+	input := fmt.Sprintf("%s:%s:%s:%d", event.SessionID, event.EventType, event.VariantSlug, timestamp)
 	hash := sha256.Sum256([]byte(input))
 	return hex.EncodeToString(hash[:16]) // 32-char hex string
 }
 
-// GetVariantStats retrieves aggregated stats for variants within a time range
+// GetVariantStats retrieves aggregated stats for variants within a time range.
+// NOTE: Variant metadata (names) are now stored in JSON files via ConfigStore.
+// This function only aggregates metrics from the database; caller should enrich with ConfigStore data if needed.
 func (s *MetricsService) GetVariantStats(startDate, endDate time.Time, variantSlug string) ([]VariantStats, error) {
 	query := `
 		SELECT
-			v.id as variant_id,
-			v.slug as variant_slug,
-			v.name as variant_name,
-		COALESCE(SUM(CASE WHEN m.event_type = 'page_view' THEN 1 ELSE 0 END), 0) as views,
-		COALESCE(SUM(CASE WHEN m.event_type = 'click' AND m.event_data->>'element_type' = 'cta' THEN 1 ELSE 0 END), 0) as cta_clicks,
-		COALESCE(SUM(CASE WHEN m.event_type = 'conversion' THEN 1 ELSE 0 END), 0) as conversions,
-		COALESCE(SUM(CASE WHEN m.event_type = 'download' THEN 1 ELSE 0 END), 0) as downloads
-		FROM variants v
-		LEFT JOIN metrics_events m ON v.id = m.variant_id
-			AND m.created_at >= $1
-			AND m.created_at <= $2
-		WHERE v.status = 'active'
+			variant_slug,
+			COALESCE(SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END), 0) as views,
+			COALESCE(SUM(CASE WHEN event_type = 'click' AND event_data->>'element_type' = 'cta' THEN 1 ELSE 0 END), 0) as cta_clicks,
+			COALESCE(SUM(CASE WHEN event_type = 'conversion' THEN 1 ELSE 0 END), 0) as conversions,
+			COALESCE(SUM(CASE WHEN event_type = 'download' THEN 1 ELSE 0 END), 0) as downloads
+		FROM metrics_events
+		WHERE created_at >= $1
+			AND created_at <= $2
 	`
 
 	args := []interface{}{startDate, endDate}
 
 	// Filter by variant slug if provided
 	if variantSlug != "" {
-		query += " AND v.slug = $3"
+		query += " AND variant_slug = $3"
 		args = append(args, variantSlug)
 	}
 
-	query += " GROUP BY v.id, v.slug, v.name ORDER BY v.id"
+	query += " GROUP BY variant_slug ORDER BY variant_slug"
 
 	rows, err := s.db.Query(query, args...)
 	if err != nil {
@@ -192,9 +189,7 @@ func (s *MetricsService) GetVariantStats(startDate, endDate time.Time, variantSl
 	for rows.Next() {
 		var stat VariantStats
 		err := rows.Scan(
-			&stat.VariantID,
 			&stat.VariantSlug,
-			&stat.VariantName,
 			&stat.Views,
 			&stat.CTAClicks,
 			&stat.Conversions,
@@ -203,6 +198,9 @@ func (s *MetricsService) GetVariantStats(startDate, endDate time.Time, variantSl
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan variant stats: %w", err)
 		}
+
+		// Use slug as name if name not available (enrichment would happen at handler level)
+		stat.VariantName = stat.VariantSlug
 
 		// Calculate conversion rate
 		if stat.Views > 0 {

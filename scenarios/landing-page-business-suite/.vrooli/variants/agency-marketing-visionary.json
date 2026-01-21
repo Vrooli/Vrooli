@@ -8,6 +8,13 @@
       "jtbd": "marketing",
       "conversionStyle": "visionary"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - Client-Ready Demos in Hours",
+      "description": "Record flows, export MP4s with fake browser frames, ship branded replays.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Record flows, export MP4s with fake browser frames, ship branded replays.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",

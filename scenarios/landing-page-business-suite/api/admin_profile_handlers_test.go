@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -134,15 +135,29 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	initSessionStore()
 	server := &Server{db: db}
 
+	// Use a unique suffix based on test name and timestamp for better isolation
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	suffix := replacer.Replace(strings.ToLower(t.Name()))
-	takenEmail := fmt.Sprintf("taken-%s@test.com", suffix)
+	timestamp := time.Now().UnixNano()
+	takenEmail := fmt.Sprintf("taken-%s-%d@test.com", suffix, timestamp)
+
+	// Clean up any existing entry and create a conflicting user
+	// First, reset the sequence to avoid pkey conflicts from seed data
+	if _, err := db.Exec(`SELECT setval('admin_users_id_seq', COALESCE((SELECT MAX(id) FROM admin_users), 0) + 1, false)`); err != nil {
+		t.Logf("failed to reset sequence (might not exist): %v", err)
+	}
 	if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, takenEmail); err != nil {
 		t.Fatalf("failed to cleanup conflicting admin: %v", err)
 	}
 	if _, err := db.Exec(`INSERT INTO admin_users (email, password_hash) VALUES ($1, $2)`, takenEmail, defaultAdminPasswordHash); err != nil {
 		t.Fatalf("failed to seed conflicting admin: %v", err)
 	}
+	t.Cleanup(func() {
+		if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, takenEmail); err != nil {
+			// Log but don't fail on cleanup
+			t.Logf("cleanup failed: %v", err)
+		}
+	})
 
 	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s"}`, takenEmail)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))

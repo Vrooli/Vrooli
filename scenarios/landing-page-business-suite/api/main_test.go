@@ -81,25 +81,7 @@ func TestHealthEndpoint(t *testing.T) {
 	})
 }
 
-func TestParseEnvBool(t *testing.T) {
-	t.Run("truthy values", func(t *testing.T) {
-		cases := []string{"1", "true", "TRUE", "yes", "Y", "on", " On "}
-		for _, value := range cases {
-			if !parseEnvBool(value) {
-				t.Fatalf("expected true for %q", value)
-			}
-		}
-	})
-
-	t.Run("falsey values", func(t *testing.T) {
-		cases := []string{"", "0", "false", "no", "off", "disabled"}
-		for _, value := range cases {
-			if parseEnvBool(value) {
-				t.Fatalf("expected false for %q", value)
-			}
-		}
-	})
-}
+// NOTE: TestParseEnvBool has been removed - parseEnvBool function was deleted
 
 func TestResolveDatabaseURL(t *testing.T) {
 	t.Run("explicit DATABASE_URL", func(t *testing.T) {

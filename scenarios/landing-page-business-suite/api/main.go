@@ -34,10 +34,9 @@ type Server struct {
 	db                   *sql.DB
 	router               *mux.Router
 	variantSpace         *VariantSpace
-	variantService       *VariantService
+	configStore          *ConfigStore
 	metricsService       *MetricsService
 	stripeService        *StripeService
-	contentService       *ContentService
 	planService          *PlanService
 	downloadService      *DownloadService
 	downloadHosting      *DownloadHostingService
@@ -45,7 +44,6 @@ type Server struct {
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
 	paymentSettings      *PaymentSettingsService
-	brandingService      *BrandingService
 	assetsService        *AssetsService
 	seoService           *SEOService
 	feedbackService      *FeedbackService
@@ -67,9 +65,15 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
 
+	// Initialize config store from JSON files (source of truth for variants and branding)
+	variantsDir := resolveVariantsDir()
+	brandingPath := resolveBrandingPath()
+	configStore := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	if err := configStore.LoadAll(); err != nil {
+		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
+	}
+
 	variantSpace := defaultVariantSpace
-	variantService := NewVariantService(db, variantSpace)
-	contentService := NewContentService(db)
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
 	downloadHosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
@@ -77,33 +81,26 @@ func NewServer() (*Server, error) {
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
-	brandingService := NewBrandingService(db)
 	assetsService := NewAssetsService(db)
-	seoService := NewSEOService(brandingService, variantService)
+	seoService := NewSEOServiceWithConfigStore(configStore)
 	feedbackService := NewFeedbackService(db)
 	emailService := NewEmailService()
-
-	if err := syncVariantSnapshots(variantService, contentService); err != nil {
-		return nil, fmt.Errorf("failed to sync variant snapshots: %w", err)
-	}
 
 	srv := &Server{
 		config:               &Config{},
 		db:                   db,
 		router:               mux.NewRouter(),
 		variantSpace:         variantSpace,
-		variantService:       variantService,
+		configStore:          configStore,
 		metricsService:       NewMetricsService(db),
 		stripeService:        stripeService,
-		contentService:       contentService,
 		planService:          planService,
 		downloadService:      downloadService,
 		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
-		landingConfigService: NewLandingConfigService(variantService, contentService, planService, downloadService, brandingService),
+		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService),
 		paymentSettings:      paymentSettings,
-		brandingService:      brandingService,
 		assetsService:        assetsService,
 		seoService:           seoService,
 		feedbackService:      feedbackService,
@@ -115,6 +112,38 @@ func NewServer() (*Server, error) {
 
 	srv.setupRoutes()
 	return srv, nil
+}
+
+// resolveVariantsDir finds the variants directory
+func resolveVariantsDir() string {
+	dir := strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_DIR"))
+	if dir != "" {
+		return dir
+	}
+	candidates := []string{
+		filepath.Join("..", ".vrooli", "variants"),
+		filepath.Join(".", ".vrooli", "variants"),
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	return filepath.Join("..", ".vrooli", "variants")
+}
+
+// resolveBrandingPath finds the branding.json file
+func resolveBrandingPath() string {
+	candidates := []string{
+		filepath.Join("..", ".vrooli", "branding.json"),
+		filepath.Join(".", ".vrooli", "branding.json"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return filepath.Join("..", ".vrooli", "branding.json")
 }
 
 func (s *Server) setupRoutes() {
@@ -169,18 +198,16 @@ func (s *Server) setupRoutes() {
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)
-	s.router.HandleFunc("/api/v1/variants/select", handleVariantSelect(s.variantService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/public/variants/{slug}", handlePublicVariantBySlug(s.variantService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/select", handleVariantSelect(s.configStore)).Methods("GET")
+	s.router.HandleFunc("/api/v1/public/variants/{slug}", handlePublicVariantBySlug(s.configStore)).Methods("GET")
 	// Admin endpoints (require auth)
-	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantsList(s.variantService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantCreateWithSections(s.variantService, s.contentService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantBySlug(s.variantService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantUpdate(s.variantService))).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/variants/{slug}/archive", s.requireAdmin(handleVariantArchive(s.variantService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantDelete(s.variantService))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/variants/sync", s.requireAdmin(handleVariantSnapshotSync(s.variantService, s.contentService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/variants/{slug}/export", s.requireAdmin(handleVariantExport(s.variantService, s.contentService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/variants/{slug}/import", s.requireAdmin(handleVariantImport(s.variantService, s.contentService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/variants", s.requireAdmin(handleVariantsList(s.configStore))).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantBySlug(s.configStore))).Methods("GET")
+	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantUpdate(s.configStore))).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/variants/{slug}", s.requireAdmin(handleVariantDelete(s.configStore))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/variants/sync", s.requireAdmin(handleVariantSnapshotSync(s.configStore))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/export", s.requireAdmin(handleVariantExport(s.configStore))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/import", s.requireAdmin(handleVariantImport(s.configStore))).Methods("PUT")
 
 	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
 	s.router.HandleFunc("/api/v1/metrics/track", handleMetricsTrack(s.metricsService)).Methods("POST")
@@ -194,20 +221,18 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/subscription/cancel", s.requireAdmin(handleSubscriptionCancel(s.stripeService))).Methods("POST")
 
 	// Public content endpoint for landing page display (no auth required)
-	s.router.HandleFunc("/api/v1/public/variants/{variant_id}/sections", handleGetPublicSections(s.contentService)).Methods("GET")
+	// Sections are now part of variant snapshots in JSON files
+	s.router.HandleFunc("/api/v1/public/variants/{variant_slug}/sections", handleGetPublicSectionsFromConfigStore(s.configStore)).Methods("GET")
 
-	// Content Customization endpoints (OT-P0-012, OT-P0-013: CUSTOM-SPLIT, CUSTOM-LIVE)
-	s.router.HandleFunc("/api/v1/variants/{variant_id}/sections", s.requireAdmin(handleGetSections(s.contentService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleGetSection(s.contentService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleUpdateSection(s.contentService))).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/sections", s.requireAdmin(handleCreateSection(s.contentService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/sections/{id}", s.requireAdmin(handleDeleteSection(s.contentService))).Methods("DELETE")
+	// Content Customization endpoints - sections are now part of variant snapshots
+	// Admin can view/update sections via variant import/export endpoints
+	s.router.HandleFunc("/api/v1/variants/{variant_slug}/sections", s.requireAdmin(handleGetSectionsFromConfigStore(s.configStore))).Methods("GET")
 
 	// Branding endpoints (admin-only for site-wide branding)
-	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleGetBranding(s.brandingService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleUpdateBranding(s.brandingService))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/branding/clear-field", s.requireAdmin(handleClearBrandingField(s.brandingService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/branding", handleGetPublicBranding(s.brandingService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleGetBranding(s.configStore))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/branding", s.requireAdmin(handleUpdateBranding(s.configStore))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/branding/clear-field", s.requireAdmin(handleClearBrandingField(s.configStore))).Methods("POST")
+	s.router.HandleFunc("/api/v1/branding", handleGetPublicBranding(s.configStore)).Methods("GET")
 
 	// Asset upload endpoints (admin-only for file uploads)
 	s.router.HandleFunc("/api/v1/admin/assets", s.requireAdmin(handleAssetsList(s.assetsService))).Methods("GET")
@@ -220,7 +245,7 @@ func (s *Server) setupRoutes() {
 
 	// SEO endpoints
 	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.seoService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/variants/{slug}/seo", s.requireAdmin(handleUpdateVariantSEO(s.variantService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/variants/{slug}/seo", s.requireAdmin(handleUpdateVariantSEOConfigStore(s.configStore))).Methods("PUT")
 
 	// Sitemap and robots.txt
 	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.seoService)).Methods("GET")
@@ -231,7 +256,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/docs/content", s.requireAdmin(handleDocsContent())).Methods("GET")
 
 	// Feedback endpoints
-	s.router.HandleFunc("/api/feedback", handleFeedbackCreate(s.feedbackService, s.brandingService, s.emailService)).Methods("POST")
+	s.router.HandleFunc("/api/feedback", handleFeedbackCreateWithConfigStore(s.feedbackService, s.configStore, s.emailService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback", s.requireAdmin(handleFeedbackList(s.feedbackService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/feedback/bulk-delete", s.requireAdmin(handleFeedbackDeleteBulk(s.feedbackService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackGet(s.feedbackService))).Methods("GET")
@@ -286,10 +311,8 @@ func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) resetDemoData(ctx context.Context) error {
+	// Only reset database tables for runtime data (not config, which is in JSON files)
 	tables := []string{
-		"content_sections",
-		"variant_axes",
-		"variants",
 		"download_assets",
 		"download_apps",
 		"bundle_prices",
@@ -317,10 +340,9 @@ func (s *Server) resetDemoData(ctx context.Context) error {
 		return err
 	}
 
-	variantService := NewVariantService(s.db, defaultVariantSpace)
-	contentService := NewContentService(s.db)
-	if err := syncVariantSnapshots(variantService, contentService); err != nil {
-		return fmt.Errorf("sync variant snapshots: %w", err)
+	// Reload config from JSON files
+	if err := s.configStore.LoadAll(); err != nil {
+		return fmt.Errorf("reload config: %w", err)
 	}
 
 	return nil
@@ -377,14 +399,8 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
 	}
 
-	// Seed default site branding (singleton)
-	if _, err := db.Exec(`
-		INSERT INTO site_branding (id, site_name, robots_txt)
-		VALUES (1, 'My Landing', E'User-agent: *\nAllow: /')
-		ON CONFLICT (id) DO NOTHING
-	`); err != nil {
-		return fmt.Errorf("failed to seed site branding: %w", err)
-	}
+	// NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
+	// and loaded into memory at startup via ConfigStore.
 
 	//nolint:govet // fallback pricing includes proto-backed mutexes; seed uses read-only copy
 	if err := seedBundlePricingDefaults(db, fallbackLanding.Pricing); err != nil {
@@ -672,223 +688,14 @@ func valueOrDefault(value, fallback string) string {
 	return trimmed
 }
 
-const (
-	snapshotModeContentOnly = "content-only"
-	snapshotModeFull        = "full"
-)
-
-// syncVariantSnapshots loads variant snapshot JSON files and ensures the database matches them.
-// This keeps landing variants in sync with the checked-in source of truth when the service starts.
-func syncVariantSnapshots(vs *VariantService, cs *ContentService) error {
-	if vs == nil || cs == nil {
-		return fmt.Errorf("variant or content service missing")
-	}
-
-	requireSnapshots := parseEnvBool(os.Getenv("VARIANT_SNAPSHOT_REQUIRED"))
-	dir := strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_DIR"))
-	if dir == "" {
-		candidates := []string{
-			filepath.Join("..", ".vrooli", "variants"),
-			filepath.Join(".", ".vrooli", "variants"),
-		}
-		for _, candidate := range candidates {
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				dir = candidate
-				break
-			}
-		}
-	}
-
-	if dir == "" {
-		if requireSnapshots {
-			return fmt.Errorf("variant snapshots required but no snapshot directory found")
-		}
-		logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
-			"reason": "no snapshot directory found",
-		})
-		return nil
-	}
-
-	mode := strings.ToLower(strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_MODE")))
-	if mode == "" {
-		mode = snapshotModeContentOnly
-	}
-	if mode != snapshotModeContentOnly && mode != snapshotModeFull {
-		logStructured("variant_snapshot_mode_invalid", map[string]interface{}{
-			"mode":     mode,
-			"fallback": snapshotModeContentOnly,
-		})
-		mode = snapshotModeContentOnly
-	}
-
-	pruneMode := strings.ToLower(strings.TrimSpace(os.Getenv("VARIANT_SNAPSHOT_PRUNE")))
-	if pruneMode == "" {
-		pruneMode = "archive"
-	}
-	if pruneMode != "archive" && pruneMode != "delete" && pruneMode != "ignore" {
-		logStructured("variant_snapshot_prune_mode_invalid", map[string]interface{}{
-			"mode":     pruneMode,
-			"fallback": "archive",
-		})
-		pruneMode = "archive"
-	}
-
-	allowResurrect := parseEnvBool(os.Getenv("VARIANT_SNAPSHOT_ALLOW_RESURRECT"))
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if requireSnapshots {
-				return fmt.Errorf("variant snapshots required but directory missing: %s", dir)
-			}
-			logStructured("variant_snapshot_sync_skipped", map[string]interface{}{
-				"reason": "snapshot directory missing",
-				"path":   dir,
-			})
-			return nil
-		}
-		return fmt.Errorf("read snapshot directory %s: %w", dir, err)
-	}
-
-	snapshotSlugs := map[string]struct{}{}
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
-			continue
-		}
-		if entry.Name() == "fallback.json" {
-			logStructured("variant_snapshot_skipped", map[string]interface{}{
-				"reason": "fallback file excluded from sync",
-				"file":   entry.Name(),
-			})
-			continue
-		}
-		path := filepath.Join(dir, entry.Name())
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read snapshot %s: %w", path, err)
-		}
-
-		var snapshot VariantSnapshotInput
-		if err := json.Unmarshal(raw, &snapshot); err != nil {
-			return fmt.Errorf("parse snapshot %s: %w", path, err)
-		}
-
-		slug := strings.TrimSpace(snapshot.Variant.Slug)
-		if slug == "" {
-			logStructuredError("variant_snapshot_missing_slug", map[string]interface{}{
-				"file": path,
-			})
-			continue
-		}
-		snapshotSlugs[slug] = struct{}{}
-
-		if snapshot.Variant.HeaderConfig == nil {
-			cfg := defaultLandingHeaderConfig(valueOrDefault(snapshot.Variant.Name, slug))
-			snapshot.Variant.HeaderConfig = &cfg
-		}
-
-		if len(snapshot.Variant.Axes) == 0 {
-			return fmt.Errorf("snapshot %s missing axes for variant %s", path, slug)
-		}
-
-		if mode == snapshotModeContentOnly {
-			snapshot.Variant.Weight = nil
-			snapshot.Variant.Status = nil
-		}
-
-		variant, err := vs.GetVariantBySlug(slug)
-		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "not found") {
-				name := valueOrDefault(snapshot.Variant.Name, slug)
-				desc := snapshot.Variant.Description
-				if strings.TrimSpace(desc) == "" {
-					desc = "Imported from snapshot"
-				}
-				weight := 50
-				if mode == snapshotModeFull && snapshot.Variant.Weight != nil {
-					if *snapshot.Variant.Weight >= 0 && *snapshot.Variant.Weight <= 100 {
-						weight = *snapshot.Variant.Weight
-					}
-				}
-				if _, err := vs.CreateVariant(slug, name, desc, weight, snapshot.Variant.Axes); err != nil {
-					return fmt.Errorf("create variant %s: %w", slug, err)
-				}
-			} else {
-				return fmt.Errorf("lookup variant %s: %w", slug, err)
-			}
-		} else if variant.Status == "deleted" {
-			if !allowResurrect {
-				logStructured("variant_snapshot_skipped", map[string]interface{}{
-					"reason": "variant marked deleted",
-					"slug":   slug,
-					"file":   path,
-				})
-				continue
-			}
-			status := "active"
-			snapshot.Variant.Status = &status
-			logStructured("variant_snapshot_resurrected", map[string]interface{}{
-				"slug": slug,
-				"file": path,
-			})
-		}
-
-		if _, err := vs.ImportVariantSnapshot(slug, snapshot, cs); err != nil {
-			return fmt.Errorf("import variant %s: %w", slug, err)
-		}
-
-		logStructured("variant_snapshot_synced", map[string]interface{}{
-			"slug": slug,
-			"file": path,
-		})
-	}
-
-	if requireSnapshots && len(snapshotSlugs) == 0 {
-		return fmt.Errorf("variant snapshots required but no snapshot files found in %s", dir)
-	}
-
-	if pruneMode != "ignore" && len(snapshotSlugs) > 0 {
-		variants, err := vs.ListVariants("")
-		if err != nil {
-			return fmt.Errorf("list variants for prune: %w", err)
-		}
-		for _, variant := range variants {
-			if _, ok := snapshotSlugs[variant.Slug]; ok {
-				continue
-			}
-			if pruneMode == "delete" {
-				if err := vs.DeleteVariant(variant.Slug); err != nil {
-					return fmt.Errorf("delete variant %s: %w", variant.Slug, err)
-				}
-				logStructured("variant_snapshot_pruned", map[string]interface{}{
-					"slug": variant.Slug,
-					"mode": "delete",
-				})
-				continue
-			}
-			if err := vs.ArchiveVariant(variant.Slug); err != nil {
-				return fmt.Errorf("archive variant %s: %w", variant.Slug, err)
-			}
-			logStructured("variant_snapshot_pruned", map[string]interface{}{
-				"slug": variant.Slug,
-				"mode": "archive",
-			})
-		}
-	}
-
-	return nil
-}
-
-func parseEnvBool(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "1", "true", "yes", "y", "on":
-		return true
-	default:
-		return false
-	}
-}
+// NOTE: syncVariantSnapshots function has been removed.
+// Variant configuration is now loaded directly from JSON files via ConfigStore.LoadAll()
+// which is called in NewServer(). No database sync is needed.
 
 // ensureSchema creates required tables if they do not exist (runtime guard when psql is unavailable)
+// NOTE: Variant, section, and branding configuration is now stored in JSON files
+// (.vrooli/variants/*.json and .vrooli/branding.json) and loaded into memory at startup.
+// This schema only contains tables for runtime/dynamic data.
 func ensureSchema(db *sql.DB) error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS admin_users (
@@ -899,40 +706,18 @@ func ensureSchema(db *sql.DB) error {
 			last_login TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);`,
-		`CREATE TABLE IF NOT EXISTS variants (
-			id SERIAL PRIMARY KEY,
-			slug VARCHAR(100) UNIQUE NOT NULL,
-			name VARCHAR(255) NOT NULL,
-			description TEXT,
-			weight INTEGER DEFAULT 50 CHECK (weight >= 0 AND weight <= 100),
-			status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'archived', 'deleted')),
-			header_config JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			archived_at TIMESTAMP
-		);`,
-		`ALTER TABLE variants ADD COLUMN IF NOT EXISTS header_config JSONB DEFAULT '{}'::jsonb;`,
-		`CREATE INDEX IF NOT EXISTS idx_variants_slug ON variants(slug);`,
-		`CREATE INDEX IF NOT EXISTS idx_variants_status ON variants(status);`,
-		`CREATE TABLE IF NOT EXISTS variant_axes (
-			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-			axis_id VARCHAR(100) NOT NULL,
-			variant_value VARCHAR(100) NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			PRIMARY KEY (variant_id, axis_id)
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_variant_axes_axis ON variant_axes(axis_id);`,
+		// NOTE: variants, variant_axes, and content_sections tables have been removed.
+		// Variant configuration is now stored in JSON files (.vrooli/variants/*.json).
 		`CREATE TABLE IF NOT EXISTS metrics_events (
 			id SERIAL PRIMARY KEY,
-			variant_id INTEGER REFERENCES variants(id),
+			variant_slug VARCHAR(100),
 			event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('page_view', 'scroll_depth', 'click', 'form_submit', 'conversion', 'download')),
 			event_data JSONB,
 			session_id VARCHAR(255),
 			visitor_id VARCHAR(255),
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,
-		`CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_slug);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_session ON metrics_events(session_id);`,
@@ -991,21 +776,8 @@ func ensureSchema(db *sql.DB) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);`,
-		`CREATE TABLE IF NOT EXISTS content_sections (
-			id SERIAL PRIMARY KEY,
-			variant_id INTEGER REFERENCES variants(id) ON DELETE CASCADE,
-			section_type VARCHAR(50) NOT NULL CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads')),
-			content JSONB NOT NULL,
-			"order" INTEGER DEFAULT 0,
-			enabled BOOLEAN DEFAULT TRUE,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_content_sections_variant ON content_sections(variant_id);`,
-		`CREATE INDEX IF NOT EXISTS idx_content_sections_type ON content_sections(section_type);`,
-		`CREATE INDEX IF NOT EXISTS idx_content_sections_order ON content_sections("order");`,
-		`ALTER TABLE content_sections DROP CONSTRAINT IF EXISTS content_sections_section_type_check;`,
-		`ALTER TABLE content_sections ADD CONSTRAINT content_sections_section_type_check CHECK (section_type IN ('hero', 'features', 'pricing', 'cta', 'testimonials', 'faq', 'footer', 'video', 'downloads'));`,
+		// NOTE: content_sections table has been removed.
+		// Sections are now stored in JSON files (.vrooli/variants/*.json) as part of variant snapshots.
 		`CREATE TABLE IF NOT EXISTS bundle_products (
 			id SERIAL PRIMARY KEY,
 			bundle_key VARCHAR(100) UNIQUE NOT NULL,
@@ -1174,26 +946,8 @@ func ensureSchema(db *sql.DB) error {
 			dashboard_url TEXT,
 			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
-		`CREATE TABLE IF NOT EXISTS site_branding (
-			id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-			site_name TEXT NOT NULL DEFAULT 'My Landing',
-			tagline TEXT,
-			logo_url TEXT,
-			logo_icon_url TEXT,
-			favicon_url TEXT,
-			apple_touch_icon_url TEXT,
-			default_title TEXT,
-			default_description TEXT,
-			default_og_image_url TEXT,
-			theme_primary_color TEXT,
-			theme_background_color TEXT,
-			canonical_base_url TEXT,
-			google_site_verification TEXT,
-			robots_txt TEXT,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS site_branding_singleton ON site_branding ((1));`,
+		// NOTE: site_branding table has been removed.
+		// Branding is now stored in JSON file (.vrooli/branding.json).
 		`CREATE TABLE IF NOT EXISTS assets (
 			id SERIAL PRIMARY KEY,
 			filename TEXT NOT NULL,
@@ -1209,14 +963,8 @@ func ensureSchema(db *sql.DB) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);`,
 		`CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);`,
-		`ALTER TABLE variants ADD COLUMN IF NOT EXISTS seo_config JSONB DEFAULT '{}'::jsonb;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_chat_url TEXT;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS support_email TEXT;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_host TEXT;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_port INTEGER DEFAULT 587;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_username TEXT;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_password TEXT;`,
-		`ALTER TABLE site_branding ADD COLUMN IF NOT EXISTS smtp_from TEXT;`,
+		// NOTE: ALTER TABLE statements for variants and site_branding have been removed
+		// as those tables no longer exist (config is now in JSON files).
 		`CREATE TABLE IF NOT EXISTS feedback_requests (
 			id SERIAL PRIMARY KEY,
 			type VARCHAR(50) NOT NULL CHECK (type IN ('refund', 'bug', 'feature', 'general')),

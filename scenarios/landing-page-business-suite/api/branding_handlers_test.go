@@ -2,34 +2,43 @@ package main
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
-func setupTestBrandingDB(t *testing.T) *sql.DB {
-	db := setupTestDB(t)
-	if _, err := db.Exec(`DELETE FROM site_branding`); err != nil {
-		t.Fatalf("failed to clean site_branding: %v", err)
-	}
-	if _, err := db.Exec(`
-		INSERT INTO site_branding (id, site_name, robots_txt)
-		VALUES (1, 'Test Site', 'User-agent: *\nAllow: /')
-	`); err != nil {
-		t.Fatalf("failed to seed site branding: %v", err)
+func setupTestBrandingConfigStore(t *testing.T) (*ConfigStore, func()) {
+	t.Helper()
+
+	tmpDir := t.TempDir()
+	brandingPath := filepath.Join(tmpDir, "branding.json")
+	if err := os.WriteFile(brandingPath, []byte(`{
+		"site_name": "Test Site",
+		"robots_txt": "User-agent: *\nAllow: /"
+	}`), 0644); err != nil {
+		t.Fatalf("failed to write branding file: %v", err)
 	}
 
-	return db
+	cs := NewConfigStore("", brandingPath, nil)
+	if err := cs.LoadAll(); err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	cleanup := func() {
+		// tmpDir is cleaned up automatically by t.TempDir()
+	}
+
+	return cs, cleanup
 }
 
 func TestGetBranding(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	handler := handleGetBranding(service)
+	handler := handleGetBranding(cs)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/branding", nil)
 	rec := httptest.NewRecorder()
@@ -51,11 +60,10 @@ func TestGetBranding(t *testing.T) {
 }
 
 func TestUpdateBranding(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	handler := handleUpdateBranding(service)
+	handler := handleUpdateBranding(cs)
 
 	update := BrandingUpdateRequest{
 		SiteName: strPtr("Updated Site Name"),
@@ -74,10 +82,7 @@ func TestUpdateBranding(t *testing.T) {
 	}
 
 	// Verify the update
-	branding, err := service.Get()
-	if err != nil {
-		t.Fatalf("failed to get branding: %v", err)
-	}
+	branding := cs.GetBranding()
 
 	if branding.SiteName != "Updated Site Name" {
 		t.Errorf("expected site name 'Updated Site Name', got '%s'", branding.SiteName)
@@ -89,11 +94,10 @@ func TestUpdateBranding(t *testing.T) {
 }
 
 func TestGetPublicBranding(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	handler := handleGetPublicBranding(service)
+	handler := handleGetPublicBranding(cs)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/branding", nil)
 	rec := httptest.NewRecorder()
@@ -114,41 +118,22 @@ func TestGetPublicBranding(t *testing.T) {
 	}
 }
 
-func TestGetBranding_ServiceFailure(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	service := NewBrandingService(db)
-	db.Close()
-
-	handler := handleGetBranding(service)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/branding", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500 when branding service fails, got %d", rec.Code)
-	}
-}
-
 func TestGetPublicBranding_ExposesOnlyPublicFields(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	secretDescription := "Hidden description"
-	verifyToken := "verify-me"
+	// Update branding with various fields
 	logoIconURL := "https://example.com/icon.png"
-	if _, err := service.Update(&BrandingUpdateRequest{
+	if _, err := cs.UpdateBranding(&BrandingUpdateRequest{
 		Tagline:                strPtr("Visible tagline"),
 		LogoIconURL:            strPtr(logoIconURL),
-		DefaultDescription:     strPtr(secretDescription),
-		GoogleSiteVerification: strPtr(verifyToken),
+		DefaultDescription:     strPtr("Hidden description"),
+		GoogleSiteVerification: strPtr("verify-me"),
 	}); err != nil {
-		t.Fatalf("failed to seed branding: %v", err)
+		t.Fatalf("failed to update branding: %v", err)
 	}
 
-	handler := handleGetPublicBranding(service)
+	handler := handleGetPublicBranding(cs)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/branding", nil)
 	rec := httptest.NewRecorder()
@@ -178,19 +163,16 @@ func TestGetPublicBranding_ExposesOnlyPublicFields(t *testing.T) {
 }
 
 func TestClearBrandingField(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
-
-	service := NewBrandingService(db)
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
 	// First set a value
-	update := BrandingUpdateRequest{Tagline: strPtr("Test tagline")}
-	if _, err := service.Update(&update); err != nil {
+	if _, err := cs.UpdateBranding(&BrandingUpdateRequest{Tagline: strPtr("Test tagline")}); err != nil {
 		t.Fatalf("failed to update branding: %v", err)
 	}
 
 	// Clear the field
-	handler := handleClearBrandingField(service)
+	handler := handleClearBrandingField(cs)
 	body, _ := json.Marshal(map[string]string{"field": "tagline"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/branding/clear-field", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -203,10 +185,7 @@ func TestClearBrandingField(t *testing.T) {
 	}
 
 	// Verify the field is cleared
-	branding, err := service.Get()
-	if err != nil {
-		t.Fatalf("failed to get branding: %v", err)
-	}
+	branding := cs.GetBranding()
 
 	if branding.Tagline != nil && *branding.Tagline != "" {
 		t.Error("expected tagline to be cleared")
@@ -214,11 +193,10 @@ func TestClearBrandingField(t *testing.T) {
 }
 
 func TestUpdateBranding_InvalidBody(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	handler := handleUpdateBranding(service)
+	handler := handleUpdateBranding(cs)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/branding", bytes.NewBufferString("{bad json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -232,11 +210,10 @@ func TestUpdateBranding_InvalidBody(t *testing.T) {
 }
 
 func TestClearBrandingField_RequiresFieldName(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
-	handler := handleClearBrandingField(service)
+	handler := handleClearBrandingField(cs)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/branding/clear-field", bytes.NewBufferString(`{}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -249,34 +226,16 @@ func TestClearBrandingField_RequiresFieldName(t *testing.T) {
 	}
 }
 
-func TestClearBrandingField_FailureReturns500(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	service := NewBrandingService(db)
-	handler := handleClearBrandingField(service)
-	db.Close()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/branding/clear-field", bytes.NewBufferString(`{"field":"tagline"}`))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500 when clear operation fails, got %d", rec.Code)
-	}
-}
-
 func TestClearBrandingField_IgnoresUnsupportedFieldWithoutMutation(t *testing.T) {
-	db := setupTestBrandingDB(t)
-	defer db.Close()
+	cs, cleanup := setupTestBrandingConfigStore(t)
+	defer cleanup()
 
-	service := NewBrandingService(db)
 	original := "Keep me"
-	if _, err := service.Update(&BrandingUpdateRequest{Tagline: strPtr(original)}); err != nil {
+	if _, err := cs.UpdateBranding(&BrandingUpdateRequest{Tagline: strPtr(original)}); err != nil {
 		t.Fatalf("failed to seed tagline: %v", err)
 	}
 
-	handler := handleClearBrandingField(service)
+	handler := handleClearBrandingField(cs)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/branding/clear-field", bytes.NewBufferString(`{"field":"nonexistent"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -295,10 +254,7 @@ func TestClearBrandingField_IgnoresUnsupportedFieldWithoutMutation(t *testing.T)
 		t.Fatalf("expected tagline to remain unchanged, got %v", branding.Tagline)
 	}
 
-	stored, err := service.Get()
-	if err != nil {
-		t.Fatalf("failed to fetch stored branding: %v", err)
-	}
+	stored := cs.GetBranding()
 	if stored.Tagline == nil || *stored.Tagline != original {
 		t.Fatalf("expected stored branding to preserve tagline after ignored field, got %v", stored.Tagline)
 	}

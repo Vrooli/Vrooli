@@ -8,6 +8,13 @@
       "jtbd": "entrepreneurship",
       "conversionStyle": "emotional"
     },
+    "seo_config": {
+      "title": "Silent Founder OS - Browser Automation Curriculum",
+      "description": "Teach automation faster with onboarding lessons and downloadable labs.",
+      "og_title": "Silent Founder OS",
+      "og_description": "Teach automation faster with onboarding lessons and downloadable labs.",
+      "twitter_card": "summary_large_image"
+    },
     "header_config": {
       "branding": {
         "mode": "logo_and_name",
