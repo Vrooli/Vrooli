@@ -48,6 +48,7 @@ type Server struct {
 	seoService           *SEOService
 	feedbackService      *FeedbackService
 	emailService         *EmailService
+	waitlistService      *WaitlistService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -85,6 +86,7 @@ func NewServer() (*Server, error) {
 	seoService := NewSEOServiceWithConfigStore(configStore)
 	feedbackService := NewFeedbackService(db)
 	emailService := NewEmailService()
+	waitlistService := NewWaitlistService(db)
 
 	srv := &Server{
 		config:               &Config{},
@@ -105,6 +107,7 @@ func NewServer() (*Server, error) {
 		seoService:           seoService,
 		feedbackService:      feedbackService,
 		emailService:         emailService,
+		waitlistService:      waitlistService,
 	}
 
 	// Initialize session store for authentication
@@ -262,6 +265,12 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackGet(s.feedbackService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackDelete(s.feedbackService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}/status", s.requireAdmin(handleFeedbackUpdateStatus(s.feedbackService))).Methods("PATCH")
+
+	// Waitlist endpoints (for coming soon mode)
+	s.router.HandleFunc("/api/v1/waitlist", handleWaitlistCreate(s.waitlistService)).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/waitlist", s.requireAdmin(handleWaitlistList(s.waitlistService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/waitlist/{id}", s.requireAdmin(handleWaitlistDelete(s.waitlistService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/waitlist/export", s.requireAdmin(handleWaitlistExport(s.waitlistService))).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -980,6 +989,13 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_status ON feedback_requests(status);`,
 		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_email ON feedback_requests(email);`,
 		`CREATE INDEX IF NOT EXISTS idx_feedback_requests_created ON feedback_requests(created_at);`,
+		`CREATE TABLE IF NOT EXISTS waitlist_emails (
+			id SERIAL PRIMARY KEY,
+			email VARCHAR(255) UNIQUE NOT NULL,
+			source VARCHAR(50) DEFAULT 'coming_soon',
+			created_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_waitlist_emails_email ON waitlist_emails(email);`,
 	}
 
 	for _, stmt := range stmts {

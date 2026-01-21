@@ -15,3 +15,4 @@ export * from './branding';
 export * from './assets';
 export * from './docs';
 export * from './feedback';
+export * from './waitlist';

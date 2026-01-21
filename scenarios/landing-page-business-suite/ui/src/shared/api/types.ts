@@ -305,6 +305,8 @@ export interface LandingBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
 }
 
 export interface LandingConfigResponse {
@@ -408,6 +410,8 @@ export interface SiteBranding {
   smtp_username?: string | null;
   smtp_password?: string | null;
   smtp_from?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -434,6 +438,15 @@ export interface SiteBrandingUpdate {
   smtp_username?: string;
   smtp_password?: string;
   smtp_from?: string;
+  coming_soon_enabled?: boolean;
+  coming_soon_message?: string;
+}
+
+export interface WaitlistEmail {
+  id: number;
+  email: string;
+  source: string;
+  created_at: string;
 }
 
 export interface PublicBranding {
@@ -445,6 +458,8 @@ export interface PublicBranding {
   theme_primary_color?: string | null;
   theme_background_color?: string | null;
   support_chat_url?: string | null;
+  coming_soon_enabled?: boolean | null;
+  coming_soon_message?: string | null;
 }
 
 // Uploaded asset

@@ -1,6 +1,7 @@
+import { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
-import { LandingVariantProvider } from './app/providers/LandingVariantProvider';
+import { LandingVariantProvider, useLandingVariant } from './app/providers/LandingVariantProvider';
 import { ErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ToastProvider } from './shared/ui/Toast';
 import { ProtectedRoute } from './surfaces/admin-portal/components/ProtectedRoute';
@@ -16,10 +17,36 @@ import { DownloadSettings } from './surfaces/admin-portal/routes/DownloadSetting
 import { BrandingSettings } from './surfaces/admin-portal/routes/BrandingSettings';
 import { DocsViewer } from './surfaces/admin-portal/routes/DocsViewer';
 import { FeedbackManagement } from './surfaces/admin-portal/routes/FeedbackManagement';
+import { WaitlistManagement } from './surfaces/admin-portal/routes/WaitlistManagement';
 import { PublicLanding } from './surfaces/public-landing/routes/PublicLanding';
 import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
 import { FeedbackPage } from './surfaces/public-landing/routes/FeedbackPage';
 import { ProfileSettings } from './surfaces/admin-portal/routes/ProfileSettings';
+import { ComingSoonPage } from './surfaces/public-landing/routes/ComingSoonPage';
+
+/**
+ * PublicRouteGuard checks if coming soon mode is enabled and shows the
+ * ComingSoonPage instead of the normal public content when enabled.
+ */
+function PublicRouteGuard({ children }: { children: ReactNode }) {
+  const { config, loading } = useLandingVariant();
+
+  if (loading) {
+    // Show a minimal loading state while config loads
+    return (
+      <div className="min-h-screen bg-[#07090F] flex items-center justify-center">
+        <div className="animate-pulse text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  // Check if coming soon mode is enabled
+  if (config?.branding?.coming_soon_enabled) {
+    return <ComingSoonPage branding={config.branding} />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
@@ -29,12 +56,14 @@ export default function App() {
           <AdminAuthProvider>
             <LandingVariantProvider>
             <Routes>
-              {/* Public routes */}
+              {/* Public routes - guarded by coming soon mode */}
               <Route
                 path="/"
                 element={
                   <ErrorBoundary level="route" name="PublicLanding">
-                    <PublicLanding />
+                    <PublicRouteGuard>
+                      <PublicLanding />
+                    </PublicRouteGuard>
                   </ErrorBoundary>
                 }
               />
@@ -42,7 +71,9 @@ export default function App() {
                 path="/health"
                 element={
                   <ErrorBoundary level="route" name="Health">
-                    <PublicLanding />
+                    <PublicRouteGuard>
+                      <PublicLanding />
+                    </PublicRouteGuard>
                   </ErrorBoundary>
                 }
               />
@@ -50,7 +81,9 @@ export default function App() {
                 path="/checkout"
                 element={
                   <ErrorBoundary level="route" name="Checkout">
-                    <CheckoutPage />
+                    <PublicRouteGuard>
+                      <CheckoutPage />
+                    </PublicRouteGuard>
                   </ErrorBoundary>
                 }
               />
@@ -58,7 +91,9 @@ export default function App() {
                 path="/feedback"
                 element={
                   <ErrorBoundary level="route" name="Feedback">
-                    <FeedbackPage />
+                    <PublicRouteGuard>
+                      <FeedbackPage />
+                    </PublicRouteGuard>
                   </ErrorBoundary>
                 }
               />
@@ -172,6 +207,16 @@ export default function App() {
                   <ProtectedRoute>
                     <ErrorBoundary level="route" name="FeedbackManagement">
                       <FeedbackManagement />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/waitlist"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="WaitlistManagement">
+                      <WaitlistManagement />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

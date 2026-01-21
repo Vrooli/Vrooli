@@ -80,6 +80,8 @@ type SiteBranding struct {
 	SMTPUsername           *string   `json:"smtp_username,omitempty"`
 	SMTPPassword           *string   `json:"smtp_password,omitempty"`
 	SMTPFrom               *string   `json:"smtp_from,omitempty"`
+	ComingSoonEnabled      *bool     `json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage      *string   `json:"coming_soon_message,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -107,4 +109,6 @@ type BrandingUpdateRequest struct {
 	SMTPUsername           *string `json:"smtp_username,omitempty"`
 	SMTPPassword           *string `json:"smtp_password,omitempty"`
 	SMTPFrom               *string `json:"smtp_from,omitempty"`
+	ComingSoonEnabled      *bool   `json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage      *string `json:"coming_soon_message,omitempty"`
 }

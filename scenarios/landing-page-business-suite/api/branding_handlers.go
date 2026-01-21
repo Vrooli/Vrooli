@@ -87,6 +87,8 @@ func handleGetPublicBranding(cs *ConfigStore) http.HandlerFunc {
 			"favicon_url":            branding.FaviconURL,
 			"theme_primary_color":    branding.ThemePrimaryColor,
 			"theme_background_color": branding.ThemeBackgroundColor,
+			"coming_soon_enabled":    branding.ComingSoonEnabled,
+			"coming_soon_message":    branding.ComingSoonMessage,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

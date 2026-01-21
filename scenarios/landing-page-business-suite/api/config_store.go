@@ -406,6 +406,12 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 	if branding.SMTPFrom != nil {
 		fileData["smtp_from"] = *branding.SMTPFrom
 	}
+	if branding.ComingSoonEnabled != nil {
+		fileData["coming_soon_enabled"] = *branding.ComingSoonEnabled
+	}
+	if branding.ComingSoonMessage != nil {
+		fileData["coming_soon_message"] = *branding.ComingSoonMessage
+	}
 
 	data, err := json.MarshalIndent(fileData, "", "  ")
 	if err != nil {
@@ -502,6 +508,12 @@ func (cs *ConfigStore) UpdateBranding(req *BrandingUpdateRequest) (*SiteBranding
 	if req.SMTPFrom != nil {
 		current.SMTPFrom = req.SMTPFrom
 	}
+	if req.ComingSoonEnabled != nil {
+		current.ComingSoonEnabled = req.ComingSoonEnabled
+	}
+	if req.ComingSoonMessage != nil {
+		current.ComingSoonMessage = req.ComingSoonMessage
+	}
 
 	cs.branding = current
 	cs.mu.Unlock()
@@ -566,6 +578,10 @@ func (cs *ConfigStore) ClearBrandingField(field string) error {
 		cs.branding.SMTPPassword = nil
 	case "smtp_from":
 		cs.branding.SMTPFrom = nil
+	case "coming_soon_enabled":
+		cs.branding.ComingSoonEnabled = nil
+	case "coming_soon_message":
+		cs.branding.ComingSoonMessage = nil
 	default:
 		return nil // Unknown field, ignore
 	}
@@ -642,6 +658,12 @@ func (cs *ConfigStore) saveBrandingLocked() error {
 	}
 	if cs.branding.SMTPFrom != nil {
 		fileData["smtp_from"] = *cs.branding.SMTPFrom
+	}
+	if cs.branding.ComingSoonEnabled != nil {
+		fileData["coming_soon_enabled"] = *cs.branding.ComingSoonEnabled
+	}
+	if cs.branding.ComingSoonMessage != nil {
+		fileData["coming_soon_message"] = *cs.branding.ComingSoonMessage
 	}
 
 	data, err := json.MarshalIndent(fileData, "", "  ")

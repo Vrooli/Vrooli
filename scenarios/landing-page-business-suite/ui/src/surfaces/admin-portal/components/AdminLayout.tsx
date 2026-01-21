@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download, Settings2, Book, ShieldCheck, MessageSquare } from 'lucide-react';
+import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download, Settings2, Book, ShieldCheck, MessageSquare, Users } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
@@ -64,6 +64,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       segments.push({ label: 'Documentation', path: '/admin/docs' });
     } else if (path.startsWith('/admin/feedback')) {
       segments.push({ label: 'Feedback', path: '/admin/feedback' });
+    } else if (path.startsWith('/admin/waitlist')) {
+      segments.push({ label: 'Waitlist', path: '/admin/waitlist' });
     } else if (path.startsWith('/admin/profile')) {
       segments.push({ label: 'Profile', path: '/admin/profile' });
     }
@@ -124,6 +126,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <Button variant="ghost" size="sm" className="gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Feedback
+                  </Button>
+                </Link>
+                <Link to="/admin/waitlist" data-testid="nav-waitlist">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Waitlist
                   </Button>
                 </Link>
                 <Link to="/admin/profile" data-testid="nav-profile">

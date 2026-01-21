@@ -592,6 +592,8 @@ type LandingBranding struct {
 	ThemePrimaryColor    *string `json:"theme_primary_color,omitempty"`
 	ThemeBackgroundColor *string `json:"theme_background_color,omitempty"`
 	SupportChatURL       *string `json:"support_chat_url,omitempty"`
+	ComingSoonEnabled    *bool   `json:"coming_soon_enabled,omitempty"`
+	ComingSoonMessage    *string `json:"coming_soon_message,omitempty"`
 }
 
 type LandingVariantSummary struct {
@@ -688,6 +690,8 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 			ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 			ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
 			SupportChatURL:       siteBranding.SupportChatURL,
+			ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
+			ComingSoonMessage:    siteBranding.ComingSoonMessage,
 		}
 	}
 
@@ -778,6 +782,8 @@ func (s *LandingConfigService) fallbackResponse(mark bool) *LandingConfigRespons
 				ThemePrimaryColor:    siteBranding.ThemePrimaryColor,
 				ThemeBackgroundColor: siteBranding.ThemeBackgroundColor,
 				SupportChatURL:       siteBranding.SupportChatURL,
+				ComingSoonEnabled:    siteBranding.ComingSoonEnabled,
+				ComingSoonMessage:    siteBranding.ComingSoonMessage,
 			}
 		}
 	}

@@ -1,10 +1,11 @@
 {
-  "site_name": "Silent Founder OS",
-  "tagline": "Build and market your business quietly with Vrooli Ascension.",
-  "default_title": "Silent Founder OS - Automate Your Business Quietly",
+  "canonical_base_url": "https://silentfounder.vrooli.com",
+  "coming_soon_enabled": true,
   "default_description": "Record browser workflows once, automate forever. Turn recordings into polished demo videos.",
   "default_og_image_url": "/assets/og/silent-founder-og.png",
-  "theme_primary_color": "#6366f1",
-  "canonical_base_url": "https://silentfounder.vrooli.com",
-  "robots_txt": "User-agent: *\nAllow: /"
+  "default_title": "Silent Founder OS - Automate Your Business Quietly",
+  "robots_txt": "User-agent: *\nAllow: /",
+  "site_name": "Silent Founder OS",
+  "tagline": "Build and market your business quietly with Vrooli Ascension.",
+  "theme_primary_color": "#6366f1"
 }

@@ -5,7 +5,7 @@ import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
-import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle, HelpCircle, Mail, Eye, EyeOff } from 'lucide-react';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle, HelpCircle, Mail, Eye, EyeOff, Clock, Info } from 'lucide-react';
 
 interface BrandingFormState {
   site_name: string;
@@ -29,6 +29,8 @@ interface BrandingFormState {
   smtp_username: string;
   smtp_password: string;
   smtp_from: string;
+  coming_soon_enabled: boolean;
+  coming_soon_message: string;
 }
 
 const defaultForm: BrandingFormState = {
@@ -53,6 +55,8 @@ const defaultForm: BrandingFormState = {
   smtp_username: '',
   smtp_password: '',
   smtp_from: '',
+  coming_soon_enabled: false,
+  coming_soon_message: '',
 };
 
 function brandingToForm(branding: SiteBranding): BrandingFormState {
@@ -78,6 +82,8 @@ function brandingToForm(branding: SiteBranding): BrandingFormState {
     smtp_username: branding.smtp_username ?? '',
     smtp_password: branding.smtp_password ?? '',
     smtp_from: branding.smtp_from ?? '',
+    coming_soon_enabled: branding.coming_soon_enabled ?? false,
+    coming_soon_message: branding.coming_soon_message ?? '',
   };
 }
 
@@ -193,16 +199,30 @@ export function BrandingSettings() {
     setSuccessMessage(null);
 
     try {
-      const payload: Record<string, string | number> = {};
+      const payload: Record<string, string | number | boolean> = {};
       (Object.keys(form) as (keyof BrandingFormState)[]).forEach((key) => {
-        const current = form[key].trim();
-        const original = originalForm[key].trim();
-        if (current !== original && current.length > 0) {
+        const current = form[key];
+        const original = originalForm[key];
+
+        // Handle boolean fields (coming_soon_enabled)
+        if (key === 'coming_soon_enabled') {
+          const currentBool = Boolean(current);
+          const originalBool = Boolean(original);
+          if (currentBool !== originalBool) {
+            payload[key] = currentBool;
+          }
+          return;
+        }
+
+        // Handle string fields - ensure we have strings
+        const currentStr = String(current ?? '').trim();
+        const originalStr = String(original ?? '').trim();
+        if (currentStr !== originalStr && currentStr.length > 0) {
           // Convert smtp_port to number
           if (key === 'smtp_port') {
-            payload[key] = parseInt(current, 10);
+            payload[key] = parseInt(currentStr, 10);
           } else {
-            payload[key] = current;
+            payload[key] = currentStr;
           }
         }
       });
@@ -439,6 +459,88 @@ export function BrandingSettings() {
                     </p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Coming Soon Mode */}
+            <Card className="border-white/10 bg-slate-900/60">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-amber-300" /> Coming Soon Mode
+                </CardTitle>
+                <CardDescription>
+                  Show a "coming soon" page to visitors while you prepare your landing page
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Toggle Switch */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label htmlFor="coming-soon-toggle" className="text-sm font-medium text-white">
+                      Enable Coming Soon Mode
+                    </label>
+                    <p className="text-xs text-slate-400 mt-1">
+                      When enabled, visitors see a "coming soon" page with email signup
+                    </p>
+                  </div>
+                  <button
+                    id="coming-soon-toggle"
+                    type="button"
+                    role="switch"
+                    aria-checked={form.coming_soon_enabled}
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, coming_soon_enabled: !prev.coming_soon_enabled }));
+                      setSuccessMessage(null);
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      form.coming_soon_enabled ? 'bg-amber-500' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        form.coming_soon_enabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Custom Message (only shown when enabled) */}
+                {form.coming_soon_enabled && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Custom Message (Optional)
+                      </label>
+                      <textarea
+                        value={form.coming_soon_message}
+                        onChange={(e) => {
+                          setForm((prev) => ({ ...prev, coming_soon_message: e.target.value }));
+                          setSuccessMessage(null);
+                        }}
+                        placeholder="We are working hard to bring you something amazing. Stay tuned!"
+                        rows={3}
+                        className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      />
+                      <p className="mt-1 text-xs text-slate-500">
+                        Leave empty to use the default message
+                      </p>
+                    </div>
+
+                    {/* Info Alert */}
+                    <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+                      <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-blue-300">
+                          Admin panel remains accessible
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          The admin panel at <code className="bg-slate-800 px-1 rounded">/admin</code> will
+                          still be accessible for you to manage your site. Only public routes are affected.
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
