@@ -688,3 +688,32 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 		t.Errorf("Expected a subscription status, got %v", result)
 	}
 }
+
+// ============================================================================
+// extractBillingCycleDay Tests (GAP-005)
+// ============================================================================
+
+func TestExtractBillingCycleDay(t *testing.T) {
+	tests := []struct {
+		name      string
+		timestamp int64
+		expected  int
+	}{
+		{"zero", 0, 0},
+		{"negative", -1, 0},
+		{"day 15", time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC).Unix(), 15},
+		{"day 1", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Unix(), 1},
+		{"day 28", time.Date(2026, 1, 28, 23, 59, 0, 0, time.UTC).Unix(), 28},
+		{"day 29 capped", time.Date(2026, 1, 29, 12, 0, 0, 0, time.UTC).Unix(), 28},
+		{"day 31 capped", time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC).Unix(), 28},
+		{"day 30 capped", time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC).Unix(), 28},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := extractBillingCycleDay(tc.timestamp); got != tc.expected {
+				t.Errorf("expected %d, got %d", tc.expected, got)
+			}
+		})
+	}
+}

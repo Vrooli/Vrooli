@@ -705,18 +705,32 @@ type stripePriceRef struct {
 }
 
 type stripeSubscription struct {
-	ID                string `json:"id"`
-	Status            string `json:"status"`
-	Customer          string `json:"customer"`
-	CustomerEmail     string `json:"customer_email"`
-	CancelAtPeriodEnd bool   `json:"cancel_at_period_end"`
-	CanceledAt        int64  `json:"canceled_at"`
-	Items             struct {
+	ID                 string `json:"id"`
+	Status             string `json:"status"`
+	Customer           string `json:"customer"`
+	CustomerEmail      string `json:"customer_email"`
+	CancelAtPeriodEnd  bool   `json:"cancel_at_period_end"`
+	CanceledAt         int64  `json:"canceled_at"`
+	BillingCycleAnchor int64  `json:"billing_cycle_anchor"`
+	Items              struct {
 		Data []struct {
 			Price stripePriceRef `json:"price"`
 		} `json:"data"`
 	} `json:"items"`
 	Metadata map[string]interface{} `json:"metadata"`
+}
+
+// extractBillingCycleDay converts a Unix timestamp to day of month (1-28).
+// Returns 0 if invalid. Days > 28 are capped to avoid short-month issues.
+func extractBillingCycleDay(timestamp int64) int {
+	if timestamp <= 0 {
+		return 0
+	}
+	day := time.Unix(timestamp, 0).UTC().Day()
+	if day > 28 {
+		day = 28
+	}
+	return day
 }
 
 type stripeCustomer struct {
@@ -863,9 +877,12 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 		canceledAt = &ts
 	}
 
+	// Extract billing cycle day from anchor timestamp
+	billingCycleStart := extractBillingCycleDay(sub.BillingCycleAnchor)
+
 	_, err := s.db.Exec(`
-		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, canceled_at, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1), NOW()), NOW())
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1), NOW()), NOW())
 		ON CONFLICT (subscription_id) DO UPDATE SET
 			customer_id = EXCLUDED.customer_id,
 			customer_email = EXCLUDED.customer_email,
@@ -873,9 +890,10 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 			plan_tier = EXCLUDED.plan_tier,
 			price_id = EXCLUDED.price_id,
 			bundle_key = EXCLUDED.bundle_key,
+			billing_cycle_start = EXCLUDED.billing_cycle_start,
 			canceled_at = EXCLUDED.canceled_at,
 			updated_at = NOW()
-	`, sub.ID, sub.Customer, sub.CustomerEmail, legacyStateLabel(state), planTier, priceID, bundleKey, canceledAt)
+	`, sub.ID, sub.Customer, sub.CustomerEmail, legacyStateLabel(state), planTier, priceID, bundleKey, billingCycleStart, canceledAt)
 	if err != nil {
 		return nil, err
 	}

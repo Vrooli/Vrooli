@@ -121,3 +121,95 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 		t.Fatal("expected updated_at to be populated")
 	}
 }
+
+// ============================================================================
+// Billing Cycle Tests (GAP-005)
+// ============================================================================
+
+func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	email := "billing@test.com"
+	subID := "sub_test_billing"
+
+	// Clean up first
+	_, _ = db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subID)
+
+	// Insert subscription with billing_cycle_start
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, billing_cycle_start, created_at, updated_at)
+		VALUES ($1, $2, 'active', 'pro', 15, NOW(), NOW())
+	`, subID, email)
+	if err != nil {
+		t.Fatalf("failed to insert test subscription: %v", err)
+	}
+
+	defer func() {
+		_, _ = db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subID)
+	}()
+
+	svc := NewAccountService(db, NewPlanService(db))
+	ent, err := svc.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+	if ent.BillingCycleStart != 15 {
+		t.Errorf("expected billing_cycle_start=15, got %d", ent.BillingCycleStart)
+	}
+}
+
+func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	email := "nobilling@test.com"
+	subID := "sub_test_nobilling"
+
+	// Clean up first
+	_, _ = db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subID)
+
+	// Insert subscription without billing_cycle_start (defaults to 0)
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, created_at, updated_at)
+		VALUES ($1, $2, 'active', 'solo', NOW(), NOW())
+	`, subID, email)
+	if err != nil {
+		t.Fatalf("failed to insert test subscription: %v", err)
+	}
+
+	defer func() {
+		_, _ = db.Exec(`DELETE FROM subscriptions WHERE subscription_id = $1`, subID)
+	}()
+
+	svc := NewAccountService(db, NewPlanService(db))
+	ent, err := svc.GetEntitlements(email)
+	if err != nil {
+		t.Fatalf("GetEntitlements failed: %v", err)
+	}
+	if ent.BillingCycleStart != 0 {
+		t.Errorf("expected billing_cycle_start=0 for unset, got %d", ent.BillingCycleStart)
+	}
+}
+
+func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	svc := NewAccountService(db, NewPlanService(db))
+	start := svc.getBillingCycleStart("nonexistent@test.com")
+	if start != 0 {
+		t.Errorf("expected billing_cycle_start=0 for nonexistent user, got %d", start)
+	}
+}
+
+func TestGetBillingCycleStart_EmptyUser(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	svc := NewAccountService(db, NewPlanService(db))
+	start := svc.getBillingCycleStart("  ")
+	if start != 0 {
+		t.Errorf("expected billing_cycle_start=0 for empty user, got %d", start)
+	}
+}

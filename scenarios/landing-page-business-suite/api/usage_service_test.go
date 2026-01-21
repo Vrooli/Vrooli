@@ -13,10 +13,14 @@ import (
 func createTestUsageDB(t *testing.T) *sql.DB {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	// Use shared-cache mode for in-memory SQLite to enable concurrent access
+	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
+
+	// SQLite in-memory databases require single connection to preserve state
+	db.SetMaxOpenConns(1)
 
 	// Create required tables
 	schema := `

@@ -74,6 +74,7 @@ CREATE INDEX idx_subscriptions_status ON subscriptions(status);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_cycle_start INTEGER DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS subscription_schedules (
     id SERIAL PRIMARY KEY,
