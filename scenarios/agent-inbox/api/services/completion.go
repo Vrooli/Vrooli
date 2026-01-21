@@ -64,6 +64,7 @@ type ToolRegistryInterface interface {
 // - ToolExecutorInterface: tool execution
 // - ToolRegistryInterface: tool discovery and configuration
 // - AsyncTrackerInterface: async operation tracking
+// - ToolPersistence: atomic tool result saving
 type CompletionService struct {
 	repo             CompletionRepository
 	executor         ToolExecutorInterface
@@ -72,18 +73,20 @@ type CompletionService struct {
 	messageConverter *MessageConverter
 	storage          StorageService
 	asyncTracker     AsyncTrackerInterface
+	toolPersistence  *ToolPersistence
 	skills           []SkillPayload // Skills to inject into tool calls as context
 }
 
 // CompletionServiceDeps contains all dependencies for CompletionService.
 // Used by NewCompletionServiceWithDeps for full dependency injection in tests.
 type CompletionServiceDeps struct {
-	Repo          CompletionRepository
-	Executor      ToolExecutorInterface
-	Registry      ToolRegistryInterface
-	AsyncTracker  AsyncTrackerInterface
-	Storage       StorageService
-	ModelRegistry *ModelRegistry // Optional: if nil, a new one is created
+	Repo            CompletionRepository
+	Executor        ToolExecutorInterface
+	Registry        ToolRegistryInterface
+	AsyncTracker    AsyncTrackerInterface
+	Storage         StorageService
+	ModelRegistry   *ModelRegistry   // Optional: if nil, a new one is created
+	ToolPersistence *ToolPersistence // Optional: for atomic tool saves
 }
 
 // NewCompletionServiceWithDeps creates a completion service with all dependencies injected.
@@ -102,6 +105,7 @@ func NewCompletionServiceWithDeps(deps CompletionServiceDeps) *CompletionService
 		messageConverter: NewMessageConverter(deps.Storage),
 		storage:          deps.Storage,
 		asyncTracker:     deps.AsyncTracker,
+		toolPersistence:  deps.ToolPersistence,
 	}
 }
 
@@ -259,17 +263,51 @@ type ToolExecutionOutcome struct {
 }
 
 // ExecuteToolCalls runs all tool calls from a completion result.
-// Returns results for each tool call in order.
-// parentMessageID is the assistant message that made the tool calls (for branching support).
 //
-// APPROVAL FLOW: If a tool requires approval (based on YOLO mode, user config, or metadata),
-// it will be saved as pending_approval and not executed. The caller should check
-// HasPendingApprovals to determine if the UI needs to show approval prompts.
+// # Execution Flow
 //
-// Error Handling:
+// For each tool call:
+// 1. Check if approval is required (YOLO mode, user config, tool metadata)
+// 2. If approval required → create pending_approval record, skip execution
+// 3. If no approval needed → execute immediately
+// 4. Save execution record to database
+// 5. Check for async behavior and start tracking if applicable
+// 6. Save tool response message (CRITICAL for conversation continuity)
+//
+// # Approval Flow
+//
+// Tools may require approval based on (in priority order):
+// 1. Tool-specific override (per-chat or global)
+// 2. YOLO mode setting (when off, all tools require approval)
+// 3. Tool metadata (requires_approval field)
+//
+// If approval is required:
+//   - Record is saved with status "pending_approval"
+//   - Outcome.HasPendingApprovals is set to true
+//   - UI should display approval prompts
+//   - Completion stream will send "awaiting_approvals" event
+//
+// # Async Tool Support
+//
+// After execution, checks if tool has AsyncBehavior metadata:
+//   - If present, starts background polling via AsyncTracker
+//   - Operation info is added to Outcome.AsyncOperations
+//   - Completion stream will send "async_waiting" event
+//
+// # Message Tree Integration
+//
+// Tool response messages are critical for the conversation:
+//   - Each tool result is saved as a "tool" role message
+//   - Messages are parented to the assistant message (parentMessageID)
+//   - active_leaf_message_id is updated to the last tool response
+//   - This ensures subsequent completions include tool results
+//
+// # Error Handling
+//
+// Partial success is supported:
 //   - Individual tool errors are captured in each ToolExecutionResult
 //   - The returned error is non-nil if ANY tool call failed
-//   - Callers can inspect individual results for partial success scenarios
+//   - Callers should inspect individual results for partial success scenarios
 func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messageID string, toolCalls []domain.ToolCall, parentMessageID string) (*ToolExecutionOutcome, error) {
 	outcome := &ToolExecutionOutcome{
 		Results:          make([]domain.ToolExecutionResult, 0, len(toolCalls)),
@@ -317,15 +355,6 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			executionErrors = append(executionErrors, fmt.Errorf("tool %s failed: %w", tc.Function.Name, err))
 		}
 
-		// Save the execution record
-		if messageID != "" {
-			if saveErr := s.repo.SaveToolCallRecord(ctx, messageID, record); saveErr != nil {
-				log.Printf("[ERROR] Failed to save tool call record for %s: %v", tc.Function.Name, saveErr)
-			}
-		} else {
-			log.Printf("[WARN] No messageID for tool call %s, skipping record save", tc.Function.Name)
-		}
-
 		// Check for async behavior and start tracking if applicable
 		var asyncOpInfo *domain.AsyncOperationInfo
 		if err == nil && s.asyncTracker != nil {
@@ -336,19 +365,46 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 			}
 		}
 
-		// Save tool response message (parented to the assistant message)
-		// This is CRITICAL - if we fail to save the tool result, subsequent completions
-		// will fail with "No tool output found for function call" errors
-		toolMsg, toolMsgErr := s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result, parentMessageID)
-		if toolMsgErr != nil {
-			log.Printf("[ERROR] Failed to save tool response message for %s (tool_call_id=%s): %v",
-				tc.Function.Name, tc.ID, toolMsgErr)
-			// Add to execution errors so caller knows something went wrong
-			executionErrors = append(executionErrors, fmt.Errorf("failed to save tool result for %s: %w", tc.Function.Name, toolMsgErr))
-		} else if toolMsg != nil {
-			lastToolMsgID = toolMsg.ID
-			log.Printf("[DEBUG] Saved tool response message: id=%s, tool_call_id=%s, parent=%s",
-				toolMsg.ID, tc.ID, parentMessageID)
+		// Save tool call record and response message atomically
+		// This prevents orphaned records if one operation fails
+		if messageID == "" {
+			log.Printf("[WARN] No messageID for tool call %s, skipping record save", tc.Function.Name)
+		} else if s.toolPersistence != nil {
+			// Use atomic save operation (record + message in one transaction)
+			toolMsg, saveErr := s.toolPersistence.SaveToolResultWithoutLeafUpdate(ctx, SaveToolResultParams{
+				ChatID:          chatID,
+				MessageID:       messageID,
+				ToolCallID:      tc.ID,
+				Record:          record,
+				Result:          record.Result,
+				ParentMessageID: parentMessageID,
+			})
+			if saveErr != nil {
+				log.Printf("[ERROR] Failed to atomically save tool result for %s (tool_call_id=%s): %v",
+					tc.Function.Name, tc.ID, saveErr)
+				executionErrors = append(executionErrors, fmt.Errorf("failed to save tool result for %s: %w", tc.Function.Name, saveErr))
+			} else if toolMsg != nil {
+				lastToolMsgID = toolMsg.ID
+				log.Printf("[DEBUG] Atomically saved tool result: id=%s, tool_call_id=%s, parent=%s",
+					toolMsg.ID, tc.ID, parentMessageID)
+			}
+		} else {
+			// Fallback to non-atomic saves (legacy behavior)
+			if saveErr := s.repo.SaveToolCallRecord(ctx, messageID, record); saveErr != nil {
+				log.Printf("[ERROR] Failed to save tool call record for %s: %v", tc.Function.Name, saveErr)
+			}
+
+			// Save tool response message (parented to the assistant message)
+			toolMsg, toolMsgErr := s.repo.SaveToolResponseMessage(ctx, chatID, tc.ID, record.Result, parentMessageID)
+			if toolMsgErr != nil {
+				log.Printf("[ERROR] Failed to save tool response message for %s (tool_call_id=%s): %v",
+					tc.Function.Name, tc.ID, toolMsgErr)
+				executionErrors = append(executionErrors, fmt.Errorf("failed to save tool result for %s: %w", tc.Function.Name, toolMsgErr))
+			} else if toolMsg != nil {
+				lastToolMsgID = toolMsg.ID
+				log.Printf("[DEBUG] Saved tool response message: id=%s, tool_call_id=%s, parent=%s",
+					toolMsg.ID, tc.ID, parentMessageID)
+			}
 		}
 
 		// Build result using centralized factory (with async info if applicable)
@@ -425,13 +481,27 @@ func (s *CompletionService) ApproveToolCall(ctx context.Context, chatID, toolCal
 		log.Printf("warning: tool execution failed after approval: %v", err)
 	}
 
-	// Update the record with execution results
-	s.repo.SaveToolCallRecord(ctx, record.MessageID, executedRecord)
-
-	// Save tool response message
-	toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, executedRecord.Result, record.MessageID)
-	if toolMsg != nil {
-		s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+	// Save tool call record, response message, and update active leaf atomically
+	if s.toolPersistence != nil {
+		toolMsg, saveErr := s.toolPersistence.SaveToolResult(ctx, SaveToolResultParams{
+			ChatID:          chatID,
+			MessageID:       record.MessageID,
+			ToolCallID:      toolCallID,
+			Record:          executedRecord,
+			Result:          executedRecord.Result,
+			ParentMessageID: record.MessageID,
+		})
+		if saveErr != nil {
+			return nil, fmt.Errorf("failed to save approval result: %w", saveErr)
+		}
+		log.Printf("[DEBUG] Atomically saved approval result: msg=%s, tool_call_id=%s", toolMsg.ID, toolCallID)
+	} else {
+		// Fallback to non-atomic saves (legacy behavior)
+		s.repo.SaveToolCallRecord(ctx, record.MessageID, executedRecord)
+		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, executedRecord.Result, record.MessageID)
+		if toolMsg != nil {
+			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+		}
 	}
 
 	// Check for remaining pending approvals
@@ -470,11 +540,40 @@ func (s *CompletionService) RejectToolCall(ctx context.Context, chatID, toolCall
 		return fmt.Errorf("failed to update status: %w", err)
 	}
 
-	// Save tool response message with rejection info
+	// Save tool response message with rejection info and update active leaf
 	rejectionResult := fmt.Sprintf(`{"rejected": true, "reason": %q}`, reason)
-	toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, rejectionResult, record.MessageID)
-	if toolMsg != nil {
-		s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+
+	if s.toolPersistence != nil {
+		// Create a rejection record for atomic save
+		rejectionRecord := &domain.ToolCallRecord{
+			ID:           toolCallID,
+			MessageID:    record.MessageID,
+			ChatID:       chatID,
+			ToolName:     record.ToolName,
+			Arguments:    record.Arguments,
+			Result:       rejectionResult,
+			Status:       domain.StatusRejected,
+			ErrorMessage: errorMsg,
+			StartedAt:    record.StartedAt,
+		}
+		toolMsg, saveErr := s.toolPersistence.SaveToolResult(ctx, SaveToolResultParams{
+			ChatID:          chatID,
+			MessageID:       record.MessageID,
+			ToolCallID:      toolCallID,
+			Record:          rejectionRecord,
+			Result:          rejectionResult,
+			ParentMessageID: record.MessageID,
+		})
+		if saveErr != nil {
+			return fmt.Errorf("failed to save rejection result: %w", saveErr)
+		}
+		log.Printf("[DEBUG] Atomically saved rejection result: msg=%s, tool_call_id=%s", toolMsg.ID, toolCallID)
+	} else {
+		// Fallback to non-atomic saves (legacy behavior)
+		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, rejectionResult, record.MessageID)
+		if toolMsg != nil {
+			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+		}
 	}
 
 	return nil
@@ -635,9 +734,56 @@ func (r *CompletionRequest) ShouldIncludeModalities() bool {
 }
 
 // PrepareCompletionRequest builds a validated completion request.
-// Returns an error if the chat doesn't exist or has no messages.
-// Uses sentinel errors (ErrChatNotFound, ErrNoMessages) for type-safe error handling.
-// forcedTool is an optional parameter in format "scenario:tool_name" to force the AI to use a specific tool.
+//
+// # Request Building Steps
+//
+// 1. Load chat settings (model, tools_enabled, web_search_enabled)
+// 2. Load messages from active branch (uses message tree CTE query)
+// 3. Fetch attachments for all messages
+// 4. Validate and truncate messages to fit context window
+// 5. Convert messages to OpenRouter format (with multimodal support)
+// 6. Inject async guidance if operations are active
+// 7. Build plugins (web search, PDF support)
+// 8. Resolve tool configuration (forced tool or enabled tools)
+//
+// # Message Tree Handling
+//
+// Uses GetMessagesForCompletion which:
+//   - Starts from active_leaf_message_id
+//   - Walks up the tree via parent_message_id
+//   - Returns chronologically ordered path
+//   - Excludes abandoned branches
+//
+// # Context Window Management
+//
+// Messages are validated and truncated via ContextManager:
+//   - Counts tokens per message
+//   - Drops oldest messages if over limit
+//   - Preserves system message if present
+//   - Special handling for image generation models
+//
+// # Forced Tool Mode
+//
+// When forcedTool is specified (format: "scenario:tool_name"):
+//   - Only the forced tool is sent to the AI
+//   - ToolChoice is set to require that specific tool
+//   - Bypasses tools_enabled setting
+//   - Used for template-suggested tool execution
+//
+// # Async Guidance Injection
+//
+// If async operations are active for this chat:
+//   - Injects a system message explaining active operations
+//   - Tells AI not to call status-checking tools
+//   - Results will be delivered automatically
+//
+// # Error Handling
+//
+// Returns sentinel errors for type-safe handling:
+//   - ErrChatNotFound: Chat doesn't exist
+//   - ErrNoMessages: Chat has no messages
+//   - ErrDatabaseError: Database operation failed
+//   - ErrMessagesFailed: Failed to load messages
 func (s *CompletionService) PrepareCompletionRequest(ctx context.Context, chatID string, streaming bool, forcedTool string) (*CompletionRequest, error) {
 	// Get chat settings
 	settings, err := s.GetChatSettings(ctx, chatID)

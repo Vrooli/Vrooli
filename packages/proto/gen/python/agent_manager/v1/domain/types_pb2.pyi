@@ -235,20 +235,22 @@ class SandboxFileCriteria(_message.Message):
     def __init__(self, path_globs: _Optional[_Iterable[str]] = ..., extensions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SandboxAcceptanceConfig(_message.Message):
-    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject")
+    __slots__ = ("mode", "allow", "deny", "ignore_binary", "auto_approve", "auto_reject", "disable_auto_approve_if_empty")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_FIELD_NUMBER: _ClassVar[int]
     DENY_FIELD_NUMBER: _ClassVar[int]
     IGNORE_BINARY_FIELD_NUMBER: _ClassVar[int]
     AUTO_APPROVE_FIELD_NUMBER: _ClassVar[int]
     AUTO_REJECT_FIELD_NUMBER: _ClassVar[int]
+    DISABLE_AUTO_APPROVE_IF_EMPTY_FIELD_NUMBER: _ClassVar[int]
     mode: SandboxAcceptanceMode
     allow: SandboxFileCriteria
     deny: SandboxFileCriteria
     ignore_binary: bool
     auto_approve: bool
     auto_reject: bool
-    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ...) -> None: ...
+    disable_auto_approve_if_empty: bool
+    def __init__(self, mode: _Optional[_Union[SandboxAcceptanceMode, str]] = ..., allow: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., deny: _Optional[_Union[SandboxFileCriteria, _Mapping]] = ..., ignore_binary: _Optional[bool] = ..., auto_approve: _Optional[bool] = ..., auto_reject: _Optional[bool] = ..., disable_auto_approve_if_empty: _Optional[bool] = ...) -> None: ...
 
 class SandboxLifecycleConfig(_message.Message):
     __slots__ = ("stop_on", "delete_on", "ttl", "idle_timeout")

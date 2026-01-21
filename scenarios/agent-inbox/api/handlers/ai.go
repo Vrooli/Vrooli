@@ -315,17 +315,38 @@ func mapCompletionErrorToStatus(err error) int {
 }
 
 // handleStreamingResponse processes a streaming AI response with auto-continue.
-// After tool calls complete, it automatically makes follow-up requests so the AI
-// can respond to tool results. This continues until the AI responds without tool calls
-// or a maximum iteration limit is reached.
 //
-// For async tools, the loop waits for completion callbacks before continuing.
-// This ensures the AI receives async results automatically without manual polling.
+// # Auto-Continue Loop
 //
-// The response arrives as Server-Sent Events (SSE) that must be parsed,
-// accumulated, and forwarded to the client.
+// After tool calls complete, the handler automatically makes follow-up requests
+// so the AI can respond to tool results. This continues until:
+//   - AI responds without tool calls (finish_reason="stop")
+//   - Pending approvals are waiting (awaiting user action)
+//   - Async operations are running (will resume after completion)
+//   - Maximum iteration limit is reached (safety valve)
 //
-// The maximum iteration limit is configured via services.MaxAutoContinueIterations.
+// # Async Tool Handling
+//
+// For async tools (long-running operations), the loop:
+// 1. Sends `async_waiting` event to client with operation info
+// 2. Registers a completion callback channel with AsyncTracker
+// 3. Waits for all async operations to complete
+// 4. Sends `async_completed` events as operations finish
+// 5. Continues the loop to let AI respond to results
+//
+// # SSE Protocol
+//
+// The response uses Server-Sent Events (SSE) format:
+//   - Each event is: "data: {json}\n\n"
+//   - Final event is: "data: [DONE]\n\n"
+//   - Events are forwarded to client as they arrive
+//
+// See docs/SEAMS.md for complete streaming protocol specification.
+//
+// # Error Handling
+//
+// Errors during follow-up requests are sent via SSE error events rather than
+// failing the entire response. This allows partial success scenarios.
 func (h *Handlers) handleStreamingResponse(w http.ResponseWriter, r *http.Request, body interface{ Read([]byte) (int, error) }, chatID, model string, svc *services.CompletionService) {
 	// Setup SSE response
 	sw := SetupSSEResponse(w, r)
@@ -533,6 +554,36 @@ func (h *Handlers) saveAsyncResultAsToolResponse(ctx context.Context, chatID str
 }
 
 // parseStreamingChunks reads and accumulates SSE chunks into a CompletionResult.
+//
+// # SSE Parsing
+//
+// Reads SSE-formatted data from the body:
+//   - Lines starting with "data: " contain JSON payloads
+//   - "data: [DONE]" signals end of stream
+//   - Other lines (comments, empty) are ignored
+//
+// # Accumulation
+//
+// Uses StreamingAccumulator to build the complete response:
+//   - Content is concatenated from all chunks
+//   - Tool calls are assembled from partial deltas
+//   - Images are collected from multimodal responses
+//   - Usage data is captured from the final chunk
+//
+// # Multimodal Support
+//
+// Content can be either:
+//   - string: Regular text content
+//   - []interface{}: Array of content parts (text + images)
+//
+// Images can appear in:
+//   - delta.Content as image_url parts
+//   - delta.Images array (legacy format)
+//
+// # Buffer Sizing
+//
+// Uses MaxSSEScanTokenSize for buffer to handle large payloads
+// like base64-encoded generated images.
 func parseStreamingChunks(body interface{ Read([]byte) (int, error) }, sw *StreamWriter) *domain.CompletionResult {
 	acc := domain.NewStreamingAccumulator()
 	scanner := bufio.NewScanner(body)

@@ -1,4 +1,5 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { SSEParser } from "./sse";
 
 const API_BASE = resolveApiBase({ appendSuffix: true });
 
@@ -20,78 +21,219 @@ export function resolveAttachmentUrl(url: string | undefined): string | undefine
   return `${ORIGIN_BASE}${url}`;
 }
 
-// Types
+// =============================================================================
+// Core Domain Types
+// =============================================================================
+
+/**
+ * Chat represents a conversation thread with the AI.
+ *
+ * Chats support branching (ChatGPT-style regeneration) via the message tree
+ * structure. The `active_leaf_message_id` tracks the current position in the tree.
+ *
+ * @example
+ * // Create a new chat
+ * const chat = await createChat({ name: "My Chat", model: "gpt-4" });
+ *
+ * @see Message - Messages within a chat
+ * @see ChatWithMessages - Chat with its full message history
+ */
 export interface Chat {
+  /** Unique identifier (UUID v4) */
   id: string;
+  /** User-facing name (can be auto-generated via Ollama) */
   name: string;
+  /** First ~100 chars of most recent message for list display */
   preview: string;
+  /** AI model ID (e.g., "openai/gpt-4", "anthropic/claude-3-opus") */
   model: string;
+  /** Display mode - currently only "bubble" is supported */
   view_mode: "bubble";
+  /** Whether the chat has been read by the user */
   is_read: boolean;
+  /** Whether the chat is in the archive view */
   is_archived: boolean;
+  /** Whether the chat is in the starred view */
   is_starred: boolean;
+  /** IDs of labels assigned to this chat */
   label_ids: string[];
-  tools_enabled: boolean; // Whether AI can use tools in this chat
-  web_search_enabled: boolean; // Default web search setting for new messages
-  active_leaf_message_id?: string; // Current branch leaf for message tree
-  active_template_id?: string; // Currently active template (tools remain enabled until used)
-  active_template_tool_ids?: string[]; // Tool IDs suggested by the active template
+  /** Whether AI can use tools in this chat (tool calling) */
+  tools_enabled: boolean;
+  /** Default web search setting for new messages in this chat */
+  web_search_enabled: boolean;
+  /** Current position in message tree (for branching/regeneration) */
+  active_leaf_message_id?: string;
+  /** Currently active template (suggests tools to use) */
+  active_template_id?: string;
+  /** Tool IDs suggested by the active template */
+  active_template_tool_ids?: string[];
+  /** ISO 8601 timestamp of creation */
   created_at: string;
+  /** ISO 8601 timestamp of last modification */
   updated_at: string;
 }
 
+/**
+ * ToolCall represents an AI-requested function call.
+ *
+ * When the AI model decides to use a tool, it returns a ToolCall structure
+ * that specifies which function to invoke and with what arguments.
+ *
+ * @example
+ * // ToolCall from AI response
+ * {
+ *   id: "call_abc123",
+ *   type: "function",
+ *   function: {
+ *     name: "run-agent",
+ *     arguments: '{"prompt": "Write a poem"}'
+ *   }
+ * }
+ */
 export interface ToolCall {
+  /** Unique identifier for this tool call (format: "call_xxx") */
   id: string;
+  /** Always "function" for OpenAI-compatible tool calls */
   type: string;
+  /** The function being called */
   function: {
+    /** Name of the tool/function to invoke */
     name: string;
+    /** JSON-encoded arguments for the function */
     arguments: string;
   };
 }
 
+/**
+ * Attachment represents a file attached to a message.
+ *
+ * Attachments can be images (for multimodal AI) or PDFs. They are stored
+ * on the server and referenced by URL.
+ *
+ * @see uploadAttachment - Upload a new attachment
+ * @see resolveAttachmentUrl - Convert storage path to full URL
+ */
 export interface Attachment {
+  /** Unique identifier (UUID v4) */
   id: string;
+  /** Message this attachment belongs to (set after linking) */
   message_id?: string;
+  /** Original filename */
   file_name: string;
+  /** MIME type (e.g., "image/png", "application/pdf") */
   content_type: string;
+  /** File size in bytes */
   file_size: number;
+  /** Server storage path (relative) */
   storage_path: string;
-  url?: string; // Full URL for display
+  /** Full URL for display (resolved via API base) */
+  url?: string;
+  /** Image width in pixels (images only) */
   width?: number;
+  /** Image height in pixels (images only) */
   height?: number;
+  /** ISO 8601 timestamp of upload */
   created_at: string;
 }
 
+/**
+ * Message represents a single message in a chat conversation.
+ *
+ * Messages form a tree structure for branching support:
+ * - `parent_message_id` links to the parent message
+ * - `sibling_index` indicates order among alternatives (regenerations)
+ * - The active branch is tracked via `Chat.active_leaf_message_id`
+ *
+ * Message roles:
+ * - `user`: Human input
+ * - `assistant`: AI response
+ * - `system`: System prompts (usually first message)
+ * - `tool`: Tool execution results
+ *
+ * @example
+ * // Message tree structure (regeneration example)
+ * // User message (parent)
+ * //   ├── Assistant v1 (sibling_index: 0)
+ * //   ├── Assistant v2 (sibling_index: 1) ← active_leaf
+ * //   └── Assistant v3 (sibling_index: 2)
+ *
+ * @see regenerateMessage - Create alternative responses
+ * @see selectBranch - Navigate between alternatives
+ */
 export interface Message {
+  /** Unique identifier (UUID v4) */
   id: string;
+  /** Parent chat ID */
   chat_id: string;
+  /** Message author type */
   role: "user" | "assistant" | "system" | "tool";
+  /** Message text content */
   content: string;
+  /** AI model used (assistant messages only) */
   model?: string;
+  /** Token count for context window management */
   token_count?: number;
+  /** For tool messages: which tool call this responds to */
   tool_call_id?: string;
+  /** For assistant messages: tool calls requested by AI */
   tool_calls?: ToolCall[];
+  /** OpenRouter response ID for tracking */
   response_id?: string;
+  /** Why the AI stopped: "stop", "tool_calls", "length" */
   finish_reason?: string;
-  parent_message_id?: string; // Parent message for branching
-  sibling_index: number;      // Order among siblings (0 = first)
-  attachments?: Attachment[]; // Attached images/PDFs
-  web_search?: boolean;       // Per-message web search override
+  /** Parent message ID (null for root/system message) */
+  parent_message_id?: string;
+  /** Order among siblings (0 = original, 1+ = regenerations) */
+  sibling_index: number;
+  /** File attachments (images, PDFs) */
+  attachments?: Attachment[];
+  /** Per-message web search override (null = use chat default) */
+  web_search?: boolean;
+  /** ISO 8601 timestamp of creation */
   created_at: string;
 }
 
+/**
+ * ToolCallRecord tracks the execution state of a tool call.
+ *
+ * Tool calls progress through states:
+ * 1. `pending` → Initial state when AI requests tool
+ * 2. `pending_approval` → Waiting for user to approve (YOLO mode off)
+ * 3. `approved` → User approved, about to execute
+ * 4. `running` → Currently executing
+ * 5. Terminal: `completed` | `failed` | `cancelled` | `rejected`
+ *
+ * For async tools (long-running operations):
+ * - `external_run_id` tracks the operation in the external service
+ * - Use `useAsyncStatus` hook to poll for progress
+ *
+ * @see approveToolCall - Approve a pending tool call
+ * @see rejectToolCall - Reject a pending tool call
+ */
 export interface ToolCallRecord {
+  /** Tool call ID from AI (format: "call_xxx") */
   id: string;
+  /** Assistant message that made this tool call */
   message_id: string;
+  /** Parent chat ID */
   chat_id: string;
+  /** Name of the tool being called */
   tool_name: string;
+  /** JSON-encoded function arguments */
   arguments: string;
+  /** JSON-encoded execution result */
   result?: string;
+  /** Current execution state */
   status: "pending" | "pending_approval" | "approved" | "rejected" | "running" | "completed" | "failed" | "cancelled";
+  /** Scenario that provides this tool */
   scenario_name?: string;
+  /** External operation ID (for async tools) */
   external_run_id?: string;
+  /** ISO 8601 timestamp of start */
   started_at: string;
+  /** ISO 8601 timestamp of completion */
   completed_at?: string;
+  /** Error message if failed */
   error_message?: string;
 }
 
@@ -346,53 +488,10 @@ export async function regenerateMessage(
 
   if (stream) {
     const reader = res.body?.getReader();
-    const decoder = new TextDecoder();
-
     if (!reader) {
       throw new Error("Streaming not supported");
     }
-
-    try {
-      while (true) {
-        if (options?.signal?.aborted) {
-          reader.cancel();
-          throw new DOMException("Aborted", "AbortError");
-        }
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value, { stream: true });
-        const lines = text.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data) as StreamingEvent;
-
-              if (parsed.content && options?.onChunk) {
-                options.onChunk(parsed.content);
-              }
-
-              if (options?.onEvent) {
-                options.onEvent(parsed);
-              }
-            } catch {
-              // Ignore parse errors for partial data
-            }
-          }
-        }
-      }
-    } finally {
-      try {
-        reader.releaseLock();
-      } catch {
-        // Reader may already be released
-      }
-    }
+    await processSSEStream(reader, options);
   } else {
     return res.json();
   }
@@ -696,34 +795,141 @@ export async function fetchChatToolCalls(chatId: string): Promise<ToolCallRecord
   return res.json();
 }
 
-// Streaming event types
-//
-// TEMPORAL FLOW: completion_id enables client-side correlation of events
-// from the same completion request, helping prevent stale event handling
-// when requests are cancelled or replaced.
+// =============================================================================
+// Streaming Event Types
+// =============================================================================
+
+/**
+ * StreamingEvent represents a Server-Sent Event (SSE) from the completion endpoint.
+ *
+ * Events are received during streaming completions and provide real-time updates:
+ * - `content` - Text chunks as they're generated
+ * - `image_generated` - AI-generated images (multimodal models)
+ * - `tool_call_start/result` - Tool execution lifecycle
+ * - `tool_pending_approval` - Tool requires user approval
+ * - `awaiting_approvals` - Stream paused waiting for approvals
+ * - `error/warning` - Issues during completion
+ * - `progress` - Status updates during long operations
+ *
+ * TEMPORAL FLOW: `completion_id` enables client-side correlation of events
+ * from the same completion request, helping prevent stale event handling
+ * when requests are cancelled or replaced.
+ *
+ * @see completeChat - Main streaming completion function
+ * @see useCompletion - React hook for managing streaming state
+ * @see docs/SEAMS.md - Full protocol specification
+ */
 export interface StreamingEvent {
+  /** Event type discriminator */
   type: "content" | "image_generated" | "tool_call_start" | "tool_call_result" | "tool_calls_complete" | "tool_pending_approval" | "awaiting_approvals" | "error" | "warning" | "progress";
+  /** Unique ID for this completion request (for stale event filtering) */
   completion_id?: string;
+  /** Text content chunk (type: "content") */
   content?: string;
-  // Image generation event fields
+  /** Generated image URL (type: "image_generated") */
   image_url?: string;
+  /** Tool name (type: "tool_call_start", "tool_call_result", "tool_pending_approval") */
   tool_name?: string;
+  /** Tool ID (legacy field, prefer tool_call_id) */
   tool_id?: string;
+  /** Tool call ID (type: "tool_pending_approval", "tool_call_result") */
   tool_call_id?: string;
+  /** JSON-encoded tool arguments */
   arguments?: string;
+  /** JSON-encoded tool result */
   result?: string;
+  /** Tool execution status ("completed", "failed") */
   status?: string;
+  /** Error message (type: "error", "tool_call_result" with failure) */
   error?: string;
+  /** Whether auto-continue is happening (type: "tool_calls_complete") */
   continuing?: boolean;
+  /** Whether streaming is complete */
   done?: boolean;
-  // Progress event fields
+  /** Current phase (type: "progress") */
   phase?: string;
+  /** Status message (type: "progress", "warning") */
   message?: string;
-  // Warning/error event fields
+  /** Error/warning code (type: "error", "warning") */
   code?: string;
+  /** Server request ID for debugging */
   request_id?: string;
-  // Template deactivation (when a template's suggested tool is used)
+  /** Signal to deactivate active template (type: "tool_call_result") */
   deactivate_template?: boolean;
+}
+
+/**
+ * Process an SSE stream with proper buffering.
+ *
+ * This uses SSEParser to handle events that may be split across chunk boundaries,
+ * preventing data loss that occurs with naive line-based parsing.
+ *
+ * @param reader - ReadableStream reader
+ * @param options - Callbacks for content chunks and events
+ * @internal
+ */
+async function processSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  options?: {
+    onChunk?: (content: string) => void;
+    onEvent?: (event: StreamingEvent) => void;
+    signal?: AbortSignal;
+  }
+): Promise<void> {
+  const decoder = new TextDecoder();
+  const parser = new SSEParser({
+    onEvent: (sseEvent) => {
+      // Skip [DONE] sentinel
+      if (sseEvent.data === "[DONE]") return;
+
+      try {
+        const parsed = JSON.parse(sseEvent.data) as StreamingEvent;
+
+        // Legacy callback for content chunks
+        if (parsed.content && options?.onChunk) {
+          options.onChunk(parsed.content);
+        }
+
+        // Event-based callback
+        if (options?.onEvent) {
+          options.onEvent(parsed);
+        }
+      } catch (e) {
+        // Log parse errors for debugging but don't crash the stream
+        console.warn(`Failed to parse SSE event data: ${sseEvent.data.slice(0, 100)}...`);
+      }
+    },
+    onError: (error, rawData) => {
+      console.error("SSE parse error:", error.message, rawData.slice(0, 100));
+    },
+  });
+
+  try {
+    while (true) {
+      // Check for abort before each read
+      if (options?.signal?.aborted) {
+        reader.cancel();
+        throw new DOMException("Aborted", "AbortError");
+      }
+
+      const { done, value } = await reader.read();
+      if (done) {
+        // Flush any remaining buffered data
+        parser.flush();
+        break;
+      }
+
+      // Process chunk with buffered parser
+      parser.processChunk(decoder.decode(value, { stream: true }));
+    }
+  } finally {
+    // Ensure reader is released on any exit path
+    try {
+      reader.releaseLock();
+    } catch {
+      // Reader may already be released
+    }
+  }
 }
 
 // Chat completion with streaming
@@ -776,57 +982,10 @@ export async function completeChat(
 
   if (stream) {
     const reader = res.body?.getReader();
-    const decoder = new TextDecoder();
-
     if (!reader) {
       throw new Error("Streaming not supported");
     }
-
-    try {
-      while (true) {
-        // Check for abort before each read
-        if (options?.signal?.aborted) {
-          reader.cancel();
-          throw new DOMException("Aborted", "AbortError");
-        }
-
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const text = decoder.decode(value, { stream: true });
-        const lines = text.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") continue;
-
-            try {
-              const parsed = JSON.parse(data) as StreamingEvent;
-
-              // Legacy callback for content chunks
-              if (parsed.content && options?.onChunk) {
-                options.onChunk(parsed.content);
-              }
-
-              // New event-based callback
-              if (options?.onEvent) {
-                options.onEvent(parsed);
-              }
-            } catch {
-              // Ignore parse errors for partial data
-            }
-          }
-        }
-      }
-    } finally {
-      // Ensure reader is released on any exit path
-      try {
-        reader.releaseLock();
-      } catch {
-        // Reader may already be released
-      }
-    }
+    await processSSEStream(reader, options);
   } else {
     return res.json();
   }

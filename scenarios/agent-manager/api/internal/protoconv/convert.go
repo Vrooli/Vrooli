@@ -194,12 +194,13 @@ func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.Sandb
 // SandboxAcceptanceConfigToProto converts domain SandboxAcceptanceConfig to proto.
 func SandboxAcceptanceConfigToProto(cfg domain.SandboxAcceptanceConfig) *pb.SandboxAcceptanceConfig {
 	return &pb.SandboxAcceptanceConfig{
-		Mode:         SandboxAcceptanceModeToProto(cfg.Mode),
-		Allow:        SandboxFileCriteriaToProto(cfg.Allow),
-		Deny:         SandboxFileCriteriaToProto(cfg.Deny),
-		IgnoreBinary: cfg.IgnoreBinary,
-		AutoApprove:  cfg.AutoApprove,
-		AutoReject:   cfg.AutoReject,
+		Mode:                      SandboxAcceptanceModeToProto(cfg.Mode),
+		Allow:                     SandboxFileCriteriaToProto(cfg.Allow),
+		Deny:                      SandboxFileCriteriaToProto(cfg.Deny),
+		IgnoreBinary:              cfg.IgnoreBinary,
+		AutoApprove:               cfg.AutoApprove,
+		AutoReject:                cfg.AutoReject,
+		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
 	}
 }
 
@@ -209,12 +210,13 @@ func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.Sa
 		return domain.SandboxAcceptanceConfig{}
 	}
 	return domain.SandboxAcceptanceConfig{
-		Mode:         SandboxAcceptanceModeFromProto(cfg.Mode),
-		Allow:        SandboxFileCriteriaFromProto(cfg.Allow),
-		Deny:         SandboxFileCriteriaFromProto(cfg.Deny),
-		IgnoreBinary: cfg.IgnoreBinary,
-		AutoApprove:  cfg.AutoApprove,
-		AutoReject:   cfg.AutoReject,
+		Mode:                      SandboxAcceptanceModeFromProto(cfg.Mode),
+		Allow:                     SandboxFileCriteriaFromProto(cfg.Allow),
+		Deny:                      SandboxFileCriteriaFromProto(cfg.Deny),
+		IgnoreBinary:              cfg.IgnoreBinary,
+		AutoApprove:               cfg.AutoApprove,
+		AutoReject:                cfg.AutoReject,
+		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
 	}
 }
 

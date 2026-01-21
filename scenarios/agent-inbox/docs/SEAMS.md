@@ -320,6 +320,149 @@ This document describes the architectural seams and responsibility boundaries in
 
 ---
 
+## Streaming Protocol Specification
+
+### SSE Event Types
+
+The completion endpoint (`POST /chats/{id}/complete?stream=true`) returns Server-Sent Events (SSE) with the following event structure:
+
+```
+data: {"type": "<event_type>", ...fields}
+```
+
+#### Event Type Reference
+
+| Type | Description | Key Fields |
+|------|-------------|------------|
+| `content` | Streamed text chunk | `content`, `completion_id` |
+| `image_generated` | AI-generated image | `image_url` |
+| `tool_call_start` | Tool execution begins | `tool_id`, `tool_name`, `arguments` |
+| `tool_call_result` | Tool execution complete | `tool_id`, `status`, `result`, `error`, `deactivate_template` |
+| `tool_calls_complete` | All tools done, continuing | `continuing: true` |
+| `tool_pending_approval` | Tool awaits user approval | `tool_call_id`, `tool_name`, `arguments` |
+| `awaiting_approvals` | Stream paused for approvals | (no extra fields) |
+| `async_waiting` | Paused for async tool | `operations: [{tool_call_id, tool_name, run_id}]` |
+| `async_progress` | Async operation update | `tool_call_id`, `progress`, `phase`, `message` |
+| `async_completed` | Async operation finished | `tool_call_id`, `status`, `result`, `error` |
+| `error` | Structured error | `code`, `error`, `request_id` |
+| `warning` | Non-fatal issue | `code`, `message` |
+| `progress` | Phase/status update | `phase`, `message` |
+
+### Event Flow Diagrams
+
+#### Simple Completion (No Tools)
+```
+Client                                Server
+  │                                     │
+  │  POST /complete?stream=true         │
+  │ ──────────────────────────────────► │
+  │                                     │
+  │     data: {"type":"content","content":"H"}
+  │ ◄────────────────────────────────── │
+  │     data: {"type":"content","content":"ello"}
+  │ ◄────────────────────────────────── │
+  │     data: [DONE]                    │
+  │ ◄────────────────────────────────── │
+```
+
+#### Completion with Tool Calls
+```
+Client                                Server                          External Tool
+  │                                     │                                    │
+  │  POST /complete?stream=true         │                                    │
+  │ ──────────────────────────────────► │                                    │
+  │                                     │                                    │
+  │     data: {"type":"tool_call_start", "tool_id":"...", "tool_name":"..."}
+  │ ◄────────────────────────────────── │                                    │
+  │                                     │  Execute tool                      │
+  │                                     │ ─────────────────────────────────► │
+  │                                     │                                    │
+  │                                     │  Tool result                       │
+  │                                     │ ◄───────────────────────────────── │
+  │     data: {"type":"tool_call_result", "status":"completed", "result":...}
+  │ ◄────────────────────────────────── │                                    │
+  │     data: {"type":"tool_calls_complete", "continuing":true}
+  │ ◄────────────────────────────────── │                                    │
+  │                                     │                                    │
+  │     (auto-continue: AI responds to tool results)                         │
+  │     data: {"type":"content","content":"Based on the tool result..."}
+  │ ◄────────────────────────────────── │                                    │
+  │     data: [DONE]                    │                                    │
+  │ ◄────────────────────────────────── │                                    │
+```
+
+#### Completion with Approval Required
+```
+Client                                Server
+  │                                     │
+  │  POST /complete?stream=true         │
+  │ ──────────────────────────────────► │
+  │                                     │
+  │     data: {"type":"tool_pending_approval", "tool_call_id":"...", ...}
+  │ ◄────────────────────────────────── │
+  │     data: {"type":"awaiting_approvals"}
+  │ ◄────────────────────────────────── │
+  │     data: [DONE]                    │  (stream ends, waiting for action)
+  │ ◄────────────────────────────────── │
+  │                                     │
+  │  POST /tool-calls/{id}/approve      │
+  │ ──────────────────────────────────► │
+  │     {"auto_continued": true, ...}   │
+  │ ◄────────────────────────────────── │
+  │                                     │
+  │  (new completion triggered server-side if auto_continued)
+```
+
+#### Completion with Async Tool
+```
+Client                                Server                     Async Tool
+  │                                     │                             │
+  │  POST /complete?stream=true         │                             │
+  │ ──────────────────────────────────► │                             │
+  │                                     │                             │
+  │     data: {"type":"tool_call_start", ...}
+  │ ◄────────────────────────────────── │                             │
+  │     data: {"type":"tool_call_result", "is_async":true, ...}
+  │ ◄────────────────────────────────── │                             │
+  │     data: {"type":"async_waiting", "operations":[...]}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │  Start polling              │
+  │                                     │ ──────────────────────────► │
+  │                                     │                             │
+  │  (stream stays open, waiting)       │  Poll status                │
+  │                                     │ ◄────────────────────────── │
+  │     data: {"type":"async_progress", "progress":50, ...}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │                             │
+  │                                     │  Operation complete         │
+  │                                     │ ◄────────────────────────── │
+  │     data: {"type":"async_completed", "status":"completed", ...}
+  │ ◄────────────────────────────────── │                             │
+  │                                     │                             │
+  │     (auto-continue with async result)
+  │     data: {"type":"content","content":"The operation completed..."}
+  │ ◄────────────────────────────────── │                             │
+  │     data: [DONE]                    │                             │
+  │ ◄────────────────────────────────── │                             │
+```
+
+### Request ID Correlation
+
+Each streaming request includes identifiers for correlation:
+
+- **completion_id**: Unique per completion request, included in events
+- **request_id**: Server-side trace ID, included in error events
+
+Client-side usage (from `useCompletion.ts`):
+```typescript
+// Guard against stale events from cancelled requests
+if (currentRequestIdRef.current !== requestId) {
+  return; // Stale event from cancelled request
+}
+```
+
+---
+
 ## Interface Contracts
 
 ### AsyncTrackerInterface
@@ -438,3 +581,207 @@ Poll 4: 16.875s
 Poll 5: 25.3s
 Poll 6+: 30s (capped)
 ```
+
+---
+
+## UI Layer Seams
+
+### Hook Boundaries
+
+The UI uses React hooks to encapsulate domain logic. Each hook has clear boundaries:
+
+| Hook | Responsibility | Seam Point |
+|------|----------------|------------|
+| `useCompletion` | AI streaming state, tool calls, approvals | `completeChat()` from api module |
+| `useChats` | Chat list, selection, CRUD | `fetchChats()`, `createChat()`, etc. |
+| `useAsyncStatus` | Async operation polling via SSE | SSE connection to `/async-status` |
+| `useAttachments` | File upload state | `uploadAttachment()` |
+| `useLabels` | Label management | `fetchLabels()`, `createLabel()`, etc. |
+| `useTools` | Tool registry state | `fetchToolSet()` |
+
+### Testing Seams
+
+For testing UI components, hooks can be mocked at the API module level:
+
+```typescript
+// Test file
+jest.mock('../lib/api', () => ({
+  completeChat: jest.fn().mockImplementation(async (chatId, options) => {
+    // Simulate streaming events
+    options?.onEvent?.({ type: 'content', content: 'Test response' });
+  }),
+  // ... other mocks
+}));
+```
+
+Alternatively, for integration tests, the `fetch` function can be intercepted:
+
+```typescript
+// Using MSW (Mock Service Worker)
+import { rest } from 'msw';
+
+const handlers = [
+  rest.post('/api/v1/chats/:id/complete', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.body('data: {"type":"content","content":"Hello"}\n\n'));
+  }),
+];
+```
+
+### State Management Boundaries
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              App                                         │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                       Global State                                  │ │
+│  │  - ToolsContext (tool registry, refresh)                           │ │
+│  │  - No Redux/MobX - minimal global state                            │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  ┌─────────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │     useChats            │  │           useCompletion              │  │
+│  │  (chat list, selection) │  │  (streaming, tool calls, approvals) │  │
+│  │                         │  │                                      │  │
+│  │  State:                 │  │  State:                              │  │
+│  │  - chats[]              │  │  - isGenerating                      │  │
+│  │  - selectedChat         │  │  - streamingContent                  │  │
+│  │  - viewState            │  │  - activeToolCalls[]                 │  │
+│  │                         │  │  - pendingApprovals[]                │  │
+│  │  Seam: React Query      │  │  - awaitingApprovals                 │  │
+│  │  (cache invalidation)   │  │                                      │  │
+│  └─────────────────────────┘  │  Seam: AbortController               │  │
+│                               │  (request cancellation)              │  │
+│                               └─────────────────────────────────────┘  │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                        API Client Layer                            │ │
+│  │                      (ui/src/lib/api.ts)                           │ │
+│  │                                                                     │ │
+│  │  Primary Seam: All HTTP calls go through this module               │ │
+│  │  - Type-safe request/response handling                             │ │
+│  │  - SSE streaming abstraction                                       │ │
+│  │  - URL building via buildApiUrl()                                  │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### React Patterns for Stability
+
+The `useCompletion` hook uses several patterns to prevent render storms:
+
+1. **Stable Empty Arrays**: Prevents reference changes
+   ```typescript
+   const EMPTY_IMAGES: string[] = [];
+   const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
+   ```
+
+2. **Request ID Guards**: Prevents stale event handling
+   ```typescript
+   if (currentRequestIdRef.current !== requestId) {
+     return; // Stale event
+   }
+   ```
+
+3. **startTransition**: Batches non-urgent state updates
+   ```typescript
+   startTransition(() => {
+     setStreamingContent((prev) => prev + event.content);
+   });
+   ```
+
+4. **Memoized Return**: Prevents object reference changes
+   ```typescript
+   return useMemo(() => ({ ...state, ...actions }), [dependencies]);
+   ```
+
+---
+
+## Handler Responsibilities
+
+### API Handler Boundaries
+
+| Handler File | Responsibility | Should NOT Do |
+|--------------|----------------|---------------|
+| `ai.go` | HTTP for completions, SSE setup | Business logic (delegates to services) |
+| `chat.go` | Chat CRUD HTTP endpoints | Tool execution, message tree logic |
+| `message.go` | Message HTTP endpoints | AI completion orchestration |
+| `async_status.go` | SSE for async updates | Polling logic (delegates to tracker) |
+| `tools.go` | Tool discovery/config HTTP | Tool execution |
+| `upload.go` | File upload HTTP | Storage implementation |
+
+### Service Layer Boundaries
+
+| Service | Owns | Delegates To |
+|---------|------|--------------|
+| `CompletionService` | Completion orchestration, tool call coordination | `ToolExecutor`, `AsyncTracker`, `Repository` |
+| `AsyncTrackerService` | Operation lifecycle, polling, notifications | `ToolExecutor` (for status calls), `Repository` |
+| `ToolRegistry` | Tool metadata cache, enabled state | `Repository` (for configs) |
+| `ReconciliationService` | Startup recovery | `Repository` |
+
+### Handler → Service → Repository Pattern
+
+```
+Handler                    Service                     Repository
+   │                          │                            │
+   │  Validate HTTP input     │                            │
+   │  ──────────────────►     │                            │
+   │                          │  Orchestrate workflow      │
+   │                          │  ──────────────────────►   │
+   │                          │                            │  SQL
+   │                          │                            │ ─────►
+   │                          │                            │
+   │                          │  ◄──────────────────────   │
+   │  Format HTTP response    │                            │
+   │  ◄──────────────────     │                            │
+```
+
+### Error Translation Boundaries
+
+| Layer | Error Type | Responsibility |
+|-------|------------|----------------|
+| Repository | `sql.ErrNoRows`, DB errors | Wrap in domain errors |
+| Service | `ErrChatNotFound`, `ErrNoMessages` | Business rule validation |
+| Handler | `AppError` → HTTP status | Map to status codes |
+
+From `handlers/ai.go`:
+```go
+func mapCompletionErrorToStatus(err error) int {
+    switch {
+    case errors.Is(err, services.ErrChatNotFound):
+        return http.StatusNotFound
+    case errors.Is(err, services.ErrNoMessages):
+        return http.StatusBadRequest
+    // ...
+    }
+}
+```
+
+---
+
+## Testability Seams Summary
+
+### API-Side Seams
+
+| Seam | Interface | Mock Strategy |
+|------|-----------|---------------|
+| Database | `CompletionRepository` | In-memory implementation |
+| Tool execution | `ToolExecutorInterface` | Mock executor returning canned results |
+| Async tracking | `AsyncTrackerInterface` | Mock tracker with immediate completion |
+| LLM client | (not injectable) | Consider extracting `LLMClientInterface` |
+| Ollama client | `OllamaClientInterface` | Mock for auto-naming tests |
+
+### UI-Side Seams
+
+| Seam | Injection Point | Mock Strategy |
+|------|-----------------|---------------|
+| API calls | `api.ts` module | Jest mock or MSW |
+| SSE streaming | `completeChat()` | Call `onEvent` directly |
+| Fetch | Global `fetch` | MSW intercept |
+
+### Recommended Improvements
+
+1. **Extract LLM Client Interface**: Currently `integrations.NewOpenRouterClient()` is called directly in handlers. Extracting to an interface would improve testability.
+
+2. **Dependency Injection for Hooks**: Consider a `useApiClient()` hook that can be provided via context for easier testing.
+
+3. **State Machine for Completion**: The boolean flags in `useCompletion` (`isGenerating`, `awaitingApprovals`) could be replaced with an explicit state machine (e.g., XState) for clearer state transitions.

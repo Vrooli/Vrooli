@@ -1136,6 +1136,10 @@ func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
 	if cfg.Acceptance.AutoApprove {
 		return e.autoApprove(ctx)
 	}
+	// Auto-approve empty sandboxes (enabled by default)
+	if !cfg.Acceptance.DisableAutoApproveIfEmpty {
+		return e.autoApproveIfEmpty(ctx)
+	}
 	return false
 }
 
@@ -1176,6 +1180,44 @@ func (e *RunExecutor) autoReject(ctx context.Context) bool {
 	e.run.ApprovedBy = actor
 	e.run.ApprovedAt = &now
 	e.run.Status = domain.RunStatusComplete
+	return true
+}
+
+func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
+	if e.sandbox == nil || e.sandboxID == nil {
+		return false
+	}
+
+	// Get diff to check if sandbox is empty
+	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty: failed to get diff: "+err.Error())
+		return false
+	}
+
+	// Check if no changes
+	if diff.Stats.FilesChanged > 0 {
+		return false // Has changes, requires manual review
+	}
+
+	// Empty sandbox - auto-approve
+	actor := "auto-approve-empty"
+	_, err = e.sandbox.Approve(ctx, sandbox.ApproveRequest{
+		SandboxID: *e.sandboxID,
+		Actor:     actor,
+	})
+	if err != nil {
+		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty failed: "+err.Error())
+		return false
+	}
+
+	now := time.Now()
+	e.run.ApprovalState = domain.ApprovalStateApproved
+	e.run.ApprovedBy = actor
+	e.run.ApprovedAt = &now
+	e.run.Status = domain.RunStatusComplete
+
+	e.emitSystemEvent(ctx, "info", "auto-approved empty sandbox (no changes detected)")
 	return true
 }
 

@@ -110,6 +110,9 @@ message SandboxAcceptanceConfig {
   bool ignore_binary = 4;
   bool auto_approve = 5;
   bool auto_reject = 6;
+  // When false (default), sandboxes with no file changes are auto-approved.
+  // Set to true to require manual approval even for empty sandboxes.
+  bool disable_auto_approve_if_empty = 7;
 }
 
 // SandboxLifecycleConfig controls sandbox stop/delete behavior.

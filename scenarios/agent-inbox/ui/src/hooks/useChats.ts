@@ -15,7 +15,7 @@
  *
  * SEAM: For testing, mock the individual hooks or the API functions.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchChats,
@@ -45,6 +45,7 @@ import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useC
 import { useLabels } from "./useLabels";
 import { getDefaultModel } from "../components/settings/Settings";
 import type { MessagePayload } from "../components/chat/MessageInput";
+import { CacheUpdateManager, createQueryClientAdapter } from "../lib/cache";
 
 // Stable empty arrays to prevent infinite re-render loops
 // CRITICAL: Using `= []` in destructuring creates a NEW array on every render,
@@ -71,6 +72,14 @@ export function useChats(options: UseChatsOptions = {}) {
   const queryClient = useQueryClient();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
   const [currentView, setCurrentView] = useState<View>("inbox");
+
+  // Cache manager for coordinating invalidations with streaming
+  // Use ref to maintain stable instance across renders
+  const cacheManagerRef = useRef<CacheUpdateManager | null>(null);
+  if (!cacheManagerRef.current) {
+    cacheManagerRef.current = new CacheUpdateManager(createQueryClientAdapter(queryClient));
+  }
+  const cacheManager = cacheManagerRef.current;
 
   // Delegate to focused hooks
   const completion = useCompletion({ onTemplateDeactivated });
@@ -235,6 +244,9 @@ export function useChats(options: UseChatsOptions = {}) {
 
       const abortController = new AbortController();
 
+      // Mark streaming active to defer invalidations
+      cacheManager.startStreaming(chatId);
+
       try {
         await apiRegenerateMessage(chatId, messageId, {
           stream: true,
@@ -249,10 +261,6 @@ export function useChats(options: UseChatsOptions = {}) {
             }
           },
         });
-
-        // Refresh chat data after regeneration completes
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           console.log("Regeneration aborted");
@@ -262,9 +270,11 @@ export function useChats(options: UseChatsOptions = {}) {
       } finally {
         setIsRegenerating(false);
         setRegeneratingContent("");
+        // Single batched invalidation when streaming ends
+        await cacheManager.endStreaming(chatId);
       }
     },
-    [isRegenerating, completion.isGenerating, queryClient]
+    [isRegenerating, completion.isGenerating, cacheManager]
   );
 
   // Select a different message branch
@@ -290,6 +300,9 @@ export function useChats(options: UseChatsOptions = {}) {
       // Clear editing state immediately so the input clears
       setEditingMessage(null);
 
+      // Mark streaming active to defer all invalidations
+      cacheManager.startStreaming(selectedChatId);
+
       try {
         // Create the edited message (new sibling)
         await apiEditMessage(selectedChatId, messageId, {
@@ -298,24 +311,21 @@ export function useChats(options: UseChatsOptions = {}) {
           web_search: payload.webSearchEnabled ? true : undefined,
         });
 
-        // Refresh chat data immediately to show the new message
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
+        // Queue invalidation (will be batched at end of streaming)
+        await cacheManager.invalidateChat(selectedChatId, ["chats"]);
 
         // Run AI completion (this uses useCompletion for proper streaming)
         await completion.runCompletion(selectedChatId);
-
-        // Refresh again after completion
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
       } catch (error) {
         console.error("Edit message failed:", error);
       } finally {
         setIsEditing(false);
+        // Single batched invalidation when streaming ends
+        await cacheManager.endStreaming(selectedChatId);
       }
     },
     // CRITICAL: Use completion.runCompletion, not the whole completion object (see sendMessageAndComplete)
-    [selectedChatId, isEditing, completion.runCompletion, queryClient]
+    [selectedChatId, isEditing, completion.runCompletion, cacheManager]
   );
 
   // Cancel edit mode
@@ -335,43 +345,12 @@ export function useChats(options: UseChatsOptions = {}) {
         skill_ids: payload.skillIds && payload.skillIds.length > 0 ? payload.skillIds : undefined,
       });
 
-      // CRITICAL: Optimistically update the cache with the new message.
-      // This avoids the need for refetchQueries, which causes cascading re-renders.
-      // We add the message directly to the cache, then start the completion.
-      // For fresh chats, old might be null/undefined - in that case, create a minimal structure.
-      queryClient.setQueryData(["chat", chatId], (old: typeof chatData) => {
-        if (!old) {
-          // Fresh chat - create minimal structure with the new message
-          // The full chat data will be fetched later via invalidation
-          // IMPORTANT: Include required fields to avoid crashes in ChatHeader/ChatToolsSelector
-          return {
-            chat: {
-              id: chatId,
-              name: "New Chat",
-              model: "default",
-              is_read: true,
-              is_starred: false,
-              is_archived: false,
-              tools_enabled: true,
-              label_ids: [],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            } as typeof chatData extends { chat: infer C } ? C : never,
-            messages: [newMessage],
-            tool_call_records: [],
-          };
-        }
-        return {
-          ...old,
-          messages: [...(old.messages || []), newMessage],
-        };
-      });
-      // NOTE: Don't invalidate ["chats"] here - we do it once at the end.
+      // CRITICAL: Optimistically update cache with active_leaf tracking.
+      // This avoids refetchQueries cascading re-renders while tracking the expected leaf.
+      cacheManager.optimisticAddMessage(chatId, newMessage, newMessage.id);
 
       // CRITICAL: Defer runCompletion to the next event loop tick.
-      // The setQueryData above triggers synchronous re-renders in react-query subscribers.
-      // If we call setIsGenerating(true) while those renders are still processing,
-      // React detects nested state updates and throws "too many re-renders" (Error #310).
+      // The optimistic update triggers synchronous re-renders in react-query subscribers.
       // Using setTimeout(0) ensures React finishes the current render batch first.
       await new Promise<void>((resolve) => {
         setTimeout(() => {
@@ -379,7 +358,9 @@ export function useChats(options: UseChatsOptions = {}) {
         }, 0);
       });
 
-      // Run AI completion with optional forced tool and skills
+      // Mark streaming active - defers all invalidations until completion
+      cacheManager.startStreaming(chatId);
+
       try {
         await completion.runCompletion(chatId, {
           forcedTool: payload.forcedTool,
@@ -394,19 +375,13 @@ export function useChats(options: UseChatsOptions = {}) {
             console.error("Auto-naming failed:", e);
           }
         }
-
-        // CRITICAL: Single batch of invalidations at the END of all operations.
-        // Multiple invalidateQueries calls in rapid succession each trigger background
-        // refetches that update the cache, causing cascading re-renders which can
-        // exceed React's 50-render limit ("too many re-renders" error).
-        // By consolidating to a single invalidation point, we minimize render cycles.
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
       } catch (error) {
         console.error("Chat completion failed:", error);
-        // Still invalidate on error to ensure UI is in sync
-        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-        queryClient.invalidateQueries({ queryKey: ["chats"] });
+      } finally {
+        // CRITICAL: Single batched invalidation when streaming ends.
+        // This consolidates all deferred invalidations into one operation,
+        // preventing cascading re-renders that cause "too many re-renders" errors.
+        await cacheManager.endStreaming(chatId);
       }
     },
     // CRITICAL: Depend on completion.runCompletion specifically, NOT the whole completion object.
@@ -511,28 +486,27 @@ export function useChats(options: UseChatsOptions = {}) {
     async (toolCallId: string) => {
       if (!selectedChatId) return;
       const result = await completion.approveTool(selectedChatId, toolCallId);
-      // Refetch chat after approval to get updated messages
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
-      // If auto-continued, the backend triggered a new completion
-      // which will add new messages, so we refetch
+      // Single consolidated invalidation after approval
+      // Uses cache manager to batch if multiple approvals happen rapidly
+      await cacheManager.invalidateChat(selectedChatId, ["chats"]);
+      // If auto-continued, backend triggered new completion - already handled by single invalidation
       if (result?.auto_continued) {
-        queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+        // No need for extra invalidation - the one above is sufficient
       }
     },
     // CRITICAL: Use completion.approveTool, not the whole completion object
-    [selectedChatId, completion.approveTool, queryClient]
+    [selectedChatId, completion.approveTool, cacheManager]
   );
 
   const rejectTool = useCallback(
     async (toolCallId: string, reason?: string) => {
       if (!selectedChatId) return;
       await completion.rejectTool(selectedChatId, toolCallId, reason);
-      // Refetch chat after rejection
-      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+      // Single invalidation after rejection
+      await cacheManager.invalidateChat(selectedChatId);
     },
     // CRITICAL: Use completion.rejectTool, not the whole completion object
-    [selectedChatId, completion.rejectTool, queryClient]
+    [selectedChatId, completion.rejectTool, cacheManager]
   );
 
   // CRITICAL: Memoize action functions that wrap mutation.mutate to prevent

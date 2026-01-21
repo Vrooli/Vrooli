@@ -1064,15 +1064,18 @@ func (x *SandboxFileCriteria) GetExtensions() []string {
 
 // SandboxAcceptanceConfig controls which files are eligible for approval.
 type SandboxAcceptanceConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Mode          SandboxAcceptanceMode  `protobuf:"varint,1,opt,name=mode,proto3,enum=agent_manager.v1.SandboxAcceptanceMode" json:"mode,omitempty"`
-	Allow         *SandboxFileCriteria   `protobuf:"bytes,2,opt,name=allow,proto3" json:"allow,omitempty"`
-	Deny          *SandboxFileCriteria   `protobuf:"bytes,3,opt,name=deny,proto3" json:"deny,omitempty"`
-	IgnoreBinary  bool                   `protobuf:"varint,4,opt,name=ignore_binary,json=ignoreBinary,proto3" json:"ignore_binary,omitempty"`
-	AutoApprove   bool                   `protobuf:"varint,5,opt,name=auto_approve,json=autoApprove,proto3" json:"auto_approve,omitempty"`
-	AutoReject    bool                   `protobuf:"varint,6,opt,name=auto_reject,json=autoReject,proto3" json:"auto_reject,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Mode         SandboxAcceptanceMode  `protobuf:"varint,1,opt,name=mode,proto3,enum=agent_manager.v1.SandboxAcceptanceMode" json:"mode,omitempty"`
+	Allow        *SandboxFileCriteria   `protobuf:"bytes,2,opt,name=allow,proto3" json:"allow,omitempty"`
+	Deny         *SandboxFileCriteria   `protobuf:"bytes,3,opt,name=deny,proto3" json:"deny,omitempty"`
+	IgnoreBinary bool                   `protobuf:"varint,4,opt,name=ignore_binary,json=ignoreBinary,proto3" json:"ignore_binary,omitempty"`
+	AutoApprove  bool                   `protobuf:"varint,5,opt,name=auto_approve,json=autoApprove,proto3" json:"auto_approve,omitempty"`
+	AutoReject   bool                   `protobuf:"varint,6,opt,name=auto_reject,json=autoReject,proto3" json:"auto_reject,omitempty"`
+	// When false (default), sandboxes with no file changes are auto-approved.
+	// Set to true to require manual approval even for empty sandboxes.
+	DisableAutoApproveIfEmpty bool `protobuf:"varint,7,opt,name=disable_auto_approve_if_empty,json=disableAutoApproveIfEmpty,proto3" json:"disable_auto_approve_if_empty,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *SandboxAcceptanceConfig) Reset() {
@@ -1143,6 +1146,13 @@ func (x *SandboxAcceptanceConfig) GetAutoApprove() bool {
 func (x *SandboxAcceptanceConfig) GetAutoReject() bool {
 	if x != nil {
 		return x.AutoReject
+	}
+	return false
+}
+
+func (x *SandboxAcceptanceConfig) GetDisableAutoApproveIfEmpty() bool {
+	if x != nil {
+		return x.DisableAutoApproveIfEmpty
 	}
 	return false
 }
@@ -1279,7 +1289,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"path_globs\x18\x01 \x03(\tR\tpathGlobs\x12\x1e\n" +
 	"\n" +
 	"extensions\x18\x02 \x03(\tR\n" +
-	"extensions\"\xb7\x02\n" +
+	"extensions\"\xf9\x02\n" +
 	"\x17SandboxAcceptanceConfig\x12;\n" +
 	"\x04mode\x18\x01 \x01(\x0e2'.agent_manager.v1.SandboxAcceptanceModeR\x04mode\x12;\n" +
 	"\x05allow\x18\x02 \x01(\v2%.agent_manager.v1.SandboxFileCriteriaR\x05allow\x129\n" +
@@ -1287,7 +1297,8 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\rignore_binary\x18\x04 \x01(\bR\fignoreBinary\x12!\n" +
 	"\fauto_approve\x18\x05 \x01(\bR\vautoApprove\x12\x1f\n" +
 	"\vauto_reject\x18\x06 \x01(\bR\n" +
-	"autoReject\"\x8b\x02\n" +
+	"autoReject\x12@\n" +
+	"\x1ddisable_auto_approve_if_empty\x18\a \x01(\bR\x19disableAutoApproveIfEmpty\"\x8b\x02\n" +
 	"\x16SandboxLifecycleConfig\x12@\n" +
 	"\astop_on\x18\x01 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\x06stopOn\x12D\n" +
 	"\tdelete_on\x18\x02 \x03(\x0e2'.agent_manager.v1.SandboxLifecycleEventR\bdeleteOn\x12+\n" +

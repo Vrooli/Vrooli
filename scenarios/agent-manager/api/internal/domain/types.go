@@ -136,12 +136,13 @@ type SandboxFileCriteria struct {
 
 // SandboxAcceptanceConfig controls which files are eligible for approval.
 type SandboxAcceptanceConfig struct {
-	Mode         string              `json:"mode,omitempty"` // "allowlist"
-	Allow        SandboxFileCriteria `json:"allow,omitempty"`
-	Deny         SandboxFileCriteria `json:"deny,omitempty"`
-	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
-	AutoApprove  bool                `json:"autoApprove,omitempty"`
-	AutoReject   bool                `json:"autoReject,omitempty"`
+	Mode                      string              `json:"mode,omitempty"` // "allowlist"
+	Allow                     SandboxFileCriteria `json:"allow,omitempty"`
+	Deny                      SandboxFileCriteria `json:"deny,omitempty"`
+	IgnoreBinary              bool                `json:"ignoreBinary,omitempty"`
+	AutoApprove               bool                `json:"autoApprove,omitempty"`
+	AutoReject                bool                `json:"autoReject,omitempty"`
+	DisableAutoApproveIfEmpty bool                `json:"disableAutoApproveIfEmpty,omitempty"`
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.

@@ -25,15 +25,16 @@ import (
 // Handlers provides HTTP handlers with access to all dependencies.
 // This struct enables dependency injection for testing.
 type Handlers struct {
-	Repo          *persistence.Repository
-	OllamaClient  *integrations.OllamaClient
-	ToolRegistry  *services.ToolRegistry
-	ModelRegistry *services.ModelRegistry
-	Storage       services.StorageService
-	ToolExecutor  *integrations.ToolExecutor
-	AsyncTracker  *services.AsyncTrackerService
-	Templates     *services.TemplatesService
-	Skills        *services.SkillsService
+	Repo            *persistence.Repository
+	OllamaClient    *integrations.OllamaClient
+	ToolRegistry    *services.ToolRegistry
+	ModelRegistry   *services.ModelRegistry
+	Storage         services.StorageService
+	ToolExecutor    *integrations.ToolExecutor
+	AsyncTracker    *services.AsyncTrackerService
+	Templates       *services.TemplatesService
+	Skills          *services.SkillsService
+	ToolPersistence *services.ToolPersistence
 }
 
 // New creates a new Handlers instance with all dependencies.
@@ -41,13 +42,14 @@ type Handlers struct {
 // This ensures consistent dependency sharing and makes the architecture explicit.
 func New(repo *persistence.Repository, ollamaClient *integrations.OllamaClient, storage services.StorageService, asyncTracker *services.AsyncTrackerService, toolExecutor *integrations.ToolExecutor, toolRegistry *services.ToolRegistry) *Handlers {
 	return &Handlers{
-		Repo:          repo,
-		OllamaClient:  ollamaClient,
-		ToolRegistry:  toolRegistry,
-		ModelRegistry: services.NewModelRegistry(),
-		Storage:       storage,
-		ToolExecutor:  toolExecutor,
-		AsyncTracker:  asyncTracker,
+		Repo:            repo,
+		OllamaClient:    ollamaClient,
+		ToolRegistry:    toolRegistry,
+		ModelRegistry:   services.NewModelRegistry(),
+		Storage:         storage,
+		ToolExecutor:    toolExecutor,
+		AsyncTracker:    asyncTracker,
+		ToolPersistence: services.NewToolPersistence(repo),
 	}
 }
 
@@ -173,12 +175,13 @@ func (h *Handlers) JSONError(w http.ResponseWriter, message string, status int) 
 // 2. A single ModelRegistry cache is shared across all completion services (reduces API calls)
 func (h *Handlers) NewCompletionService() *services.CompletionService {
 	return services.NewCompletionServiceWithDeps(services.CompletionServiceDeps{
-		Repo:          h.Repo,
-		Executor:      h.ToolExecutor,
-		Registry:      h.ToolRegistry,
-		AsyncTracker:  h.AsyncTracker,
-		Storage:       h.Storage,
-		ModelRegistry: h.ModelRegistry,
+		Repo:            h.Repo,
+		Executor:        h.ToolExecutor,
+		Registry:        h.ToolRegistry,
+		AsyncTracker:    h.AsyncTracker,
+		Storage:         h.Storage,
+		ModelRegistry:   h.ModelRegistry,
+		ToolPersistence: h.ToolPersistence,
 	})
 }
 
