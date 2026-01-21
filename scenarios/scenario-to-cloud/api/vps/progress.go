@@ -47,6 +47,7 @@ func (NoopProgressRepo) UpdateDeploymentProgress(context.Context, string, string
 // StepWeights defines the percentage weight for each deployment step.
 // These sum to 100%.
 var StepWeights = map[string]float64{
+	"manifest_refresh":  2, // Fast operation - re-fetch dependencies and ports
 	"preflight":         2,
 	"bundle_build":      5,
 	"mkdir":             0, // Trivial, no weight

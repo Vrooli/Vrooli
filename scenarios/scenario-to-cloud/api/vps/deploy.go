@@ -339,9 +339,9 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 	steps = append(steps,
 		domain.VPSPlanStep{
 			ID:          "scenario_start_target",
-			Title:       "Start target scenario with fixed ports",
-			Description: "Starts the target scenario with port overrides from the manifest.",
-			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))),
+			Title:       "Restart target scenario with fixed ports",
+			Description: "Restarts the target scenario to ensure freshly extracted code is rebuilt and used.",
+			Command:     ssh.LocalSSHCommand(cfg, ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))),
 		},
 		domain.VPSPlanStep{
 			ID:          "verify_local",
@@ -587,14 +587,17 @@ func RunDeployWithProgress(
 	}
 
 	// Step: scenario_target
+	// Use restart (not start) to ensure freshly extracted code is rebuilt.
+	// The bundle uses epoch-0 timestamps for determinism, which can trick
+	// the staleness check into thinking existing dist/ is newer than source.
 	if opts.shouldRunStep("scenario_target") {
-		emit("step_started", "scenario_target", "Starting scenario")
+		emit("step_started", "scenario_target", "Restarting scenario")
 		portEnvVars := BuildPortEnvVars(manifest.Ports)
-		if err := run(ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario start %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))); err != nil {
-			return failStep("scenario_target", "Starting scenario", err.Error())
+		if err := run(ssh.VrooliCommand(workdir, fmt.Sprintf("%s vrooli scenario restart %s", portEnvVars, ssh.QuoteSingle(manifest.Scenario.ID)))); err != nil {
+			return failStep("scenario_target", "Restarting scenario", err.Error())
 		}
 		*progress += opts.getStepWeight("scenario_target")
-		emit("step_completed", "scenario_target", "Starting scenario")
+		emit("step_completed", "scenario_target", "Restarting scenario")
 	}
 
 	// Step: wait_for_ui - Wait for UI port to be listening before health check

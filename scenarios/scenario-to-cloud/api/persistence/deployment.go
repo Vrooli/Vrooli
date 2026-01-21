@@ -391,6 +391,32 @@ func (r *Repository) UpdateDeploymentBundle(ctx context.Context, id, bundlePath,
 	return nil
 }
 
+// UpdateDeploymentManifest updates the manifest for a deployment.
+// Used when refreshing the manifest to reflect current scenario state.
+func (r *Repository) UpdateDeploymentManifest(ctx context.Context, id string, manifest json.RawMessage) error {
+	const q = `
+		UPDATE deployments SET
+			manifest = $2,
+			updated_at = $3
+		WHERE id = $1
+	`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, q, id, manifest, now)
+	if err != nil {
+		return fmt.Errorf("failed to update manifest: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("deployment not found: %s", id)
+	}
+
+	return nil
+}
+
 // DeleteDeployment removes a deployment record.
 func (r *Repository) DeleteDeployment(ctx context.Context, id string) error {
 	const q = `DELETE FROM deployments WHERE id = $1`

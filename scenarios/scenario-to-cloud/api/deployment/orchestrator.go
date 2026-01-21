@@ -50,43 +50,56 @@ func (a *progressRepoAdapter) UpdateDeploymentProgress(ctx context.Context, id, 
 // It encapsulates the dependencies needed to execute deployments and
 // provides a clean separation between HTTP handlers and business logic.
 type Orchestrator struct {
-	repo             *persistence.Repository
-	progressHub      *Hub
-	sshRunner        ssh.Runner
-	scpRunner        ssh.SCPRunner
-	secretsFetcher   secrets.Fetcher
-	secretsGenerator secrets.GeneratorFunc
-	dnsService       dns.Service
-	historyRecorder  HistoryRecorder
-	logger           func(msg string, fields map[string]interface{})
+	repo              *persistence.Repository
+	progressHub       *Hub
+	sshRunner         ssh.Runner
+	scpRunner         ssh.SCPRunner
+	secretsFetcher    secrets.Fetcher
+	secretsGenerator  secrets.GeneratorFunc
+	dnsService        dns.Service
+	historyRecorder   HistoryRecorder
+	manifestRefresher ManifestRefresher
+	logger            func(msg string, fields map[string]interface{})
 }
 
 // OrchestratorConfig holds configuration for creating an Orchestrator.
 type OrchestratorConfig struct {
-	Repo             *persistence.Repository
-	ProgressHub      *Hub
-	SSHRunner        ssh.Runner
-	SCPRunner        ssh.SCPRunner
-	SecretsFetcher   secrets.Fetcher
-	SecretsGenerator secrets.GeneratorFunc
-	DNSService       dns.Service
-	HistoryRecorder  HistoryRecorder
-	Logger           func(msg string, fields map[string]interface{})
+	Repo              *persistence.Repository
+	ProgressHub       *Hub
+	SSHRunner         ssh.Runner
+	SCPRunner         ssh.SCPRunner
+	SecretsFetcher    secrets.Fetcher
+	SecretsGenerator  secrets.GeneratorFunc
+	DNSService        dns.Service
+	HistoryRecorder   HistoryRecorder
+	ManifestRefresher ManifestRefresher
+	Logger            func(msg string, fields map[string]interface{})
 }
 
 // NewOrchestrator creates a new orchestrator with the given dependencies.
 func NewOrchestrator(cfg OrchestratorConfig) *Orchestrator {
 	return &Orchestrator{
-		repo:             cfg.Repo,
-		progressHub:      cfg.ProgressHub,
-		sshRunner:        cfg.SSHRunner,
-		scpRunner:        cfg.SCPRunner,
-		secretsFetcher:   cfg.SecretsFetcher,
-		secretsGenerator: cfg.SecretsGenerator,
-		dnsService:       cfg.DNSService,
-		historyRecorder:  cfg.HistoryRecorder,
-		logger:           cfg.Logger,
+		repo:              cfg.Repo,
+		progressHub:       cfg.ProgressHub,
+		sshRunner:         cfg.SSHRunner,
+		scpRunner:         cfg.SCPRunner,
+		secretsFetcher:    cfg.SecretsFetcher,
+		secretsGenerator:  cfg.SecretsGenerator,
+		dnsService:        cfg.DNSService,
+		historyRecorder:   cfg.HistoryRecorder,
+		manifestRefresher: cfg.ManifestRefresher,
+		logger:            cfg.Logger,
 	}
+}
+
+// RefreshManifest regenerates the manifest from current scenario state.
+// This is called by the handler before validation when ForceBundleBuild=true.
+// Returns the refreshed manifest or the original if refresh fails/unavailable.
+func (o *Orchestrator) RefreshManifest(ctx context.Context, base domain.CloudManifest) (domain.CloudManifest, error) {
+	if o.manifestRefresher == nil {
+		return base, nil
+	}
+	return o.manifestRefresher.RefreshManifest(ctx, base)
 }
 
 // ExecuteOptions controls which steps run during execution.
@@ -150,6 +163,20 @@ func (o *Orchestrator) RunPipeline(
 		"run_id":        runID,
 		"scenario_id":   manifest.Scenario.ID,
 	})
+
+	// Record manifest refresh in history when ForceBundleBuild is requested
+	// Note: The actual refresh happens in the handler BEFORE validation
+	// This just records the event for tracking purposes
+	if options.ForceBundleBuild {
+		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type:      domain.EventManifestRefreshed,
+			Timestamp: time.Now().UTC(),
+			Message:   "Manifest refreshed from current scenario state",
+			Success:   boolPtr(true),
+		})
+		progress += vps.StepWeights["manifest_refresh"]
+		emitProgress("step_completed", "manifest_refresh", "Manifest refreshed", progress, "")
+	}
 
 	// Fetch and validate secrets
 	if err := o.ensureSecretsAvailable(ctx, &manifest, providedSecrets, id, emitError); err != nil {

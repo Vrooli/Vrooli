@@ -173,6 +173,7 @@ type HistoryEventType string
 
 const (
 	EventDeploymentCreated  HistoryEventType = "deployment_created"
+	EventManifestRefreshed  HistoryEventType = "manifest_refreshed"
 	EventBundleBuilt        HistoryEventType = "bundle_built"
 	EventPreflightStarted   HistoryEventType = "preflight_started"
 	EventPreflightCompleted HistoryEventType = "preflight_completed"

@@ -394,6 +394,38 @@ func (s *Server) handleExecuteDeployment(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// When ForceBundleBuild is requested, refresh the manifest BEFORE validation
+	// This ensures the manifest reflects current scenario state and passes validation
+	if req.ForceBundleBuild {
+		refreshed, err := s.orchestrator.RefreshManifest(r.Context(), m)
+		if err != nil {
+			s.log("manifest refresh failed in handler", map[string]interface{}{
+				"deployment_id": id,
+				"error":         err.Error(),
+			})
+			// Continue with original manifest - validation may still pass
+		} else {
+			m = refreshed
+			// Persist refreshed manifest to database
+			manifestJSON, marshalErr := json.Marshal(m)
+			if marshalErr != nil {
+				s.log("failed to marshal refreshed manifest", map[string]interface{}{
+					"deployment_id": id,
+					"error":         marshalErr.Error(),
+				})
+			} else if updateErr := s.repo.UpdateDeploymentManifest(r.Context(), id, manifestJSON); updateErr != nil {
+				s.log("failed to persist refreshed manifest", map[string]interface{}{
+					"deployment_id": id,
+					"error":         updateErr.Error(),
+				})
+			} else {
+				s.log("manifest refreshed before validation", map[string]interface{}{
+					"deployment_id": id,
+				})
+			}
+		}
+	}
+
 	normalized, issues := manifest.ValidateAndNormalize(m)
 	if manifest.HasBlockingIssues(issues) {
 		httputil.WriteJSON(w, http.StatusUnprocessableEntity, domain.ManifestValidateResponse{

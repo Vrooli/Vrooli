@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -152,17 +154,29 @@ func NewServer() (*Server, error) {
 		tlsALPNRunner:    tlsALPNRunner,
 	}
 
+	// Initialize manifest refresher for rebuild operations
+	manifestRefresher := deployment.NewManifestRefresher(deployment.ManifestRefresherConfig{
+		SecretsFetcher: secretsFetcher,
+		DepsFetcher: &deployment.DefaultDependenciesFetcher{
+			AnalyzerFetcher:    createAnalyzerFetcher(),
+			ServiceJSONFetcher: deployment.ServiceJSONDependenciesFetcher,
+		},
+		PortsFetcher: &deployment.DefaultPortsFetcher{},
+		Logger:       srv.log,
+	})
+
 	// Initialize the deployment orchestrator with all dependencies
 	srv.orchestrator = deployment.NewOrchestrator(deployment.OrchestratorConfig{
-		Repo:             repo,
-		ProgressHub:      progressHub,
-		SSHRunner:        sshRunner,
-		SCPRunner:        scpRunner,
-		SecretsFetcher:   secretsFetcher,
-		SecretsGenerator: secretsGenerator,
-		DNSService:       dnsService,
-		HistoryRecorder:  repo,
-		Logger:           srv.log,
+		Repo:              repo,
+		ProgressHub:       progressHub,
+		SSHRunner:         sshRunner,
+		SCPRunner:         scpRunner,
+		SecretsFetcher:    secretsFetcher,
+		SecretsGenerator:  secretsGenerator,
+		DNSService:        dnsService,
+		HistoryRecorder:   repo,
+		ManifestRefresher: manifestRefresher,
+		Logger:            srv.log,
 	})
 
 	// Initialize Tool Discovery Protocol registry
@@ -346,6 +360,75 @@ func adaptStopScenarioFunc(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Co
 	return preflight.StopScenarioResult{
 		OK:      result.OK,
 		Message: result.Message,
+	}
+}
+
+// createAnalyzerFetcher returns a function that fetches dependencies from the scenario-dependency-analyzer.
+// This is used by ManifestRefresher to get current dependencies when rebuilding.
+func createAnalyzerFetcher() func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
+	return func(ctx context.Context, scenarioID string) (resources, scenarios []string, err error) {
+		// Discover analyzer port via vrooli CLI
+		analyzerPort, err := discoverScenarioPort("scenario-dependency-analyzer", "api")
+		if err != nil {
+			return nil, nil, fmt.Errorf("analyzer not available: %w", err)
+		}
+
+		// Call the analyzer API
+		url := fmt.Sprintf("http://localhost:%d/api/v1/analyze/%s", analyzerPort, scenarioID)
+
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create analyzer request: %w", err)
+		}
+
+		client := &http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, nil, fmt.Errorf("analyzer request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, nil, fmt.Errorf("analyzer returned status %d", resp.StatusCode)
+		}
+
+		// Parse analyzer response
+		var analyzerResp struct {
+			Resources []struct {
+				DependencyName string `json:"dependency_name"`
+				Required       bool   `json:"required"`
+				Configuration  struct {
+					Enabled bool `json:"enabled"`
+				} `json:"configuration"`
+			} `json:"resources"`
+			Scenarios []struct {
+				DependencyName string `json:"dependency_name"`
+				Required       bool   `json:"required"`
+				Configuration  struct {
+					Enabled bool `json:"enabled"`
+				} `json:"configuration"`
+			} `json:"scenarios"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&analyzerResp); err != nil {
+			return nil, nil, fmt.Errorf("parse analyzer response: %w", err)
+		}
+
+		// Collect enabled/required resources
+		for _, r := range analyzerResp.Resources {
+			if r.Required || r.Configuration.Enabled {
+				resources = append(resources, r.DependencyName)
+			}
+		}
+
+		// Collect enabled/required scenarios
+		for _, s := range analyzerResp.Scenarios {
+			if s.Required || s.Configuration.Enabled {
+				scenarios = append(scenarios, s.DependencyName)
+			}
+		}
+
+		return resources, scenarios, nil
 	}
 }
 
