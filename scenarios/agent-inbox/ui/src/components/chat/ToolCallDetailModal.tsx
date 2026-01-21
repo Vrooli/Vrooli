@@ -262,7 +262,9 @@ export function ToolCallDetailModal({
   }, [open, scenarioName]);
 
   // Parse the arguments to extract skills
-  const parsedInput = parseToolInput(toolCall.function.arguments);
+  // Use record.arguments (enhanced with skills) when available
+  const argumentsSource = record?.arguments || toolCall.function.arguments;
+  const parsedInput = parseToolInput(argumentsSource);
   const hasArguments = Object.keys(parsedInput.arguments).length > 0;
   const hasSkills = parsedInput.skills.length > 0;
 

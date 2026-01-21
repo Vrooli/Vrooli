@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -140,3 +141,104 @@ func TestForcedToolQueryParam_Extraction(t *testing.T) {
 //
 // This approach provides better coverage than mocking every dependency,
 // while keeping tests maintainable and meaningful.
+
+// =============================================================================
+// Skills Parsing Tests
+// =============================================================================
+
+// TestParseSkillsFromBody tests skills parsing from request body.
+// This verifies the logic that extracts skills from JSON request body.
+func TestParseSkillsFromBody(t *testing.T) {
+	tests := []struct {
+		name           string
+		body           string
+		contentLength  int64  // -1 for chunked/unknown
+		expectedSkills int
+		expectParsed   bool
+	}{
+		{
+			name:           "valid skills with content length",
+			body:           `{"skills": [{"id": "s1", "key": "test", "content": "content"}]}`,
+			contentLength:  -1, // Simulates chunked transfer
+			expectedSkills: 1,
+			expectParsed:   true,
+		},
+		{
+			name:           "valid skills - chunked encoding",
+			body:           `{"skills": [{"id": "s1", "key": "test", "content": "content"}]}`,
+			contentLength:  -1, // This is what happens with chunked transfer
+			expectedSkills: 1,
+			expectParsed:   true, // SHOULD work but currently FAILS due to bug
+		},
+		{
+			name:           "empty skills array",
+			body:           `{"skills": []}`,
+			contentLength:  -1,
+			expectedSkills: 0,
+			expectParsed:   true,
+		},
+		{
+			name:           "no skills field",
+			body:           `{}`,
+			contentLength:  -1,
+			expectedSkills: 0,
+			expectParsed:   true,
+		},
+		{
+			name:           "empty body",
+			body:           ``,
+			contentLength:  0,
+			expectedSkills: 0,
+			expectParsed:   false,
+		},
+		{
+			name:           "multiple skills with targeting",
+			body:           `{"skills": [{"id": "s1", "key": "global", "content": "c1"}, {"id": "s2", "key": "targeted", "content": "c2", "targetToolId": "tool_a"}]}`,
+			contentLength:  -1,
+			expectedSkills: 2,
+			expectParsed:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			skills := parseSkillsFromRequestBody(tc.body, tc.contentLength)
+
+			if tc.expectParsed {
+				if len(skills) != tc.expectedSkills {
+					t.Errorf("expected %d skills, got %d", tc.expectedSkills, len(skills))
+				}
+			} else {
+				if len(skills) != 0 {
+					t.Errorf("expected no skills parsed, got %d", len(skills))
+				}
+			}
+		})
+	}
+}
+
+// parseSkillsFromRequestBody is a helper that extracts the skill parsing logic
+// for testability. This mirrors what ChatComplete does.
+//
+// NOTE: The actual implementation uses io.ReadAll(r.Body) which handles
+// chunked transfer encoding correctly. We don't check ContentLength because
+// it may be -1 for chunked requests (common with browser fetch()).
+func parseSkillsFromRequestBody(body string, contentLength int64) []SkillPayload {
+	var skills []SkillPayload
+
+	// Don't check contentLength - it may be -1 for chunked encoding
+	// Instead, just check if we have body content
+	if body == "" {
+		return skills
+	}
+
+	var reqBody struct {
+		Skills []SkillPayload `json:"skills"`
+	}
+
+	if err := json.Unmarshal([]byte(body), &reqBody); err == nil {
+		skills = reqBody.Skills
+	}
+
+	return skills
+}

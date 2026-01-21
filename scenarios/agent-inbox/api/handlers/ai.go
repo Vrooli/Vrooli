@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -241,13 +242,24 @@ func (h *Handlers) ChatComplete(w http.ResponseWriter, r *http.Request) {
 	forcedTool := r.URL.Query().Get("force_tool")
 
 	// Parse optional skills from request body
+	// Note: Don't check ContentLength - it may be -1 for chunked transfer encoding
 	var skills []SkillPayload
-	if r.Body != nil && r.ContentLength > 0 {
-		var reqBody struct {
-			Skills []SkillPayload `json:"skills"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&reqBody); err == nil {
-			skills = reqBody.Skills
+	if r.Body != nil {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("[WARN] Failed to read request body for skills: %v", err)
+		} else if len(bodyBytes) > 0 {
+			var reqBody struct {
+				Skills []SkillPayload `json:"skills"`
+			}
+			if err := json.Unmarshal(bodyBytes, &reqBody); err != nil {
+				log.Printf("[DEBUG] No skills in request body (parse error: %v)", err)
+			} else {
+				skills = reqBody.Skills
+				if len(skills) > 0 {
+					log.Printf("[DEBUG] Parsed %d skills from request body", len(skills))
+				}
+			}
 		}
 	}
 

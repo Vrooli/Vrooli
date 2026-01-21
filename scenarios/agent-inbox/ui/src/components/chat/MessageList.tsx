@@ -564,7 +564,12 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
   const isCompact = variant === "compact";
 
   // Parse tool arguments to extract skills
-  const parsedInput = parseToolInput(toolCall.function.arguments);
+  // IMPORTANT: Use record.arguments (enhanced with skills) when available,
+  // fall back to toolCall.function.arguments (original from AI) if not.
+  // The record contains the arguments that were actually sent to the tool,
+  // including any injected _context_attachments (skills).
+  const argumentsSource = record?.arguments || toolCall.function.arguments;
+  const parsedInput = parseToolInput(argumentsSource);
   const skills = parsedInput.skills;
   const hasSkills = skills.length > 0;
 
