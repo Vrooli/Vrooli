@@ -2,9 +2,10 @@
  * InlineAsyncIndicator - Compact indicator shown in assistant message bubbles.
  *
  * Displays async operation status inline within the conversation where the tool was called.
- * Provides quick access to details and allows referencing results in follow-up messages.
+ * Shows skill chips if skills were injected, and provides quick access to details.
  */
 
+import { type ComponentType, type SVGProps } from "react";
 import {
   Zap,
   Loader2,
@@ -13,12 +14,25 @@ import {
   XCircle,
   ExternalLink,
   MessageSquarePlus,
+  BookOpen,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Button } from "../ui/button";
+import { Tooltip } from "../ui/tooltip";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
+import { parseToolInput, type SkillAttachment } from "../../lib/tool-utils";
+
+type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+function getIconComponent(name: string): IconComponent {
+  const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];
+  return Icon || BookOpen;
+}
 
 interface InlineAsyncIndicatorProps {
   operation: AsyncStatusUpdate;
+  /** Tool arguments JSON string - used to extract skills */
+  toolArguments?: string;
   onOpenDetails: () => void;
   onInsertReference: () => void;
 }
@@ -102,8 +116,29 @@ function getResultSummary(result: unknown): string | null {
   return "Result available";
 }
 
+/** Compact skill chip for inline display */
+function SkillChip({ skill }: { skill: SkillAttachment }) {
+  const iconName = skill.tags?.[0] || "BookOpen";
+  const IconComponent = getIconComponent(
+    iconName.charAt(0).toUpperCase() + iconName.slice(1).replace(/-/g, "")
+  );
+
+  return (
+    <Tooltip content={skill.label}>
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium
+          bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+      >
+        <IconComponent className="h-2.5 w-2.5" />
+        <span className="max-w-[60px] truncate">{skill.label}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
 export function InlineAsyncIndicator({
   operation,
+  toolArguments,
   onOpenDetails,
   onInsertReference,
 }: InlineAsyncIndicatorProps) {
@@ -112,10 +147,21 @@ export function InlineAsyncIndicator({
   const progressValue = typeof operation.progress === "number" ? operation.progress : undefined;
   const resultSummary = operation.is_terminal ? getResultSummary(operation.result) : null;
 
+  // Parse tool arguments to extract skills
+  const parsedInput = parseToolInput(toolArguments);
+  const skills = parsedInput.skills;
+  const hasSkills = skills.length > 0;
+
+  // Limit skills shown inline (show first 2, then count)
+  const maxInlineSkills = 2;
+  const visibleSkills = skills.slice(0, maxInlineSkills);
+  const hiddenSkillCount = skills.length - maxInlineSkills;
+
   return (
     <div
       className={`border ${statusDisplay.borderColor} ${statusDisplay.bgColor} rounded px-3 py-1.5 my-2`}
     >
+      {/* Header row */}
       <div className="flex items-center gap-2">
         {/* Status icon */}
         {operation.is_terminal ? (
@@ -188,6 +234,19 @@ export function InlineAsyncIndicator({
           </Button>
         )}
       </div>
+
+      {/* Skills row - shown if there are skills */}
+      {hasSkills && (
+        <div className="flex items-center gap-1.5 mt-1.5 pl-6">
+          <span className="text-[10px] text-slate-500">Skills:</span>
+          {visibleSkills.map((skill) => (
+            <SkillChip key={skill.key} skill={skill} />
+          ))}
+          {hiddenSkillCount > 0 && (
+            <span className="text-[10px] text-slate-500">+{hiddenSkillCount} more</span>
+          )}
+        </div>
+      )}
 
       {/* Message/Summary line */}
       {(operation.message || resultSummary) && (

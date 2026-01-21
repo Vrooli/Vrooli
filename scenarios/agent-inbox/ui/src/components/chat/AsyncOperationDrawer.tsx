@@ -1,11 +1,11 @@
 /**
  * AsyncOperationDrawer - Slide-out drawer for async operation details and history.
  *
- * Shows full operation details including progress, result JSON, and actions.
+ * Shows full operation details including progress, skills, result JSON, and actions.
  * Can also display history of completed operations with pagination.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ComponentType, type SVGProps } from "react";
 import {
   X,
   RefreshCw,
@@ -18,22 +18,56 @@ import {
   AlertCircle,
   History,
   MessageSquarePlus,
+  BookOpen,
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
+import { parseToolInput, type SkillAttachment } from "../../lib/tool-utils";
+
+type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+function getIconComponent(name: string): IconComponent {
+  const Icon = (LucideIcons as unknown as Record<string, IconComponent>)[name];
+  return Icon || BookOpen;
+}
 
 interface AsyncOperationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   /** Specific operation to show, or null for history view */
   operation: AsyncStatusUpdate | null;
+  /** Tool arguments JSON - used to extract and display skills */
+  toolArguments?: string;
   completedOperations: AsyncStatusUpdate[];
+  /** Map of tool_call_id to arguments JSON for history items */
+  argumentsMap?: Map<string, string>;
   onRefresh: (toolCallId: string) => Promise<void>;
   onCancel: (toolCallId: string) => Promise<void>;
   onInsertReference: (operation: AsyncStatusUpdate) => void;
   onLoadMoreHistory: () => Promise<void>;
   hasMoreHistory: boolean;
+}
+
+/** Skill chip for operation detail view */
+function OperationSkillChip({ skill }: { skill: SkillAttachment }) {
+  const iconName = skill.tags?.[0] || "BookOpen";
+  const IconComponent = getIconComponent(
+    iconName.charAt(0).toUpperCase() + iconName.slice(1).replace(/-/g, "")
+  );
+
+  return (
+    <Tooltip content={skill.content.slice(0, 200) + (skill.content.length > 200 ? "..." : "")}>
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+          bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+      >
+        <IconComponent className="h-3 w-3" />
+        <span>{skill.label}</span>
+      </span>
+    </Tooltip>
+  );
 }
 
 /** Format tool name for display */
@@ -116,11 +150,13 @@ function JsonDisplay({ data }: { data: unknown }) {
 /** Operation detail view */
 function OperationDetail({
   operation,
+  toolArguments,
   onRefresh,
   onCancel,
   onInsertReference,
 }: {
   operation: AsyncStatusUpdate;
+  toolArguments?: string;
   onRefresh: (toolCallId: string) => Promise<void>;
   onCancel: (toolCallId: string) => Promise<void>;
   onInsertReference: (operation: AsyncStatusUpdate) => void;
@@ -130,6 +166,12 @@ function OperationDetail({
 
   const statusDisplay = getStatusDisplay(operation.status, operation.is_terminal);
   const StatusIcon = statusDisplay.icon;
+
+  // Parse tool arguments to extract skills
+  const parsedInput = parseToolInput(toolArguments);
+  const skills = parsedInput.skills;
+  const hasSkills = skills.length > 0;
+  const hasArguments = Object.keys(parsedInput.arguments).length > 0;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -193,6 +235,28 @@ function OperationDetail({
               className="h-full bg-yellow-400 transition-all duration-500"
               style={{ width: `${progressValue}%` }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Skills - shown if arguments contain skills */}
+      {hasSkills && (
+        <div>
+          <label className="text-xs text-slate-500 uppercase tracking-wide">Skills</label>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {skills.map((skill) => (
+              <OperationSkillChip key={skill.key} skill={skill} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Arguments - shown if there are non-skill arguments */}
+      {hasArguments && (
+        <div>
+          <label className="text-xs text-slate-500 uppercase tracking-wide">Arguments</label>
+          <div className="mt-2">
+            <JsonDisplay data={parsedInput.arguments} />
           </div>
         </div>
       )}
@@ -395,7 +459,9 @@ export function AsyncOperationDrawer({
   isOpen,
   onClose,
   operation,
+  toolArguments,
   completedOperations,
+  argumentsMap,
   onRefresh,
   onCancel,
   onInsertReference,
@@ -412,6 +478,17 @@ export function AsyncOperationDrawer({
   const handleBack = useCallback(() => {
     setSelectedOp(null);
   }, []);
+
+  // Get arguments for the selected operation
+  const getSelectedOpArguments = (): string | undefined => {
+    if (!selectedOp) return undefined;
+    // If this is the primary operation, use toolArguments prop
+    if (operation && selectedOp.tool_call_id === operation.tool_call_id) {
+      return toolArguments;
+    }
+    // Otherwise look up in the arguments map
+    return argumentsMap?.get(selectedOp.tool_call_id);
+  };
 
   if (!isOpen) return null;
 
@@ -456,6 +533,7 @@ export function AsyncOperationDrawer({
         {selectedOp ? (
           <OperationDetail
             operation={selectedOp}
+            toolArguments={getSelectedOpArguments()}
             onRefresh={onRefresh}
             onCancel={onCancel}
             onInsertReference={onInsertReference}
