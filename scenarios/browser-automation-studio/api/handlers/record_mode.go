@@ -1563,14 +1563,19 @@ func (h *Handler) UpdateRecordingViewport(w http.ResponseWriter, r *http.Request
 	}
 
 	// Map service response to handler response type
+	var width, height int
+	if resp.ActualViewport != nil {
+		width = resp.ActualViewport.Width
+		height = resp.ActualViewport.Height
+	}
 	driverResp := struct {
 		SessionID string `json:"session_id"`
 		Width     int    `json:"width"`
 		Height    int    `json:"height"`
 	}{
 		SessionID: resp.SessionID,
-		Width:     resp.Width,
-		Height:    resp.Height,
+		Width:     width,
+		Height:    height,
 	}
 
 	h.respondSuccess(w, http.StatusOK, driverResp)

@@ -177,10 +177,11 @@ func TestCreateProject_WithPreset(t *testing.T) {
 	}
 
 	// Verify preset folders were created
+	// New convention: actions/ (subflows), flows/ (full workflows), cases/ (tests), assets/ (non-workflow files)
 	expectedFolders := []string{
-		"workflows/actions",
-		"workflows/flows",
-		"workflows/cases",
+		"actions",
+		"flows",
+		"cases",
 		"assets",
 	}
 	for _, folder := range expectedFolders {

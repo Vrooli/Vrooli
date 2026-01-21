@@ -1068,10 +1068,10 @@ func loadSelectorManifest() error {
 
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
 func resolveSelectors(step *ExecutionStep) error {
-	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: start")
 	if step == nil || step.Params == nil {
 		return nil
 	}
+	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: start")
 
 	// Check if there are any @selector/ references before loading manifest
 	// This avoids unnecessary file I/O and allows workflows with pre-resolved selectors to work

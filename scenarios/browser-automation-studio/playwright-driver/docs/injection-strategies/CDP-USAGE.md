@@ -200,4 +200,3 @@ CDP provides full access to the browser. In the recording system:
 
 - [Chrome DevTools Protocol Documentation](https://chromedevtools.github.io/devtools-protocol/)
 - [Playwright CDP Documentation](https://playwright.dev/docs/api/class-cdpsession)
-- [rebrowser-playwright Source](https://github.com/nicke1234/rebrowser-playwright)

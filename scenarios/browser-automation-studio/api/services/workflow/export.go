@@ -34,6 +34,9 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 	if err != nil {
 		return nil, err
 	}
+	if timeline == nil {
+		return nil, fmt.Errorf("execution timeline not found for %s", executionID)
+	}
 
 	capturedFrames := len(timeline.Frames)
 	assetCount := 0
@@ -44,13 +47,11 @@ func (s *WorkflowService) DescribeExecutionExport(ctx context.Context, execution
 		assetCount += len(frame.Artifacts)
 	}
 	totalDurationMs := 0
-	if timeline != nil {
-		for _, frame := range timeline.Frames {
-			if frame.TotalDurationMs > 0 {
-				totalDurationMs += frame.TotalDurationMs
-			} else if frame.DurationMs > 0 {
-				totalDurationMs += frame.DurationMs
-			}
+	for _, frame := range timeline.Frames {
+		if frame.TotalDurationMs > 0 {
+			totalDurationMs += frame.TotalDurationMs
+		} else if frame.DurationMs > 0 {
+			totalDurationMs += frame.DurationMs
 		}
 	}
 	specID := execution.ID.String()

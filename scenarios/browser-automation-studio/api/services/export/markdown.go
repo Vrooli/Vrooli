@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // GenerateTimelineMarkdown creates a human-readable markdown report from execution timeline data.
@@ -17,7 +20,7 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 	status := timeline.Status
 	emoji := statusEmoji(status)
 
-	sb.WriteString(fmt.Sprintf("**Status**: %s %s  \n", emoji, strings.Title(status)))
+	sb.WriteString(fmt.Sprintf("**Status**: %s %s  \n", emoji, cases.Title(language.English).String(status)))
 
 	// Duration calculation (clamp to zero to avoid negative values when timestamps drift)
 	if timeline.CompletedAt != nil {

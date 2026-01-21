@@ -506,10 +506,7 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []arch
 			}
 			// We don't know the initial page's ID here, so we skip adding to restored for the first tab
 			// The client will get the pages via WebSocket events or GetPages
-			if tab.IsActive {
-				// Mark that the first tab (initial page) should be active
-				// Since it's the only page so far, it's already active
-			}
+			// Note: if tab.IsActive is true, it's already active since it's the only page so far
 			continue
 		}
 

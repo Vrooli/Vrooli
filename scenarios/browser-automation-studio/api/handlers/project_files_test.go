@@ -104,10 +104,10 @@ func TestWorkflowFolderPathFromRelPath(t *testing.T) {
 		relPath string
 		want    string
 	}{
-		{"file at root", "workflows/test.json", "/"},
-		{"file in subfolder", "workflows/folder/test.json", "/folder"},
-		{"deeply nested", "workflows/a/b/c/test.json", "/a/b/c"},
-		{"no workflows prefix", "test.json", "/"},
+		{"file at root", "test.json", "/"},
+		{"file in subfolder", "folder/test.json", "/folder"},
+		{"deeply nested", "a/b/c/test.json", "/a/b/c"},
+		{"workflows prefix preserved", "workflows/test.json", "/workflows"},
 	}
 
 	for _, tt := range tests {
@@ -300,7 +300,7 @@ func TestReadProjectFile_InvalidPath(t *testing.T) {
 	}
 }
 
-func TestReadProjectFile_NonWorkflowPath(t *testing.T) {
+func TestReadProjectFile_NonJSONPath(t *testing.T) {
 	handler, _, _, repo, _, _ := createTestHandler()
 
 	projectID := uuid.New()
@@ -310,7 +310,7 @@ func TestReadProjectFile_NonWorkflowPath(t *testing.T) {
 		FolderPath: "/tmp/test",
 	})
 
-	// Path not under workflows/ should be rejected
+	// Non-JSON file should be rejected
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+projectID.String()+"/files/read?path=assets/image.png", nil)
 	req = withURLParam(req, "id", projectID.String())
 	rr := httptest.NewRecorder()
@@ -318,7 +318,7 @@ func TestReadProjectFile_NonWorkflowPath(t *testing.T) {
 	handler.ReadProjectFile(rr, req)
 
 	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for non-workflow path, got %d", rr.Code)
+		t.Fatalf("expected status 400 for non-JSON path, got %d", rr.Code)
 	}
 }
 
@@ -471,7 +471,7 @@ func TestWriteProjectWorkflowFile_InvalidProjectID(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
 	body := WriteProjectWorkflowFileRequest{
-		Path: "workflows/test.workflow.json",
+		Path: "flows/test.json",
 		Workflow: ProjectWorkflowFileWrite{
 			Name:           "test",
 			FlowDefinition: map[string]any{},
@@ -491,7 +491,7 @@ func TestWriteProjectWorkflowFile_InvalidProjectID(t *testing.T) {
 	}
 }
 
-func TestWriteProjectWorkflowFile_InvalidPath(t *testing.T) {
+func TestWriteProjectWorkflowFile_TraversalPath(t *testing.T) {
 	handler, _, _, repo, _, _ := createTestHandler()
 
 	projectID := uuid.New()
@@ -501,9 +501,9 @@ func TestWriteProjectWorkflowFile_InvalidPath(t *testing.T) {
 		FolderPath: "/tmp/test",
 	})
 
-	// Path not under workflows/
+	// Path with directory traversal (security blocked)
 	body := WriteProjectWorkflowFileRequest{
-		Path: "assets/test.json",
+		Path: "../outside/test.json",
 		Workflow: ProjectWorkflowFileWrite{
 			Name:           "test",
 			FlowDefinition: map[string]any{},
@@ -533,9 +533,9 @@ func TestWriteProjectWorkflowFile_InvalidExtension(t *testing.T) {
 		FolderPath: "/tmp/test",
 	})
 
-	// Wrong extension
+	// Wrong extension (not .json)
 	body := WriteProjectWorkflowFileRequest{
-		Path: "workflows/test.json", // Should be .workflow.json
+		Path: "flows/test.yaml",
 		Workflow: ProjectWorkflowFileWrite{
 			Name:           "test",
 			FlowDefinition: map[string]any{},
@@ -563,8 +563,8 @@ func TestMoveProjectFile_InvalidProjectID(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
 	body := MoveProjectFileRequest{
-		FromPath: "workflows/old.json",
-		ToPath:   "workflows/new.json",
+		FromPath: "flows/old.json",
+		ToPath:   "flows/new.json",
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -592,7 +592,7 @@ func TestMoveProjectFile_InvalidFromPath(t *testing.T) {
 
 	body := MoveProjectFileRequest{
 		FromPath: "", // Invalid
-		ToPath:   "workflows/new.json",
+		ToPath:   "flows/new.json",
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -619,7 +619,7 @@ func TestMoveProjectFile_InvalidToPath(t *testing.T) {
 	})
 
 	body := MoveProjectFileRequest{
-		FromPath: "workflows/old.json",
+		FromPath: "flows/old.json",
 		ToPath:   "", // Invalid
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -641,8 +641,8 @@ func TestMoveProjectFile_ProjectNotFound(t *testing.T) {
 
 	projectID := uuid.New()
 	body := MoveProjectFileRequest{
-		FromPath: "workflows/old.json",
-		ToPath:   "workflows/new.json",
+		FromPath: "flows/old.json",
+		ToPath:   "flows/new.json",
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -665,7 +665,7 @@ func TestMoveProjectFile_ProjectNotFound(t *testing.T) {
 func TestDeleteProjectFile_InvalidProjectID(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
-	body := DeleteProjectFileRequest{Path: "workflows/test.json"}
+	body := DeleteProjectFileRequest{Path: "test.json"}
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/invalid-uuid/files/delete", bytes.NewReader(bodyBytes))
@@ -709,7 +709,7 @@ func TestDeleteProjectFile_ProjectNotFound(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
 	projectID := uuid.New()
-	body := DeleteProjectFileRequest{Path: "workflows/test.json"}
+	body := DeleteProjectFileRequest{Path: "test.json"}
 	bodyBytes, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+projectID.String()+"/files/delete", bytes.NewReader(bodyBytes))
@@ -864,7 +864,7 @@ func TestProjectEntry_JSONSerialization(t *testing.T) {
 	entry := ProjectEntry{
 		ID:         "wf:123",
 		ProjectID:  "project-123",
-		Path:       "workflows/test.json",
+		Path:       "flows/test.json",
 		Kind:       ProjectEntryKindWorkflowFile,
 		WorkflowID: &workflowID,
 		Metadata:   map[string]any{"version": 1},

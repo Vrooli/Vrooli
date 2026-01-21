@@ -118,7 +118,6 @@ func safeJoinProjectPath(projectRoot string, relPath string) (string, error) {
 
 func workflowFolderPathFromRelPath(relPath string) string {
 	relPath = filepath.ToSlash(relPath)
-	relPath = strings.TrimPrefix(relPath, "workflows/")
 	dir := filepath.ToSlash(filepath.Dir(filepath.FromSlash(relPath)))
 	if dir == "." || dir == "" {
 		return "/"
@@ -368,12 +367,8 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "invalid path"}))
 		return
 	}
-	if !strings.HasPrefix(filepath.ToSlash(relPath), "workflows/") {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "path must be under workflows/"}))
-		return
-	}
-	if !strings.HasSuffix(strings.ToLower(filepath.Base(filepath.FromSlash(relPath))), ".workflow.json") {
-		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "workflow files must end with .workflow.json"}))
+	if !strings.HasSuffix(strings.ToLower(filepath.Base(filepath.FromSlash(relPath))), ".json") {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "workflow files must end with .json"}))
 		return
 	}
 
@@ -394,7 +389,7 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 	name := strings.TrimSpace(req.Workflow.Name)
 	if name == "" {
 		base := filepath.Base(filepath.FromSlash(relPath))
-		name = strings.TrimSuffix(base, ".workflow.json")
+		name = strings.TrimSuffix(base, ".json")
 		if name == "" {
 			name = "workflow"
 		}
@@ -407,8 +402,8 @@ func (h *Handler) WriteProjectWorkflowFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	preferredRel := strings.TrimPrefix(filepath.ToSlash(relPath), "workflows/")
-	if _, statErr := os.Stat(filepath.Join(workflowservice.ProjectWorkflowsDir(project), filepath.FromSlash(preferredRel))); statErr == nil {
+	preferredRel := filepath.ToSlash(relPath)
+	if _, statErr := os.Stat(filepath.Join(project.FolderPath, filepath.FromSlash(preferredRel))); statErr == nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "file already exists"}))
 		return
 	}

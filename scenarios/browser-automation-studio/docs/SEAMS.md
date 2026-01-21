@@ -477,6 +477,163 @@ function closeMetricsServer(server: Server): Promise<void>
 
 ---
 
+## Recording Reconciliation Seams
+
+The recording reconciliation system consists of three interconnected seams that transform raw browser events into a clean, user-friendly timeline. See `docs/architecture/reconciliation.md` for the full architecture.
+
+### 19. Recording Reconciliation - Action Merge Seam (Strong)
+
+**Location:** `ui/src/domains/recording/services/ActionMergeService.ts`
+
+**Interface:**
+```typescript
+interface ActionMergeService {
+    mergeConsecutiveActions(actions: RecordedAction[]): MergedAction[];
+    getMergeDescription(meta?: MergedActionMeta): string | null;
+}
+```
+
+**Test File:** `ui/src/domains/recording/utils/mergeActions.test.ts`
+
+**Status:** Strong
+- Pure functions, no side effects
+- Comprehensive unit tests
+- No external dependencies
+- Mirrors backend logic in `api/handlers/record_mode.go`
+
+**Design Rationale:**
+- Client-side merging enables instant preview as users record (WYSIWYG)
+- Single-pass greedy algorithm for O(n) complexity
+- Tracks original action IDs in `_merged` metadata for undo capability
+
+---
+
+### 20. Recording Reconciliation - AI Correlation Seam (Strong)
+
+**Location:** `ui/src/domains/recording/types/timeline-unified.ts`
+
+**Interface:**
+```typescript
+interface AIReconciliationService {
+    mergeActionsWithAISteps(actions: RecordedAction[], aiSteps: AIStep[]): TimelineItem[];
+    recordedActionToTimelineItem(action: RecordedAction, aiMetadata?: AIMetadata): TimelineItem;
+    workflowNodesToTimelineItems(nodes: WorkflowNode[], edges: Edge[]): TimelineItem[];
+    updateTimelineItemStatus(items: TimelineItem[], nodeId: string, status: ExecutionStatus): TimelineItem[];
+}
+```
+
+**Test File:** `ui/src/domains/recording/types/timeline-unified.test.ts`
+
+**Status:** Strong
+- Pure functions for timeline transformation
+- Timestamp-based matching with 5s proximity window
+- Action type normalization (e.g., "type" → "input")
+- Consumes matched AI steps to prevent duplicate attribution
+
+**Design Rationale:**
+- Enables users to see both what happened AND why the AI did it
+- Immutable transformations (returns new objects, never mutates)
+- Supports both recording mode (live) and execution mode (workflow playback)
+
+---
+
+### 21. Recording Reconciliation - Workflow Sync Seam (Strong)
+
+**Location:** `api/services/workflow/sync.go`, `api/services/workflow/sync_interfaces.go`
+
+**Interface:**
+```go
+type WorkflowSyncRepository interface {
+    GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error)
+    ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.WorkflowIndex, error)
+    CreateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
+    UpdateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
+    DeleteWorkflow(ctx context.Context, id uuid.UUID) error
+    ListAssetsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.AssetIndex, error)
+    CreateAsset(ctx context.Context, asset *database.AssetIndex) error
+    UpdateAsset(ctx context.Context, asset *database.AssetIndex) error
+    DeleteAsset(ctx context.Context, id uuid.UUID) error
+}
+```
+
+**Test Doubles:**
+- `api/services/workflow/sync_interfaces.go`: `MockWorkflowSyncRepository`
+
+**Test File:** `api/services/workflow/sync_test.go`
+
+**Status:** Strong
+- Interface enables testing sync logic without real database
+- DBState/SeenState intermediate types for O(1) lookups
+- Decomposed into small functions (loadDBState, scanAndReconcile, garbageCollect)
+- Per-project locking prevents concurrent sync corruption
+
+**Design Rationale:**
+- Filesystem is source of truth (enables git version control)
+- File limits (1000 files, depth 4) prevent runaway operations
+- In-place format conversion normalizes external workflows
+
+---
+
+### 22. EventBroadcaster Seam (Strong)
+
+**Location:** `api/websocket/interface.go`
+
+**Interface:**
+```go
+type HubInterface interface {
+    // Recording-related methods (EventBroadcaster subset)
+    BroadcastRecordingAction(sessionID string, action any)
+    BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any)
+    BroadcastRecordingFrame(sessionID string, frame *RecordingFrame)
+    BroadcastPageEvent(sessionID string, event any)
+    HasRecordingSubscribers(sessionID string) bool
+    // ... other methods
+}
+```
+
+**Test Doubles:**
+- `api/handlers/testutil_mock_services.go`: `MockHub`
+
+**Status:** Strong (Updated 2026-01-20)
+- HubInterface serves as the EventBroadcaster for recording features
+- MockHub already implements all required methods
+- Enables isolated testing of recording handlers without real WebSockets
+
+---
+
+### 23. RetryService Seam (Strong)
+
+**Location:** `ui/src/domains/recording/services/RetryService.ts`
+
+**Interface:**
+```typescript
+interface RetryService {
+    createInitialRetryState(): RetryState;
+    calculateRetryDelay(attempt: number, config: RetryConfig): number;
+    getNextRetryState(currentAttempts: number, config: RetryConfig): RetryState;
+    canRetry(state: RetryState): boolean;
+    getRemainingCooldown(state: RetryState): number;
+    createSuccessState(): RetryState;
+    createManualRetryState(): RetryState;
+}
+```
+
+**Test File:** `ui/src/domains/recording/services/RetryService.test.ts`
+
+**Status:** Strong
+- Pure functions, no side effects
+- Comprehensive unit tests (35 test cases)
+- No external dependencies
+- Used by `hooks/useRecordingSession.ts` for session creation retry logic
+
+**Design Rationale:**
+- Pure functions extracted from hook for testability
+- Configurable via `RetryConfig` for different retry behaviors
+- State includes UI-friendly fields (`nextRetryAt`, `inCooldown`) for countdown display
+- Exponential backoff with cap prevents server hammering
+
+---
+
 ## Seam Enforcement Matrix
 
 | Seam | Interface | Test Double | Compile Check | Priority |
@@ -488,7 +645,7 @@ function closeMetricsServer(server: Server): Promise<void>
 | Repository | Yes | Yes | Yes | Medium |
 | Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
-| WebSocket Hub | Yes | **Partial** | **Missing** | Medium |
+| WebSocket Hub | Yes | Yes (MockHub) | Yes | - |
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
 | AI Client | Yes | Yes | Yes | - |
 | HTTP Client (Engine) | Yes | Injectable HTTPDoer | Yes | Medium |
@@ -498,6 +655,11 @@ function closeMetricsServer(server: Server): Promise<void>
 | Router (TS) | Yes | N/A (coordination) | N/A | - |
 | OutcomeBuilder (TS) | Yes | N/A (pure functions) | N/A | - |
 | MetricsServer (TS) | Yes | N/A (infrastructure) | N/A | - |
+| ActionMergeService (TS) | Yes | N/A (pure functions) | N/A | - |
+| AIReconciliationService (TS) | Yes | N/A (pure functions) | N/A | - |
+| WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
+| EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
+| RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
 
 ---
 
@@ -509,9 +671,10 @@ function closeMetricsServer(server: Server): Promise<void>
 
 ### High Priority
 
-1. **WebSocket Mock Hub**
-   - Create `MockHub` implementing `HubInterface`
-   - Use in handler/service tests to avoid goroutines and sockets
+1. ~~**WebSocket Mock Hub**~~ (COMPLETED 2026-01-20)
+   - ~~Create `MockHub` implementing `HubInterface`~~
+   - MockHub exists in `handlers/testutil_mock_services.go`
+   - Used for recording handler tests and WebSocket isolation
 
 ### Medium Priority
 
@@ -589,6 +752,8 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-20 | Claude | Recording Reconciliation Completion: Added RetryService seam (#23) with 35 test cases; completed services/index.ts exports; refactored useRecordingSession.ts to use RetryService (removed duplicate retry logic); updated enforcement matrix |
+| 2026-01-20 | Claude | Recording Reconciliation Seams: Added seams #19-22 (ActionMergeService, AIReconciliationService, WorkflowSyncRepository, EventBroadcaster); created comprehensive test suites; decomposed sync.go into smaller functions; extracted frontend services to services/ directory |
 | 2025-12-17 | Claude | Export package consolidation: Deleted duplicate handlers/export/presets.go (identical to services/export/presets.go); documented remaining export package duplication for future cleanup |
 | 2025-12-17 | Claude | Action type mapping clarification: Completed typeconv.ActionTypeToString with all action types; documented intentional separation from flow_utils.actionTypeToString (legacy compatibility) |
 | 2025-12-17 | Claude | WorkflowService decomposition Phase 1: Created CatalogService, ExecutionService, WorkflowResolver interfaces; refactored Handler to use interface types instead of concrete *WorkflowService; updated HandlerDeps for clean dependency injection |
@@ -1009,3 +1174,45 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
    - Falls back to global logger if not provided (backward compatible)
    - Replaced 8 console.log/warn/error calls with `scopedLog()` structured logging
    - `action-executor.ts` uses structured logging for executor registration warnings
+
+---
+
+## Future Work
+
+### API Client Abstraction (Medium Priority)
+
+**Current State:** The recording domain has 33+ direct `fetch` calls scattered across 16+ files.
+
+**Affected Files:**
+- `hooks/usePages.ts`, `hooks/useRecordMode.ts`, `hooks/useTimeline.ts`
+- `hooks/useBrowserNavigation.ts` (5 calls), `hooks/useSessionProfiles.ts` (5 calls)
+- `components/RecordingSession.tsx` (3 calls), `ViewportSyncManager.ts`
+- And 9+ other files
+
+**Recommended Approach:**
+1. Create `recording/api/client.ts` with typed methods
+2. Centralize error handling and authentication
+3. Migrate fetch calls incrementally
+
+**Benefits:**
+- Testable API layer with easy mocking
+- Consistent error handling across all API calls
+- Single point for auth token injection
+- Better TypeScript types for request/response
+
+### WebSocket Protocol Handler (Low Priority)
+
+**Current State:** WebSocket message handling is spread across multiple components.
+
+**Recommended Approach:**
+- Extract protocol handling to dedicated service
+- Centralize message type dispatching
+- Enable unit testing of message handlers
+
+### Workflow Sync Algorithm Tests (Low Priority)
+
+**Current State:** `sync_test.go` tests detection functions only.
+
+**Recommended Approach:**
+- Core `SyncProjectWorkflows` algorithm tests require filesystem mocking infrastructure
+- Consider using `afero` or similar for testable filesystem operations

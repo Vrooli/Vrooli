@@ -884,10 +884,10 @@ func TestBroadcastRecordingActionWithFullBuffer(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		// Client count should still be correct (we don't drop clients for recording, just skip)
-		if count := hub.GetClientCount(); count != 1 {
-			// Note: The implementation skips full buffers rather than dropping clients for recording
-			// This is different from execution broadcasts which drop unresponsive clients
-		}
+		// Note: The implementation skips full buffers rather than dropping clients for recording
+		// This is different from execution broadcasts which drop unresponsive clients
+		count := hub.GetClientCount()
+		_ = count // Count verification is informational - implementation skips rather than drops
 	})
 }
 

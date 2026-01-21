@@ -1,15 +1,30 @@
 /**
  * Unified Timeline Types
  *
- * This module provides the unified TimelineEntry types from proto definitions
- * and conversion utilities for UI rendering.
+ * This module provides timeline data structures and conversion utilities that work
+ * across both recording and execution modes. It's one of three reconciliation
+ * systems in browser-automation-studio.
  *
- * The unified types enable:
- * 1. Same data structure for recording and execution
- * 2. Real-time execution viewing on the Record page
- * 3. Simpler data transformation between layers
+ * ## Reconciliation Context
  *
- * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for design rationale.
+ * This file implements AI step reconciliation - correlating AI navigation decisions
+ * with recorded browser actions. See docs/architecture/reconciliation.md for the
+ * full architecture covering all three systems.
+ *
+ * ## Key Responsibilities
+ *
+ * 1. **Type Unification**: Same TimelineItem structure for recording and execution
+ * 2. **Format Conversion**: RecordedAction ↔ TimelineEntry ↔ TimelineItem
+ * 3. **AI Correlation**: mergeActionsWithAISteps() matches AI reasoning to actions
+ * 4. **Workflow Mapping**: Convert between workflow nodes and timeline items
+ *
+ * ## Related Files
+ *
+ * - api/services/workflow/sync.go (backend filesystem-DB sync)
+ * - utils/mergeActions.ts (frontend action deduplication)
+ * - RecordingSession.tsx (usage context, lines 639-651)
+ *
+ * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for proto design rationale.
  */
 
 import type { RecordedAction, SelectorCandidate, SelectorSet, BoundingBox, ElementMeta } from './types';
@@ -755,48 +770,77 @@ interface AIStepForMerge {
 }
 
 /**
- * Map AI action types to recorded action types.
- * AI uses slightly different naming conventions.
+ * Normalize AI action types to match recorded action types.
+ *
+ * The AI navigation system uses different terminology than the browser recorder:
+ * - AI says "type" for text input, recorder says "input"
+ * - AI says "keypress" for keyboard events, recorder says "keyboard"
+ * - AI says "done" when goal is achieved (no direct recorder equivalent)
+ *
+ * This normalization enables timestamp-based matching in mergeActionsWithAISteps().
  */
 function normalizeActionType(aiActionType: string): string {
   const mapping: Record<string, string> = {
-    type: 'input',
-    keypress: 'keyboard',
-    done: 'wait', // 'done' doesn't map to a recorded action
+    type: 'input',      // AI "type" = recorder "input" (text entry)
+    keypress: 'keyboard', // AI "keypress" = recorder "keyboard" (key events)
+    done: 'wait',       // AI "done" has no direct equivalent
   };
   return mapping[aiActionType] ?? aiActionType;
 }
 
 /**
- * Merge AI navigation steps with recorded actions.
+ * Correlate AI navigation steps with recorded browser actions.
  *
- * This function matches AI steps to recorded actions based on:
- * 1. Timestamp proximity (within 5 seconds)
- * 2. Action type matching
+ * ## Problem
  *
- * When a match is found, the AI metadata is attached to the TimelineItem.
+ * When AI drives the browser, two parallel event streams exist:
+ * 1. **AI steps**: High-level decisions with reasoning, token usage, goal status
+ * 2. **Recorded actions**: Low-level browser events captured by the recorder
  *
- * @param actions - Recorded actions from the session
- * @param aiSteps - AI navigation steps from useAINavigation
- * @returns TimelineItems with AI metadata merged in
+ * Users want to see both together: what happened AND why the AI did it.
+ *
+ * ## Solution
+ *
+ * Match AI steps to recorded actions using:
+ * 1. **Timestamp proximity**: Must be within 5 seconds of each other
+ * 2. **Action type matching**: Types must match (after normalization)
+ * 3. **Greedy best-match**: Select the closest match, consume it to prevent duplicates
+ *
+ * ## Why 5-second window?
+ *
+ * - Typical action latency: 50-500ms (network, rendering)
+ * - AI processing time: 500ms-2s (LLM inference)
+ * - Safety margin for edge cases
+ * - Tight enough to avoid false positives with unrelated actions
+ *
+ * ## Why greedy matching?
+ *
+ * - Each AI step should match at most one recorded action
+ * - Prevents the same reasoning from appearing on multiple actions
+ * - Simple to understand and debug
+ *
+ * @param actions - Recorded actions from the browser session
+ * @param aiSteps - AI navigation steps with reasoning and metadata
+ * @returns TimelineItems with AI metadata attached where matches were found
  */
 export function mergeActionsWithAISteps(
   actions: RecordedAction[],
   aiSteps: AIStepForMerge[],
 ): TimelineItem[] {
+  // Fast path: no AI steps means no correlation needed
   if (aiSteps.length === 0) {
-    // No AI steps - just convert actions to timeline items
     return actions.map((action) => recordedActionToTimelineItem(action));
   }
 
-  // Create a working copy of AI steps to track which ones have been matched
+  // Working copy of AI steps - we remove matched steps to prevent duplicate attribution.
+  // Using splice() for removal makes this O(n*m) worst case, but m is typically small (<50).
   const unmatchedSteps = [...aiSteps];
 
   return actions.map((action) => {
     const actionTime = new Date(action.timestamp).getTime();
     const normalizedActionType = action.actionType;
 
-    // Find the best matching AI step
+    // Greedy best-match: find the AI step with minimum time delta that also matches type
     let bestMatchIndex = -1;
     let bestMatchTimeDiff = Infinity;
 
@@ -805,7 +849,9 @@ export function mergeActionsWithAISteps(
       const stepTime = step.timestamp.getTime();
       const timeDiff = Math.abs(actionTime - stepTime);
 
-      // Must be within 5 seconds and action types must match
+      // Both criteria must be satisfied:
+      // 1. Within 5-second window (see function docs for rationale)
+      // 2. Action types match (after normalization)
       const normalizedStepType = normalizeActionType(step.action.type);
       if (timeDiff < 5000 && normalizedStepType === normalizedActionType) {
         if (timeDiff < bestMatchTimeDiff) {
@@ -816,7 +862,7 @@ export function mergeActionsWithAISteps(
     }
 
     if (bestMatchIndex >= 0) {
-      // Found a match - remove from unmatched and attach metadata
+      // Match found: consume the AI step (remove from pool) and attach its metadata
       const matchedStep = unmatchedSteps.splice(bestMatchIndex, 1)[0];
       return recordedActionToTimelineItem(action, {
         reasoning: matchedStep.reasoning,
@@ -825,7 +871,7 @@ export function mergeActionsWithAISteps(
       });
     }
 
-    // No match - return without AI metadata
+    // No match: return action without AI context (human action or unmatched AI action)
     return recordedActionToTimelineItem(action);
   });
 }

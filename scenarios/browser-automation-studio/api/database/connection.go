@@ -28,9 +28,8 @@ type DB struct {
 	dialect Dialect
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+// Note: As of Go 1.20, the global random generator is automatically seeded.
+// No explicit seeding is needed.
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {

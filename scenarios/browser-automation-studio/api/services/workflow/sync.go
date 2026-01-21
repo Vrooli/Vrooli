@@ -1,3 +1,36 @@
+// Package workflow provides workflow management services including filesystem-database synchronization.
+//
+// # Reconciliation Overview
+//
+// This file implements the backend workflow sync system, one of three reconciliation
+// systems in browser-automation-studio. See docs/architecture/reconciliation.md for
+// the full architecture.
+//
+// # Problem
+//
+// Workflows are stored as JSON files on disk (source of truth) but we need a database
+// index for fast queries. These can drift apart when files are modified externally,
+// deleted, or when database operations fail.
+//
+// # Solution
+//
+// SyncProjectWorkflows performs bidirectional reconciliation:
+//  1. Walk the filesystem to discover current state
+//  2. Upsert database records to match filesystem
+//  3. Delete stale database records that have no backing file
+//
+// # Design Decisions
+//
+// - Filesystem as source of truth: Users can version-control workflows with git
+// - Per-project locking: Prevents concurrent syncs from corrupting state
+// - File limits (1000 files, depth 4): Prevents runaway operations on large projects
+// - In-place format conversion: External workflows are normalized to native format
+//
+// # Related Files
+//
+// - ui/src/domains/recording/utils/mergeActions.ts (frontend action merging)
+// - ui/src/domains/recording/types/timeline-unified.ts (AI step reconciliation)
+// - ui/src/domains/recording/RecordingSession.tsx (usage context)
 package workflow
 
 import (
@@ -16,9 +49,14 @@ import (
 )
 
 const (
-	// MaxSyncFiles is the maximum number of files to process during sync to prevent runaway operations.
+	// MaxSyncFiles prevents runaway operations on unexpectedly large projects.
+	// At 1000 files, sync completes in ~1-2 seconds on typical hardware.
+	// Projects exceeding this likely have nested node_modules or similar that should be excluded.
 	MaxSyncFiles = 1000
-	// MaxSyncDepth is the maximum directory depth to traverse during sync.
+
+	// MaxSyncDepth prevents traversing into deeply nested structures (node_modules, .git objects).
+	// Typical project structure: project/workflows/category/workflow.json (depth 3).
+	// Depth 4 provides one extra level of flexibility.
 	MaxSyncDepth = 4
 )
 
@@ -55,8 +93,17 @@ func (s *WorkflowService) lookupWorkflowPath(workflowID uuid.UUID) (syncCacheEnt
 	return entry, entryOK
 }
 
-// SyncProjectWorkflows synchronizes the workflow and asset DB indexes for a project from the filesystem.
-// The filesystem is the source of truth; the DB is an index.
+// SyncProjectWorkflows reconciles the database index with the filesystem for a project.
+//
+// The filesystem is the source of truth. This function:
+//  1. Walks the project directory to find all workflow and asset files
+//  2. Creates or updates database records to match what's on disk
+//  3. Deletes database records for files that no longer exist (garbage collection)
+//
+// Call this after file operations, on project load, or when external changes are suspected.
+// The operation is idempotent - calling it multiple times with no filesystem changes is safe.
+//
+// Thread-safety: Uses per-project mutex to prevent concurrent syncs.
 func (s *WorkflowService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
 	return s.syncProjectWorkflows(ctx, projectID)
 }
@@ -71,43 +118,69 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	lock.Lock()
 	defer lock.Unlock()
 
-	// Get existing DB records for reconciliation
-	dbWorkflows, err := s.listAllProjectWorkflows(ctx, project.ID)
-	if err != nil {
-		return fmt.Errorf("failed to list existing workflows: %w", err)
-	}
-	dbAssets, err := s.repo.ListAssetsByProject(ctx, project.ID, 10000, 0)
-	if err != nil {
-		s.log.WithError(err).Warn("Failed to list existing assets, continuing with empty list")
-		dbAssets = nil
-	}
-
-	dbWorkflowsByID := make(map[uuid.UUID]*database.WorkflowIndex, len(dbWorkflows))
-	for _, wf := range dbWorkflows {
-		dbWorkflowsByID[wf.ID] = wf
-	}
-	dbAssetsByPath := make(map[string]*database.AssetIndex, len(dbAssets))
-	for _, asset := range dbAssets {
-		dbAssetsByPath[asset.FilePath] = asset
-	}
-
-	// Track what we find during the walk
-	seenWorkflowIDs := make(map[uuid.UUID]bool)
-	seenAssetPaths := make(map[string]bool)
-	fileCount := 0
-
 	projectRoot := strings.TrimSpace(project.FolderPath)
 	if projectRoot == "" {
 		return fmt.Errorf("project has empty folder path")
 	}
 
-	// Walk the entire project tree
+	// Phase 1: Load DB state for O(1) lookups
+	dbState, err := s.loadDBState(ctx, project.ID)
+	if err != nil {
+		return err
+	}
+
+	// Phase 2: Walk filesystem and reconcile
+	seen, err := s.scanAndReconcile(ctx, project, projectRoot, dbState)
+	if err != nil {
+		return err
+	}
+
+	// Phase 3: Garbage collection
+	return s.garbageCollect(ctx, dbState, seen)
+}
+
+// loadDBState loads existing database records into maps for O(1) lookups during sync.
+// This enables efficient detection of unchanged files (skip writes) and stale records (delete).
+func (s *WorkflowService) loadDBState(ctx context.Context, projectID uuid.UUID) (*DBState, error) {
+	dbWorkflows, err := s.listAllProjectWorkflows(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list existing workflows: %w", err)
+	}
+
+	dbAssets, err := s.repo.ListAssetsByProject(ctx, projectID, 10000, 0)
+	if err != nil {
+		s.log.WithError(err).Warn("Failed to list existing assets, continuing with empty list")
+		dbAssets = nil
+	}
+
+	state := NewDBState()
+	for _, wf := range dbWorkflows {
+		state.WorkflowsByID[wf.ID] = wf
+	}
+	for _, asset := range dbAssets {
+		state.AssetsByPath[asset.FilePath] = asset
+	}
+
+	return state, nil
+}
+
+// scanAndReconcile walks the filesystem and syncs files with the database.
+// Returns SeenState tracking which files were found on disk.
+func (s *WorkflowService) scanAndReconcile(
+	ctx context.Context,
+	project *database.ProjectIndex,
+	projectRoot string,
+	dbState *DBState,
+) (*SeenState, error) {
+	seen := NewSeenState()
+	fileCount := 0
+
 	walkErr := filepath.WalkDir(projectRoot, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 
-		// Check file limit
+		// Enforce file limit
 		if fileCount >= MaxSyncFiles {
 			s.log.WithFields(logrus.Fields{
 				"project_id": project.ID,
@@ -129,54 +202,64 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		relPath = filepath.ToSlash(relPath)
 
 		// Enforce depth limit
-		depth := strings.Count(relPath, "/")
-		if d.IsDir() && depth >= MaxSyncDepth {
+		if d.IsDir() && strings.Count(relPath, "/") >= MaxSyncDepth {
 			return filepath.SkipDir
 		}
 
-		// Skip directories
 		if d.IsDir() {
 			return nil
 		}
 
 		fileCount++
-
-		// Get file info
-		info, statErr := d.Info()
-		if statErr != nil {
-			s.log.WithError(statErr).WithField("path", relPath).Debug("Cannot stat file, skipping")
-			return nil
-		}
-
-		// Check if it's a workflow (JSON file with "nodes" array)
-		isWorkflow := false
-		if strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
-			content, readErr := os.ReadFile(path)
-			if readErr == nil && isWorkflowContent(content) {
-				isWorkflow = true
-				if err := s.syncWorkflowFile(ctx, project, path, relPath, content, dbWorkflowsByID, seenWorkflowIDs); err != nil {
-					s.log.WithError(err).WithField("path", relPath).Warn("Failed to sync workflow file")
-				}
-			}
-		}
-
-		// If not a workflow, index as an asset
-		if !isWorkflow {
-			if err := s.syncAssetFile(ctx, project, relPath, info, dbAssetsByPath, seenAssetPaths); err != nil {
-				s.log.WithError(err).WithField("path", relPath).Debug("Failed to sync asset file")
-			}
-		}
-
-		return nil
+		return s.syncSingleFile(ctx, project, path, relPath, d, dbState, seen)
 	})
 
 	if walkErr != nil && walkErr != filepath.SkipAll {
-		return fmt.Errorf("failed to walk project directory: %w", walkErr)
+		return nil, fmt.Errorf("failed to walk project directory: %w", walkErr)
 	}
 
-	// Reconcile: remove workflows that no longer have backing files
-	for id := range dbWorkflowsByID {
-		if seenWorkflowIDs[id] {
+	return seen, nil
+}
+
+// syncSingleFile processes one file during the filesystem walk.
+func (s *WorkflowService) syncSingleFile(
+	ctx context.Context,
+	project *database.ProjectIndex,
+	absPath, relPath string,
+	d os.DirEntry,
+	dbState *DBState,
+	seen *SeenState,
+) error {
+	info, err := d.Info()
+	if err != nil {
+		s.log.WithError(err).WithField("path", relPath).Debug("Cannot stat file, skipping")
+		return nil
+	}
+
+	// Check if it's a workflow (JSON with "nodes" array)
+	if strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
+		content, readErr := os.ReadFile(absPath)
+		if readErr == nil && isWorkflowContent(content) {
+			if err := s.syncWorkflowFile(ctx, project, absPath, relPath, content, dbState.WorkflowsByID, seen.WorkflowIDs); err != nil {
+				s.log.WithError(err).WithField("path", relPath).Warn("Failed to sync workflow file")
+			}
+			return nil
+		}
+	}
+
+	// Not a workflow, index as asset
+	if err := s.syncAssetFile(ctx, project, relPath, info, dbState.AssetsByPath, seen.AssetPaths); err != nil {
+		s.log.WithError(err).WithField("path", relPath).Debug("Failed to sync asset file")
+	}
+	return nil
+}
+
+// garbageCollect removes database records for files that no longer exist on disk.
+// This handles: deleted files, moved files, renamed files.
+func (s *WorkflowService) garbageCollect(ctx context.Context, dbState *DBState, seen *SeenState) error {
+	// Remove stale workflows
+	for id := range dbState.WorkflowsByID {
+		if seen.WorkflowIDs[id] {
 			continue
 		}
 		if err := s.repo.DeleteWorkflow(ctx, id); err != nil {
@@ -186,9 +269,9 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 		}
 	}
 
-	// Reconcile: remove assets that no longer have backing files
-	for filePath, asset := range dbAssetsByPath {
-		if seenAssetPaths[filePath] {
+	// Remove stale assets
+	for filePath, asset := range dbState.AssetsByPath {
+		if seen.AssetPaths[filePath] {
 			continue
 		}
 		if err := s.repo.DeleteAsset(ctx, asset.ID); err != nil {
@@ -200,6 +283,14 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 }
 
 // syncWorkflowFile processes a single workflow file during sync.
+//
+// Handles two workflow formats:
+// - Native format: Has valid UUID in "id" field (our format)
+// - External format: Other JSON structures (imported from other tools)
+//
+// External formats are converted IN-PLACE to native format. This is intentional:
+// we want a single normalized format for consistency, and the conversion preserves
+// the semantic content while enabling our tooling.
 func (s *WorkflowService) syncWorkflowFile(
 	ctx context.Context,
 	project *database.ProjectIndex,

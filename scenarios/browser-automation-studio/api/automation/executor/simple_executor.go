@@ -242,8 +242,6 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		execState = state.NewFromStore(seedVars)
 	}
 
-	if req.Plan.Graph != nil && len(req.Plan.Graph.Steps) > 0 {
-	}
 	execState.SetNextIndexFromPlan(req.Plan)
 
 	execCtx := executionContext{

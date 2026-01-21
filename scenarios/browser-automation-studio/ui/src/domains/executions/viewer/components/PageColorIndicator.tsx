@@ -110,13 +110,10 @@ export function PageBadge({ pageId, pages, compact = false, className = '' }: Pa
     };
   }, [pageId, pages]);
 
-  // Don't render if single page or page not found
-  if (!pageInfo) return null;
-
-  const { page, color, index } = pageInfo;
-
-  // Get short label for the page
+  // Get short label for the page - must be called unconditionally
   const label = useMemo(() => {
+    if (!pageInfo) return '';
+    const { page, index } = pageInfo;
     if (page.isInitial) return 'main';
     // Try to get a meaningful short label from the URL
     try {
@@ -127,7 +124,12 @@ export function PageBadge({ pageId, pages, compact = false, className = '' }: Pa
       // ignore
     }
     return `tab ${index + 1}`;
-  }, [page, index]);
+  }, [pageInfo]);
+
+  // Don't render if single page or page not found
+  if (!pageInfo) return null;
+
+  const { page, color } = pageInfo;
 
   if (compact) {
     return (

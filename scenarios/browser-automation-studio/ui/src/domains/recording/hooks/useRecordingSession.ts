@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
 import type { ViewportDimensions, ActualViewport } from '../types/viewport';
+import {
+  type RetryState,
+  DEFAULT_RETRY_CONFIG,
+  createInitialRetryState,
+  getNextRetryState,
+  createSuccessState,
+  createManualRetryState,
+} from '../services';
 
 // Re-export types for backward compatibility
 export type { ViewportSource, ActualViewport } from '../types/viewport';
@@ -18,18 +26,6 @@ export interface StreamSettings {
   fps: number;
   /** 'css' = 1x scale, 'device' = device pixel ratio */
   scale: 'css' | 'device';
-}
-
-/** Retry state for session creation */
-interface RetryState {
-  /** Number of retry attempts made */
-  attempts: number;
-  /** Whether we're in a cooldown period before next retry */
-  inCooldown: boolean;
-  /** When the next retry is allowed (for cooldown display) */
-  nextRetryAt: number | null;
-  /** Whether max retries exceeded (requires manual retry) */
-  maxRetriesExceeded: boolean;
 }
 
 interface UseRecordingSessionReturn {
@@ -56,11 +52,6 @@ interface UseRecordingSessionReturn {
   retrySession: () => void;
 }
 
-// Retry configuration
-const MAX_AUTO_RETRIES = 3;
-const BASE_RETRY_DELAY_MS = 1000; // 1 second
-const MAX_RETRY_DELAY_MS = 30000; // 30 seconds
-
 export function useRecordingSession({
   initialSessionId,
   onSessionReady,
@@ -74,12 +65,7 @@ export function useRecordingSession({
   const [initialRestoredUrl, setInitialRestoredUrl] = useState<string | null>(null);
 
   // Retry state for exponential backoff
-  const [retryState, setRetryState] = useState<RetryState>({
-    attempts: 0,
-    inCooldown: false,
-    nextRetryAt: null,
-    maxRetriesExceeded: false,
-  });
+  const [retryState, setRetryState] = useState<RetryState>(createInitialRetryState);
 
   // Track in-flight session creation to prevent duplicate requests.
   // We use a ref because React state updates are async and multiple calls
@@ -106,12 +92,7 @@ export function useRecordingSession({
     pendingSessionPromiseRef.current = null;
     // Reset retry state when session ID changes externally
     retryAttemptsRef.current = 0;
-    setRetryState({
-      attempts: 0,
-      inCooldown: false,
-      nextRetryAt: null,
-      maxRetriesExceeded: false,
-    });
+    setRetryState(createInitialRetryState());
     if (cooldownTimerRef.current) {
       clearTimeout(cooldownTimerRef.current);
       cooldownTimerRef.current = null;
@@ -179,12 +160,7 @@ export function useRecordingSession({
 
         // Success - reset retry state
         retryAttemptsRef.current = 0;
-        setRetryState({
-          attempts: 0,
-          inCooldown: false,
-          nextRetryAt: null,
-          maxRetriesExceeded: false,
-        });
+        setRetryState(createSuccessState());
 
         setSessionId(newSessionId);
         if (data.session_profile_id) {
@@ -212,41 +188,22 @@ export function useRecordingSession({
         setSessionError(message);
         logger.error('Failed to create recording session', { component: 'useRecordingSession', action: 'ensureSession' }, err);
 
-        // Increment retry count and apply exponential backoff
-        retryAttemptsRef.current += 1;
-        const attempts = retryAttemptsRef.current;
+        // Compute next retry state using the service
+        const newState = getNextRetryState(retryAttemptsRef.current, DEFAULT_RETRY_CONFIG);
+        retryAttemptsRef.current = newState.attempts;
+        setRetryState(newState);
 
-        if (attempts >= MAX_AUTO_RETRIES) {
-          // Max retries exceeded - require manual retry
-          setRetryState({
-            attempts,
-            inCooldown: false,
-            nextRetryAt: null,
-            maxRetriesExceeded: true,
-          });
+        if (newState.maxRetriesExceeded) {
           logger.warn('Max session creation retries exceeded', {
             component: 'useRecordingSession',
-            attempts,
-            maxRetries: MAX_AUTO_RETRIES,
+            attempts: newState.attempts,
+            maxRetries: DEFAULT_RETRY_CONFIG.maxRetries,
           });
-        } else {
-          // Calculate backoff delay: 1s, 2s, 4s, 8s... capped at MAX_RETRY_DELAY_MS
-          const delay = Math.min(
-            BASE_RETRY_DELAY_MS * Math.pow(2, attempts - 1),
-            MAX_RETRY_DELAY_MS
-          );
-          const nextRetryAt = Date.now() + delay;
-
-          setRetryState({
-            attempts,
-            inCooldown: true,
-            nextRetryAt,
-            maxRetriesExceeded: false,
-          });
-
+        } else if (newState.inCooldown && newState.nextRetryAt) {
+          const delay = newState.nextRetryAt - Date.now();
           logger.info('Session creation failed, will retry', {
             component: 'useRecordingSession',
-            attempts,
+            attempts: newState.attempts,
             nextRetryInMs: delay,
           });
 
@@ -283,12 +240,7 @@ export function useRecordingSession({
 
     // Reset retry state
     retryAttemptsRef.current = 0;
-    setRetryState({
-      attempts: 0,
-      inCooldown: false,
-      nextRetryAt: null,
-      maxRetriesExceeded: false,
-    });
+    setRetryState(createManualRetryState());
     setSessionError(null);
 
     logger.info('Manual session retry triggered', { component: 'useRecordingSession' });

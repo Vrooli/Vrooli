@@ -1266,7 +1266,7 @@ export function buildChromeDecor(theme: ReplayChromeTheme, title: string): Chrom
         headerHeight: 40,
       };
   }
-};
+}
 
 export const REPLAY_STYLE_REGISTRY = {
   chromeThemes: REPLAY_CHROME_OPTIONS,
