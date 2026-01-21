@@ -49,6 +49,10 @@ type Server struct {
 	feedbackService      *FeedbackService
 	emailService         *EmailService
 	waitlistService      *WaitlistService
+	// Credit system services
+	apiKeyService *APIKeyService
+	limitsService *LimitsService
+	usageService  *UsageService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -88,6 +92,14 @@ func NewServer() (*Server, error) {
 	emailService := NewEmailService()
 	waitlistService := NewWaitlistService(db)
 
+	// Initialize credit system services
+	apiKeyService, err := NewAPIKeyService(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
+	}
+	limitsService := NewLimitsService(db)
+	usageService := NewUsageService(db, limitsService)
+
 	srv := &Server{
 		config:               &Config{},
 		db:                   db,
@@ -108,6 +120,10 @@ func NewServer() (*Server, error) {
 		feedbackService:      feedbackService,
 		emailService:         emailService,
 		waitlistService:      waitlistService,
+		// Credit system services
+		apiKeyService: apiKeyService,
+		limitsService: limitsService,
+		usageService:  usageService,
 	}
 
 	// Initialize session store for authentication
@@ -271,6 +287,29 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/waitlist", s.requireAdmin(handleWaitlistList(s.waitlistService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/waitlist/{id}", s.requireAdmin(handleWaitlistDelete(s.waitlistService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/waitlist/export", s.requireAdmin(handleWaitlistExport(s.waitlistService))).Methods("GET")
+
+	// Credit System: API Keys Management (Admin)
+	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(handleListAPIKeys(s.apiKeyService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(handleCreateAPIKey(s.apiKeyService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(handleDeleteAPIKey(s.apiKeyService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/api-keys/test", s.requireAdmin(handleTestAPIKey(s.apiKeyService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/api-keys/toggle", s.requireAdmin(handleToggleAPIKey(s.apiKeyService))).Methods("POST")
+
+	// Credit System: Tier Limits (Admin)
+	s.router.HandleFunc("/api/v1/admin/tiers/limits", s.requireAdmin(handleGetTierLimits(s.limitsService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/tiers/{tier}/limits", s.requireAdmin(handleGetTierLimits(s.limitsService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/tiers/{tier}/limits", s.requireAdmin(handleUpdateTierLimits(s.limitsService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/limits", s.requireAdmin(handleCreateTierLimit(s.limitsService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/limits", s.requireAdmin(handleDeleteTierLimit(s.limitsService))).Methods("DELETE")
+
+	// Credit System: App Limits (Admin)
+	s.router.HandleFunc("/api/v1/admin/apps/{app}/limits", s.requireAdmin(handleGetAppLimits(s.limitsService))).Methods("GET")
+
+	// Credit System: Usage (Service-to-Service + Admin)
+	s.router.HandleFunc("/api/v1/usage/report", s.usageService.requireServiceAuth(handleReportUsage(s.usageService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/summary", handleGetUsageSummary(s.usageService, s.accountService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/check", handleCheckLimit(s.usageService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/usage", s.requireAdmin(handleAdminUsageSummary(s.usageService))).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -417,6 +456,10 @@ func seedDefaultData(db *sql.DB) error {
 	}
 
 	if err := seedDownloadDefaults(db, fallbackLanding.Downloads); err != nil {
+		return err
+	}
+
+	if err := seedTierLimitsDefaults(db); err != nil {
 		return err
 	}
 
@@ -685,6 +728,60 @@ func seedDownloadDefaults(db *sql.DB, downloads []DownloadApp) error {
 			}
 		}
 	}
+
+	return nil
+}
+
+// seedTierLimitsDefaults seeds default subscription tier limits for the cost-based credit system.
+// These values define AI credit limits per subscription tier.
+// Cost multiplier is 1,000,000 (so $5 = 500,000,000 internal units)
+func seedTierLimitsDefaults(db *sql.DB) error {
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM subscription_tier_limits`).Scan(&count); err != nil {
+		return fmt.Errorf("count tier limits: %w", err)
+	}
+	if count > 0 {
+		return nil // Already seeded
+	}
+
+	// Default tier limits for cost-based AI credits
+	// -1 = unlimited, values are in internal units (cents x 1,000,000)
+	tierLimits := []struct {
+		tierID       string
+		limitType    string
+		limitKey     string
+		limitValue   int64 // Internal units
+		appBundleKey *string
+	}{
+		// Cost-based AI credits per tier (shared across all apps)
+		// free: 0 (no AI access)
+		{"free", "cost_based", "ai_credits", 0, nil},
+		// solo: $5/month worth of AI = 500,000,000 internal units
+		{"solo", "cost_based", "ai_credits", 500000000, nil},
+		// pro: $20/month worth of AI = 2,000,000,000 internal units
+		{"pro", "cost_based", "ai_credits", 2000000000, nil},
+		// studio: $100/month worth of AI = 10,000,000,000 internal units
+		{"studio", "cost_based", "ai_credits", 10000000000, nil},
+		// business: unlimited
+		{"business", "cost_based", "ai_credits", -1, nil},
+	}
+
+	insertQuery := `
+		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, app_bundle_key)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (tier_id, limit_type, limit_key, app_bundle_key) DO NOTHING
+	`
+
+	for _, tl := range tierLimits {
+		if _, err := db.Exec(insertQuery, tl.tierID, tl.limitType, tl.limitKey, tl.limitValue, tl.appBundleKey); err != nil {
+			return fmt.Errorf("seed tier limit %s/%s: %w", tl.tierID, tl.limitKey, err)
+		}
+	}
+
+	logStructured("tier_limits_seeded", map[string]interface{}{
+		"level": "info",
+		"count": len(tierLimits),
+	})
 
 	return nil
 }
@@ -996,6 +1093,50 @@ func ensureSchema(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_waitlist_emails_email ON waitlist_emails(email);`,
+		// Cost-based credit system tables
+		`CREATE TABLE IF NOT EXISTS subscription_tier_limits (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			tier_id VARCHAR(50) NOT NULL,
+			limit_type VARCHAR(20) NOT NULL,
+			limit_key VARCHAR(100) NOT NULL,
+			limit_value BIGINT NOT NULL,
+			cost_multiplier BIGINT DEFAULT 1000000,
+			app_bundle_key VARCHAR(100),
+			reset_period VARCHAR(20) DEFAULT 'monthly',
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE(tier_id, limit_type, limit_key, app_bundle_key)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_tier ON subscription_tier_limits(tier_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_type ON subscription_tier_limits(limit_type);`,
+		`CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_app ON subscription_tier_limits(app_bundle_key);`,
+		`CREATE TABLE IF NOT EXISTS usage_records (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_identity VARCHAR(255) NOT NULL,
+			billing_period VARCHAR(20) NOT NULL,
+			limit_key VARCHAR(100) NOT NULL,
+			usage_amount BIGINT NOT NULL DEFAULT 0,
+			app_bundle_key VARCHAR(100),
+			last_operation_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_identity, billing_period);`,
+		`CREATE INDEX IF NOT EXISTS idx_usage_records_limit_key ON usage_records(limit_key);`,
+		`CREATE INDEX IF NOT EXISTS idx_usage_records_app ON usage_records(app_bundle_key);`,
+		`CREATE TABLE IF NOT EXISTS api_keys (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			provider VARCHAR(50) NOT NULL UNIQUE,
+			encrypted_key TEXT NOT NULL,
+			key_hint VARCHAR(20),
+			is_active BOOLEAN DEFAULT true,
+			last_verified_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_api_keys_provider ON api_keys(provider);`,
+		`CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);`,
 	}
 
 	for _, stmt := range stmts {

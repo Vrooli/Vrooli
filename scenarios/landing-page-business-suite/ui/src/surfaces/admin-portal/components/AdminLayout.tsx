@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download, Settings2, Book, ShieldCheck, MessageSquare, Users } from 'lucide-react';
+import { Home, BarChart3, Palette, LogOut, ChevronRight, CreditCard, Download, Settings2, Book, ShieldCheck, MessageSquare, Users, Key, Gauge, Activity, ChevronDown, AppWindow } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
@@ -12,6 +12,62 @@ interface AdminLayoutProps {
 interface BreadcrumbSegment {
   label: string;
   path?: string;
+}
+
+// Dropdown component for nav groups
+function NavDropdown({ label, icon: Icon, items, currentPath }: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: { label: string; path: string; icon: React.ComponentType<{ className?: string }> }[];
+  currentPath: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  const isActive = items.some(item => currentPath.startsWith(item.path));
+
+  return (
+    <div ref={ref} className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`gap-2 ${isActive ? 'bg-slate-800' : ''}`}
+        onClick={() => setOpen(!open)}
+      >
+        <Icon className="h-4 w-4" />
+        {label}
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </Button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-50 min-w-[160px]">
+          {items.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-700 transition-colors ${
+                currentPath.startsWith(item.path) ? 'text-blue-400' : 'text-slate-200'
+              }`}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -68,6 +124,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       segments.push({ label: 'Waitlist', path: '/admin/waitlist' });
     } else if (path.startsWith('/admin/profile')) {
       segments.push({ label: 'Profile', path: '/admin/profile' });
+    } else if (path.startsWith('/admin/api-keys')) {
+      segments.push({ label: 'API Keys', path: '/admin/api-keys' });
+    } else if (path.startsWith('/admin/tier-limits')) {
+      segments.push({ label: 'Tier Limits', path: '/admin/tier-limits' });
+    } else if (path.startsWith('/admin/app-limits')) {
+      segments.push({ label: 'App Limits', path: '/admin/app-limits' });
+    } else if (path.startsWith('/admin/usage')) {
+      segments.push({ label: 'Usage', path: '/admin/usage' });
     }
 
     return segments;
@@ -116,36 +180,36 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                     Downloads
                   </Button>
                 </Link>
-                <Link to="/admin/branding" data-testid="nav-branding">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Settings2 className="h-4 w-4" />
-                    Branding
-                  </Button>
-                </Link>
-                <Link to="/admin/feedback" data-testid="nav-feedback">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Feedback
-                  </Button>
-                </Link>
-                <Link to="/admin/waitlist" data-testid="nav-waitlist">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Users className="h-4 w-4" />
-                    Waitlist
-                  </Button>
-                </Link>
-                <Link to="/admin/profile" data-testid="nav-profile">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <ShieldCheck className="h-4 w-4" />
-                    Profile
-                  </Button>
-                </Link>
-                <Link to="/admin/docs" data-testid="nav-docs">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Book className="h-4 w-4" />
-                    Docs
-                  </Button>
-                </Link>
+                <NavDropdown
+                  label="Credits"
+                  icon={Gauge}
+                  currentPath={location.pathname}
+                  items={[
+                    { label: 'API Keys', path: '/admin/api-keys', icon: Key },
+                    { label: 'Tier Limits', path: '/admin/tier-limits', icon: Gauge },
+                    { label: 'App Limits', path: '/admin/app-limits', icon: AppWindow },
+                    { label: 'Usage', path: '/admin/usage', icon: Activity },
+                  ]}
+                />
+                <NavDropdown
+                  label="Users"
+                  icon={Users}
+                  currentPath={location.pathname}
+                  items={[
+                    { label: 'Feedback', path: '/admin/feedback', icon: MessageSquare },
+                    { label: 'Waitlist', path: '/admin/waitlist', icon: Users },
+                  ]}
+                />
+                <NavDropdown
+                  label="Config"
+                  icon={Settings2}
+                  currentPath={location.pathname}
+                  items={[
+                    { label: 'Branding', path: '/admin/branding', icon: Settings2 },
+                    { label: 'Profile', path: '/admin/profile', icon: ShieldCheck },
+                    { label: 'Docs', path: '/admin/docs', icon: Book },
+                  ]}
+                />
               </nav>
             </div>
             <Button

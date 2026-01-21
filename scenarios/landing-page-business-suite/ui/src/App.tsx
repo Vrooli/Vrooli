@@ -23,6 +23,10 @@ import { CheckoutPage } from './surfaces/public-landing/routes/CheckoutPage';
 import { FeedbackPage } from './surfaces/public-landing/routes/FeedbackPage';
 import { ProfileSettings } from './surfaces/admin-portal/routes/ProfileSettings';
 import { ComingSoonPage } from './surfaces/public-landing/routes/ComingSoonPage';
+import { APIKeysSettings } from './surfaces/admin-portal/routes/APIKeysSettings';
+import { TierLimitsSettings } from './surfaces/admin-portal/routes/TierLimitsSettings';
+import { AppLimitsSettings } from './surfaces/admin-portal/routes/AppLimitsSettings';
+import { UsageDashboard } from './surfaces/admin-portal/routes/UsageDashboard';
 
 /**
  * PublicRouteGuard checks if coming soon mode is enabled and shows the
@@ -247,6 +251,48 @@ export default function App() {
                   <ProtectedRoute>
                     <ErrorBoundary level="route" name="SectionEditor">
                       <SectionEditor />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Credit System Routes */}
+              <Route
+                path="/admin/api-keys"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="APIKeysSettings">
+                      <APIKeysSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/tier-limits"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="TierLimitsSettings">
+                      <TierLimitsSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/app-limits"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AppLimitsSettings">
+                      <AppLimitsSettings />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/usage"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="UsageDashboard">
+                      <UsageDashboard />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

@@ -177,3 +177,43 @@ export function isApiError(error: unknown, type?: ApiErrorType): error is ApiErr
   if (type === undefined) return true;
   return error.type === type;
 }
+
+/**
+ * Convenience wrapper for GET requests.
+ */
+export async function apiGet<T>(endpoint: string, options?: Omit<ApiCallOptions, 'method' | 'body'>): Promise<T> {
+  return apiCall<T>(endpoint, { ...options, method: 'GET' });
+}
+
+/**
+ * Convenience wrapper for POST requests.
+ */
+export async function apiPost<T>(endpoint: string, body?: unknown, options?: Omit<ApiCallOptions, 'method' | 'body'>): Promise<T> {
+  return apiCall<T>(endpoint, {
+    ...options,
+    method: 'POST',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * Convenience wrapper for PUT requests.
+ */
+export async function apiPut<T>(endpoint: string, body?: unknown, options?: Omit<ApiCallOptions, 'method' | 'body'>): Promise<T> {
+  return apiCall<T>(endpoint, {
+    ...options,
+    method: 'PUT',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * Convenience wrapper for DELETE requests.
+ */
+export async function apiDelete<T>(endpoint: string, body?: unknown, options?: Omit<ApiCallOptions, 'method' | 'body'>): Promise<T> {
+  return apiCall<T>(endpoint, {
+    ...options,
+    method: 'DELETE',
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}

@@ -259,3 +259,58 @@ CREATE INDEX idx_feedback_requests_type ON feedback_requests(type);
 CREATE INDEX idx_feedback_requests_status ON feedback_requests(status);
 CREATE INDEX idx_feedback_requests_email ON feedback_requests(email);
 CREATE INDEX idx_feedback_requests_created ON feedback_requests(created_at);
+
+-- Subscription Tier Limits Table
+-- Defines credit limits per subscription tier (cost-based or app-specific)
+CREATE TABLE IF NOT EXISTS subscription_tier_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tier_id VARCHAR(50) NOT NULL,           -- 'free', 'solo', 'pro', 'studio', 'business'
+    limit_type VARCHAR(20) NOT NULL,        -- 'cost_based' or 'app_specific'
+    limit_key VARCHAR(100) NOT NULL,        -- 'ai_credits', 'workflow_exports', etc.
+    limit_value BIGINT NOT NULL,            -- In base units (-1 = unlimited)
+    cost_multiplier BIGINT DEFAULT 1000000, -- cents x multiplier for cost_based
+    app_bundle_key VARCHAR(100),            -- NULL for cost_based, app key for app_specific
+    reset_period VARCHAR(20) DEFAULT 'monthly',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(tier_id, limit_type, limit_key, app_bundle_key)
+);
+
+CREATE INDEX idx_subscription_tier_limits_tier ON subscription_tier_limits(tier_id);
+CREATE INDEX idx_subscription_tier_limits_type ON subscription_tier_limits(limit_type);
+CREATE INDEX idx_subscription_tier_limits_app ON subscription_tier_limits(app_bundle_key);
+
+-- Usage Records Table
+-- Tracks credit usage per user per billing period
+CREATE TABLE IF NOT EXISTS usage_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_period VARCHAR(20) NOT NULL,    -- 'YYYY-MM'
+    limit_key VARCHAR(100) NOT NULL,
+    usage_amount BIGINT NOT NULL DEFAULT 0,
+    app_bundle_key VARCHAR(100),
+    last_operation_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
+);
+
+CREATE INDEX idx_usage_records_user_period ON usage_records(user_identity, billing_period);
+CREATE INDEX idx_usage_records_limit_key ON usage_records(limit_key);
+CREATE INDEX idx_usage_records_app ON usage_records(app_bundle_key);
+
+-- API Keys Table
+-- Stores encrypted AI provider API keys (admin-managed)
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    provider VARCHAR(50) NOT NULL UNIQUE,   -- 'openrouter', 'openai', 'anthropic'
+    encrypted_key TEXT NOT NULL,
+    key_hint VARCHAR(20),                   -- Last 4 chars for display
+    is_active BOOLEAN DEFAULT true,
+    last_verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_api_keys_provider ON api_keys(provider);
+CREATE INDEX idx_api_keys_active ON api_keys(is_active);
