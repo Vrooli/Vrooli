@@ -117,8 +117,13 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		// Fail open - allow execution if we can't check
-		s.log.WithError(err).Warn("Failed to check entitlement, allowing execution")
+		// Fail open for edge cases (network errors, service unavailable).
+		// This allows workflows to continue running when the entitlement service is temporarily
+		// unreachable. This is acceptable because:
+		// 1. Execution limits are soft limits primarily for fair use
+		// 2. Paid AI operations go through LPBS which has its own atomic credit checks
+		// 3. Brief connectivity issues shouldn't block user workflows
+		s.log.WithError(err).Warn("Failed to check entitlement, allowing execution (fail-open)")
 		return true
 	}
 
@@ -166,7 +171,9 @@ func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bo
 func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
 	ent, err := s.GetEntitlement(ctx, userIdentity)
 	if err != nil {
-		// Fail closed for premium features
+		// Fail closed for premium features - don't allow AI access if we can't verify entitlement.
+		// This is a local pre-check; the LPBS AI gateway provides the authoritative credit check
+		// with atomic reservation when processing actual AI requests.
 		return false
 	}
 
@@ -268,13 +275,14 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	// Convert to our entitlement type
 	now := time.Now()
 	ent := &Entitlement{
-		UserIdentity: userIdentity,
-		Status:       Status(entResp.Status),
-		Tier:         Tier(strings.ToLower(entResp.PlanTier)),
-		PriceID:      entResp.PriceID,
-		Features:     entResp.Features,
-		FetchedAt:    now,
-		ExpiresAt:    now.Add(s.cfg.CacheTTL),
+		UserIdentity:      userIdentity,
+		Status:            Status(entResp.Status),
+		Tier:              Tier(strings.ToLower(entResp.PlanTier)),
+		PriceID:           entResp.PriceID,
+		Features:          entResp.Features,
+		BillingCycleStart: entResp.BillingCycleStart,
+		FetchedAt:         now,
+		ExpiresAt:         now.Add(s.cfg.CacheTTL),
 	}
 
 	// Handle credits if present
@@ -464,4 +472,45 @@ func (s *Service) tierCanUseRecording(tier Tier) bool {
 		}
 	}
 	return false
+}
+
+// CanUseAIWithEntitlement checks AI access using features array first, then tier fallback.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) CanUseAIWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return false
+	}
+	// Features array is authoritative when present
+	if len(ent.Features) > 0 {
+		return ent.HasFeature(FeatureAI)
+	}
+	// Fall back to tier-based config for backwards compatibility
+	return s.tierCanUseAI(ent.Tier)
+}
+
+// CanUseRecordingWithEntitlement checks recording access using features array first.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) CanUseRecordingWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return false
+	}
+	if len(ent.Features) > 0 {
+		return ent.HasFeature(FeatureRecording)
+	}
+	return s.tierCanUseRecording(ent.Tier)
+}
+
+// RequiresWatermarkWithEntitlement checks if watermark is required using features array first.
+// If the Features array is present (non-nil and non-empty), it is authoritative.
+// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
+func (s *Service) RequiresWatermarkWithEntitlement(ent *Entitlement) bool {
+	if ent == nil {
+		return true // Fail safe: require watermark
+	}
+	if len(ent.Features) > 0 {
+		return !ent.HasFeature(FeatureWatermarkFree)
+	}
+	return s.tierRequiresWatermark(ent.Tier)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/internal/httpjson"
+	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -91,13 +92,14 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 
 	// Check AI operation permission (tier + credits)
 	var userID string
+	hasBYOK := middleware.HasBYOKKey(ctx)
 	if h.creditService != nil {
 		userID = entitlement.UserIdentityFromContext(ctx)
 		if userID == "" {
 			userID = "anonymous"
 		}
 
-		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, false)
+		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
 		if err != nil {
 			h.log.WithError(err).Warn("element_analysis: failed to check AI operation permission")
 		} else if !canProceed {
@@ -142,10 +144,12 @@ func (h *ElementAnalysisHandler) AnalyzeElements(w http.ResponseWriter, r *http.
 	}
 
 	// Charge credits after successful AI operation (if AI suggestions were generated)
+	// BYOK users get logged with 0 cost for analytics
 	if h.creditService != nil && userID != "" && len(aiSuggestions) > 0 {
 		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: userID,
 			Operation:    credits.OpAIElementAnalyze,
+			IsBYOK:       hasBYOK,
 		}); err != nil {
 			h.log.WithError(err).Warn("element_analysis: failed to charge credits")
 		}

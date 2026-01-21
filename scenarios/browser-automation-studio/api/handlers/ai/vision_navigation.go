@@ -61,6 +61,7 @@ type NavigationSession struct {
 	Status            string // "navigating", "completed", "failed", "aborted", "awaiting_human"
 	AwaitingHuman     bool
 	HumanIntervention *HumanInterventionInfo
+	IsBYOK            bool // User provided their own API key
 }
 
 // HumanInterventionInfo contains details about human intervention.
@@ -296,6 +297,7 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 		Model:        req.Model,
 		StartedAt:    time.Now(),
 		Status:       "navigating",
+		IsBYOK:       hasBYOK,
 	}
 	h.mu.Lock()
 	h.activeNavigations[navigationID] = session
@@ -470,7 +472,7 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	}
 	h.mu.Unlock()
 
-	// Charge credits per step
+	// Charge credits per step (BYOK users get logged with 0 cost for analytics)
 	if h.creditService != nil && session != nil {
 		_, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: session.UserID,
@@ -480,6 +482,7 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 				PromptTokens:     event.TokensUsed.PromptTokens,
 				CompletionTokens: event.TokensUsed.CompletionTokens,
 			},
+			IsBYOK: session.IsBYOK,
 		})
 		if err != nil {
 			h.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")

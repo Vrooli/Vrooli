@@ -312,6 +312,189 @@ type WorkflowResolver interface {
 
 ---
 
+### 24. Credit Service Seam (Strong)
+
+**Location:** `api/services/credits/`
+
+**Interface:** `api/services/credits/interface.go`
+```go
+type CreditService interface {
+    CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error)
+    Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
+    ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
+    GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error)
+    GetOperationCost(op OperationType) int
+    LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
+    GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error)
+    GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
+    CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
+}
+```
+
+**Test Doubles:**
+- `services/credits/mock.go`: `MockService` - Full interface mock with configurable responses
+- `services/credits/entitlement_provider.go`: `MockEntitlementProvider` - Controls tier/limit behavior
+
+**Status:** Strong
+- Clean interface separating credit checking from charging
+- Multiple testing seams: `EntitlementProvider`, `LPBSReporter`, `Dialect` flag
+- Comprehensive test coverage with SQLite in-memory database
+- Compile-time enforcement via `var _ CreditService = (*Service)(nil)`
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      CreditService                               │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ EntitlementProvider │───▶ GetAICreditsLimit()             │   │
+│  │ (testing seam)      │    CanUseAIWithEntitlement()        │   │
+│  └──────────────────┘    GetEntitlement()                    │   │
+│                          └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ LPBSReporter     │───▶ ReportUsage()                      │   │
+│  │ (testing seam)   │    (async to central LPBS)             │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Database Dialect │───▶ PostgreSQL (production)            │   │
+│  │ (testing seam)   │    SQLite (unit tests)                 │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Testing Example:**
+```go
+// Unit test setup with all seams mocked
+svc := credits.NewService(credits.ServiceOptions{
+    DB:      sqliteInMemoryDB,
+    Logger:  logrus.New(),
+    Dialect: "sqlite",
+    EntitlementProvider: &credits.MockEntitlementProvider{
+        Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
+        AICreditsLimit: 500,
+        CanUseAI: true,
+    },
+    LPBSReporter: &mockLPBSReporter{}, // Captures reports for verification
+})
+```
+
+---
+
+### 25. Entitlement Service Seam (Strong)
+
+**Location:** `api/services/entitlement/`
+
+**Key Types:** `api/services/entitlement/types.go`
+```go
+type Entitlement struct {
+    UserIdentity      string    `json:"user_identity"`
+    Status            Status    `json:"status"`
+    Tier              Tier      `json:"tier"`
+    Features          []string  `json:"features,omitempty"`
+    BillingCycleStart int       `json:"billing_cycle_start,omitempty"`
+    // ...
+}
+
+type Tier string // TierFree, TierSolo, TierPro, TierStudio, TierBusiness
+```
+
+**Interface:** `api/services/credits/entitlement_provider.go`
+```go
+type EntitlementProvider interface {
+    GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error)
+    GetAICreditsLimit(tier entitlement.Tier) int
+    CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
+}
+```
+
+**Test Doubles:**
+- `services/credits/entitlement_provider.go`: `MockEntitlementProvider`
+- `services/entitlement/context.go`: Context injection for tier overrides
+
+**Status:** Strong
+- `EntitlementProvider` interface enables testing credit logic without real entitlement service
+- Context-based override allows middleware tier injection for testing
+- Cache with configurable TTL (5 min default)
+- Offline grace period (5 hours) for resilience
+
+**Testing Patterns:**
+
+1. **Mock Provider (preferred for unit tests):**
+```go
+mock := &credits.MockEntitlementProvider{
+    Entitlement: &entitlement.Entitlement{
+        Tier: entitlement.TierPro,
+        Status: entitlement.StatusActive,
+    },
+    AICreditsLimit: 500,
+    CanUseAI: true,
+}
+```
+
+2. **Context Override (for integration/handler tests):**
+```go
+ctx := entitlement.WithEntitlement(ctx, &entitlement.Entitlement{
+    Tier: entitlement.TierBusiness,
+})
+// Credits service will use this entitlement instead of fetching
+```
+
+---
+
+### 26. LPBS Reporter Seam (Strong)
+
+**Location:** `api/services/credits/service.go`
+
+**Interface:**
+```go
+type LPBSReporter interface {
+    ReportUsage(ctx context.Context, report LPBSUsageReport) error
+}
+
+type LPBSUsageReport struct {
+    UserIdentity string                  `json:"user_identity"`
+    LimitKey     string                  `json:"limit_key"`
+    UsageAmount  int64                   `json:"usage_amount"`
+    AppBundleKey string                  `json:"app_bundle_key"`
+    Metadata     LPBSUsageReportMetadata `json:"metadata,omitempty"`
+}
+```
+
+**Status:** Strong
+- Enables capturing and verifying usage reports in tests
+- Async reporting (goroutine with retry) doesn't block local operations
+- Reports include operation type, model, tokens, and BYOK flag
+
+**Test Example:**
+```go
+type mockLPBSReporter struct {
+    reports []credits.LPBSUsageReport
+    mu      sync.Mutex
+}
+
+func (m *mockLPBSReporter) ReportUsage(ctx context.Context, report credits.LPBSUsageReport) error {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    m.reports = append(m.reports, report)
+    return nil
+}
+
+// In test
+reporter := &mockLPBSReporter{}
+svc := credits.NewService(credits.ServiceOptions{
+    LPBSReporter: reporter,
+    // ...
+})
+// After operations, verify: reporter.reports
+```
+
+---
+
 ## TypeScript Playwright-Driver Seams
 
 ### 12. InstructionHandler Seam (Strong)
@@ -660,6 +843,9 @@ interface RetryService {
 | WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
 | EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
 | RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
+| CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
+| EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
+| LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |
 
 ---
 
@@ -752,6 +938,7 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-21 | Claude | Credits System Seams: Added seams #24-26 (CreditService, EntitlementProvider, LPBSReporter); created EntitlementProvider interface with MockEntitlementProvider test double; documented testing patterns for credit/entitlement logic; updated enforcement matrix |
 | 2026-01-20 | Claude | Recording Reconciliation Completion: Added RetryService seam (#23) with 35 test cases; completed services/index.ts exports; refactored useRecordingSession.ts to use RetryService (removed duplicate retry logic); updated enforcement matrix |
 | 2026-01-20 | Claude | Recording Reconciliation Seams: Added seams #19-22 (ActionMergeService, AIReconciliationService, WorkflowSyncRepository, EventBroadcaster); created comprehensive test suites; decomposed sync.go into smaller functions; extracted frontend services to services/ directory |
 | 2025-12-17 | Claude | Export package consolidation: Deleted duplicate handlers/export/presets.go (identical to services/export/presets.go); documented remaining export package duplication for future cleanup |

@@ -58,6 +58,10 @@ type ProviderRequest struct {
 	// BYOKKey is the user's OpenRouter API key (optional).
 	BYOKKey string
 
+	// LPBSAuthToken is the user's JWT token for LPBS authentication (optional).
+	// Required when using the Vrooli provider with LPBS gateway.
+	LPBSAuthToken string
+
 	// Model is the preferred AI model (optional, uses default if empty).
 	Model string
 

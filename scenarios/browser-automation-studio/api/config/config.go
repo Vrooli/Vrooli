@@ -494,6 +494,12 @@ type EntitlementConfig struct {
 	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
 	ServiceURL string
 
+	// ServiceSecret is the shared secret for service-to-service authentication with LPBS.
+	// Used for reporting usage data via POST /api/v1/usage/report.
+	// Generate with: openssl rand -base64 32
+	// Env: BAS_LPBS_SERVICE_SECRET (default: "")
+	ServiceSecret string
+
 	// CacheTTL is how long to cache entitlement responses before re-checking.
 	// Tradeoff: Higher = fewer network calls, slower to reflect subscription changes.
 	// Lower = more responsive to upgrades/downgrades, more API load.
@@ -507,7 +513,7 @@ type EntitlementConfig struct {
 
 	// OfflineGracePeriod is how long to allow operations when the entitlement service is unreachable.
 	// Uses cached entitlements during this period; after expiry, falls back to free tier.
-	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 86400000, 24 hours)
+	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 18000000, 5 hours)
 	OfflineGracePeriod time.Duration
 
 	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
@@ -721,9 +727,10 @@ func loadFromEnv() *Config {
 		},
 		Entitlement: EntitlementConfig{
 			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
+			ServiceSecret:      parseString("BAS_LPBS_SERVICE_SECRET", ""),
 			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
 			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
-			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 86400000),
+			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 18000000),
 			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
 			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
 			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),

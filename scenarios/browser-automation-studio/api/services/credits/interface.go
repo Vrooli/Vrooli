@@ -89,6 +89,16 @@ type ChargeRequest struct {
 
 	// Metadata contains optional operation-specific details for logging/auditing
 	Metadata ChargeMetadata
+
+	// IsBYOK indicates the user is using their own API key (Bring Your Own Key).
+	// When true, the operation is logged with cost=0 for analytics purposes
+	// since the user pays their own way directly to the AI provider.
+	IsBYOK bool
+
+	// ActualCostCents is the actual cost in cents from the AI provider (e.g., OpenRouter).
+	// When provided, this is used for LPBS reporting instead of estimated costs.
+	// Set to 0 or leave unset to use default cost estimation.
+	ActualCostCents float64
 }
 
 // ChargeMetadata contains optional operation-specific details for logging.

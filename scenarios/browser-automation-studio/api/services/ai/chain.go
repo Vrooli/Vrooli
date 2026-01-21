@@ -114,57 +114,45 @@ func (c *AIProviderChain) Execute(ctx context.Context, req ProviderRequest) (*Pr
 		}
 	}
 
-	// Try Vrooli API (charges credits)
-	if c.enableVrooli {
+	// Try Vrooli API (charges credits through LPBS gateway)
+	// NOTE: Credit checking and charging is handled atomically by LPBS.
+	// BAS no longer needs to pre-check or charge credits for Vrooli provider requests.
+	// LPBS returns ErrInsufficientCredits if the user doesn't have enough credits.
+	if c.enableVrooli && req.LPBSAuthToken != "" {
 		provider := NewVrooliProvider(VrooliProviderOptions{
-			Logger: c.log,
-			APIURL: c.vrooliAPIURL,
-			Model:  model,
+			Logger:    c.log,
+			APIURL:    c.vrooliAPIURL,
+			Model:     model,
+			AuthToken: req.LPBSAuthToken,
 		})
 
 		if provider.IsAvailable(ctx) {
-			// Check credits before attempting
-			if c.creditService != nil {
-				canCharge, remaining, err := c.creditService.CanCharge(ctx, req.UserIdentity, opType)
-				if err != nil {
-					c.log.WithError(err).Warn("Failed to check credits, skipping Vrooli provider")
-				} else if !canCharge {
-					c.log.WithFields(logrus.Fields{
-						"user":      req.UserIdentity,
-						"remaining": remaining,
-					}).Debug("Insufficient credits for Vrooli provider")
-				} else {
-					c.log.WithFields(logrus.Fields{
-						"provider": "vrooli",
-						"model":    model,
-					}).Debug("Trying Vrooli API provider")
+			c.log.WithFields(logrus.Fields{
+				"provider": "vrooli",
+				"model":    model,
+			}).Debug("Trying Vrooli API provider (credits handled by LPBS)")
 
-					response, err := provider.ExecutePrompt(ctx, req.Prompt)
-					if err == nil {
-						// Charge credits on success
-						_, chargeErr := c.creditService.Charge(ctx, credits.ChargeRequest{
-							UserIdentity: req.UserIdentity,
-							Operation:    opType,
-							Metadata: credits.ChargeMetadata{
-								Model: model,
-							},
-						})
-						if chargeErr != nil {
-							c.log.WithError(chargeErr).Warn("Failed to charge credits for Vrooli API request")
-						}
-
-						return &ProviderResult{
-							Response:       response,
-							Provider:       ProviderTypeVrooli,
-							Model:          model,
-							ChargedCredits: chargeErr == nil,
-						}, nil
-					}
-
-					lastErr = err
-					c.log.WithError(err).Debug("Vrooli provider failed, trying next")
-				}
+			response, err := provider.ExecutePrompt(ctx, req.Prompt)
+			if err == nil {
+				return &ProviderResult{
+					Response:       response,
+					Provider:       ProviderTypeVrooli,
+					Model:          model,
+					ChargedCredits: true, // LPBS charges credits atomically
+				}, nil
 			}
+
+			// Check if it's an insufficient credits error
+			if err == ErrInsufficientCredits {
+				c.log.WithFields(logrus.Fields{
+					"user": req.UserIdentity,
+				}).Debug("Insufficient credits for Vrooli provider")
+				// Don't try fallback providers for credit errors - user needs to upgrade
+				return nil, err
+			}
+
+			lastErr = err
+			c.log.WithError(err).Debug("Vrooli provider failed, trying next")
 		}
 	}
 

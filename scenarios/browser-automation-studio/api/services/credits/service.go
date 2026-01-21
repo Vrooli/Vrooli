@@ -1,11 +1,13 @@
 package credits
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -16,13 +18,44 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
+// LPBSReporter is an interface for reporting usage to LPBS.
+// This allows for mocking in tests.
+type LPBSReporter interface {
+	ReportUsage(ctx context.Context, report LPBSUsageReport) error
+}
+
 // Service implements CreditService with database persistence and caching.
+//
+// # Architecture
+//
+// The Service coordinates between several subsystems:
+//   - Database layer: Persists credit_usage and operation_log tables
+//   - Entitlement layer: Determines tier limits via EntitlementProvider interface
+//   - LPBS layer: Reports usage to central landing-page-business-suite (async)
+//   - Cache layer: In-memory cache with 1-minute TTL for fast lookups
+//
+// # Testing Seams
+//
+// The Service has several intentional seams for testability:
+//   - EntitlementProvider: Interface for entitlement lookups (mock in tests)
+//   - LPBSReporter: Interface for usage reporting (mock in tests)
+//   - Database: Supports both PostgreSQL and SQLite via dialect flag
+//
+// See SEAMS.md for full documentation of testing boundaries.
 type Service struct {
-	db             *sql.DB
-	log            *logrus.Logger
-	entitlementSvc *entitlement.Service
-	costs          OperationCosts
-	dialect        string // "postgres" or "sqlite"
+	db                  *sql.DB
+	log                 *logrus.Logger
+	entitlementSvc      *entitlement.Service // Legacy: concrete service for backward compat
+	entitlementProvider EntitlementProvider  // Preferred: injectable interface for testing
+	costs               OperationCosts
+	dialect             string // "postgres" or "sqlite"
+
+	// LPBS integration for centralized usage reporting
+	lpbsURL        string       // LPBS service URL for usage reporting
+	lpbsSecret     string       // Service-to-service auth secret
+	lpbsHTTPClient *http.Client // HTTP client for LPBS requests
+	lpbsReporter   LPBSReporter // Optional: injectable reporter for testing
+	appBundleKey   string       // App identifier for usage records
 
 	// In-memory cache for fast lookups
 	cacheMu sync.RWMutex
@@ -39,28 +72,93 @@ type usageCache struct {
 }
 
 // ServiceOptions configures the credit service.
+//
+// # Testing Seams
+//
+// For unit testing credit logic without real dependencies:
+//   - Use EntitlementProvider with MockEntitlementProvider (preferred for new tests)
+//   - Use LPBSReporter with a mock to capture/verify usage reports
+//   - Use Dialect="sqlite" with an in-memory database
+//
+// # Example Test Setup
+//
+//	svc := credits.NewService(credits.ServiceOptions{
+//	    DB:      sqliteDB,
+//	    Logger:  logrus.New(),
+//	    Dialect: "sqlite",
+//	    EntitlementProvider: &credits.MockEntitlementProvider{
+//	        Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
+//	        AICreditsLimit: 500,
+//	        CanUseAI: true,
+//	    },
+//	    LPBSReporter: &mockLPBSReporter{},
+//	})
 type ServiceOptions struct {
 	DB             *sql.DB
 	Logger         *logrus.Logger
-	EntitlementSvc *entitlement.Service
-	Dialect        string // "postgres" or "sqlite" - defaults to "postgres"
+	EntitlementSvc *entitlement.Service // Legacy: concrete entitlement service
+	Dialect        string               // "postgres" or "sqlite" - defaults to "postgres"
 	// Note: Operation costs are intentionally NOT configurable here.
 	// They are hard-coded in DefaultOperationCosts() to prevent bypassing charges.
+
+	// EntitlementProvider is the preferred way to inject entitlement dependencies.
+	// If set, this takes precedence over EntitlementSvc.
+	// Use MockEntitlementProvider in tests to control entitlement behavior.
+	EntitlementProvider EntitlementProvider
+
+	// LPBS integration for centralized usage reporting
+	// When configured, usage is reported to LPBS after local charges
+	LPBSURL      string // LPBS service URL (e.g., "http://localhost:15000" or "https://vrooli.com")
+	LPBSSecret   string // Service-to-service auth secret
+	AppBundleKey string // App identifier (default: "browser-automation-studio")
+
+	// LPBSReporter allows injecting a custom LPBS reporter for testing.
+	// If nil, the default HTTP-based reporter will be used.
+	LPBSReporter LPBSReporter
 }
 
 // NewService creates a new CreditService.
+//
+// The service can be configured with either EntitlementProvider (preferred) or
+// EntitlementSvc (legacy). If EntitlementProvider is set, it takes precedence.
+// If neither is set, all operations are treated as unlimited (useful for desktop apps).
 func NewService(opts ServiceOptions) *Service {
 	dialect := opts.Dialect
 	if dialect == "" {
 		dialect = "postgres" // Default for backward compatibility
 	}
+
+	appBundleKey := opts.AppBundleKey
+	if appBundleKey == "" {
+		appBundleKey = "browser-automation-studio"
+	}
+
+	var lpbsHTTPClient *http.Client
+	if opts.LPBSURL != "" {
+		lpbsHTTPClient = &http.Client{
+			Timeout: 5 * time.Second, // Short timeout for async reporting
+		}
+	}
+
+	// Use provided EntitlementProvider, or wrap the legacy EntitlementSvc
+	entProvider := opts.EntitlementProvider
+	if entProvider == nil && opts.EntitlementSvc != nil {
+		entProvider = NewDefaultEntitlementProvider(opts.EntitlementSvc)
+	}
+
 	return &Service{
-		db:             opts.DB,
-		log:            opts.Logger,
-		entitlementSvc: opts.EntitlementSvc,
-		costs:          DefaultOperationCosts(),
-		dialect:        dialect,
-		cache:          make(map[string]*usageCache),
+		db:                  opts.DB,
+		log:                 opts.Logger,
+		entitlementSvc:      opts.EntitlementSvc, // Keep for backward compat
+		entitlementProvider: entProvider,
+		costs:               DefaultOperationCosts(),
+		dialect:             dialect,
+		lpbsURL:             opts.LPBSURL,
+		lpbsSecret:          opts.LPBSSecret,
+		lpbsHTTPClient:      lpbsHTTPClient,
+		lpbsReporter:        opts.LPBSReporter,
+		appBundleKey:        appBundleKey,
+		cache:               make(map[string]*usageCache),
 	}
 }
 
@@ -70,19 +168,25 @@ func (s *Service) isSQLite() bool {
 }
 
 // getEntitlement retrieves the entitlement for a user, checking context first
-// (for middleware overrides like tier testing), then falling back to the entitlement service.
+// (for middleware overrides like tier testing), then falling back to the entitlement provider.
+//
+// Lookup order:
+//  1. Context (middleware overrides, e.g., tier testing)
+//  2. EntitlementProvider interface (preferred, supports mocking)
+//  3. Returns nil if no provider configured (treated as unlimited)
 func (s *Service) getEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error) {
 	// Check context first - respects middleware overrides (e.g., tier override for testing)
 	if ent := entitlement.FromContext(ctx); ent != nil {
 		return ent, nil
 	}
 
-	// Fall back to fetching from entitlement service
-	if s.entitlementSvc == nil {
-		return nil, nil
+	// Use the provider interface (preferred path for testability)
+	if s.entitlementProvider != nil {
+		return s.entitlementProvider.GetEntitlement(ctx, userIdentity)
 	}
 
-	return s.entitlementSvc.GetEntitlement(ctx, userIdentity)
+	// No provider configured - return nil (treated as unlimited)
+	return nil, nil
 }
 
 // CanCharge checks if the user has sufficient credits for the operation.
@@ -137,14 +241,21 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult,
 
 	cost := s.costs.GetCost(req.Operation)
 
-	// Free operations - just log
+	// BYOK operations are logged for analytics but not charged (user pays their own way)
+	if req.IsBYOK {
+		cost = 0
+	}
+
+	// Free operations (including BYOK) - just log
 	if cost == 0 {
 		_ = s.logOperation(ctx, userIdentity, req.Operation, 0, true, req.Metadata, "")
+		// Report BYOK operations to LPBS for analytics (with 0 cost)
+		s.reportUsageToLPBS(userIdentity, req.Operation, 0, 0, req.IsBYOK, req.Metadata)
 		remaining, _ := s.getRemainingCredits(ctx, userIdentity)
 		return &ChargeResult{Charged: 0, RemainingCredits: remaining, WasCharged: false}, nil
 	}
 
-	currentMonth := time.Now().Format("2006-01")
+	currentMonth := s.getBillingMonth(ctx, userIdentity)
 
 	// Upsert credit usage
 	if err := s.upsertUsage(ctx, userIdentity, currentMonth, req.Operation, cost); err != nil {
@@ -159,6 +270,9 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult,
 	// Invalidate cache
 	s.invalidateCache(userIdentity)
 
+	// Report usage to LPBS (async, non-blocking)
+	s.reportUsageToLPBS(userIdentity, req.Operation, cost, req.ActualCostCents, req.IsBYOK, req.Metadata)
+
 	// Get remaining balance
 	remaining, _ := s.getRemainingCredits(ctx, userIdentity)
 
@@ -169,7 +283,18 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult,
 	}, nil
 }
 
-// ChargeIfAllowed combines CanCharge and Charge atomically.
+// ChargeIfAllowed combines CanCharge and Charge.
+//
+// NOTE ON TOCTOU: This method has a known time-of-check-time-of-use (TOCTOU) race condition
+// between the CanCharge check and the Charge call. Concurrent requests could potentially
+// exceed limits briefly. This is acceptable for BAS's use case because:
+// 1. When using the LPBS AI gateway (VrooliProvider), credits are checked and charged
+//    atomically by LPBS using database transactions with row-level locking.
+// 2. This local credit tracking is primarily for BYOK usage analytics and dev mode.
+// 3. The potential overage is limited to concurrent requests within milliseconds.
+//
+// For production use with paid credits, always use the LPBS AI gateway which provides
+// true atomic credit operations via ReserveAndCharge.
 func (s *Service) ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error) {
 	canCharge, remaining, err := s.CanCharge(ctx, req.UserIdentity, req.Operation)
 	if err != nil {
@@ -194,13 +319,15 @@ func (s *Service) CanPerformAIOperation(ctx context.Context, userIdentity string
 
 	userIdentity = normalizeIdentity(userIdentity)
 
-	// 2. Check tier allows AI (uses context entitlement if available, e.g., from override)
+	// 2. Check tier allows AI (uses features array first, then tier fallback)
 	ent, err := s.getEntitlement(ctx, userIdentity)
 	if err != nil {
-		s.log.WithError(err).Warn("credits: failed to get entitlement for AI check")
-		// Fail open on entitlement errors
-	} else if ent != nil && s.entitlementSvc != nil && !s.entitlementSvc.TierCanUseAI(ent.Tier) {
-		return false, "AI_NOT_AVAILABLE", "AI features not available for your tier", 0, nil
+		// NOTE: This fail-open is for edge cases like network errors to the entitlement service.
+		// When using the LPBS AI gateway, credits are checked atomically by LPBS itself,
+		// so this local check is a pre-filter, not the authoritative source.
+		s.log.WithError(err).Warn("credits: failed to get entitlement for AI check (proceeding with credit check)")
+	} else if ent != nil && s.entitlementProvider != nil && !s.entitlementProvider.CanUseAIWithEntitlement(ent) {
+		return false, "AI_NOT_AVAILABLE", "AI features not available for your subscription", 0, nil
 	}
 
 	// 3. Check credits
@@ -221,7 +348,7 @@ func (s *Service) CanPerformAIOperation(ctx context.Context, userIdentity string
 // GetUsage returns the usage summary for a user in the current billing period.
 func (s *Service) GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error) {
 	userIdentity = normalizeIdentity(userIdentity)
-	currentMonth := time.Now().Format("2006-01")
+	currentMonth := s.getBillingMonth(ctx, userIdentity)
 
 	// Get usage from cache or DB
 	var usage *usageCache
@@ -251,7 +378,19 @@ func (s *Service) GetUsage(ctx context.Context, userIdentity string) (*UsageSumm
 		}
 	}
 
+	// Get billing period boundaries
 	now := time.Now()
+	var periodStart, periodEnd, resetDate time.Time
+	ent, _ := s.getEntitlement(ctx, userIdentity)
+	if ent != nil && ent.BillingCycleStart >= 1 && ent.BillingCycleStart <= 28 {
+		periodStart, periodEnd = ent.GetBillingPeriod(now)
+		resetDate = periodEnd.Add(time.Nanosecond)
+	} else {
+		periodStart = firstDayOfMonth(now)
+		periodEnd = lastDayOfMonth(now)
+		resetDate = firstDayOfMonth(now).AddDate(0, 1, 0)
+	}
+
 	return &UsageSummary{
 		UserIdentity:     userIdentity,
 		BillingMonth:     currentMonth,
@@ -261,9 +400,9 @@ func (s *Service) GetUsage(ctx context.Context, userIdentity string) (*UsageSumm
 		OperationCounts:  usage.operationCounts,
 		CreditsLimit:     creditsLimit,
 		CreditsRemaining: creditsRemaining,
-		PeriodStart:      firstDayOfMonth(now),
-		PeriodEnd:        lastDayOfMonth(now),
-		ResetDate:        firstDayOfMonth(now).AddDate(0, 1, 0),
+		PeriodStart:      periodStart,
+		PeriodEnd:        periodEnd,
+		ResetDate:        resetDate,
 	}, nil
 }
 
@@ -572,6 +711,11 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 }
 
 // getUserCreditsLimit gets the credit limit for a user based on their entitlement tier.
+//
+// Returns:
+//   - -1: Unlimited (no provider, business tier, or fail-open on errors)
+//   - 0: No access (free tier with AI disabled)
+//   - >0: Credit limit for the billing period
 func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) (int, error) {
 	// Use helper that checks context first (respects tier overrides)
 	ent, err := s.getEntitlement(ctx, userIdentity)
@@ -580,12 +724,12 @@ func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) 
 		return -1, nil // Fail open
 	}
 
-	// No entitlement means no entitlement service configured - unlimited
-	if ent == nil || s.entitlementSvc == nil {
+	// No entitlement means no entitlement provider configured - unlimited
+	if ent == nil || s.entitlementProvider == nil {
 		return -1, nil
 	}
 
-	return s.entitlementSvc.GetAICreditsLimit(ent.Tier), nil
+	return s.entitlementProvider.GetAICreditsLimit(ent.Tier), nil
 }
 
 // getRemainingCredits returns the remaining credits for a user.
@@ -614,7 +758,7 @@ func (s *Service) getRemainingCredits(ctx context.Context, userIdentity string) 
 // getUsageFromDB queries the database for credit usage.
 // For single-user desktop apps, this aggregates ALL usage regardless of user_identity.
 func (s *Service) getUsageFromDB(ctx context.Context, userIdentity string) (*usageCache, error) {
-	currentMonth := time.Now().Format("2006-01")
+	currentMonth := s.getBillingMonth(ctx, userIdentity)
 
 	// Use dialect-appropriate placeholder
 	var placeholder string
@@ -868,6 +1012,196 @@ func (s *Service) logOperation(ctx context.Context, userIdentity string, op Oper
 	return nil
 }
 
+// LPBS usage reporting
+
+// LPBSUsageReportMetadata contains additional context for usage reports.
+type LPBSUsageReportMetadata struct {
+	Operation    string `json:"operation,omitempty"`
+	Model        string `json:"model,omitempty"`
+	PromptTokens int    `json:"prompt_tokens,omitempty"`
+	IsBYOK       bool   `json:"is_byok,omitempty"`
+}
+
+// LPBSUsageReport represents the request payload for LPBS usage reporting.
+// Exported for testing purposes.
+type LPBSUsageReport struct {
+	UserIdentity string                  `json:"user_identity"`
+	LimitKey     string                  `json:"limit_key"`
+	UsageAmount  int64                   `json:"usage_amount"` // In internal units (cents × 1,000,000)
+	Amount       int64                   `json:"amount"`       // Alias for LPBS compatibility
+	AppBundleKey string                  `json:"app_bundle_key"`
+	OperationID  string                  `json:"operation_id,omitempty"` // Idempotency key - same ID across retries prevents double-counting
+	Metadata     LPBSUsageReportMetadata `json:"metadata,omitempty"`
+}
+
+// lpbsUsageReport is an alias for internal use.
+type lpbsUsageReport = LPBSUsageReport
+
+// sendLPBSReport sends a single usage report to LPBS. Returns error on failure.
+func (s *Service) sendLPBSReport(ctx context.Context, report lpbsUsageReport) error {
+	body, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.lpbsURL+"/api/v1/usage/report", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if s.lpbsSecret != "" {
+		req.Header.Set("Authorization", "Bearer "+s.lpbsSecret)
+	}
+
+	resp, err := s.lpbsHTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("send: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// reportUsageToLPBS asynchronously reports usage to the LPBS centralized tracking system.
+// This is called after a successful local charge. Failures are logged but do not affect local operations.
+// Includes retry logic with exponential backoff for transient failures.
+// The operation_id ensures idempotency - the same ID is used across all retries to prevent double-counting.
+func (s *Service) reportUsageToLPBS(userIdentity string, op OperationType, localCredits int, actualCostCents float64, isBYOK bool, metadata ChargeMetadata) {
+	// Skip if LPBS is not configured (neither URL nor custom reporter)
+	if s.lpbsURL == "" && s.lpbsReporter == nil {
+		return
+	}
+
+	// Generate operation_id ONCE - this ensures retries don't double-count
+	operationID := uuid.New().String()
+
+	// Convert cost to LPBS internal units (cents × 1,000,000)
+	// If actual cost is provided (from OpenRouter), use it; otherwise estimate from local credits
+	var usageAmount int64
+	if actualCostCents > 0 {
+		// Actual cost from API provider (in cents)
+		usageAmount = int64(actualCostCents * 1_000_000)
+	} else if !isBYOK && localCredits > 0 {
+		// Estimate: 1 local credit ≈ $0.001 = 0.1 cents
+		// So usageAmount = localCredits * 0.1 cents * 1_000_000 = localCredits * 100_000
+		usageAmount = int64(localCredits) * 100_000
+	}
+	// BYOK operations get 0 cost (user pays their own way)
+
+	report := lpbsUsageReport{
+		UserIdentity: userIdentity,
+		LimitKey:     "ai_credits",
+		UsageAmount:  usageAmount,
+		Amount:       usageAmount, // Alias for LPBS compatibility
+		AppBundleKey: s.appBundleKey,
+		OperationID:  operationID,
+	}
+	report.Metadata.Operation = string(op)
+	report.Metadata.Model = metadata.Model
+	report.Metadata.PromptTokens = metadata.PromptTokens
+	report.Metadata.IsBYOK = isBYOK
+
+	// If a custom reporter is provided (e.g., for testing), use it synchronously
+	if s.lpbsReporter != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.lpbsReporter.ReportUsage(ctx, report); err != nil {
+			s.log.WithError(err).Debug("lpbs: custom reporter failed to send usage report")
+		}
+		return
+	}
+
+	// Run asynchronously with retry logic to not block the local charge
+	go func() {
+		const maxRetries = 3
+		baseDelay := 500 * time.Millisecond
+
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			err := s.sendLPBSReport(ctx, report)
+			cancel()
+
+			if err == nil {
+				s.log.WithFields(logrus.Fields{
+					"user":         userIdentity,
+					"operation_id": operationID,
+				}).Debug("lpbs: usage report sent")
+				return
+			}
+
+			// Final attempt - log at Warn level for visibility
+			if attempt == maxRetries-1 {
+				s.log.WithError(err).WithFields(logrus.Fields{
+					"user":         userIdentity,
+					"operation_id": operationID,
+					"attempts":     maxRetries,
+				}).Warn("lpbs: usage report failed after retries")
+				return
+			}
+
+			// Exponential backoff: 500ms, 1s, 2s
+			time.Sleep(baseDelay * time.Duration(1<<attempt))
+		}
+	}()
+}
+
+// LPBS Health Check
+
+// LPBSHealthStatus contains the health status of the LPBS connection.
+type LPBSHealthStatus struct {
+	Configured bool       `json:"configured"`
+	Reachable  bool       `json:"reachable"`
+	LastSync   *time.Time `json:"last_sync,omitempty"`
+	LastError  string     `json:"last_error,omitempty"`
+}
+
+// CheckLPBSHealth checks the connectivity to the LPBS service.
+// Returns a status indicating whether LPBS is configured and reachable.
+func (s *Service) CheckLPBSHealth(ctx context.Context) *LPBSHealthStatus {
+	status := &LPBSHealthStatus{
+		Configured: s.lpbsURL != "" || s.lpbsReporter != nil,
+		Reachable:  false,
+	}
+
+	// If not configured, return early
+	if !status.Configured {
+		return status
+	}
+
+	// If using a custom reporter (for testing), assume reachable
+	if s.lpbsReporter != nil {
+		status.Reachable = true
+		return status
+	}
+
+	// Try to reach the LPBS health endpoint
+	healthURL := s.lpbsURL + "/api/v1/usage/health"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, healthURL, nil)
+	if err != nil {
+		status.LastError = fmt.Sprintf("create request: %v", err)
+		return status
+	}
+
+	resp, err := s.lpbsHTTPClient.Do(req)
+	if err != nil {
+		status.LastError = fmt.Sprintf("connect: %v", err)
+		return status
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		status.Reachable = true
+	} else {
+		status.LastError = fmt.Sprintf("status %d", resp.StatusCode)
+	}
+
+	return status
+}
+
 // Cache management
 
 func (s *Service) getCached(userIdentity, month string) *usageCache {
@@ -914,6 +1248,16 @@ func firstDayOfMonth(t time.Time) time.Time {
 
 func lastDayOfMonth(t time.Time) time.Time {
 	return firstDayOfMonth(t).AddDate(0, 1, 0).Add(-time.Nanosecond)
+}
+
+// getBillingMonth returns the billing period key for the user.
+// Uses custom billing cycle if set, otherwise calendar month.
+func (s *Service) getBillingMonth(ctx context.Context, userIdentity string) string {
+	ent, err := s.getEntitlement(ctx, userIdentity)
+	if err != nil || ent == nil || ent.BillingCycleStart < 1 || ent.BillingCycleStart > 28 {
+		return time.Now().Format("2006-01")
+	}
+	return ent.GetBillingMonth(time.Now())
 }
 
 // Ensure Service implements CreditService

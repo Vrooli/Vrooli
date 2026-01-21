@@ -164,8 +164,15 @@ func main() {
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
 		Dialect:        string(db.Dialect()),
+		// LPBS integration for centralized usage reporting
+		LPBSURL:    cfg.Entitlement.ServiceURL,
+		LPBSSecret: cfg.Entitlement.ServiceSecret,
 	})
-	log.Info("✅ Unified credits service initialized")
+	if cfg.Entitlement.ServiceURL != "" && cfg.Entitlement.ServiceSecret != "" {
+		log.Info("✅ Unified credits service initialized with LPBS reporting")
+	} else {
+		log.Info("✅ Unified credits service initialized (LPBS reporting disabled - no secret configured)")
+	}
 
 	// Initialize entitlement handler (uses unified credit service)
 	entitlementHandler := handlers.NewEntitlementHandler(entitlementSvc, creditService, repo)
