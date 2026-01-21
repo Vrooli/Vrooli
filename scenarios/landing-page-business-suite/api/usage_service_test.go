@@ -45,11 +45,14 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 			limit_key TEXT NOT NULL,
 			usage_amount INTEGER NOT NULL DEFAULT 0,
 			app_bundle_key TEXT,
+			operation_id TEXT,
 			last_operation_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
 		);
+
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
 	`
 
 	_, err = db.Exec(schema)
@@ -661,5 +664,279 @@ func TestUsageService_GetAllUsageForPeriod_EmptyPeriod_UsesCurrentMonth(t *testi
 
 	if len(records) != 1 {
 		t.Errorf("Expected 1 record for current period, got %d", len(records))
+	}
+}
+
+// ============================================================================
+// Idempotency Tests
+// ============================================================================
+
+func TestUsageService_RecordUsage_WithOperationID_FirstTime_RecordsUsage(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	operationID := "test-operation-id-12345"
+
+	req := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID,
+	}
+
+	err := svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("RecordUsage() returned error: %v", err)
+	}
+
+	// Verify the record was created with correct amount
+	var usageAmount int64
+	err = db.QueryRow(`
+		SELECT usage_amount FROM usage_records
+		WHERE user_identity = ? AND limit_key = ?
+	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage record: %v", err)
+	}
+
+	if usageAmount != 100000 {
+		t.Errorf("Expected usage_amount 100000, got %d", usageAmount)
+	}
+}
+
+func TestUsageService_RecordUsage_WithOperationID_Duplicate_NoIncrement(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	operationID := "test-idempotent-operation-12345"
+
+	req := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID,
+	}
+
+	// First call - should record usage
+	err := svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("First RecordUsage() returned error: %v", err)
+	}
+
+	// Second call with SAME operation_id - should NOT increment
+	err = svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("Second RecordUsage() returned error: %v", err)
+	}
+
+	// Third call with SAME operation_id - should NOT increment
+	err = svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("Third RecordUsage() returned error: %v", err)
+	}
+
+	// Verify the usage was NOT incremented (should still be 100000, not 300000)
+	var usageAmount int64
+	err = db.QueryRow(`
+		SELECT usage_amount FROM usage_records
+		WHERE user_identity = ? AND limit_key = ?
+	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage record: %v", err)
+	}
+
+	if usageAmount != 100000 {
+		t.Errorf("Expected usage_amount 100000 (no duplicate increment), got %d", usageAmount)
+	}
+}
+
+func TestUsageService_RecordUsage_WithOperationID_DifferentUser_BothRecorded(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	operationID1 := "operation-user1-12345"
+	operationID2 := "operation-user2-67890"
+
+	// First user
+	req1 := UsageReportRequest{
+		UserIdentity: "user1@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID1,
+	}
+	err := svc.RecordUsage(ctx, req1)
+	if err != nil {
+		t.Fatalf("RecordUsage() for user1 returned error: %v", err)
+	}
+
+	// Second user with different operation_id
+	req2 := UsageReportRequest{
+		UserIdentity: "user2@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       50000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID2,
+	}
+	err = svc.RecordUsage(ctx, req2)
+	if err != nil {
+		t.Fatalf("RecordUsage() for user2 returned error: %v", err)
+	}
+
+	// Verify both users have correct usage
+	var usage1, usage2 int64
+	err = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ?`, "user1@example.com").Scan(&usage1)
+	if err != nil {
+		t.Fatalf("Failed to query user1 usage: %v", err)
+	}
+	err = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ?`, "user2@example.com").Scan(&usage2)
+	if err != nil {
+		t.Fatalf("Failed to query user2 usage: %v", err)
+	}
+
+	if usage1 != 100000 {
+		t.Errorf("Expected user1 usage 100000, got %d", usage1)
+	}
+	if usage2 != 50000 {
+		t.Errorf("Expected user2 usage 50000, got %d", usage2)
+	}
+}
+
+func TestUsageService_RecordUsage_NoOperationID_BackwardCompatible(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Request without operation_id (backward compatibility)
+	req := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		// No OperationID set
+	}
+
+	// First call
+	err := svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("First RecordUsage() returned error: %v", err)
+	}
+
+	// Second call without operation_id - should increment (old behavior)
+	err = svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("Second RecordUsage() returned error: %v", err)
+	}
+
+	// Verify both were recorded (no idempotency without operation_id)
+	var usageAmount int64
+	err = db.QueryRow(`
+		SELECT usage_amount FROM usage_records
+		WHERE user_identity = ? AND limit_key = ?
+	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage record: %v", err)
+	}
+
+	if usageAmount != 200000 {
+		t.Errorf("Expected usage_amount 200000 (both calls recorded), got %d", usageAmount)
+	}
+}
+
+func TestUsageService_RecordUsage_EmptyOperationID_TreatedAsNil(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	emptyID := ""
+
+	// Request with empty operation_id (should behave like nil)
+	req := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &emptyID,
+	}
+
+	// First call
+	err := svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("First RecordUsage() returned error: %v", err)
+	}
+
+	// Second call - should increment since empty operation_id is treated as nil
+	err = svc.RecordUsage(ctx, req)
+	if err != nil {
+		t.Fatalf("Second RecordUsage() returned error: %v", err)
+	}
+
+	// Verify both were recorded
+	var usageAmount int64
+	err = db.QueryRow(`
+		SELECT usage_amount FROM usage_records
+		WHERE user_identity = ? AND limit_key = ?
+	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage record: %v", err)
+	}
+
+	if usageAmount != 200000 {
+		t.Errorf("Expected usage_amount 200000 (both calls recorded), got %d", usageAmount)
+	}
+}
+
+func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	operationID1 := "operation-1-12345"
+	operationID2 := "operation-2-67890"
+
+	// Same user, different operation_ids
+	req1 := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       100000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID1,
+	}
+	err := svc.RecordUsage(ctx, req1)
+	if err != nil {
+		t.Fatalf("First RecordUsage() returned error: %v", err)
+	}
+
+	req2 := UsageReportRequest{
+		UserIdentity: "user@example.com",
+		LimitKey:     "ai_credits",
+		Amount:       50000,
+		AppBundleKey: "browser-automation-studio",
+		OperationID:  &operationID2,
+	}
+	err = svc.RecordUsage(ctx, req2)
+	if err != nil {
+		t.Fatalf("Second RecordUsage() returned error: %v", err)
+	}
+
+	// Verify both amounts were added
+	var usageAmount int64
+	err = db.QueryRow(`
+		SELECT usage_amount FROM usage_records
+		WHERE user_identity = ? AND limit_key = ?
+	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage record: %v", err)
+	}
+
+	// Should be 150000 (100000 + 50000)
+	if usageAmount != 150000 {
+		t.Errorf("Expected usage_amount 150000, got %d", usageAmount)
 	}
 }

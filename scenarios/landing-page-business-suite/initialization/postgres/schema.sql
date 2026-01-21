@@ -290,6 +290,7 @@ CREATE TABLE IF NOT EXISTS usage_records (
     limit_key VARCHAR(100) NOT NULL,
     usage_amount BIGINT NOT NULL DEFAULT 0,
     app_bundle_key VARCHAR(100),
+    operation_id UUID,                      -- Idempotency key for deduplication
     last_operation_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -299,6 +300,8 @@ CREATE TABLE IF NOT EXISTS usage_records (
 CREATE INDEX idx_usage_records_user_period ON usage_records(user_identity, billing_period);
 CREATE INDEX idx_usage_records_limit_key ON usage_records(limit_key);
 CREATE INDEX idx_usage_records_app ON usage_records(app_bundle_key);
+-- Partial unique index for idempotency - only index non-null operation_ids
+CREATE UNIQUE INDEX idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
 
 -- API Keys Table
 -- Stores encrypted AI provider API keys (admin-managed)
@@ -315,3 +318,52 @@ CREATE TABLE IF NOT EXISTS api_keys (
 
 CREATE INDEX idx_api_keys_provider ON api_keys(provider);
 CREATE INDEX idx_api_keys_active ON api_keys(is_active);
+
+-- User Authentication Tables (User Auth Implementation)
+-- User accounts (linked to Stripe customers)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    email_verified BOOLEAN DEFAULT FALSE,
+    stripe_customer_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    last_login_at TIMESTAMP
+);
+
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_stripe_customer ON users(stripe_customer_id);
+
+-- Magic link tokens (short-lived, one-time use)
+CREATE TABLE IF NOT EXISTS auth_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL,  -- SHA-256 of token
+    token_type VARCHAR(50) NOT NULL,   -- 'magic_link', 'refresh'
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,                 -- NULL until used
+    created_at TIMESTAMP DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT
+);
+
+CREATE INDEX idx_auth_tokens_hash ON auth_tokens(token_hash);
+CREATE INDEX idx_auth_tokens_user_expires ON auth_tokens(user_id, expires_at);
+
+-- Active user sessions (supports "view all sessions" feature)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_hash VARCHAR(255) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_used_at TIMESTAMP DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT,
+    device_info JSONB DEFAULT '{}',   -- For future "Chrome on Windows" display
+    revoked BOOLEAN DEFAULT FALSE
+);
+
+CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_hash ON user_sessions(refresh_token_hash);
+CREATE INDEX idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);

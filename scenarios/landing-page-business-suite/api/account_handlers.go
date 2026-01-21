@@ -44,7 +44,11 @@ func handlePlans(service *PlanService) http.HandlerFunc {
 
 func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := resolveUserIdentity(r)
+		user := getUserEmail(r.Context())
+		if user == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 		subscription, err := accountService.GetSubscription(user)
 		if err != nil {
 			logStructuredError("subscription_fetch_failed", map[string]interface{}{
@@ -60,7 +64,11 @@ func handleMeSubscription(accountService *AccountService) http.HandlerFunc {
 
 func handleMeCredits(accountService *AccountService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := resolveUserIdentity(r)
+		user := getUserEmail(r.Context())
+		if user == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 		credits, err := accountService.GetCredits(user)
 		if err != nil {
 			logStructuredError("credits_fetch_failed", map[string]interface{}{
@@ -87,7 +95,11 @@ func handleMeCredits(accountService *AccountService) http.HandlerFunc {
 
 func handleEntitlements(accountService *AccountService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := resolveUserIdentity(r)
+		user := getUserEmail(r.Context())
+		if user == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 		entitlements, err := accountService.GetEntitlements(user)
 		if err != nil {
 			logStructuredError("entitlements_fetch_failed", map[string]interface{}{
@@ -114,7 +126,11 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingSer
 			return
 		}
 
-		user := resolveUserIdentity(r)
+		user := getUserEmail(r.Context())
+		if user == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 
 		asset, err := authorizer.Authorize(appKey, platform, user)
 		if err != nil {
@@ -182,15 +198,9 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingSer
 	}
 }
 
-func resolveUserIdentity(r *http.Request) string {
-	if user := r.Header.Get("X-User-Email"); user != "" {
-		return user
-	}
-	if user := r.URL.Query().Get("user"); user != "" {
-		return user
-	}
-	return ""
-}
+// NOTE: resolveUserIdentity has been removed as part of the user authentication implementation.
+// User identity is now derived from JWT claims via getUserEmail(r.Context()).
+// See user_auth_middleware.go for the authentication middleware.
 
 func writeJSON(w http.ResponseWriter, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")

@@ -631,6 +631,18 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 	customerID, _ := obj["customer"].(string)
 	subscriptionID, _ := obj["subscription"].(string)
 
+	// Link user account to Stripe customer (creates user if not exists)
+	if customerEmail != "" && customerID != "" {
+		if err := s.linkUserToStripeCustomer(customerEmail, customerID); err != nil {
+			logStructuredError("link_stripe_customer_failed", map[string]interface{}{
+				"email":       customerEmail,
+				"customer_id": customerID,
+				"error":       err.Error(),
+			})
+			// Continue - don't fail checkout for this
+		}
+	}
+
 	sessionRec, err := s.loadCheckoutSession(sessionID)
 	if err != nil {
 		return err
@@ -1539,4 +1551,36 @@ func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIden
 	}
 
 	return &landing_page_react_vite_v1.BillingPortalResponse{Url: resp.URL}, nil
+}
+
+// linkUserToStripeCustomer creates or updates a user record with the Stripe customer ID.
+// This is called when a checkout completes to link the user account to their Stripe customer.
+func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+	customerID = strings.TrimSpace(customerID)
+
+	if email == "" || customerID == "" {
+		return errors.New("email and customer ID are required")
+	}
+
+	// Upsert user with stripe_customer_id
+	_, err := s.db.Exec(`
+		INSERT INTO users (email, stripe_customer_id, email_verified)
+		VALUES ($1, $2, FALSE)
+		ON CONFLICT (email) DO UPDATE SET
+			stripe_customer_id = $2,
+			updated_at = NOW()
+	`, email, customerID)
+
+	if err != nil {
+		return fmt.Errorf("link user to stripe customer: %w", err)
+	}
+
+	logStructured("stripe_customer_linked", map[string]interface{}{
+		"level":       "info",
+		"email":       email,
+		"customer_id": customerID,
+	})
+
+	return nil
 }

@@ -312,3 +312,12 @@ func testVariantSpace() *VariantSpace {
 		},
 	}
 }
+
+// setupMinimalAuthServer creates a lightweight server for middleware testing.
+// Only initializes the userAuthService, which is all that's needed for auth middleware tests.
+func setupMinimalAuthServer(t *testing.T, authService *UserAuthService) *Server {
+	t.Helper()
+	return &Server{
+		userAuthService: authService,
+	}
+}

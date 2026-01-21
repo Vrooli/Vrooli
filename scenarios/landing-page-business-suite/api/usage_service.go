@@ -40,6 +40,7 @@ type UsageReportRequest struct {
 	Operation    string            `json:"operation,omitempty"`      // e.g., "ai.analysis"
 	IsBYOK       bool              `json:"is_byok,omitempty"`        // True if user used their own API key
 	Metadata     map[string]string `json:"metadata,omitempty"`       // Additional context
+	OperationID  *string           `json:"operation_id,omitempty"`   // Idempotency key - retries with same ID won't double-count
 }
 
 // UsageSummary summarizes usage for a user.
@@ -85,6 +86,8 @@ func getResetDate() time.Time {
 }
 
 // RecordUsage records usage for a user. This is typically called by external apps.
+// If OperationID is provided, this operation is idempotent - duplicate requests with
+// the same operation_id will return success without incrementing usage.
 func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) error {
 	userIdentity := strings.TrimSpace(strings.ToLower(req.UserIdentity))
 	limitKey := strings.TrimSpace(strings.ToLower(req.LimitKey))
@@ -106,6 +109,28 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		amount = 0
 	}
 
+	// Idempotency check: if operation_id is provided, check if it was already processed
+	if req.OperationID != nil && *req.OperationID != "" {
+		var checkQuery string
+		if s.dialect == "sqlite" {
+			checkQuery = "SELECT EXISTS(SELECT 1 FROM usage_records WHERE operation_id = ?)"
+		} else {
+			checkQuery = "SELECT EXISTS(SELECT 1 FROM usage_records WHERE operation_id = $1)"
+		}
+
+		var exists bool
+		err := s.db.QueryRowContext(ctx, checkQuery, *req.OperationID).Scan(&exists)
+		if err == nil && exists {
+			// Already recorded - return success (idempotent)
+			logStructured("usage_already_recorded", map[string]interface{}{
+				"level":        "debug",
+				"operation_id": *req.OperationID,
+				"user_identity": userIdentity,
+			})
+			return nil
+		}
+	}
+
 	billingPeriod := getCurrentBillingPeriod()
 
 	// Use UPSERT to atomically increment usage
@@ -114,30 +139,38 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		appKey = appBundleKey
 	}
 
+	// Determine operation_id for insert
+	var opID interface{}
+	if req.OperationID != nil && *req.OperationID != "" {
+		opID = *req.OperationID
+	}
+
 	var query string
 	if s.dialect == "sqlite" {
 		query = `
-			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
-			VALUES (?, ?, ?, ?, ?, datetime('now'))
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, operation_id, last_operation_at)
+			VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
 			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
 			DO UPDATE SET
 				usage_amount = usage_records.usage_amount + excluded.usage_amount,
+				operation_id = COALESCE(excluded.operation_id, usage_records.operation_id),
 				last_operation_at = datetime('now'),
 				updated_at = datetime('now')
 		`
 	} else {
 		query = `
-			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
-			VALUES ($1, $2, $3, $4, $5, NOW())
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, operation_id, last_operation_at)
+			VALUES ($1, $2, $3, $4, $5, $6, NOW())
 			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
 			DO UPDATE SET
 				usage_amount = usage_records.usage_amount + $4,
+				operation_id = COALESCE($6, usage_records.operation_id),
 				last_operation_at = NOW(),
 				updated_at = NOW()
 		`
 	}
 
-	_, err := s.db.ExecContext(ctx, query, userIdentity, billingPeriod, limitKey, amount, appKey)
+	_, err := s.db.ExecContext(ctx, query, userIdentity, billingPeriod, limitKey, amount, appKey, opID)
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
 	}
@@ -150,6 +183,7 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		"app_bundle_key": appBundleKey,
 		"is_byok":        req.IsBYOK,
 		"operation":      req.Operation,
+		"operation_id":   req.OperationID,
 	})
 
 	return nil
@@ -394,6 +428,63 @@ func (s *UsageService) ValidateServiceToken(token string) bool {
 	return token == s.serviceToken
 }
 
+// UsageHealthStatus contains the health status of the usage service.
+type UsageHealthStatus struct {
+	Healthy           bool       `json:"healthy"`
+	DatabaseConnected bool       `json:"database_connected"`
+	LastRecordAt      *time.Time `json:"last_record_at,omitempty"`
+	RecordsThisPeriod int64      `json:"records_this_period"`
+}
+
+// HealthCheck returns the health status of the usage service.
+func (s *UsageService) HealthCheck(ctx context.Context) (*UsageHealthStatus, error) {
+	status := &UsageHealthStatus{
+		Healthy:           true,
+		DatabaseConnected: true,
+	}
+
+	// Check database connectivity
+	if err := s.db.PingContext(ctx); err != nil {
+		status.Healthy = false
+		status.DatabaseConnected = false
+		return status, nil
+	}
+
+	currentPeriod := getCurrentBillingPeriod()
+
+	// Get last record timestamp and count for current period
+	var lastRecordAt sql.NullTime
+	var recordCount int64
+
+	var query string
+	if s.dialect == "sqlite" {
+		query = `
+			SELECT MAX(last_operation_at), COUNT(*)
+			FROM usage_records
+			WHERE billing_period = ?
+		`
+	} else {
+		query = `
+			SELECT MAX(last_operation_at), COUNT(*)
+			FROM usage_records
+			WHERE billing_period = $1
+		`
+	}
+
+	err := s.db.QueryRowContext(ctx, query, currentPeriod).Scan(&lastRecordAt, &recordCount)
+	if err != nil && err != sql.ErrNoRows {
+		status.Healthy = false
+		return status, nil
+	}
+
+	if lastRecordAt.Valid {
+		status.LastRecordAt = &lastRecordAt.Time
+	}
+	status.RecordsThisPeriod = recordCount
+
+	return status, nil
+}
+
 // API Handlers
 
 // requireServiceAuth is middleware for service-to-service authentication.
@@ -443,11 +534,15 @@ func handleReportUsage(svc *UsageService) http.HandlerFunc {
 
 func handleGetUsageSummary(svc *UsageService, accountSvc *AccountService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userIdentity := r.URL.Query().Get("user")
+		userIdentity := getUserEmail(r.Context())
+		if userIdentity == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 		tier := r.URL.Query().Get("tier")
 
 		// If no tier provided, try to get it from the account service
-		if tier == "" && userIdentity != "" && accountSvc != nil {
+		if tier == "" && accountSvc != nil {
 			// Try to get subscription info to determine tier
 			sub, err := accountSvc.GetSubscription(userIdentity)
 			if err == nil && sub != nil && sub.PlanTier != nil {
@@ -513,12 +608,16 @@ func handleAdminUsageSummary(svc *UsageService) http.HandlerFunc {
 // handleCheckLimit checks if a user can perform an operation (for entitlements endpoint).
 func handleCheckLimit(svc *UsageService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		userIdentity := r.URL.Query().Get("user")
+		userIdentity := getUserEmail(r.Context())
+		if userIdentity == "" {
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
+			return
+		}
 		tier := r.URL.Query().Get("tier")
 		limitKey := r.URL.Query().Get("limit_key")
 
-		if userIdentity == "" || limitKey == "" {
-			writeJSONError(w, http.StatusBadRequest, "user and limit_key are required", ApiErrorTypeValidation)
+		if limitKey == "" {
+			writeJSONError(w, http.StatusBadRequest, "limit_key is required", ApiErrorTypeValidation)
 			return
 		}
 
@@ -544,3 +643,156 @@ func handleCheckLimit(svc *UsageService) http.HandlerFunc {
 		})
 	}
 }
+
+// handleUsageHealth returns the health status of the usage service.
+// This endpoint is unauthenticated for monitoring/observability purposes.
+func handleUsageHealth(svc *UsageService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		status, err := svc.HealthCheck(ctx)
+		if err != nil {
+			logStructuredError("usage_health_check_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"healthy": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if !status.Healthy {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+		json.NewEncoder(w).Encode(status)
+	}
+}
+
+// ReserveAndCharge atomically checks the credit limit and records usage in a single transaction.
+// This prevents TOCTOU (time-of-check to time-of-use) race conditions where a user could
+// exceed their limit by making concurrent requests.
+//
+// The method uses SELECT FOR UPDATE to lock the user's usage records during the transaction,
+// ensuring that concurrent requests are serialized.
+func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
+	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
+	tier = strings.TrimSpace(strings.ToLower(tier))
+	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
+
+	if userIdentity == "" {
+		return fmt.Errorf("user_identity is required")
+	}
+	if limitKey == "" {
+		return fmt.Errorf("limit_key is required")
+	}
+	if amount <= 0 {
+		return fmt.Errorf("amount must be positive")
+	}
+
+	billingPeriod := getCurrentBillingPeriod()
+
+	// Start a serializable transaction to prevent concurrent limit bypass
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Get current usage with row locking (FOR UPDATE)
+	var currentUsage int64
+	var query string
+	if s.dialect == "sqlite" {
+		// SQLite doesn't support FOR UPDATE, but serializable isolation provides equivalent protection
+		query = `
+			SELECT COALESCE(SUM(usage_amount), 0)
+			FROM usage_records
+			WHERE user_identity = ? AND billing_period = ? AND limit_key = ?
+		`
+	} else {
+		query = `
+			SELECT COALESCE(SUM(usage_amount), 0)
+			FROM usage_records
+			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
+			FOR UPDATE
+		`
+	}
+
+	err = tx.QueryRowContext(ctx, query, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("get current usage: %w", err)
+	}
+
+	// Check the limit if tier is specified
+	if tier != "" && s.limitsSvc != nil {
+		limit, err := s.limitsSvc.GetLimit(ctx, tier, limitKey, nil)
+		if err != nil {
+			return fmt.Errorf("get limit: %w", err)
+		}
+
+		if limit != nil && limit.LimitValue >= 0 {
+			// Check if the new usage would exceed the limit
+			if currentUsage+amount > limit.LimitValue {
+				return fmt.Errorf("%w: would use %d, limit is %d, remaining is %d",
+					ErrInsufficientCredits, currentUsage+amount, limit.LimitValue, limit.LimitValue-currentUsage)
+			}
+		}
+		// If limit is nil or negative (unlimited), allow the operation
+	}
+
+	// Record the usage within the same transaction
+	var appKey interface{}
+	if metadata.AppBundleKey != "" {
+		appKey = strings.TrimSpace(strings.ToLower(metadata.AppBundleKey))
+	}
+
+	var insertQuery string
+	if s.dialect == "sqlite" {
+		insertQuery = `
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
+			VALUES (?, ?, ?, ?, ?, datetime('now'))
+			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
+			DO UPDATE SET
+				usage_amount = usage_records.usage_amount + excluded.usage_amount,
+				last_operation_at = datetime('now'),
+				updated_at = datetime('now')
+		`
+	} else {
+		insertQuery = `
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key, last_operation_at)
+			VALUES ($1, $2, $3, $4, $5, NOW())
+			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
+			DO UPDATE SET
+				usage_amount = usage_records.usage_amount + $4,
+				last_operation_at = NOW(),
+				updated_at = NOW()
+		`
+	}
+
+	_, err = tx.ExecContext(ctx, insertQuery, userIdentity, billingPeriod, limitKey, amount, appKey)
+	if err != nil {
+		return fmt.Errorf("record usage: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	logStructured("usage_reserved_and_charged", map[string]interface{}{
+		"level":          "debug",
+		"user_identity":  userIdentity,
+		"limit_key":      limitKey,
+		"amount":         amount,
+		"previous_usage": currentUsage,
+		"new_usage":      currentUsage + amount,
+		"operation":      metadata.Operation,
+	})
+
+	return nil
+}
+
+// Note: ErrInsufficientCredits is defined in ai_gateway_service.go

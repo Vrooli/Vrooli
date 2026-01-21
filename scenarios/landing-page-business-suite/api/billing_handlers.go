@@ -53,9 +53,9 @@ func handleBillingCreateCreditsSession(service *StripeService) http.HandlerFunc 
 
 func handleBillingPortalURL(service *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user := resolveUserIdentity(r)
+		user := getUserEmail(r.Context())
 		if user == "" {
-			writeJSONError(w, http.StatusBadRequest, "User identity required", ApiErrorTypeValidation)
+			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
 			return
 		}
 		returnURL := r.URL.Query().Get("return_url")

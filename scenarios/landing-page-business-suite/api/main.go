@@ -53,6 +53,11 @@ type Server struct {
 	apiKeyService *APIKeyService
 	limitsService *LimitsService
 	usageService  *UsageService
+	// User authentication services
+	userAuthService  *UserAuthService
+	magicLinkLimiter *RateLimiter
+	// AI Gateway service
+	aiGatewayService *AIGatewayService
 }
 
 // NewServer initializes configuration, database, and routes
@@ -100,6 +105,21 @@ func NewServer() (*Server, error) {
 	limitsService := NewLimitsService(db)
 	usageService := NewUsageService(db, limitsService)
 
+	// Initialize user authentication services
+	userAuthService := NewUserAuthService(db, emailService)
+	// Rate limiter: 5 requests per 15 minutes per email for magic link
+	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
+
+	// Initialize AI gateway service
+	aiGatewayService := NewAIGatewayService(AIGatewayServiceOptions{
+		DB:             db,
+		APIKeyService:  apiKeyService,
+		UsageService:   usageService,
+		AccountService: accountService,
+		LimitsService:  limitsService,
+		Logger:         logStructured,
+	})
+
 	srv := &Server{
 		config:               &Config{},
 		db:                   db,
@@ -124,6 +144,11 @@ func NewServer() (*Server, error) {
 		apiKeyService: apiKeyService,
 		limitsService: limitsService,
 		usageService:  usageService,
+		// User authentication services
+		userAuthService:  userAuthService,
+		magicLinkLimiter: magicLinkLimiter,
+		// AI Gateway service
+		aiGatewayService: aiGatewayService,
 	}
 
 	// Initialize session store for authentication
@@ -177,16 +202,25 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/plans", handlePlans(s.planService)).Methods("GET")
 	s.router.HandleFunc("/api/v1/variant-space", handleVariantSpaceRoute(s.variantSpace)).Methods("GET")
 
-	// Billing APIs
+	// User Authentication endpoints (magic link + JWT)
+	// Public auth endpoints (no auth required)
+	s.router.HandleFunc("/api/v1/auth/magic-link", handleMagicLinkRequest(s.userAuthService, s.magicLinkLimiter)).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/verify", handleMagicLinkVerify(s.userAuthService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/refresh", handleTokenRefresh(s.userAuthService)).Methods("POST")
+	// Protected auth endpoints (require user auth)
+	s.router.HandleFunc("/api/v1/auth/logout", s.requireUserAuth(handleUserLogout(s.userAuthService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/auth/me", s.requireUserAuth(handleAuthMe(s.userAuthService))).Methods("GET")
+
+	// Billing APIs (checkout sessions are public, portal requires auth)
 	s.router.HandleFunc("/api/v1/billing/create-checkout-session", handleBillingCreateCheckoutSession(s.stripeService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/billing/create-credits-checkout-session", handleBillingCreateCreditsSession(s.stripeService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/billing/portal-url", handleBillingPortalURL(s.stripeService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/billing/portal-url", s.requireUserAuth(handleBillingPortalURL(s.stripeService))).Methods("GET")
 
-	// Account endpoints
-	s.router.HandleFunc("/api/v1/me/subscription", handleMeSubscription(s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/me/credits", handleMeCredits(s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/entitlements", handleEntitlements(s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/downloads", handleDownloads(s.downloadAuthorizer, s.downloadHosting, s.planService)).Methods("GET")
+	// Account endpoints (all require user auth)
+	s.router.HandleFunc("/api/v1/me/subscription", s.requireUserAuth(handleMeSubscription(s.accountService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/me/credits", s.requireUserAuth(handleMeCredits(s.accountService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/entitlements", s.requireUserAuth(handleEntitlements(s.accountService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(handleDownloads(s.downloadAuthorizer, s.downloadHosting, s.planService))).Methods("GET")
 
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
 
@@ -305,11 +339,22 @@ func (s *Server) setupRoutes() {
 	// Credit System: App Limits (Admin)
 	s.router.HandleFunc("/api/v1/admin/apps/{app}/limits", s.requireAdmin(handleGetAppLimits(s.limitsService))).Methods("GET")
 
-	// Credit System: Usage (Service-to-Service + Admin)
+	// Credit System: Usage (Service-to-Service + User Auth + Admin)
 	s.router.HandleFunc("/api/v1/usage/report", s.usageService.requireServiceAuth(handleReportUsage(s.usageService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/usage/summary", handleGetUsageSummary(s.usageService, s.accountService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/usage/check", handleCheckLimit(s.usageService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/summary", s.requireUserAuth(handleGetUsageSummary(s.usageService, s.accountService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/check", s.requireUserAuth(handleCheckLimit(s.usageService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/health", handleUsageHealth(s.usageService)).Methods("GET") // Unauthenticated for monitoring
 	s.router.HandleFunc("/api/v1/admin/usage", s.requireAdmin(handleAdminUsageSummary(s.usageService))).Methods("GET")
+
+	// AI Gateway endpoints
+	// Public endpoint for listing available models
+	s.router.HandleFunc("/api/v1/ai/models", handleAIModels(s.aiGatewayService)).Methods("GET")
+	// Health check (public for monitoring)
+	s.router.HandleFunc("/api/v1/ai/health", handleAIHealth(s.aiGatewayService)).Methods("GET")
+	// User auth required for AI operations
+	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(handleAIChat(s.aiGatewayService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(handleAIStream(s.aiGatewayService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(handleAIUsage(s.aiGatewayService, s.usageService, s.accountService))).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -1118,6 +1163,7 @@ func ensureSchema(db *sql.DB) error {
 			limit_key VARCHAR(100) NOT NULL,
 			usage_amount BIGINT NOT NULL DEFAULT 0,
 			app_bundle_key VARCHAR(100),
+			operation_id UUID,
 			last_operation_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
@@ -1126,6 +1172,9 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_identity, billing_period);`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_limit_key ON usage_records(limit_key);`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_app ON usage_records(app_bundle_key);`,
+		// Migration: Add operation_id column for idempotency (safe to run multiple times)
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS operation_id UUID;`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;`,
 		`CREATE TABLE IF NOT EXISTS api_keys (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			provider VARCHAR(50) NOT NULL UNIQUE,
@@ -1138,6 +1187,46 @@ func ensureSchema(db *sql.DB) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_api_keys_provider ON api_keys(provider);`,
 		`CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);`,
+		// User authentication tables
+		`CREATE TABLE IF NOT EXISTS users (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email VARCHAR(255) UNIQUE NOT NULL,
+			email_verified BOOLEAN DEFAULT FALSE,
+			stripe_customer_id VARCHAR(255),
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW(),
+			last_login_at TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`,
+		`CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);`,
+		`CREATE TABLE IF NOT EXISTS auth_tokens (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+			token_hash VARCHAR(255) NOT NULL,
+			token_type VARCHAR(50) NOT NULL,
+			expires_at TIMESTAMP NOT NULL,
+			used_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT NOW(),
+			ip_address INET,
+			user_agent TEXT
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);`,
+		`CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_expires ON auth_tokens(user_id, expires_at);`,
+		`CREATE TABLE IF NOT EXISTS user_sessions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+			refresh_token_hash VARCHAR(255) NOT NULL,
+			expires_at TIMESTAMP NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW(),
+			last_used_at TIMESTAMP DEFAULT NOW(),
+			ip_address INET,
+			user_agent TEXT,
+			device_info JSONB DEFAULT '{}',
+			revoked BOOLEAN DEFAULT FALSE
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash);`,
+		`CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);`,
 	}
 
 	for _, stmt := range stmts {
