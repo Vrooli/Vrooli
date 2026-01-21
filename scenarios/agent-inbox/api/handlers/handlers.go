@@ -106,6 +106,9 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tools/sync", h.SyncTools).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/tools/execute", h.ExecuteToolManually).Methods("POST", "OPTIONS")
 
+	// Scenario Info (for Tool Call Details modal)
+	r.HandleFunc("/api/v1/scenarios/{name}", h.GetScenarioInfo).Methods("GET", "OPTIONS")
+
 	// Tool Call Approvals
 	r.HandleFunc("/api/v1/chats/{id}/pending-approvals", h.GetPendingApprovals).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/tool-calls/{id}/approve", h.ApproveToolCall).Methods("POST", "OPTIONS")

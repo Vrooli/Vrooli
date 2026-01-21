@@ -300,6 +300,29 @@ func (h *Handlers) ExecuteToolManually(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, response, http.StatusOK)
 }
 
+// GetScenarioInfo returns information about a specific scenario.
+// GET /api/v1/scenarios/{name}
+func (h *Handlers) GetScenarioInfo(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if name == "" {
+		h.JSONError(w, "Scenario name is required", http.StatusBadRequest)
+		return
+	}
+
+	info, err := h.ToolRegistry.GetScenarioInfo(r.Context(), name)
+	if err != nil {
+		h.JSONError(w, "Scenario not found", http.StatusNotFound)
+		return
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"name":        info.Name,
+		"version":     info.Version,
+		"description": info.Description,
+		"base_url":    info.BaseUrl,
+	}, http.StatusOK)
+}
+
 // RejectToolCall rejects a pending tool call.
 // POST /api/v1/tool-calls/{id}/reject
 // Query params:

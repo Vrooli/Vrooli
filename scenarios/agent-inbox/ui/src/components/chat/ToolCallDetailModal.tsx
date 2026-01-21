@@ -3,13 +3,14 @@
  *
  * Shows:
  * - Tool name and status
+ * - Source scenario (with "Open Scenario" button)
  * - Input arguments (cleaned JSON without _context_attachments)
  * - Skills that were injected as context
  * - Output result
  * - Error message (if failed)
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Wrench,
   CheckCircle2,
@@ -18,18 +19,22 @@ import {
   ShieldAlert,
   Play,
   BookOpen,
+  Package,
+  ExternalLink,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { CodeBlock } from "../markdown/components/CodeBlock";
 import { SkillEditorModal } from "../settings/SkillEditorModal";
+import { Button } from "../ui/button";
 import {
   parseToolInput,
   formatToolResult,
   isFailedStatus,
   type SkillAttachment,
 } from "../../lib/tool-utils";
-import type { ToolCall, ToolCallRecord } from "../../lib/api";
+import { fetchScenarioInfo, type ToolCall, type ToolCallRecord, type ScenarioInfo } from "../../lib/api";
+import { openScenarioViewerInNewTab } from "../scenarios/ScenarioViewer";
 import type { Skill } from "../../lib/types/templates";
 import type { ComponentType, SVGProps } from "react";
 
@@ -113,6 +118,14 @@ function formatToolName(name: string): string {
     .join(" ");
 }
 
+/** Format scenario name for display */
+function formatScenarioName(name: string): string {
+  return name
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 /** Skill chip component */
 function SkillChip({
   skill,
@@ -149,6 +162,69 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Source Scenario section component */
+function SourceScenarioSection({
+  scenarioName,
+  scenarioInfo,
+  isLoading,
+}: {
+  scenarioName: string;
+  scenarioInfo: ScenarioInfo | null;
+  isLoading: boolean;
+}) {
+  const handleOpenScenario = () => {
+    openScenarioViewerInNewTab(scenarioName);
+  };
+
+  return (
+    <div>
+      <SectionHeader>Source Scenario</SectionHeader>
+      <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="p-2 rounded-lg bg-indigo-500/10 shrink-0">
+              <Package className="h-4 w-4 text-indigo-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-white">
+                  {formatScenarioName(scenarioName)}
+                </span>
+                {isLoading ? (
+                  <Loader2 className="h-3 w-3 text-slate-400 animate-spin" />
+                ) : scenarioInfo?.version ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                    v{scenarioInfo.version}
+                  </span>
+                ) : null}
+              </div>
+              {scenarioInfo?.description && (
+                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                  {scenarioInfo.description}
+                </p>
+              )}
+              {!scenarioInfo && !isLoading && (
+                <p className="text-xs text-slate-500 mt-1 italic">
+                  Scenario info not available
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleOpenScenario}
+            className="gap-1.5 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 shrink-0"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Open Scenario</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ToolCallDetailModal({
   open,
   onClose,
@@ -156,10 +232,34 @@ export function ToolCallDetailModal({
   record,
 }: ToolCallDetailModalProps) {
   const [previewSkill, setPreviewSkill] = useState<SkillAttachment | null>(null);
+  const [scenarioInfo, setScenarioInfo] = useState<ScenarioInfo | null>(null);
+  const [scenarioLoading, setScenarioLoading] = useState(false);
 
   const status = record?.status || "pending";
   const statusDisplay = getStatusDisplay(status);
   const StatusIcon = statusDisplay.icon;
+  const scenarioName = record?.scenario_name;
+
+  // Fetch scenario info when modal opens and we have a scenario name
+  useEffect(() => {
+    if (!open || !scenarioName) {
+      setScenarioInfo(null);
+      return;
+    }
+
+    setScenarioLoading(true);
+    fetchScenarioInfo(scenarioName)
+      .then((info) => {
+        setScenarioInfo(info);
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch scenario info:", err);
+        setScenarioInfo(null);
+      })
+      .finally(() => {
+        setScenarioLoading(false);
+      });
+  }, [open, scenarioName]);
 
   // Parse the arguments to extract skills
   const parsedInput = parseToolInput(toolCall.function.arguments);
@@ -224,6 +324,15 @@ export function ToolCallDetailModal({
               </span>
             </div>
           </div>
+
+          {/* Source Scenario Section */}
+          {scenarioName && (
+            <SourceScenarioSection
+              scenarioName={scenarioName}
+              scenarioInfo={scenarioInfo}
+              isLoading={scenarioLoading}
+            />
+          )}
 
           {/* Input Section */}
           <div>

@@ -15,6 +15,7 @@ import { Settings, getViewMode, setViewMode, type ViewMode } from "./components/
 import { KeyboardShortcuts } from "./components/settings/KeyboardShortcuts";
 import { UsageStats } from "./components/settings/UsageStats";
 import { TemplateEditorModal } from "./components/chat/TemplateEditorModal";
+import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/ScenarioViewer";
 import { Button } from "./components/ui/button";
 import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
@@ -873,10 +874,46 @@ function AppContent() {
   );
 }
 
+/** Scenario viewer wrapper component */
+function ScenarioViewerWrapper() {
+  const { scenarioName, path } = useScenarioViewerRoute();
+
+  const handleBack = useCallback(() => {
+    window.history.back();
+  }, []);
+
+  if (!scenarioName) {
+    return null;
+  }
+
+  return (
+    <ScenarioViewer
+      scenarioName={scenarioName}
+      path={path ?? undefined}
+      onBack={handleBack}
+    />
+  );
+}
+
+/** App router - decides which view to render based on URL */
+function AppRouter() {
+  const { isScenarioViewer } = useScenarioViewerRoute();
+
+  if (isScenarioViewer) {
+    return (
+      <ErrorBoundary name="ScenarioViewer">
+        <ScenarioViewerWrapper />
+      </ErrorBoundary>
+    );
+  }
+
+  return <AppContent />;
+}
+
 export default function App() {
   return (
     <ToastProvider>
-      <AppContent />
+      <AppRouter />
     </ToastProvider>
   );
 }

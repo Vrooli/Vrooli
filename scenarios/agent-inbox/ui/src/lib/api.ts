@@ -1321,6 +1321,29 @@ export async function resetToolConfig(
 }
 
 /**
+ * Fetch information about a specific scenario.
+ * @param name - Scenario name
+ */
+export async function fetchScenarioInfo(name: string): Promise<ScenarioInfo | null> {
+  const url = buildApiUrl(`/scenarios/${encodeURIComponent(name)}`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (res.status === 404) {
+    return null;
+  }
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch scenario info: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
  * Perform full tool discovery from all running scenarios.
  * Discovers scenarios via vrooli CLI and probes each for /api/v1/tools.
  */

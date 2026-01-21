@@ -467,6 +467,23 @@ func (r *ToolRegistry) GetToolByName(ctx context.Context, toolName string) (*too
 	return nil, "", fmt.Errorf("tool not found: %s", toolName)
 }
 
+// GetScenarioInfo returns the ScenarioInfo for a given scenario name.
+// Returns nil if the scenario is not found in the cached tool set.
+func (r *ToolRegistry) GetScenarioInfo(ctx context.Context, scenarioName string) (*toolspb.ScenarioInfo, error) {
+	toolSet, err := r.GetToolSet(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, scenario := range toolSet.Scenarios {
+		if scenario != nil && scenario.Name == scenarioName {
+			return scenario, nil
+		}
+	}
+
+	return nil, fmt.Errorf("scenario not found: %s", scenarioName)
+}
+
 // GetToolApprovalRequired checks if a tool requires approval before execution.
 // This considers YOLO mode, user overrides, and tool metadata defaults.
 // Returns (requiresApproval, source, error).
