@@ -81,9 +81,11 @@ func TestWineServiceStartInstallation(t *testing.T) {
 				status, exists := s.GetInstallStatus(installID)
 				if !exists {
 					t.Error("expected status to exist")
+					return
 				}
 				if status == nil {
 					t.Error("expected status to be non-nil")
+					return
 				}
 				if status.Method != tc.method {
 					t.Errorf("method = %q, want %q", status.Method, tc.method)

@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // Handler provides HTTP handlers for telemetry endpoints.
@@ -58,7 +60,7 @@ func (h *Handler) IngestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, IngestResponse{
+	httputil.WriteJSON(w, http.StatusOK, IngestResponse{
 		Status:         "ok",
 		EventsIngested: ingested,
 		OutputPath:     filePath,
@@ -79,7 +81,7 @@ func (h *Handler) SummaryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, SummaryResponse{
+	httputil.WriteJSON(w, http.StatusOK, SummaryResponse{
 		ScenarioName:   scenario,
 		Exists:         result.Exists,
 		FilePath:       result.FilePath,
@@ -103,7 +105,7 @@ func (h *Handler) InsightsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, InsightsResponse{
+	httputil.WriteJSON(w, http.StatusOK, InsightsResponse{
 		ScenarioName:  scenario,
 		Exists:        result.Exists,
 		LastSession:   result.LastSession,
@@ -127,7 +129,7 @@ func (h *Handler) TailHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, TailResponse{
+	httputil.WriteJSON(w, http.StatusOK, TailResponse{
 		ScenarioName: scenario,
 		Exists:       result.Exists,
 		Limit:        result.Limit,
@@ -177,7 +179,7 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"status": "deleted",
 	})
 }
@@ -200,11 +202,4 @@ func parseTailLimit(r *http.Request) int {
 		return maxLimit
 	}
 	return parsed
-}
-
-// writeJSON writes a JSON response.
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
 }

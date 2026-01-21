@@ -85,7 +85,7 @@ build: deps ## Build for current platform
 	@cd api && CGO_ENABLED=0 go build \
 		-ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)" \
 		-o bin/$(BINARY_NAME) \
-		main.go
+		.
 	@echo "$(GREEN)✓ Built $(BUILD_DIR)/$(BINARY_NAME)$(RESET)"
 
 build-all: deps ## Build for all platforms (Linux, macOS, Windows)

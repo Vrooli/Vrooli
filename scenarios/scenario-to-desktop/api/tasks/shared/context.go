@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"scenario-to-desktop-api/pipeline"
 )
+
+// titleCase provides Unicode-correct title casing (replacement for deprecated strings.Title)
+var titleCaser = cases.Title(language.English)
 
 // DefaultIncludeContexts lists context items included by default if none specified.
 var DefaultIncludeContexts = []string{
@@ -658,7 +664,7 @@ func BuildStageDetailsAttachment(stageName string, result *pipeline.StageResult)
 		Type:     "note",
 		Key:      fmt.Sprintf("stage-%s-details", stageName),
 		Tags:     []string{"stage", stageName},
-		Label:    fmt.Sprintf("%s Stage Details", strings.Title(stageName)),
+		Label:    fmt.Sprintf("%s Stage Details", titleCaser.String(stageName)),
 		Summary:  fmt.Sprintf("%s stage: %s", stageName, result.Status),
 		Format:   "yaml",
 		Priority: "medium",

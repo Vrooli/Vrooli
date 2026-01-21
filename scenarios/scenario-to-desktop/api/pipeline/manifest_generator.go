@@ -81,13 +81,15 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 	}
 
 	// Build request
+	// Note: StageBundle is false because binaries may not exist yet (especially for TypeScript services).
+	// The packager will handle staging after services are built.
 	includeSecrets := true
 	req := bundleExportRequest{
 		Scenario:       scenarioName,
 		Tier:           "tier-2-desktop",
 		IncludeSecrets: &includeSecrets,
 		OutputDir:      outputDir,
-		StageBundle:    true,
+		StageBundle:    false,
 	}
 
 	payload, err := json.Marshal(req)

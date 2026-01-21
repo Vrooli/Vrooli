@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // mockOrchestrator implements Orchestrator for testing
@@ -134,8 +134,10 @@ func TestHandleRun(t *testing.T) {
 
 		h.handleRun(rr, req)
 
-		if rr.Code != http.StatusBadRequest {
-			t.Errorf("expected status 400, got %d", rr.Code)
+		// 422 Unprocessable Entity is the correct status for validation errors (missing required fields)
+		// This is more semantically correct than 400 Bad Request which indicates malformed request syntax
+		if rr.Code != http.StatusUnprocessableEntity {
+			t.Errorf("expected status 422, got %d", rr.Code)
 		}
 	})
 
@@ -375,7 +377,8 @@ func TestHandleResume(t *testing.T) {
 
 	t.Run("pipeline not found", func(t *testing.T) {
 		orch := &mockOrchestrator{
-			resumeError: fmt.Errorf("pipeline not found: nonexistent"),
+			// Return a proper domain error for "not found" which maps to HTTP 404
+			resumeError: errors.ErrPipelineNotFound("nonexistent"),
 		}
 		h := NewHandler(WithOrchestrator(orch))
 		r := mux.NewRouter()
@@ -393,7 +396,8 @@ func TestHandleResume(t *testing.T) {
 
 	t.Run("invalid resume state", func(t *testing.T) {
 		orch := &mockOrchestrator{
-			resumeError: fmt.Errorf("pipeline cannot be resumed: status is running (must be completed)"),
+			// Return a proper domain error for "not resumable" which maps to HTTP 400
+			resumeError: errors.ErrPipelineNotResumable("running-123", "pipeline is currently running"),
 		}
 		h := NewHandler(WithOrchestrator(orch))
 		r := mux.NewRouter()
@@ -516,35 +520,6 @@ func TestHandleList(t *testing.T) {
 	})
 }
 
-func TestWriteJSON(t *testing.T) {
-	h := NewHandler()
-	rr := httptest.NewRecorder()
-
-	h.writeJSON(rr, http.StatusOK, map[string]string{"key": "value"})
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", rr.Code)
-	}
-	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("expected Content-Type application/json, got %q", ct)
-	}
-}
-
-func TestWriteError(t *testing.T) {
-	h := NewHandler()
-	rr := httptest.NewRecorder()
-
-	h.writeError(rr, http.StatusBadRequest, "test error")
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", rr.Code)
-	}
-
-	var resp map[string]string
-	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-	if resp["error"] != "test error" {
-		t.Errorf("expected error 'test error', got %q", resp["error"])
-	}
-}
+// NOTE: TestWriteJSON and TestWriteError were removed as the methods were
+// refactored into shared/http/response.go (WriteJSON, WriteError). Those
+// utilities have their own tests in shared/http/response_test.go.

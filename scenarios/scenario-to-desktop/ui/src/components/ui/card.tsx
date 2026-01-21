@@ -9,7 +9,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cn(
-          "rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur",
+          "rounded-lg border border-slate-800 bg-slate-900/70 shadow-lg",
           className
         )}
         {...props}
@@ -22,7 +22,7 @@ Card.displayName = "Card";
 type CardHeaderProps = HTMLAttributes<HTMLDivElement>;
 
 export function CardHeader({ className, ...props }: CardHeaderProps) {
-  return <div className={cn("flex flex-col space-y-1.5", className)} {...props} />;
+  return <div className={cn("flex flex-col space-y-1.5 p-4", className)} {...props} />;
 }
 
 type CardTitleProps = HTMLAttributes<HTMLHeadingElement>;
@@ -40,11 +40,11 @@ export function CardDescription({ className, ...props }: CardDescriptionProps) {
 type CardContentProps = HTMLAttributes<HTMLDivElement>;
 
 export function CardContent({ className, ...props }: CardContentProps) {
-  return <div className={cn("pt-6", className)} {...props} />;
+  return <div className={cn("px-4 pb-4", className)} {...props} />;
 }
 
 type CardFooterProps = HTMLAttributes<HTMLDivElement>;
 
 export function CardFooter({ className, ...props }: CardFooterProps) {
-  return <div className={cn("flex items-center pt-6", className)} {...props} />;
+  return <div className={cn("flex items-center px-4 pb-4", className)} {...props} />;
 }

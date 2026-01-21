@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/toolregistry"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -59,7 +60,7 @@ func (h *ToolsHandler) GetTools(w http.ResponseWriter, r *http.Request) {
 	// Use protojson for proper proto JSON serialization
 	data, err := protoMarshaler.Marshal(manifest)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "failed to encode response")
+		httputil.WriteInternalError(w, "failed to encode response")
 		return
 	}
 
@@ -83,20 +84,20 @@ func (h *ToolsHandler) GetTool(w http.ResponseWriter, r *http.Request) {
 	// Extract tool name from path
 	name := extractPathParam(r.URL.Path, "/api/v1/tools/")
 	if name == "" {
-		writeJSONError(w, http.StatusBadRequest, "tool name is required")
+		httputil.WriteBadRequest(w, "tool name is required")
 		return
 	}
 
 	tool := h.registry.GetTool(r.Context(), name)
 	if tool == nil {
-		writeJSONError(w, http.StatusNotFound, "tool not found: "+name)
+		httputil.WriteNotFound(w, "tool: "+name)
 		return
 	}
 
 	// Use protojson for proper proto JSON serialization
 	data, err := protoMarshaler.Marshal(tool)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "failed to encode response")
+		httputil.WriteInternalError(w, "failed to encode response")
 		return
 	}
 
@@ -124,11 +125,3 @@ func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 }
 
-// writeJSONError writes a JSON error response.
-func writeJSONError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	// Escape message for JSON safety
-	escaped := strings.ReplaceAll(message, `"`, `\"`)
-	_, _ = w.Write([]byte(`{"error":"` + http.StatusText(status) + `","message":"` + escaped + `"}`))
-}

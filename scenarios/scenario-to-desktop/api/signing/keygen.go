@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	pathutil "scenario-to-desktop-api/shared/path"
 )
 
 // generateLinuxKeyParams holds the parameters for a GPG key generation request.
@@ -206,12 +208,5 @@ func writePublicKey(scenario, contents string) (string, error) {
 }
 
 func resolveVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		return filepath.Clean(filepath.Join("..", "..", ".."))
-	}
-	return filepath.Clean(filepath.Join(wd, "..", "..", ".."))
+	return pathutil.DetectVrooliRoot()
 }

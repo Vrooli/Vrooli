@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
+
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 const DistributionConfigFilename = "distribution.json"
@@ -46,41 +47,10 @@ func NewGlobalRepository(opts ...GlobalRepositoryOption) *GlobalRepository {
 
 	// Determine Vrooli root if not set
 	if r.vrooliRoot == "" {
-		r.vrooliRoot = detectVrooliRoot()
+		r.vrooliRoot = sharedpath.DetectVrooliRoot()
 	}
 
 	return r
-}
-
-// detectVrooliRoot finds the Vrooli root directory.
-func detectVrooliRoot() string {
-	// 1. Check environment variable
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
-	}
-
-	// 2. Try default home directory location
-	if homeDir, err := os.UserHomeDir(); err == nil {
-		defaultRoot := filepath.Join(homeDir, "Vrooli")
-		if info, err := os.Stat(defaultRoot); err == nil && info.IsDir() {
-			return defaultRoot
-		}
-	}
-
-	// 3. Try to find by walking up from current directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-
-	for dir := cwd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
-		vrooliDir := filepath.Join(dir, ".vrooli")
-		if info, err := os.Stat(vrooliDir); err == nil && info.IsDir() {
-			return dir
-		}
-	}
-
-	return ""
 }
 
 // GetPath returns the path to distribution.json.

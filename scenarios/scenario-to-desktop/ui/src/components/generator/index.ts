@@ -6,8 +6,6 @@ export { ScenarioSelector, type ScenarioSelectorProps } from "./ScenarioSelector
 export {
   FrameworkTemplateSection,
   type FrameworkTemplateSectionProps,
-  TEMPLATE_SUMMARIES,
-  FRAMEWORK_SUMMARIES
 } from "./FrameworkTemplateSection";
 export { SigningInlineSection, type SigningInlineSectionProps } from "./SigningInlineSection";
 export {
@@ -18,8 +16,11 @@ export {
 } from "./OutputLocationSelector";
 export {
   ValidationErrors,
-  validateFormInputs,
-  type ValidationError,
   type ValidationErrorsProps,
-  type ValidateFormInputsParams,
 } from "./ValidationErrors";
+
+// Re-export constants from constants.ts
+export { TEMPLATE_SUMMARIES, FRAMEWORK_SUMMARIES } from "./constants";
+
+// Re-export domain types for convenience
+export { validateFormInputs, type ValidationError, type ValidateFormInputsParams } from "../../domain/generator";

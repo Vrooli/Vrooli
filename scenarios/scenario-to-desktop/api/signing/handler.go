@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/signing/generation"
 	"scenario-to-desktop-api/signing/platforms"
 	"scenario-to-desktop-api/signing/validation"
@@ -60,7 +61,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
 		return
 	}
 
@@ -70,7 +71,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		ConfigPath: h.repo.GetPath(scenario),
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // PutConfig sets the full signing configuration for a scenario.
@@ -81,14 +82,14 @@ func (h *Handler) PutConfig(w http.ResponseWriter, r *http.Request) {
 
 	var config SigningConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 		return
 	}
 
 	// Validate the config structure
 	result := h.validator.ValidateConfig(&config)
 	if !result.Valid {
-		writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]interface{}{
 			"error":      "validation failed",
 			"validation": result,
 		})
@@ -96,7 +97,7 @@ func (h *Handler) PutConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Save(r.Context(), scenario, &config); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: "+ err.Error()})
 		return
 	}
 
@@ -106,7 +107,7 @@ func (h *Handler) PutConfig(w http.ResponseWriter, r *http.Request) {
 		ConfigPath: h.repo.GetPath(scenario),
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // PatchPlatformConfig updates a specific platform's configuration.
@@ -119,7 +120,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 	// Get existing config or create new
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
 		return
 	}
 	if config == nil {
@@ -131,7 +132,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 	case PlatformWindows:
 		var windowsConfig WindowsSigningConfig
 		if err := json.NewDecoder(r.Body).Decode(&windowsConfig); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 			return
 		}
 		config.Windows = &windowsConfig
@@ -139,7 +140,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 	case PlatformMacOS:
 		var macConfig MacOSSigningConfig
 		if err := json.NewDecoder(r.Body).Decode(&macConfig); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 			return
 		}
 		config.MacOS = &macConfig
@@ -147,19 +148,19 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 	case PlatformLinux:
 		var linuxConfig LinuxSigningConfig
 		if err := json.NewDecoder(r.Body).Decode(&linuxConfig); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+			httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 			return
 		}
 		config.Linux = &linuxConfig
 
 	default:
-		writeError(w, http.StatusBadRequest, "invalid platform: "+platform)
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid platform: " + platform})
 		return
 	}
 
 	// Save the updated config
 	if err := h.repo.Save(r.Context(), scenario, config); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: "+ err.Error()})
 		return
 	}
 
@@ -169,7 +170,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 		ConfigPath: h.repo.GetPath(scenario),
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // DeleteConfig removes the signing configuration for a scenario.
@@ -179,11 +180,11 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 	scenario := vars["scenario"]
 
 	if err := h.repo.Delete(r.Context(), scenario); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete config: "+ err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{
 		"status":   "deleted",
 		"scenario": scenario,
 	})
@@ -197,11 +198,11 @@ func (h *Handler) DeletePlatformConfig(w http.ResponseWriter, r *http.Request) {
 	platform := vars["platform"]
 
 	if err := h.repo.DeleteForPlatform(r.Context(), scenario, platform); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete platform config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete platform config: "+ err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	httputil.WriteJSON(w, http.StatusOK, map[string]string{
 		"status":   "deleted",
 		"scenario": scenario,
 		"platform": platform,
@@ -216,12 +217,12 @@ func (h *Handler) ValidateConfig(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
 		return
 	}
 
 	if config == nil {
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 			"valid":   true,
 			"message": "no signing config exists for this scenario",
 		})
@@ -235,7 +236,7 @@ func (h *Handler) ValidateConfig(w http.ResponseWriter, r *http.Request) {
 	prereqResult := h.prereqChecker.CheckPrerequisites(r.Context(), config)
 	result.Merge(prereqResult)
 
-	writeJSON(w, http.StatusOK, result)
+	httputil.WriteJSON(w, http.StatusOK, result)
 }
 
 // CheckReady performs a quick readiness check for deployment-manager integration.
@@ -246,7 +247,7 @@ func (h *Handler) CheckReady(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to get config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
 		return
 	}
 
@@ -259,7 +260,7 @@ func (h *Handler) CheckReady(w http.ResponseWriter, r *http.Request) {
 	if config == nil || !config.Enabled {
 		response.Ready = false
 		response.Issues = append(response.Issues, "Signing is not enabled for this scenario")
-		writeJSON(w, http.StatusOK, response)
+		httputil.WriteJSON(w, http.StatusOK, response)
 		return
 	}
 
@@ -332,7 +333,7 @@ func (h *Handler) CheckReady(w http.ResponseWriter, r *http.Request) {
 		response.Platforms[PlatformLinux].Ready
 	response.Issues = issues
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 type generateLinuxKeyRequest struct {
@@ -365,7 +366,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 
 	var req generateLinuxKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
 		return
 	}
 
@@ -386,13 +387,13 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 		WorkingDirRoot: resolveVrooliRoot(),
 	})
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		httputil.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
 
 	config, err := h.repo.Get(ctx, scenario)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load signing config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load signing config: "+ err.Error()})
 		return
 	}
 	if config == nil {
@@ -411,7 +412,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Save(ctx, scenario, config); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to save signing config: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save signing config: "+ err.Error()})
 		return
 	}
 
@@ -424,7 +425,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 		ConfigPath:  h.repo.GetPath(scenario),
 		PublicPath:  result.PublicPath,
 	}
-	writeJSON(w, http.StatusCreated, resp)
+	httputil.WriteJSON(w, http.StatusCreated, resp)
 }
 
 // GetPrerequisites returns available signing tools on the system.
@@ -432,11 +433,11 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPrerequisites(w http.ResponseWriter, r *http.Request) {
 	tools, err := h.prereqChecker.DetectTools(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to detect tools: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detect tools: "+ err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"tools": tools,
 	})
 }
@@ -449,26 +450,12 @@ func (h *Handler) DiscoverCertificates(w http.ResponseWriter, r *http.Request) {
 
 	certs, err := h.detector.DiscoverCertificates(context.Background(), platform)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to discover certificates: "+err.Error())
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to discover certificates: "+ err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"platform":     platform,
 		"certificates": certs,
 	})
-}
-
-// --- Helper Functions ---
-
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-	}
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
 }

@@ -17,7 +17,7 @@ func TestExpandShorthandToHostArch(t *testing.T) {
 		{"win", "win", "windows", true},
 		{"darwin", "darwin", "darwin", true},
 		{"mac", "mac", "darwin", true},
-		{"linux unsupported", "linux", "", false},
+		{"linux supported", "linux", "linux", true},
 		{"freebsd unsupported", "freebsd", "", false},
 	}
 

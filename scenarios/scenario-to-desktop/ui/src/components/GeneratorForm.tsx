@@ -16,15 +16,9 @@ import {
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { TemplateModal } from "./TemplateModal";
-import { ScenarioModal } from "./ScenarioModal";
-import { FrameworkModal } from "./FrameworkModal";
-import { DeploymentModal } from "./DeploymentModal";
-import { BundledPreflightSection } from "./BundledPreflightSection";
+import { TemplateModal, ScenarioModal, FrameworkModal, DeploymentModal } from "./modals";
 import type { DeploymentManagerBundleHelperHandle, BundleResult } from "./DeploymentManagerBundleHelper";
-import { BundledRuntimeSection } from "./BundledRuntimeSection";
-import { ExternalServerSection } from "./ExternalServerSection";
-import { EmbeddedServerSection } from "./EmbeddedServerSection";
+import { BundledRuntimeSection, ExternalServerSection, EmbeddedServerSection } from "./runtime";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";
 import type { DesktopConnectionConfig, ScenariosResponse } from "./scenario-inventory/types";
@@ -50,18 +44,31 @@ import {
   computeStandardOutputPath,
   computeStagingPreviewPath,
   getSelectedPlatforms,
-  resolveEndpoints,
   type OutputLocation,
   type PlatformSelection
 } from "../domain/generator";
 import {
   useScenarioState,
-  usePreflightSession,
   useSigningConfig,
+  useGeneratorModals,
+  useGeneratorFormState,
 } from "../hooks";
+import {
+  usePipelineStore,
+  selectIsRunning,
+  selectPreflightOk,
+  selectMissingSecrets,
+} from "../store";
 import { PipelineStatusSummary } from "./state/PipelineStatusOverview";
 import { PendingChangesAlert } from "./state/PendingChangesAlert";
 import type { FormState } from "../lib/api";
+
+/** Exposed form state for sharing with other sections */
+interface ExposedFormState {
+  bundleManifestPath: string;
+  isBundled: boolean;
+  bundleManifest?: unknown;
+}
 
 interface GeneratorFormProps {
   selectedTemplate: string;
@@ -74,6 +81,8 @@ interface GeneratorFormProps {
   formId?: string;
   showSubmit?: boolean;
   onGenerateStateChange?: (state: { pending: boolean; error: string | null }) => void;
+  /** Callback when form state changes that other sections need */
+  onFormStateChange?: (state: ExposedFormState) => void;
 }
 
 export function GeneratorForm({
@@ -86,39 +95,49 @@ export function GeneratorForm({
   onOpenSigningTab,
   formId,
   showSubmit = true,
-  onGenerateStateChange
+  onGenerateStateChange,
+  onFormStateChange
 }: GeneratorFormProps) {
   const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
-  const [appDisplayName, setAppDisplayName] = useState("");
-  const [appDescription, setAppDescription] = useState("");
-  const [iconPath, setIconPath] = useState("");
-  const [displayNameEdited, setDisplayNameEdited] = useState(false);
-  const [descriptionEdited, setDescriptionEdited] = useState(false);
-  const [iconPathEdited, setIconPathEdited] = useState(false);
-  const [iconPreviewError, setIconPreviewError] = useState(false);
-  const [framework, setFramework] = useState("electron");
-  const [frameworkModalOpen, setFrameworkModalOpen] = useState(false);
-  const [serverType, setServerType] = useState<ServerType>(DEFAULT_SERVER_TYPE);
-  const [deploymentMode, setDeploymentMode] = useState<DeploymentMode>(DEFAULT_DEPLOYMENT_MODE);
-  const [platforms, setPlatforms] = useState<PlatformSelection>({
-    win: true,
-    mac: true,
-    linux: true
-  });
-  const [locationMode, setLocationMode] = useState<OutputLocation>("proper");
-  const [outputPath, setOutputPath] = useState("");
-  const [proxyUrl, setProxyUrl] = useState("");
-  const [bundleManifestPath, setBundleManifestPath] = useState("");
-  const [serverPort, setServerPort] = useState(3000);
-  const [localServerPath, setLocalServerPath] = useState("ui/server.js");
-  const [localApiEndpoint, setLocalApiEndpoint] = useState("http://localhost:3001/api");
-  const [autoManageTier1, setAutoManageTier1] = useState(false);
-  const [vrooliBinaryPath, setVrooliBinaryPath] = useState("vrooli");
-  const [scenarioModalOpen, setScenarioModalOpen] = useState(false);
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [deploymentModalOpen, setDeploymentModalOpen] = useState(false);
-  const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const { modals, openModal, closeModal } = useGeneratorModals();
+
+  // Form state hook - manages all form fields that get persisted to server
+  const {
+    appMetadata,
+    setAppDisplayName,
+    setAppDescription,
+    setIconPath,
+    setIconPreviewError,
+    deployment,
+    setDeploymentMode,
+    setServerType,
+    setFramework,
+    output,
+    setLocationMode,
+    setOutputPath,
+    platforms,
+    setPlatforms,
+    handlePlatformChange,
+    connection,
+    setProxyUrl,
+    setBundleManifestPath,
+    setServerPort,
+    setLocalServerPath,
+    setLocalApiEndpoint,
+    setAutoManageTier1,
+    setVrooliBinaryPath,
+    setConnectionResult,
+    setConnectionError,
+    resetFormState: resetHookState,
+    hydrateFromServer,
+  } = useGeneratorFormState();
+
+  // Destructure for easier access
+  const { displayName: appDisplayName, description: appDescription, iconPath, iconPreviewError } = appMetadata;
+  const { displayNameEdited, descriptionEdited, iconPathEdited } = appMetadata;
+  const { mode: deploymentMode, serverType, framework } = deployment;
+  const { locationMode, outputPath } = output;
+  const { proxyUrl, bundleManifestPath, serverPort, localServerPath, localApiEndpoint, autoManageTier1, vrooliBinaryPath, connectionResult, connectionError } = connection;
   const [preflightSeed, setPreflightSeed] = useState({
     result: null as BundlePreflightResponse | null,
     error: null as string | null,
@@ -127,7 +146,6 @@ export function GeneratorForm({
   });
   // Bundle result seed from server state - similar pattern to preflightSeed
   const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
-  const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const isUpdateMode = selectionSource === "inventory";
@@ -151,48 +169,78 @@ export function GeneratorForm({
     () => getSelectedPlatforms(platforms),
     [platforms]
   );
-  const resolvedEndpoints = useMemo(
-    () =>
-      resolveEndpoints({
-        decision: connectionDecision,
-        proxyUrl,
-        localServerPath,
-        localApiEndpoint
-      }),
-    [connectionDecision, proxyUrl, localServerPath, localApiEndpoint]
-  );
+  // Note: resolveEndpoints is available via the domain layer if needed
+  // for server_path and api_endpoint in buildDesktopConfig
+  // Pipeline store for preflight
   const {
-    result: preflightResult,
-    error: preflightError,
-    pending: preflightPending,
+    setScenario: setPipelineScenario,
+    runPreflightStage,
+    cancelPipeline: cancelPreflightPipeline,
+    resetPreflight,
+    preflightResult,
+    preflightSecrets,
+    preflightOverride,
+    setPreflightSecrets,
+    setPreflightOverride,
     pipelineId: preflightPipelineId,
-    pipelineStatus: preflightPipelineStatus,
-    override: preflightOverride,
-    secrets: preflightSecrets,
-    missingSecrets: missingPreflightSecrets,
-    preflightOk,
-    setOverride: setPreflightOverride,
-    setSecret: setPreflightSecret,
-    runPreflight,
-    cancelPreflight: cancelPreflightPipeline,
-    reset: resetPreflight
-  } = usePreflightSession({
-    scenarioName,
-    bundleManifestPath,
-    isBundled,
-    initialResult: preflightSeed.result,
-    initialError: preflightSeed.error,
-    initialOverride: preflightSeed.override,
-    initialSecrets: preflightSeed.secrets,
-    onPreflightComplete: (result) => {
-      if (scenarioName && hasInitiallyLoaded) {
-        void saveStageResult("preflight", result, {
-          preflight_result: result,
-          preflight_error: null,
-        });
-      }
+    runStatus: preflightRunStatus,
+    error: preflightError,
+  } = usePipelineStore();
+  const preflightPending = usePipelineStore(selectIsRunning);
+  const preflightOk = usePipelineStore(selectPreflightOk);
+  const missingPreflightSecrets = usePipelineStore(selectMissingSecrets);
+
+  // Set scenario in pipeline store when it changes
+  useEffect(() => {
+    if (scenarioName) {
+      setPipelineScenario(scenarioName);
     }
-  });
+  }, [scenarioName, setPipelineScenario]);
+
+  // Initialize preflight state from server-persisted seed
+  useEffect(() => {
+    if (preflightSeed.secrets && Object.keys(preflightSeed.secrets).length > 0) {
+      setPreflightSecrets(preflightSeed.secrets);
+    }
+    if (preflightSeed.override) {
+      setPreflightOverride(preflightSeed.override);
+    }
+  }, [preflightSeed, setPreflightSecrets, setPreflightOverride]);
+
+  // Track previous preflight result to detect new completions
+  const prevPreflightResultRef = useRef<typeof preflightResult>(null);
+
+  // Reset preflight state when switching to non-bundled mode
+  useEffect(() => {
+    if (!isBundled) {
+      resetPreflight();
+    }
+  }, [isBundled, resetPreflight]);
+
+  // Wrapper for running preflight with the right config
+  const runPreflight = useCallback(
+    async (secretsOverride?: Record<string, string>, configOverride?: Partial<PipelineConfig>) => {
+      if (!scenarioName) return;
+      const manifestPath = bundleManifestPath.trim();
+      if (!manifestPath && isBundled) return;
+
+      const filteredSecrets = Object.entries(secretsOverride ?? preflightSecrets)
+        .filter(([, value]) => value.trim())
+        .reduce<Record<string, string>>((acc, [key, value]) => {
+          acc[key] = value;
+          return acc;
+        }, {});
+
+      setPreflightOverride(false);
+
+      await runPreflightStage({
+        bundle_manifest_path: manifestPath || undefined,
+        preflight_secrets: Object.keys(filteredSecrets).length > 0 ? filteredSecrets : undefined,
+        ...configOverride,
+      });
+    },
+    [scenarioName, bundleManifestPath, isBundled, preflightSecrets, runPreflightStage, setPreflightOverride]
+  );
 
   const {
     config: signingConfig,
@@ -226,29 +274,9 @@ export function GeneratorForm({
   }, [selectionSource]);
 
   const resetFormState = useCallback((resetTemplate: boolean) => {
-    setAppDisplayName("");
-    setAppDescription("");
-    setIconPath("");
-    setDisplayNameEdited(false);
-    setDescriptionEdited(false);
-    setIconPathEdited(false);
-    setIconPreviewError(false);
-    setFramework("electron");
-    setServerType(DEFAULT_SERVER_TYPE);
-    setDeploymentMode(DEFAULT_DEPLOYMENT_MODE);
-    setPlatforms({ win: true, mac: true, linux: true });
-    setLocationMode("proper");
-    setOutputPath("");
-    setProxyUrl("");
-    setBundleManifestPath("");
-    setServerPort(3000);
-    setLocalServerPath("ui/server.js");
-    setLocalApiEndpoint("http://localhost:3001/api");
-    setAutoManageTier1(false);
-    setVrooliBinaryPath("vrooli");
-    setConnectionResult(null);
-    setConnectionError(null);
-    setDeploymentManagerUrl(null);
+    // Reset all hook-managed form state
+    resetHookState();
+    // Reset remaining non-hook state
     setSigningEnabledForBuild(false);
     setLastLoadedScenario(null);
     setValidationErrors([]);
@@ -262,12 +290,11 @@ export function GeneratorForm({
     if (resetTemplate) {
       onTemplateChange("basic");
     }
-  }, [onTemplateChange, resetPreflight]);
+  }, [resetHookState, onTemplateChange, resetPreflight, setSigningEnabledForBuild]);
 
   // Server-side state persistence via useScenarioState
   const {
     formState: serverFormState,
-    isLoading: stateLoading,
     hasInitiallyLoaded,
     isSaving: stateSaving,
     isStale,
@@ -277,40 +304,52 @@ export function GeneratorForm({
     updateFormState,
     saveStageResult,
     clearState,
-    stages,
   } = useScenarioState({
     scenarioName,
     enabled: Boolean(scenarioName),
     onStateLoaded: (state) => {
       if (!state.form_state) return;
       const fs = state.form_state;
-      // Apply form state from server
-      setAppDisplayName(fs.app_display_name || "");
-      setAppDescription(fs.app_description || "");
-      setIconPath(fs.icon_path || "");
-      setDisplayNameEdited(fs.display_name_edited || false);
-      setDescriptionEdited(fs.description_edited || false);
-      setIconPathEdited(fs.icon_path_edited || false);
-      setFramework(fs.framework || "electron");
-      setServerType((fs.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
-      setDeploymentMode((fs.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
-      setPlatforms({
-        win: fs.platforms?.win ?? true,
-        mac: fs.platforms?.mac ?? true,
-        linux: fs.platforms?.linux ?? true,
+
+      // Hydrate form state from server using the hook's hydration method
+      hydrateFromServer({
+        appMetadata: {
+          displayName: fs.app_display_name || "",
+          description: fs.app_description || "",
+          iconPath: fs.icon_path || "",
+          displayNameEdited: fs.display_name_edited || false,
+          descriptionEdited: fs.description_edited || false,
+          iconPathEdited: fs.icon_path_edited || false,
+          iconPreviewError: false,
+        },
+        deployment: {
+          framework: fs.framework || "electron",
+          serverType: (fs.server_type as ServerType) ?? DEFAULT_SERVER_TYPE,
+          mode: (fs.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE,
+        },
+        platforms: {
+          win: fs.platforms?.win ?? true,
+          mac: fs.platforms?.mac ?? true,
+          linux: fs.platforms?.linux ?? true,
+        },
+        output: {
+          locationMode: (fs.location_mode as OutputLocation) ?? "proper",
+          outputPath: fs.output_path ?? "",
+        },
+        connection: {
+          proxyUrl: fs.proxy_url ?? "",
+          bundleManifestPath: fs.bundle_manifest_path ?? "",
+          serverPort: fs.server_port ?? 3000,
+          localServerPath: fs.local_server_path ?? "ui/server.js",
+          localApiEndpoint: fs.local_api_endpoint ?? "http://localhost:3001/api",
+          autoManageTier1: fs.auto_manage_tier1 ?? false,
+          vrooliBinaryPath: fs.vrooli_binary_path ?? "vrooli",
+          connectionResult: (fs.connection_result as ProbeResponse | null) ?? null,
+          connectionError: fs.connection_error ?? null,
+        },
       });
-      setLocationMode((fs.location_mode as OutputLocation) ?? "proper");
-      setOutputPath(fs.output_path ?? "");
-      setProxyUrl(fs.proxy_url ?? "");
-      setBundleManifestPath(fs.bundle_manifest_path ?? "");
-      setServerPort(fs.server_port ?? 3000);
-      setLocalServerPath(fs.local_server_path ?? "ui/server.js");
-      setLocalApiEndpoint(fs.local_api_endpoint ?? "http://localhost:3001/api");
-      setAutoManageTier1(fs.auto_manage_tier1 ?? false);
-      setVrooliBinaryPath(fs.vrooli_binary_path ?? "vrooli");
-      setConnectionResult((fs.connection_result as ProbeResponse | null) ?? null);
-      setConnectionError(fs.connection_error ?? null);
-      setDeploymentManagerUrl(fs.deployment_manager_url ?? null);
+
+      // Handle non-hook state
       setSigningEnabledForBuild(fs.signing_enabled_for_build ?? false);
       if (fs.selected_template) {
         onTemplateChange(fs.selected_template);
@@ -338,46 +377,58 @@ export function GeneratorForm({
     },
   });
 
+  // Save preflight result when it completes (equivalent to onPreflightComplete callback)
+  useEffect(() => {
+    // Only trigger on new completions, not on initial load
+    if (
+      preflightResult &&
+      preflightResult !== prevPreflightResultRef.current &&
+      preflightRunStatus === "completed" &&
+      scenarioName &&
+      hasInitiallyLoaded
+    ) {
+      void saveStageResult("preflight", preflightResult, {
+        preflight_result: preflightResult,
+        preflight_error: null,
+      });
+    }
+    prevPreflightResultRef.current = preflightResult;
+  }, [preflightResult, preflightRunStatus, scenarioName, hasInitiallyLoaded, saveStageResult]);
+
   // Convert local state to FormState for server persistence
   const formStateForServer = useMemo((): Partial<FormState> => ({
     selected_template: selectedTemplate,
-    app_display_name: appDisplayName,
-    app_description: appDescription,
-    icon_path: iconPath,
-    display_name_edited: displayNameEdited,
-    description_edited: descriptionEdited,
-    icon_path_edited: iconPathEdited,
-    framework,
-    server_type: serverType,
-    deployment_mode: deploymentMode,
+    app_display_name: appMetadata.displayName,
+    app_description: appMetadata.description,
+    icon_path: appMetadata.iconPath,
+    display_name_edited: appMetadata.displayNameEdited,
+    description_edited: appMetadata.descriptionEdited,
+    icon_path_edited: appMetadata.iconPathEdited,
+    framework: deployment.framework,
+    server_type: deployment.serverType,
+    deployment_mode: deployment.mode,
     platforms,
-    location_mode: locationMode,
-    output_path: outputPath,
-    proxy_url: proxyUrl,
-    bundle_manifest_path: bundleManifestPath,
-    server_port: serverPort,
-    local_server_path: localServerPath,
-    local_api_endpoint: localApiEndpoint,
-    auto_manage_tier1: autoManageTier1,
-    vrooli_binary_path: vrooliBinaryPath,
-    connection_result: connectionResult,
-    connection_error: connectionError,
+    location_mode: output.locationMode,
+    output_path: output.outputPath,
+    proxy_url: connection.proxyUrl,
+    bundle_manifest_path: connection.bundleManifestPath,
+    server_port: connection.serverPort,
+    local_server_path: connection.localServerPath,
+    local_api_endpoint: connection.localApiEndpoint,
+    auto_manage_tier1: connection.autoManageTier1,
+    vrooli_binary_path: connection.vrooliBinaryPath,
+    connection_result: connection.connectionResult,
+    connection_error: connection.connectionError,
     preflight_result: preflightResult,
     preflight_error: preflightError,
     preflight_override: preflightOverride,
     preflight_secrets: preflightSecrets,
-    deployment_manager_url: deploymentManagerUrl,
     signing_enabled_for_build: signingEnabledForBuild,
     bundle_result: bundleResultSeed
   }), [
-    selectedTemplate, appDisplayName, appDescription, iconPath,
-    displayNameEdited, descriptionEdited, iconPathEdited,
-    framework, serverType, deploymentMode, platforms,
-    locationMode, outputPath, proxyUrl, bundleManifestPath,
-    serverPort, localServerPath, localApiEndpoint,
-    autoManageTier1, vrooliBinaryPath, connectionResult, connectionError,
+    selectedTemplate, appMetadata, deployment, output, platforms, connection,
     preflightResult, preflightError, preflightOverride, preflightSecrets,
-    deploymentManagerUrl, signingEnabledForBuild, bundleResultSeed
+    signingEnabledForBuild, bundleResultSeed
   ]);
 
   // Debounced save to server when form state changes
@@ -404,8 +455,6 @@ export function GeneratorForm({
     updateFormState(formStateForServer);
   }, [scenarioName, formStateForServer, updateFormState, hasInitiallyLoaded]);
 
-  // Note: Preflight results are now saved via the onPreflightComplete callback in usePreflightSession
-
   // Legacy compatibility - keep draft timestamps working
   const draftTimestamps = serverTimestamps;
   const draftLoadedScenario = serverFormState ? scenarioName : null;
@@ -420,7 +469,6 @@ export function GeneratorForm({
       // Save bundle stage result with manifest path and bundle_result in form_state
       void saveStageResult("bundle", result, {
         bundle_manifest_path: result.manifestPath ?? undefined,
-        deployment_manager_url: result.deploymentManagerUrl,
         bundle_result: result,
       });
     },
@@ -560,6 +608,18 @@ export function GeneratorForm({
     enabled: Boolean(bundleManifestPath.trim())
   });
 
+  // Notify parent of form state changes needed by other sections (e.g., PreflightSection)
+  useEffect(() => {
+    if (!onFormStateChange) {
+      return;
+    }
+    onFormStateChange({
+      bundleManifestPath,
+      isBundled,
+      bundleManifest: bundleManifestResp?.manifest,
+    });
+  }, [bundleManifestPath, isBundled, bundleManifestResp?.manifest, onFormStateChange]);
+
   const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
     if (!config) return;
     setDeploymentMode((config.deployment_mode as DeploymentMode) ?? DEFAULT_DEPLOYMENT_MODE);
@@ -569,15 +629,12 @@ export function GeneratorForm({
     setBundleManifestPath(config.bundle_manifest_path ?? "");
     if (config.app_display_name) {
       setAppDisplayName(config.app_display_name);
-      setDisplayNameEdited(true);
     }
     if (config.app_description) {
       setAppDescription(config.app_description);
-      setDescriptionEdited(true);
     }
     if (config.icon) {
       setIconPath(config.icon);
-      setIconPathEdited(true);
     }
     if (config.server_type) {
       setServerType((config.server_type as ServerType) ?? DEFAULT_SERVER_TYPE);
@@ -628,9 +685,9 @@ export function GeneratorForm({
 
     const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
-    // Use effective preflight values - fall back to server state when hook hasn't synced yet.
-    // This handles the race condition where usePreflightSession's effect hasn't run yet
-    // but server state has been loaded with valid preflight data.
+    // Use effective preflight values - fall back to server state when local state hasn't synced yet.
+    // This handles the race condition where server state has been loaded with valid preflight data
+    // but local state hasn't been updated yet.
     const effectivePreflightResult = preflightResult ?? serverFormState?.preflight_result ?? null;
     const effectivePreflightOk = effectivePreflightResult
       ? Boolean(
@@ -680,10 +737,6 @@ export function GeneratorForm({
     generateMutation.mutate(pipelineConfig);
   };
 
-  const handlePlatformChange = (platform: string, checked: boolean) => {
-    setPlatforms((prev) => ({ ...prev, [platform]: checked }));
-  };
-
   const handleDeploymentChange = (nextMode: DeploymentMode) => {
     setDeploymentMode(nextMode);
     const nextAllowed: ServerType[] = nextMode === "bundled" || nextMode === "cloud-api"
@@ -701,7 +754,6 @@ export function GeneratorForm({
         onBundleManifestChange={setBundleManifestPath}
         scenarioName={scenarioName}
         bundleHelperRef={bundleHelperRef}
-        onDeploymentManagerUrlChange={setDeploymentManagerUrl}
         onBundleExported={(manifestPath) => {
           runPreflight(undefined, { bundle_manifest_path: manifestPath });
         }}
@@ -803,7 +855,7 @@ export function GeneratorForm({
             scenarioName={scenarioName}
             loadingScenarios={loadingScenarios}
             selectedScenario={selectedScenario}
-            onOpenScenarioModal={() => setScenarioModalOpen(true)}
+            onOpenScenarioModal={() => openModal('scenario')}
             onLoadSaved={
               selectedScenario?.connection_config
                 ? () => applySavedConnection(selectedScenario.connection_config)
@@ -820,10 +872,7 @@ export function GeneratorForm({
                 <Input
                   id="appDisplayName"
                   value={appDisplayName}
-                  onChange={(e) => {
-                    setAppDisplayName(e.target.value);
-                    setDisplayNameEdited(true);
-                  }}
+                  onChange={(e) => setAppDisplayName(e.target.value)}
                   placeholder={`${scenarioName || "scenario"} Desktop`}
                   className="mt-1.5"
                 />
@@ -836,10 +885,7 @@ export function GeneratorForm({
                 <Input
                   id="iconPath"
                   value={iconPath}
-                  onChange={(e) => {
-                    setIconPath(e.target.value);
-                    setIconPathEdited(true);
-                  }}
+                  onChange={(e) => setIconPath(e.target.value)}
                   placeholder="/home/you/Vrooli/scenarios/picker-wheel/icon.png"
                   className="mt-1.5"
                 />
@@ -872,10 +918,7 @@ export function GeneratorForm({
               <textarea
                 id="appDescription"
                 value={appDescription}
-                onChange={(e) => {
-                  setAppDescription(e.target.value);
-                  setDescriptionEdited(true);
-                }}
+                onChange={(e) => setAppDescription(e.target.value)}
                 className="mt-1.5 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
                 rows={3}
                 placeholder={`Desktop application for ${scenarioName || "your scenario"} scenario`}
@@ -888,38 +931,18 @@ export function GeneratorForm({
 
           <FrameworkTemplateSection
             framework={framework}
-            onOpenFrameworkModal={() => setFrameworkModalOpen(true)}
+            onOpenFrameworkModal={() => openModal('framework')}
             selectedTemplate={selectedTemplate}
-            onOpenTemplateModal={() => setTemplateModalOpen(true)}
+            onOpenTemplateModal={() => openModal('template')}
           />
 
           <DeploymentSummarySection
             deploymentMode={deploymentMode}
             serverType={serverType}
-            onOpenDeploymentModal={() => setDeploymentModalOpen(true)}
+            onOpenDeploymentModal={() => openModal('deployment')}
           />
 
           {connectionSection}
-
-          {isBundled && (
-            <BundledPreflightSection
-              bundleManifestPath={bundleManifestPath}
-              bundleManifest={bundleManifestResp?.manifest}
-              preflightResult={preflightResult}
-              preflightPending={preflightPending}
-              preflightError={preflightError}
-              pipelineStatus={preflightPipelineStatus}
-              missingSecrets={missingPreflightSecrets}
-              secretInputs={preflightSecrets}
-              preflightOk={preflightOk}
-              preflightOverride={preflightOverride}
-              preflightLogTails={preflightResult?.log_tails}
-              onOverrideChange={setPreflightOverride}
-              onSecretChange={setPreflightSecret}
-              onRun={runPreflight}
-              onCancel={cancelPreflightPipeline}
-            />
-          )}
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
 
@@ -988,40 +1011,40 @@ export function GeneratorForm({
           )}
       </form>
       <ScenarioModal
-          open={scenarioModalOpen}
+          open={modals.scenario}
           loading={loadingScenarios}
           scenarios={scenariosData?.scenarios ?? []}
           selectedScenarioName={scenarioName}
-          onClose={() => setScenarioModalOpen(false)}
+          onClose={() => closeModal('scenario')}
           onSelect={(name) => {
             onScenarioNameChange(name);
-            setScenarioModalOpen(false);
+            closeModal('scenario');
           }}
         />
         <TemplateModal
-          open={templateModalOpen}
+          open={modals.template}
           selectedTemplate={selectedTemplate}
-          onClose={() => setTemplateModalOpen(false)}
+          onClose={() => closeModal('template')}
           onSelect={(template) => {
             onTemplateChange(template);
-            setTemplateModalOpen(false);
+            closeModal('template');
           }}
         />
         <FrameworkModal
-          open={frameworkModalOpen}
+          open={modals.framework}
           selectedFramework={framework}
-          onClose={() => setFrameworkModalOpen(false)}
+          onClose={() => closeModal('framework')}
           onSelect={(nextFramework) => {
             setFramework(nextFramework);
-            setFrameworkModalOpen(false);
+            closeModal('framework');
           }}
         />
         <DeploymentModal
-          open={deploymentModalOpen}
+          open={modals.deployment}
           deploymentMode={deploymentMode}
           serverType={serverType}
           allowedServerTypes={allowedServerTypes}
-          onClose={() => setDeploymentModalOpen(false)}
+          onClose={() => closeModal('deployment')}
           onChange={(nextMode, nextServerType) => {
             handleDeploymentChange(nextMode);
             if (nextServerType) {

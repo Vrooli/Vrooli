@@ -55,6 +55,12 @@ type Store interface {
 	// Get retrieves a pipeline status by ID.
 	Get(pipelineID string) (*Status, bool)
 
+	// GetByIdempotencyKey retrieves a pipeline status by idempotency key.
+	// Returns nil, false if no pipeline exists with the given key.
+	// Used to enable safe retries where the same request returns the existing pipeline
+	// instead of starting a new one.
+	GetByIdempotencyKey(key string) (*Status, bool)
+
 	// Update updates a pipeline status using a modifier function.
 	Update(pipelineID string, fn func(status *Status)) bool
 

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // mockRecordStore implements RecordStore for testing.
@@ -559,7 +561,7 @@ func TestWriteJSON(t *testing.T) {
 	rr := httptest.NewRecorder()
 	data := map[string]string{"test": "value"}
 
-	writeJSON(rr, http.StatusOK, data)
+	httputil.WriteJSON(rr, http.StatusOK, data)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d", rr.Code)

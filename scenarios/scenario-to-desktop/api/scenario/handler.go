@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	httputil "scenario-to-desktop-api/shared/http"
+	pathutil "scenario-to-desktop-api/shared/path"
 )
 
 // Handler provides HTTP handlers for scenario endpoints.
@@ -37,11 +40,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vrooliRoot := h.vrooliRoot
 	if vrooliRoot == "" {
-		vrooliRoot = os.Getenv("VROOLI_ROOT")
-	}
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
+		vrooliRoot = pathutil.DetectVrooliRoot()
 	}
 
 	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
@@ -153,7 +152,7 @@ func (h *Handler) DesktopStatusHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, ListResponse{
+	httputil.WriteJSON(w, http.StatusOK, ListResponse{
 		Scenarios: scenarios,
 		Stats: &ScenarioStats{
 			Total:       len(scenarios),
@@ -305,11 +304,4 @@ func uniqueStrings(s []string) []string {
 		}
 	}
 	return result
-}
-
-// writeJSON writes a JSON response.
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
 }

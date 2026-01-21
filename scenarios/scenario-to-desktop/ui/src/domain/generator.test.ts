@@ -4,8 +4,7 @@ import {
   computeStandardOutputPath,
   computeStagingPreviewPath,
   getSelectedPlatforms,
-  resolveEndpoints,
-  validateGeneratorInputs
+  resolveEndpoints
 } from "./generator";
 import { decideConnection } from "./deployment";
 
@@ -14,76 +13,6 @@ describe("generator domain", () => {
     const platforms = getSelectedPlatforms({ win: true, mac: false, linux: true });
 
     expect(platforms).toEqual(["win", "linux"]);
-  });
-
-  it("validates required inputs based on deployment decision", () => {
-    const remoteDecision = decideConnection("external-server", "external");
-    const bundledDecision = decideConnection("bundled", "external");
-
-    expect(
-      validateGeneratorInputs({
-        selectedPlatforms: [],
-        decision: remoteDecision,
-        bundleManifestPath: "",
-        proxyUrl: "",
-        appDisplayName: "App",
-        appDescription: "Desc",
-        locationMode: "proper",
-        outputPath: ""
-      })
-    ).toBe("Please select at least one target platform");
-
-    expect(
-      validateGeneratorInputs({
-        selectedPlatforms: ["win"],
-        decision: remoteDecision,
-        bundleManifestPath: "",
-        proxyUrl: "",
-        appDisplayName: "App",
-        appDescription: "Desc",
-        locationMode: "proper",
-        outputPath: ""
-      })
-    ).toBe("Provide the proxy URL you use in the browser (for example https://app-monitor.example.com/apps/<scenario>/proxy/).");
-
-    expect(
-      validateGeneratorInputs({
-        selectedPlatforms: ["win"],
-        decision: bundledDecision,
-        bundleManifestPath: "",
-        proxyUrl: "https://example.com/proxy/",
-        appDisplayName: "App",
-        appDescription: "Desc",
-        locationMode: "proper",
-        outputPath: ""
-      })
-    ).toBe("Provide bundle_manifest_path from deployment-manager before generating a bundled build.");
-
-    expect(
-      validateGeneratorInputs({
-        selectedPlatforms: ["win"],
-        decision: remoteDecision,
-        bundleManifestPath: "",
-        proxyUrl: "https://example.com/proxy/",
-        appDisplayName: "App",
-        appDescription: "Desc",
-        locationMode: "custom",
-        outputPath: ""
-      })
-    ).toBe("Provide an output path when choosing a custom location.");
-
-    expect(
-      validateGeneratorInputs({
-        selectedPlatforms: ["win"],
-        decision: remoteDecision,
-        bundleManifestPath: "",
-        proxyUrl: "https://example.com/proxy/",
-        appDisplayName: "App",
-        appDescription: "Desc",
-        locationMode: "proper",
-        outputPath: ""
-      })
-    ).toBeNull();
   });
 
   it("resolves endpoints based on deployment mode", () => {

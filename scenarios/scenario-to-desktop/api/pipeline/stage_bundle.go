@@ -99,20 +99,21 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		scenarioPath = filepath.Join(s.scenarioRoot, input.Config.ScenarioName)
 	}
 
+	// Determine framework (default to electron)
+	framework := input.Config.Framework
+	if framework == "" {
+		framework = "electron"
+	}
+
 	// Determine manifest path
 	manifestPath := input.Config.BundleManifestPath
 	if manifestPath == "" {
-		manifestPath = filepath.Join(scenarioPath, "bundle", "bundle.json")
+		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")
 	}
 
-	// Check if manifest exists, generate if not
-	if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-		if s.manifestGenerator == nil {
-			failStage(result, s.timeProvider, fmt.Sprintf("bundle manifest not found: %s (no generator configured)", manifestPath))
-			return result
-		}
-
-		result.Logs = append(result.Logs, "Manifest not found, generating via deployment-manager...")
+	// Always regenerate manifest for fresh detection when generator is configured
+	if s.manifestGenerator != nil {
+		appendInfo(result, "Generating manifest via deployment-manager...")
 
 		// Generate manifest
 		outputDir := filepath.Dir(manifestPath)
@@ -123,11 +124,15 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		}
 
 		manifestPath = generatedPath
-		result.Logs = append(result.Logs, fmt.Sprintf("Generated manifest: %s", manifestPath))
+		appendInfo(result, "Generated manifest: %s", manifestPath)
+	} else if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+		// No generator configured and manifest doesn't exist - fail
+		failStage(result, s.timeProvider, fmt.Sprintf("bundle manifest not found: %s (no generator configured)", manifestPath))
+		return result
 	}
 
-	result.Logs = append(result.Logs, fmt.Sprintf("Using manifest: %s", manifestPath))
-	result.Logs = append(result.Logs, fmt.Sprintf("Packaging for platforms: %v", input.Config.Platforms))
+	appendInfo(result, "Using manifest: %s", manifestPath)
+	appendInfo(result, "Packaging for platforms: %v", input.Config.Platforms)
 
 	// Check for packager
 	if s.packager == nil {
@@ -136,7 +141,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	}
 
 	// Run the packager
-	packageResult, err := s.packager.Package(scenarioPath, manifestPath, input.Config.Platforms)
+	packageResult, err := s.packager.Package(scenarioPath, manifestPath, framework, input.Config.Platforms)
 	if err != nil {
 		failStage(result, s.timeProvider, fmt.Sprintf("bundle packaging failed: %v", err))
 		return result
@@ -145,17 +150,14 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	// Update input for next stage
 	input.BundleResult = packageResult
 
-	completeStage(result, s.timeProvider, packageResult)
-	result.Logs = append(result.Logs,
-		fmt.Sprintf("Bundle created: %s", packageResult.BundleDir),
-		fmt.Sprintf("Total size: %s", packageResult.TotalSizeHuman),
-	)
+	appendInfo(result, "Bundle created: %s", packageResult.BundleDir)
+	appendInfo(result, "Total size: %s", packageResult.TotalSizeHuman)
 
 	if packageResult.SizeWarning != nil {
-		result.Logs = append(result.Logs,
-			fmt.Sprintf("Warning: %s", packageResult.SizeWarning.Message),
-		)
+		appendWarn(result, "Bundle size warning: %s", packageResult.SizeWarning.Message)
 	}
+
+	completeStage(result, s.timeProvider, packageResult)
 
 	return result
 }

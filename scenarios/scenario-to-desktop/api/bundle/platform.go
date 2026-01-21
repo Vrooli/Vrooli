@@ -117,6 +117,8 @@ func expandShorthandToHostArch(platform string) (string, string) {
 	}
 
 	switch platform {
+	case "linux":
+		return "linux", goarch
 	case "win", "windows":
 		return "windows", goarch
 	case "mac", "darwin":

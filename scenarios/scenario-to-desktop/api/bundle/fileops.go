@@ -89,7 +89,7 @@ func (f *defaultFileOperations) CopyPath(src, dst string) error {
 	return f.CopyFile(src, dst)
 }
 
-// copyDir recursively copies a directory from src to dst.
+// copyDir recursively copies a directory from src to dst, preserving symlinks.
 func (f *defaultFileOperations) copyDir(src, dst string, mode fs.FileMode) error {
 	if err := os.MkdirAll(dst, mode.Perm()); err != nil {
 		return err
@@ -107,6 +107,21 @@ func (f *defaultFileOperations) copyDir(src, dst string, mode fs.FileMode) error
 		if err != nil {
 			return err
 		}
+
+		// Handle symlinks
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			// Remove existing file/symlink if it exists
+			_ = os.Remove(target)
+			return os.Symlink(linkTarget, target)
+		}
+
 		if d.IsDir() {
 			return os.MkdirAll(target, info.Mode().Perm())
 		}

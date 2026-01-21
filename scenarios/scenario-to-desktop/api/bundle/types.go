@@ -2,13 +2,14 @@ package bundle
 
 // PackageResult represents the result of a bundle packaging operation.
 type PackageResult struct {
-	BundleDir       string
-	ManifestPath    string
-	RuntimeBinaries map[string]string
-	CopiedArtifacts []string
-	TotalSizeBytes  int64
-	TotalSizeHuman  string
-	SizeWarning     *SizeWarning
+	BundleDir       string                 `json:"bundle_dir"`
+	ManifestPath    string                 `json:"manifest_path"`
+	ManifestContent map[string]interface{} `json:"manifest_content,omitempty"`
+	RuntimeBinaries map[string]string      `json:"runtime_binaries,omitempty"`
+	CopiedArtifacts []string               `json:"copied_artifacts,omitempty"`
+	TotalSizeBytes  int64                  `json:"total_size_bytes"`
+	TotalSizeHuman  string                 `json:"total_size_human"`
+	SizeWarning     *SizeWarning           `json:"size_warning,omitempty"`
 }
 
 // SizeWarning represents a warning about bundle size.

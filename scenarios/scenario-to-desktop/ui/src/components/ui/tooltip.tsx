@@ -26,7 +26,8 @@ interface TooltipTriggerProps {
   asChild?: boolean;
 }
 
-export function TooltipTrigger({ children, asChild }: TooltipTriggerProps) {
+// Note: asChild is part of the interface for API compatibility but not currently used in this implementation
+export function TooltipTrigger({ children }: TooltipTriggerProps) {
   return <div className="peer cursor-pointer">{children}</div>;
 }
 

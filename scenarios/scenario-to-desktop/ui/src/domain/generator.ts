@@ -4,7 +4,7 @@
  */
 
 import type { ConnectionDecision, DeploymentMode, ServerType } from "./deployment";
-import type { DesktopConfig, SigningConfig } from "../lib/api";
+import type { DesktopConfig, SigningConfig, BundlePreflightResponse } from "../lib/api";
 
 export type PlatformSelection = {
   win: boolean;
@@ -43,15 +43,36 @@ export interface BuildDesktopConfigOptions {
   codeSigning?: SigningConfig;
 }
 
-export interface ValidateGeneratorInputsOptions {
+/**
+ * Validation error with field association for UI feedback.
+ * Part of the domain layer - consumed by presentation components.
+ */
+export interface ValidationError {
+  id: string;
+  message: string;
+  field?: string;
+}
+
+/**
+ * Parameters for comprehensive form validation.
+ */
+export interface ValidateFormInputsParams {
+  scenarioName: string;
   selectedPlatforms: string[];
-  decision: ConnectionDecision;
+  isBundled: boolean;
+  requiresProxyUrl: boolean;
   bundleManifestPath: string;
   proxyUrl: string;
   appDisplayName: string;
   appDescription: string;
-  locationMode: OutputLocation;
+  locationMode: string;
   outputPath: string;
+  preflightResult: BundlePreflightResponse | null | undefined;
+  preflightOk: boolean;
+  preflightOverride: boolean;
+  signingEnabledForBuild: boolean;
+  signingConfig: { enabled?: boolean } | null | undefined;
+  signingReadiness: { ready?: boolean; issues?: string[] } | undefined;
 }
 
 export const TEMPLATE_SUMMARIES: Record<string, { name: string; description: string }> = {
@@ -78,35 +99,125 @@ export function getSelectedPlatforms(platforms: PlatformSelection): string[] {
 }
 
 /**
- * Validate generator form inputs before submission.
- * Returns an error message string if validation fails, null if valid.
+ * Comprehensive form validation with field associations.
+ * Returns an array of ValidationError objects for UI feedback.
+ * This is the canonical validation function - presentation layer components should use this.
+ *
+ * ASSUMPTION: params is a valid object with all required fields. TypeScript ensures this at compile time,
+ * but runtime guards are added for defensive programming against invalid data from API responses or JSON parsing.
  */
-export function validateGeneratorInputs(options: ValidateGeneratorInputsOptions): string | null {
-  if (options.selectedPlatforms.length === 0) {
-    return "Please select at least one target platform";
+export function validateFormInputs(params: ValidateFormInputsParams): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // Defensive guard: ensure params is valid
+  if (!params || typeof params !== "object") {
+    return [{ id: "invalid-params", message: "Internal error: invalid form parameters", field: undefined }];
   }
 
-  if (!options.appDisplayName.trim()) {
-    return "Provide an app display name so installers and windows are branded correctly.";
+  // Scenario selection
+  if (!params.scenarioName) {
+    errors.push({
+      id: "no-scenario",
+      message: "Please select a scenario before generating a desktop app.",
+      field: "scenarioName",
+    });
   }
 
-  if (!options.appDescription.trim()) {
-    return "Provide a short description for the generated desktop app.";
+  // Platform selection - guard against undefined/null array
+  const platforms = params.selectedPlatforms ?? [];
+  if (!Array.isArray(platforms) || platforms.length === 0) {
+    errors.push({
+      id: "no-platforms",
+      message: "Select at least one target platform (Windows, macOS, or Linux).",
+      field: "platforms",
+    });
   }
 
-  if (options.decision.requiresBundleManifest && !options.bundleManifestPath) {
-    return "Provide bundle_manifest_path from deployment-manager before generating a bundled build.";
+  // Bundled mode requirements
+  if (params.isBundled) {
+    // Guard against undefined bundleManifestPath
+    const manifestPath = params.bundleManifestPath ?? "";
+    if (typeof manifestPath !== "string" || !manifestPath.trim()) {
+      errors.push({
+        id: "no-bundle-manifest",
+        message: "Provide a bundle manifest path for bundled runtime mode.",
+        field: "bundleManifestPath",
+      });
+    }
+
+    if (!params.preflightResult) {
+      errors.push({
+        id: "no-preflight",
+        message: "Run preflight validation before generating a bundled desktop app.",
+        field: "preflight",
+      });
+    } else if (!params.preflightOk && !params.preflightOverride) {
+      errors.push({
+        id: "preflight-failed",
+        message: "Preflight validation failed. Fix the issues or enable override to continue.",
+        field: "preflight",
+      });
+    }
   }
 
-  if (options.decision.requiresProxyUrl && !options.proxyUrl) {
-    return "Provide the proxy URL you use in the browser (for example https://app-monitor.example.com/apps/<scenario>/proxy/).";
+  // Remote server requirements - guard against undefined proxyUrl
+  const proxyUrl = params.proxyUrl ?? "";
+  if (params.requiresProxyUrl && (typeof proxyUrl !== "string" || !proxyUrl.trim())) {
+    errors.push({
+      id: "no-proxy-url",
+      message: "Provide a proxy URL for remote server mode.",
+      field: "proxyUrl",
+    });
   }
 
-  if (options.locationMode === "custom" && !options.outputPath.trim()) {
-    return "Provide an output path when choosing a custom location.";
+  // App metadata - guard against undefined/null values
+  const displayName = params.appDisplayName ?? "";
+  if (typeof displayName !== "string" || !displayName.trim()) {
+    errors.push({
+      id: "no-display-name",
+      message: "Provide an app display name.",
+      field: "appDisplayName",
+    });
   }
 
-  return null;
+  const description = params.appDescription ?? "";
+  if (typeof description !== "string" || !description.trim()) {
+    errors.push({
+      id: "no-description",
+      message: "Provide an app description.",
+      field: "appDescription",
+    });
+  }
+
+  // Custom output path - guard against undefined/null values
+  const outputPath = params.outputPath ?? "";
+  if (params.locationMode === "custom" && (typeof outputPath !== "string" || !outputPath.trim())) {
+    errors.push({
+      id: "no-output-path",
+      message: "Provide an output path when using custom location mode.",
+      field: "outputPath",
+    });
+  }
+
+  // Signing
+  if (params.signingEnabledForBuild) {
+    if (!params.signingConfig || !params.signingConfig.enabled) {
+      errors.push({
+        id: "no-signing-config",
+        message: "Signing is enabled but no signing config is saved. Open the Signing tab to add certificates.",
+        field: "signing",
+      });
+    } else if (params.signingReadiness && !params.signingReadiness.ready) {
+      const issue = params.signingReadiness.issues?.[0] || "Signing prerequisites not met.";
+      errors.push({
+        id: "signing-not-ready",
+        message: `Signing is not ready: ${issue}`,
+        field: "signing",
+      });
+    }
+  }
+
+  return errors;
 }
 
 /**

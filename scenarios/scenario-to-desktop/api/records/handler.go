@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	httputil "scenario-to-desktop-api/shared/http"
 	"scenario-to-desktop-api/shared/validation"
 )
 
@@ -94,7 +95,7 @@ func (h *Handler) ListHandler(w http.ResponseWriter, r *http.Request) {
 		results = append(results, item)
 	}
 
-	writeJSON(w, http.StatusOK, ListResponse{Records: results})
+	httputil.WriteJSON(w, http.StatusOK, ListResponse{Records: results})
 }
 
 // MoveHandler moves a generated desktop wrapper from its current path to a destination.
@@ -182,7 +183,7 @@ func (h *Handler) MoveHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	writeJSON(w, http.StatusOK, MoveResult{
+	httputil.WriteJSON(w, http.StatusOK, MoveResult{
 		RecordID: recordID,
 		From:     absSrc,
 		To:       absDest,
@@ -259,18 +260,11 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		message = fmt.Sprintf("Desktop version of '%s' was already missing; cleaned up record state.", scenarioName)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"status":          "success",
 		"scenario_name":   scenarioName,
 		"deleted_path":    desktopPath,
 		"removed_records": removedRecords,
 		"message":         message,
 	})
-}
-
-// writeJSON writes a JSON response.
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
 }

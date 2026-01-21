@@ -125,10 +125,12 @@ func TestBundleExtraExists(t *testing.T) {
 }
 
 func TestEnsureBundleExtraResources(t *testing.T) {
-	t.Run("package.json not found", func(t *testing.T) {
+	t.Run("package.json not found returns nil", func(t *testing.T) {
+		// ensureBundleExtraResources gracefully handles missing package.json
+		// (e.g., Go-only scenarios don't have package.json)
 		err := ensureBundleExtraResources("/nonexistent/path")
-		if err == nil {
-			t.Error("expected error for nonexistent path")
+		if err != nil {
+			t.Errorf("expected no error for nonexistent path, got: %v", err)
 		}
 	})
 

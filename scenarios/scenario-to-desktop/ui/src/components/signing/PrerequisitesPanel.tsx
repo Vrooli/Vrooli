@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle, XCircle, AlertCircle, Wrench, RefreshCw, Info } from "lucide-react";
 import type { ToolDetectionResult } from "../../lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { SectionCard } from "../sections/shared";
 import { cn } from "../../lib/utils";
 
 interface PrerequisitesPanelProps {
@@ -108,14 +108,7 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
   if (!tools || tools.length === 0) {
     const platforms: PlatformKey[] = ["windows", "macos", "linux"];
     return (
-      <Card className="border-slate-800/80 bg-slate-900/70">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-slate-400" />
-            Signing Tools
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <SectionCard title="Signing Tools" icon={Wrench} contentClassName="space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-amber-200 flex items-center gap-2">
@@ -177,11 +170,10 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
             </div>
           )}
 
-          <p className="text-xs text-slate-500">
-            Need full details? See SIGNING.md for platform requirements and notarization/EV notes.
-          </p>
-        </CardContent>
-      </Card>
+        <p className="text-xs text-slate-500">
+          Need full details? See SIGNING.md for platform requirements and notarization/EV notes.
+        </p>
+      </SectionCard>
     );
   }
 
@@ -199,14 +191,7 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
   const sortedPlatforms = platformOrder.filter(p => toolsByPlatform[p]);
 
   return (
-    <Card className="border-slate-800/80 bg-slate-900/70">
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Wrench className="h-5 w-5 text-slate-400" />
-          Signing Tools
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SectionCard title="Signing Tools" icon={Wrench} contentClassName="space-y-4">
         <p className="text-sm text-slate-400">
           The following signing tools have been detected on this system:
         </p>
@@ -229,23 +214,22 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
           ))}
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 pt-3 border-t border-slate-800 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <CheckCircle className="h-3 w-3 text-green-400" />
-            Installed
-          </span>
-          <span className="flex items-center gap-1">
-            <XCircle className="h-3 w-3 text-slate-500" />
-            Not found
-          </span>
-          <span className="flex items-center gap-1">
-            <AlertCircle className="h-3 w-3 text-amber-400" />
-            Issue detected
-          </span>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Legend */}
+      <div className="flex items-center gap-4 pt-3 border-t border-slate-800 text-xs text-slate-500">
+        <span className="flex items-center gap-1">
+          <CheckCircle className="h-3 w-3 text-green-400" />
+          Installed
+        </span>
+        <span className="flex items-center gap-1">
+          <XCircle className="h-3 w-3 text-slate-500" />
+          Not found
+        </span>
+        <span className="flex items-center gap-1">
+          <AlertCircle className="h-3 w-3 text-amber-400" />
+          Issue detected
+        </span>
+      </div>
+    </SectionCard>
   );
 }
 

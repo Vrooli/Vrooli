@@ -96,9 +96,13 @@ func NewPackager(opts ...PackagerOption) *DefaultPackager {
 }
 
 // Package packages a bundle from the given app path and manifest.
-func (p *DefaultPackager) Package(appPath, manifestPath string, requestedPlatforms []string) (*PackageResult, error) {
+// framework specifies the target framework (e.g., "electron") which determines the bundle output path.
+func (p *DefaultPackager) Package(appPath, manifestPath, framework string, requestedPlatforms []string) (*PackageResult, error) {
 	if appPath == "" || manifestPath == "" {
 		return nil, errors.New("app_path and bundle_manifest_path are required")
+	}
+	if framework == "" {
+		framework = "electron" // Default framework
 	}
 
 	appAbs, err := filepath.Abs(appPath)
@@ -134,7 +138,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath string, requestedPlatfor
 		return nil, err
 	}
 
-	bundleDir := filepath.Join(appAbs, "bundle")
+	bundleDir := filepath.Join(appAbs, "platforms", framework, "bundle")
 	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create bundle dir: %w", err)
 	}
@@ -149,6 +153,11 @@ func (p *DefaultPackager) Package(appPath, manifestPath string, requestedPlatfor
 	copied = append(copied, destManifest)
 
 	for _, svc := range m.Services {
+		// Skip UI services - Electron handles UI bundling separately
+		if isUIService(svc.Type) {
+			continue
+		}
+
 		for _, platform := range platforms {
 			bin, ok := p.platform.ResolveBinaryForPlatform(svc, platform)
 			var src string
@@ -174,8 +183,8 @@ func (p *DefaultPackager) Package(appPath, manifestPath string, requestedPlatfor
 					return nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
 				}
 
-				// Compile the service binary
-				compiledPath, err := p.serviceCompiler.Compile(svc, platform, manifestRoot)
+				// Compile the service binary (source dirs are relative to scenario root, not manifest)
+				compiledPath, err := p.serviceCompiler.Compile(svc, platform, appAbs)
 				if err != nil {
 					return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
 				}
@@ -268,9 +277,16 @@ func (p *DefaultPackager) Package(appPath, manifestPath string, requestedPlatfor
 	totalSize, largeFiles := p.sizeCalculator.Calculate(bundleDir)
 	sizeWarning := p.sizeCalculator.CheckWarning(totalSize, largeFiles)
 
+	// Read manifest content for inclusion in response
+	var manifestContent map[string]interface{}
+	if manifestData, readErr := os.ReadFile(destManifest); readErr == nil {
+		_ = json.Unmarshal(manifestData, &manifestContent)
+	}
+
 	return &PackageResult{
 		BundleDir:       bundleDir,
 		ManifestPath:    destManifest,
+		ManifestContent: manifestContent,
 		RuntimeBinaries: runtimeBinaries,
 		CopiedArtifacts: copied,
 		TotalSizeBytes:  totalSize,
@@ -291,6 +307,10 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 		return errors.New("manifest requires at least one service")
 	}
 	for _, svc := range m.Services {
+		// Skip UI services - Electron handles UI bundling separately
+		if isUIService(svc.Type) {
+			continue
+		}
 		for _, platform := range platforms {
 			_, hasBinary := p.platform.ResolveBinaryForPlatform(svc, platform)
 			hasBuild := svc.Build != nil && svc.Build.Type != ""
@@ -303,6 +323,17 @@ func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifes
 }
 
 // Helper functions
+
+// isUIService returns true if the service type indicates a UI/frontend service
+// that should be skipped during bundling (Electron handles these separately).
+func isUIService(serviceType string) bool {
+	switch serviceType {
+	case "ui", "ui-bundle", "frontend", "web":
+		return true
+	default:
+		return false
+	}
+}
 
 func collectPlatforms(m bundlemanifest.Manifest) []string {
 	seen := map[string]bool{}
@@ -340,6 +371,12 @@ func resolveBundlePath(fileOps FileOperations, root, rel string) (string, error)
 
 func ensureBundleExtraResources(appDir string) error {
 	pkgPath := filepath.Join(appDir, "package.json")
+
+	// Skip if no package.json (Go-only scenarios, etc.)
+	if _, err := os.Stat(pkgPath); os.IsNotExist(err) {
+		return nil
+	}
+
 	data, err := os.ReadFile(pkgPath)
 	if err != nil {
 		return fmt.Errorf("read package.json: %w", err)

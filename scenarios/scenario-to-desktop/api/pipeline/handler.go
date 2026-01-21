@@ -1,11 +1,14 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"scenario-to-desktop-api/shared/errors"
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // Handler provides HTTP handlers for pipeline operations.
@@ -63,27 +66,32 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 // handleRun handles POST /api/v1/pipeline/run
 func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
-		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
 		return
 	}
 
 	// Parse request body
 	var config Config
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		h.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
+		httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
+			WithCause(err).
+			WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
 		return
 	}
 
 	// Validate required fields
 	if config.ScenarioName == "" {
-		h.writeError(w, http.StatusBadRequest, "scenario_name is required")
+		httputil.WriteError(w, errors.ErrPipelineScenarioRequired())
 		return
 	}
 
-	// Start pipeline
-	status, err := h.orchestrator.RunPipeline(r.Context(), &config)
+	// Start pipeline with background context - the pipeline runs asynchronously
+	// and should not be cancelled when the HTTP request completes
+	status, err := h.orchestrator.RunPipeline(context.Background(), &config)
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, fmt.Sprintf("failed to start pipeline: %v", err))
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to start pipeline").
+			InDomain("pipeline").
+			WithRecovery(errors.RecoveryRetry, "Check the configuration and try again"))
 		return
 	}
 
@@ -97,14 +105,14 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		Message:    "Pipeline started successfully",
 	}
 
-	h.writeJSON(w, http.StatusAccepted, response)
+	httputil.WriteJSONAccepted(w, response)
 }
 
 // handleGetStatus handles GET /api/v1/pipeline/{id}
 // Supports ?verbose=true to include stage Details and Logs (default: false for minimal response)
 func (h *Handler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
-		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
 		return
 	}
 
@@ -114,7 +122,7 @@ func (h *Handler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	// Get status
 	status, ok := h.orchestrator.GetStatus(pipelineID)
 	if !ok {
-		h.writeError(w, http.StatusNotFound, fmt.Sprintf("pipeline not found: %s", pipelineID))
+		httputil.WriteError(w, errors.ErrPipelineNotFound(pipelineID))
 		return
 	}
 
@@ -124,13 +132,13 @@ func (h *Handler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 		status = stripVerboseFields(status)
 	}
 
-	h.writeJSON(w, http.StatusOK, status)
+	httputil.WriteJSONOK(w, status)
 }
 
 // handleResume handles POST /api/v1/pipeline/{id}/resume
 func (h *Handler) handleResume(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
-		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
 		return
 	}
 
@@ -138,27 +146,35 @@ func (h *Handler) handleResume(w http.ResponseWriter, r *http.Request) {
 	pipelineID := vars["id"]
 
 	// Parse optional request body for overrides
+	// Note: ContentLength can be -1 for chunked transfer encoding, so we try to decode
+	// regardless and only treat empty body as "no config provided"
 	var resumeConfig *Config
-	if r.ContentLength > 0 {
+	if r.ContentLength != 0 && r.Body != nil {
 		var config Config
 		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-			h.writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid request body: %v", err))
-			return
+			// EOF means empty body (e.g., POST with no content) - this is OK, proceed without config
+			if err.Error() != "EOF" {
+				httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
+					WithCause(err).
+					WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
+				return
+			}
+		} else {
+			resumeConfig = &config
 		}
-		resumeConfig = &config
 	}
 
-	// Resume the pipeline
-	status, err := h.orchestrator.ResumePipeline(r.Context(), pipelineID, resumeConfig)
+	// Resume the pipeline with background context - the pipeline runs asynchronously
+	// and should not be cancelled when the HTTP request completes
+	status, err := h.orchestrator.ResumePipeline(context.Background(), pipelineID, resumeConfig)
 	if err != nil {
-		// Determine error type for appropriate status code
-		errMsg := err.Error()
-		if errMsg == fmt.Sprintf("pipeline not found: %s", pipelineID) {
-			h.writeError(w, http.StatusNotFound, errMsg)
+		// Check for domain errors from orchestrator
+		if de, ok := errors.IsDomainError(err); ok {
+			httputil.WriteError(w, de)
 			return
 		}
-		// Other errors are bad request (invalid resume state)
-		h.writeError(w, http.StatusBadRequest, errMsg)
+		// Fallback for non-domain errors
+		httputil.WriteError(w, errors.ErrPipelineNotResumable(pipelineID, err.Error()))
 		return
 	}
 
@@ -174,13 +190,13 @@ func (h *Handler) handleResume(w http.ResponseWriter, r *http.Request) {
 		Message:          fmt.Sprintf("Pipeline resumed from stage: %s", status.Config.ResumeFromStage),
 	}
 
-	h.writeJSON(w, http.StatusAccepted, response)
+	httputil.WriteJSONAccepted(w, response)
 }
 
 // handleCancel handles POST /api/v1/pipeline/{id}/cancel
 func (h *Handler) handleCancel(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
-		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
 		return
 	}
 
@@ -193,11 +209,11 @@ func (h *Handler) handleCancel(w http.ResponseWriter, r *http.Request) {
 		// Check if it exists
 		status, ok := h.orchestrator.GetStatus(pipelineID)
 		if !ok {
-			h.writeError(w, http.StatusNotFound, fmt.Sprintf("pipeline not found: %s", pipelineID))
+			httputil.WriteError(w, errors.ErrPipelineNotFound(pipelineID))
 			return
 		}
 		if status.IsComplete() {
-			h.writeJSON(w, http.StatusOK, CancelResponse{
+			httputil.WriteJSONOK(w, CancelResponse{
 				Status:  status.Status,
 				Message: "Pipeline has already completed",
 			})
@@ -205,7 +221,7 @@ func (h *Handler) handleCancel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h.writeJSON(w, http.StatusOK, CancelResponse{
+	httputil.WriteJSONOK(w, CancelResponse{
 		Status:  "cancelling",
 		Message: "Pipeline cancellation requested",
 	})
@@ -214,26 +230,14 @@ func (h *Handler) handleCancel(w http.ResponseWriter, r *http.Request) {
 // handleList handles GET /api/v1/pipelines
 func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
-		h.writeError(w, http.StatusInternalServerError, "pipeline orchestrator not configured")
+		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
 		return
 	}
 
 	pipelines := h.orchestrator.ListPipelines()
-	h.writeJSON(w, http.StatusOK, ListResponse{
+	httputil.WriteJSONOK(w, ListResponse{
 		Pipelines: pipelines,
 	})
-}
-
-// writeJSON writes a JSON response.
-func (h *Handler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
-}
-
-// writeError writes an error response.
-func (h *Handler) writeError(w http.ResponseWriter, status int, message string) {
-	h.writeJSON(w, status, map[string]string{"error": message})
 }
 
 // stripVerboseFields returns a copy of the status with Details and Logs removed from each stage.

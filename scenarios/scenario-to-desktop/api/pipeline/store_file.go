@@ -73,6 +73,14 @@ func (s *FileStore) Get(pipelineID string) (*Status, bool) {
 	return s.mem.Get(pipelineID)
 }
 
+// GetByIdempotencyKey retrieves a pipeline status by idempotency key.
+// Delegates to the underlying in-memory store.
+func (s *FileStore) GetByIdempotencyKey(key string) (*Status, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.mem.GetByIdempotencyKey(key)
+}
+
 // Update updates a pipeline status using a modifier function.
 func (s *FileStore) Update(pipelineID string, fn func(status *Status)) bool {
 	s.mu.Lock()

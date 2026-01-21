@@ -6,6 +6,7 @@ import { fetchDocContent, fetchDocsManifest } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { cn } from "../../lib/utils";
 import { logger } from "../../lib/logger";
+import { writeToClipboard } from "../../lib/browser";
 
 function findDocTitle(manifest: DocsManifest | undefined, path: string | null): string {
   if (!manifest || !path) return "Document";
@@ -291,7 +292,7 @@ export function DocsPanel({ initialPath, onPathChange }: DocsPanelProps) {
                   className="rounded-md border border-slate-800 bg-slate-900 px-3 py-1 text-xs text-slate-200 hover:border-blue-700 hover:text-white"
                   onClick={() => {
                     if (selectedPath) {
-                      navigator.clipboard?.writeText(selectedPath).catch(() => {});
+                      writeToClipboard(selectedPath);
                     }
                   }}
                   disabled={!selectedPath}

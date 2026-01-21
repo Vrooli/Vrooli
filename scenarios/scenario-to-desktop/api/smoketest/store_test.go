@@ -434,20 +434,18 @@ func TestService_PerformSmokeTest_NonexistentArtifact(t *testing.T) {
 	}
 }
 
-// Interface tests
+// Interface tests - verify concrete types implement the interfaces at compile time
 
 func TestSmokeTestStore_Interface(t *testing.T) {
-	var store Store = NewInMemoryStore()
-	if store == nil {
-		t.Errorf("expected Store interface to be implemented")
-	}
+	// Compile-time interface check
+	var _ Store = NewInMemoryStore()
+	// If this compiles, the interface is implemented correctly
 }
 
 func TestCancelManager_Interface(t *testing.T) {
-	var cm CancelManager = NewCancelManager()
-	if cm == nil {
-		t.Errorf("expected CancelManager interface to be implemented")
-	}
+	// Compile-time interface check
+	var _ CancelManager = NewCancelManager()
+	// If this compiles, the interface is implemented correctly
 }
 
 // NoopLogger test

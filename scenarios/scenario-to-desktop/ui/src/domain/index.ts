@@ -9,6 +9,7 @@
 export * from "./types";
 
 // Domain logic modules
+export * from "./build";
 export * from "./deployment";
 export * from "./download";
 export * from "./generator";

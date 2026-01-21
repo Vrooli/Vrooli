@@ -404,21 +404,21 @@ func TestPackager_Package_Validation(t *testing.T) {
 	packager := NewPackager()
 
 	t.Run("empty app path", func(t *testing.T) {
-		_, err := packager.Package("", "/manifest.json", nil)
+		_, err := packager.Package("", "/manifest.json", "electron", nil)
 		if err == nil {
 			t.Errorf("expected error for empty app path")
 		}
 	})
 
 	t.Run("empty manifest path", func(t *testing.T) {
-		_, err := packager.Package("/app", "", nil)
+		_, err := packager.Package("/app", "", "electron", nil)
 		if err == nil {
 			t.Errorf("expected error for empty manifest path")
 		}
 	})
 
 	t.Run("nonexistent app path", func(t *testing.T) {
-		_, err := packager.Package("/nonexistent/app", "/manifest.json", nil)
+		_, err := packager.Package("/nonexistent/app", "/manifest.json", "electron", nil)
 		if err == nil {
 			t.Errorf("expected error for nonexistent app path")
 		}

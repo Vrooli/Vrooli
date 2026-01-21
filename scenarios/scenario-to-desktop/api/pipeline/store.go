@@ -36,6 +36,24 @@ func (s *InMemoryStore) Get(pipelineID string) (*Status, bool) {
 	return status, ok
 }
 
+// GetByIdempotencyKey retrieves a pipeline status by idempotency key.
+// Returns nil, false if no pipeline exists with the given key.
+// Used to enable safe retries where the same request returns the existing pipeline
+// instead of starting a new one.
+func (s *InMemoryStore) GetByIdempotencyKey(key string) (*Status, bool) {
+	if key == "" {
+		return nil, false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, status := range s.statuses {
+		if status.IdempotencyKey == key {
+			return status, true
+		}
+	}
+	return nil, false
+}
+
 // Update updates a pipeline status using a modifier function.
 func (s *InMemoryStore) Update(pipelineID string, fn func(status *Status)) bool {
 	s.mu.Lock()

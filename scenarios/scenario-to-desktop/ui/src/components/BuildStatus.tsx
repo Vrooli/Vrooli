@@ -1,30 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   getPipelineStatus,
   type BuildStatus as BuildStatusType,
-  type GenerateStageDetails,
-  type BuildStageDetails,
 } from "../lib/api";
+import {
+  BUILD_STAGES,
+  calculateBuildProgress,
+  getBuildStageStatuses,
+  pipelineStatusToBuildStatus,
+} from "../domain/build";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { CheckCircle, Loader2 } from "lucide-react";
-
-/** Maps pipeline status to UI-friendly status */
-function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
-  switch (status) {
-    case "pending":
-    case "running":
-      return "building";
-    case "completed":
-      return "ready";
-    case "failed":
-    case "cancelled":
-      return "failed";
-    default:
-      return "building";
-  }
-}
 
 interface BuildStatusProps {
   buildId: string | null;
@@ -46,38 +34,11 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
     }
   });
 
-  // Map pipeline status to UI-friendly build status
-  const generateDetails = pipelineStatus?.stages?.generate?.details as GenerateStageDetails | undefined;
-  const buildDetails = pipelineStatus?.stages?.build?.details as BuildStageDetails | undefined;
-
-  // Collect logs from all stages for progress calculation
-  const allLogs: string[] = [];
-  if (pipelineStatus?.stages) {
-    for (const stage of Object.values(pipelineStatus.stages)) {
-      if (stage?.logs) {
-        allLogs.push(...stage.logs);
-      }
-    }
-  }
-  // Also include build_log from build details
-  if (buildDetails?.build_log) {
-    allLogs.push(...buildDetails.build_log);
-  }
-
-  const data: BuildStatusType | null = pipelineStatus ? {
-    status: mapPipelineStatus(pipelineStatus.status),
-    build_id: pipelineStatus.pipeline_id,
-    scenario_name: pipelineStatus.scenario_name,
-    template_type: buildDetails?.template_type || generateDetails?.detected_metadata?.name || "basic",
-    framework: buildDetails?.framework || "electron",
-    platforms: buildDetails?.platforms || pipelineStatus.config?.platforms || [],
-    output_path: generateDetails?.desktop_path || buildDetails?.output_path || "",
-    build_log: allLogs,
-    error_log: buildDetails?.error_log,
-    created_at: pipelineStatus.started_at
-      ? new Date(pipelineStatus.started_at * 1000).toISOString()
-      : new Date().toISOString(),
-  } : null;
+  // Map pipeline status to UI-friendly build status using domain function
+  const data: BuildStatusType | null = useMemo(
+    () => pipelineStatusToBuildStatus(pipelineStatus ?? null),
+    [pipelineStatus]
+  );
 
   useEffect(() => {
     if (data && onStatusChange) {
@@ -89,31 +50,9 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
     return null;
   }
 
-  // Calculate progress based on build log
-  const calculateProgress = (status: BuildStatusType | null | undefined): number => {
-    if (!status) return 0;
-    if (status.status === "ready") return 100;
-    if (status.status === "failed") return 0;
-
-    // Estimate progress based on log entries
-    const logs = status.build_log || [];
-    if (logs.length === 0) return 10; // Just started
-
-    const hasTemplateGeneration = logs.some(log => log.includes("Generating") || log.includes("Creating"));
-    const hasDependencyInstall = logs.some(log => log.includes("npm install") || log.includes("Installing"));
-    const hasCompilation = logs.some(log => log.includes("compiling") || log.includes("building"));
-    const hasPackaging = logs.some(log => log.includes("packaging") || log.includes("electron-builder"));
-
-    let progress = 10; // Starting
-    if (hasTemplateGeneration) progress = 25;
-    if (hasDependencyInstall) progress = 50;
-    if (hasCompilation) progress = 75;
-    if (hasPackaging) progress = 90;
-
-    return progress;
-  };
-
-  const progress = calculateProgress(data);
+  // Calculate progress and stage statuses using domain functions
+  const progress = calculateBuildProgress(data);
+  const stageStatuses = getBuildStageStatuses(data?.build_log ?? [], progress);
 
   return (
     <div className="space-y-4">
@@ -162,36 +101,24 @@ export function BuildStatus({ buildId, onStatusChange }: BuildStatusProps) {
         )}
       </div>
 
-          {/* Build Stages */}
+          {/* Build Stages - uses domain-driven stage definitions */}
           {data && data.status === "building" && (
             <div className="space-y-2">
               <div className="text-sm font-medium text-slate-300 mb-3">Build Stages</div>
-              {[
-                { name: "Template Generation", key: ["Generating", "Creating"], progress: 25 },
-                { name: "Installing Dependencies", key: ["npm install", "Installing"], progress: 50 },
-                { name: "Compiling TypeScript", key: ["compiling", "building"], progress: 75 },
-                { name: "Packaging Application", key: ["packaging", "electron-builder"], progress: 90 },
-              ].map((stage, i) => {
-                const completed = stage.key.some(k =>
-                  data.build_log?.some(log => log.includes(k))
-                );
-                const isActive = progress >= stage.progress - 25 && progress < stage.progress;
-
-                return (
-                  <div key={i} className="flex items-center gap-3">
-                    {completed ? (
-                      <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
-                    ) : isActive ? (
-                      <Loader2 className="h-4 w-4 text-blue-400 animate-spin flex-shrink-0" />
-                    ) : (
-                      <div className="h-4 w-4 rounded-full border-2 border-slate-600 flex-shrink-0" />
-                    )}
-                    <span className={`text-sm ${completed ? "text-slate-300" : isActive ? "text-blue-300" : "text-slate-500"}`}>
-                      {stage.name}
-                    </span>
-                  </div>
-                );
-              })}
+              {stageStatuses.map(({ stage, completed, active }, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  {completed ? (
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  ) : active ? (
+                    <Loader2 className="h-4 w-4 text-blue-400 animate-spin flex-shrink-0" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-slate-600 flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${completed ? "text-slate-300" : active ? "text-blue-300" : "text-slate-500"}`}>
+                    {stage.name}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 

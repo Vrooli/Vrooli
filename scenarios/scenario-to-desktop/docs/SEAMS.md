@@ -109,6 +109,66 @@ type PreflightJobStore interface {
 **Purpose**: Manages in-memory build status with optional persistence
 **Status**: ✅ Clean interface
 
+#### 6. Pipeline Orchestrator Seam (`Orchestrator`)
+**Location**: `api/pipeline/interfaces.go`
+**Purpose**: Coordinates execution of multi-stage desktop deployment pipelines. Enables testing and substitution of orchestration logic.
+**Interface**:
+```go
+type Orchestrator interface {
+    RunPipeline(ctx context.Context, config *Config) (*Status, error)
+    ResumePipeline(ctx context.Context, pipelineID string, config *Config) (*Status, error)
+    GetStatus(pipelineID string) (*Status, bool)
+    CancelPipeline(pipelineID string) bool
+    ListPipelines() []*Status
+}
+```
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 7. Pipeline Stage Seam (`Stage`)
+**Location**: `api/pipeline/interfaces.go`
+**Purpose**: Abstracts individual pipeline stages (bundle, preflight, generate, build, smoketest, distribution) for independent testing and substitution.
+**Interface**:
+```go
+type Stage interface {
+    Name() string
+    Execute(ctx context.Context, input *StageInput) *StageResult
+    CanSkip(input *StageInput) bool
+    Dependencies() []string
+}
+```
+**Implementations**: `BundleStage`, `PreflightStage`, `GenerateStage`, `BuildStage`, `SmokeTestStage`, `DistributionStage`
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 8. Pipeline Store Seam (`Store`)
+**Location**: `api/pipeline/interfaces.go`, `api/pipeline/store.go`, `api/pipeline/store_file.go`
+**Purpose**: Abstracts pipeline state persistence with in-memory and file-backed implementations
+**Interface**:
+```go
+type Store interface {
+    Save(status *Status)
+    Get(pipelineID string) (*Status, bool)
+    GetByIdempotencyKey(key string) (*Status, bool)  // Idempotency support (Jan 2026)
+    Update(pipelineID string, fn func(status *Status)) bool
+    UpdateStage(pipelineID, stageName string, result *StageResult) bool
+    Delete(pipelineID string) bool
+    List() []*Status
+    Cleanup(olderThan int64)
+}
+```
+**Idempotency Support**: The `GetByIdempotencyKey()` method enables safe retries by allowing the orchestrator to check if a pipeline with the same client-provided idempotency key already exists. This ensures "running twice is no worse than running once" - critical for network timeout scenarios where clients may retry requests.
+**Status**: ✅ Implemented with MemoryStore and FileStore options
+
+#### 9. Pipeline Supporting Seams
+**Location**: `api/pipeline/interfaces.go`
+**Purpose**: Additional seams for pipeline infrastructure
+- `CancelManager` - Manages cancellation functions for running pipelines
+- `IDGenerator` - Generates unique pipeline identifiers
+- `Logger` - Structured logging abstraction
+- `TimeProvider` - Time abstraction for deterministic testing
+- `WebhookNotifier` - Webhook notification abstraction
+- `ManifestGenerator` - On-demand bundle manifest generation via deployment-manager
+**Status**: ✅ All interfaces implemented
+
 ### UI Seams
 
 #### 1. API Client Seam (`lib/api.ts`)
@@ -123,15 +183,28 @@ type PreflightJobStore interface {
 
 #### 3. Generator Domain Logic Seam (`domain/generator.ts`)
 **Location**: `ui/src/domain/generator.ts`
-**Purpose**: Pure functions for form validation and config building
+**Purpose**: Pure functions for form validation and config building. This is the canonical location for all generator-related domain logic.
 **Functions**:
 ```typescript
+// Legacy validation (deprecated)
 export function validateGeneratorInputs(options: ValidateGeneratorInputsOptions): string | null
+
+// Comprehensive validation with field associations
+export function validateFormInputs(params: ValidateFormInputsParams): ValidationError[]
+
+// Config building
 export function buildDesktopConfig(options: BuildDesktopConfigOptions): DesktopConfig
 export function resolveEndpoints(input: EndpointResolutionInput): EndpointResolution
 export function getSelectedPlatforms(platforms: PlatformSelection): string[]
+export function computeStandardOutputPath(scenarioName: string): string
+export function computeStagingPreviewPath(scenarioName: string): string
 ```
-**Status**: ✅ Implemented
+**Types**:
+```typescript
+export interface ValidationError { id: string; message: string; field?: string }
+export interface ValidateFormInputsParams { ... } // Comprehensive validation params
+```
+**Status**: ✅ Implemented, extended Jan 2026
 
 #### 4. Deployment Decision Seam (`domain/deployment.ts`)
 **Location**: `ui/src/domain/deployment.ts`
@@ -286,6 +359,97 @@ export function detectLikelyRootMismatch(validationValid, missingAssetsCount, mi
 - `CoverageMap` - Coverage comparison visualization
 **Status**: ✅ Implemented
 
+#### 15. Pipeline Store Seam (`store/pipelineStore.ts`)
+**Location**: `ui/src/store/pipelineStore.ts`
+**Purpose**: Unified Zustand store for pipeline state management. Centralizes pipeline execution, polling, stage results, and preflight state.
+**Functions**:
+```typescript
+// State
+scenarioName, pipelineId, pipelineStatus, runStatus, error
+bundleResult, preflightResult, generateResult, buildResult, smokeTestResult, distributionResult
+stageLogs, pipelineHistory, preflightSecrets, preflightOverride
+
+// Actions
+setScenario(name: string | null)
+runStage(stage: PipelineStage, config?: Partial<PipelineConfig>): Promise<string>
+runFullPipeline(config?: Partial<PipelineConfig>): Promise<string>
+cancelPipeline(): Promise<void>
+resumePipeline(pipelineId: string): Promise<string>
+runBundleStage, runPreflightStage, runSmokeTestStage // Convenience actions
+loadPipelineStatus(pipelineId: string): Promise<void>
+startPolling(), stopPolling()
+
+// Selectors
+selectIsRunning, selectCurrentStage, selectProgress
+selectStageStatus, selectCanResume, selectStoppedAfterStage
+selectPreflightValidationOk, selectPreflightReadinessOk
+selectMissingSecrets, selectPreflightSecretsOk, selectPreflightOk
+```
+**Status**: ✅ Implemented (Jan 2026)
+
+#### 16. Pipeline Utils Seam (`lib/pipeline-utils.ts`)
+**Location**: `ui/src/lib/pipeline-utils.ts`
+**Purpose**: Pure utility functions for pipeline status mapping and structured log parsing. Enables components to display user-friendly status and parse structured log entries without embedding parsing logic.
+**Functions**:
+```typescript
+// Status mapping
+export type MappedBuildStatus = "building" | "ready" | "partial" | "failed"
+export function mapPipelineStatus(status: string): MappedBuildStatus
+
+// Log severity levels (matching backend LogLevel)
+export type LogLevel = "INFO" | "WARN" | "ERROR" | "DEBUG"
+
+// Parsed log entry structure
+export interface ParsedLogEntry {
+  timestamp: string;
+  level: LogLevel;
+  message: string;
+  raw: string;
+}
+
+// Log parsing - parses structured log format "[TIMESTAMP] [LEVEL] message"
+export function parseLogEntry(raw: string): ParsedLogEntry
+export function parseLogs(logs: string[]): ParsedLogEntry[]
+
+// Log filtering - filter by severity level
+export function filterLogsByLevel(logs: ParsedLogEntry[], minLevel: LogLevel): ParsedLogEntry[]
+
+// Display helpers
+export function getLogLevelStyle(level: LogLevel): { color: string; bg: string }
+export function formatLogTimestamp(timestamp: string): string
+
+// Log analysis
+export function getLatestSignificantLog(logs: ParsedLogEntry[]): ParsedLogEntry | null
+```
+**Status**: ✅ Implemented, enhanced Jan 2026 with structured log parsing
+
+#### 17. Scenario State Hook Seam (`hooks/useScenarioState.ts`)
+**Location**: `ui/src/hooks/useScenarioState.ts`
+**Purpose**: Server-side scenario state persistence. Replaces localStorage-based draft storage with server-side persistence, with conflict detection and staleness checking.
+**Functions**:
+```typescript
+// State
+state, formState, isLoading, isError, error, hasInitiallyLoaded
+isSaving, saveError, lastSavedAt
+isStale, pendingChanges, validationStatus
+serverHash, localHash, timestamps, buildArtifacts, stages
+
+// Actions
+updateFormState(updates: Partial<FormState>)
+saveStageResult(stage: string, result: unknown, formStateUpdates?, options?)
+saveNow(): Promise<void>
+clearState(): Promise<void>
+refetch()
+resolveConflict(resolution: "local" | "server")
+checkStaleness(config: InputFingerprint): Promise<void>
+```
+**Features**:
+- Debounced auto-save with conflict detection
+- Server hash tracking for optimistic concurrency
+- Periodic staleness checking against manifest changes
+- Stage result persistence with form state updates
+**Status**: ✅ Implemented (Jan 2026)
+
 ---
 
 ## File Organization
@@ -371,7 +535,8 @@ ui/src/
 | `PreflightSessionStore` | Mock interface for session lifecycle tests |
 | `PreflightJobStore` | Mock interface for async job tests |
 | `decideConnection()` | Pure function, direct unit tests |
-| `validateGeneratorInputs()` | Pure function, direct unit tests |
+| `validateGeneratorInputs()` | Pure function, direct unit tests (deprecated) |
+| `validateFormInputs()` | Pure function, direct unit tests - canonical validation |
 | `buildDesktopConfig()` | Pure function, direct unit tests |
 | `RecordStore` | Mock interface for persistence tests |
 | `BuildStore` | Mock interface for status tracking tests |
@@ -452,6 +617,28 @@ ui/src/
 - **Seam Enforcement**: Browser side effects isolated behind explicit seam functions
 - **Dependency Direction**: Presentation → Domain → Types (unidirectional)
 
+### Validation Logic Consolidation (Jan 2026)
+**Goal**: Enforce boundary-of-responsibility by moving validation logic from presentation to domain layer
+
+**Problem Identified**: Validation logic was duplicated:
+- `validateGeneratorInputs()` in `domain/generator.ts` - returned single string error
+- `validateFormInputs()` in `components/generator/ValidationErrors.tsx` - returned rich ValidationError[] with field associations
+
+**Changes**:
+1. Moved comprehensive `validateFormInputs()` and `ValidationError` type to `domain/generator.ts`
+2. Deprecated the simpler `validateGeneratorInputs()` in favor of the richer version
+3. Converted `ValidationErrors.tsx` to a pure presentation component that re-exports from domain layer
+4. Updated `components/generator/index.ts` to maintain backward compatibility via re-exports
+
+**Files Changed**:
+- `domain/generator.ts` - Added `validateFormInputs()`, `ValidationError`, `ValidateFormInputsParams`
+- `components/generator/ValidationErrors.tsx` - Now a thin re-export layer, reduced from 181 to 58 lines
+
+**Architecture Improvements**:
+- **Responsibility Separation**: Validation rules now live in domain layer, presentation only displays errors
+- **Testability**: `validateFormInputs()` is now a pure function that can be unit tested without UI setup
+- **Single Source of Truth**: No duplicate validation logic across presentation and domain layers
+
 ### BundledPreflightSection.tsx Refactoring (Jan 2026)
 **Before**: 1,509 lines with mixed presentation and utility functions
 **After**: 718 lines - reduced by 52%
@@ -507,3 +694,335 @@ import { useGeneratorDraft, usePreflightSession, useSigningConfig } from '../hoo
    - `PreflightSessionStore` can be mocked for session tests
    - `bundlePackager` dependencies can be stubbed
    - Pure functions in `domain/` are directly testable
+
+---
+
+## Recent Seam Discovery & Documentation (Jan 2026)
+
+### Pipeline Architecture Seams
+Documented the comprehensive seam architecture in the `pipeline/` package:
+- **Orchestrator interface** (§6): Coordinates multi-stage pipeline execution
+- **Stage interface** (§7): Abstracts individual pipeline stages for independent testing
+- **Store interface** (§8): Persistence abstraction with memory and file-backed options
+- **Supporting seams** (§9): CancelManager, IDGenerator, Logger, TimeProvider, WebhookNotifier, ManifestGenerator
+
+### UI State Management Seams
+Documented new Zustand-based state management:
+- **Pipeline Store** (§15): Unified store for pipeline execution, polling, and stage results
+- **Pipeline Utils** (§16): Pure functions for status mapping
+- **Scenario State Hook** (§17): Server-side persistence with conflict detection
+
+### Key Findings
+1. **API layer** has excellent seam architecture with well-defined interfaces for all major components
+2. **Pipeline package** follows the Stage/Orchestrator pattern with clear boundaries
+3. **UI layer** has been evolving toward stronger seams with domain extraction and browser API abstraction
+4. **Pure function extraction** (domain layer) enables comprehensive unit testing without UI setup
+
+### No Weak Seams Identified
+The scenario has mature seam architecture. All identified seams are:
+- Well-defined with clear interfaces
+- Properly documented
+- Used consistently throughout the codebase
+- Testable via substitution or pure function testing
+
+---
+
+## Boundary-of-Responsibility Enforcement (Jan 2026)
+
+### Build Domain Extraction
+**Goal**: Move build progress calculation and status mapping from presentation to domain layer
+
+**Changes**:
+1. Created `domain/build.ts` with pure functions for build progress and status transformation
+2. Refactored `BuildStatus.tsx` to use domain functions instead of inline business logic
+3. Moved `_extractStageResults()` logic from `pipelineStore.ts` to `domain/build.ts`
+4. Consolidated `createErrorInfo()` helper from store to `lib/error-utils.ts`
+
+**New Domain Functions** (`domain/build.ts`):
+```typescript
+// Build stage definitions (domain knowledge)
+export const BUILD_STAGES: BuildStageDefinition[]
+export function isStageReached(logs: string[], stage: BuildStageDefinition): boolean
+export function calculateBuildProgress(status: BuildStatusType | null | undefined): number
+export function getBuildStageStatuses(logs: string[], currentProgress: number): BuildStageStatus[]
+
+// Pipeline status transformation
+export function extractStageResults(status: VerbosePipelineStatus): ExtractedStageResults
+export function pipelineStatusToBuildStatus(pipelineStatus: VerbosePipelineStatus | null): BuildStatusType | null
+```
+
+**New Error Utilities** (`lib/error-utils.ts`):
+```typescript
+export interface ErrorInfo { message, code?, canRetry, requiresInputFix, recoveryHint? }
+export function createErrorInfo(err: unknown): ErrorInfo
+```
+
+**Boundary Improvements**:
+- **BuildStatus.tsx**: Reduced from 233 to ~170 lines; no longer contains log parsing heuristics or status mapping logic
+- **pipelineStore.ts**: Store now delegates data transformation to domain layer; removed duplicate `PipelineErrorInfo` interface in favor of shared `ErrorInfo` type
+- **Domain layer**: `domain/build.ts` is pure, testable, and owns all build-related domain knowledge
+
+**Files Changed**:
+- `domain/build.ts` - New file with build progress and pipeline transformation logic
+- `domain/index.ts` - Added build module export
+- `components/BuildStatus.tsx` - Refactored to use domain functions
+- `store/pipelineStore.ts` - Uses `extractStageResults()` from domain; uses `createErrorInfo()` from error-utils
+- `lib/error-utils.ts` - Added `ErrorInfo` interface and `createErrorInfo()` function
+
+**Architecture Improvements**:
+- **Responsibility Separation**: Build stage definitions and progress heuristics now live in domain layer
+- **Testability**: `calculateBuildProgress()` and `extractStageResults()` can be unit tested without React/store setup
+- **Single Source of Truth**: No duplicate stage definitions across components
+- **Reduced Coupling**: Store no longer depends on ApiError class methods directly
+
+---
+
+## Browser Seam Enforcement (Jan 2026)
+
+### Clipboard Seam Unification
+**Goal**: Ensure all clipboard operations flow through the `writeToClipboard()` seam in `lib/browser.ts`
+
+**Problem Identified**: The `writeToClipboard()` seam existed but was bypassed in 8+ components that called `navigator.clipboard.writeText()` directly.
+
+**Files Updated**:
+- `components/layout/DebugJsonModal.tsx` - Now uses `writeToClipboard()`
+- `components/layout/SidebarHeader.tsx` - Now uses `writeToClipboard()`
+- `components/docs/DocsPanel.tsx` - Now uses `writeToClipboard()`
+- `components/preflight/DiagnosticsPanels.tsx` - Now uses `writeToClipboard()`
+- `components/BundledPreflightSection.tsx` - Now uses `writeToClipboard()`
+- `components/BundledRuntimeSection.tsx` - Now uses `writeToClipboard()`
+- `components/scenario-inventory/GenerateDesktopButton.tsx` - Now uses `writeToClipboard()`
+
+**Benefits**:
+- **Centralized Error Handling**: All clipboard operations now use result-based error handling instead of try-catch
+- **Testability**: All components can now be tested by mocking the browser seam
+- **Consistency**: Single pattern for clipboard operations across the codebase
+- **Maintainability**: If clipboard API changes, only one file needs updating
+
+### Blob Download Seam Unification
+**Goal**: Ensure all blob download operations flow through the `triggerBlobDownload()` seam in `lib/browser.ts`
+
+**Problem Identified**: Two components reimplemented the blob download pattern (`URL.createObjectURL` + DOM manipulation) instead of using the existing seam.
+
+**Files Updated**:
+- `components/BundledPreflightSection.tsx` - Now uses `triggerBlobDownload()`
+- `components/BundledRuntimeSection.tsx` - Now uses `triggerBlobDownload()`
+
+**Code Eliminated**:
+```typescript
+// Before (repeated in multiple components):
+const url = URL.createObjectURL(blob);
+const link = document.createElement("a");
+link.href = url;
+link.download = filename;
+link.click();
+URL.revokeObjectURL(url);
+
+// After:
+triggerBlobDownload(blob, filename);
+```
+
+**Benefits**:
+- **No Memory Leaks**: Centralized cleanup of `URL.revokeObjectURL()`
+- **Reduced Code Duplication**: 6 lines → 1 line per call site
+- **Testability**: Can mock download behavior in tests
+
+---
+
+## Remaining Seam Opportunities
+
+### API Layer - High Priority
+
+#### 1. CommandRunner Interface for Compiler
+**Location**: `api/bundle/compiler.go`
+**Current State**: Direct `exec.Command()` calls in `compileGoBinary()`, `compileRustBinary()`, `compileNpmBinary()`, `compileCustomBinary()`
+**Recommendation**: Create `CommandRunner` interface:
+```go
+type CommandRunner interface {
+    Run(ctx context.Context, cmd string, args []string, opts *RunOptions) (*RunResult, error)
+}
+
+type RunOptions struct {
+    Dir string
+    Env map[string]string
+}
+
+type RunResult struct {
+    Output   string
+    ExitCode int
+}
+```
+**Benefit**: Enables testing compiler logic without invoking actual Go/Rust/npm toolchains
+
+#### 2. Filesystem Abstraction in Compiler
+**Location**: `api/bundle/compiler.go` lines 85, 280, 355, 356
+**Current State**: Direct `os.MkdirAll()` calls scattered in compile functions
+**Recommendation**: Extend `FileOperations` interface to include `MkdirAll()`
+**Benefit**: Test directory creation failures without filesystem side effects
+
+#### 3. System Command Executor for Wine Service
+**Location**: `api/system/wine_service.go`
+**Current State**: Extensive direct `exec.Command()` calls for Wine installation
+**Recommendation**: Create dedicated `WineInstaller` interface wrapping installation logic
+**Benefit**: Test Wine installation flows without network access or system modifications
+
+### API Layer - Medium Priority
+
+#### 4. Consistent TimeProvider Usage
+**Problem**: Pipeline uses `TimeProvider` interface, but build service uses direct `time.Now()`
+**Files**: `api/build/service.go` vs `api/pipeline/orchestrator.go`
+**Recommendation**: Inject `TimeProvider` into build service for deterministic testing
+
+#### 5. PathProvider for Vrooli Root Detection
+**Problem**: Root detection logic duplicated in 3+ locations
+**Files**: `api/shared/path/vrooli.go`, `api/generation/analyzer.go`, `api/pipeline/orchestrator.go`
+**Recommendation**: Create singleton `PathProvider` used everywhere
+
+#### 6. EnvironmentReader Consistency
+**Problem**: `EnvironmentReader` interface exists in distribution package but `os.Getenv()` used directly elsewhere
+**Recommendation**: Inject `EnvironmentReader` consistently across all packages
+
+### UI Layer - Medium Priority
+
+#### 1. Confirmation Dialog Seam
+**Current State**: Direct `window.confirm()` calls in 2 components
+**Files**: `TelemetryUploadCard.tsx`, `RecordsManager.tsx`
+**Recommendation**: Create `useConfirmDialog()` hook or `confirmDialog()` function
+**Benefit**: Testable confirmation flows; can replace with custom modal
+
+#### 2. Portal Root Configuration
+**Current State**: `createPortal()` always uses `document.body` (13+ locations)
+**Recommendation**: Create `<PortalProvider>` or centralized portal root config
+**Benefit**: Easier testing; isolated portal management
+
+#### 3. Navigation/URL Seam
+**Current State**: Direct `window.location` and `window.history` manipulation
+**File**: `components/signing/SigningPage.tsx`
+**Recommendation**: Use router hooks or create navigation seam
+**Benefit**: Testable URL manipulation; cleaner separation
+
+---
+
+## Idempotency & Replay Safety Seams (Jan 2026)
+
+### Design Philosophy
+The scenario-to-desktop pipeline implements idempotency at multiple layers to ensure "running twice is no worse than running once". This is critical for:
+- Network timeout scenarios where clients retry requests
+- UI double-click protection
+- Safe recovery from partial failures
+- Predictable behavior under repeated execution
+
+### API Layer Idempotency
+
+#### 1. Pipeline Orchestrator Idempotency
+**Location**: `api/pipeline/orchestrator.go:161-173`
+**Mechanism**: Client-provided idempotency keys
+```go
+if config.IdempotencyKey != "" {
+    if existing, ok := o.store.GetByIdempotencyKey(config.IdempotencyKey); ok {
+        // Return existing pipeline instead of creating new one
+        return existing, nil
+    }
+}
+```
+**Behavior**: If a pipeline with the same idempotency key exists (running or completed), returns the existing status instead of starting a new pipeline.
+**Test Coverage**: `[REQ:IDEM-001]` in `api/pipeline/orchestrator_test.go` (lines 877-1204)
+
+#### 2. Pipeline Store Idempotency Key Lookup
+**Location**: `api/pipeline/store.go`
+**Interface Method**: `GetByIdempotencyKey(key string) (*Status, bool)`
+**Purpose**: O(n) scan of pipeline statuses to find matching idempotency key
+**Implementations**: `InMemoryStore`, `FileStore`
+
+#### 3. Status IdempotencyKey Field
+**Location**: `api/pipeline/types.go:107-112, 170-172`
+```go
+type Config struct {
+    // IdempotencyKey is an optional client-provided key for request deduplication.
+    // If a pipeline with the same idempotency key already exists and is running or completed,
+    // the existing pipeline status will be returned instead of starting a new pipeline.
+    IdempotencyKey string `json:"idempotency_key,omitempty"`
+}
+
+type Status struct {
+    // IdempotencyKey is the client-provided key for request deduplication.
+    IdempotencyKey string `json:"idempotency_key,omitempty"`
+}
+```
+
+### UI Layer Idempotency
+
+#### 1. Pipeline Store Double-Submission Guard
+**Location**: `ui/src/store/pipelineStore.ts`
+**Mechanism**: `isSubmitting` flag + idempotency key generation
+```typescript
+interface PipelineStoreState {
+    isSubmitting: boolean;
+    currentIdempotencyKey: string | null;
+}
+
+// In runStage():
+if (isSubmitting) {
+    const existingId = get().pipelineId;
+    if (existingId) return existingId; // Idempotent return
+    throw new Error("A pipeline request is already in progress");
+}
+```
+**Behavior**: Prevents double-clicks from creating duplicate requests; returns existing pipeline ID if already submitting.
+
+#### 2. Idempotency Key Generation
+**Location**: `ui/src/lib/pipeline-utils.ts`
+```typescript
+export function generateIdempotencyKey(scenarioName: string, stage?: string, sessionId?: string): string
+export function generateUniqueIdempotencyKey(scenarioName: string, stage?: string): string
+export function getSessionId(): string
+export function resetSessionId(): void
+```
+**Design**:
+- Session-scoped: Keys are stable within a page session but unique across sessions
+- Stage-aware: Different stages get different keys
+- Resettable: `resetSessionId()` allows explicit retries with fresh keys
+
+#### 3. Reset for Retry Action
+**Location**: `ui/src/store/pipelineStore.ts`
+```typescript
+resetForRetry: () => {
+    resetSessionId(); // Get fresh idempotency keys
+    set({ isSubmitting: false, currentIdempotencyKey: null, error: null, errorInfo: null });
+}
+```
+**Purpose**: Allows explicit user-initiated retries to bypass idempotency deduplication.
+
+#### 4. Selectors for UI Guards
+**Location**: `ui/src/store/pipelineStore.ts`
+```typescript
+export const selectIsSubmitting = (state: PipelineStore) => state.isSubmitting;
+export const selectIsBusy = (state: PipelineStore) =>
+    state.isSubmitting || state.runStatus === "running" || state.runStatus === "starting";
+```
+**Usage**: Components use these selectors to disable buttons during submission/execution.
+
+### Architectural Considerations
+
+#### Remaining Idempotency Gaps (for future work)
+1. **Stage-level idempotency**: Currently only pipeline-level; stages re-execute on resume
+2. **Distribution uploads**: S3 uploads don't check if object already exists
+3. **File operations**: Bundle stage overwrites files without checking if identical
+4. **Manifest generation**: Always regenerates even if unchanged
+
+#### Future Enhancements
+- Add stage-level execution fingerprinting
+- Implement artifact hash validation before re-execution
+- Add S3 object existence checks before upload
+- Cache manifest generation with content hash validation
+
+---
+
+## Architecture Principles Applied
+
+1. **Seam-at-the-Boundary**: Browser APIs (clipboard, downloads, file reading) now have explicit seams
+2. **No Bypassing**: Components consistently use seams instead of direct browser calls
+3. **Result-Based Error Handling**: Seam functions return result objects rather than throwing
+4. **Mock-Friendly**: All seams designed with testing in mind
+5. **Incremental Improvement**: Each seam enforcement iteration makes the codebase more testable
+6. **Idempotency by Design**: Pipeline operations are safe to retry without creating duplicates

@@ -1,6 +1,8 @@
 package pipeline
 
 import (
+	"fmt"
+
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/distribution"
@@ -48,6 +50,9 @@ type Config struct {
 
 	// DeploymentMode is "proxy" or "bundled". Default: "bundled".
 	DeploymentMode string `json:"deployment_mode,omitempty"`
+
+	// Framework is the target desktop framework. Default: "electron".
+	Framework string `json:"framework,omitempty"`
 
 	// TemplateType is the Electron template type. Default: "basic".
 	TemplateType string `json:"template_type,omitempty"`
@@ -98,6 +103,13 @@ type Config struct {
 	// ParentPipelineID links this pipeline to a parent when resuming.
 	// Set automatically when resuming a pipeline.
 	ParentPipelineID string `json:"parent_pipeline_id,omitempty"`
+
+	// IdempotencyKey is an optional client-provided key for request deduplication.
+	// If a pipeline with the same idempotency key already exists and is running or completed,
+	// the existing pipeline status will be returned instead of starting a new pipeline.
+	// This enables safe retries where "running twice is no worse than running once".
+	// If not provided, a new pipeline is always started (default behavior).
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 }
 
 // Status represents the current state of a pipeline run.
@@ -113,6 +125,15 @@ type Status struct {
 
 	// CurrentStage is the name of the currently executing stage.
 	CurrentStage string `json:"current_stage,omitempty"`
+
+	// ProgressPercent is the completion percentage (0-100).
+	// Calculated from completed stages / total stages.
+	// Always present in the response for quick status checks by agents and UIs.
+	ProgressPercent int `json:"progress_percent"`
+
+	// ProgressMessage is a human-readable summary of current progress.
+	// Example: "Running bundle stage (1/6)", "Completed successfully"
+	ProgressMessage string `json:"progress_message,omitempty"`
 
 	// Stages contains the results of each completed or running stage.
 	Stages map[string]*StageResult `json:"stages"`
@@ -145,6 +166,10 @@ type Status struct {
 	// ResumedInput contains the stage input carried forward from a parent pipeline.
 	// Used to restore state when resuming. Persisted to enable resumption after server restart.
 	ResumedInput *StageInput `json:"resumed_input,omitempty"`
+
+	// IdempotencyKey is the client-provided key for request deduplication.
+	// Stored on the status to enable lookup of existing pipelines by idempotency key.
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 }
 
 // StageInput carries data between pipeline stages.
@@ -306,6 +331,60 @@ func (s *Status) Progress() float64 {
 		}
 	}
 	return float64(completed) / float64(len(s.StageOrder))
+}
+
+// ComputeProgressPercent calculates the integer progress percentage (0-100).
+func (s *Status) ComputeProgressPercent() int {
+	return int(s.Progress() * 100)
+}
+
+// ComputeProgressMessage generates a human-readable progress message.
+// Returns messages like "Running bundle stage (1/6)", "Completed successfully", etc.
+func (s *Status) ComputeProgressMessage() string {
+	total := len(s.StageOrder)
+	if total == 0 {
+		return "Initializing..."
+	}
+
+	switch s.Status {
+	case StatusPending:
+		return "Pipeline pending"
+	case StatusCompleted:
+		if s.StoppedAfterStage != "" {
+			return fmt.Sprintf("Stopped after %s stage", s.StoppedAfterStage)
+		}
+		return "Pipeline completed successfully"
+	case StatusFailed:
+		if s.CurrentStage != "" {
+			return fmt.Sprintf("Failed at %s stage", s.CurrentStage)
+		}
+		return "Pipeline failed"
+	case StatusCancelled:
+		return "Pipeline cancelled"
+	case StatusRunning:
+		if s.CurrentStage == "" {
+			return "Starting pipeline..."
+		}
+		// Count completed stages
+		completed := 0
+		for _, stageName := range s.StageOrder {
+			if result, ok := s.Stages[stageName]; ok && result.IsComplete() {
+				completed++
+			}
+		}
+		// Find current stage index (1-based for display)
+		currentIdx := completed + 1
+		return fmt.Sprintf("Running %s stage (%d/%d)", s.CurrentStage, currentIdx, total)
+	default:
+		return "Unknown status"
+	}
+}
+
+// UpdateProgress recalculates and sets the ProgressPercent and ProgressMessage fields.
+// Call this after any change to the pipeline status or stages.
+func (s *Status) UpdateProgress() {
+	s.ProgressPercent = s.ComputeProgressPercent()
+	s.ProgressMessage = s.ComputeProgressMessage()
 }
 
 // IsComplete returns true if the pipeline has finished executing.

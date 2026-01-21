@@ -873,3 +873,332 @@ func TestStageResult_Fields(t *testing.T) {
 		t.Errorf("expected 2 log entries")
 	}
 }
+
+// =============================================================================
+// Idempotency & Replay Safety Tests [REQ:IDEM-001]
+// =============================================================================
+// These tests verify that "running twice is no worse than running once" and
+// that the system behaves predictably under retries, replays, and repeated execution.
+
+func TestIdempotencyKeyBasic(t *testing.T) {
+	// [REQ:IDEM-001] Verify that idempotency key returns existing pipeline instead of creating new one
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+	idempotencyKey := "test-idempotency-key-123"
+
+	// First request
+	config1 := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: idempotencyKey,
+	}
+	status1, err := orchestrator.RunPipeline(ctx, config1)
+	if err != nil {
+		t.Fatalf("first RunPipeline error: %v", err)
+	}
+
+	// Second request with same idempotency key should return the SAME pipeline
+	config2 := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: idempotencyKey,
+	}
+	status2, err := orchestrator.RunPipeline(ctx, config2)
+	if err != nil {
+		t.Fatalf("second RunPipeline error: %v", err)
+	}
+
+	// Should be the exact same pipeline ID
+	if status1.PipelineID != status2.PipelineID {
+		t.Errorf("expected same pipeline ID for idempotent requests: got %s and %s", status1.PipelineID, status2.PipelineID)
+	}
+
+	// Should have only ONE pipeline in the store
+	pipelines := store.List()
+	if len(pipelines) != 1 {
+		t.Errorf("expected exactly 1 pipeline in store, got %d", len(pipelines))
+	}
+}
+
+func TestIdempotencyKeyStored(t *testing.T) {
+	// [REQ:IDEM-001] Verify that idempotency key is stored on the pipeline status
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+	idempotencyKey := "stored-key-test"
+
+	config := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: idempotencyKey,
+	}
+	status, _ := orchestrator.RunPipeline(ctx, config)
+
+	// The idempotency key should be stored on the status
+	if status.IdempotencyKey != idempotencyKey {
+		t.Errorf("expected IdempotencyKey %q, got %q", idempotencyKey, status.IdempotencyKey)
+	}
+
+	// Should be retrievable by idempotency key
+	retrieved, ok := store.GetByIdempotencyKey(idempotencyKey)
+	if !ok {
+		t.Fatalf("expected to retrieve pipeline by idempotency key")
+	}
+	if retrieved.PipelineID != status.PipelineID {
+		t.Errorf("expected pipeline ID %q, got %q", status.PipelineID, retrieved.PipelineID)
+	}
+}
+
+func TestIdempotencyKeyDifferent(t *testing.T) {
+	// [REQ:IDEM-001] Verify that different idempotency keys create different pipelines
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+
+	config1 := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: "key-1",
+	}
+	status1, _ := orchestrator.RunPipeline(ctx, config1)
+
+	config2 := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: "key-2",
+	}
+	status2, _ := orchestrator.RunPipeline(ctx, config2)
+
+	// Should be different pipelines
+	if status1.PipelineID == status2.PipelineID {
+		t.Errorf("expected different pipeline IDs for different idempotency keys")
+	}
+
+	// Should have 2 pipelines in the store
+	pipelines := store.List()
+	if len(pipelines) != 2 {
+		t.Errorf("expected 2 pipelines in store, got %d", len(pipelines))
+	}
+}
+
+func TestIdempotencyKeyEmpty(t *testing.T) {
+	// [REQ:IDEM-001] Verify that empty idempotency key creates new pipelines each time
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+
+	// Two requests without idempotency key
+	config := &Config{
+		ScenarioName: "test-scenario",
+		// No IdempotencyKey
+	}
+
+	status1, _ := orchestrator.RunPipeline(ctx, config)
+	status2, _ := orchestrator.RunPipeline(ctx, config)
+
+	// Should be different pipelines (default behavior)
+	if status1.PipelineID == status2.PipelineID {
+		t.Errorf("expected different pipeline IDs without idempotency key")
+	}
+
+	// Should have 2 pipelines in the store
+	pipelines := store.List()
+	if len(pipelines) != 2 {
+		t.Errorf("expected 2 pipelines in store, got %d", len(pipelines))
+	}
+}
+
+func TestIdempotencyKeyWithRunningPipeline(t *testing.T) {
+	// [REQ:IDEM-001] Verify that idempotency key returns running pipeline status
+	store := NewInMemoryStore()
+	executeCh := make(chan struct{})
+	slowStage := &mockStage{
+		name:        "slow-stage",
+		executeTime: 5 * time.Second,
+		executeCh:   executeCh,
+	}
+
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(slowStage),
+	)
+
+	ctx := context.Background()
+	idempotencyKey := "running-pipeline-key"
+
+	config := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: idempotencyKey,
+	}
+
+	// Start first pipeline
+	status1, _ := orchestrator.RunPipeline(ctx, config)
+
+	// Wait for it to start executing
+	<-executeCh
+
+	// Try to start another with same key while first is running
+	status2, _ := orchestrator.RunPipeline(ctx, config)
+
+	// Should return the same pipeline
+	if status1.PipelineID != status2.PipelineID {
+		t.Errorf("expected same pipeline ID for idempotent request while running")
+	}
+
+	// Clean up
+	orchestrator.CancelPipeline(status1.PipelineID)
+}
+
+func TestIdempotencyKeyWithCompletedPipeline(t *testing.T) {
+	// [REQ:IDEM-001] Verify that idempotency key returns completed pipeline status
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+	idempotencyKey := "completed-pipeline-key"
+
+	config := &Config{
+		ScenarioName:   "test-scenario",
+		IdempotencyKey: idempotencyKey,
+	}
+
+	// Start first pipeline and wait for completion
+	status1, _ := orchestrator.RunPipeline(ctx, config)
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify it completed
+	final1, _ := orchestrator.GetStatus(status1.PipelineID)
+	if final1.Status != StatusCompleted {
+		t.Fatalf("expected first pipeline to complete, got %s", final1.Status)
+	}
+
+	// Try to start another with same key after completion
+	status2, _ := orchestrator.RunPipeline(ctx, config)
+
+	// Should return the completed pipeline (not start a new one)
+	if status1.PipelineID != status2.PipelineID {
+		t.Errorf("expected same pipeline ID for idempotent request after completion")
+	}
+
+	// Status should still show completed
+	if status2.Status != StatusCompleted {
+		t.Errorf("expected completed status to be returned, got %s", status2.Status)
+	}
+}
+
+func TestStoreGetByIdempotencyKeyEmpty(t *testing.T) {
+	// [REQ:IDEM-001] Verify that GetByIdempotencyKey returns nil for empty key
+	store := NewInMemoryStore()
+
+	// Empty key should return nil, false
+	status, ok := store.GetByIdempotencyKey("")
+	if ok || status != nil {
+		t.Errorf("expected nil, false for empty idempotency key")
+	}
+}
+
+func TestStoreGetByIdempotencyKeyNotFound(t *testing.T) {
+	// [REQ:IDEM-001] Verify that GetByIdempotencyKey returns nil for non-existent key
+	store := NewInMemoryStore()
+
+	// Add a pipeline without idempotency key
+	store.Save(&Status{
+		PipelineID:   "pipeline-1",
+		ScenarioName: "test",
+		Status:       StatusRunning,
+	})
+
+	// Search for non-existent key
+	status, ok := store.GetByIdempotencyKey("non-existent-key")
+	if ok || status != nil {
+		t.Errorf("expected nil, false for non-existent idempotency key")
+	}
+}
+
+func TestReplayWithSameInputsProducesSameOutput(t *testing.T) {
+	// [REQ:IDEM-001] Verify deterministic behavior: same inputs produce same pipeline ID
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+	idempotencyKey := "deterministic-test"
+
+	// Run multiple times with same config
+	for i := 0; i < 5; i++ {
+		config := &Config{
+			ScenarioName:   "test-scenario",
+			IdempotencyKey: idempotencyKey,
+			Platforms:      []string{"linux"},
+		}
+		status, _ := orchestrator.RunPipeline(ctx, config)
+
+		// All should have the same pipeline ID
+		if i > 0 {
+			first, _ := store.GetByIdempotencyKey(idempotencyKey)
+			if status.PipelineID != first.PipelineID {
+				t.Errorf("iteration %d: expected pipeline ID %s, got %s", i, first.PipelineID, status.PipelineID)
+			}
+		}
+	}
+
+	// Should still have only one pipeline
+	pipelines := store.List()
+	if len(pipelines) != 1 {
+		t.Errorf("expected 1 pipeline after 5 identical requests, got %d", len(pipelines))
+	}
+}
+
+func TestNoDuplicateWorkOnRetry(t *testing.T) {
+	// [REQ:IDEM-001] Verify that retries don't create duplicate pipelines
+	store := NewInMemoryStore()
+	orchestrator := NewOrchestrator(
+		WithStore(store),
+		WithStages(&mockStage{name: "test"}),
+	)
+
+	ctx := context.Background()
+
+	// Simulate a client retry scenario: same request sent multiple times
+	// (e.g., due to network timeout where client didn't receive response)
+	idempotencyKey := "retry-scenario-" + time.Now().Format("20060102150405")
+
+	var pipelineIDs []string
+	for i := 0; i < 3; i++ {
+		config := &Config{
+			ScenarioName:   "test-scenario",
+			IdempotencyKey: idempotencyKey,
+		}
+		status, _ := orchestrator.RunPipeline(ctx, config)
+		pipelineIDs = append(pipelineIDs, status.PipelineID)
+	}
+
+	// All pipeline IDs should be identical
+	for i := 1; i < len(pipelineIDs); i++ {
+		if pipelineIDs[i] != pipelineIDs[0] {
+			t.Errorf("retry %d returned different pipeline ID: %s vs %s", i, pipelineIDs[i], pipelineIDs[0])
+		}
+	}
+
+	// Only one pipeline should exist
+	if count := len(store.List()); count != 1 {
+		t.Errorf("expected 1 pipeline after retries, got %d", count)
+	}
+}

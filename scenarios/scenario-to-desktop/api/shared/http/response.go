@@ -12,10 +12,13 @@ import (
 
 // ErrorResponse represents the JSON structure for error responses.
 // This ensures consistent error formatting across all endpoints.
+// Includes recovery information to help clients determine appropriate next steps.
 type ErrorResponse struct {
-	Error   string                 `json:"error"`
-	Code    string                 `json:"code,omitempty"`
-	Details map[string]interface{} `json:"details,omitempty"`
+	Error        string                 `json:"error"`
+	Code         string                 `json:"code,omitempty"`
+	Details      map[string]interface{} `json:"details,omitempty"`
+	Recovery     string                 `json:"recovery,omitempty"`
+	RecoveryHint string                 `json:"recovery_hint,omitempty"`
 }
 
 // SuccessResponse represents a generic success response with optional message.
@@ -68,22 +71,25 @@ func WriteSuccess(w http.ResponseWriter, message string) {
 // WriteError writes an error response, automatically mapping DomainErrors to
 // appropriate HTTP status codes and formatting.
 //
-// For DomainErrors, it uses the error's code, message, and details.
+// For DomainErrors, it uses the error's code, message, details, and recovery information.
 // For other errors, it returns a 500 Internal Server Error with a generic message.
 func WriteError(w http.ResponseWriter, err error) {
 	if err == nil {
 		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{
-			Error: "unknown error",
-			Code:  string(errors.CodeInternal),
+			Error:    "unknown error",
+			Code:     string(errors.CodeInternal),
+			Recovery: string(errors.RecoveryRetry),
 		})
 		return
 	}
 
 	if de, ok := errors.IsDomainError(err); ok {
 		WriteJSON(w, de.HTTPStatus(), ErrorResponse{
-			Error:   de.Message,
-			Code:    string(de.Code),
-			Details: de.Details,
+			Error:        de.Message,
+			Code:         string(de.Code),
+			Details:      de.Details,
+			Recovery:     string(de.GetRecovery()),
+			RecoveryHint: de.RecoveryHint,
 		})
 		return
 	}
@@ -91,8 +97,9 @@ func WriteError(w http.ResponseWriter, err error) {
 	// For non-domain errors, return 500 with the error message
 	// In production, you might want to hide internal error details
 	WriteJSON(w, http.StatusInternalServerError, ErrorResponse{
-		Error: err.Error(),
-		Code:  string(errors.CodeInternal),
+		Error:    err.Error(),
+		Code:     string(errors.CodeInternal),
+		Recovery: string(errors.RecoveryRetry),
 	})
 }
 
@@ -101,22 +108,26 @@ func WriteError(w http.ResponseWriter, err error) {
 func WriteErrorWithStatus(w http.ResponseWriter, status int, err error) {
 	if err == nil {
 		WriteJSON(w, status, ErrorResponse{
-			Error: "unknown error",
+			Error:    "unknown error",
+			Recovery: string(errors.RecoveryRetry),
 		})
 		return
 	}
 
 	if de, ok := errors.IsDomainError(err); ok {
 		WriteJSON(w, status, ErrorResponse{
-			Error:   de.Message,
-			Code:    string(de.Code),
-			Details: de.Details,
+			Error:        de.Message,
+			Code:         string(de.Code),
+			Details:      de.Details,
+			Recovery:     string(de.GetRecovery()),
+			RecoveryHint: de.RecoveryHint,
 		})
 		return
 	}
 
 	WriteJSON(w, status, ErrorResponse{
-		Error: err.Error(),
+		Error:    err.Error(),
+		Recovery: string(errors.RecoveryRetry),
 	})
 }
 

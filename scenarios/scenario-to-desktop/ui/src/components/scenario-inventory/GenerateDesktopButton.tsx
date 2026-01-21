@@ -1,30 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
-import { Loader2, Zap, CheckCircle, XCircle } from "lucide-react";
-import { runPipeline, getPipelineStatus, probeEndpoints, type ProbeResponse, type PipelineConfig, type GenerateStageDetails } from "../../lib/api";
+import { Loader2, Zap, CheckCircle } from "lucide-react";
+import { probeEndpoints, type ProbeResponse, type PipelineConfig, type GenerateStageDetails } from "../../lib/api";
+import { usePipelineMutation, usePipelineStatus } from "../../hooks";
+import { PipelineErrorDisplay, suggestRecovery } from "../pipeline";
 import type { DesktopConnectionConfig, ScenarioDesktopStatus } from "./types";
-
-/** Maps pipeline status to UI-friendly status */
-function mapPipelineStatus(status: string): "building" | "ready" | "partial" | "failed" {
-  switch (status) {
-    case "pending":
-    case "running":
-      return "building";
-    case "completed":
-      return "ready";
-    case "failed":
-    case "cancelled":
-      return "failed";
-    default:
-      return "building";
-  }
-}
 import {
   DEFAULT_DEPLOYMENT_MODE,
   DEFAULT_SERVER_TYPE,
@@ -32,7 +18,7 @@ import {
   decideConnection,
   findDeploymentOption,
   type ConnectionDecision,
-  type DeploymentMode
+  type DeploymentMode,
 } from "../../domain/deployment";
 
 interface GenerateDesktopButtonProps {
@@ -53,7 +39,7 @@ function buildConnectionDefaults(config?: DesktopConnectionConfig | null): Conne
     proxyUrl: config?.proxy_url ?? config?.server_url ?? "",
     autoManageVrooli: config?.auto_manage_vrooli ?? false,
     vrooliBinaryPath: config?.vrooli_binary_path ?? "vrooli",
-    bundleManifestPath: config?.bundle_manifest_path ?? ""
+    bundleManifestPath: config?.bundle_manifest_path ?? "",
   };
 }
 
@@ -72,8 +58,6 @@ function ensureRequiredInputs(
 }
 
 export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) {
-  const queryClient = useQueryClient();
-  const [buildId, setBuildId] = useState<string | null>(null);
   const [showConfigurator, setShowConfigurator] = useState(!scenario.has_desktop);
   const saved = scenario.connection_config;
   const defaults = buildConnectionDefaults(saved);
@@ -84,10 +68,8 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
   const [bundleManifestPath, setBundleManifestPath] = useState(defaults.bundleManifestPath);
   const [connectionResult, setConnectionResult] = useState<ProbeResponse | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const selectedDeployment = useMemo(
-    () => findDeploymentOption(deploymentMode),
-    [deploymentMode]
-  );
+
+  const selectedDeployment = useMemo(() => findDeploymentOption(deploymentMode), [deploymentMode]);
   const serverType = DEFAULT_SERVER_TYPE;
   const connectionDecision = useMemo(
     () => decideConnection(deploymentMode, serverType),
@@ -103,50 +85,47 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     setBundleManifestPath(next.bundleManifestPath);
   }, []);
 
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      ensureRequiredInputs(connectionDecision, proxyUrl, bundleManifestPath, {
-        proxy: "Provide the proxy URL you use in the browser.",
-        bundle: "Provide the bundle_manifest_path exported by deployment-manager."
-      });
-      const config: PipelineConfig = {
-        scenario_name: scenario.name,
-        template_type: 'universal',
-        deployment_mode: deploymentMode as "bundled" | "proxy",
-        proxy_url: proxyUrl || undefined,
-        bundle_manifest_path: bundleManifestPath || undefined,
-        stop_after_stage: 'generate',
-      };
-      return runPipeline(config);
-    },
-    onSuccess: (data) => {
-      setBuildId(data.pipeline_id);
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['scenarios-desktop-status'] });
-      }, 3000);
-    }
+  // Use shared pipeline mutation hook
+  const {
+    state: { buildId, error: mutationError },
+    mutation: generateMutation,
+    runPipelineWithConfig,
+    reset,
+  } = usePipelineMutation({
+    invalidateOnSuccess: ["scenarios-desktop-status"],
   });
 
+  const handleGenerate = useCallback(() => {
+    ensureRequiredInputs(connectionDecision, proxyUrl, bundleManifestPath, {
+      proxy: "Provide the proxy URL you use in the browser.",
+      bundle: "Provide the bundle_manifest_path exported by deployment-manager.",
+    });
+    const config: PipelineConfig = {
+      scenario_name: scenario.name,
+      template_type: "universal",
+      deployment_mode: deploymentMode as "bundled" | "proxy",
+      proxy_url: proxyUrl || undefined,
+      bundle_manifest_path: bundleManifestPath || undefined,
+      stop_after_stage: "generate",
+    };
+    runPipelineWithConfig(config);
+  }, [connectionDecision, proxyUrl, bundleManifestPath, scenario.name, deploymentMode, runPipelineWithConfig]);
+
   useEffect(() => {
-    if (scenario.has_desktop) {
-      setShowConfigurator(false);
-    } else {
-      setShowConfigurator(true);
-    }
+    setShowConfigurator(!scenario.has_desktop);
   }, [scenario.has_desktop]);
 
   useEffect(() => {
-    if (!scenario.connection_config) {
-      return;
+    if (scenario.connection_config) {
+      applyConnectionConfig(scenario.connection_config);
     }
-    applyConnectionConfig(scenario.connection_config);
-  }, [applyConnectionConfig, scenario.connection_config?.updated_at, scenario.connection_config, scenario.name]);
+  }, [applyConnectionConfig, scenario.connection_config]);
 
   const connectionMutation = useMutation({
     mutationFn: async () => {
       ensureRequiredInputs(connectionDecision, proxyUrl, bundleManifestPath, {
         proxy: "Enter the proxy URL first",
-        bundle: "Provide the bundle_manifest_path exported by deployment-manager."
+        bundle: "Provide the bundle_manifest_path exported by deployment-manager.",
       });
       return probeEndpoints({ proxy_url: proxyUrl });
     },
@@ -157,33 +136,29 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
     onError: (error: Error) => {
       setConnectionError(error.message);
       setConnectionResult(null);
-    }
+    },
   });
 
-  const { data: pipelineStatus } = useQuery({
-    queryKey: ['generate-status', buildId],
-    queryFn: async () => (buildId ? getPipelineStatus(buildId, { verbose: true }) : null),
-    enabled: !!buildId,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      // Stop polling when pipeline reaches any final state
-      if (data?.status === 'completed' || data?.status === 'failed' || data?.status === 'cancelled') {
-        return false;
+  const { pipelineStatus, isBuilding: statusIsBuilding, isComplete, isFailed } = usePipelineStatus({
+    buildId,
+    verbose: true,
+    queryKeyPrefix: "generate-status",
+  });
+
+  const buildStatus = pipelineStatus
+    ? {
+        status: isComplete ? "ready" : isFailed ? "failed" : "building",
+        output_path: (pipelineStatus.stages?.generate?.details as GenerateStageDetails | undefined)?.desktop_path,
+        // logs only available on VerboseStageResult, use type guard
+        error_log: pipelineStatus.stages?.generate && "logs" in pipelineStatus.stages.generate
+          ? (pipelineStatus.stages.generate as { logs?: string[] }).logs
+          : undefined,
       }
-      return 2000;
-    }
-  });
+    : null;
 
-  // Map pipeline status to UI-friendly status
-  const buildStatus = pipelineStatus ? {
-    status: mapPipelineStatus(pipelineStatus.status),
-    output_path: (pipelineStatus.stages?.generate?.details as GenerateStageDetails | undefined)?.desktop_path,
-    error_log: pipelineStatus.stages?.generate?.logs,
-  } : null;
-
-  const isBuilding = generateMutation.isPending || buildStatus?.status === 'building';
-  const isComplete = buildStatus?.status === 'ready';
-  const isFailed = buildStatus?.status === 'failed' || generateMutation.isError;
+  const isBuilding = generateMutation.isPending || statusIsBuilding;
+  const errorMessage = buildStatus?.error_log?.join("\n\n") || mutationError || generateMutation.error?.message;
+  const showError = isFailed || generateMutation.isError;
 
   const defaultSummary = scenario.connection_config;
 
@@ -197,7 +172,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             </Badge>
             <span>Files live at {buildStatus?.output_path || scenario.desktop_path}</span>
           </div>
-          <p className="mt-1 text-[11px]">We’ll keep polling so the Scenario Inventory stays up to date.</p>
+          <p className="mt-1 text-[11px]">We'll keep polling so the Scenario Inventory stays up to date.</p>
         </div>
       )}
 
@@ -207,14 +182,12 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
         </div>
       )}
 
-      {isFailed && (
-        <ErrorCallout
-          scenarioName={scenario.name}
-          errorMessage={buildStatus?.error_log?.join('\n\n') || generateMutation.error?.message || 'Unknown error'}
-          onRetry={() => {
-            setBuildId(null);
-            generateMutation.reset();
-          }}
+      {showError && errorMessage && (
+        <PipelineErrorDisplay
+          title="Unable to generate desktop wrapper"
+          errorMessage={errorMessage}
+          suggestion={suggestRecovery(errorMessage, scenario.name)}
+          onRetry={reset}
         />
       )}
 
@@ -222,18 +195,13 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
         <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 text-sm text-slate-200 space-y-2">
           <p className="font-semibold">Currently targeting</p>
           <p className="text-xs text-slate-400">
-            {defaultSummary.proxy_url || defaultSummary.server_url || 'No proxy URL saved yet. Click edit to add it.'}
+            {defaultSummary.proxy_url || defaultSummary.server_url || "No proxy URL saved yet. Click edit to add it."}
           </p>
           {defaultSummary.deployment_mode && (
             <p className="text-xs text-slate-500">Mode: {defaultSummary.deployment_mode}</p>
           )}
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              size="sm"
-              className="gap-2"
-              disabled={isBuilding}
-              onClick={() => generateMutation.mutate()}
-            >
+            <Button size="sm" className="gap-2" disabled={isBuilding} onClick={handleGenerate}>
               <Zap className="h-4 w-4" /> Regenerate wrapper
             </Button>
             <Button variant="outline" size="sm" onClick={() => setShowConfigurator(true)}>
@@ -246,12 +214,13 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
           className="space-y-3 rounded-lg border border-slate-700 bg-slate-900/40 p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            generateMutation.mutate();
+            handleGenerate();
           }}
         >
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-300">
-              Connect this desktop wrapper to the same Vrooli instance you already open in the browser (local machine or Cloudflare/app-monitor link).
+              Connect this desktop wrapper to the same Vrooli instance you already open in the browser (local machine or
+              Cloudflare/app-monitor link).
             </p>
             {scenario.has_desktop && (
               <Button variant="outline" type="button" size="sm" onClick={() => setShowConfigurator(false)}>
@@ -277,12 +246,7 @@ export function GenerateDesktopButton({ scenario }: GenerateDesktopButtonProps) 
             <p className="mt-1 text-xs text-slate-400">
               {selectedDeployment.description}{" "}
               {selectedDeployment.docs && (
-                <a
-                  href={selectedDeployment.docs}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-300 underline"
-                >
+                <a href={selectedDeployment.docs} target="_blank" rel="noreferrer" className="text-blue-300 underline">
                   Learn more
                 </a>
               )}
@@ -389,10 +353,9 @@ function RemoteConnectionSection({
   autoManageVrooli,
   onToggleAutoManageVrooli,
   vrooliBinaryPath,
-  onBinaryPathChange
+  onBinaryPathChange,
 }: RemoteConnectionSectionProps) {
-  const bothEndpointsHealthy =
-    connectionResult?.server.status === "ok" && connectionResult?.api.status === "ok";
+  const bothEndpointsHealthy = connectionResult?.server.status === "ok" && connectionResult?.api.status === "ok";
 
   return (
     <>
@@ -411,13 +374,7 @@ function RemoteConnectionSection({
         />
 
         <div className="mt-2 flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onTestConnection}
-            disabled={isTesting || !proxyUrl}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={onTestConnection} disabled={isTesting || !proxyUrl}>
             {isTesting ? "Testing..." : "Test connection"}
           </Button>
           {bothEndpointsHealthy && <span className="text-xs text-green-300">Proxy responded ✔</span>}
@@ -434,9 +391,7 @@ function RemoteConnectionSection({
             </p>
             <p>
               API URL:{" "}
-              {connectionResult?.api.status === "ok"
-                ? "reachable"
-                : connectionResult?.api.message || "no response"}
+              {connectionResult?.api.status === "ok" ? "reachable" : connectionResult?.api.message || "no response"}
             </p>
           </div>
         )}
@@ -455,65 +410,10 @@ function RemoteConnectionSection({
           placeholder="vrooli"
         />
         <p className="text-xs text-slate-400">
-          This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario locally.
+          This runs `vrooli setup/start/stop` on the user's machine. Enable only when they expect to host the scenario
+          locally.
         </p>
       </div>
     </>
   );
-}
-
-function ErrorCallout({
-  scenarioName,
-  errorMessage,
-  onRetry
-}: {
-  scenarioName: string;
-  errorMessage: string;
-  onRetry: () => void;
-}) {
-  const suggestion = suggestRecovery(errorMessage, scenarioName);
-
-  return (
-    <div className="space-y-2 rounded-lg border border-red-900 bg-red-950/20 p-3 text-xs text-red-200">
-      <div className="flex items-center gap-2 text-red-300">
-        <XCircle className="h-3 w-3" /> Unable to generate desktop wrapper
-      </div>
-      <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] text-red-200/80">
-        {errorMessage}
-      </pre>
-      {suggestion && <p className="text-yellow-200">{suggestion}</p>}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => navigator.clipboard.writeText(errorMessage)}
-          className="gap-1"
-        >
-          Copy error
-        </Button>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Retry
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function suggestRecovery(errorMessage: string, scenarioName: string): string | null {
-  if (errorMessage.includes('not found') || errorMessage.includes('404')) {
-    return `Ensure the scenario '${scenarioName}' exists in /scenarios/ first.`;
-  }
-  if (errorMessage.includes('ui/dist') || errorMessage.includes('UI not built')) {
-    return `Build the scenario UI first: cd scenarios/${scenarioName}/ui && npm run build.`;
-  }
-  if (errorMessage.includes('permission') || errorMessage.includes('EACCES')) {
-    return 'Check file permissions in the scenarios directory.';
-  }
-  if (errorMessage.includes('ENOSPC') || errorMessage.includes('no space')) {
-    return 'Free up disk space and try again.';
-  }
-  if (errorMessage.includes('port') || errorMessage.includes('EADDRINUSE')) {
-    return 'Another process is using the required port. Stop it or change ports.';
-  }
-  return null;
 }

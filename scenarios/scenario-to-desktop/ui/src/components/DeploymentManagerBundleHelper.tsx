@@ -1,6 +1,6 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import type { AutoBuildStatusResponse } from "../lib/api";
-import { exportBundleFromDeploymentManager, fetchDeploymentManagerAutoBuildStatus, startDeploymentManagerAutoBuild } from "../lib/api";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { usePipelineStore, selectIsRunning } from "../store";
+import type { BundleStageDetails } from "../lib/api";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Progress } from "./ui/progress";
@@ -13,25 +13,21 @@ export type DeploymentManagerBundleHelperHandle = {
 
 /** Bundle result data for stage persistence */
 export interface BundleResult {
-  buildStatus: AutoBuildStatusResponse | null;
+  bundleDetails: BundleStageDetails | null;
   manifestPath: string | null;
   checksum?: string;
   generatedAt?: string;
-  deploymentManagerUrl?: string | null;
 }
 
 type DeploymentManagerBundleHelperProps = {
   scenarioName: string;
   onBundleManifestChange: (value: string) => void;
   onBundleExported?: (manifestPath: string) => void;
-  onDeploymentManagerUrlChange?: (url: string | null) => void;
   /** Called when bundle export completes successfully. Use to persist stage results. */
   onBundleComplete?: (result: BundleResult) => void;
-  /** Initial state for restoration from server persistence. */
-  initialBuildStatus?: AutoBuildStatusResponse | null;
+  /** Initial bundle details for restoration from server persistence. */
+  initialBundleDetails?: BundleStageDetails | null;
   initialManifestPath?: string | null;
-  initialExportMeta?: { checksum?: string; generated_at?: string } | null;
-  initialDeploymentManagerUrl?: string | null;
 };
 
 export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleHelperHandle, DeploymentManagerBundleHelperProps>(
@@ -39,263 +35,168 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
     scenarioName,
     onBundleManifestChange,
     onBundleExported,
-    onDeploymentManagerUrlChange,
     onBundleComplete,
-    initialBuildStatus,
+    initialBundleDetails,
     initialManifestPath,
-    initialExportMeta,
-    initialDeploymentManagerUrl,
   }, ref) => {
     const [tier, setTier] = useState("tier-2-desktop");
-    const [generationPhase, setGenerationPhase] = useState<"idle" | "building" | "exporting">("idle");
-    const [exportError, setExportError] = useState<string | null>(null);
-    const [buildError, setBuildError] = useState<string | null>(null);
-    const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-    const [downloadName, setDownloadName] = useState<string | null>(null);
-    const [exportMeta, setExportMeta] = useState<{ checksum?: string; generated_at?: string } | null>(
-      initialExportMeta ?? null
-    );
-    // State for deployment manager URL - setter is used, value is passed via callback
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [deploymentManagerUrl, setDeploymentManagerUrl] = useState<string | null>(
-      initialDeploymentManagerUrl ?? null
-    );
-    const [manifestPath, setManifestPath] = useState<string | null>(initialManifestPath ?? null);
-    const [buildJobId, setBuildJobId] = useState<string | null>(null);
-    const [buildStatus, setBuildStatus] = useState<AutoBuildStatusResponse | null>(
-      initialBuildStatus ?? null
-    );
-    const exportTriggeredRef = useRef(false);
-    // Track previous scenario to detect genuine scenario changes vs initial load
+
+    // Pipeline store
+    const {
+      setScenario,
+      runBundleStage,
+      runStatus,
+      error: pipelineError,
+      bundleResult,
+      stageLogs,
+      pipelineId,
+      clearError,
+    } = usePipelineStore();
+    const isRunning = usePipelineStore(selectIsRunning);
+
+    // Track previous scenario to detect genuine changes
     const prevScenarioRef = useRef<string>(scenarioName);
-    // Track if we've received initial values from server
-    const hasReceivedInitialRef = useRef<boolean>(Boolean(initialBuildStatus || initialManifestPath));
+    const hasNotifiedRef = useRef<boolean>(false);
 
-    useImperativeHandle(ref, () => ({
-      exportBundle: () => {
-        handleExport();
-      }
-    }));
+    // Local state for display
+    const [localBundleDetails, setLocalBundleDetails] = useState<BundleStageDetails | null>(
+      initialBundleDetails ?? null
+    );
+    const [localManifestPath, setLocalManifestPath] = useState<string | null>(
+      initialManifestPath ?? null
+    );
 
-    // Sync from initial props when they change (server state loading)
+    // Set scenario in store when it changes
     useEffect(() => {
-      if (initialBuildStatus) {
-        setBuildStatus(initialBuildStatus);
-        hasReceivedInitialRef.current = true;
+      if (scenarioName) {
+        setScenario(scenarioName);
+      }
+    }, [scenarioName, setScenario]);
+
+    // Sync from initial props
+    useEffect(() => {
+      if (initialBundleDetails) {
+        setLocalBundleDetails(initialBundleDetails);
       }
       if (initialManifestPath) {
-        setManifestPath(initialManifestPath);
+        setLocalManifestPath(initialManifestPath);
       }
-      if (initialExportMeta) {
-        setExportMeta(initialExportMeta);
-      }
-      if (initialDeploymentManagerUrl) {
-        setDeploymentManagerUrl(initialDeploymentManagerUrl);
-      }
-    }, [initialBuildStatus, initialManifestPath, initialExportMeta, initialDeploymentManagerUrl]);
+    }, [initialBundleDetails, initialManifestPath]);
 
-    // Reset state when scenario changes - but not on initial load
+    // Reset state when scenario genuinely changes
     useEffect(() => {
       const prevScenario = prevScenarioRef.current;
       prevScenarioRef.current = scenarioName;
 
-      // Only reset if the scenario genuinely changed (not on initial load)
-      const isGenuineChange = prevScenario !== scenarioName && prevScenario !== "";
-
-      // Also skip reset if we just received initial values from server
-      if (!isGenuineChange && hasReceivedInitialRef.current) {
-        hasReceivedInitialRef.current = false; // Reset flag after first load
-        return;
+      if (prevScenario !== scenarioName && prevScenario !== "") {
+        setLocalBundleDetails(null);
+        setLocalManifestPath(null);
+        hasNotifiedRef.current = false;
+        clearError();
       }
+    }, [scenarioName, clearError]);
 
-      if (isGenuineChange) {
-        setGenerationPhase("idle");
-        setExportError(null);
-        setBuildError(null);
-        setBuildJobId(null);
-        setBuildStatus(null);
-        setManifestPath(null);
-        setExportMeta(null);
-        setDeploymentManagerUrl(null);
-        exportTriggeredRef.current = false;
-      }
-    }, [scenarioName]);
+    // Update local state when pipeline completes bundle stage
+    useEffect(() => {
+      if (bundleResult && !hasNotifiedRef.current) {
+        setLocalBundleDetails(bundleResult);
 
-    const resetGenerationState = () => {
-      setExportError(null);
-      setBuildError(null);
-      setExportMeta(null);
-      setDownloadUrl(null);
-      setDownloadName(null);
-      setManifestPath(null);
-      setDeploymentManagerUrl(null);
-      setBuildJobId(null);
-      setBuildStatus(null);
-      exportTriggeredRef.current = false;
-      if (onDeploymentManagerUrlChange) {
-        onDeploymentManagerUrlChange(null);
-      }
-    };
-
-    // Run export with explicit buildStatus parameter to avoid stale ref issues.
-    // The ref approach fails because effects run after render, but runExport is
-    // called synchronously after setBuildStatus in handleExport and the polling effect.
-    const runExport = useCallback(async (currentBuildStatus: AutoBuildStatusResponse | null) => {
-      setGenerationPhase("exporting");
-      try {
-        const response = await exportBundleFromDeploymentManager({
-          scenario: scenarioName,
-          tier
-        });
-        const blob = new Blob([JSON.stringify(response.manifest, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const filename = `${scenarioName}-${tier}-bundle.json`;
-        setDownloadUrl(url);
-        setDownloadName(filename);
-        setExportMeta({ checksum: response.checksum, generated_at: response.generated_at });
-        setDeploymentManagerUrl(response.deployment_manager_url ?? null);
-        if (onDeploymentManagerUrlChange) {
-          onDeploymentManagerUrlChange(response.deployment_manager_url ?? null);
+        if (bundleResult.manifest_path) {
+          setLocalManifestPath(bundleResult.manifest_path);
+          onBundleManifestChange(bundleResult.manifest_path);
+          onBundleExported?.(bundleResult.manifest_path);
         }
-        if (response.manifest_path) {
-          setManifestPath(response.manifest_path);
-          onBundleManifestChange(response.manifest_path);
-          onBundleExported?.(response.manifest_path);
-        }
-        // Notify parent of successful bundle completion for stage persistence
+
+        // Notify parent of completion
         onBundleComplete?.({
-          buildStatus: currentBuildStatus,
-          manifestPath: response.manifest_path ?? null,
-          checksum: response.checksum,
-          generatedAt: response.generated_at,
-          deploymentManagerUrl: response.deployment_manager_url,
+          bundleDetails: bundleResult,
+          manifestPath: bundleResult.manifest_path ?? null,
         });
-      } catch (error) {
-        setExportError((error as Error).message);
-      } finally {
-        setGenerationPhase("idle");
+
+        hasNotifiedRef.current = true;
       }
-    }, [scenarioName, tier, onBundleManifestChange, onBundleExported, onDeploymentManagerUrlChange, onBundleComplete]);
+    }, [bundleResult, onBundleManifestChange, onBundleExported, onBundleComplete]);
+
+    // Reset notification flag when starting a new bundle
+    useEffect(() => {
+      if (runStatus === "starting" || runStatus === "running") {
+        hasNotifiedRef.current = false;
+      }
+    }, [runStatus]);
+
+    useImperativeHandle(ref, () => ({
+      exportBundle: handleExport,
+    }));
 
     const handleExport = async () => {
-      resetGenerationState();
       if (!scenarioName.trim()) {
-        setExportError("Enter a scenario name above before exporting the bundle.");
         return;
       }
-      setGenerationPhase("building");
+
+      setLocalBundleDetails(null);
+      setLocalManifestPath(null);
+      hasNotifiedRef.current = false;
+
       try {
-        const response = await startDeploymentManagerAutoBuild({
-          scenario: scenarioName
+        await runBundleStage({
+          // tier is currently unused by pipeline but included for future support
         });
-        setBuildStatus(response);
-        if (response.build_id) {
-          setBuildJobId(response.build_id);
-        }
-        if (response.status === "skipped") {
-          exportTriggeredRef.current = true;
-          // Pass response directly since state update hasn't rendered yet
-          await runExport(response);
-        }
-      } catch (error) {
-        setBuildError((error as Error).message);
-        setGenerationPhase("idle");
+      } catch {
+        // Error is handled by the store
       }
     };
 
-    const buildProgress = useMemo(() => {
-      const targets = buildStatus?.targets ?? [];
-      let total = 0;
-      let completed = 0;
-      for (const target of targets) {
-        for (const platform of target.platforms || []) {
-          total += 1;
-          if (["success", "failed", "skipped"].includes(platform.status)) {
-            completed += 1;
-          }
-        }
+    // Calculate progress based on run status
+    const progress = useMemo(() => {
+      switch (runStatus) {
+        case "idle":
+          return localBundleDetails ? 100 : 0;
+        case "starting":
+          return 5;
+        case "running":
+          return 50;
+        case "completed":
+          return 100;
+        case "failed":
+        case "cancelled":
+          return 0;
+        default:
+          return 0;
       }
-      if (total == 0) {
-        return 0;
-      }
-      return Math.round((completed / total) * 100);
-    }, [buildStatus]);
+    }, [runStatus, localBundleDetails]);
 
-    const buildTargets = buildStatus?.targets ?? [];
-    const buildLog = buildStatus?.build_log ?? [];
-    const buildErrors = buildStatus?.error_log ?? [];
+    const bundleLogs = stageLogs.bundle ?? [];
+    const isBusy = isRunning;
 
-    useEffect(() => {
-      if (!buildJobId) {
-        return;
-      }
-      let active = true;
-      let timeoutId: number | undefined;
+    const buttonLabel = isBusy ? "Building bundle..." : "Generate bundle";
 
-      const poll = async () => {
-        try {
-          const status = await fetchDeploymentManagerAutoBuildStatus(buildJobId);
-          if (!active) return;
-          setBuildStatus(status);
-          const doneStatuses = new Set(["success", "partial", "failed", "skipped", "dry_run"]);
-          if (doneStatuses.has(status.status)) {
-            if ((status.status === "success" || status.status === "skipped") && !exportTriggeredRef.current) {
-              exportTriggeredRef.current = true;
-              // Pass status directly since state update hasn't rendered yet
-              await runExport(status);
-            } else if (status.status !== "success" && status.status !== "skipped") {
-              setGenerationPhase("idle");
-              setBuildError(`Auto build finished with status "${status.status}".`);
-            }
-            return;
-          }
-          const delay = status.poll_after_ms && status.poll_after_ms > 0 ? status.poll_after_ms : 2000;
-          timeoutId = window.setTimeout(poll, delay);
-        } catch (error) {
-          if (!active) return;
-          setBuildError((error as Error).message);
-          timeoutId = window.setTimeout(poll, 4000);
-        }
-      };
-
-      poll();
-
-      return () => {
-        active = false;
-        if (timeoutId) {
-          window.clearTimeout(timeoutId);
-        }
-      };
-    }, [buildJobId, runExport]);
-
-    const isBusy = generationPhase !== "idle";
-    const buttonLabel =
-      generationPhase === "building"
-        ? "Building bundle..."
-        : generationPhase === "exporting"
-          ? "Exporting bundle..."
-          : "Generate bundle";
-    const buildStatusTone = (status?: string) => {
+    const getStatusTone = (status: string) => {
       switch (status) {
-        case "success":
+        case "completed":
           return "bg-emerald-500/10 text-emerald-200 border-emerald-500/40";
-        case "partial":
-          return "bg-amber-500/10 text-amber-200 border-amber-500/40";
+        case "running":
+        case "starting":
+          return "bg-blue-500/10 text-blue-200 border-blue-500/40";
         case "failed":
           return "bg-rose-500/10 text-rose-200 border-rose-500/40";
-        case "building":
-          return "bg-blue-500/10 text-blue-200 border-blue-500/40";
+        case "cancelled":
+          return "bg-amber-500/10 text-amber-200 border-amber-500/40";
         default:
           return "bg-slate-500/10 text-slate-200 border-slate-500/40";
       }
     };
+
+    // Determine what to display
+    const displayDetails = bundleResult ?? localBundleDetails;
+    const displayManifestPath = bundleResult?.manifest_path ?? localManifestPath;
+    const showStatus = isBusy || displayDetails;
 
     return (
       <div className="rounded border border-slate-800 bg-black/20 p-3 space-y-3 text-xs text-slate-200">
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-400">Bundle helper</p>
-            <p className="text-sm font-semibold text-slate-100">Get bundle.json from deployment-manager</p>
+            <p className="text-sm font-semibold text-slate-100">Generate bundle via pipeline</p>
           </div>
         </div>
         <p className="text-xs text-slate-400">
@@ -314,134 +215,128 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
           <Button size="sm" variant="outline" onClick={handleExport} disabled={isBusy}>
             {buttonLabel}
           </Button>
-          {downloadUrl && downloadName && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                const link = document.createElement("a");
-                link.href = downloadUrl;
-                link.download = downloadName;
-                link.click();
-              }}
-            >
-              Download bundle
-            </Button>
-          )}
         </div>
-        {generationPhase === "building" && !buildStatus && (
-          <p className="text-[11px] text-slate-400">Starting auto build...</p>
+
+        {isBusy && !displayDetails && (
+          <p className="text-[11px] text-slate-400 flex items-center gap-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Starting bundle stage...
+          </p>
         )}
-        {buildStatus && (
+
+        {showStatus && (
           <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">Auto build</p>
-                <p className="text-sm font-semibold text-slate-100">Bundle binaries & assets</p>
+                <p className="text-[11px] uppercase tracking-wide text-slate-400">Bundle stage</p>
+                <p className="text-sm font-semibold text-slate-100">Package scenario for desktop</p>
               </div>
-              <span className={`rounded-full border px-2 py-0.5 text-[11px] ${buildStatusTone(buildStatus.status)}`}>
-                {buildStatus.status}
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] ${getStatusTone(runStatus)}`}>
+                {runStatus}
               </span>
             </div>
-            <div className="text-[11px] text-slate-400">
-              Build ID: <span className="font-mono text-slate-300">{buildStatus.build_id}</span>
-            </div>
+
+            {pipelineId && (
+              <div className="text-[11px] text-slate-400">
+                Pipeline ID: <span className="font-mono text-slate-300">{pipelineId.slice(0, 8)}...</span>
+              </div>
+            )}
+
             <div className="space-y-1">
               <div className="flex justify-between text-[11px] text-slate-400">
                 <span>Progress</span>
-                <span className="text-slate-300">{buildProgress}%</span>
+                <span className="text-slate-300">{progress}%</span>
               </div>
-              <Progress value={buildProgress} />
+              <Progress value={progress} />
             </div>
-            {buildTargets.length > 0 && (
+
+            {displayDetails && (
               <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wide text-slate-500">Targets</p>
-                {buildTargets.map((target) => (
-                  <div key={target.id} className="rounded-md border border-slate-800/70 bg-slate-950/70 p-2 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-slate-200">{target.id}</p>
-                      <span className="text-[11px] text-slate-500">{target.folder}</span>
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Bundle details</p>
+                <div className="rounded-md border border-slate-800/70 bg-slate-950/70 p-2 space-y-1">
+                  {displayDetails.bundle_dir && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <span className="text-slate-300">Bundle directory:</span>
+                      <span className="text-slate-500 truncate max-w-[200px]">{displayDetails.bundle_dir}</span>
                     </div>
-                    <div className="space-y-1">
-                      {(target.platforms || []).map((platform) => {
-                        const isBuilding = platform.status === "building";
-                        const isSuccess = platform.status === "success";
-                        const isFailed = platform.status === "failed";
-                        return (
-                          <div key={platform.name} className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                            <span className="flex items-center gap-2 text-slate-300">
-                              {isSuccess ? (
-                                <CheckCircle className="h-4 w-4 text-emerald-400" />
-                              ) : isFailed ? (
-                                <AlertTriangle className="h-4 w-4 text-rose-400" />
-                              ) : isBuilding ? (
-                                <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />
-                              ) : (
-                                <span className="h-4 w-4 rounded-full border border-slate-600" />
-                              )}
-                              {platform.name}
-                            </span>
-                            <span className="max-w-[240px] truncate text-slate-500">{platform.output_path}</span>
-                          </div>
-                        );
-                      })}
+                  )}
+                  {displayDetails.manifest_path && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <span className="text-slate-300">Manifest:</span>
+                      <span className="text-slate-500 truncate max-w-[200px]">{displayDetails.manifest_path}</span>
+                    </div>
+                  )}
+                  {displayDetails.total_size_human && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="text-slate-300">Total size:</span>
+                      <span className="text-slate-500">{displayDetails.total_size_human}</span>
+                    </div>
+                  )}
+                  {displayDetails.copied_artifacts && displayDetails.copied_artifacts.length > 0 && (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <span className="text-slate-300">Artifacts:</span>
+                      <span className="text-slate-500">{displayDetails.copied_artifacts.length} files</span>
+                    </div>
+                  )}
+                </div>
+
+                {displayDetails.size_warning && (
+                  <div className="flex items-start gap-2 text-[11px] text-amber-300">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{displayDetails.size_warning.message}</span>
+                  </div>
+                )}
+
+                {displayDetails.runtime_binaries && Object.keys(displayDetails.runtime_binaries).length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-500">Platform Builds</p>
+                    <div className="rounded-md border border-slate-800/70 bg-slate-950/70 p-2 space-y-1">
+                      {Object.entries(displayDetails.runtime_binaries).map(([platform, binaryPath]) => (
+                        <div key={platform} className="flex items-center gap-2 text-[11px]">
+                          <CheckCircle className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                          <span className="font-medium text-slate-300 capitalize">{platform.replace("-", " ")}</span>
+                          <span className="text-slate-500 truncate ml-auto max-w-[150px]" title={binaryPath}>
+                            {binaryPath.split("/").pop()}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
-            {buildLog.length > 0 && (
+
+            {bundleLogs.length > 0 && (
               <div>
                 <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Build log</p>
                 <div className="max-h-40 overflow-auto rounded-md border border-slate-800/70 bg-slate-950/80 p-2 font-mono text-[11px] text-slate-300">
-                  {buildLog.map((line, idx) => (
+                  {bundleLogs.map((line, idx) => (
                     <div key={idx}>{line}</div>
                   ))}
                 </div>
               </div>
-            )}
-            {buildErrors.length > 0 && (
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-rose-300 mb-1">Build errors</p>
-                <div className="max-h-40 overflow-auto rounded-md border border-rose-500/40 bg-rose-950/40 p-2 font-mono text-[11px] text-rose-200">
-                  {buildErrors.map((line, idx) => (
-                    <div key={idx}>{line}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {buildStatus.check_command && (
-              <p className="text-[11px] text-slate-400">
-                Check progress: <span className="font-mono text-slate-300">{buildStatus.check_command}</span>
-              </p>
             )}
           </div>
         )}
-        {buildError && (
+
+        {pipelineError && (
           <p className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-100">
-            {buildError}
+            {pipelineError}
           </p>
         )}
-        {exportMeta && (
+
+        {displayManifestPath && !isBusy && (
           <p className="text-[11px] text-slate-300">
-            Generated {exportMeta.generated_at || "just now"}
-            {exportMeta.checksum ? ` · checksum ${exportMeta.checksum.slice(0, 8)}...` : ""}
+            Saved to {displayManifestPath}
           </p>
         )}
-        {manifestPath && (
-          <p className="text-[11px] text-slate-300">
-            Saved to {manifestPath}
-          </p>
-        )}
-        {exportError && (
-          <p className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-amber-100">
-            {exportError}
-          </p>
-        )}
-        {!exportError && !downloadUrl && (
+
+        {!pipelineError && !displayDetails && !isBusy && (
           <p className="text-[11px] text-slate-400">
-            Start deployment-manager (`vrooli scenario start deployment-manager`), then click Generate. We'll auto-build
-            scenario binaries first, then export the manifest + staged files into the scenario bundle folder.
+            Click Generate to run the pipeline bundle stage. This will package your scenario's binaries and assets
+            for offline desktop use.
           </p>
         )}
       </div>

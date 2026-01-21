@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	httputil "scenario-to-desktop-api/shared/http"
 )
 
 // Handler provides HTTP handlers for system endpoints.
@@ -93,7 +95,7 @@ func (h *Handler) StatusHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // ListTemplatesHandler returns all available templates.
@@ -141,7 +143,7 @@ func (h *Handler) ListTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	writeJSON(w, http.StatusOK, TemplatesResponse{
+	httputil.WriteJSON(w, http.StatusOK, TemplatesResponse{
 		Templates: templates,
 		Count:     len(templates),
 	})
@@ -179,13 +181,13 @@ func (h *Handler) GetTemplateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, templateConfig)
+	httputil.WriteJSON(w, http.StatusOK, templateConfig)
 }
 
 // CheckWineHandler checks if Wine is installed and returns installation options.
 func (h *Handler) CheckWineHandler(w http.ResponseWriter, r *http.Request) {
 	response := h.wineService.CheckStatus()
-	writeJSON(w, http.StatusOK, response)
+	httputil.WriteJSON(w, http.StatusOK, response)
 }
 
 // InstallWineHandler initiates Wine installation process.
@@ -215,7 +217,7 @@ func (h *Handler) InstallWineHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, WineInstallResponse{
+	httputil.WriteJSON(w, http.StatusOK, WineInstallResponse{
 		InstallID: installID,
 		Status:    "pending",
 		Method:    request.Method,
@@ -234,12 +236,5 @@ func (h *Handler) GetWineInstallStatusHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	writeJSON(w, http.StatusOK, status)
-}
-
-// writeJSON writes a JSON response.
-func writeJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	httputil.WriteJSON(w, http.StatusOK, status)
 }

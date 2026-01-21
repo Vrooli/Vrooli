@@ -50,11 +50,23 @@ type DefaultAnalyzer struct {
 }
 
 // NewAnalyzer creates a new scenario analyzer.
+// If vrooliRoot is empty, attempts to detect it from environment or current directory.
 func NewAnalyzer(vrooliRoot string) *DefaultAnalyzer {
 	if vrooliRoot == "" {
+		// Try VROOLI_ROOT environment variable first (most reliable in production)
+		vrooliRoot = os.Getenv("VROOLI_ROOT")
+	}
+	if vrooliRoot == "" {
 		// Fallback to calculating from current directory
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
+		// Assumes this is called from within the Vrooli repository structure
+		currentDir, err := os.Getwd()
+		if err != nil {
+			// If we can't get cwd, use a relative path that will be resolved at runtime
+			// This is a defensive fallback for edge cases like deleted working directories
+			vrooliRoot = "../../.."
+		} else {
+			vrooliRoot = filepath.Join(currentDir, "../../..")
+		}
 	}
 	return &DefaultAnalyzer{
 		vrooliRoot: vrooliRoot,

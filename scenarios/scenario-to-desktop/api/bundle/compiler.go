@@ -47,7 +47,8 @@ type defaultServiceCompiler struct {
 }
 
 // Compile compiles a service binary for the specified platform.
-func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, manifestRoot string) (string, error) {
+// scenarioRoot is the path to the scenario directory (where source folders like api/, ui/, etc. are located).
+func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, scenarioRoot string) (string, error) {
 	if svc.Build == nil {
 		return "", errors.New("no build configuration")
 	}
@@ -58,8 +59,8 @@ func (c *defaultServiceCompiler) Compile(svc bundlemanifest.Service, platform, m
 		return "", err
 	}
 
-	// Resolve source directory
-	srcDir := filepath.Join(manifestRoot, build.SourceDir)
+	// Resolve source directory relative to scenario root
+	srcDir := filepath.Join(scenarioRoot, build.SourceDir)
 	if _, err := os.Stat(srcDir); err != nil {
 		return "", fmt.Errorf("source directory not found: %s", srcDir)
 	}
@@ -208,9 +209,11 @@ func rustTarget(goos, goarch string) (string, error) {
 	return target, nil
 }
 
-// compileNpmBinary builds a Node.js application using npm/pkg or similar bundler.
+// compileNpmBinary builds a Node.js application and prepares it for bundling.
+// For Electron apps, Node.js services run via the built-in Node.js runtime, not as native binaries.
+// This function builds the project and copies the result to outPath as a directory.
 func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifest.BuildConfig) error {
-	// First, install dependencies
+	// First, install dependencies (including devDependencies for build)
 	installCmd := exec.Command("npm", "install")
 	installCmd.Dir = srcDir
 	if output, err := installCmd.CombinedOutput(); err != nil {
@@ -226,6 +229,9 @@ func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifes
 	buildCmd := exec.Command("npm", buildArgs...)
 	buildCmd.Dir = srcDir
 
+	// Start with parent environment (required for PATH, npm to find node_modules/.bin, etc.)
+	buildCmd.Env = os.Environ()
+
 	// Add custom environment variables
 	for k, v := range build.Env {
 		buildCmd.Env = append(buildCmd.Env, k+"="+v)
@@ -240,12 +246,157 @@ func compileNpmBinary(srcDir, outPath, goos, goarch string, build *bundlemanifes
 		return fmt.Errorf("npm build failed: %w: %s", err, strings.TrimSpace(string(output)))
 	}
 
-	// npm build typically outputs to dist/
-	if _, err := os.Stat(outPath); err != nil {
-		return fmt.Errorf("npm build did not produce expected output at %s - ensure build.args configures output path correctly", outPath)
+	// For Node.js projects, the build outputs JavaScript, not a native binary.
+	// Verify dist/ was created
+	distDir := filepath.Join(srcDir, "dist")
+	if _, err := os.Stat(distDir); err != nil {
+		return fmt.Errorf("npm build did not produce dist/ directory at %s", distDir)
+	}
+
+	// Look for common entry points to verify the build succeeded
+	entryPoints := []string{"server.js", "index.js", "main.js"}
+	var entryPoint string
+	for _, ep := range entryPoints {
+		epPath := filepath.Join(distDir, ep)
+		if _, err := os.Stat(epPath); err == nil {
+			entryPoint = ep
+			break
+		}
+	}
+	if entryPoint == "" {
+		return fmt.Errorf("npm build did not produce a recognizable entry point (server.js, index.js, or main.js) in %s", distDir)
+	}
+
+	// Install production dependencies only for the bundle
+	prodInstallCmd := exec.Command("npm", "install", "--omit=dev")
+	prodInstallCmd.Dir = srcDir
+	if output, err := prodInstallCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("npm install --omit=dev failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	// Create output directory structure
+	// outPath is like: bin/playwright-driver/linux/browser-automation-studio-playwright-driver
+	// We'll create a directory there containing dist/, node_modules/, and package.json
+	if err := os.MkdirAll(outPath, 0o755); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
+	}
+
+	// Copy dist/ to output
+	destDist := filepath.Join(outPath, "dist")
+	if err := copyDir(distDir, destDist); err != nil {
+		return fmt.Errorf("copy dist directory: %w", err)
+	}
+
+	// Copy node_modules/ to output (production deps only)
+	srcNodeModules := filepath.Join(srcDir, "node_modules")
+	if _, err := os.Stat(srcNodeModules); err == nil {
+		destNodeModules := filepath.Join(outPath, "node_modules")
+		if err := copyDir(srcNodeModules, destNodeModules); err != nil {
+			return fmt.Errorf("copy node_modules directory: %w", err)
+		}
+	}
+
+	// Copy package.json for runtime metadata
+	srcPkg := filepath.Join(srcDir, "package.json")
+	if _, err := os.Stat(srcPkg); err == nil {
+		destPkg := filepath.Join(outPath, "package.json")
+		if err := copyFile(srcPkg, destPkg); err != nil {
+			return fmt.Errorf("copy package.json: %w", err)
+		}
+	}
+
+	// Create a run.sh script that the runtime can execute
+	runScript := filepath.Join(outPath, "run.sh")
+	scriptContent := fmt.Sprintf(`#!/bin/sh
+cd "$(dirname "$0")"
+exec node dist/%s "$@"
+`, entryPoint)
+	if err := os.WriteFile(runScript, []byte(scriptContent), 0o755); err != nil {
+		return fmt.Errorf("write run script: %w", err)
+	}
+
+	// For Windows, also create run.cmd
+	if goos == "windows" {
+		runCmd := filepath.Join(outPath, "run.cmd")
+		cmdContent := fmt.Sprintf(`@echo off
+cd /d "%%~dp0"
+node dist\%s %%*
+`, entryPoint)
+		if err := os.WriteFile(runCmd, []byte(cmdContent), 0o755); err != nil {
+			return fmt.Errorf("write run.cmd: %w", err)
+		}
 	}
 
 	return nil
+}
+
+// copyDir recursively copies a directory, preserving symlinks
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get relative path
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, relPath)
+
+		// Check if it's a symlink
+		if info.Mode()&os.ModeSymlink != 0 {
+			// Read the symlink target
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			// Ensure parent directory exists
+			if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+				return err
+			}
+			// Remove existing file/symlink if it exists
+			_ = os.Remove(dstPath)
+			// Create symlink at destination
+			return os.Symlink(linkTarget, dstPath)
+		}
+
+		if info.IsDir() {
+			return os.MkdirAll(dstPath, info.Mode())
+		}
+
+		return copyFile(path, dstPath)
+	})
+}
+
+// copyFile copies a single file
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := dstFile.ReadFrom(srcFile); err != nil {
+		return err
+	}
+
+	// Preserve permissions
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	return os.Chmod(dst, srcInfo.Mode())
 }
 
 // compileCustomBinary runs a custom build command.

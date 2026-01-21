@@ -10,7 +10,8 @@ import (
 // Packager orchestrates bundle packaging operations.
 type Packager interface {
 	// Package packages a bundle from the given app path and manifest.
-	Package(appPath, manifestPath string, requestedPlatforms []string) (*PackageResult, error)
+	// framework specifies the target framework (e.g., "electron") which determines the bundle output path.
+	Package(appPath, manifestPath, framework string, requestedPlatforms []string) (*PackageResult, error)
 }
 
 // RuntimeResolver locates the runtime source directory.
@@ -28,7 +29,8 @@ type RuntimeBuilder interface {
 // ServiceCompiler compiles service binaries for target platforms.
 type ServiceCompiler interface {
 	// Compile compiles a service binary for the specified platform.
-	Compile(svc bundlemanifest.Service, platform, manifestRoot string) (string, error)
+	// scenarioRoot is the path to the scenario directory (where source folders like api/, ui/, etc. are located).
+	Compile(svc bundlemanifest.Service, platform, scenarioRoot string) (string, error)
 }
 
 // CLIStager stages CLI helpers into the bundle.

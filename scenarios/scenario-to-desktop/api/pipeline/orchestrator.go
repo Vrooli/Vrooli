@@ -92,8 +92,26 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 
 	// Default scenario root
 	if o.scenarioRoot == "" {
-		home, _ := os.UserHomeDir()
-		o.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		home, err := os.UserHomeDir()
+		if err != nil {
+			// Fallback to current directory if home directory is unavailable
+			// This is a defensive fallback - in practice, home dir is almost always available
+			cwd, cwdErr := os.Getwd()
+			if cwdErr != nil {
+				// Last resort: use a relative path (will be resolved against cwd at runtime)
+				o.scenarioRoot = "scenarios"
+			} else {
+				o.scenarioRoot = filepath.Join(cwd, "scenarios")
+			}
+			if o.logger != nil {
+				o.logger.Warn("UserHomeDir unavailable, using fallback",
+					"error", err.Error(),
+					"fallback_root", o.scenarioRoot,
+				)
+			}
+		} else {
+			o.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		}
 	}
 
 	// Default stages if none provided
@@ -121,6 +139,9 @@ func (l *SlogLogger) Error(msg string, args ...interface{}) { l.Logger.Error(msg
 func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg, args...) }
 
 // RunPipeline starts a new pipeline execution.
+// If an idempotency key is provided and a pipeline with that key exists, the existing
+// pipeline status is returned instead of starting a new one. This enables safe retries
+// where "running twice is no worse than running once".
 func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
 	// Validate config
 	if config.ScenarioName == "" {
@@ -135,6 +156,20 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	// Validate resume_from_stage if provided
 	if config.ResumeFromStage != "" && !IsValidStageName(config.ResumeFromStage) {
 		return nil, fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
+	}
+
+	// Idempotency check: if an idempotency key is provided, check for existing pipeline
+	// This enables safe retries where replaying a request returns the existing pipeline
+	// instead of starting duplicate work.
+	if config.IdempotencyKey != "" {
+		if existing, ok := o.store.GetByIdempotencyKey(config.IdempotencyKey); ok {
+			o.logger.Info("Idempotency key matched existing pipeline",
+				"idempotency_key", config.IdempotencyKey,
+				"pipeline_id", existing.PipelineID,
+				"status", existing.Status,
+			)
+			return existing, nil
+		}
 	}
 
 	// Apply defaults
@@ -153,14 +188,18 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 
 	// Create initial status
 	status := &Status{
-		PipelineID:   pipelineID,
-		ScenarioName: config.ScenarioName,
-		Status:       StatusPending,
-		Stages:       make(map[string]*StageResult),
-		StageOrder:   stageOrder,
-		Config:       config,
-		StartedAt:    o.timeProvider.Now(),
+		PipelineID:     pipelineID,
+		ScenarioName:   config.ScenarioName,
+		Status:         StatusPending,
+		Stages:         make(map[string]*StageResult),
+		StageOrder:     stageOrder,
+		Config:         config,
+		StartedAt:      o.timeProvider.Now(),
+		IdempotencyKey: config.IdempotencyKey, // Store for future lookups
 	}
+
+	// Set initial progress
+	status.UpdateProgress()
 
 	// Save initial status
 	o.store.Save(status)
@@ -183,6 +222,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	// Update status to running
 	o.store.Update(pipelineID, func(s *Status) {
 		s.Status = StatusRunning
+		s.UpdateProgress()
 	})
 
 	// Build stage input
@@ -244,6 +284,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 				s.Status = StatusCancelled
 				s.CompletedAt = o.timeProvider.Now()
 				s.Error = "pipeline cancelled"
+				s.UpdateProgress()
 			})
 			o.logger.Info("Pipeline cancelled", "pipeline_id", pipelineID)
 			return
@@ -253,6 +294,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		// Update current stage
 		o.store.Update(pipelineID, func(s *Status) {
 			s.CurrentStage = stageName
+			s.UpdateProgress()
 		})
 
 		o.logger.Info("Starting stage", "pipeline_id", pipelineID, "stage", stageName)
@@ -294,6 +336,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 					s.Status = StatusFailed
 					s.CompletedAt = o.timeProvider.Now()
 					s.Error = fmt.Sprintf("stage %s failed: %s", stageName, result.Error)
+					s.UpdateProgress()
 				})
 				o.logger.Error("Pipeline failed", "pipeline_id", pipelineID, "stage", stageName, "error", result.Error)
 				return
@@ -307,6 +350,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 				s.Status = StatusCancelled
 				s.CompletedAt = o.timeProvider.Now()
 				s.Error = "pipeline cancelled"
+				s.UpdateProgress()
 			})
 			o.logger.Info("Pipeline cancelled at stage", "pipeline_id", pipelineID, "stage", stageName)
 			return
@@ -328,6 +372,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.FinalArtifacts = finalArtifacts
+		s.UpdateProgress()
 	})
 
 	o.logger.Info("Pipeline completed", "pipeline_id", pipelineID)
@@ -345,6 +390,7 @@ func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input
 		s.FinalArtifacts = finalArtifacts
 		// Save the input so it can be restored when resuming
 		s.ResumedInput = input
+		s.UpdateProgress()
 	})
 
 	o.logger.Info("Pipeline stopped after stage",

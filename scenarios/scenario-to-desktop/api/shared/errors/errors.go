@@ -14,6 +14,29 @@ import (
 // ErrorCode represents a semantic error code for domain errors.
 type ErrorCode string
 
+// RecoveryAction describes what a client should do to recover from an error.
+// This helps both humans and agents determine the appropriate next step.
+type RecoveryAction string
+
+const (
+	// RecoveryRetry indicates the operation can be retried (transient failure).
+	RecoveryRetry RecoveryAction = "retry"
+	// RecoveryRetryWithBackoff indicates retry after a delay (rate limiting, temporary overload).
+	RecoveryRetryWithBackoff RecoveryAction = "retry_with_backoff"
+	// RecoveryFixInput indicates the client should correct input and resubmit.
+	RecoveryFixInput RecoveryAction = "fix_input"
+	// RecoveryProvideCredentials indicates missing authentication/secrets.
+	RecoveryProvideCredentials RecoveryAction = "provide_credentials"
+	// RecoveryWaitForResource indicates a resource is being prepared (try again soon).
+	RecoveryWaitForResource RecoveryAction = "wait_for_resource"
+	// RecoveryInstallDependency indicates a system dependency must be installed.
+	RecoveryInstallDependency RecoveryAction = "install_dependency"
+	// RecoveryContactSupport indicates an unrecoverable error requiring human intervention.
+	RecoveryContactSupport RecoveryAction = "contact_support"
+	// RecoveryNone indicates no recovery is possible for this error.
+	RecoveryNone RecoveryAction = "none"
+)
+
 // Domain error codes - grouped by domain for discoverability.
 const (
 	// General errors
@@ -110,6 +133,10 @@ type DomainError struct {
 	Domain string `json:"domain,omitempty"`
 	// Details provides additional context (e.g., validation errors, IDs)
 	Details map[string]interface{} `json:"details,omitempty"`
+	// Recovery indicates what action the client should take to recover
+	Recovery RecoveryAction `json:"recovery,omitempty"`
+	// RecoveryHint provides human-readable guidance on how to recover
+	RecoveryHint string `json:"recovery_hint,omitempty"`
 	// Cause is the underlying error (not serialized to JSON)
 	Cause error `json:"-"`
 }
@@ -130,11 +157,13 @@ func (e *DomainError) Unwrap() error {
 // WithCause returns a copy of the error with the given underlying cause.
 func (e *DomainError) WithCause(cause error) *DomainError {
 	return &DomainError{
-		Code:    e.Code,
-		Message: e.Message,
-		Domain:  e.Domain,
-		Details: e.Details,
-		Cause:   cause,
+		Code:         e.Code,
+		Message:      e.Message,
+		Domain:       e.Domain,
+		Details:      e.Details,
+		Recovery:     e.Recovery,
+		RecoveryHint: e.RecoveryHint,
+		Cause:        cause,
 	}
 }
 
@@ -146,11 +175,13 @@ func (e *DomainError) WithDetail(key string, value interface{}) *DomainError {
 	}
 	details[key] = value
 	return &DomainError{
-		Code:    e.Code,
-		Message: e.Message,
-		Domain:  e.Domain,
-		Details: details,
-		Cause:   e.Cause,
+		Code:         e.Code,
+		Message:      e.Message,
+		Domain:       e.Domain,
+		Details:      details,
+		Recovery:     e.Recovery,
+		RecoveryHint: e.RecoveryHint,
+		Cause:        e.Cause,
 	}
 }
 
@@ -164,28 +195,45 @@ func (e *DomainError) WithDetails(details map[string]interface{}) *DomainError {
 		merged[k] = v
 	}
 	return &DomainError{
-		Code:    e.Code,
-		Message: e.Message,
-		Domain:  e.Domain,
-		Details: merged,
-		Cause:   e.Cause,
+		Code:         e.Code,
+		Message:      e.Message,
+		Domain:       e.Domain,
+		Details:      merged,
+		Recovery:     e.Recovery,
+		RecoveryHint: e.RecoveryHint,
+		Cause:        e.Cause,
 	}
 }
 
 // WithMessage returns a copy of the error with a custom message.
 func (e *DomainError) WithMessage(msg string) *DomainError {
 	return &DomainError{
-		Code:    e.Code,
-		Message: msg,
-		Domain:  e.Domain,
-		Details: e.Details,
-		Cause:   e.Cause,
+		Code:         e.Code,
+		Message:      msg,
+		Domain:       e.Domain,
+		Details:      e.Details,
+		Recovery:     e.Recovery,
+		RecoveryHint: e.RecoveryHint,
+		Cause:        e.Cause,
 	}
 }
 
 // WithMessagef returns a copy of the error with a formatted custom message.
 func (e *DomainError) WithMessagef(format string, args ...interface{}) *DomainError {
 	return e.WithMessage(fmt.Sprintf(format, args...))
+}
+
+// WithRecovery returns a copy of the error with recovery information.
+func (e *DomainError) WithRecovery(action RecoveryAction, hint string) *DomainError {
+	return &DomainError{
+		Code:         e.Code,
+		Message:      e.Message,
+		Domain:       e.Domain,
+		Details:      e.Details,
+		Recovery:     action,
+		RecoveryHint: hint,
+		Cause:        e.Cause,
+	}
 }
 
 // httpStatusMap maps error codes to HTTP status codes.
@@ -272,6 +320,108 @@ var httpStatusMap = map[ErrorCode]int{
 	CodeSystemResourceError: http.StatusInternalServerError,
 }
 
+// defaultRecoveryMap maps error codes to default recovery actions.
+// Errors can override these via WithRecovery.
+var defaultRecoveryMap = map[ErrorCode]RecoveryAction{
+	// General errors
+	CodeInternal:       RecoveryRetry,
+	CodeNotFound:       RecoveryFixInput,
+	CodeBadRequest:     RecoveryFixInput,
+	CodeUnauthorized:   RecoveryProvideCredentials,
+	CodeForbidden:      RecoveryContactSupport,
+	CodeConflict:       RecoveryWaitForResource,
+	CodeTimeout:        RecoveryRetryWithBackoff,
+	CodeValidation:     RecoveryFixInput,
+	CodeUnavailable:    RecoveryRetryWithBackoff,
+	CodeNotImplemented: RecoveryContactSupport,
+
+	// Bundle domain
+	CodeBundleNotFound:       RecoveryFixInput,
+	CodeBundleInvalid:        RecoveryFixInput,
+	CodeBundleManifestError:  RecoveryFixInput,
+	CodeBundleCompileError:   RecoveryRetry,
+	CodeBundleRuntimeError:   RecoveryRetry,
+	CodeBundleSecretsError:   RecoveryProvideCredentials,
+	CodeBundlePackageError:   RecoveryRetry,
+	CodeBundleServiceTimeout: RecoveryRetryWithBackoff,
+
+	// Build domain
+	CodeBuildNotFound:       RecoveryFixInput,
+	CodeBuildInProgress:     RecoveryWaitForResource,
+	CodeBuildFailed:         RecoveryRetry,
+	CodeBuildArtifactError:  RecoveryRetry,
+	CodePlatformUnsupported: RecoveryFixInput,
+
+	// Generation domain
+	CodeWrapperNotFound:     RecoveryFixInput,
+	CodeTemplateNotFound:    RecoveryFixInput,
+	CodeTemplateError:       RecoveryContactSupport,
+	CodeGenerationFailed:    RecoveryRetry,
+	CodeConfigInvalid:       RecoveryFixInput,
+	CodeScenarioNotFound:    RecoveryFixInput,
+	CodeScenarioPathInvalid: RecoveryFixInput,
+
+	// Preflight domain
+	CodePreflightFailed:    RecoveryFixInput,
+	CodePreflightTimeout:   RecoveryRetryWithBackoff,
+	CodeSessionNotFound:    RecoveryRetry,
+	CodeSessionExpired:     RecoveryRetry,
+	CodeJobNotFound:        RecoveryFixInput,
+	CodeServiceStartError:  RecoveryRetry,
+	CodeServiceHealthError: RecoveryRetryWithBackoff,
+	CodeDependencyError:    RecoveryInstallDependency,
+
+	// Smoke test domain
+	CodeSmokeTestNotFound:  RecoveryFixInput,
+	CodeSmokeTestFailed:    RecoveryRetry,
+	CodeTelemetryError:     RecoveryRetry,
+	CodeArtifactNotFound:   RecoveryFixInput,
+	CodeProcessSpawnError:  RecoveryRetry,
+	CodeProcessExitError:   RecoveryRetry,
+	CodeProcessKillTimeout: RecoveryRetryWithBackoff,
+
+	// Signing domain
+	CodeSigningNotConfigured:   RecoveryFixInput,
+	CodeSigningCertError:       RecoveryFixInput,
+	CodeSigningToolError:       RecoveryInstallDependency,
+	CodeNotarizationError:      RecoveryRetry,
+	CodeEntitlementsError:      RecoveryFixInput,
+	CodeCertificateExpired:     RecoveryFixInput,
+	CodeCertificateNotFound:    RecoveryFixInput,
+	CodeCertificateInvalid:     RecoveryFixInput,
+	CodeKeychainError:          RecoveryRetry,
+	CodeSigningIdentityMissing: RecoveryFixInput,
+
+	// Pipeline domain
+	CodePipelineNotFound:  RecoveryFixInput,
+	CodePipelineFailed:    RecoveryRetry,
+	CodePipelineCancelled: RecoveryNone,
+	CodeStageSkipped:      RecoveryNone,
+	CodeStageFailed:       RecoveryRetry,
+
+	// System domain
+	CodeWineNotInstalled:    RecoveryInstallDependency,
+	CodeWineInstallFailed:   RecoveryRetry,
+	CodeSystemResourceError: RecoveryRetry,
+}
+
+// DefaultRecovery returns the default recovery action for this error code.
+// Returns RecoveryNone if no default is mapped.
+func (e *DomainError) DefaultRecovery() RecoveryAction {
+	if action, ok := defaultRecoveryMap[e.Code]; ok {
+		return action
+	}
+	return RecoveryNone
+}
+
+// GetRecovery returns the recovery action, using the default if not explicitly set.
+func (e *DomainError) GetRecovery() RecoveryAction {
+	if e.Recovery != "" {
+		return e.Recovery
+	}
+	return e.DefaultRecovery()
+}
+
 // HTTPStatus returns the appropriate HTTP status code for this error.
 func (e *DomainError) HTTPStatus() int {
 	if status, ok := httpStatusMap[e.Code]; ok {
@@ -336,11 +486,13 @@ func Wrapf(code ErrorCode, cause error, format string, args ...interface{}) *Dom
 // InDomain returns a copy of the error with the domain set.
 func (e *DomainError) InDomain(domain string) *DomainError {
 	return &DomainError{
-		Code:    e.Code,
-		Message: e.Message,
-		Domain:  domain,
-		Details: e.Details,
-		Cause:   e.Cause,
+		Code:         e.Code,
+		Message:      e.Message,
+		Domain:       domain,
+		Details:      e.Details,
+		Recovery:     e.Recovery,
+		RecoveryHint: e.RecoveryHint,
+		Cause:        e.Cause,
 	}
 }
 
@@ -492,6 +644,7 @@ func ErrArtifactNotFound(artifactPath string) *DomainError {
 func ErrPipelineNotFound(pipelineID string) *DomainError {
 	return New(CodePipelineNotFound, "pipeline not found").
 		WithDetail("pipeline_id", pipelineID).
+		WithRecovery(RecoveryFixInput, "Verify the pipeline ID is correct or start a new pipeline").
 		InDomain("pipeline")
 }
 
@@ -499,6 +652,38 @@ func ErrPipelineNotFound(pipelineID string) *DomainError {
 func ErrPipelineCancelled(pipelineID string) *DomainError {
 	return New(CodePipelineCancelled, "pipeline was cancelled").
 		WithDetail("pipeline_id", pipelineID).
+		WithRecovery(RecoveryNone, "The pipeline was cancelled as requested").
+		InDomain("pipeline")
+}
+
+// ErrPipelineNotResumable creates an error when a pipeline cannot be resumed.
+func ErrPipelineNotResumable(pipelineID string, reason string) *DomainError {
+	return New(CodeBadRequest, "pipeline cannot be resumed: "+reason).
+		WithDetail("pipeline_id", pipelineID).
+		WithRecovery(RecoveryFixInput, "Start a new pipeline instead").
+		InDomain("pipeline")
+}
+
+// ErrPipelineOrchestratorNotConfigured creates an error when the orchestrator is not configured.
+func ErrPipelineOrchestratorNotConfigured() *DomainError {
+	return New(CodeInternal, "pipeline orchestrator not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		InDomain("pipeline")
+}
+
+// ErrPipelineInvalidStage creates an error for invalid stage names.
+func ErrPipelineInvalidStage(stageName string) *DomainError {
+	return New(CodeValidation, "invalid stage name: "+stageName).
+		WithDetail("stage_name", stageName).
+		WithDetail("valid_stages", []string{"bundle", "preflight", "generate", "build", "smoketest", "distribution"}).
+		WithRecovery(RecoveryFixInput, "Use one of the valid stage names").
+		InDomain("pipeline")
+}
+
+// ErrPipelineScenarioRequired creates an error when scenario_name is missing.
+func ErrPipelineScenarioRequired() *DomainError {
+	return New(CodeValidation, "scenario_name is required").
+		WithRecovery(RecoveryFixInput, "Provide a scenario_name in the request body").
 		InDomain("pipeline")
 }
 

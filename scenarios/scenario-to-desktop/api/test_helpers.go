@@ -11,9 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"scenario-to-desktop-api/build"
 )
 
 // setupTestLogger initializes a test logger that suppresses verbose output
@@ -140,16 +137,6 @@ func createSampleTemplates(templateDir string) error {
 	return nil
 }
 
-// HTTPTestRequest represents a test HTTP request
-type HTTPTestRequest struct {
-	Method      string
-	Path        string
-	Body        interface{}
-	Headers     map[string]string
-	URLVars     map[string]string
-	QueryParams map[string]string
-}
-
 // assertJSONResponse validates JSON response structure
 func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) map[string]interface{} {
 	t.Helper()
@@ -171,20 +158,6 @@ func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStat
 	return response
 }
 
-// assertErrorResponse validates error response structure
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, shouldContainMessage string) {
-	t.Helper()
-
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status code %d, got %d", expectedStatus, w.Code)
-	}
-
-	body := w.Body.String()
-	if shouldContainMessage != "" && !strings.Contains(body, shouldContainMessage) {
-		t.Errorf("Expected error message to contain '%s', got: %s", shouldContainMessage, body)
-	}
-}
-
 // assertFieldExists checks if a field exists in the response
 func assertFieldExists(t *testing.T, response map[string]interface{}, fieldName string) interface{} {
 	t.Helper()
@@ -204,46 +177,6 @@ func assertFieldValue(t *testing.T, response map[string]interface{}, fieldName s
 	actual := assertFieldExists(t, response, fieldName)
 	if actual != expected {
 		t.Errorf("Expected field '%s' to have value '%v', got '%v'", fieldName, expected, actual)
-	}
-}
-
-// createTestBuildStatus creates a test build status
-func createTestBuildStatus(buildID, status string) *build.Status {
-	return &build.Status{
-		BuildID:      buildID,
-		ScenarioName: "test-scenario",
-		Status:       status,
-		Framework:    "electron",
-		TemplateType: "basic",
-		Platforms:    []string{"win", "mac", "linux"},
-		OutputPath:   "/tmp/test-output",
-		CreatedAt:    time.Now(),
-		BuildLog:     []string{},
-		ErrorLog:     []string{},
-		Artifacts:    make(map[string]string),
-		Metadata:     make(map[string]interface{}),
-	}
-}
-
-// assertBuildStatusValue checks a field in build status
-func assertBuildStatusValue(t *testing.T, status *build.Status, field string, expected interface{}) {
-	t.Helper()
-
-	var actual interface{}
-	switch field {
-	case "status":
-		actual = status.Status
-	case "framework":
-		actual = status.Framework
-	case "template_type":
-		actual = status.TemplateType
-	default:
-		t.Fatalf("Unknown build status field: %s", field)
-		return
-	}
-
-	if actual != expected {
-		t.Errorf("Expected build status field '%s' to be '%v', got '%v'", field, expected, actual)
 	}
 }
 
