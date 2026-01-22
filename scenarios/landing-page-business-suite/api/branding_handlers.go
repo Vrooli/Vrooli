@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -9,10 +8,7 @@ import (
 func handleGetBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		branding := cs.GetBranding()
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(branding); err != nil {
-			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, branding)
 	}
 }
 
@@ -20,22 +16,18 @@ func handleGetBranding(cs *ConfigStore) http.HandlerFunc {
 func handleUpdateBranding(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req BrandingUpdateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
 		branding, err := cs.UpdateBranding(&req)
 		if err != nil {
 			logStructuredError("update_branding_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "Failed to update branding", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update branding", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(branding); err != nil {
-			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, branding)
 	}
 }
 
@@ -45,31 +37,27 @@ func handleClearBrandingField(cs *ConfigStore) http.HandlerFunc {
 		var req struct {
 			Field string `json:"field"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
-		if req.Field == "" {
-			http.Error(w, "Field name required", http.StatusBadRequest)
+		field, ok := RequireNonEmpty(w, req.Field, "Field name")
+		if !ok {
 			return
 		}
 
-		if err := cs.ClearBrandingField(req.Field); err != nil {
+		if err := cs.ClearBrandingField(field); err != nil {
 			logStructuredError("clear_branding_field_failed", map[string]interface{}{
-				"field": req.Field,
+				"field": field,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to clear field", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to clear field", ApiErrorTypeServerError)
 			return
 		}
 
 		// Return updated branding
 		branding := cs.GetBranding()
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(branding); err != nil {
-			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, branding)
 	}
 }
 
@@ -91,9 +79,6 @@ func handleGetPublicBranding(cs *ConfigStore) http.HandlerFunc {
 			"coming_soon_message":    branding.ComingSoonMessage,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(publicBranding); err != nil {
-			http.Error(w, "Failed to encode branding", http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, publicBranding)
 	}
 }

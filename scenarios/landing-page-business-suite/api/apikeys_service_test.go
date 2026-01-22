@@ -85,7 +85,7 @@ func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService,
 		db:            db,
 		encryptionKey: nil,
 		httpClient:    httpClient,
-		dialect:       "sqlite",
+		dialects:      NewDialectHelper("sqlite"),
 	}
 
 	return svc, db
@@ -110,7 +110,7 @@ func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*
 		db:            db,
 		encryptionKey: encryptionKey,
 		httpClient:    httpClient,
-		dialect:       "sqlite",
+		dialects:      NewDialectHelper("sqlite"),
 	}
 
 	return svc, db

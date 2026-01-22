@@ -1,11 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 type bundleCatalogResponse struct {
@@ -28,55 +25,57 @@ func handleAdminBundleCatalog(planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bundles, err := planService.ListBundleCatalog(r.Context())
 		if err != nil {
-			http.Error(w, "Failed to load bundle catalog", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to load bundle catalog", ApiErrorTypeServerError)
 			return
 		}
 
-		writeJSON(w, bundleCatalogResponse{Bundles: bundles})
+		writeJSONSuccessData(w, bundleCatalogResponse{Bundles: bundles})
 	}
 }
 
 func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		bundleKey := vars["bundle_key"]
-		priceID := vars["price_id"]
-		if bundleKey == "" || priceID == "" {
-			http.Error(w, "Bundle key and price id are required", http.StatusBadRequest)
+		bundleKey, ok := getPathParam(r, "bundle_key")
+		if !ok || bundleKey == "" {
+			writeJSONError(w, http.StatusBadRequest, "Bundle key is required", ApiErrorTypeValidation)
+			return
+		}
+		priceID, ok := getPathParam(r, "price_id")
+		if !ok || priceID == "" {
+			writeJSONError(w, http.StatusBadRequest, "Price id is required", ApiErrorTypeValidation)
 			return
 		}
 
 		var req updateBundlePriceRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
 		input := UpdateBundlePriceInput(req)
 		updated, err := planService.UpdateBundlePrice(r.Context(), bundleKey, priceID, input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		writeJSON(w, updated)
+		writeJSONSuccessData(w, updated)
 	}
 }
 
 func handleAdminVerifyStripePrice(stripe *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		key := strings.TrimSpace(r.URL.Query().Get("key"))
+		key := strings.TrimSpace(getQueryParam(r, "key"))
 		if key == "" {
-			http.Error(w, "price key required", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "price key required", ApiErrorTypeValidation)
 			return
 		}
 
 		info, err := stripe.VerifyStripePrice(key)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		writeJSON(w, info)
+		writeJSONSuccessData(w, info)
 	}
 }

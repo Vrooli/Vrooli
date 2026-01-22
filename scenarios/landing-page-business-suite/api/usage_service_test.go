@@ -68,7 +68,7 @@ func createTestUsageService(t *testing.T) (*UsageService, *LimitsService, *sql.D
 	t.Helper()
 
 	db := createTestUsageDB(t)
-	limitsSvc := NewLimitsService(db)
+	limitsSvc := NewLimitsService(db, "sqlite")
 
 	// Create usage service without service token for basic tests (with SQLite dialect)
 	usageSvc := &UsageService{
@@ -86,7 +86,7 @@ func createTestUsageServiceWithToken(t *testing.T, token string) (*UsageService,
 	t.Helper()
 
 	db := createTestUsageDB(t)
-	limitsSvc := NewLimitsService(db)
+	limitsSvc := NewLimitsService(db, "sqlite")
 
 	usageSvc := &UsageService{
 		db:           db,

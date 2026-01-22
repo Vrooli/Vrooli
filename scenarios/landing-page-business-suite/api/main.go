@@ -102,7 +102,7 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
 	}
-	limitsService := NewLimitsService(db)
+	limitsService := NewLimitsService(db, "postgres")
 	usageService := NewUsageService(db, limitsService)
 
 	// Initialize user authentication services

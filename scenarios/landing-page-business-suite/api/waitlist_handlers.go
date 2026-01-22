@@ -2,14 +2,9 @@ package main
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/mail"
-	"strconv"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 // handleWaitlistCreate handles public email submission to the waitlist
@@ -20,19 +15,13 @@ func handleWaitlistCreate(svc *WaitlistService) http.HandlerFunc {
 			Source string `json:"source,omitempty"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
 		// Validate email
-		email := strings.TrimSpace(req.Email)
-		if email == "" {
-			http.Error(w, "Email is required", http.StatusBadRequest)
-			return
-		}
-		if _, err := mail.ParseAddress(email); err != nil {
-			http.Error(w, "Invalid email format", http.StatusBadRequest)
+		email, ok := ValidateEmailForHandler(w, req.Email)
+		if !ok {
 			return
 		}
 
@@ -47,17 +36,11 @@ func handleWaitlistCreate(svc *WaitlistService) http.HandlerFunc {
 				"email": email,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to add email to waitlist", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to add email to waitlist", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"message": "Email added to waitlist",
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		writeJSONSuccess(w, "Email added to waitlist")
 	}
 }
 
@@ -69,7 +52,7 @@ func handleWaitlistList(svc *WaitlistService) http.HandlerFunc {
 			logStructuredError("waitlist_list_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to list waitlist emails", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to list waitlist emails", ApiErrorTypeServerError)
 			return
 		}
 
@@ -77,22 +60,15 @@ func handleWaitlistList(svc *WaitlistService) http.HandlerFunc {
 			emails = []WaitlistEmail{}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(emails); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, emails)
 	}
 }
 
 // handleWaitlistDelete removes an email from the waitlist (admin only)
 func handleWaitlistDelete(svc *WaitlistService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		idStr := vars["id"]
-
-		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			http.Error(w, "Invalid ID", http.StatusBadRequest)
+		id, ok := getPathParamInt64(w, r, "id")
+		if !ok {
 			return
 		}
 
@@ -101,16 +77,11 @@ func handleWaitlistDelete(svc *WaitlistService) http.HandlerFunc {
 				"id":    id,
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to delete email", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to delete email", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		writeJSONSuccessSimple(w)
 	}
 }
 
@@ -122,7 +93,7 @@ func handleWaitlistExport(svc *WaitlistService) http.HandlerFunc {
 			logStructuredError("waitlist_export_failed", map[string]interface{}{
 				"error": err.Error(),
 			})
-			http.Error(w, "Failed to export waitlist", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to export waitlist", ApiErrorTypeServerError)
 			return
 		}
 

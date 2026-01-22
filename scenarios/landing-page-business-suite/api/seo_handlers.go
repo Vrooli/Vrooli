@@ -6,39 +6,34 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // handleGetVariantSEO returns merged SEO config for a variant
 func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		slug := vars["slug"]
-
-		if slug == "" {
-			http.Error(w, "variant slug required", http.StatusBadRequest)
+		slug, ok := getPathParam(r, "slug")
+		if !ok || slug == "" {
+			writeJSONError(w, http.StatusBadRequest, "variant slug required", ApiErrorTypeValidation)
 			return
 		}
 
 		response, err := seoService.VariantSEO(slug)
 		if err != nil {
 			status := http.StatusInternalServerError
+			errType := ApiErrorTypeServerError
 			if strings.Contains(err.Error(), "not found") {
 				status = http.StatusNotFound
+				errType = ApiErrorTypeNotFound
 			}
 			logStructuredError("get_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			http.Error(w, "failed to get SEO configuration", status)
+			writeJSONError(w, status, "failed to get SEO configuration", errType)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		}
+		writeJSONSuccessData(w, response)
 	}
 }
 
@@ -48,17 +43,14 @@ func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 // handleUpdateVariantSEOConfigStore updates SEO config for a variant via ConfigStore
 func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		slug := vars["slug"]
-
-		if slug == "" {
-			http.Error(w, "variant slug required", http.StatusBadRequest)
+		slug, ok := getPathParam(r, "slug")
+		if !ok || slug == "" {
+			writeJSONError(w, http.StatusBadRequest, "variant slug required", ApiErrorTypeValidation)
 			return
 		}
 
 		var seoConfig json.RawMessage
-		if err := json.NewDecoder(r.Body).Decode(&seoConfig); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &seoConfig) {
 			return
 		}
 
@@ -69,7 +61,7 @@ func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			http.Error(w, "variant not found", http.StatusNotFound)
+			writeJSONError(w, http.StatusNotFound, "variant not found", ApiErrorTypeNotFound)
 			return
 		}
 
@@ -82,17 +74,14 @@ func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {
 				"slug":  slug,
 				"error": err.Error(),
 			})
-			http.Error(w, "failed to save SEO config", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "failed to save SEO config", ApiErrorTypeServerError)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONSuccessData(w, map[string]interface{}{
 			"success":    true,
 			"updated_at": time.Now().UTC().Format(time.RFC3339),
-		}); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		}
+		})
 	}
 }
 
@@ -108,7 +97,7 @@ func handleSitemapXML(seoService *SEOService) http.HandlerFunc {
 		sitemap, err := seoService.SitemapXML(fallbackBase)
 		if err != nil {
 			logStructuredError("sitemap_generate_failed", map[string]interface{}{"error": err.Error()})
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "internal error", ApiErrorTypeServerError)
 			return
 		}
 

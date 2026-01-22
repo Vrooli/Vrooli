@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -12,7 +11,7 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 	return func(w http.ResponseWriter, r *http.Request) {
 		record, err := paymentService.GetStripeSettings(r.Context())
 		if err != nil {
-			http.Error(w, "Failed to load Stripe settings", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
 			return
 		}
 		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
@@ -55,8 +54,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			DashboardURL   *string `json:"dashboard_url"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "Invalid payload", http.StatusBadRequest)
+		if !decodeJSONBody(w, r, &body) {
 			return
 		}
 
@@ -84,7 +82,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			(req.SecretKey == nil || *req.SecretKey == "") &&
 			(req.WebhookSecret == nil || *req.WebhookSecret == "") &&
 			(req.DashboardUrl == nil || *req.DashboardUrl == "") {
-			http.Error(w, "At least one field is required", http.StatusBadRequest)
+			writeJSONError(w, http.StatusBadRequest, "At least one field is required", ApiErrorTypeValidation)
 			return
 		}
 
@@ -95,7 +93,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 			DashboardURL:   req.DashboardUrl,
 		})
 		if err != nil {
-			http.Error(w, "Failed to save Stripe settings", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to save Stripe settings", ApiErrorTypeServerError)
 			return
 		}
 		hasPublishable := record != nil && strings.TrimSpace(record.PublishableKey) != ""
@@ -109,7 +107,7 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		}
 
 		if err := stripeService.RefreshConfig(r.Context()); err != nil {
-			http.Error(w, "Failed to refresh Stripe runtime config", http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to refresh Stripe runtime config", ApiErrorTypeServerError)
 			return
 		}
 

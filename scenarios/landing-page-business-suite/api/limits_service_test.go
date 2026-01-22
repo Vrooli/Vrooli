@@ -47,8 +47,7 @@ func createTestLimitsService(t *testing.T) (*LimitsService, *sql.DB) {
 	t.Helper()
 
 	db := createTestLimitsDB(t)
-	svc := NewLimitsService(db)
-	svc.dialect = "sqlite" // Use SQLite dialect for tests
+	svc := NewLimitsService(db, "sqlite") // Use SQLite dialect for tests
 
 	return svc, db
 }

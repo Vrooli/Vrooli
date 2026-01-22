@@ -207,7 +207,7 @@ func writeJSON(w http.ResponseWriter, payload interface{}) {
 	if msg, ok := payload.(proto.Message); ok {
 		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			writeJSONError(w, http.StatusInternalServerError, "Failed to encode response", ApiErrorTypeServerError)
 			return
 		}
 		if _, err := w.Write(data); err != nil {
@@ -218,7 +218,7 @@ func writeJSON(w http.ResponseWriter, payload interface{}) {
 		return
 	}
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "Failed to encode response", ApiErrorTypeServerError)
 	}
 }
 

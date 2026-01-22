@@ -14,16 +14,8 @@ import (
 
 // LimitsService manages subscription tier limits for the credit system.
 type LimitsService struct {
-	db      *sql.DB
-	dialect string // "postgres" or "sqlite"
-}
-
-// nowExpr returns the appropriate SQL expression for current timestamp based on dialect.
-func (s *LimitsService) nowExpr() string {
-	if s.dialect == "sqlite" {
-		return "datetime('now')"
-	}
-	return "NOW()"
+	db       *sql.DB
+	dialects *DialectHelper
 }
 
 // TierLimit represents a single limit configuration.
@@ -51,8 +43,11 @@ type TierLimitUpdate struct {
 }
 
 // NewLimitsService creates a new limits service.
-func NewLimitsService(db *sql.DB) *LimitsService {
-	return &LimitsService{db: db}
+func NewLimitsService(db *sql.DB, dialect string) *LimitsService {
+	return &LimitsService{
+		db:       db,
+		dialects: NewDialectHelper(dialect),
+	}
 }
 
 // GetTierLimits returns all limits for a specific tier.
@@ -227,7 +222,7 @@ func (s *LimitsService) UpdateLimit(ctx context.Context, tierID, limitKey string
 	// Update the limit
 	var query string
 	var args []interface{}
-	nowExpr := s.nowExpr()
+	nowExpr := s.dialects.NowExpr()
 
 	if appBundleKey == nil {
 		query = `

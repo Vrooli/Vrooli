@@ -26,15 +26,7 @@ type APIKeyService struct {
 	db            *sql.DB
 	encryptionKey []byte // 32 bytes for AES-256
 	httpClient    HTTPDoer
-	dialect       string // "postgres" or "sqlite"
-}
-
-// nowExpr returns the appropriate timestamp expression for the current dialect.
-func (s *APIKeyService) nowExpr() string {
-	if s.dialect == "sqlite" {
-		return "datetime('now')"
-	}
-	return "NOW()"
+	dialects      *DialectHelper
 }
 
 // APIKey represents an AI provider API key (without the actual key value).
@@ -68,9 +60,7 @@ func NewAPIKeyServiceWithHTTPClient(db *sql.DB, httpClient HTTPDoer) (*APIKeySer
 // NewAPIKeyServiceWithOptions creates a new API key service with custom options.
 // Dialect can be "postgres" or "sqlite".
 func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string) (*APIKeyService, error) {
-	if dialect == "" {
-		dialect = "postgres" // Default
-	}
+	dialects := NewDialectHelper(dialect)
 
 	// Get encryption key from environment
 	keyStr := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
@@ -80,7 +70,7 @@ func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string
 			"level":   "warn",
 			"message": "LPBS_API_KEY_ENCRYPTION_KEY not set; API keys will be stored unencrypted",
 		})
-		return &APIKeyService{db: db, encryptionKey: nil, httpClient: httpClient, dialect: dialect}, nil
+		return &APIKeyService{db: db, encryptionKey: nil, httpClient: httpClient, dialects: dialects}, nil
 	}
 
 	// Decode base64 key
@@ -93,7 +83,7 @@ func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string
 		return nil, fmt.Errorf("encryption key must be 32 bytes (got %d)", len(key))
 	}
 
-	return &APIKeyService{db: db, encryptionKey: key, httpClient: httpClient, dialect: dialect}, nil
+	return &APIKeyService{db: db, encryptionKey: key, httpClient: httpClient, dialects: dialects}, nil
 }
 
 // encrypt encrypts plaintext using AES-256-GCM.
@@ -194,7 +184,7 @@ func (s *APIKeyService) Store(ctx context.Context, provider, key string) (*APIKe
 
 	// Upsert the key (SQLite uses different syntax for upsert)
 	var query string
-	if s.dialect == "sqlite" {
+	if s.dialects.IsSQLite() {
 		query = `
 			INSERT INTO api_keys (provider, encrypted_key, key_hint, is_active, updated_at)
 			VALUES (?, ?, ?, 1, datetime('now'))
@@ -245,7 +235,7 @@ func (s *APIKeyService) Get(ctx context.Context, provider string) (string, error
 	provider = strings.TrimSpace(strings.ToLower(provider))
 
 	var query string
-	if s.dialect == "sqlite" {
+	if s.dialects.IsSQLite() {
 		query = `SELECT encrypted_key, is_active FROM api_keys WHERE provider = ?`
 	} else {
 		query = `SELECT encrypted_key, is_active FROM api_keys WHERE provider = $1`
@@ -303,7 +293,7 @@ func (s *APIKeyService) Delete(ctx context.Context, provider string) error {
 	provider = strings.TrimSpace(strings.ToLower(provider))
 
 	var query string
-	if s.dialect == "sqlite" {
+	if s.dialects.IsSQLite() {
 		query = `DELETE FROM api_keys WHERE provider = ?`
 	} else {
 		query = `DELETE FROM api_keys WHERE provider = $1`
@@ -332,7 +322,7 @@ func (s *APIKeyService) SetActive(ctx context.Context, provider string, active b
 	provider = strings.TrimSpace(strings.ToLower(provider))
 
 	var query string
-	if s.dialect == "sqlite" {
+	if s.dialects.IsSQLite() {
 		query = `UPDATE api_keys SET is_active = ?, updated_at = datetime('now') WHERE provider = ?`
 	} else {
 		query = `UPDATE api_keys SET is_active = $1, updated_at = NOW() WHERE provider = $2`
@@ -378,7 +368,7 @@ func (s *APIKeyService) Test(ctx context.Context, provider string) (bool, string
 	// Update last_verified_at if successful
 	if success {
 		var updateQuery string
-		if s.dialect == "sqlite" {
+		if s.dialects.IsSQLite() {
 			updateQuery = `UPDATE api_keys SET last_verified_at = datetime('now'), updated_at = datetime('now') WHERE provider = ?`
 		} else {
 			updateQuery = `UPDATE api_keys SET last_verified_at = NOW(), updated_at = NOW() WHERE provider = $1`
