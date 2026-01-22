@@ -90,6 +90,7 @@ func main() {
 	// Prompt routes
 	v1.HandleFunc("/prompts", promptHandlers.List).Methods("GET")
 	v1.HandleFunc("/prompts/sync", promptHandlers.Sync).Methods("GET")
+	v1.HandleFunc("/prompts/combine", promptHandlers.Combine).Methods("POST")
 	v1.HandleFunc("/prompts", promptHandlers.Create).Methods("POST")
 	v1.HandleFunc("/prompts/{id}", promptHandlers.Get).Methods("GET")
 	v1.HandleFunc("/prompts/{id}", promptHandlers.Update).Methods("PUT")

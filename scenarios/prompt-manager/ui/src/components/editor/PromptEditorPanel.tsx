@@ -5,24 +5,29 @@
  * - EditorToolbar
  * - PromptMetadataForm
  * - PromptContentEditor
+ * - SkillTreeCanvas (when no prompt selected)
  *
  * Also handles:
- * - Empty state when no prompt selected
+ * - Empty state with 3D skill tree visualization
  */
 
-import { FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PromptFormState, ValidationResult } from '@/types/editor'
 import type { Prompt } from '@/types'
+import type { CombineFormat } from '@/types/skilltree'
 import { EditorToolbar } from './EditorToolbar'
 import { PromptMetadataForm } from './PromptMetadataForm'
 import { PromptContentEditor } from './PromptContentEditor'
+import { SkillTreeCanvas } from '@/components/skilltree'
 
 interface PromptEditorPanelProps {
   // Current state
   currentPrompt: Prompt | null
   formState: PromptFormState
   validation: ValidationResult
+
+  // All prompts for skill tree
+  allPrompts?: Prompt[]
 
   // Dirty tracking
   isDirty: boolean
@@ -38,6 +43,8 @@ interface PromptEditorPanelProps {
   onSaveAll: () => void
   onDiscard: () => void
   onDelete: () => void
+  onSelectPrompt?: (promptId: string) => void
+  onCombinePrompts?: (combined: string, format: CombineFormat) => void
 
   // Loading states
   isSaving: boolean
@@ -53,6 +60,7 @@ export function PromptEditorPanel({
   currentPrompt,
   formState,
   validation,
+  allPrompts = [],
   isDirty,
   dirtyCount,
   onFieldChange,
@@ -62,30 +70,21 @@ export function PromptEditorPanel({
   onSaveAll,
   onDiscard,
   onDelete,
+  onSelectPrompt,
+  onCombinePrompts,
   isSaving,
   isDeleting,
   className,
 }: PromptEditorPanelProps) {
-  // Empty state when no prompt selected
+  // Show 3D skill tree when no prompt selected
   if (!currentPrompt) {
     return (
       <div className={cn('h-full', className)}>
-        <div
-          className={cn(
-            'flex flex-col items-center justify-center h-full',
-            'bg-slate-900/50'
-          )}
-        >
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-slate-800 rounded-2xl flex items-center justify-center">
-              <FileText className="h-8 w-8 text-slate-600" />
-            </div>
-            <h3 className="text-lg font-medium text-slate-400 mb-2">No Prompt Selected</h3>
-            <p className="text-sm text-slate-500 max-w-xs">
-              Select a prompt from the tree to view and edit, or create a new one.
-            </p>
-          </div>
-        </div>
+        <SkillTreeCanvas
+          prompts={allPrompts}
+          onSelectPrompt={onSelectPrompt}
+          onCombinePrompts={onCombinePrompts}
+        />
       </div>
     )
   }

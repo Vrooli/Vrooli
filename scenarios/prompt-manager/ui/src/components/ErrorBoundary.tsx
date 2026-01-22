@@ -97,10 +97,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       // Use custom fallback if provided
-      if (this.props.fallback) {
+      if (this.props.fallback && this.state.error) {
         const FallbackComponent = this.props.fallback
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- error guaranteed non-null by hasError check
-        return <FallbackComponent error={this.state.error!} resetError={this.handleReset} />
+        return <FallbackComponent error={this.state.error} resetError={this.handleReset} />
       }
 
       // Default error UI

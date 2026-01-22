@@ -29,6 +29,15 @@ vi.mock('./TipTapEditor', () => ({
   ),
 }))
 
+// Mock SkillTreeCanvas - it shows when no prompt is selected
+vi.mock('@/components/skilltree', () => ({
+  SkillTreeCanvas: ({ prompts }: { prompts: unknown[] }) => (
+    <div data-testid="skill-tree-canvas">
+      {prompts?.length === 0 ? 'No Prompts Yet' : `${prompts?.length ?? 0} prompts in tree`}
+    </div>
+  ),
+}))
+
 // Helper to create test prompt
 function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
   return {
@@ -88,22 +97,32 @@ const defaultProps = {
 }
 
 describe('PromptEditorPanel', () => {
-  describe('empty state', () => {
-    it('should show empty state when no prompt is selected', () => {
+  describe('empty state (skill tree)', () => {
+    it('should show skill tree canvas when no prompt is selected', () => {
       render(<PromptEditorPanel {...defaultProps} currentPrompt={null} />)
 
-      expect(screen.getByText('No Prompt Selected')).toBeInTheDocument()
-      expect(
-        screen.getByText(/Select a prompt from the tree/)
-      ).toBeInTheDocument()
+      // Now shows skill tree instead of empty message
+      expect(screen.getByTestId('skill-tree-canvas')).toBeInTheDocument()
     })
 
-    it('should display FileText icon in empty state', () => {
-      render(<PromptEditorPanel {...defaultProps} currentPrompt={null} />)
+    it('should show empty tree message when no prompts available', () => {
+      render(<PromptEditorPanel {...defaultProps} currentPrompt={null} allPrompts={[]} />)
 
-      // The component renders the empty state container
-      const emptyState = screen.getByText('No Prompt Selected').closest('div')
-      expect(emptyState).toBeInTheDocument()
+      expect(screen.getByText('No Prompts Yet')).toBeInTheDocument()
+    })
+
+    it('should show prompt count when prompts are available', () => {
+      const prompts = [createTestPrompt({ id: '1' }), createTestPrompt({ id: '2' })]
+
+      render(
+        <PromptEditorPanel
+          {...defaultProps}
+          currentPrompt={null}
+          allPrompts={prompts}
+        />
+      )
+
+      expect(screen.getByText('2 prompts in tree')).toBeInTheDocument()
     })
   })
 

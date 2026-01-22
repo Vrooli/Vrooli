@@ -9,9 +9,17 @@
  */
 
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
-import { memo, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { detectLanguage, normalizeLanguage } from './languageDetection'
+
+/**
+ * Generate line numbers for code.
+ */
+function generateLineNumbers(code: string): string[] {
+  const lines = code.split('\n')
+  return lines.map((_, index) => String(index + 1))
+}
 
 // Shiki highlighter type
 interface ShikiHighlighter {
@@ -108,6 +116,9 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
   const language = (node.attrs.language as string) || ''
 
   const { copied, copyCode } = useCodeCopy(code)
+
+  // Generate line numbers
+  const lineNumbers = useMemo(() => generateLineNumbers(code), [code])
 
   // Determine the language (from attribute or auto-detect)
   const normalizedLang = language
@@ -216,22 +227,42 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
         </button>
       </div>
 
-      {/* Code content - show highlighted or editable content */}
-      <div className="bg-slate-800 overflow-x-auto">
-        {highlightedHtml && !isEditorFocused ? (
-          // Show highlighted HTML when not editing
+      {/* Code content - layered approach for smooth transitions */}
+      <div className="bg-slate-800 overflow-x-auto relative flex">
+        {/* Line numbers gutter */}
+        <div
+          className="flex-shrink-0 py-4 pl-3 pr-2 text-sm font-mono text-slate-500 select-none border-r border-slate-700/50 text-right"
+          contentEditable={false}
+          aria-hidden="true"
+        >
+          {lineNumbers.map((num, i) => (
+            <div key={i} className="leading-relaxed">
+              {num}
+            </div>
+          ))}
+        </div>
+
+        {/* Code content area */}
+        <div className="flex-1 relative min-w-0">
+          {/* Highlighted view - shown when not editing */}
           <div
-            className="p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0 font-mono"
-            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+            className={`p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0 [&_code]:!leading-relaxed font-mono transition-opacity duration-150 ${
+              isEditorFocused ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml || '' }}
             contentEditable={false}
           />
-        ) : null}
-        {/* Editable content area - always rendered but may be hidden */}
-        <div className={highlightedHtml && !isEditorFocused ? 'hidden' : ''}>
-          <NodeViewContent
-            as="pre"
-            className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto !bg-transparent !m-0"
-          />
+          {/* Editable content area - always in DOM, visible when editing */}
+          <div
+            className={`absolute inset-0 transition-opacity duration-150 ${
+              isEditorFocused ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
+          >
+            <NodeViewContent
+              as="pre"
+              className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto !bg-transparent !m-0 leading-relaxed"
+            />
+          </div>
         </div>
       </div>
     </NodeViewWrapper>

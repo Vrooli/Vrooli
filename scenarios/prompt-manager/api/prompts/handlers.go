@@ -457,3 +457,213 @@ func (h *Handlers) toResponseWithContent(p Metadata) Response {
 
 	return response
 }
+
+// Combine handles POST /prompts/combine - combines multiple prompts into one output.
+func (h *Handlers) Combine(w http.ResponseWriter, r *http.Request) {
+	var req CombineRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(req.PromptIDs) == 0 {
+		http.Error(w, "At least one prompt ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Default format
+	format := req.Format
+	if format == "" {
+		format = "xml"
+	}
+	if format != "xml" && format != "markdown" && format != "json" {
+		http.Error(w, "Format must be 'xml', 'markdown', or 'json'", http.StatusBadRequest)
+		return
+	}
+
+	// Collect prompts
+	var responses []Response
+	for _, id := range req.PromptIDs {
+		prompt, folder, err := h.store.FindByID(id)
+		if err != nil {
+			continue // Skip missing prompts
+		}
+
+		content, err := h.store.GetContent(folder, prompt.File)
+		if err != nil {
+			continue
+		}
+
+		response := h.toResponse(*prompt)
+		response.Content = content
+		response.Folder = folder
+		responses = append(responses, response)
+	}
+
+	if len(responses) == 0 {
+		http.Error(w, "No valid prompts found", http.StatusNotFound)
+		return
+	}
+
+	// Generate combined output
+	var combined string
+	switch format {
+	case "xml":
+		combined = combineToXML(responses)
+	case "markdown":
+		combined = combineToMarkdown(responses)
+	case "json":
+		combined = combineToJSON(responses)
+	}
+
+	// Estimate tokens (~4 chars per token)
+	totalTokens := (len(combined) + 3) / 4
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(CombineResponse{
+		Combined:    combined,
+		PromptCount: len(responses),
+		TotalTokens: totalTokens,
+		Format:      format,
+	})
+}
+
+// combineToXML generates XML output for combined prompts.
+func combineToXML(prompts []Response) string {
+	var b strings.Builder
+	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+	b.WriteString("<combined-prompts count=\"")
+	b.WriteString(string(rune('0' + len(prompts))))
+	b.WriteString("\">\n")
+
+	for _, p := range prompts {
+		modes := strings.Join(p.Modes, "/")
+		b.WriteString("  <prompt id=\"")
+		b.WriteString(escapeXML(p.ID))
+		b.WriteString("\" name=\"")
+		b.WriteString(escapeXML(p.Name))
+		b.WriteString("\"")
+		if modes != "" {
+			b.WriteString(" modes=\"")
+			b.WriteString(escapeXML(modes))
+			b.WriteString("\"")
+		}
+		b.WriteString(">\n")
+
+		if p.Description != "" {
+			b.WriteString("    <description>")
+			b.WriteString(escapeXML(p.Description))
+			b.WriteString("</description>\n")
+		}
+
+		if len(p.Tags) > 0 {
+			b.WriteString("    <tags>")
+			b.WriteString(escapeXML(strings.Join(p.Tags, ", ")))
+			b.WriteString("</tags>\n")
+		}
+
+		b.WriteString("    <content><![CDATA[\n")
+		b.WriteString(p.Content)
+		b.WriteString("\n]]></content>\n")
+		b.WriteString("  </prompt>\n")
+	}
+
+	b.WriteString("</combined-prompts>")
+	return b.String()
+}
+
+// combineToMarkdown generates Markdown output for combined prompts.
+func combineToMarkdown(prompts []Response) string {
+	var b strings.Builder
+	b.WriteString("# Combined Prompts (")
+	b.WriteString(string(rune('0' + len(prompts))))
+	b.WriteString(")\n\n")
+	b.WriteString("---\n\n")
+
+	for i, p := range prompts {
+		b.WriteString("## ")
+		b.WriteString(string(rune('1' + i)))
+		b.WriteString(". ")
+		b.WriteString(p.Name)
+		b.WriteString("\n\n")
+
+		if p.Description != "" {
+			b.WriteString("> ")
+			b.WriteString(p.Description)
+			b.WriteString("\n\n")
+		}
+
+		if len(p.Modes) > 0 {
+			b.WriteString("**Modes:** ")
+			b.WriteString(strings.Join(p.Modes, " / "))
+			b.WriteString("\n")
+		}
+
+		if len(p.Tags) > 0 {
+			b.WriteString("**Tags:** ")
+			for i, tag := range p.Tags {
+				if i > 0 {
+					b.WriteString(" ")
+				}
+				b.WriteString("`")
+				b.WriteString(tag)
+				b.WriteString("`")
+			}
+			b.WriteString("\n")
+		}
+
+		b.WriteString("\n### Content\n\n```\n")
+		b.WriteString(p.Content)
+		b.WriteString("\n```\n\n---\n\n")
+	}
+
+	return b.String()
+}
+
+// combineToJSON generates JSON output for combined prompts.
+func combineToJSON(prompts []Response) string {
+	type jsonPrompt struct {
+		ID          string   `json:"id"`
+		Name        string   `json:"name"`
+		Description string   `json:"description,omitempty"`
+		Modes       []string `json:"modes,omitempty"`
+		Tags        []string `json:"tags,omitempty"`
+		Content     string   `json:"content"`
+	}
+
+	type jsonOutput struct {
+		Combined bool         `json:"combined"`
+		Count    int          `json:"count"`
+		Prompts  []jsonPrompt `json:"prompts"`
+	}
+
+	output := jsonOutput{
+		Combined: true,
+		Count:    len(prompts),
+		Prompts:  make([]jsonPrompt, len(prompts)),
+	}
+
+	for i, p := range prompts {
+		output.Prompts[i] = jsonPrompt{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			Modes:       p.Modes,
+			Tags:        p.Tags,
+			Content:     p.Content,
+		}
+	}
+
+	data, _ := json.MarshalIndent(output, "", "  ")
+	return string(data)
+}
+
+// escapeXML escapes special XML characters.
+func escapeXML(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	s = strings.ReplaceAll(s, "'", "&apos;")
+	return s
+}

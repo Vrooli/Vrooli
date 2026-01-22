@@ -75,6 +75,20 @@ type UpdateRequest struct {
 	Draft        *bool    `json:"draft,omitempty"`
 }
 
+// CombineRequest is the request body for combining multiple prompts.
+type CombineRequest struct {
+	PromptIDs []string `json:"promptIds"`
+	Format    string   `json:"format,omitempty"` // "xml", "markdown", or "json"
+}
+
+// CombineResponse is the response for combined prompts.
+type CombineResponse struct {
+	Combined    string `json:"combined"`
+	PromptCount int    `json:"promptCount"`
+	TotalTokens int    `json:"totalTokens"`
+	Format      string `json:"format"`
+}
+
 // Folders defines the valid folder names for prompt storage.
 var Folders = []string{"core", "local", "drafts"}
 
