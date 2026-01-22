@@ -30,12 +30,12 @@ func (s *LimitsService) nowExpr() string {
 type TierLimit struct {
 	ID             string    `json:"id"`
 	TierID         string    `json:"tier_id"`
-	LimitType      string    `json:"limit_type"`       // cost_based or app_specific
-	LimitKey       string    `json:"limit_key"`        // ai_credits, workflow_exports, etc.
-	LimitValue     int64     `json:"limit_value"`      // -1 = unlimited
-	CostMultiplier int64     `json:"cost_multiplier"`  // For cost_based: internal units per cent
-	AppBundleKey   *string   `json:"app_bundle_key"`   // NULL for cost_based
-	ResetPeriod    string    `json:"reset_period"`     // monthly, yearly, etc.
+	LimitType      string    `json:"limit_type"`      // cost_based or app_specific
+	LimitKey       string    `json:"limit_key"`       // ai_credits, workflow_exports, etc.
+	LimitValue     int64     `json:"limit_value"`     // -1 = unlimited
+	CostMultiplier int64     `json:"cost_multiplier"` // For cost_based: internal units per cent
+	AppBundleKey   *string   `json:"app_bundle_key"`  // NULL for cost_based
+	ResetPeriod    string    `json:"reset_period"`    // monthly, yearly, etc.
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 
@@ -45,9 +45,9 @@ type TierLimit struct {
 
 // TierLimitUpdate is the request to update a tier limit.
 type TierLimitUpdate struct {
-	LimitValue     *int64   `json:"limit_value"`      // Optional: new limit value
-	DisplayDollars *float64 `json:"display_dollars"`  // Optional: set limit in dollars (converted)
-	IsUnlimited    *bool    `json:"is_unlimited"`     // Optional: set to unlimited (-1)
+	LimitValue     *int64   `json:"limit_value"`     // Optional: new limit value
+	DisplayDollars *float64 `json:"display_dollars"` // Optional: set limit in dollars (converted)
+	IsUnlimited    *bool    `json:"is_unlimited"`    // Optional: set to unlimited (-1)
 }
 
 // NewLimitsService creates a new limits service.

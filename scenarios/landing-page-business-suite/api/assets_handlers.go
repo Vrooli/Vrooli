@@ -46,7 +46,6 @@ func handleAssetUpload(as *AssetsService) http.HandlerFunc {
 			AltText:    altText,
 			UploadedBy: uploadedBy,
 		})
-
 		if err != nil {
 			status := http.StatusInternalServerError
 			if strings.Contains(err.Error(), "invalid file type") {
@@ -168,6 +167,7 @@ func handleAssetDelete(as *AssetsService) http.HandlerFunc {
 
 // handleServeUpload handles GET /api/v1/uploads/{path...}
 // This serves uploaded files publicly (no auth required)
+//
 //nolint:unused // reserved for debug-only asset preview handler
 func handleServeUpload(as *AssetsService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

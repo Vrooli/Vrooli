@@ -9,16 +9,16 @@ import (
 
 // VariantResponse is the flat variant format expected by the UI
 type VariantResponse struct {
-	ID           int               `json:"id,omitempty"`
-	Slug         string            `json:"slug"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	Weight       int               `json:"weight"`
-	Status       string            `json:"status"`
-	Axes         map[string]string `json:"axes,omitempty"`
+	ID           int                 `json:"id,omitempty"`
+	Slug         string              `json:"slug"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description,omitempty"`
+	Weight       int                 `json:"weight"`
+	Status       string              `json:"status"`
+	Axes         map[string]string   `json:"axes,omitempty"`
 	HeaderConfig LandingHeaderConfig `json:"header_config,omitempty"`
-	CreatedAt    string            `json:"created_at,omitempty"`
-	UpdatedAt    string            `json:"updated_at,omitempty"`
+	CreatedAt    string              `json:"created_at,omitempty"`
+	UpdatedAt    string              `json:"updated_at,omitempty"`
 }
 
 // snapshotToVariantResponse converts a VariantSnapshot to the flat VariantResponse format

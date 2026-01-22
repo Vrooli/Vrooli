@@ -83,13 +83,13 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	variantsDir := filepath.Join(tmpDir, "variants")
-	if err := os.MkdirAll(variantsDir, 0755); err != nil {
+	if err := os.MkdirAll(variantsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create temp variants dir: %v", err)
 	}
 
 	brandingPath := filepath.Join(tmpDir, "branding.json")
 	brandingData := []byte(`{"site_name": "Test Site"}`)
-	if err := os.WriteFile(brandingPath, brandingData, 0644); err != nil {
+	if err := os.WriteFile(brandingPath, brandingData, 0o644); err != nil {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 
@@ -155,12 +155,12 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 func TestConfigStore_DeleteVariant(t *testing.T) {
 	tmpDir := t.TempDir()
 	variantsDir := filepath.Join(tmpDir, "variants")
-	if err := os.MkdirAll(variantsDir, 0755); err != nil {
+	if err := os.MkdirAll(variantsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create temp variants dir: %v", err)
 	}
 
 	brandingPath := filepath.Join(tmpDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0o644); err != nil {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestConfigStore_DeleteVariant(t *testing.T) {
 		"sections": []
 	}`
 	variantPath := filepath.Join(variantsDir, "delete-me.json")
-	if err := os.WriteFile(variantPath, []byte(variantData), 0644); err != nil {
+	if err := os.WriteFile(variantPath, []byte(variantData), 0o644); err != nil {
 		t.Fatalf("Failed to write variant file: %v", err)
 	}
 
@@ -218,7 +218,7 @@ func TestConfigStore_DeleteVariant(t *testing.T) {
 func TestConfigStore_SaveBranding(t *testing.T) {
 	tmpDir := t.TempDir()
 	brandingPath := filepath.Join(tmpDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Original"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Original"}`), 0o644); err != nil {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 
@@ -266,7 +266,7 @@ func TestConfigStore_SaveBranding(t *testing.T) {
 func TestConfigStore_UpdateBranding(t *testing.T) {
 	tmpDir := t.TempDir()
 	brandingPath := filepath.Join(tmpDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Original", "tagline": "Original Tagline"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Original", "tagline": "Original Tagline"}`), 0o644); err != nil {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 
@@ -298,7 +298,7 @@ func TestConfigStore_UpdateBranding(t *testing.T) {
 func TestConfigStore_ClearBrandingField(t *testing.T) {
 	tmpDir := t.TempDir()
 	brandingPath := filepath.Join(tmpDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test", "tagline": "Clear Me"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test", "tagline": "Clear Me"}`), 0o644); err != nil {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 

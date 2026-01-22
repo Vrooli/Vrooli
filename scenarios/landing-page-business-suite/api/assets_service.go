@@ -70,7 +70,7 @@ func NewAssetsService(db *sql.DB) *AssetsService {
 	}
 
 	// Ensure upload directory exists
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+	if err := os.MkdirAll(uploadDir, 0o755); err != nil {
 		logStructuredError("create_upload_dir_failed", map[string]interface{}{
 			"dir":   uploadDir,
 			"error": err.Error(),
@@ -80,7 +80,7 @@ func NewAssetsService(db *sql.DB) *AssetsService {
 	// Create subdirectories for organization
 	for _, subdir := range []string{"logos", "favicons", "og-images", "general"} {
 		path := filepath.Join(uploadDir, subdir)
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			logStructuredError("create_upload_subdir_failed", map[string]interface{}{
 				"dir":   path,
 				"error": err.Error(),
@@ -145,7 +145,7 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 	fullPath := filepath.Join(s.uploadDir, storagePath)
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
 	}
 
@@ -199,7 +199,6 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 		category,
 		uploadedBy,
 	).Scan(&asset.ID, &asset.CreatedAt)
-
 	if err != nil {
 		os.Remove(fullPath) // Clean up on failure
 		return nil, fmt.Errorf("failed to save asset metadata: %w", err)
@@ -519,7 +518,7 @@ func saveResizedPNG(src image.Image, outputPath string, targetW, targetH int) er
 		return fmt.Errorf("resize failed for %s", outputPath)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("create dir: %w", err)
 	}
 

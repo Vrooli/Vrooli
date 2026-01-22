@@ -15,11 +15,11 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	variantsDir := filepath.Join(tmpDir, "variants")
-	if err := os.MkdirAll(variantsDir, 0755); err != nil {
+	if err := os.MkdirAll(variantsDir, 0o755); err != nil {
 		t.Fatalf("failed to create variants dir: %v", err)
 	}
 	brandingPath := filepath.Join(tmpDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0o644); err != nil {
 		t.Fatalf("failed to write branding file: %v", err)
 	}
 
@@ -47,7 +47,7 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 
 	dir := t.TempDir()
 	variantsDir := filepath.Join(dir, "variants")
-	if err := os.MkdirAll(variantsDir, 0755); err != nil {
+	if err := os.MkdirAll(variantsDir, 0o755); err != nil {
 		t.Fatalf("failed to create variants dir: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	})
 
 	brandingPath := filepath.Join(dir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0o644); err != nil {
 		t.Fatalf("failed to write branding file: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	}
 
 	brandingPath := filepath.Join(tempDir, "branding.json")
-	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0644); err != nil {
+	if err := os.WriteFile(brandingPath, []byte(`{"site_name": "Test"}`), 0o644); err != nil {
 		t.Fatalf("failed to write branding file: %v", err)
 	}
 

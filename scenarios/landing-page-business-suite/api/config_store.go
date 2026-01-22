@@ -285,7 +285,7 @@ func (cs *ConfigStore) SaveVariant(slug string, snapshot *VariantSnapshot) error
 
 	// Write to file
 	path := filepath.Join(cs.variantsDir, slug+".json")
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write variant file: %w", err)
 	}
 
@@ -418,7 +418,7 @@ func (cs *ConfigStore) SaveBranding(branding *SiteBranding) error {
 		return fmt.Errorf("marshal branding: %w", err)
 	}
 
-	if err := os.WriteFile(cs.brandingPath, data, 0644); err != nil {
+	if err := os.WriteFile(cs.brandingPath, data, 0o644); err != nil {
 		return fmt.Errorf("write branding file: %w", err)
 	}
 
@@ -671,7 +671,7 @@ func (cs *ConfigStore) saveBrandingLocked() error {
 		return fmt.Errorf("marshal branding: %w", err)
 	}
 
-	if err := os.WriteFile(cs.brandingPath, data, 0644); err != nil {
+	if err := os.WriteFile(cs.brandingPath, data, 0o644); err != nil {
 		return fmt.Errorf("write branding file: %w", err)
 	}
 

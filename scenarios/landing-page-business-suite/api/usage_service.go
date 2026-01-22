@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	cryptoRand "crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -34,26 +36,26 @@ type UsageRecord struct {
 // UsageReportRequest is a request to report usage from an app.
 type UsageReportRequest struct {
 	UserIdentity string            `json:"user_identity"`
-	LimitKey     string            `json:"limit_key"`    // e.g., "ai_credits"
-	Amount       int64             `json:"amount"`       // In internal units (for cost_based) or simple count
+	LimitKey     string            `json:"limit_key"` // e.g., "ai_credits"
+	Amount       int64             `json:"amount"`    // In internal units (for cost_based) or simple count
 	AppBundleKey string            `json:"app_bundle_key"`
-	Operation    string            `json:"operation,omitempty"`      // e.g., "ai.analysis"
-	IsBYOK       bool              `json:"is_byok,omitempty"`        // True if user used their own API key
-	Metadata     map[string]string `json:"metadata,omitempty"`       // Additional context
-	OperationID  *string           `json:"operation_id,omitempty"`   // Idempotency key - retries with same ID won't double-count
+	Operation    string            `json:"operation,omitempty"`    // e.g., "ai.analysis"
+	IsBYOK       bool              `json:"is_byok,omitempty"`      // True if user used their own API key
+	Metadata     map[string]string `json:"metadata,omitempty"`     // Additional context
+	OperationID  *string           `json:"operation_id,omitempty"` // Idempotency key - retries with same ID won't double-count
 }
 
 // UsageSummary summarizes usage for a user.
 type UsageSummary struct {
-	UserIdentity     string              `json:"user_identity"`
-	BillingPeriod    string              `json:"billing_period"`
-	Tier             string              `json:"tier,omitempty"`
-	Limits           map[string]int64    `json:"limits"`             // limit_key -> limit_value
-	Usage            map[string]int64    `json:"usage"`              // limit_key -> usage_amount
-	Remaining        map[string]int64    `json:"remaining"`          // limit_key -> remaining (or -1 for unlimited)
-	DisplayCredits   map[string]float64  `json:"display_credits"`    // limit_key -> display value (divided by 100000)
-	ResetDate        time.Time           `json:"reset_date"`
-	ByApp            map[string]int64    `json:"by_app,omitempty"`   // app_bundle_key -> total usage
+	UserIdentity   string             `json:"user_identity"`
+	BillingPeriod  string             `json:"billing_period"`
+	Tier           string             `json:"tier,omitempty"`
+	Limits         map[string]int64   `json:"limits"`          // limit_key -> limit_value
+	Usage          map[string]int64   `json:"usage"`           // limit_key -> usage_amount
+	Remaining      map[string]int64   `json:"remaining"`       // limit_key -> remaining (or -1 for unlimited)
+	DisplayCredits map[string]float64 `json:"display_credits"` // limit_key -> display value (divided by 100000)
+	ResetDate      time.Time          `json:"reset_date"`
+	ByApp          map[string]int64   `json:"by_app,omitempty"` // app_bundle_key -> total usage
 }
 
 // NewUsageService creates a new usage service.
@@ -123,8 +125,8 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		if err == nil && exists {
 			// Already recorded - return success (idempotent)
 			logStructured("usage_already_recorded", map[string]interface{}{
-				"level":        "debug",
-				"operation_id": *req.OperationID,
+				"level":         "debug",
+				"operation_id":  *req.OperationID,
 				"user_identity": userIdentity,
 			})
 			return nil
@@ -420,12 +422,15 @@ func (s *UsageService) GetAllUsageForPeriod(ctx context.Context, billingPeriod s
 }
 
 // ValidateServiceToken validates the service-to-service auth token.
+// Uses constant-time comparison to prevent timing attacks where an attacker
+// could deduce token characters by measuring response times.
 func (s *UsageService) ValidateServiceToken(token string) bool {
 	if s.serviceToken == "" {
 		// No token configured - reject all
 		return false
 	}
-	return token == s.serviceToken
+	// Use constant-time comparison to prevent timing attacks
+	return subtle.ConstantTimeCompare([]byte(token), []byte(s.serviceToken)) == 1
 }
 
 // UsageHealthStatus contains the health status of the usage service.
@@ -790,6 +795,423 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 		"previous_usage": currentUsage,
 		"new_usage":      currentUsage + amount,
 		"operation":      metadata.Operation,
+	})
+
+	return nil
+}
+
+// ReserveCredits atomically checks if the user has enough credits and creates a reservation.
+// This prevents TOCTOU race conditions in streaming requests where multiple concurrent
+// requests could exceed the credit limit.
+// Returns the reservation ID on success.
+func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
+	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
+	tier = strings.TrimSpace(strings.ToLower(tier))
+	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
+
+	if userIdentity == "" {
+		return "", fmt.Errorf("user_identity is required")
+	}
+	if limitKey == "" {
+		return "", fmt.Errorf("limit_key is required")
+	}
+	if amount <= 0 {
+		return "", fmt.Errorf("amount must be positive")
+	}
+
+	billingPeriod := getCurrentBillingPeriod()
+
+	// Start a serializable transaction for atomic check-and-reserve
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return "", fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Get current usage + pending reservations with row locking
+	var currentUsage int64
+	var pendingReservations int64
+
+	if s.dialect == "sqlite" {
+		// Get current usage
+		err = tx.QueryRowContext(ctx, `
+			SELECT COALESCE(SUM(usage_amount), 0)
+			FROM usage_records
+			WHERE user_identity = ? AND billing_period = ? AND limit_key = ?
+		`, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
+		if err != nil && err != sql.ErrNoRows {
+			return "", fmt.Errorf("get current usage: %w", err)
+		}
+
+		// Get pending reservations
+		err = tx.QueryRowContext(ctx, `
+			SELECT COALESCE(SUM(reserved_amount), 0)
+			FROM credit_reservations
+			WHERE user_identity = ? AND billing_period = ? AND limit_key = ? AND status = 'pending'
+		`, userIdentity, billingPeriod, limitKey).Scan(&pendingReservations)
+		if err != nil && err != sql.ErrNoRows {
+			return "", fmt.Errorf("get pending reservations: %w", err)
+		}
+	} else {
+		// Get current usage with FOR UPDATE lock
+		err = tx.QueryRowContext(ctx, `
+			SELECT COALESCE(SUM(usage_amount), 0)
+			FROM usage_records
+			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3
+			FOR UPDATE
+		`, userIdentity, billingPeriod, limitKey).Scan(&currentUsage)
+		if err != nil && err != sql.ErrNoRows {
+			return "", fmt.Errorf("get current usage: %w", err)
+		}
+
+		// Get pending reservations with FOR UPDATE lock
+		err = tx.QueryRowContext(ctx, `
+			SELECT COALESCE(SUM(reserved_amount), 0)
+			FROM credit_reservations
+			WHERE user_identity = $1 AND billing_period = $2 AND limit_key = $3 AND status = 'pending'
+			FOR UPDATE
+		`, userIdentity, billingPeriod, limitKey).Scan(&pendingReservations)
+		if err != nil && err != sql.ErrNoRows {
+			return "", fmt.Errorf("get pending reservations: %w", err)
+		}
+	}
+
+	effectiveUsage := currentUsage + pendingReservations
+
+	// Check the limit if tier is specified
+	if tier != "" && s.limitsSvc != nil {
+		limit, err := s.limitsSvc.GetLimit(ctx, tier, limitKey, nil)
+		if err != nil {
+			return "", fmt.Errorf("get limit: %w", err)
+		}
+
+		if limit != nil && limit.LimitValue >= 0 {
+			// Check if the new usage would exceed the limit
+			if effectiveUsage+amount > limit.LimitValue {
+				return "", fmt.Errorf("%w: would use %d, limit is %d, remaining is %d",
+					ErrInsufficientCredits, effectiveUsage+amount, limit.LimitValue, limit.LimitValue-effectiveUsage)
+			}
+		}
+	}
+
+	// Create the reservation (expires in 10 minutes)
+	reservationID := generateUUID()
+	expiresAt := time.Now().Add(10 * time.Minute)
+
+	var insertQuery string
+	if s.dialect == "sqlite" {
+		insertQuery = `
+			INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at, created_at)
+			VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))
+		`
+		_, err = tx.ExecContext(ctx, insertQuery, reservationID, userIdentity, billingPeriod, limitKey, amount, expiresAt)
+	} else {
+		insertQuery = `
+			INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at, created_at)
+			VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+		`
+		_, err = tx.ExecContext(ctx, insertQuery, reservationID, userIdentity, billingPeriod, limitKey, amount, expiresAt)
+	}
+	if err != nil {
+		return "", fmt.Errorf("create reservation: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit transaction: %w", err)
+	}
+
+	logStructured("credits_reserved", map[string]interface{}{
+		"level":          "debug",
+		"user_identity":  userIdentity,
+		"limit_key":      limitKey,
+		"reserved":       amount,
+		"reservation_id": reservationID,
+		"current_usage":  currentUsage,
+		"pending":        pendingReservations,
+	})
+
+	return reservationID, nil
+}
+
+// FinalizeReservation marks a reservation as finalized and records the actual usage.
+// Call this after a streaming request completes successfully.
+func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
+	if reservationID == "" {
+		return fmt.Errorf("reservation_id is required")
+	}
+	if actualAmount < 0 {
+		return fmt.Errorf("actual_amount must be non-negative")
+	}
+
+	// Start a transaction to finalize the reservation and record usage atomically
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Get reservation details
+	var userIdentity, billingPeriod, limitKey, status string
+	var reservedAmount int64
+	var getQuery string
+
+	if s.dialect == "sqlite" {
+		getQuery = `
+			SELECT user_identity, billing_period, limit_key, reserved_amount, status
+			FROM credit_reservations
+			WHERE id = ?
+		`
+	} else {
+		getQuery = `
+			SELECT user_identity, billing_period, limit_key, reserved_amount, status
+			FROM credit_reservations
+			WHERE id = $1
+			FOR UPDATE
+		`
+	}
+
+	err = tx.QueryRowContext(ctx, getQuery, reservationID).Scan(&userIdentity, &billingPeriod, &limitKey, &reservedAmount, &status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("reservation not found: %s", reservationID)
+		}
+		return fmt.Errorf("get reservation: %w", err)
+	}
+
+	if status != "pending" {
+		return fmt.Errorf("reservation already %s", status)
+	}
+
+	// Mark reservation as finalized
+	var updateQuery string
+	if s.dialect == "sqlite" {
+		updateQuery = `
+			UPDATE credit_reservations
+			SET status = 'finalized', finalized_at = datetime('now')
+			WHERE id = ?
+		`
+	} else {
+		updateQuery = `
+			UPDATE credit_reservations
+			SET status = 'finalized', finalized_at = NOW()
+			WHERE id = $1
+		`
+	}
+	_, err = tx.ExecContext(ctx, updateQuery, reservationID)
+	if err != nil {
+		return fmt.Errorf("finalize reservation: %w", err)
+	}
+
+	// Record actual usage
+	var insertQuery string
+	if s.dialect == "sqlite" {
+		insertQuery = `
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, last_operation_at)
+			VALUES (?, ?, ?, ?, datetime('now'))
+			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
+			DO UPDATE SET
+				usage_amount = usage_records.usage_amount + excluded.usage_amount,
+				last_operation_at = datetime('now'),
+				updated_at = datetime('now')
+		`
+	} else {
+		insertQuery = `
+			INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, last_operation_at)
+			VALUES ($1, $2, $3, $4, NOW())
+			ON CONFLICT (user_identity, billing_period, limit_key, app_bundle_key)
+			DO UPDATE SET
+				usage_amount = usage_records.usage_amount + $4,
+				last_operation_at = NOW(),
+				updated_at = NOW()
+		`
+	}
+	_, err = tx.ExecContext(ctx, insertQuery, userIdentity, billingPeriod, limitKey, actualAmount)
+	if err != nil {
+		return fmt.Errorf("record usage: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	logStructured("reservation_finalized", map[string]interface{}{
+		"level":          "debug",
+		"reservation_id": reservationID,
+		"user_identity":  userIdentity,
+		"reserved":       reservedAmount,
+		"actual":         actualAmount,
+	})
+
+	return nil
+}
+
+// ReleaseReservation marks a reservation as released without recording usage.
+// Call this when a streaming request is cancelled or fails before completing.
+func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID string) error {
+	if reservationID == "" {
+		return fmt.Errorf("reservation_id is required")
+	}
+
+	var query string
+	if s.dialect == "sqlite" {
+		query = `
+			UPDATE credit_reservations
+			SET status = 'released'
+			WHERE id = ? AND status = 'pending'
+		`
+	} else {
+		query = `
+			UPDATE credit_reservations
+			SET status = 'released'
+			WHERE id = $1 AND status = 'pending'
+		`
+	}
+
+	result, err := s.db.ExecContext(ctx, query, reservationID)
+	if err != nil {
+		return fmt.Errorf("release reservation: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		logStructured("reservation_release_noop", map[string]interface{}{
+			"level":          "debug",
+			"reservation_id": reservationID,
+			"reason":         "already finalized/released/expired or not found",
+		})
+	} else {
+		logStructured("reservation_released", map[string]interface{}{
+			"level":          "debug",
+			"reservation_id": reservationID,
+		})
+	}
+
+	return nil
+}
+
+// CleanupExpiredReservations marks expired pending reservations as expired.
+// Returns the number of reservations that were expired.
+func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, error) {
+	var query string
+	if s.dialect == "sqlite" {
+		query = `
+			UPDATE credit_reservations
+			SET status = 'expired'
+			WHERE status = 'pending' AND expires_at < datetime('now')
+		`
+	} else {
+		query = `
+			UPDATE credit_reservations
+			SET status = 'expired'
+			WHERE status = 'pending' AND expires_at < NOW()
+		`
+	}
+
+	result, err := s.db.ExecContext(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("cleanup expired reservations: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected > 0 {
+		logStructured("reservations_expired", map[string]interface{}{
+			"level": "info",
+			"count": rowsAffected,
+		})
+	}
+
+	return int(rowsAffected), nil
+}
+
+// StartReservationCleanup starts a background goroutine that periodically cleans up
+// expired reservations. Returns a cancel function to stop the cleanup goroutine.
+func (s *UsageService) StartReservationCleanup(interval time.Duration) func() {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				_, _ = s.CleanupExpiredReservations(ctx)
+				cancel()
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() {
+		close(done)
+	}
+}
+
+// generateUUID generates a UUID v4 string.
+func generateUUID() string {
+	// Simple UUID generation using crypto/rand
+	b := make([]byte, 16)
+	_, _ = cryptoRand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // Variant is 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// AdjustUsage adjusts usage for a user, allowing both positive and negative amounts.
+// Negative amounts are used for refunds when actual usage was less than estimated.
+// Usage will not go below 0 (floor at 0).
+func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error {
+	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
+	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
+
+	if userIdentity == "" {
+		return fmt.Errorf("user_identity is required")
+	}
+	if limitKey == "" {
+		return fmt.Errorf("limit_key is required")
+	}
+	if adjustment == 0 {
+		return nil // No-op
+	}
+
+	billingPeriod := getCurrentBillingPeriod()
+
+	var query string
+	if s.dialect == "sqlite" {
+		// SQLite: use MAX to floor at 0
+		query = `
+			UPDATE usage_records
+			SET usage_amount = MAX(0, usage_amount + ?),
+			    last_operation_at = datetime('now'),
+			    updated_at = datetime('now')
+			WHERE user_identity = ? AND billing_period = ? AND limit_key = ? AND app_bundle_key IS NULL
+		`
+		_, err := s.db.ExecContext(ctx, query, adjustment, userIdentity, billingPeriod, limitKey)
+		if err != nil {
+			return fmt.Errorf("adjust usage: %w", err)
+		}
+	} else {
+		// PostgreSQL: use GREATEST to floor at 0
+		query = `
+			UPDATE usage_records
+			SET usage_amount = GREATEST(0, usage_amount + $1),
+			    last_operation_at = NOW(),
+			    updated_at = NOW()
+			WHERE user_identity = $2 AND billing_period = $3 AND limit_key = $4 AND app_bundle_key IS NULL
+		`
+		_, err := s.db.ExecContext(ctx, query, adjustment, userIdentity, billingPeriod, limitKey)
+		if err != nil {
+			return fmt.Errorf("adjust usage: %w", err)
+		}
+	}
+
+	logStructured("usage_adjusted", map[string]interface{}{
+		"level":         "debug",
+		"user_identity": userIdentity,
+		"limit_key":     limitKey,
+		"adjustment":    adjustment,
+		"reason":        reason,
 	})
 
 	return nil

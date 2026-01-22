@@ -42,13 +42,13 @@ func (s *UserAuthService) UseTokenCallback(callback magicLinkTokenCallback) {
 
 // User represents an authenticated user.
 type User struct {
-	ID              string     `json:"id"`
-	Email           string     `json:"email"`
-	EmailVerified   bool       `json:"email_verified"`
-	StripeCustomerID *string   `json:"stripe_customer_id,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-	LastLoginAt     *time.Time `json:"last_login_at,omitempty"`
+	ID               string     `json:"id"`
+	Email            string     `json:"email"`
+	EmailVerified    bool       `json:"email_verified"`
+	StripeCustomerID *string    `json:"stripe_customer_id,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	LastLoginAt      *time.Time `json:"last_login_at,omitempty"`
 }
 
 // TokenPair contains access and refresh tokens.
@@ -370,7 +370,6 @@ func (s *UserAuthService) ValidateAccessToken(tokenString string) (*UserClaims, 
 		}
 		return s.jwtSecret, nil
 	})
-
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired
@@ -398,7 +397,6 @@ func (s *UserAuthService) Logout(ctx context.Context, sessionID string) error {
 		SET revoked = TRUE
 		WHERE id = $1
 	`, sessionID)
-
 	if err != nil {
 		return fmt.Errorf("revoke session: %w", err)
 	}
@@ -423,7 +421,6 @@ func (s *UserAuthService) LogoutAllSessions(ctx context.Context, userID, exceptS
 		SET revoked = TRUE
 		WHERE user_id = $1 AND id != $2
 	`, userID, exceptSessionID)
-
 	if err != nil {
 		return fmt.Errorf("revoke all sessions: %w", err)
 	}
@@ -452,7 +449,6 @@ func (s *UserAuthService) GetOrCreateUser(ctx context.Context, email string) (*U
 		ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
 		RETURNING id
 	`, email).Scan(&userID)
-
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -540,7 +536,6 @@ func (s *UserAuthService) LinkStripeCustomer(ctx context.Context, email, custome
 		SET stripe_customer_id = $1, updated_at = NOW()
 		WHERE id = $2
 	`, customerID, user.ID)
-
 	if err != nil {
 		return fmt.Errorf("link stripe customer: %w", err)
 	}
@@ -574,7 +569,6 @@ func (s *UserAuthService) createSession(ctx context.Context, user *User, ipAddre
 		VALUES ($1, $2, $3, $4::inet, $5)
 		RETURNING id
 	`, user.ID, refreshHash, expiresAt, toNullableParam(ipAddress), toNullableParam(userAgent)).Scan(&sessionID)
-
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}

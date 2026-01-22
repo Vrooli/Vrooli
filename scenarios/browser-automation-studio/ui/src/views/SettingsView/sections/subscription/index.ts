@@ -1,5 +1,6 @@
 export { SubscriptionTab } from './SubscriptionTab';
 export { EmailInputSection } from './EmailInputSection';
+export { AuthSection } from './AuthSection';
 export { SubscriptionStatusCard } from './SubscriptionStatusCard';
 export { UnifiedUsageSection } from './UnifiedUsageSection';
 export { UsageHistorySection } from './UsageHistorySection';

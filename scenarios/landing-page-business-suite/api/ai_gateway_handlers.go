@@ -9,7 +9,23 @@ import (
 
 // aiGatewayRateLimiter enforces 60 requests per minute per user for AI endpoints.
 // Package-level for singleton behavior; use UseTimeProvider() in tests to control time.
+// Memory bounded to 100k entries with LRU eviction and periodic cleanup.
 var aiGatewayRateLimiter = NewRateLimiter(60, time.Minute)
+
+// aiGatewayIPRateLimiter enforces 120 requests per minute per IP address for AI endpoints.
+// This is more permissive than user-based limiting (120 vs 60) to allow multiple users
+// on corporate networks while still preventing single-IP abuse/DDoS attempts.
+var aiGatewayIPRateLimiter = NewRateLimiter(120, time.Minute)
+
+// ipKeyFunc extracts the client IP for rate limiting.
+var ipKeyFunc = IPKeyFunc()
+
+func init() {
+	// Start background cleanup goroutines to prevent memory exhaustion.
+	// Cleans up buckets not accessed in the last 10 minutes, every 5 minutes.
+	aiGatewayRateLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
+	aiGatewayIPRateLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
+}
 
 // handleAIChat handles non-streaming AI chat completion requests.
 // POST /api/v1/ai/chat
@@ -31,33 +47,46 @@ func handleAIChat(svc AIGateway) http.HandlerFunc {
 			return
 		}
 
-		// 2. Rate limiting
+		// 2. Rate limiting (per-user)
 		if !aiGatewayRateLimiter.Allow(userIdentity) {
 			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.", ApiErrorTypeRateLimited)
 			return
 		}
 
-		// 3. Decode request
+		// 3. IP-based rate limiting (defense in depth against multi-account abuse)
+		clientIP := ipKeyFunc(r)
+		if !aiGatewayIPRateLimiter.Allow(clientIP) {
+			logStructured("ai_rate_limit_ip_exceeded", map[string]interface{}{
+				"level":         "warn",
+				"client_ip":     clientIP,
+				"user_identity": userIdentity,
+				"security":      true,
+			})
+			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded.", ApiErrorTypeRateLimited)
+			return
+		}
+
+		// 4. Decode request
 		var req AIRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 			return
 		}
 
-		// 4. Validate request (handler owns input validation)
+		// 5. Validate request (handler owns input validation)
 		if err := validateAIRequest(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		// 5. Execute chat completion (service handles business logic + credits)
+		// 6. Execute chat completion (service handles business logic + credits)
 		resp, err := svc.ExecuteChat(r.Context(), userIdentity, req)
 		if err != nil {
 			handleAIError(w, err)
 			return
 		}
 
-		// 6. Return response
+		// 7. Return response
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	}
@@ -79,20 +108,33 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 			return
 		}
 
-		// 2. Rate limiting
+		// 2. Rate limiting (per-user)
 		if !aiGatewayRateLimiter.Allow(userIdentity) {
 			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.", ApiErrorTypeRateLimited)
 			return
 		}
 
-		// 3. Decode request
+		// 3. IP-based rate limiting (defense in depth against multi-account abuse)
+		clientIP := ipKeyFunc(r)
+		if !aiGatewayIPRateLimiter.Allow(clientIP) {
+			logStructured("ai_rate_limit_ip_exceeded", map[string]interface{}{
+				"level":         "warn",
+				"client_ip":     clientIP,
+				"user_identity": userIdentity,
+				"security":      true,
+			})
+			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded.", ApiErrorTypeRateLimited)
+			return
+		}
+
+		// 4. Decode request
 		var req AIRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
 			return
 		}
 
-		// 4. Validate request
+		// 5. Validate request
 		if err := validateAIRequest(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
@@ -101,7 +143,7 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 		// Force streaming mode
 		req.Stream = true
 
-		// 5. Execute streaming chat completion
+		// 6. Execute streaming chat completion
 		if err := svc.ExecuteChatStream(r.Context(), userIdentity, req, w); err != nil {
 			// If headers haven't been written yet, send error as JSON
 			// Otherwise, send as SSE error event

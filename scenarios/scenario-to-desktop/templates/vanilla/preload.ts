@@ -38,6 +38,20 @@ interface StorageInfo {
     count: number;     // Number of files in storage
 }
 
+/**
+ * User information from authentication
+ */
+interface AuthUser {
+    id: string;
+    email: string;
+    emailVerified: boolean;
+}
+
+/**
+ * Auth change event types
+ */
+type AuthChangeEvent = "tokens-received" | "tokens-refreshed" | "session-expired" | "signed-out";
+
 // Define the API interface
 interface DesktopAPI {
     // File operations (dialog-based - user selects location)
@@ -140,6 +154,52 @@ interface DesktopAPI {
         close: () => Promise<void>;
     };
 
+    // Authentication (via LPBS magic links)
+    auth: {
+        /**
+         * Initiate sign-in flow by opening browser to LPBS auth page.
+         * Returns the state token for CSRF validation.
+         */
+        signIn: () => Promise<{ state: string }>;
+
+        /**
+         * Sign out and clear stored tokens.
+         */
+        signOut: () => Promise<void>;
+
+        /**
+         * Get the current access token for API calls.
+         * Returns null if not authenticated or token expired.
+         */
+        getAccessToken: () => Promise<string | null>;
+
+        /**
+         * Get the current authenticated user's information.
+         * Returns null if not authenticated.
+         */
+        getUser: () => Promise<AuthUser | null>;
+
+        /**
+         * Check if the user is currently authenticated.
+         */
+        isAuthenticated: () => Promise<boolean>;
+
+        /**
+         * Force refresh the authentication tokens.
+         */
+        refresh: () => Promise<boolean>;
+
+        /**
+         * Listen for authentication state changes.
+         */
+        onAuthChanged: (callback: (event: AuthChangeEvent) => void) => void;
+
+        /**
+         * Remove an authentication state change listener.
+         */
+        offAuthChanged: (callback: (event: AuthChangeEvent) => void) => void;
+    };
+
     // Event listeners
     on: (channel: string, callback: (data: any) => void) => void;
     off: (channel: string, callback: (data: any) => void) => void;
@@ -178,6 +238,13 @@ const ALLOWED_CHANNELS = {
         "app:minimize",
         "app:maximize",
         "app:close",
+        // Authentication
+        "auth:sign-in",
+        "auth:sign-out",
+        "auth:get-access-token",
+        "auth:get-user",
+        "auth:is-authenticated",
+        "auth:refresh",
         // Events
         "menu-action",
         "notification:show"
@@ -185,7 +252,8 @@ const ALLOWED_CHANNELS = {
     FROM_MAIN: [
         "menu-action",
         "protocol-url",
-        "notification:clicked"
+        "notification:clicked",
+        "auth:changed"
     ]
 };
 
@@ -270,16 +338,52 @@ const desktopAPI: DesktopAPI = {
         minimize: async () => {
             return ipcRenderer.invoke("app:minimize");
         },
-        
+
         maximize: async () => {
             return ipcRenderer.invoke("app:maximize");
         },
-        
+
         close: async () => {
             return ipcRenderer.invoke("app:close");
         }
     },
-    
+
+    // Authentication (via LPBS magic links)
+    auth: {
+        signIn: async () => {
+            return ipcRenderer.invoke("auth:sign-in");
+        },
+
+        signOut: async () => {
+            return ipcRenderer.invoke("auth:sign-out");
+        },
+
+        getAccessToken: async () => {
+            return ipcRenderer.invoke("auth:get-access-token");
+        },
+
+        getUser: async () => {
+            return ipcRenderer.invoke("auth:get-user");
+        },
+
+        isAuthenticated: async () => {
+            return ipcRenderer.invoke("auth:is-authenticated");
+        },
+
+        refresh: async () => {
+            return ipcRenderer.invoke("auth:refresh");
+        },
+
+        onAuthChanged: (callback: (event: AuthChangeEvent) => void) => {
+            const handler = (_: any, data: { event: AuthChangeEvent }) => callback(data.event);
+            ipcRenderer.on("auth:changed", handler);
+        },
+
+        offAuthChanged: (callback: (event: AuthChangeEvent) => void) => {
+            ipcRenderer.off("auth:changed", callback as any);
+        }
+    },
+
     // Event listeners
     on: (channel: string, callback: (data: any) => void) => {
         if (isValidChannel(channel, 'FROM_MAIN')) {
@@ -464,6 +568,9 @@ contextBridge.exposeInMainWorld("desktop", {
     loadStoredBlob: desktopUtils.loadStoredBlob,
     getStoredFileUrl: desktopUtils.getStoredFileUrl,
 
+    // Authentication (via LPBS magic links)
+    auth: desktopAPI.auth,
+
     // App control & utilities
     notify: desktopUtils.notify,
     minimize: desktopAPI.app.minimize,
@@ -478,6 +585,7 @@ contextBridge.exposeInMainWorld("desktop", {
         fileSystem: true,
         appStorage: true,
         notifications: true,
+        auth: true,
         systemTray: {{ENABLE_SYSTEM_TRAY}},
         autoUpdater: {{ENABLE_AUTO_UPDATER}},
         multiWindow: false // Can be enabled in advanced templates
@@ -502,6 +610,8 @@ declare global {
             storeBlob: typeof desktopUtils.storeBlob;
             loadStoredBlob: typeof desktopUtils.loadStoredBlob;
             getStoredFileUrl: typeof desktopUtils.getStoredFileUrl;
+            // Authentication
+            auth: typeof desktopAPI.auth;
             // App control & utilities
             notify: typeof desktopUtils.notify;
             minimize: typeof desktopAPI.app.minimize;
@@ -514,6 +624,7 @@ declare global {
                 fileSystem: boolean;
                 appStorage: boolean;
                 notifications: boolean;
+                auth: boolean;
                 systemTray: boolean;
                 autoUpdater: boolean;
                 multiWindow: boolean;
@@ -523,6 +634,9 @@ declare global {
         StorageFileEntry: StorageFileEntry;
         StorageFileStat: StorageFileStat;
         StorageInfo: StorageInfo;
+        // Export auth types for external use
+        AuthUser: AuthUser;
+        AuthChangeEvent: AuthChangeEvent;
     }
 }
 
@@ -532,6 +646,7 @@ console.log('[Desktop API] Available features:', {
     fileSystem: true,
     appStorage: true,
     notifications: true,
+    auth: true,
     systemTray: {{ENABLE_SYSTEM_TRAY}},
     autoUpdater: {{ENABLE_AUTO_UPDATER}},
     multiWindow: false

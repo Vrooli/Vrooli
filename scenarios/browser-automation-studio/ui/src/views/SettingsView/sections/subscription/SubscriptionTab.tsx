@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useEntitlementStore, TIER_CONFIG, type SubscriptionTier, type ApiSource } from '@stores/entitlementStore';
-import { EmailInputSection } from './EmailInputSection';
+import { useAuthStore } from '@stores/authStore';
+import { AuthSection } from './AuthSection';
 import { SubscriptionStatusCard } from './SubscriptionStatusCard';
 import { UnifiedUsageSection } from './UnifiedUsageSection';
 import { UsageHistorySection } from './UsageHistorySection';
@@ -46,6 +47,10 @@ export function SubscriptionTab() {
     setOperationLogMonth(null);
   }, []);
 
+  // Get auth state for syncing with entitlements
+  const { isAuthenticated, user: authUser } = useAuthStore();
+  const { setUserEmail } = useEntitlementStore();
+
   // Fetch entitlement status and API source on mount
   useEffect(() => {
     const init = async () => {
@@ -58,6 +63,14 @@ export function SubscriptionTab() {
     };
     void init();
   }, [fetchStatus, getUserEmail, getApiSource]);
+
+  // Sync entitlement store when auth user changes
+  useEffect(() => {
+    if (isAuthenticated && authUser?.email) {
+      // Set the email in entitlement store to fetch subscription status
+      void setUserEmail(authUser.email);
+    }
+  }, [isAuthenticated, authUser?.email, setUserEmail]);
 
   // Sync local port input when localApiPort changes
   useEffect(() => {
@@ -173,8 +186,8 @@ export function SubscriptionTab() {
         </div>
       )}
 
-      {/* Email Input */}
-      <EmailInputSection />
+      {/* Authentication */}
+      <AuthSection />
 
       {/* Status Card - only show if we have status */}
       {status && <SubscriptionStatusCard />}

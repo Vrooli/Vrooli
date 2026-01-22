@@ -66,10 +66,10 @@ func seedTestTierLimits(t *testing.T, db *sql.DB) {
 		appBundleKey   *string
 	}{
 		{"free", "cost_based", "ai_credits", 0, 1000000, nil},
-		{"solo", "cost_based", "ai_credits", 500000000, 1000000, nil},       // $5
-		{"pro", "cost_based", "ai_credits", 2000000000, 1000000, nil},       // $20
-		{"studio", "cost_based", "ai_credits", 10000000000, 1000000, nil},   // $100
-		{"business", "cost_based", "ai_credits", -1, 1000000, nil},          // unlimited
+		{"solo", "cost_based", "ai_credits", 500000000, 1000000, nil},     // $5
+		{"pro", "cost_based", "ai_credits", 2000000000, 1000000, nil},     // $20
+		{"studio", "cost_based", "ai_credits", 10000000000, 1000000, nil}, // $100
+		{"business", "cost_based", "ai_credits", -1, 1000000, nil},        // unlimited
 	}
 
 	for _, l := range limits {

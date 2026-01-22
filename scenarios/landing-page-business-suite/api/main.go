@@ -1227,6 +1227,23 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash);`,
 		`CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);`,
+		// Migration: Add stripe_event_id column for webhook idempotency
+		`ALTER TABLE credit_transactions ADD COLUMN IF NOT EXISTS stripe_event_id VARCHAR(255);`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;`,
+		// Credit reservations table for TOCTOU prevention in streaming requests
+		`CREATE TABLE IF NOT EXISTS credit_reservations (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_identity VARCHAR(255) NOT NULL,
+			billing_period VARCHAR(20) NOT NULL,
+			limit_key VARCHAR(100) NOT NULL,
+			reserved_amount BIGINT NOT NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'finalized', 'released', 'expired')),
+			created_at TIMESTAMP DEFAULT NOW(),
+			finalized_at TIMESTAMP,
+			expires_at TIMESTAMP NOT NULL
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);`,
+		`CREATE INDEX IF NOT EXISTS idx_credit_reservations_expires ON credit_reservations(expires_at) WHERE status = 'pending';`,
 	}
 
 	for _, stmt := range stmts {

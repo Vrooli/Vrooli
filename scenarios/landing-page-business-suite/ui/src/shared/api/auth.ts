@@ -1,4 +1,6 @@
-import { apiCall } from './common';
+import { apiCall, apiPost, apiGet } from './common';
+
+// ===== Admin Auth Types =====
 
 export interface AdminSessionResponse {
   authenticated: boolean;
@@ -44,4 +46,73 @@ export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+// ===== User Auth Types =====
+
+export interface UserAuthUser {
+  id: string;
+  email: string;
+  email_verified: boolean;
+  stripe_customer_id?: string;
+  created_at?: string;
+  last_login_at?: string | null;
+}
+
+export interface UserAuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+  token_type: string;
+}
+
+export interface MagicLinkResponse {
+  message: string;
+}
+
+export interface VerifyMagicLinkResponse extends UserAuthTokens {
+  user: UserAuthUser;
+}
+
+export interface UserAuthMeResponse {
+  user: UserAuthUser;
+}
+
+// ===== User Auth Functions =====
+
+/**
+ * Request a magic link to be sent to the user's email.
+ * Always returns success to prevent email enumeration.
+ */
+export async function requestMagicLink(email: string): Promise<MagicLinkResponse> {
+  return apiPost<MagicLinkResponse>('/auth/magic-link', { email });
+}
+
+/**
+ * Verify a magic link token and get authentication tokens.
+ * Returns tokens in response body (for JSON clients) or redirects (handled server-side).
+ */
+export async function verifyMagicLink(token: string): Promise<VerifyMagicLinkResponse> {
+  return apiGet<VerifyMagicLinkResponse>(`/auth/verify?token=${encodeURIComponent(token)}`);
+}
+
+/**
+ * Refresh the access token using a refresh token.
+ */
+export async function refreshUserTokens(refreshToken: string): Promise<UserAuthTokens> {
+  return apiPost<UserAuthTokens>('/auth/refresh', { refresh_token: refreshToken });
+}
+
+/**
+ * Log out the current user session.
+ */
+export async function userLogout(): Promise<void> {
+  return apiPost<void>('/auth/logout', undefined);
+}
+
+/**
+ * Get the current authenticated user's information.
+ */
+export async function getUserMe(): Promise<UserAuthMeResponse> {
+  return apiGet<UserAuthMeResponse>('/auth/me');
 }

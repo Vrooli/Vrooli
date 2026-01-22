@@ -588,6 +588,9 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 		return errors.New("missing event type")
 	}
 
+	// Extract event ID for idempotency
+	eventID, _ := event["id"].(string)
+
 	data, ok := event["data"].(map[string]interface{})
 	if !ok {
 		return errors.New("missing event data")
@@ -601,7 +604,7 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	// Handle different event types
 	switch eventType {
 	case "checkout.session.completed":
-		return s.handleCheckoutCompleted(obj)
+		return s.handleCheckoutCompleted(obj, eventID)
 	case "customer.subscription.created":
 		return s.handleSubscriptionCreated(obj)
 	case "customer.subscription.updated":
@@ -621,7 +624,7 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	return nil
 }
 
-func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) error {
+func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string) error {
 	sessionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing session id")
@@ -630,6 +633,9 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 	customerEmail, _ := obj["customer_email"].(string)
 	customerID, _ := obj["customer"].(string)
 	subscriptionID, _ := obj["subscription"].(string)
+
+	// Normalize email for consistency
+	customerEmail = NormalizeEmail(customerEmail)
 
 	// Link user account to Stripe customer (creates user if not exists)
 	if customerEmail != "" && customerID != "" {
@@ -679,7 +685,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}) erro
 
 	switch {
 	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
-		return s.handleCreditTopup(customerEmail, amountCents, plan, map[string]interface{}{
+		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, map[string]interface{}{
 			"session_id": sessionID,
 		})
 	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
@@ -1131,10 +1137,13 @@ func (s *StripeService) billingIntervalDuration(interval landing_page_react_vite
 	}
 }
 
-func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int64, plan *PlanOption, metadata map[string]interface{}) error {
+func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int64, plan *PlanOption, stripeEventID string, metadata map[string]interface{}) error {
 	if customerEmail == "" {
 		return errors.New("customer email required for credit top-up")
 	}
+
+	// Normalize email for consistency
+	customerEmail = NormalizeEmail(customerEmail)
 
 	if amountCents == 0 {
 		amountCents = plan.AmountCents
@@ -1160,12 +1169,29 @@ func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int6
 	metadata["price_id"] = plan.StripePriceId
 	metadata["session_type"] = sessionTypeCreditsTopup
 
-	return s.addCredits(customerEmail, credits, "credit_topup", metadata)
+	return s.addCredits(customerEmail, credits, "credit_topup", stripeEventID, metadata)
 }
 
-func (s *StripeService) addCredits(customerEmail string, amount int64, txnType string, metadata map[string]interface{}) error {
+func (s *StripeService) addCredits(customerEmail string, amount int64, txnType string, stripeEventID string, metadata map[string]interface{}) error {
 	if customerEmail == "" || amount <= 0 {
 		return nil
+	}
+
+	// Normalize email for consistency
+	customerEmail = NormalizeEmail(customerEmail)
+
+	// Idempotency check: if stripeEventID is provided, check if already processed
+	if stripeEventID != "" {
+		var exists bool
+		err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM credit_transactions WHERE stripe_event_id = $1)`, stripeEventID).Scan(&exists)
+		if err == nil && exists {
+			logStructured("credit_topup_already_processed", map[string]interface{}{
+				"level":           "info",
+				"stripe_event_id": stripeEventID,
+				"customer_email":  customerEmail,
+			})
+			return nil // Already processed - idempotent success
+		}
 	}
 
 	_, err := s.db.Exec(`
@@ -1179,10 +1205,17 @@ func (s *StripeService) addCredits(customerEmail string, amount int64, txnType s
 	}
 
 	metaBytes, _ := json.Marshal(metadata)
+
+	// Store stripe_event_id for idempotency (nullable)
+	var eventIDParam interface{}
+	if stripeEventID != "" {
+		eventIDParam = stripeEventID
+	}
+
 	_, err = s.db.Exec(`
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, metadata, created_at)
-		VALUES ($1, $2, $3, $4, NOW())
-	`, customerEmail, amount, txnType, string(metaBytes))
+		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+	`, customerEmail, amount, txnType, eventIDParam, string(metaBytes))
 	return err
 }
 
@@ -1492,7 +1525,6 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_r
 		SET status = $1, canceled_at = $2, updated_at = $3
 		WHERE subscription_id = $4
 	`, "canceled", now, now, subscriptionID)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1571,7 +1603,6 @@ func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error
 			stripe_customer_id = $2,
 			updated_at = NOW()
 	`, email, customerID)
-
 	if err != nil {
 		return fmt.Errorf("link user to stripe customer: %w", err)
 	}

@@ -218,7 +218,6 @@ func TestGetVariantStats(t *testing.T) {
 	startDate := time.Now().AddDate(0, 0, -1)
 	endDate := time.Now().AddDate(0, 0, 1)
 	stats, err := service.GetVariantStats(startDate, endDate, "")
-
 	if err != nil {
 		t.Fatalf("GetVariantStats failed: %v", err)
 	}

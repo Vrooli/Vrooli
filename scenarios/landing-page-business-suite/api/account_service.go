@@ -72,7 +72,7 @@ func loadCacheTTL() time.Duration {
 }
 
 func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
-	user := strings.TrimSpace(userIdentity)
+	user := NormalizeEmail(userIdentity)
 	if user == "" {
 		return &landing_page_react_vite_v1.SubscriptionStatus{
 			State:        landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE,
@@ -154,7 +154,8 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 }
 
 func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {
-	if strings.TrimSpace(userIdentity) == "" {
+	userIdentity = NormalizeEmail(userIdentity)
+	if userIdentity == "" {
 		return &CreditsEnvelope{
 			Balance: &landing_page_react_vite_v1.CreditsBalance{
 				CustomerEmail:  "",
@@ -218,7 +219,8 @@ func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, erro
 
 // getBillingCycleStart retrieves billing cycle start for a user.
 func (s *AccountService) getBillingCycleStart(userIdentity string) int {
-	if strings.TrimSpace(userIdentity) == "" {
+	userIdentity = NormalizeEmail(userIdentity)
+	if userIdentity == "" {
 		return 0
 	}
 
@@ -230,7 +232,6 @@ func (s *AccountService) getBillingCycleStart(userIdentity string) int {
 		ORDER BY updated_at DESC
 		LIMIT 1
 	`, userIdentity).Scan(&billingCycleStart)
-
 	if err != nil {
 		return 0
 	}
@@ -238,6 +239,7 @@ func (s *AccountService) getBillingCycleStart(userIdentity string) int {
 }
 
 func (s *AccountService) GetEntitlements(userIdentity string) (*EntitlementPayload, error) {
+	userIdentity = NormalizeEmail(userIdentity)
 	subscription, err := s.GetSubscription(userIdentity)
 	if err != nil {
 		return nil, err

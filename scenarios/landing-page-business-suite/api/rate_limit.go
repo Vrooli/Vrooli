@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"net/http"
 	"sync"
 	"time"
@@ -10,17 +11,25 @@ import (
 // Used for testing to control time progression.
 type timeProvider func() time.Time
 
-// RateLimiter implements a sliding window rate limiter.
+// DefaultMaxBuckets is the default maximum number of rate limit buckets.
+// This prevents memory exhaustion from tracking too many unique IPs.
+const DefaultMaxBuckets = 100000
+
+// RateLimiter implements a sliding window rate limiter with LRU eviction.
 type RateLimiter struct {
-	mu      sync.Mutex
-	buckets map[string]*rateBucket
-	rate    int           // Max requests per window
-	window  time.Duration // Time window
-	now     timeProvider  // Injectable time function for testing
+	mu         sync.Mutex
+	buckets    map[string]*rateBucket
+	rate       int                      // Max requests per window
+	window     time.Duration            // Time window
+	now        timeProvider             // Injectable time function for testing
+	maxBuckets int                      // Maximum number of buckets before LRU eviction
+	lruOrder   *list.List               // Doubly-linked list for LRU tracking
+	lruIndex   map[string]*list.Element // Key -> list element for O(1) lookup
 }
 
 // rateBucket tracks requests for a single key.
 type rateBucket struct {
+	key        string // The rate limit key (for LRU removal)
 	timestamps []time.Time
 	lastClean  time.Time
 }
@@ -28,11 +37,22 @@ type rateBucket struct {
 // NewRateLimiter creates a new rate limiter.
 // rate is the maximum number of requests allowed per window.
 func NewRateLimiter(rate int, window time.Duration) *RateLimiter {
+	return NewRateLimiterWithOptions(rate, window, DefaultMaxBuckets)
+}
+
+// NewRateLimiterWithOptions creates a new rate limiter with custom options.
+func NewRateLimiterWithOptions(rate int, window time.Duration, maxBuckets int) *RateLimiter {
+	if maxBuckets <= 0 {
+		maxBuckets = DefaultMaxBuckets
+	}
 	return &RateLimiter{
-		buckets: make(map[string]*rateBucket),
-		rate:    rate,
-		window:  window,
-		now:     time.Now,
+		buckets:    make(map[string]*rateBucket),
+		rate:       rate,
+		window:     window,
+		now:        time.Now,
+		maxBuckets: maxBuckets,
+		lruOrder:   list.New(),
+		lruIndex:   make(map[string]*list.Element),
 	}
 }
 
@@ -56,11 +76,32 @@ func (rl *RateLimiter) Allow(key string) bool {
 	now := rl.now()
 	bucket, exists := rl.buckets[key]
 	if !exists {
+		// Evict LRU buckets if at capacity
+		for len(rl.buckets) >= rl.maxBuckets && rl.lruOrder.Len() > 0 {
+			oldest := rl.lruOrder.Back()
+			if oldest != nil {
+				oldKey := oldest.Value.(string)
+				rl.lruOrder.Remove(oldest)
+				delete(rl.lruIndex, oldKey)
+				delete(rl.buckets, oldKey)
+			}
+		}
+
 		bucket = &rateBucket{
+			key:        key,
 			timestamps: make([]time.Time, 0, rl.rate),
 			lastClean:  now,
 		}
 		rl.buckets[key] = bucket
+
+		// Add to LRU (front = most recently used)
+		elem := rl.lruOrder.PushFront(key)
+		rl.lruIndex[key] = elem
+	} else {
+		// Move to front of LRU (most recently used)
+		if elem, ok := rl.lruIndex[key]; ok {
+			rl.lruOrder.MoveToFront(elem)
+		}
 	}
 
 	// Clean old timestamps
@@ -187,7 +228,41 @@ func (rl *RateLimiter) CleanupOldBuckets(maxAge time.Duration) {
 	for key, bucket := range rl.buckets {
 		// If no recent timestamps and last clean was before cutoff, remove
 		if len(bucket.timestamps) == 0 && bucket.lastClean.Before(cutoff) {
+			// Remove from LRU tracking
+			if elem, ok := rl.lruIndex[key]; ok {
+				rl.lruOrder.Remove(elem)
+				delete(rl.lruIndex, key)
+			}
 			delete(rl.buckets, key)
 		}
 	}
+}
+
+// StartCleanup starts a background goroutine that periodically cleans up old buckets.
+// Returns a cancel function to stop the cleanup goroutine.
+func (rl *RateLimiter) StartCleanup(interval, maxAge time.Duration) func() {
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				rl.CleanupOldBuckets(maxAge)
+			case <-done:
+				return
+			}
+		}
+	}()
+	return func() {
+		close(done)
+	}
+}
+
+// BucketCount returns the current number of tracked rate limit buckets.
+// Useful for monitoring memory usage.
+func (rl *RateLimiter) BucketCount() int {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	return len(rl.buckets)
 }

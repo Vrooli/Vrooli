@@ -197,20 +197,58 @@ Costs are calculated based on token usage with model-specific pricing:
 ### Estimation vs Actual
 
 For non-streaming requests:
-1. **Pre-check:** Estimate cost based on input message length
-2. **Execute:** Call OpenRouter
-3. **Charge:** Charge actual cost based on real token counts
+1. **Pre-check:** Estimate cost based on input message length (with 1.5x safety margin)
+2. **Reserve:** Atomically check limit and charge estimated cost
+3. **Execute:** Call OpenRouter
+4. **Adjust:** Refund difference if actual < estimated, charge extra if actual > estimated
 
 For streaming requests:
-1. **Pre-check:** Verify user can afford estimated cost (don't charge yet)
-2. **Stream:** Send response chunks
-3. **Charge:** Charge actual cost after stream completes
+1. **Reserve:** Create credit reservation atomically (prevents TOCTOU races)
+2. **Stream:** Send response chunks to client via SSE
+3. **Finalize:** Mark reservation as finalized with actual usage
+
+### Streaming Credit Reservation System
+
+Streaming requests use a reservation-based system to prevent race conditions where concurrent requests could exceed credit limits:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ 1. Reserve      │────►│ 2. Stream       │────►│ 3. Finalize     │
+│    Credits      │     │    Response     │     │    Reservation  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+      │                       │                       │
+      ▼                       ▼                       ▼
+ Check limit +          Forward chunks         Mark reservation
+ create pending         to client via          as finalized +
+ reservation            SSE events             record actual usage
+```
+
+**Key behaviors:**
+- Reservations are created atomically with row-level locking (`SELECT FOR UPDATE`)
+- Pending reservations count toward effective usage for subsequent requests
+- Reservations auto-expire after 10 minutes (background cleanup every 2 minutes)
+- If stream fails, reservation is released (no usage recorded)
+- If finalization fails, falls back to direct usage recording
+
+**Why small overspend windows are acceptable:**
+
+| Concern | Mitigation |
+|---------|------------|
+| Actual cost > reserved | Estimation includes 1.5x safety margin |
+| User didn't consent | User authorized estimated amount, showing intent |
+| Can't know final cost | Impossible to know completion tokens before streaming |
+| Alternative is worse | Pre-charging max_tokens would significantly overcharge |
+
+The reservation system prevents the more serious issue: concurrent requests from multiple sessions exceeding credit limits (TOCTOU race condition).
 
 ## Rate Limiting
 
 - **60 requests per minute** per user
+- **120 requests per minute** per IP address (defense in depth)
 - Applies to both `/chat` and `/stream` endpoints
 - Returns `429 Too Many Requests` when exceeded
+
+The IP-based limit is more permissive than user-based to allow multiple users on corporate networks while still preventing single-IP abuse.
 
 ## Input Validation
 

@@ -38,7 +38,6 @@ func (s *WaitlistService) Create(ctx context.Context, email, source string) (*Wa
 		 RETURNING id, email, source, created_at`,
 		email, source,
 	).Scan(&entry.ID, &entry.Email, &entry.Source, &entry.CreatedAt)
-
 	if err != nil {
 		return nil, err
 	}

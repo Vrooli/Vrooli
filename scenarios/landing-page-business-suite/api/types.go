@@ -14,24 +14,24 @@ type VariantSnapshot struct {
 
 // VariantSnapshotMeta holds variant metadata (name, axes, SEO, etc.)
 type VariantSnapshotMeta struct {
-	Slug         string            `json:"slug"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description,omitempty"`
-	Weight       int               `json:"weight,omitempty"` // Traffic weight (0 = disabled, default 50)
-	Axes         map[string]string `json:"axes"`
-	HeaderConfig LandingHeaderConfig `json:"header_config,omitempty"`
-	SEOConfig    json.RawMessage   `json:"seo_config,omitempty"`
-}
-
-// VariantSnapshotMetaInput is the JSON file format for variant metadata
-type VariantSnapshotMetaInput struct {
 	Slug         string              `json:"slug"`
 	Name         string              `json:"name"`
 	Description  string              `json:"description,omitempty"`
 	Weight       int                 `json:"weight,omitempty"` // Traffic weight (0 = disabled, default 50)
 	Axes         map[string]string   `json:"axes"`
-	HeaderConfig *LandingHeaderConfig `json:"header_config,omitempty"`
+	HeaderConfig LandingHeaderConfig `json:"header_config,omitempty"`
 	SEOConfig    json.RawMessage     `json:"seo_config,omitempty"`
+}
+
+// VariantSnapshotMetaInput is the JSON file format for variant metadata
+type VariantSnapshotMetaInput struct {
+	Slug         string               `json:"slug"`
+	Name         string               `json:"name"`
+	Description  string               `json:"description,omitempty"`
+	Weight       int                  `json:"weight,omitempty"` // Traffic weight (0 = disabled, default 50)
+	Axes         map[string]string    `json:"axes"`
+	HeaderConfig *LandingHeaderConfig `json:"header_config,omitempty"`
+	SEOConfig    json.RawMessage      `json:"seo_config,omitempty"`
 }
 
 // VariantSnapshotInput is the JSON file format for variant snapshots

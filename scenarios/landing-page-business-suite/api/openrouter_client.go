@@ -37,17 +37,17 @@ type OpenRouterChatRequest struct {
 
 // OpenRouterMessage represents a chat message.
 type OpenRouterMessage struct {
-	Role    string `json:"role"`    // "user", "assistant", "system"
+	Role    string `json:"role"` // "user", "assistant", "system"
 	Content string `json:"content"`
 }
 
 // OpenRouterChatResponse is the response from a chat completion.
 type OpenRouterChatResponse struct {
-	ID           string           `json:"id"`
-	Model        string           `json:"model"`
-	Content      string           `json:"content"`
-	FinishReason string           `json:"finish_reason,omitempty"`
-	Usage        OpenRouterUsage  `json:"usage"`
+	ID           string          `json:"id"`
+	Model        string          `json:"model"`
+	Content      string          `json:"content"`
+	FinishReason string          `json:"finish_reason,omitempty"`
+	Usage        OpenRouterUsage `json:"usage"`
 }
 
 // OpenRouterUsage contains token usage statistics.

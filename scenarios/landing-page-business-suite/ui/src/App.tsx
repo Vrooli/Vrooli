@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';
+import { UserAuthProvider } from './app/providers/UserAuthProvider';
 import { LandingVariantProvider, useLandingVariant } from './app/providers/LandingVariantProvider';
 import { ErrorBoundary } from './shared/ui/ErrorBoundary';
 import { ToastProvider } from './shared/ui/Toast';
@@ -27,6 +28,7 @@ import { APIKeysSettings } from './surfaces/admin-portal/routes/APIKeysSettings'
 import { TierLimitsSettings } from './surfaces/admin-portal/routes/TierLimitsSettings';
 import { AppLimitsSettings } from './surfaces/admin-portal/routes/AppLimitsSettings';
 import { UsageDashboard } from './surfaces/admin-portal/routes/UsageDashboard';
+import { UserLogin, VerifyMagicLink } from './surfaces/user-auth';
 
 /**
  * PublicRouteGuard checks if coming soon mode is enabled and shows the
@@ -58,8 +60,9 @@ export default function App() {
       <BrowserRouter>
         <ToastProvider>
           <AdminAuthProvider>
-            <LandingVariantProvider>
-            <Routes>
+            <UserAuthProvider>
+              <LandingVariantProvider>
+              <Routes>
               {/* Public routes - guarded by coming soon mode */}
               <Route
                 path="/"
@@ -108,6 +111,24 @@ export default function App() {
                 element={
                   <ErrorBoundary level="route" name="AdminLogin">
                     <AdminLogin />
+                  </ErrorBoundary>
+                }
+              />
+
+              {/* User auth routes (unprotected, not gated by coming soon) */}
+              <Route
+                path="/auth/login"
+                element={
+                  <ErrorBoundary level="route" name="UserLogin">
+                    <UserLogin />
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/auth/verify"
+                element={
+                  <ErrorBoundary level="route" name="VerifyMagicLink">
+                    <VerifyMagicLink />
                   </ErrorBoundary>
                 }
               />
@@ -300,7 +321,8 @@ export default function App() {
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-            </LandingVariantProvider>
+              </LandingVariantProvider>
+            </UserAuthProvider>
           </AdminAuthProvider>
         </ToastProvider>
       </BrowserRouter>

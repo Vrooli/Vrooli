@@ -225,20 +225,20 @@ func writeJSON(w http.ResponseWriter, payload interface{}) {
 // ApiErrorType constants for structured JSON error responses.
 // These align with the frontend's ApiError class for consistent error handling.
 const (
-	ApiErrorTypeNetwork     = "network"
-	ApiErrorTypeTimeout     = "timeout"
+	ApiErrorTypeNetwork      = "network"
+	ApiErrorTypeTimeout      = "timeout"
 	ApiErrorTypeUnauthorized = "unauthorized"
-	ApiErrorTypeForbidden   = "forbidden"
-	ApiErrorTypeNotFound    = "not_found"
-	ApiErrorTypeValidation  = "validation"
-	ApiErrorTypeRateLimited = "rate_limited"
-	ApiErrorTypeServerError = "server_error"
+	ApiErrorTypeForbidden    = "forbidden"
+	ApiErrorTypeNotFound     = "not_found"
+	ApiErrorTypeValidation   = "validation"
+	ApiErrorTypeRateLimited  = "rate_limited"
+	ApiErrorTypeServerError  = "server_error"
 )
 
 // ApiErrorResponse is a structured JSON error response that the frontend can parse.
 // It aligns with the frontend's ApiError class for graceful degradation.
 type ApiErrorResponse struct {
-	Error     string `json:"error"`               // Human-readable error message
+	Error     string `json:"error"`                // Human-readable error message
 	ErrorType string `json:"error_type,omitempty"` // Machine-readable error type
 	Retryable bool   `json:"retryable,omitempty"`  // Whether the client should offer retry
 }

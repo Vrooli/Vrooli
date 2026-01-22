@@ -169,6 +169,7 @@ func setupTestConfigStore(t *testing.T) *ConfigStore {
 }
 
 // setupTestServer creates a complete test server instance with all services initialized
+//
 //nolint:unused // helper retained for future handler tests
 func setupTestServer(t *testing.T) (*Server, func()) {
 	db := setupTestDB(t)

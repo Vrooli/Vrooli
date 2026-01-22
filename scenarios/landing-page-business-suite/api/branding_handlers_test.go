@@ -18,7 +18,7 @@ func setupTestBrandingConfigStore(t *testing.T) (*ConfigStore, func()) {
 	if err := os.WriteFile(brandingPath, []byte(`{
 		"site_name": "Test Site",
 		"robots_txt": "User-agent: *\nAllow: /"
-	}`), 0644); err != nil {
+	}`), 0o644); err != nil {
 		t.Fatalf("failed to write branding file: %v", err)
 	}
 

@@ -13,30 +13,8 @@ import { validateFile, getImageDimensions, generateThumbnail, getFileExtension }
 // Storage path prefix within app-storage
 const STORAGE_PREFIX = 'brand-assets';
 
-// Type declarations for window.desktop (provided by scenario-to-desktop)
-interface DesktopStorageAPI {
-  writeFile(path: string, data: string | ArrayBuffer): Promise<void>;
-  readFile(path: string): Promise<ArrayBuffer | null>;
-  deleteFile(path: string): Promise<boolean>;
-  listDir(path: string): Promise<Array<{ name: string; isDirectory: boolean }> | null>;
-  exists(path: string): Promise<boolean>;
-  getStorageInfo(): Promise<{ used: number; total: number } | null>;
-}
-
-interface DesktopAPI {
-  storage: DesktopStorageAPI;
-  storeJSON(path: string, data: unknown): Promise<void>;
-  loadStoredJSON(path: string): Promise<unknown>;
-  storeBlob(path: string, blob: Blob): Promise<void>;
-  loadStoredBlob(path: string, mimeType: string): Promise<Blob | null>;
-  getStoredFileUrl(path: string, mimeType: string): Promise<string | null>;
-}
-
-declare global {
-  interface Window {
-    desktop?: DesktopAPI;
-  }
-}
+// Type declarations are in src/types/desktop.d.ts
+// We use the global Window.desktop type from there
 
 /**
  * Metadata stored as JSON sidecar
@@ -47,7 +25,7 @@ interface StoredMetadata extends AssetMetadata {
 }
 
 export class DesktopAssetStorage implements AssetStorage {
-  private get desktop(): DesktopAPI {
+  private get desktop(): NonNullable<typeof window.desktop> {
     if (!window.desktop) {
       throw new Error('Desktop API not available. This storage is only for Electron apps.');
     }

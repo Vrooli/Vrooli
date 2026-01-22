@@ -228,7 +228,6 @@ func TestCreateCheckoutSession(t *testing.T) {
 		"/cancel",
 		"test@example.com",
 	)
-
 	if err != nil {
 		t.Fatalf("CreateCheckoutSession failed: %v", err)
 	}

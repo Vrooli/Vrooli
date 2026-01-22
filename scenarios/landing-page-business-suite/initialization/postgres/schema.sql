@@ -214,11 +214,15 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     amount_credits BIGINT NOT NULL,
     transaction_type VARCHAR(50) NOT NULL,
     source VARCHAR(100),
+    stripe_event_id VARCHAR(255),
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_credit_transactions_customer ON credit_transactions(customer_email);
+-- Unique index for idempotency - only index non-null stripe_event_ids
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event
+    ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
 
 -- NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
 -- and loaded into memory at startup via ConfigStore.
@@ -367,3 +371,30 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_hash ON user_sessions(refresh_token_hash);
 CREATE INDEX idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
+
+-- Email Normalization Migration (idempotent)
+-- Normalizes existing email data to lowercase/trimmed format
+-- This prevents duplicate credit balances or subscription lookup issues
+UPDATE users SET email = LOWER(TRIM(email)) WHERE email != LOWER(TRIM(email));
+UPDATE subscriptions SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email IS NOT NULL AND customer_email != LOWER(TRIM(customer_email));
+UPDATE credit_wallets SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email != LOWER(TRIM(customer_email));
+UPDATE usage_records SET user_identity = LOWER(TRIM(user_identity)) WHERE user_identity != LOWER(TRIM(user_identity));
+UPDATE credit_transactions SET customer_email = LOWER(TRIM(customer_email)) WHERE customer_email != LOWER(TRIM(customer_email));
+
+-- Credit Reservations Table (TOCTOU fix for streaming requests)
+-- Tracks pending credit reservations for atomic check-and-charge
+CREATE TABLE IF NOT EXISTS credit_reservations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_identity VARCHAR(255) NOT NULL,
+    billing_period VARCHAR(20) NOT NULL,
+    limit_key VARCHAR(100) NOT NULL,
+    reserved_amount BIGINT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'finalized', 'released', 'expired')),
+    created_at TIMESTAMP DEFAULT NOW(),
+    finalized_at TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);
+CREATE INDEX IF NOT EXISTS idx_credit_reservations_expires ON credit_reservations(expires_at) WHERE status = 'pending';

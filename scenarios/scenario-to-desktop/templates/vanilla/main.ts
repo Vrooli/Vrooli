@@ -1,4 +1,4 @@
-import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard } from "electron";
+import { app, BrowserWindow, net as electronNet, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import * as nodeNet from "node:net";
 import { randomUUID } from "node:crypto";
@@ -2435,6 +2435,364 @@ ipcMain.handle("storage:get-info", async () => {
     };
 });
 
+// ===== AUTH IPC HANDLERS =====
+// These handlers provide secure authentication using magic links via LPBS (vrooli.com)
+
+// Auth configuration
+const AUTH_CONFIG = {
+    PROTOCOL: "vrooli", // Unified protocol for all Vrooli bundled apps
+    LPBS_URL: "{{LPBS_URL}}", // e.g., https://vrooli.com
+    TOKENS_FILE: "auth/tokens.enc", // Encrypted token storage path
+    USER_FILE: "auth/user.json", // User info cache
+    TOKEN_REFRESH_BUFFER_MS: 5 * 60 * 1000, // Refresh 5 minutes before expiry
+};
+
+// Auth state
+interface StoredTokens {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: string;
+}
+
+interface StoredUser {
+    id: string;
+    email: string;
+    emailVerified: boolean;
+}
+
+let tokenRefreshTimer: NodeJS.Timeout | null = null;
+let pendingAuthState: string | null = null;
+
+// Helper to securely store tokens using Electron's safeStorage
+async function storeAuthTokens(tokens: StoredTokens): Promise<void> {
+    const tokensPath = await resolveStoragePath(AUTH_CONFIG.TOKENS_FILE);
+    if (!tokensPath) {
+        throw new Error("Invalid storage path for tokens");
+    }
+
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(tokensPath), { recursive: true });
+
+    // Encrypt the tokens using Electron's safeStorage
+    const tokenJson = JSON.stringify(tokens);
+    if (safeStorage.isEncryptionAvailable()) {
+        const encrypted = safeStorage.encryptString(tokenJson);
+        await fs.writeFile(tokensPath, encrypted);
+    } else {
+        // Fallback: store without encryption (development mode)
+        console.warn("[Auth] safeStorage encryption not available, storing tokens unencrypted");
+        await fs.writeFile(tokensPath, tokenJson, "utf-8");
+    }
+}
+
+// Helper to retrieve stored tokens
+async function getStoredTokens(): Promise<StoredTokens | null> {
+    const tokensPath = await resolveStoragePath(AUTH_CONFIG.TOKENS_FILE);
+    if (!tokensPath) {
+        return null;
+    }
+
+    try {
+        const fileContent = await fs.readFile(tokensPath);
+
+        if (safeStorage.isEncryptionAvailable()) {
+            const decrypted = safeStorage.decryptString(fileContent);
+            return JSON.parse(decrypted);
+        } else {
+            // Fallback: read as plain text
+            return JSON.parse(fileContent.toString("utf-8"));
+        }
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        console.error("[Auth] Failed to read tokens:", error);
+        return null;
+    }
+}
+
+// Helper to store user info
+async function storeUserInfo(user: StoredUser): Promise<void> {
+    const userPath = await resolveStoragePath(AUTH_CONFIG.USER_FILE);
+    if (!userPath) {
+        throw new Error("Invalid storage path for user info");
+    }
+
+    await fs.mkdir(path.dirname(userPath), { recursive: true });
+    await fs.writeFile(userPath, JSON.stringify(user, null, 2), "utf-8");
+}
+
+// Helper to get stored user info
+async function getStoredUser(): Promise<StoredUser | null> {
+    const userPath = await resolveStoragePath(AUTH_CONFIG.USER_FILE);
+    if (!userPath) {
+        return null;
+    }
+
+    try {
+        const content = await fs.readFile(userPath, "utf-8");
+        return JSON.parse(content);
+    } catch (error: any) {
+        if (error.code === "ENOENT") {
+            return null;
+        }
+        console.error("[Auth] Failed to read user info:", error);
+        return null;
+    }
+}
+
+// Helper to clear auth data
+async function clearAuthData(): Promise<void> {
+    const tokensPath = await resolveStoragePath(AUTH_CONFIG.TOKENS_FILE);
+    const userPath = await resolveStoragePath(AUTH_CONFIG.USER_FILE);
+
+    if (tokenRefreshTimer) {
+        clearTimeout(tokenRefreshTimer);
+        tokenRefreshTimer = null;
+    }
+
+    try {
+        if (tokensPath) await fs.unlink(tokensPath);
+    } catch (error: any) {
+        if (error.code !== "ENOENT") console.error("[Auth] Failed to delete tokens:", error);
+    }
+
+    try {
+        if (userPath) await fs.unlink(userPath);
+    } catch (error: any) {
+        if (error.code !== "ENOENT") console.error("[Auth] Failed to delete user info:", error);
+    }
+}
+
+// Helper to schedule token refresh
+function scheduleTokenRefresh(expiresAt: string): void {
+    if (tokenRefreshTimer) {
+        clearTimeout(tokenRefreshTimer);
+    }
+
+    const expiryTime = new Date(expiresAt).getTime();
+    const refreshTime = expiryTime - AUTH_CONFIG.TOKEN_REFRESH_BUFFER_MS;
+    const delay = Math.max(0, refreshTime - Date.now());
+
+    tokenRefreshTimer = setTimeout(async () => {
+        await refreshAuthTokens();
+    }, delay);
+
+    console.log(`[Auth] Token refresh scheduled in ${Math.round(delay / 1000 / 60)} minutes`);
+}
+
+// Helper to refresh tokens
+async function refreshAuthTokens(): Promise<boolean> {
+    const tokens = await getStoredTokens();
+    if (!tokens?.refreshToken) {
+        console.log("[Auth] No refresh token available");
+        notifyAuthChange("session-expired");
+        return false;
+    }
+
+    try {
+        const lpbsUrl = AUTH_CONFIG.LPBS_URL || "https://vrooli.com";
+        const response = await electronNet.fetch(`${lpbsUrl}/api/v1/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: tokens.refreshToken }),
+        });
+
+        if (!response.ok) {
+            console.error("[Auth] Token refresh failed:", response.status);
+            notifyAuthChange("session-expired");
+            return false;
+        }
+
+        const newTokens = await response.json() as {
+            access_token: string;
+            refresh_token: string;
+            expires_at: string;
+        };
+
+        await storeAuthTokens({
+            accessToken: newTokens.access_token,
+            refreshToken: newTokens.refresh_token,
+            expiresAt: newTokens.expires_at,
+        });
+
+        scheduleTokenRefresh(newTokens.expires_at);
+        notifyAuthChange("tokens-refreshed");
+        console.log("[Auth] Tokens refreshed successfully");
+        return true;
+    } catch (error) {
+        console.error("[Auth] Token refresh error:", error);
+        notifyAuthChange("session-expired");
+        return false;
+    }
+}
+
+// Helper to notify renderer of auth changes
+function notifyAuthChange(event: "tokens-received" | "tokens-refreshed" | "session-expired" | "signed-out"): void {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("auth:changed", { event });
+    }
+}
+
+// Handle auth callback from vrooli:// protocol
+async function handleAuthCallback(url: string): Promise<void> {
+    try {
+        const parsed = new URL(url);
+
+        // Check if this is an auth callback
+        if (parsed.pathname !== "/auth/callback") {
+            // Not an auth callback, forward to renderer for generic handling
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("protocol-url", url);
+            }
+            return;
+        }
+
+        // Extract tokens from URL fragment
+        const fragmentParams = new URLSearchParams(parsed.hash.slice(1));
+        const accessToken = fragmentParams.get("access_token");
+        const refreshToken = fragmentParams.get("refresh_token");
+        const expiresAt = fragmentParams.get("expires_at");
+        const state = fragmentParams.get("state");
+
+        // Validate CSRF state parameter
+        if (pendingAuthState && state !== pendingAuthState) {
+            console.error("[Auth] CSRF validation failed: state mismatch");
+            notifyAuthChange("session-expired");
+            pendingAuthState = null;
+            return;
+        }
+        pendingAuthState = null; // Clear after validation
+
+        if (!accessToken || !refreshToken || !expiresAt) {
+            console.error("[Auth] Missing tokens in callback URL");
+            notifyAuthChange("session-expired");
+            return;
+        }
+
+        // Store tokens securely
+        await storeAuthTokens({
+            accessToken,
+            refreshToken,
+            expiresAt,
+        });
+
+        // Schedule token refresh
+        scheduleTokenRefresh(expiresAt);
+
+        // Fetch user info
+        try {
+            const lpbsUrl = AUTH_CONFIG.LPBS_URL || "https://vrooli.com";
+            const userResponse = await electronNet.fetch(`${lpbsUrl}/api/v1/auth/me`, {
+                headers: { "Authorization": `Bearer ${accessToken}` },
+            });
+
+            if (userResponse.ok) {
+                const userData = await userResponse.json() as { user: StoredUser };
+                await storeUserInfo(userData.user);
+            }
+        } catch (error) {
+            console.warn("[Auth] Failed to fetch user info:", error);
+        }
+
+        // Notify renderer
+        notifyAuthChange("tokens-received");
+        console.log("[Auth] Authentication successful");
+
+        // Focus the main window
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    } catch (error) {
+        console.error("[Auth] Failed to handle auth callback:", error);
+        notifyAuthChange("session-expired");
+    }
+}
+
+// Auth IPC: Sign in (opens browser to LPBS auth page)
+ipcMain.handle("auth:sign-in", async (_event, options?: { state?: string }) => {
+    const lpbsUrl = AUTH_CONFIG.LPBS_URL || "https://vrooli.com";
+    const state = options?.state || randomUUID();
+
+    // Store state for CSRF validation in callback
+    pendingAuthState = state;
+
+    const authUrl = new URL(`${lpbsUrl}/auth/login`);
+    authUrl.searchParams.set("redirect_uri", `${AUTH_CONFIG.PROTOCOL}://auth/callback`);
+    authUrl.searchParams.set("app", APP_CONFIG.APP_DISPLAY_NAME);
+    authUrl.searchParams.set("state", state);
+
+    // Open in default browser
+    await shell.openExternal(authUrl.toString());
+
+    return { state };
+});
+
+// Auth IPC: Sign out
+ipcMain.handle("auth:sign-out", async () => {
+    // Get tokens BEFORE clearing (needed for logout API call)
+    const tokens = await getStoredTokens();
+
+    // Clear local auth data
+    await clearAuthData();
+
+    // Try to call logout endpoint (best effort)
+    if (tokens?.accessToken) {
+        try {
+            const lpbsUrl = AUTH_CONFIG.LPBS_URL || "https://vrooli.com";
+            await electronNet.fetch(`${lpbsUrl}/api/v1/auth/logout`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${tokens.accessToken}` },
+            });
+        } catch (error) {
+            console.warn("[Auth] Logout API call failed:", error);
+        }
+    }
+
+    notifyAuthChange("signed-out");
+    console.log("[Auth] Signed out");
+});
+
+// Auth IPC: Get access token
+ipcMain.handle("auth:get-access-token", async () => {
+    const tokens = await getStoredTokens();
+    if (!tokens) return null;
+
+    // Check if token is expired
+    const expiresAt = new Date(tokens.expiresAt).getTime();
+    if (Date.now() >= expiresAt) {
+        // Try to refresh
+        const refreshed = await refreshAuthTokens();
+        if (!refreshed) return null;
+
+        const newTokens = await getStoredTokens();
+        return newTokens?.accessToken ?? null;
+    }
+
+    return tokens.accessToken;
+});
+
+// Auth IPC: Get user info
+ipcMain.handle("auth:get-user", async () => {
+    return getStoredUser();
+});
+
+// Auth IPC: Check if authenticated
+ipcMain.handle("auth:is-authenticated", async () => {
+    const tokens = await getStoredTokens();
+    if (!tokens) return false;
+
+    const expiresAt = new Date(tokens.expiresAt).getTime();
+    // Allow some grace period for refresh
+    return Date.now() < expiresAt + AUTH_CONFIG.TOKEN_REFRESH_BUFFER_MS;
+});
+
+// Auth IPC: Force refresh tokens
+ipcMain.handle("auth:refresh", async () => {
+    return refreshAuthTokens();
+});
+
 // ===== APP EVENT HANDLERS =====
 
 app.whenReady().then(async () => {
@@ -2451,7 +2809,22 @@ app.whenReady().then(async () => {
             return;
         }
 
-        app.on('second-instance', () => {
+        app.on('second-instance', (_event, commandLine) => {
+            // Handle protocol URLs on Windows/Linux
+            const protocolUrl = commandLine.find(arg =>
+                arg.startsWith(`${AUTH_CONFIG.PROTOCOL}://`) ||
+                arg.startsWith(`${APP_CONFIG.APP_NAME.toLowerCase()}://`)
+            );
+
+            if (protocolUrl) {
+                console.log(`[Desktop App] Protocol URL received (second-instance): ${protocolUrl}`);
+                if (protocolUrl.startsWith(`${AUTH_CONFIG.PROTOCOL}://auth/callback`)) {
+                    void handleAuthCallback(protocolUrl);
+                } else if (mainWindow) {
+                    mainWindow.webContents.send("protocol-url", protocolUrl);
+                }
+            }
+
             if (mainWindow) {
                 if (mainWindow.isMinimized()) mainWindow.restore();
                 mainWindow.focus();
@@ -2611,11 +2984,22 @@ app.on("before-quit", () => {
 });
 
 // Handle protocol for deep linking (optional)
+// Register app-specific protocol
 app.setAsDefaultProtocolClient(APP_CONFIG.APP_NAME.toLowerCase());
+// Register unified vrooli:// protocol for bundled app authentication
+if (AUTH_CONFIG.PROTOCOL && AUTH_CONFIG.PROTOCOL !== APP_CONFIG.APP_NAME.toLowerCase()) {
+    app.setAsDefaultProtocolClient(AUTH_CONFIG.PROTOCOL);
+}
+
+// Handle protocol URLs (macOS)
 app.on('open-url', (event, url) => {
     event.preventDefault();
     console.log(`[Desktop App] Protocol URL received: ${url}`);
-    if (mainWindow) {
+
+    // Check if this is an auth callback
+    if (url.startsWith(`${AUTH_CONFIG.PROTOCOL}://auth/callback`)) {
+        void handleAuthCallback(url);
+    } else if (mainWindow) {
         mainWindow.webContents.send("protocol-url", url);
     }
 });

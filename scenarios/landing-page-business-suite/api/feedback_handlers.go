@@ -64,9 +64,9 @@ func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, 
 			branding := cs.GetBranding()
 			// Convert SiteBranding to the format expected by EmailService
 			dbBranding := &SiteBranding{
-				SiteName:         branding.SiteName,
-				SupportEmail:     branding.SupportEmail,
-				DefaultTitle:     branding.DefaultTitle,
+				SiteName:          branding.SiteName,
+				SupportEmail:      branding.SupportEmail,
+				DefaultTitle:      branding.DefaultTitle,
 				ThemePrimaryColor: branding.ThemePrimaryColor,
 			}
 			if err := emailSvc.SendFeedbackNotification(dbBranding, feedback); err != nil {

@@ -28,9 +28,9 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 		// Validate required fields
 		if body.PriceID == "" || body.CustomerEmail == "" {
 			logStructured("checkout_validation_failed", map[string]interface{}{
-				"reason":     "missing_required_fields",
-				"has_price":  body.PriceID != "",
-				"has_email":  body.CustomerEmail != "",
+				"reason":    "missing_required_fields",
+				"has_price": body.PriceID != "",
+				"has_email": body.CustomerEmail != "",
 			})
 			writeJSONError(w, http.StatusBadRequest, "Missing required fields: price_id, customer_email", ApiErrorTypeValidation)
 			return

@@ -25,10 +25,10 @@ type AIGateway interface {
 
 // MockAIGateway is a test double for AIGateway.
 type MockAIGateway struct {
-	ExecuteChatFn       func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
-	ExecuteChatStreamFn func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
+	ExecuteChatFn        func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
+	ExecuteChatStreamFn  func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
 	GetAvailableModelsFn func() []string
-	HealthCheckFn       func(ctx context.Context) error
+	HealthCheckFn        func(ctx context.Context) error
 }
 
 // ExecuteChat implements AIGateway.

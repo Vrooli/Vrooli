@@ -29,18 +29,47 @@ import (
 // # Charging Flow
 //
 // For non-streaming requests:
-//  1. Estimate cost based on input length and default completion tokens
+//  1. Estimate cost based on input length and default completion tokens (with safety margin)
 //  2. Atomically reserve credits (check limit + charge) before making the AI call
-//  3. After completion, charge any difference if actual cost exceeds estimate
+//  3. After completion, refund difference if actual cost is less than estimate
+//  4. If actual cost exceeds estimate, charge the additional amount
 //
 // For streaming requests:
-//  1. Estimate cost and verify user can afford it (don't charge yet)
+//  1. Estimate cost and create a credit reservation atomically
 //  2. Stream response to client
-//  3. Charge actual cost after stream completes
+//  3. Finalize reservation with actual cost after stream completes
 //
-// The non-streaming path is atomic (prevents TOCTOU race conditions).
-// The streaming path has a small window for overspendin but this is acceptable
-// since we can't know final token count until the stream completes.
+// # Streaming Credit Reservation System
+//
+// Streaming requests use a reservation-based system to prevent TOCTOU race conditions:
+//
+//	┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+//	│ 1. Reserve      │────►│ 2. Stream       │────►│ 3. Finalize     │
+//	│    Credits      │     │    Response     │     │    Reservation  │
+//	└─────────────────┘     └─────────────────┘     └─────────────────┘
+//	      ▼                       ▼                       ▼
+//	 Check limit +          Forward chunks         Mark reservation
+//	 create pending         to client via          as finalized +
+//	 reservation            SSE events             record actual usage
+//
+// Key behaviors:
+//   - Reservations are created atomically with limit checking (SELECT FOR UPDATE)
+//   - Pending reservations count toward effective usage for subsequent requests
+//   - Reservations auto-expire after 10 minutes (background cleanup every 2 minutes)
+//   - If stream fails, reservation is released (no usage recorded)
+//   - If finalization fails, falls back to direct usage recording
+//
+// # Why Small Overspend Window is Acceptable
+//
+// Between reservation and finalization, actual usage may exceed the reservation.
+// This is acceptable because:
+//  1. The difference is typically small (estimation includes safety margin)
+//  2. Users pre-authorized the estimated amount, showing intent
+//  3. Streaming requires knowing final token count, which is impossible upfront
+//  4. Alternative (pre-charging max_tokens) would significantly overcharge users
+//
+// The reservation system prevents the more serious issue: concurrent requests
+// from multiple sessions exceeding the credit limit.
 type AIGatewayService struct {
 	db             *sql.DB
 	apiKeyService  *APIKeyService
@@ -89,7 +118,7 @@ type AIRequest struct {
 
 // AIMessage represents a chat message.
 type AIMessage struct {
-	Role    string `json:"role"`    // "user", "assistant", "system"
+	Role    string `json:"role"` // "user", "assistant", "system"
 	Content string `json:"content"`
 }
 
@@ -134,6 +163,14 @@ var allowedModels = map[string]bool{
 	"google/gemini-flash-1.5":     true,
 }
 
+// Token estimation constants with safety margin to reduce underestimation frequency.
+const (
+	charsPerToken               = 4     // Approximate characters per token
+	tokenEstimationSafetyMargin = 1.5   // 50% buffer to reduce underestimation
+	defaultCompletionTokens     = 1000  // Default expected completion length
+	messageFramingOverhead      = 10    // Overhead per message for role/framing
+)
+
 // NewAIGatewayService creates a new AI gateway service.
 func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 	logger := opts.Logger
@@ -159,8 +196,8 @@ func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 func defaultModelPricing() map[string]ModelPricing {
 	return map[string]ModelPricing{
 		// GPT-4o family
-		"openai/gpt-4o":      {PromptCostPer1K: 2500000, CompletionCostPer1K: 10000000},  // $2.50/$10 per 1M tokens
-		"openai/gpt-4o-mini": {PromptCostPer1K: 150000, CompletionCostPer1K: 600000},     // $0.15/$0.60 per 1M tokens
+		"openai/gpt-4o":      {PromptCostPer1K: 2500000, CompletionCostPer1K: 10000000}, // $2.50/$10 per 1M tokens
+		"openai/gpt-4o-mini": {PromptCostPer1K: 150000, CompletionCostPer1K: 600000},    // $0.15/$0.60 per 1M tokens
 		// Claude family
 		"anthropic/claude-3.5-sonnet": {PromptCostPer1K: 3000000, CompletionCostPer1K: 15000000}, // $3/$15 per 1M
 		"anthropic/claude-3-haiku":    {PromptCostPer1K: 250000, CompletionCostPer1K: 1250000},   // $0.25/$1.25 per 1M
@@ -236,9 +273,9 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	// Calculate actual cost based on real token usage
 	actualCost := s.calculateCost(req.Model, orResp.Usage.PromptTokens, orResp.Usage.CompletionTokens)
 
-	// Charge additional credits if actual cost exceeds estimate
-	// (We don't refund if actual cost is lower - the estimate is the minimum charge)
+	// Adjust credits if actual cost differs from estimate
 	if actualCost > estimatedCost {
+		// Charge additional credits if actual cost exceeds estimate
 		extraCost := actualCost - estimatedCost
 		_ = s.usageService.RecordUsage(ctx, UsageReportRequest{
 			UserIdentity: userIdentity,
@@ -248,6 +285,36 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 			Operation:    req.Metadata.Operation,
 			Metadata:     map[string]string{"type": "cost_adjustment"},
 		})
+	} else if actualCost < estimatedCost {
+		// Refund overage when actual cost is less than estimated
+		refundAmount := estimatedCost - actualCost
+		refundPercent := float64(refundAmount) / float64(estimatedCost) * 100
+
+		// Log refund with security flag if unusually large (>50% indicates estimation drift)
+		logLevel := "debug"
+		if refundPercent > 50 {
+			logLevel = "warn"
+		}
+		s.log("credit_refund_issued", map[string]interface{}{
+			"level":          logLevel,
+			"user_identity":  userIdentity,
+			"refund_amount":  refundAmount,
+			"refund_percent": refundPercent,
+			"estimated_cost": estimatedCost,
+			"actual_cost":    actualCost,
+			"security":       refundPercent > 50,
+		})
+
+		if err := s.usageService.AdjustUsage(ctx, userIdentity, "ai_credits", -refundAmount, "estimate_refund"); err != nil {
+			s.log("refund_adjustment_failed", map[string]interface{}{
+				"level":          "warn",
+				"user_identity":  userIdentity,
+				"refund_amount":  refundAmount,
+				"estimated_cost": estimatedCost,
+				"actual_cost":    actualCost,
+				"error":          err.Error(),
+			})
+		}
 	}
 
 	s.log("ai_gateway_request_completed", map[string]interface{}{
@@ -272,8 +339,8 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 }
 
 // ExecuteChatStream executes a streaming chat completion via Server-Sent Events.
-// Note: Streaming uses check-then-charge (not atomic) because we can't know
-// final token count until the stream completes.
+// Uses credit reservations to prevent TOCTOU race conditions where concurrent
+// streaming requests could exceed the credit limit.
 func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
 	// Validate model
 	if !allowedModels[req.Model] {
@@ -286,21 +353,24 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 		return fmt.Errorf("failed to get user tier: %w", err)
 	}
 
-	// Estimate cost and check if user can afford it (don't charge yet)
+	// Estimate cost for reservation
 	estimate := s.estimateTokens(req.Messages, req.MaxTokens)
 	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
 
-	canProceed, _, err := s.usageService.CheckLimit(ctx, userIdentity, tier, "ai_credits", estimatedCost)
+	// Reserve credits atomically (prevents TOCTOU race condition)
+	reservationID, err := s.usageService.ReserveCredits(ctx, userIdentity, tier, "ai_credits", estimatedCost)
 	if err != nil {
-		return fmt.Errorf("credit check failed: %w", err)
-	}
-	if !canProceed {
-		return ErrInsufficientCredits
+		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
+			return ErrInsufficientCredits
+		}
+		return fmt.Errorf("reserve credits failed: %w", err)
 	}
 
 	// Set up SSE headers
 	flusher, ok := w.(http.Flusher)
 	if !ok {
+		// Release reservation on failure
+		_ = s.usageService.ReleaseReservation(ctx, reservationID)
 		return ErrStreamingNotSupported
 	}
 
@@ -312,6 +382,8 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	// Get OpenRouter client
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
+		// Release reservation on failure
+		_ = s.usageService.ReleaseReservation(ctx, reservationID)
 		return err
 	}
 
@@ -338,8 +410,9 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 		fmt.Fprintf(w, "data: %s\n\n", eventData)
 		flusher.Flush()
 	})
-
 	if err != nil {
+		// Release reservation on failure
+		_ = s.usageService.ReleaseReservation(ctx, reservationID)
 		return fmt.Errorf("streaming failed: %w", err)
 	}
 
@@ -349,20 +422,25 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 		promptTokens = estimate.prompt
 	}
 
-	// Calculate and charge actual credits
+	// Calculate actual cost
 	actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
 
-	if err := s.usageService.RecordUsage(ctx, UsageReportRequest{
-		UserIdentity: userIdentity,
-		LimitKey:     "ai_credits",
-		Amount:       actualCost,
-		AppBundleKey: req.Metadata.AppBundleKey,
-		Operation:    req.Metadata.Operation,
-	}); err != nil {
-		s.log("stream_charge_failed", map[string]interface{}{
-			"level":         "error",
-			"user_identity": userIdentity,
-			"error":         err.Error(),
+	// Finalize reservation with actual usage
+	if err := s.usageService.FinalizeReservation(ctx, reservationID, actualCost); err != nil {
+		s.log("finalize_reservation_failed", map[string]interface{}{
+			"level":          "error",
+			"user_identity":  userIdentity,
+			"reservation_id": reservationID,
+			"actual_cost":    actualCost,
+			"error":          err.Error(),
+		})
+		// Fallback: try to record usage directly if finalize fails
+		_ = s.usageService.RecordUsage(ctx, UsageReportRequest{
+			UserIdentity: userIdentity,
+			LimitKey:     "ai_credits",
+			Amount:       actualCost,
+			AppBundleKey: req.Metadata.AppBundleKey,
+			Operation:    req.Metadata.Operation,
 		})
 	}
 
@@ -392,6 +470,7 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 		"prompt_tokens":     promptTokens,
 		"completion_tokens": usage.CompletionTokens,
 		"credits_charged":   actualCost,
+		"reservation_id":    reservationID,
 	})
 
 	return nil
@@ -421,18 +500,27 @@ func (s *AIGatewayService) getOpenRouterClient(ctx context.Context) (OpenRouterC
 
 // getUserTier retrieves the user's subscription tier.
 // Returns "free" if the tier cannot be determined.
+// Logs security events when defaulting to free tier unexpectedly.
 func (s *AIGatewayService) getUserTier(ctx context.Context, userIdentity string) (string, error) {
 	if s.accountService == nil {
+		// Log this as it might indicate misconfiguration
+		s.log("tier_lookup_no_account_service", map[string]interface{}{
+			"level":         "warn",
+			"user_identity": userIdentity,
+			"default_tier":  "free",
+			"security":      true,
+		})
 		return "free", nil
 	}
 
 	sub, err := s.accountService.GetSubscription(userIdentity)
 	if err != nil {
-		// Log but don't fail - default to free tier
-		s.log("get_subscription_failed", map[string]interface{}{
+		// Log with security tag - this could indicate tier bypass attempt or service issue
+		s.log("tier_lookup_failed_defaulting_to_free", map[string]interface{}{
 			"level":         "warn",
 			"user_identity": userIdentity,
 			"error":         err.Error(),
+			"security":      true,
 		})
 		return "free", nil
 	}
@@ -452,18 +540,28 @@ type tokenEstimate struct {
 
 // estimateTokens estimates token counts for a request.
 // This is a rough approximation used for pre-authorization.
+// Includes a safety margin to reduce the frequency of underestimation,
+// which leads to smoother UX with fewer post-request adjustments.
 func (s *AIGatewayService) estimateTokens(messages []AIMessage, maxTokens int) tokenEstimate {
-	// Rough estimation: ~4 characters per token
+	// Calculate raw prompt characters
 	promptChars := 0
 	for _, msg := range messages {
-		promptChars += len(msg.Content) + len(msg.Role) + 10 // +10 for message framing overhead
+		promptChars += len(msg.Content) + len(msg.Role) + messageFramingOverhead
 	}
-	promptTokens := promptChars / 4
+
+	// Convert to tokens and apply safety margin
+	rawPromptTokens := promptChars / charsPerToken
+	promptTokens := int(float64(rawPromptTokens) * tokenEstimationSafetyMargin)
 
 	// Estimate completion tokens
-	completionTokens := 1000 // Default estimate for typical response
+	completionTokens := defaultCompletionTokens
 	if maxTokens > 0 {
+		// User specified max_tokens - use it directly without multiplying
+		// (they've explicitly set their limit)
 		completionTokens = maxTokens
+	} else {
+		// Apply safety margin to default completion estimate
+		completionTokens = int(float64(completionTokens) * tokenEstimationSafetyMargin)
 	}
 
 	return tokenEstimate{

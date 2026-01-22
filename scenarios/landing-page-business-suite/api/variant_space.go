@@ -31,8 +31,10 @@ var defaultVariantSpaceJSON = []byte(`{
 	}
 }`)
 
-var variantSpaceBytes = readVariantSpaceFile()
-var defaultVariantSpace = mustLoadVariantSpace()
+var (
+	variantSpaceBytes   = readVariantSpaceFile()
+	defaultVariantSpace = mustLoadVariantSpace()
+)
 
 type VariantSpace struct {
 	Name            string                     `json:"_name"`

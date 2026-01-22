@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // TestAIGatewayService_CalculateCost tests cost calculation.
@@ -84,36 +85,38 @@ func TestAIGatewayService_CalculateCost(t *testing.T) {
 }
 
 // TestAIGatewayService_EstimateTokens tests token estimation.
+// The estimation includes a 1.5x safety margin to reduce underestimation.
 func TestAIGatewayService_EstimateTokens(t *testing.T) {
 	svc := &AIGatewayService{}
 
 	tests := []struct {
-		name               string
-		messages           []AIMessage
-		maxTokens          int
-		expectPromptMin    int
-		expectPromptMax    int
-		expectCompletion   int
+		name             string
+		messages         []AIMessage
+		maxTokens        int
+		expectPromptMin  int
+		expectPromptMax  int
+		expectCompletion int
 	}{
 		{
-			name: "simple message",
+			name: "simple message with safety margin",
 			messages: []AIMessage{
-				{Role: "user", Content: "Hello world"}, // ~11 chars + 4 role + 10 overhead = 25, /4 = ~6
+				// ~11 chars + 4 role + 10 overhead = 25, /4 = ~6, *1.5 = ~9
+				{Role: "user", Content: "Hello world"},
 			},
 			maxTokens:        0,
-			expectPromptMin:  5,
-			expectPromptMax:  10,
-			expectCompletion: 1000, // Default
+			expectPromptMin:  7,
+			expectPromptMax:  15,
+			expectCompletion: 1500, // Default 1000 * 1.5 safety margin
 		},
 		{
-			name: "with max_tokens",
+			name: "with max_tokens (no margin applied to user-specified max)",
 			messages: []AIMessage{
 				{Role: "user", Content: "Hello"},
 			},
 			maxTokens:        500,
-			expectPromptMin:  3,
-			expectPromptMax:  10,
-			expectCompletion: 500, // Uses max_tokens
+			expectPromptMin:  4,
+			expectPromptMax:  15,
+			expectCompletion: 500, // User-specified, no safety margin
 		},
 		{
 			name: "longer conversation",
@@ -124,9 +127,9 @@ func TestAIGatewayService_EstimateTokens(t *testing.T) {
 				{Role: "user", Content: "What about Germany?"},
 			},
 			maxTokens:        200,
-			expectPromptMin:  30,
-			expectPromptMax:  60,
-			expectCompletion: 200,
+			expectPromptMin:  45,
+			expectPromptMax:  90,
+			expectCompletion: 200, // User-specified, no safety margin
 		},
 	}
 
@@ -143,6 +146,42 @@ func TestAIGatewayService_EstimateTokens(t *testing.T) {
 				t.Errorf("expected completion tokens %d, got %d", tt.expectCompletion, estimate.completion)
 			}
 		})
+	}
+}
+
+// TestAIGatewayService_EstimateTokens_SafetyMargin tests that the safety margin is applied correctly.
+func TestAIGatewayService_EstimateTokens_SafetyMargin(t *testing.T) {
+	svc := &AIGatewayService{}
+
+	// Test that without max_tokens, we get 1.5x the base estimate
+	messages := []AIMessage{
+		{Role: "user", Content: "Test message with known length"},
+	}
+
+	// Calculate raw estimate: "Test message with known length" = 30 chars
+	// + "user" = 4 chars + 10 overhead = 44 chars / 4 = 11 tokens raw
+	// With 1.5x margin: ~16 tokens
+	estimate := svc.estimateTokens(messages, 0)
+
+	// Verify prompt tokens have safety margin applied (should be ~1.5x raw)
+	rawPromptTokens := (30 + 4 + 10) / 4 // = 11
+	expectedMin := int(float64(rawPromptTokens) * 1.4)
+	expectedMax := int(float64(rawPromptTokens) * 1.6)
+
+	if estimate.prompt < expectedMin || estimate.prompt > expectedMax {
+		t.Errorf("expected prompt tokens with safety margin between %d and %d, got %d",
+			expectedMin, expectedMax, estimate.prompt)
+	}
+
+	// Verify completion tokens have safety margin (1000 * 1.5 = 1500)
+	if estimate.completion != 1500 {
+		t.Errorf("expected completion tokens with safety margin to be 1500, got %d", estimate.completion)
+	}
+
+	// Verify that when max_tokens is specified, no margin is applied to completion
+	estimateWithMax := svc.estimateTokens(messages, 800)
+	if estimateWithMax.completion != 800 {
+		t.Errorf("expected user-specified max_tokens 800 to be used directly, got %d", estimateWithMax.completion)
 	}
 }
 
@@ -268,7 +307,6 @@ func TestMockOpenRouterClient(t *testing.T) {
 				{Role: "user", Content: "Hello"},
 			},
 		})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -290,7 +328,6 @@ func TestMockOpenRouterClient(t *testing.T) {
 		resp, err := mock.Chat(context.Background(), OpenRouterChatRequest{
 			Model: "my/model",
 		})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -306,7 +343,6 @@ func TestMockOpenRouterClient(t *testing.T) {
 		usage, err := mock.ChatStream(context.Background(), OpenRouterChatRequest{}, func(content string) {
 			chunks = append(chunks, content)
 		})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -445,7 +481,6 @@ func TestMockAIGateway(t *testing.T) {
 		resp, err := mock.ExecuteChat(context.Background(), "test@example.com", AIRequest{
 			Model: "test/model",
 		})
-
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -505,6 +540,65 @@ func TestMockAIGateway(t *testing.T) {
 		body := recorder.Body.String()
 		if !containsStr(body, "chunk") {
 			t.Error("expected chunk event in response")
+		}
+	})
+}
+
+// TestIPRateLimiter_IndependentFromUserLimiter tests that the IP rate limiter
+// and user rate limiter are independent - they track different keys and have
+// different limits.
+func TestIPRateLimiter_IndependentFromUserLimiter(t *testing.T) {
+	// Reset the rate limiters to ensure clean state
+	// (package-level vars persist between tests)
+	userLimiter := NewRateLimiter(60, 1*time.Minute)
+	ipLimiter := NewRateLimiter(120, 1*time.Minute)
+
+	// User limiter tracks by email, IP limiter tracks by IP
+	userKey := "user@example.com"
+	ipKey := "192.168.1.1"
+
+	// Verify limits are different
+	t.Run("different limits", func(t *testing.T) {
+		// Use up user limit
+		for i := 0; i < 60; i++ {
+			if !userLimiter.Allow(userKey) {
+				t.Errorf("user request %d should be allowed", i+1)
+			}
+		}
+
+		// 61st user request should be blocked
+		if userLimiter.Allow(userKey) {
+			t.Error("61st user request should be blocked")
+		}
+
+		// IP limiter should still allow requests (has 120 limit)
+		for i := 0; i < 60; i++ {
+			if !ipLimiter.Allow(ipKey) {
+				t.Errorf("IP request %d should be allowed", i+1)
+			}
+		}
+
+		// IP limiter should still have 60 more
+		if ipLimiter.Remaining(ipKey) != 60 {
+			t.Errorf("expected 60 remaining for IP, got %d", ipLimiter.Remaining(ipKey))
+		}
+	})
+
+	t.Run("different key spaces", func(t *testing.T) {
+		userLimiter2 := NewRateLimiter(5, 1*time.Minute)
+		ipLimiter2 := NewRateLimiter(5, 1*time.Minute)
+
+		// Using same string as key should work independently
+		key := "shared-key"
+
+		// Use up all on user limiter
+		for i := 0; i < 5; i++ {
+			userLimiter2.Allow(key)
+		}
+
+		// IP limiter with same key should still have full limit
+		if ipLimiter2.Remaining(key) != 5 {
+			t.Errorf("IP limiter should have full limit, got %d", ipLimiter2.Remaining(key))
 		}
 	})
 }
