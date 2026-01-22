@@ -1,79 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import {
-  getWaitlistEmails,
-  deleteWaitlistEmail,
-  getWaitlistExportUrl,
-  getBranding,
-  updateBranding,
-  type WaitlistEmail,
-} from '../../../shared/api';
 import { RefreshCw, Trash2, Download, Mail, Users, AlertCircle, Clock, ExternalLink } from 'lucide-react';
+import { useWaitlistForm } from '../hooks/useWaitlistForm';
+import { formatDate } from '../services/waitlist.service';
 
 export function WaitlistManagement() {
-  const [emails, setEmails] = useState<WaitlistEmail[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<number | null>(null);
-  const [comingSoonEnabled, setComingSoonEnabled] = useState(false);
-  const [togglingComingSoon, setTogglingComingSoon] = useState(false);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [emailsData, brandingData] = await Promise.all([
-        getWaitlistEmails(),
-        getBranding(),
-      ]);
-      setEmails(emailsData || []);
-      setComingSoonEnabled(brandingData?.coming_soon_enabled ?? false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const handleToggleComingSoon = async () => {
-    setTogglingComingSoon(true);
-    try {
-      const newValue = !comingSoonEnabled;
-      await updateBranding({ coming_soon_enabled: newValue });
-      setComingSoonEnabled(newValue);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle coming soon mode');
-    } finally {
-      setTogglingComingSoon(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    setDeleting(id);
-    try {
-      await deleteWaitlistEmail(id);
-      setEmails((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete email');
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const handleExport = () => {
-    window.open(getWaitlistExportUrl(), '_blank');
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
+  const {
+    emails,
+    comingSoonEnabled,
+    stats,
+    loading,
+    error,
+    deleting,
+    togglingComingSoon,
+    loadData,
+    handleDelete,
+    handleToggleComingSoon,
+    handleExport,
+  } = useWaitlistForm();
 
   return (
     <AdminLayout>
@@ -108,16 +53,14 @@ export function WaitlistManagement() {
               <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
                 <Users className="h-5 w-5 text-blue-400" />
                 <div>
-                  <p className="text-2xl font-bold text-white">{emails.length}</p>
+                  <p className="text-2xl font-bold text-white">{stats.totalSignups}</p>
                   <p className="text-xs text-slate-400">Total signups</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
                 <Mail className="h-5 w-5 text-emerald-400" />
                 <div>
-                  <p className="text-2xl font-bold text-white">
-                    {emails.filter((e) => e.source === 'coming_soon').length}
-                  </p>
+                  <p className="text-2xl font-bold text-white">{stats.comingSoonCount}</p>
                   <p className="text-xs text-slate-400">From coming soon page</p>
                 </div>
               </div>

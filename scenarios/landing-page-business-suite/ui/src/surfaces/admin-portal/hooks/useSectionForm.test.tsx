@@ -724,7 +724,7 @@ describe('useSectionForm', () => {
       });
 
       expect(result.current.content.title).toBe(longText);
-      expect(result.current.content.title.length).toBe(10000);
+      expect((result.current.content.title as string).length).toBe(10000);
     });
 
     it('handles empty string content', async () => {

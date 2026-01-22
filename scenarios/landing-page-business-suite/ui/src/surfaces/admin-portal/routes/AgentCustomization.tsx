@@ -1,11 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft, Upload } from 'lucide-react';
+import { Sparkles, ArrowLeft } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { InlineAlert, useInlineAlert } from '../../../shared/ui/InlineAlert';
-import { triggerAgentCustomization } from '../../../shared/api';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import { useAgentForm } from '../hooks/useAgentForm';
 
 /**
  * Agent Customization Trigger
@@ -16,45 +15,22 @@ import { triggerAgentCustomization } from '../../../shared/api';
  */
 export function AgentCustomization() {
   const navigate = useNavigate();
-  const [brief, setBrief] = useState('');
-  const [assets, setAssets] = useState('');
-  const [preview, setPreview] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ job_id: string; status: string; agent_id: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { alert: validationAlert, showWarning, clearAlert: clearValidationAlert } = useInlineAlert();
+  const {
+    form,
+    result,
+    submitting,
+    error,
+    validationError,
+    setBrief,
+    setAssets,
+    setPreview,
+    handleSubmit,
+    clearResult,
+    clearValidationError,
+  } = useAgentForm();
 
-  const handleSubmit = async () => {
-    if (!brief.trim()) {
-      showWarning('Please provide a brief for the agent', 'Missing Input');
-      return;
-    }
-    // Clear any prior validation warning
-    clearValidationAlert();
-
-    try {
-      setSubmitting(true);
-      setError(null);
-
-      const assetList = assets
-        .split('\n')
-        .map(a => a.trim())
-        .filter(a => a.length > 0);
-
-      const response = await triggerAgentCustomization(
-        'landing-page', // scenario ID
-        brief.trim(),
-        assetList,
-        preview
-      );
-
-      setResult(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to trigger agent customization');
-      console.error('Agent customization error:', err);
-    } finally {
-      setSubmitting(false);
-    }
+  const onSubmit = async () => {
+    await handleSubmit();
   };
 
   return (
@@ -88,10 +64,12 @@ export function AgentCustomization() {
           </div>
         )}
 
-        {validationAlert && (
+        {validationError && (
           <InlineAlert
-            {...validationAlert}
-            onDismiss={clearValidationAlert}
+            severity="warning"
+            message={validationError.message}
+            title={validationError.title}
+            onDismiss={clearValidationError}
             className="mb-6"
             data-testid="agent-validation-alert"
           />
@@ -122,21 +100,10 @@ export function AgentCustomization() {
               </div>
 
               <div className="flex gap-3">
-                <Button
-                  onClick={() => {
-                    setResult(null);
-                    setBrief('');
-                    setAssets('');
-                  }}
-                  variant="outline"
-                  className="flex-1"
-                >
+                <Button onClick={clearResult} variant="outline" className="flex-1">
                   Create Another Request
                 </Button>
-                <Button
-                  onClick={() => navigate('/admin/customization')}
-                  className="flex-1"
-                >
+                <Button onClick={() => navigate('/admin/customization')} className="flex-1">
                   Back to Customization
                 </Button>
               </div>
@@ -158,7 +125,7 @@ export function AgentCustomization() {
                 </label>
                 <textarea
                   id="brief"
-                  value={brief}
+                  value={form.brief}
                   onChange={(e) => setBrief(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                   rows={8}
@@ -177,7 +144,7 @@ export function AgentCustomization() {
                 </label>
                 <textarea
                   id="assets"
-                  value={assets}
+                  value={form.assets}
                   onChange={(e) => setAssets(e.target.value)}
                   className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                   rows={4}
@@ -194,7 +161,7 @@ export function AgentCustomization() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={preview}
+                    checked={form.preview}
                     onChange={(e) => setPreview(e.target.checked)}
                     className="w-4 h-4"
                     data-testid="agent-preview-input"
@@ -217,7 +184,7 @@ export function AgentCustomization() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleSubmit}
+                  onClick={onSubmit}
                   className="flex-1 gap-2"
                   disabled={submitting}
                   data-testid="agent-submit"

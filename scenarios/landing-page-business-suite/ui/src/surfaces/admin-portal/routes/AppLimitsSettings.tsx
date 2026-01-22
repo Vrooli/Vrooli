@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -6,179 +5,54 @@ import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { AppWindow, Save, AlertCircle, Infinity, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { formatDollars, TIER_OPTIONS } from '../../../shared/api';
+import { useAppLimitsForm } from '../hooks/useAppLimitsForm';
 import {
-  getAppLimits,
-  updateTierLimit,
-  createTierLimit,
-  deleteTierLimit,
-  TierLimit,
-  TierLimitUpdate,
-  formatDollars,
-  TIER_OPTIONS,
-} from '../../../shared/api';
-
-const APP_OPTIONS = [
-  { value: 'browser-automation-studio', label: 'Browser Automation Studio' },
-  // Future apps can be added here
-] as const;
+  APP_OPTIONS,
+  getEditKey,
+  getTierLabel,
+  getTierColor,
+  getSelectedAppLabel,
+  isUnlimitedValue,
+} from '../services/appLimits.service';
 
 export function AppLimitsSettings() {
   const { addToast } = useToast();
-  const [selectedApp, setSelectedApp] = useState<string>(APP_OPTIONS[0].value);
-  const [limits, setLimits] = useState<Record<string, TierLimit[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [editedValues, setEditedValues] = useState<Record<string, string>>({});
-  const [showAddLimit, setShowAddLimit] = useState(false);
-  const [newLimit, setNewLimit] = useState({
-    tier_id: 'solo',
-    limit_key: '',
-    display_dollars: '',
-  });
+  const {
+    selectedApp,
+    limits,
+    newLimit,
+    limitKeys,
+    loading,
+    saving,
+    showAddLimit,
+    setSelectedApp,
+    setEditedValue,
+    setNewLimit,
+    setShowAddLimit,
+    handleSave,
+    handleAddLimit,
+    handleDeleteLimit,
+    resetNewLimitForm,
+    getEditedOrDisplayValue,
+    isEdited,
+  } = useAppLimitsForm();
 
-  const fetchLimits = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await getAppLimits(selectedApp);
-      setLimits(response.limits || {});
-      setEditedValues({});
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load app limits',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedApp, addToast]);
-
-  useEffect(() => {
-    fetchLimits();
-  }, [fetchLimits]);
-
-  const getEditKey = (tierID: string, limitKey: string) => `${tierID}:${limitKey}`;
-
-  const handleSave = async (tierID: string, limit: TierLimit) => {
-    const editKey = getEditKey(tierID, limit.limit_key);
-    const editedValue = editedValues[editKey];
-
-    if (editedValue === undefined) return;
-
-    try {
-      setSaving(editKey);
-
-      let update: TierLimitUpdate;
-      if (editedValue === 'unlimited' || editedValue === '-1') {
-        update = { is_unlimited: true };
-      } else {
-        const dollars = parseFloat(editedValue);
-        if (isNaN(dollars) || dollars < 0) {
-          addToast({ type: 'error', message: 'Please enter a valid dollar amount' });
-          return;
-        }
-        update = { display_dollars: dollars };
-      }
-
-      await updateTierLimit(tierID, limit.limit_key, update, selectedApp);
-      addToast({ type: 'success', message: `Limit for ${tierID}/${limit.limit_key} updated` });
-
-      setEditedValues((prev) => {
-        const next = { ...prev };
-        delete next[editKey];
-        return next;
-      });
-      await fetchLimits();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to update limit',
-      });
-    } finally {
-      setSaving(null);
-    }
+  const onSave = async (tierID: string, limit: typeof limits[string][number]) => {
+    const result = await handleSave(tierID, limit);
+    addToast({ type: result.success ? 'success' : 'error', message: result.message });
   };
 
-  const handleAddLimit = async () => {
-    if (!newLimit.limit_key.trim()) {
-      addToast({ type: 'error', message: 'Please enter a limit key' });
-      return;
-    }
-
-    try {
-      setSaving('new');
-      const dollars = parseFloat(newLimit.display_dollars) || 0;
-
-      await createTierLimit({
-        tier_id: newLimit.tier_id,
-        limit_type: 'app_specific',
-        limit_key: newLimit.limit_key.trim(),
-        limit_value: Math.round(dollars * 100 * 1000000), // Convert to internal units
-        cost_multiplier: 1000000,
-        app_bundle_key: selectedApp,
-        reset_period: 'monthly',
-      });
-
-      addToast({ type: 'success', message: 'New limit created' });
-      setShowAddLimit(false);
-      setNewLimit({ tier_id: 'solo', limit_key: '', display_dollars: '' });
-      await fetchLimits();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to create limit',
-      });
-    } finally {
-      setSaving(null);
-    }
+  const onAddLimit = async () => {
+    const result = await handleAddLimit();
+    addToast({ type: result.success ? 'success' : 'error', message: result.message });
   };
 
-  const handleDeleteLimit = async (tierID: string, limitKey: string) => {
+  const onDeleteLimit = async (tierID: string, limitKey: string) => {
     if (!confirm(`Delete limit "${limitKey}" for tier "${tierID}"?`)) return;
-
-    try {
-      setSaving(`delete:${tierID}:${limitKey}`);
-      await deleteTierLimit(tierID, limitKey, selectedApp);
-      addToast({ type: 'success', message: 'Limit deleted' });
-      await fetchLimits();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to delete limit',
-      });
-    } finally {
-      setSaving(null);
-    }
+    const result = await handleDeleteLimit(tierID, limitKey);
+    addToast({ type: result.success ? 'success' : 'error', message: result.message });
   };
-
-  const getTierLabel = (tierID: string) => {
-    const option = TIER_OPTIONS.find((t) => t.value === tierID);
-    return option?.label || tierID;
-  };
-
-  const getTierColor = (tierID: string) => {
-    switch (tierID) {
-      case 'free':
-        return 'text-slate-400';
-      case 'solo':
-        return 'text-blue-400';
-      case 'pro':
-        return 'text-purple-400';
-      case 'studio':
-        return 'text-amber-400';
-      case 'business':
-        return 'text-emerald-400';
-      default:
-        return 'text-slate-400';
-    }
-  };
-
-  // Collect all unique limit keys across tiers
-  const limitKeys = new Set<string>();
-  Object.values(limits).forEach((tierLimits) => {
-    tierLimits.forEach((limit) => {
-      limitKeys.add(limit.limit_key);
-    });
-  });
 
   return (
     <AdminLayout>
@@ -235,7 +109,9 @@ export function AppLimitsSettings() {
           <Card className="border-dashed">
             <CardContent className="pt-6 text-center">
               <AppWindow className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-400 mb-4">No app-specific limits configured for {APP_OPTIONS.find(a => a.value === selectedApp)?.label}</p>
+              <p className="text-slate-400 mb-4">
+                No app-specific limits configured for {getSelectedAppLabel(selectedApp)}
+              </p>
               <Button onClick={() => setShowAddLimit(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add First Limit
@@ -255,9 +131,7 @@ export function AppLimitsSettings() {
                       </div>
                       <div>
                         <CardTitle className="capitalize">{limitKey.replace(/_/g, ' ')}</CardTitle>
-                        <CardDescription>
-                          Per-tier limits for {limitKey}
-                        </CardDescription>
+                        <CardDescription>Per-tier limits for {limitKey}</CardDescription>
                       </div>
                     </div>
                   </div>
@@ -272,9 +146,8 @@ export function AppLimitsSettings() {
                       if (!limit) return null;
 
                       const editKey = getEditKey(tierID, limitKey);
-                      const isEdited = editedValues[editKey] !== undefined;
                       const currentValue = limit.limit_value;
-                      const isUnlimited = currentValue < 0;
+                      const isUnlimited = isUnlimitedValue(currentValue);
 
                       return (
                         <div
@@ -309,19 +182,8 @@ export function AppLimitsSettings() {
                                 <Input
                                   id={editKey}
                                   type="text"
-                                  value={
-                                    editedValues[editKey] ??
-                                    (isUnlimited
-                                      ? 'unlimited'
-                                      : limit.display_dollars?.toFixed(2) ?? '0')
-                                  }
-                                  onChange={(e) => {
-                                    const val = e.target.value.toLowerCase();
-                                    setEditedValues((prev) => ({
-                                      ...prev,
-                                      [editKey]: val,
-                                    }));
-                                  }}
+                                  value={getEditedOrDisplayValue(editKey, limit)}
+                                  onChange={(e) => setEditedValue(editKey, e.target.value)}
                                   className="w-32 pl-8"
                                   placeholder="0.00"
                                 />
@@ -329,8 +191,8 @@ export function AppLimitsSettings() {
                             </div>
                             <Button
                               size="sm"
-                              onClick={() => handleSave(tierID, limit)}
-                              disabled={!isEdited || saving === editKey}
+                              onClick={() => onSave(tierID, limit)}
+                              disabled={!isEdited(editKey) || saving === editKey}
                               className="gap-1"
                             >
                               <Save className="h-4 w-4" />
@@ -339,7 +201,7 @@ export function AppLimitsSettings() {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleDeleteLimit(tierID, limitKey)}
+                              onClick={() => onDeleteLimit(tierID, limitKey)}
                               disabled={saving === `delete:${tierID}:${limitKey}`}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -368,7 +230,7 @@ export function AppLimitsSettings() {
               <CardHeader>
                 <CardTitle>Add New Limit</CardTitle>
                 <CardDescription>
-                  Create a new app-specific limit for {APP_OPTIONS.find(a => a.value === selectedApp)?.label}
+                  Create a new app-specific limit for {getSelectedAppLabel(selectedApp)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -377,7 +239,7 @@ export function AppLimitsSettings() {
                   <select
                     id="new-tier"
                     value={newLimit.tier_id}
-                    onChange={(e) => setNewLimit((prev) => ({ ...prev, tier_id: e.target.value }))}
+                    onChange={(e) => setNewLimit({ tier_id: e.target.value })}
                     className="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white"
                   >
                     {TIER_OPTIONS.map((tier) => (
@@ -392,7 +254,7 @@ export function AppLimitsSettings() {
                   <Input
                     id="new-limit-key"
                     value={newLimit.limit_key}
-                    onChange={(e) => setNewLimit((prev) => ({ ...prev, limit_key: e.target.value }))}
+                    onChange={(e) => setNewLimit({ limit_key: e.target.value })}
                     placeholder="e.g., workflow_exports"
                     className="mt-1"
                   />
@@ -408,7 +270,7 @@ export function AppLimitsSettings() {
                       id="new-display-dollars"
                       type="text"
                       value={newLimit.display_dollars}
-                      onChange={(e) => setNewLimit((prev) => ({ ...prev, display_dollars: e.target.value }))}
+                      onChange={(e) => setNewLimit({ display_dollars: e.target.value })}
                       placeholder="0.00"
                       className="pl-8"
                     />
@@ -418,10 +280,16 @@ export function AppLimitsSettings() {
                   </p>
                 </div>
                 <div className="flex gap-2 justify-end pt-4">
-                  <Button variant="outline" onClick={() => setShowAddLimit(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddLimit(false);
+                      resetNewLimitForm();
+                    }}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={handleAddLimit} disabled={saving === 'new'}>
+                  <Button onClick={onAddLimit} disabled={saving === 'new'}>
                     {saving === 'new' ? 'Creating...' : 'Create Limit'}
                   </Button>
                 </div>
