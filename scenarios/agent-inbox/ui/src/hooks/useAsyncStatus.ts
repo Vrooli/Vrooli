@@ -99,6 +99,8 @@ export function useAsyncStatus(
   );
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track if we've loaded initial history to prevent duplicate fetches
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Store chatId in ref for stable callbacks
   const chatIdRef = useRef(chatId);
@@ -123,6 +125,7 @@ export function useAsyncStatus(
       setOperations(new Map());
       setIsConnected(false);
       setError(null);
+      setHistoryLoaded(false);
       return;
     }
 
@@ -132,6 +135,41 @@ export function useAsyncStatus(
     eventSource.onopen = () => {
       setIsConnected(true);
       setError(null);
+
+      // Auto-fetch recent history on connect to populate completed operations
+      // This ensures the status bar shows recent operations even after page refresh
+      // or when all operations completed before SSE connection was established
+      if (!historyLoaded) {
+        fetch(`${API_BASE}/chats/${chatId}/async-operations/history?limit=5&offset=0`)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to fetch history");
+            }
+            return response.json() as Promise<AsyncHistoryResponse>;
+          })
+          .then((data) => {
+            // Merge history into operations map
+            // Don't overwrite active operations that came in via SSE
+            setOperations((prev) => {
+              const next = new Map(prev);
+              for (const op of data.operations || []) {
+                // Only add if we don't already have this operation
+                // (SSE might have sent it already)
+                if (!next.has(op.tool_call_id)) {
+                  next.set(op.tool_call_id, op);
+                }
+              }
+              return next;
+            });
+            setHistoryLoaded(true);
+          })
+          .catch((err) => {
+            console.warn("[useAsyncStatus] Failed to fetch initial history:", err);
+            // Don't set error state - this is a non-critical fetch
+            // The SSE connection is still working
+            setHistoryLoaded(true); // Mark as loaded to prevent retries
+          });
+      }
     };
 
     eventSource.onerror = (e) => {
@@ -155,7 +193,7 @@ export function useAsyncStatus(
       eventSource.close();
       setIsConnected(false);
     };
-  }, [chatId, autoConnect]);
+  }, [chatId, autoConnect, historyLoaded]);
 
   // Manually cancel an operation
   const cancelOperation = useCallback(

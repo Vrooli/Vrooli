@@ -21,6 +21,7 @@ import {
   BookOpen,
   Package,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
@@ -37,6 +38,11 @@ import { fetchScenarioInfo, type ToolCall, type ToolCallRecord, type ScenarioInf
 import { openScenarioViewerInNewTab } from "../scenarios/ScenarioViewer";
 import type { Skill } from "../../lib/types/templates";
 import type { ComponentType, SVGProps } from "react";
+import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
+import {
+  AsyncProgressFromOperation,
+  getAsyncStatusDisplay,
+} from "./AsyncProgressDisplay";
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
 
@@ -50,6 +56,10 @@ interface ToolCallDetailModalProps {
   onClose: () => void;
   toolCall: ToolCall;
   record?: ToolCallRecord;
+  /** Async operation status if this is an async tool */
+  asyncOperation?: AsyncStatusUpdate;
+  /** Called when user wants to view full async details in drawer */
+  onOpenAsyncDrawer?: () => void;
 }
 
 /** Get status display information */
@@ -230,6 +240,8 @@ export function ToolCallDetailModal({
   onClose,
   toolCall,
   record,
+  asyncOperation,
+  onOpenAsyncDrawer,
 }: ToolCallDetailModalProps) {
   const [previewSkill, setPreviewSkill] = useState<SkillAttachment | null>(null);
   const [scenarioInfo, setScenarioInfo] = useState<ScenarioInfo | null>(null);
@@ -239,6 +251,12 @@ export function ToolCallDetailModal({
   const statusDisplay = getStatusDisplay(status);
   const StatusIcon = statusDisplay.icon;
   const scenarioName = record?.scenario_name;
+
+  // Detect if this is an async tool call
+  const isAsyncTool = !!record?.external_run_id || !!asyncOperation;
+  const asyncStatusDisplay = asyncOperation
+    ? getAsyncStatusDisplay(asyncOperation.status, asyncOperation.is_terminal)
+    : null;
 
   // Fetch scenario info when modal opens and we have a scenario name
   useEffect(() => {
@@ -313,17 +331,28 @@ export function ToolCallDetailModal({
               </div>
             </div>
 
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${statusDisplay.bgColor}`}
-            >
-              <StatusIcon
-                className={`h-4 w-4 ${statusDisplay.color} ${
-                  (statusDisplay as { animate?: boolean }).animate ? "animate-spin" : ""
-                }`}
-              />
-              <span className={`text-sm font-medium ${statusDisplay.color}`}>
-                {statusDisplay.label}
-              </span>
+            <div className="flex items-center gap-2">
+              {/* Async badge */}
+              {isAsyncTool && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30">
+                  <Zap className="h-3.5 w-3.5 text-indigo-400" />
+                  <span className="text-xs font-medium text-indigo-400">Async</span>
+                </div>
+              )}
+
+              {/* Status badge */}
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${statusDisplay.bgColor}`}
+              >
+                <StatusIcon
+                  className={`h-4 w-4 ${statusDisplay.color} ${
+                    (statusDisplay as { animate?: boolean }).animate ? "animate-spin" : ""
+                  }`}
+                />
+                <span className={`text-sm font-medium ${statusDisplay.color}`}>
+                  {statusDisplay.label}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -334,6 +363,71 @@ export function ToolCallDetailModal({
               scenarioInfo={scenarioInfo}
               isLoading={scenarioLoading}
             />
+          )}
+
+          {/* Async Operation Status Section */}
+          {isAsyncTool && asyncOperation && (
+            <div>
+              <SectionHeader>
+                <Zap className="h-3.5 w-3.5 text-indigo-400" />
+                Async Operation Status
+              </SectionHeader>
+              <div
+                className={`p-3 rounded-lg border ${asyncStatusDisplay?.borderColor || "border-slate-700/50"} ${asyncStatusDisplay?.bgColor || "bg-slate-800/50"}`}
+              >
+                {/* Progress display */}
+                <AsyncProgressFromOperation
+                  operation={asyncOperation}
+                  variant="modal"
+                />
+
+                {/* Phase indicator if available */}
+                {asyncOperation.phase && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Current Phase:</span>
+                    <span className="text-sm text-white font-medium">
+                      {asyncOperation.phase}
+                    </span>
+                  </div>
+                )}
+
+                {/* View in drawer button */}
+                {onOpenAsyncDrawer && (
+                  <div className="mt-3 pt-3 border-t border-slate-700/50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onOpenAsyncDrawer}
+                      className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                      View in Async Panel
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Async tool without real-time data */}
+          {isAsyncTool && !asyncOperation && (
+            <div>
+              <SectionHeader>
+                <Zap className="h-3.5 w-3.5 text-indigo-400" />
+                Async Operation
+              </SectionHeader>
+              <div className="p-3 rounded-lg border border-slate-700/50 bg-slate-800/50">
+                <p className="text-sm text-slate-400">
+                  This is an async tool call. Real-time status updates are available
+                  in the Async Status panel.
+                </p>
+                {record?.external_run_id && (
+                  <p className="text-xs text-slate-500 mt-2 font-mono">
+                    Run ID: {record.external_run_id}
+                  </p>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Input Section */}
@@ -375,34 +469,79 @@ export function ToolCallDetailModal({
           <div>
             <SectionHeader>Output</SectionHeader>
 
-            {hasResult && formattedResult && (
-              <div className="max-h-64 overflow-y-auto rounded-lg">
-                <CodeBlock code={formattedResult} language="json" />
-              </div>
-            )}
+            {/* Prefer async operation result if available and more recent */}
+            {(() => {
+              // Use async operation result if available
+              const asyncResult = asyncOperation?.result;
+              const asyncError = asyncOperation?.error;
+              const displayResult = asyncResult ?? result;
+              const displayFormattedResult = displayResult ? formatToolResult(displayResult) : null;
+              const asyncTerminal = asyncOperation?.is_terminal ?? false;
+              const asyncFailed = asyncOperation && (asyncOperation.status === "failed" || asyncOperation.status === "error" || asyncOperation.status === "timeout");
 
-            {!hasResult && !isFailed && (
-              <div className="text-sm text-slate-500 italic">
-                {status === "running" || status === "pending" || status === "pending_approval"
-                  ? "Waiting for result..."
-                  : "No output"}
-              </div>
-            )}
+              // Async operation still running
+              if (isAsyncTool && asyncOperation && !asyncTerminal) {
+                return (
+                  <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />
+                      <span className="text-sm text-yellow-400">Operation in progress...</span>
+                    </div>
+                    {asyncOperation.message && (
+                      <p className="text-xs text-slate-400 mt-2">{asyncOperation.message}</p>
+                    )}
+                  </div>
+                );
+              }
 
-            {isFailed && errorMessage && (
-              <div className="mt-2">
-                <div className="text-xs text-slate-500 mb-1">Error</div>
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 break-words">
-                  {typeof errorMessage === "string"
-                    ? errorMessage
-                    : JSON.stringify(errorMessage, null, 2)}
+              // Show result if we have one (from async or record)
+              if (displayFormattedResult && (hasResult || (asyncTerminal && !asyncFailed))) {
+                return (
+                  <div className="max-h-64 overflow-y-auto rounded-lg">
+                    <CodeBlock code={displayFormattedResult} language="json" />
+                  </div>
+                );
+              }
+
+              // Async operation failed
+              if (asyncFailed && asyncError) {
+                return (
+                  <div className="mt-2">
+                    <div className="text-xs text-slate-500 mb-1">Error</div>
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 break-words">
+                      {asyncError}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Regular failed status from record
+              if (isFailed && errorMessage) {
+                return (
+                  <div className="mt-2">
+                    <div className="text-xs text-slate-500 mb-1">Error</div>
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-300 break-words">
+                      {typeof errorMessage === "string"
+                        ? errorMessage
+                        : JSON.stringify(errorMessage, null, 2)}
+                    </div>
+                  </div>
+                );
+              }
+
+              if (isFailed || asyncFailed) {
+                return <div className="text-sm text-red-400 italic">Tool execution failed</div>;
+              }
+
+              // No result yet
+              return (
+                <div className="text-sm text-slate-500 italic">
+                  {status === "running" || status === "pending" || status === "pending_approval"
+                    ? "Waiting for result..."
+                    : "No output"}
                 </div>
-              </div>
-            )}
-
-            {isFailed && !errorMessage && (
-              <div className="text-sm text-red-400 italic">Tool execution failed</div>
-            )}
+              );
+            })()}
           </div>
         </DialogBody>
       </Dialog>

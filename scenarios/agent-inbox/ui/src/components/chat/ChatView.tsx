@@ -271,6 +271,7 @@ export function ChatView({
           activeToolCalls={activeToolCalls}
           generatedImages={generatedImages}
           toolCallRecords={stableToolCallRecords}
+          asyncOperations={asyncOperations}
           scrollToMessageId={scrollToMessageId}
           onScrollComplete={onScrollComplete}
           viewMode={viewMode}
@@ -278,6 +279,7 @@ export function ChatView({
           onSelectBranch={onSelectBranch}
           onForkConversation={onForkConversation}
           onEditMessage={onEditMessage}
+          onOpenAsyncDrawer={handleOpenDrawer}
           isRegenerating={isRegenerating}
           isForking={isForking}
         />

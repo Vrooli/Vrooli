@@ -7,6 +7,7 @@ import {
 import * as LucideIcons from "lucide-react";
 import { resolveAttachmentUrl, type Attachment, type Message, type ToolCall, type ToolCallRecord } from "../../lib/api";
 import type { ActiveToolCall, PendingApproval } from "../../hooks/useCompletion";
+import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
 import { Tooltip } from "../ui/tooltip";
 import { useToast } from "../ui/toast";
@@ -34,6 +35,7 @@ const EMPTY_TOOL_CALLS: ActiveToolCall[] = [];
 const EMPTY_TOOL_RECORDS: ToolCallRecord[] = [];
 const EMPTY_APPROVALS: PendingApproval[] = [];
 const EMPTY_SIBLINGS: Message[] = [];
+const EMPTY_ASYNC_OPS: AsyncStatusUpdate[] = [];
 
 // Stable default for sibling info to prevent creating new objects in useMemo
 // CRITICAL: Returning { siblings: [] } creates a NEW array each time, which changes
@@ -43,6 +45,9 @@ const DEFAULT_SIBLING_INFO = { current: 1, total: 1, siblings: EMPTY_SIBLINGS };
 // Stable empty map for sibling info when there are no messages
 // CRITICAL: Using `new Map()` inside a component creates new reference each render
 const EMPTY_SIBLING_MAP: Map<string, { current: number; total: number; siblings: Message[] }> = new Map();
+
+// Stable empty map for async operations
+const EMPTY_ASYNC_OP_MAP: Map<string, AsyncStatusUpdate> = new Map();
 
 // Stable empty array for filtered messages when messages is empty
 const EMPTY_MESSAGES: Message[] = [];
@@ -58,6 +63,8 @@ interface MessageListProps {
   activeToolCalls?: ActiveToolCall[];
   /** Persisted tool call records with status/result info */
   toolCallRecords?: ToolCallRecord[];
+  /** Async operation status updates for async tools */
+  asyncOperations?: AsyncStatusUpdate[];
   /** Pending tool call approvals */
   pendingApprovals?: PendingApproval[];
   /** Whether we're waiting for user to approve pending tool calls */
@@ -79,6 +86,8 @@ interface MessageListProps {
   onApproveTool?: (toolCallId: string) => void;
   /** Called when user rejects a pending tool call */
   onRejectTool?: (toolCallId: string, reason?: string) => void;
+  /** Called when user wants to open the async drawer for an operation */
+  onOpenAsyncDrawer?: (operation: AsyncStatusUpdate) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
   /** Whether forking is in progress */
@@ -94,6 +103,7 @@ function MessageListInner({
   generatedImages = EMPTY_IMAGES,
   activeToolCalls = EMPTY_TOOL_CALLS,
   toolCallRecords = EMPTY_TOOL_RECORDS,
+  asyncOperations = EMPTY_ASYNC_OPS,
   pendingApprovals = EMPTY_APPROVALS,
   awaitingApprovals = false,
   isProcessingApproval = false,
@@ -106,6 +116,7 @@ function MessageListInner({
   onEditMessage,
   onApproveTool,
   onRejectTool,
+  onOpenAsyncDrawer,
   isRegenerating = false,
   isForking = false,
 }: MessageListProps) {
@@ -146,6 +157,20 @@ function MessageListInner({
     }
     return map;
   }, [toolCallRecords]);
+
+  // Create lookup map from tool_call_id to AsyncStatusUpdate for async operations
+  // This allows ToolCallItem and ToolCallDetailModal to show real-time async status
+  // CRITICAL: Return stable EMPTY_ASYNC_OP_MAP when no operations to prevent new reference
+  const asyncOperationMap = useMemo(() => {
+    if (asyncOperations.length === 0) {
+      return EMPTY_ASYNC_OP_MAP;
+    }
+    const map = new Map<string, AsyncStatusUpdate>();
+    for (const op of asyncOperations) {
+      map.set(op.tool_call_id, op);
+    }
+    return map;
+  }, [asyncOperations]);
 
   // OPTIMIZATION: Precompute siblingInfo for all assistant messages at the list level.
   // Previously, each MessageBubble computed getSiblingInfo(allMessages, message.id),
@@ -263,10 +288,12 @@ function MessageListInner({
           allMessages={messagesForSiblings}
           siblingInfo={siblingInfoMap.get(message.id) ?? DEFAULT_SIBLING_INFO}
           toolCallRecordMap={toolCallRecordMap}
+          asyncOperationMap={asyncOperationMap}
           onRegenerate={onRegenerateMessage}
           onSelectBranch={onSelectBranch}
           onFork={onForkConversation}
           onEdit={onEditMessage}
+          onOpenAsyncDrawer={onOpenAsyncDrawer}
           isRegenerating={isRegenerating}
           isForking={isForking}
           ref={(el) => {
@@ -549,10 +576,12 @@ function getToolCallStatusDisplay(status: string) {
 interface ToolCallItemProps {
   toolCall: ToolCall;
   record?: ToolCallRecord;
+  asyncOperation?: AsyncStatusUpdate;
   variant: "compact" | "bubble";
+  onOpenAsyncDrawer?: (operation: AsyncStatusUpdate) => void;
 }
 
-function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
+function ToolCallItem({ toolCall, record, asyncOperation, variant, onOpenAsyncDrawer }: ToolCallItemProps) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const status = record?.status || "pending";
@@ -667,6 +696,11 @@ function ToolCallItem({ toolCall, record, variant }: ToolCallItemProps) {
         onClose={() => setShowDetailsModal(false)}
         toolCall={toolCall}
         record={record}
+        asyncOperation={asyncOperation}
+        onOpenAsyncDrawer={asyncOperation && onOpenAsyncDrawer ? () => {
+          setShowDetailsModal(false);
+          onOpenAsyncDrawer(asyncOperation);
+        } : undefined}
       />
     </>
   );
@@ -758,6 +792,8 @@ interface MessageBubbleProps {
   siblingInfo: { current: number; total: number; siblings: Message[] };
   /** Map of tool_call_id to ToolCallRecord for status lookup */
   toolCallRecordMap: Map<string, ToolCallRecord>;
+  /** Map of tool_call_id to AsyncStatusUpdate for async operation status */
+  asyncOperationMap: Map<string, AsyncStatusUpdate>;
   /** Called when user requests regeneration */
   onRegenerate?: (messageId: string) => void;
   /** Called when user selects a different branch */
@@ -766,6 +802,8 @@ interface MessageBubbleProps {
   onFork?: (messageId: string) => void;
   /** Called when user wants to edit a user message */
   onEdit?: (message: Message) => void;
+  /** Called when user wants to open the async drawer for an operation */
+  onOpenAsyncDrawer?: (operation: AsyncStatusUpdate) => void;
   /** Whether regeneration is in progress */
   isRegenerating?: boolean;
   /** Whether forking is in progress */
@@ -774,7 +812,7 @@ interface MessageBubbleProps {
 
 // Inner component for MessageBubble - will be wrapped with memo
 const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(function MessageBubbleInner(
-  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, onRegenerate, onSelectBranch, onFork, onEdit, isRegenerating = false, isForking = false },
+  { message, viewMode, allMessages, siblingInfo, toolCallRecordMap, asyncOperationMap, onRegenerate, onSelectBranch, onFork, onEdit, onOpenAsyncDrawer, isRegenerating = false, isForking = false },
   ref
 ) {
   const { addToast } = useToast();
@@ -1022,7 +1060,9 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
                 key={tc.id}
                 toolCall={tc}
                 record={toolCallRecordMap.get(tc.id)}
+                asyncOperation={asyncOperationMap.get(tc.id)}
                 variant="compact"
+                onOpenAsyncDrawer={onOpenAsyncDrawer}
               />
             ))}
           </div>
@@ -1097,7 +1137,9 @@ const MessageBubbleInner = forwardRef<HTMLDivElement, MessageBubbleProps>(functi
                   key={tc.id}
                   toolCall={tc}
                   record={toolCallRecordMap.get(tc.id)}
+                  asyncOperation={asyncOperationMap.get(tc.id)}
                   variant="bubble"
+                  onOpenAsyncDrawer={onOpenAsyncDrawer}
                 />
               ))}
               <p className="text-xs mt-2 text-slate-400 dark:text-slate-500">{formatTime(message.created_at)}</p>
