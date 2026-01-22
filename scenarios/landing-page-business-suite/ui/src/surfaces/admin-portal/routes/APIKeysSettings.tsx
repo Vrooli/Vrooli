@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -6,151 +5,65 @@ import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X, AlertCircle } from 'lucide-react';
-import {
-  listAPIKeys,
-  createAPIKey,
-  deleteAPIKey,
-  testAPIKey,
-  toggleAPIKey,
-  APIKey,
-  PROVIDER_OPTIONS,
-} from '../../../shared/api';
+import { useAPIKeysForm } from '../hooks/useAPIKeysForm';
+import { getProviderLabel, getProviderDescription, formatVerifiedDate } from '../services/apiKeys.service';
 
 export function APIKeysSettings() {
   const { addToast } = useToast();
-  const [keys, setKeys] = useState<APIKey[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [testingProvider, setTestingProvider] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const {
+    keys,
+    testResults,
+    availableProviders,
+    showAddModal,
+    newKeyProvider,
+    newKeyValue,
+    loading,
+    testingProvider,
+    addingKey,
+    handleAddKey,
+    handleDeleteKey,
+    handleTestKey,
+    handleToggleKey,
+    setShowAddModal,
+    setNewKeyProvider,
+    setNewKeyValue,
+    clearAddForm,
+  } = useAPIKeysForm();
 
-  // Add key modal state
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newKeyProvider, setNewKeyProvider] = useState('');
-  const [newKeyValue, setNewKeyValue] = useState('');
-  const [addingKey, setAddingKey] = useState(false);
-
-  const fetchKeys = async () => {
-    try {
-      setLoading(true);
-      const response = await listAPIKeys();
-      setKeys(response.keys || []);
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load API keys',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const onAddKey = async () => {
+    const result = await handleAddKey();
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message || (result.success ? 'Key added' : 'Failed to add key'),
+    });
   };
 
-  useEffect(() => {
-    fetchKeys();
-  }, []);
-
-  const handleAddKey = async () => {
-    if (!newKeyProvider || !newKeyValue) {
-      addToast({ type: 'error', message: 'Provider and key are required' });
-      return;
-    }
-
-    try {
-      setAddingKey(true);
-      await createAPIKey({ provider: newKeyProvider, key: newKeyValue });
-      addToast({ type: 'success', message: `API key for ${newKeyProvider} added successfully` });
-      setShowAddModal(false);
-      setNewKeyProvider('');
-      setNewKeyValue('');
-      await fetchKeys();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to add API key',
-      });
-    } finally {
-      setAddingKey(false);
-    }
-  };
-
-  const handleDeleteKey = async (provider: string) => {
+  const onDeleteKey = async (provider: string) => {
     if (!confirm(`Are you sure you want to delete the ${provider} API key?`)) {
       return;
     }
-
-    try {
-      await deleteAPIKey(provider);
-      addToast({ type: 'success', message: `API key for ${provider} deleted` });
-      await fetchKeys();
-      // Clear test results for this provider
-      setTestResults((prev) => {
-        const next = { ...prev };
-        delete next[provider];
-        return next;
-      });
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to delete API key',
-      });
-    }
+    const result = await handleDeleteKey(provider);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message || (result.success ? 'Key deleted' : 'Failed to delete key'),
+    });
   };
 
-  const handleTestKey = async (provider: string) => {
-    try {
-      setTestingProvider(provider);
-      const result = await testAPIKey(provider);
-      setTestResults((prev) => ({
-        ...prev,
-        [provider]: { success: result.success, message: result.message },
-      }));
-      addToast({
-        type: result.success ? 'success' : 'error',
-        message: result.message,
-      });
-    } catch (error) {
-      setTestResults((prev) => ({
-        ...prev,
-        [provider]: { success: false, message: error instanceof Error ? error.message : 'Test failed' },
-      }));
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to test API key',
-      });
-    } finally {
-      setTestingProvider(null);
-    }
+  const onTestKey = async (provider: string) => {
+    const result = await handleTestKey(provider);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message,
+    });
   };
 
-  const handleToggleKey = async (provider: string, currentActive: boolean) => {
-    try {
-      await toggleAPIKey(provider, !currentActive);
-      addToast({
-        type: 'success',
-        message: `API key for ${provider} ${!currentActive ? 'enabled' : 'disabled'}`,
-      });
-      await fetchKeys();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to toggle API key',
-      });
-    }
+  const onToggleKey = async (provider: string, currentActive: boolean) => {
+    const result = await handleToggleKey(provider, currentActive);
+    addToast({
+      type: result.success ? 'success' : 'error',
+      message: result.message || (result.success ? 'Key toggled' : 'Failed to toggle key'),
+    });
   };
-
-  const getProviderLabel = (provider: string) => {
-    const option = PROVIDER_OPTIONS.find((p) => p.value === provider);
-    return option?.label || provider;
-  };
-
-  const getProviderDescription = (provider: string) => {
-    const option = PROVIDER_OPTIONS.find((p) => p.value === provider);
-    return option?.description || '';
-  };
-
-  // Providers that are not yet configured
-  const availableProviders = PROVIDER_OPTIONS.filter(
-    (p) => !keys.some((k) => k.provider === p.value)
-  );
 
   return (
     <AdminLayout>
@@ -250,7 +163,7 @@ export function APIKeysSettings() {
                       {key.last_verified_at && (
                         <p>
                           <span className="text-slate-500">Last verified:</span>{' '}
-                          {new Date(key.last_verified_at).toLocaleDateString()}
+                          {formatVerifiedDate(key.last_verified_at)}
                         </p>
                       )}
                     </div>
@@ -258,7 +171,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTestKey(key.provider)}
+                        onClick={() => onTestKey(key.provider)}
                         disabled={testingProvider === key.provider}
                         className="gap-1"
                       >
@@ -270,7 +183,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleToggleKey(key.provider, key.is_active)}
+                        onClick={() => onToggleKey(key.provider, key.is_active)}
                         className="gap-1"
                       >
                         {key.is_active ? (
@@ -288,7 +201,7 @@ export function APIKeysSettings() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDeleteKey(key.provider)}
+                        onClick={() => onDeleteKey(key.provider)}
                         className="gap-1 text-red-400 hover:text-red-300 hover:border-red-500/50"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -344,17 +257,10 @@ export function APIKeysSettings() {
                   </p>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setNewKeyProvider('');
-                      setNewKeyValue('');
-                    }}
-                  >
+                  <Button variant="outline" onClick={clearAddForm}>
                     Cancel
                   </Button>
-                  <Button onClick={handleAddKey} disabled={addingKey || !newKeyProvider || !newKeyValue}>
+                  <Button onClick={onAddKey} disabled={addingKey || !newKeyProvider || !newKeyValue}>
                     {addingKey ? 'Adding...' : 'Add Key'}
                   </Button>
                 </div>

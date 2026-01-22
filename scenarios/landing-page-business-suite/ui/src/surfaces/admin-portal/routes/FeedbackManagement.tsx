@@ -1,4 +1,3 @@
-import { useEffect, useState, useMemo } from 'react';
 import {
   MessageSquare,
   RefreshCcw,
@@ -19,187 +18,68 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select';
+import { useFeedbackManagement } from '../hooks/useFeedbackManagement';
 import {
-  fetchFeedbackList,
-  updateFeedbackStatus,
-  deleteFeedback,
-  deleteFeedbackBulk,
-  type FeedbackRequest,
-} from '../../../shared/api';
+  type FeedbackType,
+  type FeedbackStatus,
+  TYPE_CONFIG,
+  STATUS_CONFIG,
+  formatFeedbackDate,
+} from '../services/feedback.service';
 
-type FeedbackType = 'refund' | 'bug' | 'feature' | 'general';
-type FeedbackStatus = 'pending' | 'in_progress' | 'resolved' | 'rejected';
-
-const typeConfig: Record<FeedbackType, { icon: React.ReactNode; label: string; color: string }> = {
-  refund: {
-    icon: <RefreshCcw className="h-4 w-4" />,
-    label: 'Refund Request',
-    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-  },
-  bug: {
-    icon: <Bug className="h-4 w-4" />,
-    label: 'Bug Report',
-    color: 'text-red-400 bg-red-500/10 border-red-500/20',
-  },
-  feature: {
-    icon: <Lightbulb className="h-4 w-4" />,
-    label: 'Feature Request',
-    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  },
-  general: {
-    icon: <Heart className="h-4 w-4" />,
-    label: 'General Feedback',
-    color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
-  },
+// Icons are component-specific (JSX), so they live in the route
+const typeIcons: Record<FeedbackType, React.ReactNode> = {
+  refund: <RefreshCcw className="h-4 w-4" />,
+  bug: <Bug className="h-4 w-4" />,
+  feature: <Lightbulb className="h-4 w-4" />,
+  general: <Heart className="h-4 w-4" />,
 };
 
-const statusConfig: Record<FeedbackStatus, { icon: React.ReactNode; label: string; color: string }> = {
-  pending: {
-    icon: <Clock className="h-4 w-4" />,
-    label: 'Pending',
-    color: 'text-slate-400 bg-slate-500/10 border-slate-500/20',
-  },
-  in_progress: {
-    icon: <AlertCircle className="h-4 w-4" />,
-    label: 'In Progress',
-    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  },
-  resolved: {
-    icon: <CheckCircle className="h-4 w-4" />,
-    label: 'Resolved',
-    color: 'text-green-400 bg-green-500/10 border-green-500/20',
-  },
-  rejected: {
-    icon: <XCircle className="h-4 w-4" />,
-    label: 'Rejected',
-    color: 'text-red-400 bg-red-500/10 border-red-500/20',
-  },
+const statusIcons: Record<FeedbackStatus, React.ReactNode> = {
+  pending: <Clock className="h-4 w-4" />,
+  in_progress: <AlertCircle className="h-4 w-4" />,
+  resolved: <CheckCircle className="h-4 w-4" />,
+  rejected: <XCircle className="h-4 w-4" />,
 };
 
 export function FeedbackManagement() {
-  const [feedbackList, setFeedbackList] = useState<FeedbackRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const {
+    feedbackList,
+    filteredFeedback,
+    pendingCount,
+    inProgressCount,
+    statusFilter,
+    typeFilter,
+    selectedIds,
+    expandedId,
+    loading,
+    error,
+    actionLoading,
+    bulkActionLoading,
+    setStatusFilter,
+    setTypeFilter,
+    handleToggleSelect,
+    handleToggleSelectAll,
+    setExpandedId,
+    loadFeedback,
+    handleStatusChange,
+    handleDelete,
+    handleBulkDelete,
+    handleReply,
+  } = useFeedbackManagement();
 
-  useEffect(() => {
-    loadFeedback();
-  }, []);
-
-  const loadFeedback = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchFeedbackList();
-      setFeedbackList(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feedback');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredFeedback = useMemo(() => {
-    return feedbackList.filter((f) => {
-      if (statusFilter !== 'all' && f.status !== statusFilter) return false;
-      if (typeFilter !== 'all' && f.type !== typeFilter) return false;
-      return true;
-    });
-  }, [feedbackList, statusFilter, typeFilter]);
-
-  const handleStatusChange = async (id: number, newStatus: FeedbackStatus) => {
-    try {
-      setActionLoading(id);
-      const updated = await updateFeedbackStatus(id, newStatus);
-      setFeedbackList((prev) => prev.map((f) => (f.id === id ? updated : f)));
-    } catch (err) {
-      console.error('Failed to update status:', err);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
+  const onDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this feedback?')) return;
-
-    try {
-      setActionLoading(id);
-      await deleteFeedback(id);
-      setFeedbackList((prev) => prev.filter((f) => f.id !== id));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    } catch (err) {
-      console.error('Failed to delete feedback:', err);
-    } finally {
-      setActionLoading(null);
-    }
+    await handleDelete(id);
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return;
+  const onBulkDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${selectedIds.size} feedback item(s)?`)) return;
-
-    try {
-      setBulkActionLoading(true);
-      await deleteFeedbackBulk(Array.from(selectedIds));
-      setFeedbackList((prev) => prev.filter((f) => !selectedIds.has(f.id)));
-      setSelectedIds(new Set());
-    } catch (err) {
-      console.error('Failed to bulk delete:', err);
-    } finally {
-      setBulkActionLoading(false);
-    }
+    await handleBulkDelete();
   };
-
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredFeedback.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredFeedback.map((f) => f.id)));
-    }
-  };
-
-  const handleReply = (email: string, subject: string) => {
-    const mailtoUrl = `mailto:${email}?subject=Re: ${encodeURIComponent(subject)}`;
-    window.open(mailtoUrl, '_blank');
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  };
-
-  const pendingCount = feedbackList.filter((f) => f.status === 'pending').length;
-  const inProgressCount = feedbackList.filter((f) => f.status === 'in_progress').length;
 
   if (loading) {
     return (
@@ -289,7 +169,7 @@ export function FeedbackManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleBulkDelete}
+                    onClick={onBulkDelete}
                     disabled={bulkActionLoading}
                     className="gap-2 text-red-400 border-red-500/20 hover:bg-red-500/10"
                   >
@@ -320,7 +200,7 @@ export function FeedbackManagement() {
             {/* Select All Header */}
             <div className="flex items-center gap-3 px-4 py-2 text-sm text-slate-400">
               <button
-                onClick={toggleSelectAll}
+                onClick={handleToggleSelectAll}
                 className="hover:text-white transition-colors"
                 aria-label={selectedIds.size === filteredFeedback.length ? 'Deselect all' : 'Select all'}
               >
@@ -338,8 +218,10 @@ export function FeedbackManagement() {
             </div>
 
             {filteredFeedback.map((feedback) => {
-              const type = typeConfig[feedback.type as FeedbackType] || typeConfig.general;
-              const status = statusConfig[feedback.status as FeedbackStatus] || statusConfig.pending;
+              const typeConfig = TYPE_CONFIG[feedback.type as FeedbackType] || TYPE_CONFIG.general;
+              const statusConfig = STATUS_CONFIG[feedback.status as FeedbackStatus] || STATUS_CONFIG.pending;
+              const typeIcon = typeIcons[feedback.type as FeedbackType] || typeIcons.general;
+              const statusIcon = statusIcons[feedback.status as FeedbackStatus] || statusIcons.pending;
               const isExpanded = expandedId === feedback.id;
               const isSelected = selectedIds.has(feedback.id);
               const isLoading = actionLoading === feedback.id;
@@ -353,7 +235,7 @@ export function FeedbackManagement() {
                     {/* Main Row */}
                     <div className="flex items-center gap-3 p-4">
                       <button
-                        onClick={() => toggleSelect(feedback.id)}
+                        onClick={() => handleToggleSelect(feedback.id)}
                         className="hover:text-white transition-colors text-slate-400"
                         aria-label={isSelected ? 'Deselect' : 'Select'}
                       >
@@ -369,23 +251,23 @@ export function FeedbackManagement() {
                         className="flex-1 flex items-start gap-4 text-left hover:bg-white/5 -m-2 p-2 rounded-lg transition-colors"
                       >
                         {/* Type Badge */}
-                        <div className={`p-2 rounded-lg border ${type.color}`}>
-                          {type.icon}
+                        <div className={`p-2 rounded-lg border ${typeConfig.color}`}>
+                          {typeIcon}
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium truncate">{feedback.subject}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full border ${status.color} flex items-center gap-1`}>
-                              {status.icon}
-                              {status.label}
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${statusConfig.color} flex items-center gap-1`}>
+                              {statusIcon}
+                              {statusConfig.label}
                             </span>
                           </div>
                           <div className="flex items-center gap-3 text-sm text-slate-400">
                             <span>{feedback.email}</span>
                             <span className="text-slate-600">•</span>
-                            <span>{formatDate(feedback.created_at)}</span>
+                            <span>{formatFeedbackDate(feedback.created_at)}</span>
                             {feedback.order_id && (
                               <>
                                 <span className="text-slate-600">•</span>
@@ -452,7 +334,7 @@ export function FeedbackManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleDelete(feedback.id)}
+                            onClick={() => onDelete(feedback.id)}
                             disabled={isLoading}
                             className="gap-2 text-red-400 border-red-500/20 hover:bg-red-500/10"
                           >

@@ -1,60 +1,24 @@
-import { useState, useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { useToast } from '../../../shared/ui/Toast';
 import { Activity, Users, Server, Calendar, RefreshCw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  getAdminUsageSummary,
-  AdminUsageSummary,
-  formatCredits,
-} from '../../../shared/api';
+import { formatCredits } from '../../../shared/api';
+import { useUsageDashboard } from '../hooks/useUsageDashboard';
+import { formatActivityDate } from '../services/usage.service';
 
 export function UsageDashboard() {
-  const { addToast } = useToast();
-  const [summary, setSummary] = useState<AdminUsageSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [billingPeriod, setBillingPeriod] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-
-  const fetchSummary = async () => {
-    try {
-      setLoading(true);
-      const data = await getAdminUsageSummary(billingPeriod);
-      setSummary(data);
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load usage data',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSummary();
-  }, [billingPeriod]);
-
-  const navigateMonth = (delta: number) => {
-    const [year, month] = billingPeriod.split('-').map(Number);
-    const date = new Date(year, month - 1 + delta, 1);
-    setBillingPeriod(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
-  };
-
-  const formatPeriod = (period: string) => {
-    const [year, month] = period.split('-').map(Number);
-    return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    });
-  };
-
-  const totalUsage = summary
-    ? Object.values(summary.user_totals).reduce((sum, val) => sum + val, 0)
-    : 0;
+  const {
+    summary,
+    totalUsage,
+    sortedAppTotals,
+    topUsers,
+    recentRecords,
+    formattedPeriod,
+    isCurrentPeriod,
+    loading,
+    fetchSummary,
+    navigateMonth,
+  } = useUsageDashboard();
 
   return (
     <AdminLayout>
@@ -79,16 +43,13 @@ export function UsageDashboard() {
               </Button>
               <div className="flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-slate-400" />
-                <span className="text-lg font-medium">{formatPeriod(billingPeriod)}</span>
+                <span className="text-lg font-medium">{formattedPeriod}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigateMonth(1)}
-                disabled={
-                  billingPeriod ===
-                  `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-                }
+                disabled={isCurrentPeriod}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -153,7 +114,7 @@ export function UsageDashboard() {
             </div>
 
             {/* Usage by App */}
-            {Object.keys(summary.app_totals).length > 0 && (
+            {sortedAppTotals.length > 0 && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -166,34 +127,29 @@ export function UsageDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {Object.entries(summary.app_totals)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([app, usage]) => {
-                        const percentage = totalUsage > 0 ? (usage / totalUsage) * 100 : 0;
-                        return (
-                          <div key={app} className="space-y-1">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="font-medium">{app}</span>
-                              <span className="text-slate-400">
-                                {formatCredits(usage)} ({percentage.toFixed(1)}%)
-                              </span>
-                            </div>
-                            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-blue-500 rounded-full transition-all"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
+                    {sortedAppTotals.map(({ app, usage, percentage }) => (
+                      <div key={app} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{app}</span>
+                          <span className="text-slate-400">
+                            {formatCredits(usage)} ({percentage.toFixed(1)}%)
+                          </span>
+                        </div>
+                        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             )}
 
             {/* Top Users */}
-            {Object.keys(summary.user_totals).length > 0 && (
+            {topUsers.length > 0 && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -206,25 +162,22 @@ export function UsageDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="divide-y divide-slate-700">
-                    {Object.entries(summary.user_totals)
-                      .sort(([, a], [, b]) => b - a)
-                      .slice(0, 10)
-                      .map(([user, usage], index) => (
-                        <div key={user} className="flex items-center justify-between py-3">
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-500 w-6">{index + 1}.</span>
-                            <span className="font-medium">{user}</span>
-                          </div>
-                          <span className="text-slate-400">{formatCredits(usage)} credits</span>
+                    {topUsers.map(({ user, usage }, index) => (
+                      <div key={user} className="flex items-center justify-between py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-500 w-6">{index + 1}.</span>
+                          <span className="font-medium">{user}</span>
                         </div>
-                      ))}
+                        <span className="text-slate-400">{formatCredits(usage)} credits</span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             )}
 
             {/* Recent Records */}
-            {summary.records.length > 0 && (
+            {recentRecords.length > 0 && (
               <Card>
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -248,7 +201,7 @@ export function UsageDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-700/50">
-                        {summary.records.slice(0, 20).map((record) => (
+                        {recentRecords.map((record) => (
                           <tr key={record.id}>
                             <td className="py-3 pr-4">{record.user_identity}</td>
                             <td className="py-3 pr-4">
@@ -263,9 +216,7 @@ export function UsageDashboard() {
                               {formatCredits(record.usage_amount)}
                             </td>
                             <td className="py-3 text-right text-slate-400">
-                              {record.last_operation_at
-                                ? new Date(record.last_operation_at).toLocaleString()
-                                : '-'}
+                              {formatActivityDate(record.last_operation_at)}
                             </td>
                           </tr>
                         ))}
