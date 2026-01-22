@@ -56,6 +56,11 @@ interface SidebarProps {
   // Collapsed state (desktop only)
   isCollapsed?: boolean;
   onToggleCollapsed?: () => void;
+  // Clear archived chats
+  onClearArchived?: () => Promise<void>;
+  isClearingArchived?: boolean;
+  // Navigation to empty state
+  onDeselectChat?: () => void;
 }
 
 const navItems: { id: View; label: string; icon: typeof Mail }[] = [
@@ -85,11 +90,17 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     isBulkOperating = false,
     isCollapsed = false,
     onToggleCollapsed,
+    onClearArchived,
+    isClearingArchived = false,
+    onDeselectChat,
   },
   ref
 ) {
   // Refs for each chat item to enable scroll-into-view on focus
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Confirmation dialog state for clear archived
+  const [showClearArchivedConfirm, setShowClearArchivedConfirm] = useState(false);
 
   // Server-side search (must be defined before displayChats)
   const search = useSearch({ debounceMs: 300, limit: 20 });
@@ -352,8 +363,15 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
       {/* Header with Logo + New Chat */}
       <div className="p-3 border-b border-white/10 shrink-0">
         <div className="flex items-center gap-2 mb-3">
-          <MessageSquare className="h-5 w-5 text-indigo-400" />
-          <h1 className="text-base font-semibold text-white">Agent Inbox</h1>
+          <button
+            onClick={onDeselectChat}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            title="Go to home"
+            data-testid="sidebar-home-button"
+          >
+            <MessageSquare className="h-5 w-5 text-indigo-400" />
+            <h1 className="text-base font-semibold text-white">Agent Inbox</h1>
+          </button>
           <div className="flex-1" />
           {/* Collapse button - desktop only */}
           {onToggleCollapsed && (
@@ -536,6 +554,52 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
           })}
         </div>
       </div>
+
+      {/* Clear All Archived - shows when viewing archived tab with chats */}
+      {currentView === "archived" && onClearArchived && displayChats.length > 0 && !search.isActive && (
+        <div className="px-3 py-2 border-b border-white/10 shrink-0">
+          {!showClearArchivedConfirm ? (
+            <button
+              onClick={() => setShowClearArchivedConfirm(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+              data-testid="clear-archived-button"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear all archived
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400 text-center">
+                Delete {displayChats.length} archived chat{displayChats.length !== 1 ? "s" : ""}?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowClearArchivedConfirm(false)}
+                  className="flex-1 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await onClearArchived();
+                    setShowClearArchivedConfirm(false);
+                  }}
+                  disabled={isClearingArchived}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-50 rounded-lg transition-colors"
+                  data-testid="confirm-clear-archived-button"
+                >
+                  {isClearingArchived ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3 w-3" />
+                  )}
+                  Delete
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search */}
       <div className="px-3 py-2 shrink-0">

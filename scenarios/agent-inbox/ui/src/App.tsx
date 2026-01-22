@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Menu, X, ChevronLeft, Star, PanelLeftClose, PanelLeft } from "lucide-react";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus, type AsyncStatusUpdate } from "./hooks/useAsyncStatus";
@@ -19,6 +20,7 @@ import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/S
 import { Button } from "./components/ui/button";
 import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
+import { deleteArchivedChats, markAllChatsAsRead } from "./lib/api";
 import type { TemplateWithSource } from "./lib/types/templates";
 
 // Sidebar collapsed state persistence (desktop)
@@ -91,6 +93,9 @@ function AppContent() {
   }, []);
   const [sidebarCollapsed, setSidebarCollapsedState] = useState(getSidebarCollapsed);
   const [viewMode, setViewModeState] = useState<ViewMode>(getViewMode);
+  const [isClearingArchived, setIsClearingArchived] = useState(false);
+  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const searchInputRef = useRef<HTMLInputElement>(null);
   // Focused chat index for j/k navigation (separate from selected chat)
@@ -366,6 +371,28 @@ function AppContent() {
       return newValue;
     });
   }, []);
+
+  const handleClearArchived = useCallback(async () => {
+    setIsClearingArchived(true);
+    try {
+      await deleteArchivedChats();
+      // Invalidate chat queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    } finally {
+      setIsClearingArchived(false);
+    }
+  }, [queryClient]);
+
+  const handleMarkAllAsRead = useCallback(async () => {
+    setIsMarkingAllAsRead(true);
+    try {
+      await markAllChatsAsRead();
+      // Invalidate chat queries to refresh the read status
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    } finally {
+      setIsMarkingAllAsRead(false);
+    }
+  }, [queryClient]);
 
   const handleEditTemplateFromSettings = useCallback((template: TemplateWithSource, allTemplates: TemplateWithSource[]) => {
     setSettingsEditingTemplate(template);
@@ -743,6 +770,9 @@ function AppContent() {
             isBulkOperating={isBulkOperating}
             isCollapsed={sidebarCollapsed && !isMobile}
             onToggleCollapsed={handleToggleSidebarCollapsed}
+            onClearArchived={handleClearArchived}
+            isClearingArchived={isClearingArchived}
+            onDeselectChat={handleDeselectChat}
           />
         </ErrorBoundary>
       </div>
@@ -824,6 +854,10 @@ function AppContent() {
           onClose={() => setShowSettings(false)}
           onDeleteAllChats={deleteAllChats}
           isDeletingAll={isDeletingAllChats}
+          onClearArchived={handleClearArchived}
+          isClearingArchived={isClearingArchived}
+          onMarkAllAsRead={handleMarkAllAsRead}
+          isMarkingAllAsRead={isMarkingAllAsRead}
           onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
           onShowUsageStats={handleShowUsageStats}
           models={models}

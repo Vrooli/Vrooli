@@ -29,7 +29,7 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 		query += " AND c.is_starred = true"
 	}
 
-	query += " GROUP BY c.id ORDER BY c.is_starred DESC, c.updated_at DESC"
+	query += " GROUP BY c.id ORDER BY c.updated_at DESC"
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -187,6 +187,26 @@ func (r *Repository) DeleteChat(ctx context.Context, chatID string) (bool, error
 	}
 	rowsAffected, _ := result.RowsAffected()
 	return rowsAffected > 0, nil
+}
+
+// DeleteArchivedChats removes all archived chats and returns the count deleted.
+func (r *Repository) DeleteArchivedChats(ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, "DELETE FROM chats WHERE is_archived = true")
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete archived chats: %w", err)
+	}
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, nil
+}
+
+// MarkAllChatsRead marks all unread chats as read and returns the count updated.
+func (r *Repository) MarkAllChatsRead(ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, "UPDATE chats SET is_read = true, updated_at = NOW() WHERE is_read = false")
+	if err != nil {
+		return 0, fmt.Errorf("failed to mark all chats as read: %w", err)
+	}
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, nil
 }
 
 // ChatExists checks if a chat with the given ID exists.

@@ -15,6 +15,9 @@ import {
   Zap,
   Lightbulb,
   BookOpen,
+  MailCheck,
+  Archive,
+  Loader2,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -94,6 +97,10 @@ interface SettingsProps {
   onClose: () => void;
   onDeleteAllChats: () => Promise<unknown>;
   isDeletingAll: boolean;
+  onClearArchived?: () => Promise<unknown>;
+  isClearingArchived?: boolean;
+  onMarkAllAsRead?: () => Promise<unknown>;
+  isMarkingAllAsRead?: boolean;
   onShowKeyboardShortcuts: () => void;
   onShowUsageStats: () => void;
   models: Model[];
@@ -107,6 +114,10 @@ export function Settings({
   onClose,
   onDeleteAllChats,
   isDeletingAll,
+  onClearArchived,
+  isClearingArchived = false,
+  onMarkAllAsRead,
+  isMarkingAllAsRead = false,
   onShowKeyboardShortcuts,
   onShowUsageStats,
   models,
@@ -124,6 +135,7 @@ export function Settings({
   const [defaultModel, setDefaultModelState] = useState<string>(getDefaultModel);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showClearArchivedConfirm, setShowClearArchivedConfirm] = useState(false);
   const [selectedToolForRun, setSelectedToolForRun] = useState<EffectiveTool | null>(null);
 
   // YOLO mode setting
@@ -283,6 +295,7 @@ export function Settings({
   useEffect(() => {
     setShowDeleteConfirm(false);
     setDeleteConfirmText("");
+    setShowClearArchivedConfirm(false);
   }, [activeTab]);
 
   const handleThemeChange = useCallback((newTheme: Theme) => {
@@ -305,6 +318,17 @@ export function Settings({
     setShowDeleteConfirm(false);
     setDeleteConfirmText("");
   }, []);
+
+  const handleClearArchived = useCallback(async () => {
+    if (!onClearArchived) return;
+    await onClearArchived();
+    setShowClearArchivedConfirm(false);
+  }, [onClearArchived]);
+
+  const handleMarkAllAsRead = useCallback(async () => {
+    if (!onMarkAllAsRead) return;
+    await onMarkAllAsRead();
+  }, [onMarkAllAsRead]);
 
   return (
     <>
@@ -557,6 +581,85 @@ export function Settings({
                 View Usage Statistics
               </Button>
             </section>
+
+            {/* Mark All as Read */}
+            {onMarkAllAsRead && (
+              <section>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">Quick Actions</h3>
+                <Button
+                  variant="secondary"
+                  onClick={handleMarkAllAsRead}
+                  disabled={isMarkingAllAsRead}
+                  className="w-full justify-start gap-2"
+                  data-testid="mark-all-read-button"
+                >
+                  {isMarkingAllAsRead ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <MailCheck className="h-4 w-4" />
+                  )}
+                  Mark All as Read
+                </Button>
+              </section>
+            )}
+
+            {/* Clear Archived Chats */}
+            {onClearArchived && (
+              <section>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">Archived Chats</h3>
+                <div className="p-4 rounded-lg border border-white/10 bg-white/5">
+                  {!showClearArchivedConfirm ? (
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-white">Clear Archived Chats</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Permanently delete all archived chats.
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowClearArchivedConfirm(true)}
+                        data-testid="clear-archived-settings-button"
+                      >
+                        <Archive className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-300">
+                        Are you sure you want to delete all archived chats?
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowClearArchivedConfirm(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleClearArchived}
+                          disabled={isClearingArchived}
+                          className="flex-1"
+                          data-testid="confirm-clear-archived-settings-button"
+                        >
+                          {isClearingArchived ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* Danger Zone */}
             <section>

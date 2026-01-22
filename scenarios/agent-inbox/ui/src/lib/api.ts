@@ -360,6 +360,34 @@ export async function deleteAllChats(): Promise<{ deleted: number }> {
   return res.json();
 }
 
+export async function deleteArchivedChats(): Promise<{ deleted: number }> {
+  const url = buildApiUrl("/chats/archived", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to delete archived chats: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function markAllChatsAsRead(): Promise<{ updated: number }> {
+  const url = buildApiUrl("/chats/mark-all-read", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to mark all chats as read: ${res.status}`);
+  }
+
+  return res.json();
+}
+
 // Active Template (template-to-tool linking)
 export async function setActiveTemplate(
   chatId: string,

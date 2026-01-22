@@ -202,6 +202,36 @@ func (h *Handlers) DeleteChat(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// DeleteArchivedChats removes all archived chats.
+// DELETE /api/v1/chats/archived
+func (h *Handlers) DeleteArchivedChats(w http.ResponseWriter, r *http.Request) {
+	count, err := h.Repo.DeleteArchivedChats(r.Context())
+	if err != nil {
+		log.Printf("[ERROR] [%s] DeleteArchivedChats failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("delete archived chats", err))
+		return
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"deleted": count,
+	}, http.StatusOK)
+}
+
+// MarkAllAsRead marks all unread chats as read.
+// POST /api/v1/chats/mark-all-read
+func (h *Handlers) MarkAllAsRead(w http.ResponseWriter, r *http.Request) {
+	count, err := h.Repo.MarkAllChatsRead(r.Context())
+	if err != nil {
+		log.Printf("[ERROR] [%s] MarkAllAsRead failed: %v", middleware.GetRequestID(r.Context()), err)
+		h.WriteAppError(w, r, domain.ErrDatabaseError("mark all chats as read", err))
+		return
+	}
+
+	h.JSONResponse(w, map[string]interface{}{
+		"updated": count,
+	}, http.StatusOK)
+}
+
 // SearchChats performs full-text search across chat names and message content.
 // Query parameters:
 //   - q: the search query (required)

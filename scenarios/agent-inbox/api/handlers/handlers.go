@@ -64,6 +64,8 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats", h.ListChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats", h.CreateChat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/bulk", h.BulkOperation).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/archived", h.DeleteArchivedChats).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/mark-all-read", h.MarkAllAsRead).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/search", h.SearchChats).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.GetChat).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}", h.UpdateChat).Methods("PATCH", "OPTIONS")
