@@ -124,25 +124,60 @@ export function PromptMetadataForm({
         </div>
       </div>
 
-      {/* Target Tool ID (optional, advanced) */}
-      <details className="group">
-        <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300 transition-colors">
-          Advanced options
-        </summary>
-        <div className="mt-2 pt-2 border-t border-white/5">
-          <label htmlFor="targetToolId" className="block text-sm font-medium text-slate-300 mb-1">
-            Target Tool ID
+      {/* Folder selector */}
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Storage Location
+        </label>
+        <div className="space-y-2">
+          <label
+            className={cn(
+              'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+              formState.folder === 'internal'
+                ? 'border-indigo-500 bg-indigo-500/10'
+                : 'border-white/10 hover:border-white/20 bg-slate-800/50'
+            )}
+          >
+            <input
+              type="radio"
+              name="folder"
+              value="internal"
+              checked={formState.folder === 'internal'}
+              onChange={() => onFieldChange('folder', 'internal')}
+              className="mt-0.5 w-4 h-4 text-indigo-600 bg-slate-800 border-white/20 focus:ring-indigo-500 focus:ring-offset-0"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-white">Internal</div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                Personal prompts, gitignored. Only visible on this machine.
+              </div>
+            </div>
           </label>
-          <input
-            id="targetToolId"
-            type="text"
-            value={formState.targetToolId}
-            onChange={(e) => onFieldChange('targetToolId', e.target.value)}
-            placeholder="Optional tool ID this prompt targets..."
-            className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <label
+            className={cn(
+              'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+              formState.folder === 'core'
+                ? 'border-indigo-500 bg-indigo-500/10'
+                : 'border-white/10 hover:border-white/20 bg-slate-800/50'
+            )}
+          >
+            <input
+              type="radio"
+              name="folder"
+              value="core"
+              checked={formState.folder === 'core'}
+              onChange={() => onFieldChange('folder', 'core')}
+              className="mt-0.5 w-4 h-4 text-indigo-600 bg-slate-800 border-white/20 focus:ring-indigo-500 focus:ring-offset-0"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-white">Core</div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                Shared prompts, git-tracked. Available across all instances.
+              </div>
+            </div>
+          </label>
         </div>
-      </details>
+      </div>
     </div>
   )
 }

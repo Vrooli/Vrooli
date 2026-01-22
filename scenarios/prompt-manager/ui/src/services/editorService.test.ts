@@ -32,7 +32,6 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     modes: ['development', 'testing'],
     tags: ['tag1', 'tag2'],
     icon: 'file',
-    targetToolId: 'tool-123',
     draft: false,
     folder: 'internal',
     createdAt: '2025-01-01T00:00:00Z',
@@ -55,23 +54,15 @@ describe('promptToFormState', () => {
     expect(formState.modes).toEqual(['development', 'testing'])
     expect(formState.tags).toBe('tag1, tag2')
     expect(formState.icon).toBe('file')
-    expect(formState.targetToolId).toBe('tool-123')
     expect(formState.draft).toBe(false)
+    expect(formState.folder).toBe('internal')
   })
 
-  it('should handle undefined icon and targetToolId', () => {
-    const prompt = createTestPrompt({ icon: undefined, targetToolId: undefined })
+  it('should handle undefined icon', () => {
+    const prompt = createTestPrompt({ icon: undefined })
     const formState = promptToFormState(prompt)
 
     expect(formState.icon).toBe('')
-    expect(formState.targetToolId).toBe('')
-  })
-
-  it('should handle null targetToolId', () => {
-    const prompt = createTestPrompt({ targetToolId: null })
-    const formState = promptToFormState(prompt)
-
-    expect(formState.targetToolId).toBe('')
   })
 
   it('should create a copy of modes array', () => {
@@ -95,7 +86,6 @@ describe('formStateToUpdateRequest', () => {
       modes: ['mode1', 'mode2'],
       tags: 'tag1, tag2, tag3',
       icon: 'star',
-      targetToolId: 'new-tool',
       draft: true,
       folder: 'internal',
     }
@@ -108,8 +98,8 @@ describe('formStateToUpdateRequest', () => {
     expect(request.modes).toEqual(['mode1', 'mode2'])
     expect(request.tags).toEqual(['tag1', 'tag2', 'tag3'])
     expect(request.icon).toBe('star')
-    expect(request.targetToolId).toBe('new-tool')
     expect(request.draft).toBe(true)
+    expect(request.folder).toBe('internal')
   })
 
   it('should convert empty icon to undefined', () => {
@@ -120,7 +110,6 @@ describe('formStateToUpdateRequest', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -128,7 +117,6 @@ describe('formStateToUpdateRequest', () => {
     const request = formStateToUpdateRequest(formState)
 
     expect(request.icon).toBeUndefined()
-    expect(request.targetToolId).toBeUndefined()
   })
 })
 
@@ -181,7 +169,6 @@ describe('validateFormState', () => {
       modes: ['mode1'],
       tags: 'tag1',
       icon: 'file',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -200,7 +187,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -219,7 +205,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -238,7 +223,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -257,7 +241,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -275,7 +258,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -294,7 +276,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -313,7 +294,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -332,7 +312,6 @@ describe('validateFormState', () => {
       modes: [],
       tags: '',
       icon: '',
-      targetToolId: '',
       draft: false,
       folder: 'internal',
     }
@@ -395,10 +374,10 @@ describe('isDirty', () => {
     expect(isDirty(prompt, formState)).toBe(true)
   })
 
-  it('should detect targetToolId change', () => {
+  it('should detect folder change', () => {
     const prompt = createTestPrompt()
     const formState = promptToFormState(prompt)
-    formState.targetToolId = 'new-tool-id'
+    formState.folder = 'core'
 
     expect(isDirty(prompt, formState)).toBe(true)
   })
@@ -462,7 +441,6 @@ describe('createEmptyFormState', () => {
     expect(formState.modes).toEqual([])
     expect(formState.tags).toBe('')
     expect(formState.icon).toBe('')
-    expect(formState.targetToolId).toBe('')
     expect(formState.draft).toBe(true)
     expect(formState.folder).toBe('internal')
   })

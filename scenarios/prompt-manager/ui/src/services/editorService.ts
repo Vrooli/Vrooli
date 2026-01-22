@@ -24,7 +24,6 @@ export function promptToFormState(prompt: Prompt): PromptFormState {
     modes: [...prompt.modes],
     tags: prompt.tags.join(', '),
     icon: prompt.icon ?? '',
-    targetToolId: prompt.targetToolId ?? '',
     draft: prompt.draft,
     folder: prompt.folder,
   }
@@ -44,7 +43,6 @@ export function formStateToUpdateRequest(formState: PromptFormState): UpdateProm
     modes: formState.modes,
     tags: parseTags(formState.tags),
     icon: formState.icon || undefined,
-    targetToolId: formState.targetToolId || undefined,
     draft: formState.draft,
     folder: formState.folder,
   }
@@ -123,7 +121,6 @@ export function isDirty(original: Prompt, current: PromptFormState): boolean {
   if (original.draft !== current.draft) return true
   if (original.folder !== current.folder) return true
   if ((original.icon ?? '') !== current.icon) return true
-  if ((original.targetToolId ?? '') !== current.targetToolId) return true
 
   // Compare tags (convert current to array for comparison)
   const currentTags = parseTags(current.tags)
@@ -159,7 +156,6 @@ export function createEmptyFormState(): PromptFormState {
     modes: [],
     tags: '',
     icon: '',
-    targetToolId: '',
     draft: true,
     folder: 'internal',
   }
@@ -181,7 +177,6 @@ export function getChangeSummary(original: Prompt, current: PromptFormState): st
   if (original.draft !== current.draft) changes.push('draft status')
   if (original.folder !== current.folder) changes.push('folder')
   if ((original.icon ?? '') !== current.icon) changes.push('icon')
-  if ((original.targetToolId ?? '') !== current.targetToolId) changes.push('target tool')
 
   const currentTags = parseTags(current.tags)
   if (!arraysEqual(original.tags, currentTags)) changes.push('tags')

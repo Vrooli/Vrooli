@@ -265,6 +265,7 @@ export function PromptManagerLayout() {
       onCollapseAll={collapseAll}
       onCreateNew={() => void handleCreateNew()}
       searchInputRef={searchInputRef}
+      onOpenSettings={() => setShowSettingsDialog(true)}
     />
   )
 

@@ -90,7 +90,7 @@ describe('PromptTreeSidebar', () => {
     it('should render search input', () => {
       render(<PromptTreeSidebar {...defaultProps} />)
 
-      expect(screen.getByPlaceholderText('Search prompts...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Search prompts... (Ctrl+K)')).toBeInTheDocument()
     })
 
     it('should render expand/collapse buttons', () => {
@@ -236,7 +236,7 @@ describe('PromptTreeSidebar', () => {
       const onSearchChange = vi.fn()
       render(<PromptTreeSidebar {...defaultProps} onSearchChange={onSearchChange} />)
 
-      const input = screen.getByPlaceholderText('Search prompts...')
+      const input = screen.getByPlaceholderText('Search prompts... (Ctrl+K)')
       fireEvent.change(input, { target: { value: 'test query' } })
 
       expect(onSearchChange).toHaveBeenCalledWith('test query')
@@ -245,7 +245,7 @@ describe('PromptTreeSidebar', () => {
     it('should display current search query', () => {
       render(<PromptTreeSidebar {...defaultProps} searchQuery="current query" />)
 
-      const input = screen.getByPlaceholderText('Search prompts...')
+      const input = screen.getByPlaceholderText('Search prompts... (Ctrl+K)')
       expect((input as HTMLInputElement).value).toBe('current query')
     })
   })
@@ -314,7 +314,7 @@ describe('PromptTreeSidebar', () => {
         />
       )
 
-      fireEvent.click(screen.getByTitle('New prompt'))
+      fireEvent.click(screen.getByTitle('New prompt (Ctrl+N)'))
 
       expect(onCreateNew).toHaveBeenCalledTimes(1)
     })

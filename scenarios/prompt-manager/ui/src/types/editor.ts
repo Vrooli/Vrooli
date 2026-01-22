@@ -29,7 +29,6 @@ export interface PromptFormState {
   modes: string[]
   tags: string         // Comma-separated for input simplicity
   icon: string
-  targetToolId: string
   draft: boolean
   folder: FolderType   // Folder determines git behavior
 }

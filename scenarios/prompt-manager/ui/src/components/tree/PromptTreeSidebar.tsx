@@ -11,7 +11,7 @@
  */
 
 import { type ReactNode, type RefObject } from 'react'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Prompt } from '@/types'
@@ -35,6 +35,8 @@ interface PromptTreeSidebarProps {
   onCreateNew: () => void
   /** Ref for the search input (for keyboard shortcuts) */
   searchInputRef?: RefObject<HTMLInputElement>
+  /** Callback to open settings modal */
+  onOpenSettings?: () => void
   className?: string
 }
 
@@ -58,6 +60,7 @@ export function PromptTreeSidebar({
   onCollapseAll,
   onCreateNew,
   searchInputRef,
+  onOpenSettings,
   className = '',
 }: PromptTreeSidebarProps) {
   // Count total dirty items
@@ -68,7 +71,7 @@ export function PromptTreeSidebar({
     return (
       <div
         className={cn(
-          'flex flex-col h-full border-r border-white/10 w-12 flex-shrink-0 bg-slate-900/50',
+          'flex flex-col h-full border-r border-white/10 w-full bg-slate-900/50',
           className
         )}
       >
@@ -89,11 +92,21 @@ export function PromptTreeSidebar({
               {dirtyCount}
             </span>
           )}
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              title="Settings (,)"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onCreateNew}
             className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            title="New prompt"
+            title="New prompt (Ctrl+N)"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -106,7 +119,7 @@ export function PromptTreeSidebar({
   return (
     <div
       className={cn(
-        'flex flex-col h-full border-r border-white/10 w-60 flex-shrink-0 bg-slate-900/50',
+        'flex flex-col h-full border-r border-white/10 w-full bg-slate-900/50',
         className
       )}
     >
@@ -119,6 +132,16 @@ export function PromptTreeSidebar({
               <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-400 rounded">
                 {dirtyCount} unsaved
               </span>
+            )}
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                title="Settings (,)"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
             )}
             <button
               type="button"
@@ -139,7 +162,7 @@ export function PromptTreeSidebar({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search prompts..."
+            placeholder="Search prompts... (Ctrl+K)"
             className={cn(
               'w-full pl-8 pr-3 py-1.5 text-xs',
               'bg-slate-800 border border-white/10 rounded-md',
@@ -202,6 +225,7 @@ export function PromptTreeSidebar({
         <button
           type="button"
           onClick={onCreateNew}
+          title="Create new prompt (Ctrl+N)"
           className={cn(
             'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
             'bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors'

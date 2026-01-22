@@ -66,7 +66,7 @@ export function EditorToolbar({
             ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
             : 'bg-slate-800 text-slate-500 cursor-not-allowed'
         )}
-        title={isDirty ? 'Save changes' : 'No changes to save'}
+        title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
       >
         <Save className="h-4 w-4" />
         {isSaving ? 'Saving...' : 'Save'}
@@ -84,7 +84,7 @@ export function EditorToolbar({
               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
               : 'bg-slate-800 text-slate-500 cursor-not-allowed'
           )}
-          title={`Save all ${dirtyCount} pending changes`}
+          title={`Save all ${dirtyCount} pending changes (Ctrl+Shift+S)`}
         >
           <Save className="h-4 w-4" />
           Save All ({dirtyCount})

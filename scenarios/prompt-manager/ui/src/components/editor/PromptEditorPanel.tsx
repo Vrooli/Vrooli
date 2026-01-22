@@ -69,11 +69,11 @@ export function PromptEditorPanel({
   // Empty state when no prompt selected
   if (!currentPrompt) {
     return (
-      <div className={cn('p-4 h-full', className)}>
+      <div className={cn('h-full', className)}>
         <div
           className={cn(
             'flex flex-col items-center justify-center h-full',
-            'bg-slate-900/50 rounded-lg border border-white/10'
+            'bg-slate-900/50'
           )}
         >
           <div className="text-center">
@@ -91,9 +91,9 @@ export function PromptEditorPanel({
   }
 
   return (
-    <div className={cn('p-4 h-full', className)}>
+    <div className={cn('h-full', className)}>
       <div
-        className="flex flex-col h-full bg-slate-900/50 rounded-lg border border-white/10"
+        className="flex flex-col h-full bg-slate-900/50"
       >
       {/* Header with status indicator */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-white/10">

@@ -56,7 +56,6 @@ function createFormState(overrides: Partial<PromptFormState> = {}): PromptFormSt
     modes: ['development'],
     tags: 'tag1',
     icon: '',
-    targetToolId: '',
     draft: false,
     folder: 'internal',
     ...overrides,

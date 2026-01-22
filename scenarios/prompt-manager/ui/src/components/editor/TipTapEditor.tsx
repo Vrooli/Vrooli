@@ -14,6 +14,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
 import TurndownService from 'turndown'
+import { CodeBlockExtension } from './codeblock'
 import { useEffect, useCallback, useRef } from 'react'
 import {
   Bold,
@@ -198,16 +199,33 @@ export function TipTapEditor({
         heading: {
           levels: [1, 2, 3],
         },
-        codeBlock: {
-          HTMLAttributes: {
-            class: 'bg-slate-800 rounded-lg p-3 font-mono text-sm',
-          },
-        },
+        // Disable default codeBlock - we use our custom extension
+        codeBlock: false,
         code: {
           HTMLAttributes: {
             class: 'bg-slate-800 rounded px-1.5 py-0.5 font-mono text-sm text-indigo-300',
           },
         },
+      }),
+      // Custom code block with syntax highlighting and copy button
+      CodeBlockExtension.configure({
+        languages: [
+          '',
+          'typescript',
+          'javascript',
+          'python',
+          'go',
+          'json',
+          'bash',
+          'sql',
+          'html',
+          'css',
+          'yaml',
+          'rust',
+          'java',
+          'cpp',
+          'ruby',
+        ],
       }),
       Placeholder.configure({
         placeholder,
@@ -228,7 +246,10 @@ export function TipTapEditor({
         class: cn(
           'prose prose-invert prose-sm max-w-none',
           'focus:outline-none min-h-[200px] p-4',
-          'prose-headings:text-white prose-headings:font-semibold',
+          // Heading styles - distinct sizes for visual hierarchy
+          'prose-h1:text-2xl prose-h1:font-bold prose-h1:text-white prose-h1:mt-6 prose-h1:mb-4',
+          'prose-h2:text-xl prose-h2:font-bold prose-h2:text-white prose-h2:mt-5 prose-h2:mb-3',
+          'prose-h3:text-lg prose-h3:font-semibold prose-h3:text-white prose-h3:mt-4 prose-h3:mb-2',
           'prose-p:text-slate-300 prose-p:leading-relaxed',
           'prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline',
           'prose-strong:text-white prose-em:text-slate-200',
