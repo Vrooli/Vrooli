@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Save, 
-  Play, 
-  Copy, 
-  Heart, 
-  Trash2, 
-  Maximize2, 
+import {
+  Save,
+  Play,
+  Copy,
+  Heart,
+  Trash2,
+  Maximize2,
   Eye,
   EyeOff,
   Zap,
   Clock,
   FileText,
-  BarChart3
+  BarChart3,
+  Lock
 } from 'lucide-react'
 import { Editor } from '@monaco-editor/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -23,35 +24,40 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { LoadingSpinner } from './ui/loading-spinner'
 import { useTheme } from '@/hooks/use-theme'
 import { cn, formatDate, countWords, estimateTokens } from '@/lib/utils'
-import type { Prompt } from '@/types'
+import type { Prompt, UpdatePromptRequest } from '@/types'
 
 interface PromptEditorProps {
   prompt: Prompt | null
   onSave: (prompt: Prompt) => void
   onDelete: (promptId: string) => void
+  isFavorite: boolean
+  onToggleFavorite: () => void
 }
 
-export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
-  const [editedPrompt, setEditedPrompt] = useState<Partial<Prompt>>(prompt || {})
+export function PromptEditor({ prompt, onSave, onDelete, isFavorite, onToggleFavorite }: PromptEditorProps) {
+  const [editedPrompt, setEditedPrompt] = useState<Partial<Prompt>>(prompt ?? {})
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<string | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  
+
   const { theme } = useTheme()
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    setEditedPrompt(prompt || {})
+    setEditedPrompt(prompt ?? {})
     setTestResult(null)
   }, [prompt])
 
+  // Check if prompt is read-only (in core folder)
+  const isReadonly = prompt?.folder === 'core'
+
   const updatePromptMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Prompt> }) =>
+    mutationFn: ({ id, data }: { id: string; data: UpdatePromptRequest }) =>
       api.updatePrompt(id, data),
     onSuccess: (updatedPrompt) => {
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['prompts'] })
       onSave(updatedPrompt)
     },
   })
@@ -59,13 +65,14 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
   const deletePromptMutation = useMutation({
     mutationFn: (id: string) => api.deletePrompt(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['folders'] })
       if (prompt) onDelete(prompt.id)
     },
   })
 
   const testPromptMutation = useMutation({
-    mutationFn: ({ id, request }: { id: string; request: any }) =>
+    mutationFn: ({ id, request }: { id: string; request: { model: string; inputVariables?: Record<string, string> } }) =>
       api.testPrompt(id, request),
     onSuccess: (result) => {
       setTestResult(result.response)
@@ -76,17 +83,16 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
   })
 
   const handleSave = async () => {
-    if (!editedPrompt.id) return
-    
+    if (!editedPrompt.id || isReadonly) return
+
     setIsSaving(true)
     try {
       await updatePromptMutation.mutateAsync({
         id: editedPrompt.id,
         data: {
-          title: editedPrompt.title,
+          name: editedPrompt.name,
           content: editedPrompt.content,
           description: editedPrompt.description,
-          is_favorite: editedPrompt.is_favorite,
         }
       })
     } finally {
@@ -96,14 +102,14 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
 
   const handleTest = async () => {
     if (!editedPrompt.id) return
-    
+
     setIsTesting(true)
     try {
       await testPromptMutation.mutateAsync({
         id: editedPrompt.id,
         request: {
           model: 'llama3.2',
-          variables: {}
+          inputVariables: {}
         }
       })
     } finally {
@@ -112,13 +118,14 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
   }
 
   const handleDelete = async () => {
-    if (!editedPrompt.id || !confirm('Delete this prompt? This action cannot be undone.')) return
-    
+    if (!editedPrompt.id || isReadonly) return
+    if (!confirm('Delete this prompt? This action cannot be undone.')) return
+
     await deletePromptMutation.mutateAsync(editedPrompt.id)
   }
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(editedPrompt.content || '')
+    void navigator.clipboard.writeText(editedPrompt.content ?? '')
   }
 
   if (!prompt) {
@@ -130,11 +137,11 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
           className="text-center p-8"
         >
           <motion.div
-            animate={{ 
+            animate={{
               rotate: [0, 10, -10, 0],
               scale: [1, 1.1, 1]
             }}
-            transition={{ 
+            transition={{
               duration: 3,
               repeat: Infinity,
               repeatDelay: 2
@@ -152,8 +159,8 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
     )
   }
 
-  const wordCount = countWords(editedPrompt.content || '')
-  const tokenCount = estimateTokens(editedPrompt.content || '')
+  const wordCount = countWords(editedPrompt.content ?? '')
+  const tokenCount = estimateTokens(editedPrompt.content ?? '')
   const hasChanges = JSON.stringify(editedPrompt) !== JSON.stringify(prompt)
 
   return (
@@ -165,8 +172,8 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <motion.div
-              animate={{ 
-                boxShadow: hasChanges 
+              animate={{
+                boxShadow: hasChanges
                   ? "0 0 0 2px rgba(59, 130, 246, 0.5)"
                   : "0 0 0 0px rgba(59, 130, 246, 0)"
               }}
@@ -174,10 +181,18 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
             >
               <FileText className="h-5 w-5 text-white" />
             </motion.div>
-            
+
             <div>
-              <CardTitle className="text-lg">Prompt Editor</CardTitle>
-              {hasChanges && (
+              <CardTitle className="text-lg flex items-center gap-2">
+                Prompt Editor
+                {isReadonly && (
+                  <span className="flex items-center gap-1 text-xs font-normal text-amber-600 dark:text-amber-400">
+                    <Lock className="h-3 w-3" />
+                    Read-only
+                  </span>
+                )}
+              </CardTitle>
+              {hasChanges && !isReadonly && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -188,7 +203,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
@@ -200,7 +215,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
                 {isPreviewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </motion.div>
-            
+
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="ghost"
@@ -214,17 +229,18 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-1 flex flex-col space-y-4 overflow-hidden">
         {/* Title and metadata */}
         <div className="space-y-3">
           <Input
-            value={editedPrompt.title || ''}
-            onChange={(e) => setEditedPrompt({ ...editedPrompt, title: e.target.value })}
-            placeholder="Prompt title..."
+            value={editedPrompt.name ?? ''}
+            onChange={(e) => setEditedPrompt({ ...editedPrompt, name: e.target.value })}
+            placeholder="Prompt name..."
             className="font-medium"
+            disabled={isReadonly}
           />
-          
+
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <BarChart3 className="h-3 w-3" />
@@ -236,7 +252,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
             </div>
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              Used {prompt.usage_count || 0} times
+              Used {prompt.usageCount} times
             </div>
           </div>
         </div>
@@ -257,7 +273,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
               </Button>
             </div>
           </div>
-          
+
           <motion.div
             className="flex-1 rounded-lg border border-border/50 overflow-hidden"
             layout
@@ -265,7 +281,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
             {isPreviewMode ? (
               <div className="h-full p-4 bg-background/50 overflow-y-auto">
                 <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-                  {editedPrompt.content || 'No content'}
+                  {editedPrompt.content ?? 'No content'}
                 </pre>
               </div>
             ) : (
@@ -273,8 +289,8 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
                 height="100%"
                 language="markdown"
                 theme={theme === 'dark' ? 'vs-dark' : 'light'}
-                value={editedPrompt.content || ''}
-                onChange={(value) => setEditedPrompt({ ...editedPrompt, content: value || '' })}
+                value={editedPrompt.content ?? ''}
+                onChange={(value) => setEditedPrompt({ ...editedPrompt, content: value ?? '' })}
                 options={{
                   minimap: { enabled: false },
                   scrollBeyondLastLine: false,
@@ -286,6 +302,7 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
                   cursorBlinking: 'smooth',
                   renderLineHighlight: 'gutter',
                   selectOnLineNumbers: true,
+                  readOnly: isReadonly,
                 }}
               />
             )}
@@ -296,10 +313,11 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
         <div>
           <label className="text-sm font-medium mb-2 block">Description</label>
           <textarea
-            value={editedPrompt.description || ''}
+            value={editedPrompt.description ?? ''}
             onChange={(e) => setEditedPrompt({ ...editedPrompt, description: e.target.value })}
             placeholder="Optional description for this prompt..."
             className="w-full h-20 p-3 text-sm bg-background border border-border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            disabled={isReadonly}
           />
         </div>
 
@@ -327,28 +345,25 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setEditedPrompt({ 
-                  ...editedPrompt, 
-                  is_favorite: !editedPrompt.is_favorite 
-                })}
+                onClick={onToggleFavorite}
                 className={cn(
                   "h-8",
-                  editedPrompt.is_favorite && "text-red-500"
+                  isFavorite && "text-red-500"
                 )}
               >
                 <Heart className={cn(
                   "h-4 w-4 mr-1",
-                  editedPrompt.is_favorite && "fill-current"
+                  isFavorite && "fill-current"
                 )} />
-                {editedPrompt.is_favorite ? 'Favorited' : 'Favorite'}
+                {isFavorite ? 'Favorited' : 'Favorite'}
               </Button>
             </motion.div>
-            
+
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleTest}
+                onClick={() => void handleTest()}
                 disabled={isTesting || !editedPrompt.content}
                 className="h-8"
               >
@@ -366,47 +381,52 @@ export function PromptEditor({ prompt, onSave, onDelete }: PromptEditorProps) {
               </Button>
             </motion.div>
           </div>
-          
+
           <div className="flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                disabled={deletePromptMutation.isPending}
-                className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Delete
-              </Button>
-            </motion.div>
-            
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                onClick={handleSave}
-                disabled={!hasChanges || isSaving}
-                className="h-8 button-glow"
-              >
-                {isSaving ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-1" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-1" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </motion.div>
+            {!isReadonly && (
+              <>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleDelete()}
+                    disabled={deletePromptMutation.isPending}
+                    className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </motion.div>
+
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    onClick={() => void handleSave()}
+                    disabled={!hasChanges || isSaving}
+                    className="h-8 button-glow"
+                  >
+                    {isSaving ? (
+                      <>
+                        <LoadingSpinner size="sm" className="mr-1" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-1" />
+                        Save Changes
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+              </>
+            )}
           </div>
         </div>
 
         {/* Metadata footer */}
         <div className="text-xs text-muted-foreground pt-2 border-t border-border/20 space-y-1">
-          <div>Created: {formatDate(prompt.created_at)}</div>
-          <div>Last updated: {formatDate(prompt.updated_at)}</div>
+          <div>Created: {formatDate(prompt.createdAt)}</div>
+          <div>Last updated: {formatDate(prompt.updatedAt)}</div>
+          <div>Folder: {prompt.folder}</div>
         </div>
       </CardContent>
     </Card>

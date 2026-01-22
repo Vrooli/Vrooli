@@ -1,4 +1,4 @@
-module prompt-manager-api
+module prompt-manager
 
 go 1.21
 

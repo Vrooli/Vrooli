@@ -9,7 +9,6 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
-	"prompt-manager/cli/campaigns"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/prompts"
 	"prompt-manager/cli/search"
@@ -45,7 +44,7 @@ func NewApp() (*App, error) {
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
 		Version:           appVersion,
-		Description:       "Personal Prompt Manager CLI - manage prompts organized by campaigns",
+		Description:       "Personal Prompt Manager CLI - manage prompts organized by folders",
 		DefaultAPIBase:    defaultAPIBase,
 		APIEnvVars:        env.APIEnvVars,
 		APIPortEnvVars:    env.APIPortEnvVars,
@@ -89,7 +88,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 
 	groups := []cliapp.CommandGroup{
 		health,
-		campaigns.Commands(a),
 	}
 	groups = append(groups, prompts.Commands(a)...)
 	groups = append(groups, search.Commands(a))

@@ -9,12 +9,13 @@ import (
 
 // NewExecutionOrchestratorFromDB creates a fully wired ExecutionOrchestrator from database connection.
 // This is the primary factory function for production use.
-func NewExecutionOrchestratorFromDB(db *sql.DB, projectRoot string, phasesDir string) *ExecutionOrchestrator {
+// Does not fail if prompt-manager unavailable - operates in degraded mode.
+func NewExecutionOrchestratorFromDB(db *sql.DB, projectRoot string) *ExecutionOrchestrator {
 	// Create sub-components
 	profileService := NewProfileService(db)
 	metricsCollector := NewMetricsCollector(projectRoot)
 	conditionEvaluator := NewConditionEvaluator()
-	promptEnhancer := NewPromptEnhancer(phasesDir)
+	promptEnhancer := NewPromptEnhancer()
 
 	// Create SRP components
 	stateManager := NewExecutionStateManager(db)

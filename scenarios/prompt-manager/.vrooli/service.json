@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Personal Prompt Manager",
-    "description": "Campaign-based prompt storage and management tool with API access, CLI, and web interface for organizing AI prompts",
+    "description": "File-based prompt storage and management tool with API access and web interface for organizing AI prompts",
     "version": "1.0.0",
     "type": "business-application",
     "category": "productivity",
@@ -185,15 +185,11 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Primary relational data store",
+        "description": "Metrics and test results storage (prompts stored in files)",
         "initialization": [
           {
-            "file": "initialization/postgres/schema_with_prefix.sql",
+            "file": "initialization/postgres/schema_v2.sql",
             "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
           }
         ]
       },

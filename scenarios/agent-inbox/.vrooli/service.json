@@ -217,6 +217,12 @@
         "enabled": true,
         "required": false,
         "description": "Provides VPS deployment lifecycle management (create, execute, stop, inspect deployments)"
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)"
       }
     }
   }

@@ -29,14 +29,23 @@ func InjectSteeringSection(prompt string, steeringSection string) string {
 
 // PromptEnhancer generates mode-specific prompt enhancements for Auto Steer
 type PromptEnhancer struct {
-	modeInstructions *ModeInstructions
+	promptLoader *PromptLoader
 }
 
-// NewPromptEnhancer creates a new prompt enhancer
-func NewPromptEnhancer(phasesDir string) *PromptEnhancer {
+// NewPromptEnhancer creates a new prompt enhancer.
+// Does not fail if prompt-manager unavailable - operates in degraded mode.
+func NewPromptEnhancer() *PromptEnhancer {
 	return &PromptEnhancer{
-		modeInstructions: NewModeInstructions(phasesDir),
+		promptLoader: NewPromptLoader(nil),
 	}
+}
+
+// IsAvailable returns whether prompt-manager is reachable.
+func (p *PromptEnhancer) IsAvailable() bool {
+	if p == nil || p.promptLoader == nil {
+		return false
+	}
+	return p.promptLoader.IsAvailable()
 }
 
 // GenerateModeSection renders a standalone section for a specific mode (no Auto Steer framing).
@@ -49,9 +58,10 @@ func (p *PromptEnhancer) GenerateModeSection(mode SteerMode) string {
 
 // renderModeContent returns the markdown for a mode with success criteria and tools appended.
 func (p *PromptEnhancer) renderModeContent(mode SteerMode) string {
-	data, err := p.modeInstructions.loadPrompt(mode)
-	if err != nil {
-		return fmt.Sprintf("Auto Steer instructions unavailable for %s: %v", mode, err)
+	data, ok := p.promptLoader.loadPrompt(mode)
+	if !ok {
+		// Graceful degradation: return empty content when prompt-manager unavailable
+		return ""
 	}
 
 	var b strings.Builder
@@ -109,7 +119,7 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 	// Stop conditions with progress
 	if len(currentPhase.StopConditions) > 0 {
 		output.WriteString("**Stop Conditions:**\n\n")
-		output.WriteString(p.modeInstructions.FormatConditionProgress(
+		output.WriteString(p.promptLoader.FormatConditionProgress(
 			currentPhase.StopConditions,
 			state.Metrics,
 			evaluator,
@@ -261,7 +271,7 @@ Continue building on the work from previous phases while focusing on the new obj
 		phaseNumber,
 		totalPhases,
 		strings.ToUpper(string(oldPhase.Mode)),
-		p.modeInstructions.GetInstructions(newPhase.Mode),
+		p.promptLoader.GetInstructions(newPhase.Mode),
 	)
 }
 

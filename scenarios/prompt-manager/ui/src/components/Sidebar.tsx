@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import {
   PanelLeftClose,
   PanelLeftOpen,
-  Folder,
+  FolderOpen,
   Star,
   Clock,
   TrendingUp,
@@ -14,7 +14,7 @@ import {
 import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 
-export type ViewFilter = 'campaigns' | 'favorites' | 'recent' | 'popular'
+export type ViewFilter = 'folders' | 'favorites' | 'recent' | 'popular'
 
 interface SidebarItem {
   key: ViewFilter
@@ -54,7 +54,7 @@ export function Sidebar({
   const handleClose = onClose ?? onToggle
 
   const sidebarItems: SidebarItem[] = [
-    { key: 'campaigns', icon: Folder, label: 'All Campaigns' },
+    { key: 'folders', icon: FolderOpen, label: 'Folders' },
     { key: 'favorites', icon: Star, label: 'Favorites', badge: counts.favorites },
     { key: 'recent', icon: Clock, label: 'Recent', badge: counts.recent },
     { key: 'popular', icon: TrendingUp, label: 'Popular', badge: counts.popular },

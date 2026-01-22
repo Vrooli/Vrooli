@@ -279,7 +279,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 					LastUpdated:           time.Now(),
 				}
 
-				enhancer := autosteer.NewPromptEnhancer(filepath.Join(h.assembler.PromptsDir, "phases"))
+				enhancer := autosteer.NewPromptEnhancer()
 				evaluator := autosteer.NewConditionEvaluator()
 				autoSteerSection := enhancer.GenerateAutoSteerSection(&state, profile, evaluator)
 				prompt = autosteer.InjectSteeringSection(prompt, autoSteerSection)
@@ -289,7 +289,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 					response["auto_steer_phase_label"] = fmt.Sprintf("Phase %d", phaseIdx+1)
 				} else {
 					response["auto_steer_applied"] = false
-					response["auto_steer_error"] = "Auto Steer section was empty"
+					response["auto_steer_error"] = "Auto Steer section was empty (prompt-manager may be unavailable)"
 				}
 			}
 		}
@@ -391,6 +391,6 @@ func (h *TaskHandlers) manualOrDefaultSteeringSection(task tasks.TaskItem) strin
 		mode = autosteer.ModeProgress
 	}
 
-	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
-	return strings.TrimSpace(autosteer.NewPromptEnhancer(phasesDir).GenerateModeSection(mode))
+	enhancer := autosteer.NewPromptEnhancer()
+	return strings.TrimSpace(enhancer.GenerateModeSection(mode))
 }

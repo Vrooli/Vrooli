@@ -551,5 +551,9 @@ func TestPromptEnhancer_EdgeCases(t *testing.T) {
 
 func newTestPromptEnhancer(t *testing.T) *PromptEnhancer {
 	t.Helper()
-	return NewPromptEnhancer(testPhasePromptsDir(t))
+	enhancer := NewPromptEnhancer()
+	if !enhancer.IsAvailable() {
+		t.Skipf("Skipping test - prompt-manager not available")
+	}
+	return enhancer
 }

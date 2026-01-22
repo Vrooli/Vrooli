@@ -1,0 +1,9 @@
+# Personal prompts (not tracked in git)
+prompts/local/
+
+# Draft prompts (not tracked in git)
+prompts/drafts/
+
+# Keep the empty metadata.json files
+!prompts/local/metadata.json
+!prompts/drafts/metadata.json

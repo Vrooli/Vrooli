@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SkeletonProps = React.HTMLAttributes<HTMLDivElement>
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
@@ -11,11 +11,11 @@ export function Skeleton({ className, ...props }: SkeletonProps) {
   )
 }
 
-// Campaign skeleton component
-export function CampaignSkeleton() {
+// Folder skeleton component
+export function FolderSkeleton() {
   return (
     <div className="space-y-2">
-      {[...Array(3)].map((_, i) => (
+      {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-background/50">
           <Skeleton className="w-8 h-8 rounded-lg" />
           <div className="flex-1 space-y-1">
@@ -32,7 +32,7 @@ export function CampaignSkeleton() {
 export function PromptListSkeleton() {
   return (
     <div className="space-y-2">
-      {[...Array(4)].map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="p-4 rounded-lg border border-border/50 bg-background/80">
           <div className="space-y-2">
             <div className="flex items-center justify-between">

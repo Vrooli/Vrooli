@@ -279,6 +279,12 @@
         "enabled": true,
         "required": false,
         "description": "Provides completeness scoring API for autosteer metrics"
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Provides steering prompts for Auto Steer functionality (optional - graceful degradation)"
       }
     }
   }

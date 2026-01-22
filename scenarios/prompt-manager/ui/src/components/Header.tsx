@@ -3,17 +3,17 @@ import { Search, Sparkles, Sun, Moon, Monitor, PanelLeftOpen } from 'lucide-reac
 import { useTheme } from '@/hooks/use-theme'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import type { Campaign } from '@/types'
+import type { Folder } from '@/types'
 
 interface HeaderProps {
   searchQuery: string
   onSearchChange: (query: string) => void
-  selectedCampaign: Campaign | null
+  selectedFolder: Folder | null
   showSidebarToggle?: boolean
   onToggleSidebar?: () => void
 }
 
-export function Header({ searchQuery, onSearchChange, selectedCampaign, showSidebarToggle, onToggleSidebar }: HeaderProps) {
+export function Header({ searchQuery, onSearchChange, selectedFolder, showSidebarToggle, onToggleSidebar }: HeaderProps) {
   const { theme, toggleTheme } = useTheme()
 
   const getThemeIcon = () => {
@@ -64,7 +64,7 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign, showSide
               </motion.div>
               <motion.div
                 className="absolute inset-0 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 opacity-20"
-                animate={{ 
+                animate={{
                   scale: [1, 1.2, 1],
                   opacity: [0.2, 0.1, 0.2]
                 }}
@@ -75,13 +75,13 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign, showSide
               <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                 Prompt Manager
               </h1>
-              {selectedCampaign && (
+              {selectedFolder && (
                 <motion.p
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   className="text-sm text-muted-foreground"
                 >
-                  {selectedCampaign.name}
+                  {selectedFolder.name}
                 </motion.p>
               )}
             </div>
@@ -94,7 +94,7 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign, showSide
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               type="text"
-              placeholder="Search prompts, campaigns, or tags..."
+              placeholder="Search prompts by name, content, or tags..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 focus:bg-background transition-all duration-200"
@@ -136,7 +136,7 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign, showSide
               />
             </Button>
           </motion.div>
-          
+
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button variant="outline" size="sm" className="bg-background/50">
               Settings
@@ -154,7 +154,7 @@ export function Header({ searchQuery, onSearchChange, selectedCampaign, showSide
           className="px-6 py-2 bg-muted/30 border-t border-border/30"
         >
           <p className="text-sm text-muted-foreground">
-            Searching for "{searchQuery}"...
+            Searching for &quot;{searchQuery}&quot;...
           </p>
         </motion.div>
       )}

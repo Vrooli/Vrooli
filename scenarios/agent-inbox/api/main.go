@@ -265,11 +265,13 @@ func main() {
 		log.Printf("warning: failed to create template directories: %v", err)
 	}
 
-	// Create skills service for file-based skill storage
-	skillsSvc := services.NewSkillsService(&cfg.Skills)
+	// Create skills service with prompt-manager sync
+	skillsSvc := services.NewPromptSyncService(&cfg.PromptSync, &cfg.Skills)
 	if err := skillsSvc.EnsureDirectories(); err != nil {
 		log.Printf("warning: failed to create skill directories: %v", err)
 	}
+	// Start background sync from prompt-manager
+	skillsSvc.Start()
 
 	// Create handlers with all dependencies (pass pre-configured async tracker, shared executor, and registry)
 	// IMPORTANT: Pass the same toolExecutor AND toolRegistry to handlers so that:
@@ -294,6 +296,8 @@ func main() {
 	if err := server.Run(server.Config{
 		Handler: gorillahandlers.RecoveryHandler()(router),
 		Cleanup: func(ctx context.Context) error {
+			// Stop prompt sync background goroutine
+			skillsSvc.Stop()
 			// Gracefully shutdown async tracker (cancels polling, marks ops as interrupted)
 			if err := asyncTracker.Shutdown(ctx); err != nil {
 				log.Printf("warning: async tracker shutdown error: %v", err)

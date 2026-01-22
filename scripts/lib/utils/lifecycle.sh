@@ -163,15 +163,18 @@ quote() { printf '%q' "$1"; }
 #######################################
 # Ensure scenario-specific database exists
 # Creates the database if it doesn't exist using postgres resource
+# Also applies schema.sql and migrations from initialization/postgres/
 # Arguments:
 #   $1 - Database name
 #   $2 - Service JSON path (for logging context)
+#   $3 - Scenario path (optional, defaults to current directory)
 # Returns:
 #   0 on success (or database already exists), continues on failure with warning
 #######################################
 lifecycle::ensure_database() {
     local db_name="$1"
     local service_json="${2:-}"
+    local scenario_path="${3:-$(pwd)}"
 
     [[ -z "$db_name" ]] && return 0
 
@@ -202,12 +205,33 @@ lifecycle::ensure_database() {
 
     # Create database (function handles "already exists" gracefully)
     log::info "Ensuring database exists: $db_name"
-    if postgres::database::create "main" "$db_name" 2>/dev/null; then
-        return 0
-    else
+    if ! postgres::database::create "main" "$db_name" 2>/dev/null; then
         log::warning "Could not create database '$db_name', may already exist or postgres not ready"
-        return 0
     fi
+
+    # Apply schema.sql if it exists (idempotent - uses CREATE TABLE IF NOT EXISTS)
+    local schema_file="${scenario_path}/initialization/postgres/schema.sql"
+    if [[ -f "$schema_file" ]]; then
+        log::info "Applying schema from: initialization/postgres/schema.sql"
+        if postgres::database::execute_file "main" "$schema_file" "$db_name" 2>/dev/null; then
+            log::debug "Schema applied successfully"
+        else
+            log::warning "Schema application had warnings (tables may already exist)"
+        fi
+    fi
+
+    # Apply migrations if directory exists (uses tracking table to skip already-applied)
+    local migrations_dir="${scenario_path}/initialization/postgres"
+    if [[ -d "$migrations_dir" ]] && ls "$migrations_dir"/migration_*.sql &>/dev/null; then
+        log::info "Running database migrations..."
+        if postgres::database::migrate "main" "$migrations_dir" "$db_name" 2>/dev/null; then
+            log::debug "Migrations completed"
+        else
+            log::warning "Some migrations may have failed"
+        fi
+    fi
+
+    return 0
 }
 
 ################################################################################

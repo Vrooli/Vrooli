@@ -300,7 +300,7 @@ func (a *Application) initializeComponents() error {
 
 	a.autoSteerMetricsCollector = autosteer.NewMetricsCollector(a.projectRoot)
 	a.autoSteerProfileService = autosteer.NewProfileService(a.db)
-	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorFromDB(a.db, a.projectRoot, phasesDir)
+	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorFromDB(a.db, a.projectRoot)
 	a.autoSteerHistoryService = autosteer.NewHistoryService(a.db)
 	log.Println("✅ Auto Steer components initialized")
 	systemlog.Info("Auto Steer components initialized")
@@ -310,7 +310,7 @@ func (a *Application) initializeComponents() error {
 	a.processor.SetAutoSteerIntegration(autoSteerIntegration)
 
 	// Initialize unified steering registry
-	promptEnhancer := autosteer.NewPromptEnhancer(phasesDir)
+	promptEnhancer := autosteer.NewPromptEnhancer()
 	queueStateRepo := steering.NewPostgresQueueStateRepository(a.db)
 	steeringRegistry := steering.NewRegistry(map[steering.SteeringStrategy]steering.SteeringProvider{
 		steering.StrategyProfile: steering.NewProfileProvider(autoSteerIntegration),

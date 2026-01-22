@@ -13,7 +13,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme') as Theme
-      if (stored && ['light', 'dark', 'system'].includes(stored)) {
+      if (['light', 'dark', 'system'].includes(stored)) {
         return stored
       }
     }
@@ -50,7 +50,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(prev => {
       const themes: Theme[] = ['light', 'dark', 'system']
       const currentIndex = themes.indexOf(prev)
-      return themes[(currentIndex + 1) % themes.length]
+      const nextIndex = (currentIndex + 1) % themes.length
+      return themes[nextIndex] ?? 'system'
     })
   }
 

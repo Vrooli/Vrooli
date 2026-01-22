@@ -10,11 +10,15 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // Config holds all tunable parameters for the Agent Inbox scenario.
@@ -30,6 +34,7 @@ type Config struct {
 	Storage     StorageConfig
 	Templates   TemplatesConfig
 	Skills      SkillsConfig
+	PromptSync  PromptSyncConfig
 }
 
 // ServerConfig controls HTTP server behavior.
@@ -292,6 +297,36 @@ type SkillsConfig struct {
 	UserDir string
 }
 
+// PromptSyncConfig controls skill synchronization from prompt-manager.
+// Skills are now sourced from prompt-manager's unified prompt system.
+// Audience: Operators configuring prompt-manager integration.
+type PromptSyncConfig struct {
+	// Enabled controls whether to sync skills from prompt-manager.
+	// When false, falls back to local file-based skills.
+	// Set via PROMPT_SYNC_ENABLED env var.
+	// Default: true
+	Enabled bool
+
+	// PromptManagerURL is the prompt-manager API endpoint.
+	// Set via PROMPT_MANAGER_URL env var.
+	// Default: "http://localhost:${PROMPT_MANAGER_PORT}"
+	PromptManagerURL string
+
+	// SyncIntervalSeconds is how often to check for prompt updates.
+	// Higher = less network traffic, lower = faster updates.
+	// Default: 60
+	SyncIntervalSeconds int
+
+	// SyncTimeout is the HTTP timeout for sync requests.
+	// Default: 30s
+	SyncTimeout time.Duration
+
+	// SkillOverridesPath is the path to the local overrides file.
+	// Used to customize icons and targetToolIds for specific prompts.
+	// Default: "../config/skills.json"
+	SkillOverridesPath string
+}
+
 // Default returns the default configuration with all sane defaults.
 // This configuration works well for local development and typical deployments.
 func Default() *Config {
@@ -357,6 +392,13 @@ func Default() *Config {
 			BasePath:    getEnvOrDefault("SKILLS_BASE_PATH", "../skills"),
 			DefaultsDir: "defaults",
 			UserDir:     "user",
+		},
+		PromptSync: PromptSyncConfig{
+			Enabled:             getEnvBool("PROMPT_SYNC_ENABLED", true),
+			PromptManagerURL:    getPromptManagerURL(),
+			SyncIntervalSeconds: getEnvInt("PROMPT_SYNC_INTERVAL", 60),
+			SyncTimeout:         30 * time.Second,
+			SkillOverridesPath:  getEnvOrDefault("SKILL_OVERRIDES_PATH", "../config/skills.json"),
 		},
 	}
 }
@@ -428,6 +470,35 @@ func getOllamaBaseURL() string {
 	}
 	port := getEnvOrDefault("OLLAMA_PORT", "11434")
 	return fmt.Sprintf("http://localhost:%s", port)
+}
+
+func getPromptManagerURL() string {
+	// Check for explicit override first (useful for testing)
+	if url := os.Getenv("PROMPT_MANAGER_URL"); url != "" {
+		return url
+	}
+
+	// Use api-core discovery to resolve prompt-manager URL
+	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	url, err := resolver.ResolveScenarioURLDefault(ctx, "prompt-manager")
+	if err != nil {
+		// Discovery failed - return empty, will be handled by PromptSyncService
+		log.Printf("Prompt sync: prompt-manager discovery failed: %v", err)
+		return ""
+	}
+	return url
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if i, err := strconv.Atoi(value); err == nil {
+			return i
+		}
+	}
+	return defaultValue
 }
 
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {

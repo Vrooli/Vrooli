@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, X, Send, Sparkles } from 'lucide-react'
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { api, FOLDERS } from '@/lib/api'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { LoadingSpinner } from './ui/loading-spinner'
 import { cn } from '@/lib/utils'
-import type { Prompt } from '@/types'
+import type { Prompt, CreatePromptRequest } from '@/types'
 
 interface FloatingAddButtonProps {
   onPromptCreated?: (prompt: Prompt) => void
@@ -17,48 +17,44 @@ interface FloatingAddButtonProps {
 export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [formData, setFormData] = useState({
-    campaignId: '',
-    title: '',
+    folder: 'local' as 'local' | 'drafts',
+    name: '',
     content: ''
   })
-  
+
   const queryClient = useQueryClient()
 
-  // Fetch campaigns for the selector
-  const { data: campaigns = [] } = useQuery({
-    queryKey: ['campaigns'],
-    queryFn: api.getCampaigns,
-  })
+  // Get writable folders only
+  const writableFolders = FOLDERS.filter(f => !f.readonly)
 
   const createPromptMutation = useMutation({
-    mutationFn: (prompt: Omit<Prompt, 'id' | 'created_at' | 'updated_at' | 'usage_count'>) =>
-      api.createPrompt(prompt),
+    mutationFn: (prompt: CreatePromptRequest) => api.createPrompt(prompt),
     onSuccess: (newPrompt) => {
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+      void queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['folders'] })
       setIsExpanded(false)
-      setFormData({ campaignId: '', title: '', content: '' })
+      setFormData({ folder: 'local', name: '', content: '' })
       onPromptCreated?.(newPrompt)
     },
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.campaignId || !formData.title.trim() || !formData.content.trim()) return
-    
+    if (!formData.name.trim() || !formData.content.trim()) return
+
     await createPromptMutation.mutateAsync({
-      campaign_id: formData.campaignId,
-      title: formData.title,
+      folder: formData.folder,
+      name: formData.name,
+      description: '',
       content: formData.content,
-      variables: [],
+      modes: [],
       tags: [],
-      is_favorite: false,
     })
   }
 
   const handleClose = () => {
     setIsExpanded(false)
-    setFormData({ campaignId: '', title: '', content: '' })
+    setFormData({ folder: 'local', name: '', content: '' })
   }
 
   return (
@@ -95,18 +91,18 @@ export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
           // Expanded form
           <motion.div
             key="form"
-            initial={{ 
+            initial={{
               scale: 0.8,
               opacity: 0,
               x: 20,
               transformOrigin: "bottom right"
             }}
-            animate={{ 
+            animate={{
               scale: 1,
               opacity: 1,
               x: 0
             }}
-            exit={{ 
+            exit={{
               scale: 0.8,
               opacity: 0,
               x: 20
@@ -145,21 +141,21 @@ export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Campaign Selector */}
+            <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+              {/* Folder Selector */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
                 className="space-y-2"
               >
-                <Label htmlFor="campaign" className="text-sm font-medium">
-                  Campaign
+                <Label htmlFor="folder" className="text-sm font-medium">
+                  Folder
                 </Label>
                 <select
-                  id="campaign"
-                  value={formData.campaignId}
-                  onChange={(e) => setFormData({ ...formData, campaignId: e.target.value })}
+                  id="folder"
+                  value={formData.folder}
+                  onChange={(e) => setFormData({ ...formData, folder: e.target.value as 'local' | 'drafts' })}
                   className={cn(
                     "w-full h-10 px-3 rounded-lg border border-border bg-background",
                     "text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -167,30 +163,29 @@ export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
                   )}
                   required
                 >
-                  <option value="">Select a campaign...</option>
-                  {campaigns.map((campaign) => (
-                    <option key={campaign.id} value={campaign.id}>
-                      {campaign.name}
+                  {writableFolders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name} - {folder.description}
                     </option>
                   ))}
                 </select>
               </motion.div>
 
-              {/* Title Input */}
+              {/* Name Input */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="space-y-2"
               >
-                <Label htmlFor="title" className="text-sm font-medium">
-                  Title
+                <Label htmlFor="name" className="text-sm font-medium">
+                  Name
                 </Label>
                 <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Enter prompt title..."
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Enter prompt name..."
                   className="h-10"
                   required
                 />
@@ -239,8 +234,7 @@ export function FloatingAddButton({ onPromptCreated }: FloatingAddButtonProps) {
                   type="submit"
                   className="flex-1 h-10 bg-gradient-to-r from-primary to-primary/80"
                   disabled={
-                    !formData.campaignId || 
-                    !formData.title.trim() || 
+                    !formData.name.trim() ||
                     !formData.content.trim() ||
                     createPromptMutation.isPending
                   }

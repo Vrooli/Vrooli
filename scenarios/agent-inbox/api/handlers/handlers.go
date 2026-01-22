@@ -33,7 +33,7 @@ type Handlers struct {
 	ToolExecutor    *integrations.ToolExecutor
 	AsyncTracker    *services.AsyncTrackerService
 	Templates       *services.TemplatesService
-	Skills          *services.SkillsService
+	Skills          *services.PromptSyncService
 	ToolPersistence *services.ToolPersistence
 }
 

@@ -83,7 +83,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           this.setState({ copied: false })
         }, 2000)
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         console.error('Failed to copy error report:', err)
       })
   }
@@ -99,6 +99,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       // Use custom fallback if provided
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- error guaranteed non-null by hasError check
         return <FallbackComponent error={this.state.error!} resetError={this.handleReset} />
       }
 

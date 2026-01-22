@@ -15,7 +15,7 @@ import { Input } from './ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { LoadingSpinner } from './ui/loading-spinner'
 import { cn, formatRelativeTime, truncateText, estimateTokens } from '@/lib/utils'
-import type { Prompt } from '@/types'
+import type { Prompt, CreatePromptRequest, FolderType } from '@/types'
 
 interface FilterInfo {
   icon: LucideIcon
@@ -27,51 +27,56 @@ interface PromptListProps {
   prompts: Prompt[]
   selectedPrompt: Prompt | null
   onSelectPrompt: (prompt: Prompt) => void
-  campaignId?: string
+  folder?: FolderType | null
+  isReadonly?: boolean
   isLoading?: boolean
   searchQuery?: string
   filterInfo?: FilterInfo | null
+  favorites: Set<string>
+  onToggleFavorite: (id: string) => void
 }
 
 export function PromptList({
   prompts,
   selectedPrompt,
   onSelectPrompt,
-  campaignId,
+  folder,
+  isReadonly,
   isLoading,
   searchQuery,
-  filterInfo
+  filterInfo,
+  favorites,
+  onToggleFavorite
 }: PromptListProps) {
   const [isCreating, setIsCreating] = useState(false)
-  const [newPrompt, setNewPrompt] = useState({ title: '', content: '' })
-  
+  const [newPrompt, setNewPrompt] = useState({ name: '', content: '' })
+
   const queryClient = useQueryClient()
 
   const createPromptMutation = useMutation({
-    mutationFn: (prompt: Omit<Prompt, 'id' | 'created_at' | 'updated_at' | 'usage_count'>) =>
-      api.createPrompt(prompt),
+    mutationFn: (prompt: CreatePromptRequest) => api.createPrompt(prompt),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['prompts'] })
+      void queryClient.invalidateQueries({ queryKey: ['folders'] })
       setIsCreating(false)
-      setNewPrompt({ title: '', content: '' })
+      setNewPrompt({ name: '', content: '' })
     },
   })
 
   const handleCreatePrompt = async () => {
-    if (!newPrompt.title.trim() || !newPrompt.content.trim() || !campaignId) return
-    
+    if (!newPrompt.name.trim() || !newPrompt.content.trim() || !folder) return
+    // Can only create in local or drafts
+    if (folder !== 'local' && folder !== 'drafts') return
+
     await createPromptMutation.mutateAsync({
-      campaign_id: campaignId,
-      title: newPrompt.title,
+      name: newPrompt.name,
+      description: '',
       content: newPrompt.content,
-      variables: [],
+      folder: folder,
+      modes: [],
       tags: [],
-      is_favorite: false,
     })
   }
-
-  // Use prompts directly since filtering is now done at app level
-  const filteredPrompts = prompts
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -86,17 +91,20 @@ export function PromptList({
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
+    visible: {
+      opacity: 1,
+      y: 0,
       scale: 1,
       transition: { type: "spring", stiffness: 300, damping: 30 }
     }
   }
 
   // Determine the icon and label to show based on context
-  const HeaderIcon = filterInfo?.icon || FileText
-  const headerLabel = filterInfo?.label || 'Prompts'
+  const HeaderIcon = filterInfo?.icon ?? FileText
+  const headerLabel = filterInfo?.label ?? 'Prompts'
+
+  // Check if we can create prompts in this folder
+  const canCreate = folder && !isReadonly && (folder === 'local' || folder === 'drafts')
 
   return (
     <Card className="h-full flex flex-col bg-card/50 backdrop-blur-sm border-border/50">
@@ -129,7 +137,7 @@ export function PromptList({
             )}
           </div>
 
-          {campaignId && (
+          {canCreate && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="glow"
@@ -143,10 +151,10 @@ export function PromptList({
           )}
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-1 flex flex-col space-y-3 overflow-hidden">
         <AnimatePresence>
-          {isCreating && (
+          {isCreating && canCreate && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -154,9 +162,9 @@ export function PromptList({
               className="space-y-3 p-4 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 border border-dashed border-border"
             >
               <Input
-                value={newPrompt.title}
-                onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })}
-                placeholder="Prompt title..."
+                value={newPrompt.name}
+                onChange={(e) => setNewPrompt({ ...newPrompt, name: e.target.value })}
+                placeholder="Prompt name..."
                 className="h-9"
                 autoFocus
               />
@@ -169,8 +177,8 @@ export function PromptList({
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  onClick={handleCreatePrompt}
-                  disabled={!newPrompt.title.trim() || !newPrompt.content.trim() || createPromptMutation.isPending}
+                  onClick={() => void handleCreatePrompt()}
+                  disabled={!newPrompt.name.trim() || !newPrompt.content.trim() || createPromptMutation.isPending}
                   className="h-7 text-xs"
                 >
                   {createPromptMutation.isPending ? (
@@ -187,7 +195,7 @@ export function PromptList({
                   size="sm"
                   onClick={() => {
                     setIsCreating(false)
-                    setNewPrompt({ title: '', content: '' })
+                    setNewPrompt({ name: '', content: '' })
                   }}
                   className="h-7 text-xs"
                 >
@@ -204,7 +212,7 @@ export function PromptList({
             <div className="flex items-center justify-center py-12">
               <LoadingSpinner size="lg" />
             </div>
-          ) : filteredPrompts.length === 0 ? (
+          ) : prompts.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -212,14 +220,14 @@ export function PromptList({
             >
               <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
               <p className="text-sm">
-                {searchQuery 
-                  ? `No prompts found for "${searchQuery}"` 
-                  : campaignId 
-                    ? 'No prompts in this campaign yet'
+                {searchQuery
+                  ? `No prompts found for "${searchQuery}"`
+                  : folder
+                    ? 'No prompts in this folder yet'
                     : 'No prompts found'
                 }
               </p>
-              {campaignId && !searchQuery && (
+              {canCreate && !searchQuery && (
                 <p className="text-xs mt-1">Create your first prompt to get started</p>
               )}
             </motion.div>
@@ -230,10 +238,11 @@ export function PromptList({
               animate="visible"
               className="space-y-2"
             >
-              {filteredPrompts.map((prompt) => {
+              {prompts.map((prompt) => {
                 const isSelected = selectedPrompt?.id === prompt.id
                 const tokenCount = estimateTokens(prompt.content)
-                
+                const isFavorite = favorites.has(prompt.id)
+
                 return (
                   <motion.div
                     key={prompt.id}
@@ -242,8 +251,8 @@ export function PromptList({
                     onClick={() => onSelectPrompt(prompt)}
                     className={cn(
                       "group relative overflow-hidden rounded-lg border cursor-pointer transition-all duration-200",
-                      isSelected 
-                        ? "border-primary bg-primary/5 shadow-lg shadow-primary/10" 
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
                         : "border-border/50 bg-background/80 hover:bg-muted/30 hover:border-border"
                     )}
                     whileHover={{ y: -2, transition: { duration: 0.2 } }}
@@ -260,16 +269,16 @@ export function PromptList({
                       animate={{ x: 0 }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
                     />
-                    
+
                     <div className="relative p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium text-sm truncate">
-                              {prompt.title}
+                              {prompt.name}
                             </h3>
-                            
-                            {prompt.is_favorite && (
+
+                            {isFavorite && (
                               <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
@@ -278,40 +287,66 @@ export function PromptList({
                                 <Heart className="h-3 w-3 text-red-500 fill-current" />
                               </motion.div>
                             )}
+
+                            {prompt.draft && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                                Draft
+                              </span>
+                            )}
                           </div>
-                          
+
                           <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                            {truncateText(prompt.content, 120)}
+                            {truncateText(prompt.description || prompt.content, 120)}
                           </p>
-                          
+
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <TrendingUp className="h-3 w-3" />
-                              {prompt.usage_count || 0} uses
+                              {prompt.usageCount} uses
                             </span>
                             <span className="flex items-center gap-1">
                               <FileText className="h-3 w-3" />
                               ~{tokenCount} tokens
                             </span>
-                            <span>{formatRelativeTime(prompt.updated_at)}</span>
+                            <span>{formatRelativeTime(prompt.updatedAt)}</span>
                           </div>
                         </div>
-                        
-                        <motion.div
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
+
+                        <div className="flex items-center gap-1">
+                          <motion.div
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleFavorite(prompt.id)
+                            }}
                           >
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        </motion.div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "h-6 w-6",
+                                isFavorite && "text-red-500"
+                              )}
+                            >
+                              <Heart className={cn("h-3 w-3", isFavorite && "fill-current")} />
+                            </Button>
+                          </motion.div>
+                          <motion.div
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                            >
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          </motion.div>
+                        </div>
                       </div>
                     </div>
-                    
+
                     {/* Selection indicator */}
                     {isSelected && (
                       <motion.div
@@ -321,7 +356,7 @@ export function PromptList({
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
-                    
+
                     {/* Hover effect */}
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"

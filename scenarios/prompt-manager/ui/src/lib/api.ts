@@ -1,15 +1,86 @@
+/**
+ * API client for prompt-manager Go API.
+ *
+ * Endpoints aligned with api/prompts/handlers.go:
+ * - GET /api/v1/prompts - list prompts (with optional filters)
+ * - GET /api/v1/prompts/sync - sync prompts with content
+ * - POST /api/v1/prompts - create prompt
+ * - GET /api/v1/prompts/{id} - get single prompt
+ * - PUT /api/v1/prompts/{id} - update prompt
+ * - DELETE /api/v1/prompts/{id} - delete prompt
+ * - POST /api/v1/prompts/{id}/use - record usage
+ * - PUT /api/v1/prompts/{id}/rating - set rating
+ * - GET /api/v1/tags - list tags
+ * - POST /api/v1/tags - create tag
+ * - POST /api/v1/prompts/{id}/test - test with Ollama
+ * - GET /api/v1/prompts/{id}/test-history - get test history
+ */
+
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import type {
-  Campaign,
   Prompt,
+  CreatePromptRequest,
+  UpdatePromptRequest,
+  Tag,
   PromptTestRequest,
-  PromptTestResponse,
-  SearchFilters
+  PromptTestResult,
+  SearchFilters,
+  HealthResponse,
+  Folder,
+  FolderType,
 } from '@/types'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
 console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
+
+/**
+ * Static folder definitions.
+ * The API uses folder-based organization, not campaigns.
+ */
+export const FOLDERS: Folder[] = [
+  {
+    id: 'core',
+    name: 'Core',
+    description: 'System prompts and steering templates (read-only)',
+    icon: 'shield',
+    readonly: true,
+    promptCount: 0,  // Updated dynamically
+  },
+  {
+    id: 'local',
+    name: 'Local',
+    description: 'Your saved prompts',
+    icon: 'folder',
+    readonly: false,
+    promptCount: 0,
+  },
+  {
+    id: 'drafts',
+    name: 'Drafts',
+    description: 'Work in progress prompts',
+    icon: 'edit',
+    readonly: false,
+    promptCount: 0,
+  },
+]
+
+/**
+ * API response type for usage recording
+ */
+interface UsageResponse {
+  status: string
+  usageCount: number
+  lastUsed: string
+}
+
+/**
+ * API response type for rating
+ */
+interface RatingResponse {
+  status: string
+  rating: number
+}
 
 class ApiClient {
   private async request<T>(
@@ -19,18 +90,23 @@ class ApiClient {
     const url = buildApiUrl(endpoint, { baseUrl: API_BASE })
     console.log('[prompt-manager api] Fetching:', url)
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      if (options?.headers) {
+        const optHeaders = options.headers as Record<string, string>
+        Object.assign(headers, optHeaders)
+      }
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...options?.headers,
-        },
         ...options,
+        headers,
       })
 
       console.log('[prompt-manager api] Response status:', response.status, response.statusText)
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`)
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`)
       }
 
       // Handle 204 No Content responses
@@ -38,115 +114,129 @@ class ApiClient {
         return {} as T
       }
 
-      return response.json()
+      return await response.json() as T
     } catch (error) {
       console.error('[prompt-manager api] Fetch error:', error)
       throw error
     }
   }
 
-  // Campaign methods
-  async getCampaigns(): Promise<Campaign[]> {
-    return this.request<Campaign[]>('/campaigns')
+  // Folder methods (computed from prompts, not a separate API)
+  async getFolders(): Promise<Folder[]> {
+    // Get all prompts and compute folder counts
+    const prompts = await this.getPrompts()
+    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0 }
+
+    for (const prompt of prompts) {
+      if (prompt.folder in counts) {
+        counts[prompt.folder]++
+      }
+    }
+
+    return FOLDERS.map(folder => ({
+      ...folder,
+      promptCount: counts[folder.id],
+    }))
   }
 
-  async getCampaign(id: string): Promise<Campaign> {
-    return this.request<Campaign>(`/campaigns/${id}`)
-  }
-
-  async createCampaign(campaign: Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'prompt_count'>): Promise<Campaign> {
-    return this.request<Campaign>('/campaigns', {
-      method: 'POST',
-      body: JSON.stringify(campaign),
-    })
-  }
-
-  async updateCampaign(id: string, campaign: Partial<Campaign>): Promise<Campaign> {
-    return this.request<Campaign>(`/campaigns/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(campaign),
-    })
-  }
-
-  async deleteCampaign(id: string): Promise<void> {
-    return this.request<void>(`/campaigns/${id}`, {
-      method: 'DELETE',
-    })
-  }
-
-  // Prompt methods
+  // Prompt methods - aligned with api/prompts/handlers.go
   async getPrompts(filters?: SearchFilters): Promise<Prompt[]> {
     const params = new URLSearchParams()
-    if (filters?.campaign_id) params.append('campaign_id', filters.campaign_id)
-    if (filters?.query) params.append('q', filters.query)
-    if (filters?.is_favorite !== undefined) params.append('is_favorite', String(filters.is_favorite))
-    if (filters?.limit) params.append('limit', String(filters.limit))
-    if (filters?.offset) params.append('offset', String(filters.offset))
-    if (filters?.tags?.length) {
-      filters.tags.forEach(tag => params.append('tags', tag))
+    if (filters?.tag) params.append('tag', filters.tag)
+    if (filters?.folder) params.append('folder', filters.folder)
+    if (filters?.modes) {
+      for (const mode of filters.modes) {
+        params.append('modes', mode)
+      }
     }
 
     const queryString = params.toString()
     return this.request<Prompt[]>(`/prompts${queryString ? `?${queryString}` : ''}`)
   }
 
-  async getCampaignPrompts(campaignId: string): Promise<Prompt[]> {
-    return this.request<Prompt[]>(`/campaigns/${campaignId}/prompts`)
+  async getPromptsByFolder(folder: FolderType): Promise<Prompt[]> {
+    return this.getPrompts({ folder })
   }
 
   async getPrompt(id: string): Promise<Prompt> {
-    return this.request<Prompt>(`/prompts/${id}`)
+    return this.request<Prompt>(`/prompts/${encodeURIComponent(id)}`)
   }
 
-  async createPrompt(prompt: Omit<Prompt, 'id' | 'created_at' | 'updated_at' | 'usage_count'>): Promise<Prompt> {
+  async createPrompt(prompt: CreatePromptRequest): Promise<Prompt> {
     return this.request<Prompt>('/prompts', {
       method: 'POST',
       body: JSON.stringify(prompt),
     })
   }
 
-  async updatePrompt(id: string, prompt: Partial<Prompt>): Promise<Prompt> {
-    return this.request<Prompt>(`/prompts/${id}`, {
+  async updatePrompt(id: string, updates: UpdatePromptRequest): Promise<Prompt> {
+    return this.request<Prompt>(`/prompts/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      body: JSON.stringify(prompt),
+      body: JSON.stringify(updates),
     })
   }
 
   async deletePrompt(id: string): Promise<void> {
-    return this.request<void>(`/prompts/${id}`, {
+    await this.request<Record<string, never>>(`/prompts/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
   }
 
-  async testPrompt(id: string, request: PromptTestRequest): Promise<PromptTestResponse> {
-    return this.request<PromptTestResponse>(`/prompts/${id}/test`, {
+  // Usage tracking
+  async recordUsage(id: string): Promise<UsageResponse> {
+    return this.request<UsageResponse>(`/prompts/${encodeURIComponent(id)}/use`, {
+      method: 'POST',
+    })
+  }
+
+  async setRating(id: string, rating: number, notes?: string): Promise<RatingResponse> {
+    return this.request<RatingResponse>(`/prompts/${encodeURIComponent(id)}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ rating, notes }),
+    })
+  }
+
+  // Tags
+  async getTags(): Promise<Tag[]> {
+    return this.request<Tag[]>('/tags')
+  }
+
+  async createTag(tag: Omit<Tag, 'id'>): Promise<Tag> {
+    return this.request<Tag>('/tags', {
+      method: 'POST',
+      body: JSON.stringify(tag),
+    })
+  }
+
+  // Testing (requires Ollama)
+  async testPrompt(id: string, request: PromptTestRequest): Promise<PromptTestResult> {
+    return this.request<PromptTestResult>(`/prompts/${encodeURIComponent(id)}/test`, {
       method: 'POST',
       body: JSON.stringify(request),
     })
   }
 
-  async recordPromptUsage(id: string): Promise<void> {
-    return this.request<void>(`/prompts/${id}/use`, {
-      method: 'POST',
-    })
+  async getTestHistory(id: string, limit?: number): Promise<PromptTestResult[]> {
+    const params = limit ? `?limit=${limit}` : ''
+    return this.request<PromptTestResult[]>(`/prompts/${encodeURIComponent(id)}/test-history${params}`)
   }
 
-  // Search methods
+  // Search - client-side filtering since no dedicated search endpoint
   async searchPrompts(query: string, filters?: SearchFilters): Promise<Prompt[]> {
-    const params = new URLSearchParams({ q: query })
-    if (filters?.campaign_id) params.append('campaign_id', filters.campaign_id)
-    if (filters?.is_favorite !== undefined) params.append('is_favorite', String(filters.is_favorite))
-    if (filters?.limit) params.append('limit', String(filters.limit))
-    return this.request<Prompt[]>(`/search/prompts?${params.toString()}`)
-  }
+    const allPrompts = await this.getPrompts(filters)
+    const lowerQuery = query.toLowerCase()
 
-  async searchTags(query: string): Promise<string[]> {
-    return this.request<string[]>(`/search/tags?q=${encodeURIComponent(query)}`)
+    return allPrompts.filter(prompt =>
+      prompt.name.toLowerCase().includes(lowerQuery) ||
+      prompt.description.toLowerCase().includes(lowerQuery) ||
+      prompt.content.toLowerCase().includes(lowerQuery) ||
+      prompt.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+    )
   }
 
   // Health check
-  async healthCheck(): Promise<{ status: string }> {
-    return this.request<{ status: string }>('/health')
+  async healthCheck(): Promise<HealthResponse> {
+    return this.request<HealthResponse>('/health')
   }
 }
 

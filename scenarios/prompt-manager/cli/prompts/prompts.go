@@ -12,8 +12,36 @@ import (
 
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/internal/clipboard"
-	"prompt-manager/cli/internal/types"
 )
+
+// PromptResponse matches the API response for prompts
+type PromptResponse struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Content     string   `json:"content"`
+	Modes       []string `json:"modes"`
+	Tags        []string `json:"tags"`
+	Icon        string   `json:"icon,omitempty"`
+	Draft       bool     `json:"draft"`
+	Folder      string   `json:"folder"`
+	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
+	UsageCount  int      `json:"usageCount"`
+}
+
+// CreatePromptRequest matches the API request for creating prompts
+type CreatePromptRequest struct {
+	ID          string   `json:"id,omitempty"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Content     string   `json:"content"`
+	Modes       []string `json:"modes,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
+	Draft       bool     `json:"draft"`
+	Folder      string   `json:"folder"`
+}
 
 // Commands returns the prompt command groups.
 func Commands(ctx appctx.Context) []cliapp.CommandGroup {
@@ -34,7 +62,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "list",
 					Aliases:     []string{"ls"},
 					NeedsAPI:    true,
-					Description: "List prompts (optionally filter by campaign)",
+					Description: "List prompts (optionally filter by folder: core, local, drafts)",
 					Run: func(args []string) error {
 						return cmdList(ctx, args)
 					},
@@ -57,15 +85,6 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 						return cmdUse(ctx, args)
 					},
 				},
-				{
-					Name:        "quick",
-					Aliases:     []string{"q"},
-					NeedsAPI:    true,
-					Description: "Get prompt by quick access key",
-					Run: func(args []string) error {
-						return cmdQuick(ctx, args)
-					},
-				},
 			},
 		},
 	}
@@ -73,60 +92,18 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 
 func cmdAdd(ctx appctx.Context, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: add <title> [campaign-id-or-name]")
+		return fmt.Errorf("usage: add <name> [folder]\n  folder: 'local' (default) or 'drafts'")
 	}
 
-	title := args[0]
+	name := args[0]
 
-	// Get campaign ID
-	var campaignID string
+	// Get folder (default to "local")
+	folder := "local"
 	if len(args) > 1 {
-		campaignID = args[1]
-	} else {
-		// Show available campaigns and prompt for selection
-		var campaigns []types.Campaign
-		if err := ctx.Get("/campaigns", &campaigns); err != nil {
-			return fmt.Errorf("failed to list campaigns: %w", err)
+		folder = strings.ToLower(args[1])
+		if folder != "local" && folder != "drafts" {
+			return fmt.Errorf("folder must be 'local' or 'drafts'")
 		}
-
-		if len(campaigns) == 0 {
-			return fmt.Errorf("no campaigns found - create one first with: campaigns create <name>")
-		}
-
-		fmt.Println("Available campaigns:")
-		for i, c := range campaigns {
-			fmt.Printf("  [%d] %s (%s)\n", i+1, c.Name, c.ID)
-		}
-		fmt.Print("Enter campaign number or ID: ")
-
-		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		// Try as number first
-		var idx int
-		if _, err := fmt.Sscanf(input, "%d", &idx); err == nil && idx > 0 && idx <= len(campaigns) {
-			campaignID = campaigns[idx-1].ID
-		} else {
-			// Try as ID or name
-			campaignID = resolveCampaignID(ctx, input, campaigns)
-			if campaignID == "" {
-				return fmt.Errorf("campaign not found: %s", input)
-			}
-		}
-	}
-
-	// If campaignID is not a UUID, resolve it
-	if !isUUID(campaignID) {
-		var campaigns []types.Campaign
-		if err := ctx.Get("/campaigns", &campaigns); err != nil {
-			return fmt.Errorf("failed to list campaigns: %w", err)
-		}
-		resolved := resolveCampaignID(ctx, campaignID, campaigns)
-		if resolved == "" {
-			return fmt.Errorf("campaign not found: %s", campaignID)
-		}
-		campaignID = resolved
 	}
 
 	// Get content from stdin
@@ -147,20 +124,20 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("prompt content is required")
 	}
 
-	req := types.CreatePromptRequest{
-		CampaignID: campaignID,
-		Title:      title,
-		Content:    content,
-		Variables:  []string{},
-		Tags:       []string{},
+	req := CreatePromptRequest{
+		Name:    name,
+		Content: content,
+		Folder:  folder,
+		Modes:   []string{},
+		Tags:    []string{},
 	}
 
-	var prompt types.Prompt
+	var prompt PromptResponse
 	if err := ctx.Post("/prompts", req, &prompt); err != nil {
 		return fmt.Errorf("failed to create prompt: %w", err)
 	}
 
-	fmt.Printf("Created prompt: %s [%s]\n", prompt.Title, prompt.ID)
+	fmt.Printf("Created prompt: %s [%s] in %s/\n", prompt.Name, prompt.ID, prompt.Folder)
 	return nil
 }
 
@@ -168,45 +145,26 @@ func cmdList(ctx appctx.Context, args []string) error {
 	query := url.Values{}
 
 	// Parse arguments
-	var campaignFilter string
-	var filterType string
+	var folderFilter string
+	var tagFilter string
 	for _, arg := range args {
-		switch arg {
-		case "favorites", "fav":
-			filterType = "favorites"
-		case "recent":
-			query.Set("limit", "10")
+		switch {
+		case arg == "core" || arg == "local" || arg == "drafts":
+			folderFilter = arg
 		default:
-			if campaignFilter == "" {
-				campaignFilter = arg
-			}
+			tagFilter = arg
 		}
 	}
 
-	if filterType == "favorites" {
-		query.Set("is_favorite", "true")
+	if folderFilter != "" {
+		query.Set("folder", folderFilter)
+	}
+	if tagFilter != "" {
+		query.Set("tag", tagFilter)
 	}
 
-	// Build endpoint
-	endpoint := "/prompts"
-	if campaignFilter != "" {
-		// Resolve campaign ID
-		if !isUUID(campaignFilter) {
-			var campaigns []types.Campaign
-			if err := ctx.Get("/campaigns", &campaigns); err != nil {
-				return fmt.Errorf("failed to list campaigns: %w", err)
-			}
-			resolved := resolveCampaignID(ctx, campaignFilter, campaigns)
-			if resolved == "" {
-				return fmt.Errorf("campaign not found: %s", campaignFilter)
-			}
-			campaignFilter = resolved
-		}
-		endpoint = fmt.Sprintf("/campaigns/%s/prompts", campaignFilter)
-	}
-
-	var prompts []types.Prompt
-	if err := ctx.GetWithQuery(endpoint, query, &prompts); err != nil {
+	var prompts []PromptResponse
+	if err := ctx.GetWithQuery("/prompts", query, &prompts); err != nil {
 		return fmt.Errorf("failed to list prompts: %w", err)
 	}
 
@@ -217,15 +175,11 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 	fmt.Println("Prompts:")
 	for _, p := range prompts {
-		campaign := "No Campaign"
-		if p.CampaignName != nil {
-			campaign = *p.CampaignName
+		tags := ""
+		if len(p.Tags) > 0 {
+			tags = " [" + strings.Join(p.Tags, ", ") + "]"
 		}
-		fav := ""
-		if p.IsFavorite {
-			fav = " *"
-		}
-		fmt.Printf("  %s - %s (used %d times)%s [%s]\n", p.Title, campaign, p.UsageCount, fav, p.ID)
+		fmt.Printf("  %s - %s (used %d times)%s [%s]\n", p.Name, p.Folder, p.UsageCount, tags, p.ID)
 	}
 	return nil
 }
@@ -237,44 +191,30 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 	promptID := args[0]
 
-	var prompt types.Prompt
+	var prompt PromptResponse
 	if err := ctx.Get(fmt.Sprintf("/prompts/%s", promptID), &prompt); err != nil {
 		return fmt.Errorf("failed to get prompt: %w", err)
 	}
 
-	fmt.Printf("Title: %s\n", prompt.Title)
-	if prompt.CampaignName != nil {
-		fmt.Printf("Campaign: %s\n", *prompt.CampaignName)
-	}
-	if prompt.Description != nil {
-		fmt.Printf("Description: %s\n", *prompt.Description)
+	fmt.Printf("Name: %s\n", prompt.Name)
+	fmt.Printf("Folder: %s\n", prompt.Folder)
+	if prompt.Description != "" {
+		fmt.Printf("Description: %s\n", prompt.Description)
 	}
 	fmt.Printf("Usage Count: %d\n", prompt.UsageCount)
-	if prompt.EffectivenessRating != nil {
-		fmt.Printf("Rating: %d/5\n", *prompt.EffectivenessRating)
-	}
-	if prompt.WordCount != nil {
-		fmt.Printf("Word Count: %d\n", *prompt.WordCount)
-	}
-	if prompt.EstimatedTokens != nil {
-		fmt.Printf("Est. Tokens: %d\n", *prompt.EstimatedTokens)
-	}
-	fmt.Printf("Favorite: %v\n", prompt.IsFavorite)
-	fmt.Printf("Created: %s\n", prompt.CreatedAt.Format("2006-01-02 15:04:05"))
-	if prompt.LastUsed != nil {
-		fmt.Printf("Last Used: %s\n", prompt.LastUsed.Format("2006-01-02 15:04:05"))
-	}
+	fmt.Printf("Draft: %v\n", prompt.Draft)
+	fmt.Printf("Created: %s\n", prompt.CreatedAt)
+	fmt.Printf("Updated: %s\n", prompt.UpdatedAt)
 	fmt.Printf("ID: %s\n", prompt.ID)
 
+	if len(prompt.Modes) > 0 {
+		fmt.Printf("Modes: %s\n", strings.Join(prompt.Modes, ", "))
+	}
 	if len(prompt.Tags) > 0 {
 		fmt.Printf("Tags: %s\n", strings.Join(prompt.Tags, ", "))
 	}
 
 	fmt.Printf("\nContent:\n%s\n", prompt.Content)
-
-	if prompt.Notes != nil && *prompt.Notes != "" {
-		fmt.Printf("\nNotes:\n%s\n", *prompt.Notes)
-	}
 
 	return nil
 }
@@ -292,7 +232,7 @@ func cmdUse(ctx appctx.Context, args []string) error {
 	}
 
 	// Get and display the prompt
-	var prompt types.Prompt
+	var prompt PromptResponse
 	if err := ctx.Get(fmt.Sprintf("/prompts/%s", promptID), &prompt); err != nil {
 		return fmt.Errorf("failed to get prompt: %w", err)
 	}
@@ -310,54 +250,4 @@ func cmdUse(ctx appctx.Context, args []string) error {
 	}
 
 	return nil
-}
-
-func cmdQuick(ctx appctx.Context, args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: quick <key>")
-	}
-
-	key := args[0]
-
-	var prompt types.Prompt
-	if err := ctx.Get(fmt.Sprintf("/prompts/quick/%s", key), &prompt); err != nil {
-		return fmt.Errorf("no prompt found with quick key: %s", key)
-	}
-
-	fmt.Printf("Quick Prompt:\n%s\n", prompt.Content)
-	return nil
-}
-
-// Helper functions
-
-func isUUID(s string) bool {
-	// Simple UUID check (8-4-4-4-12 format)
-	if len(s) != 36 {
-		return false
-	}
-	for i, c := range s {
-		if i == 8 || i == 13 || i == 18 || i == 23 {
-			if c != '-' {
-				return false
-			}
-		} else {
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func resolveCampaignID(_ appctx.Context, input string, campaigns []types.Campaign) string {
-	input = strings.ToLower(input)
-	for _, c := range campaigns {
-		if c.ID == input || strings.ToLower(c.Name) == input {
-			return c.ID
-		}
-		if strings.Contains(strings.ToLower(c.Name), input) {
-			return c.ID
-		}
-	}
-	return ""
 }
