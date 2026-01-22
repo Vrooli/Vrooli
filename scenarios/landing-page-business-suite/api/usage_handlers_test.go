@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,24 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+// requestWithUserAuth creates a test request with user claims injected into the context.
+// This simulates what the requireUserAuth middleware does.
+func requestWithUserAuth(method, url string, body []byte, userEmail string) *http.Request {
+	var req *http.Request
+	if body != nil {
+		req = httptest.NewRequest(method, url, bytes.NewReader(body))
+	} else {
+		req = httptest.NewRequest(method, url, nil)
+	}
+	// Inject user claims into context (simulating authenticated user)
+	claims := &UserClaims{
+		Email:  userEmail,
+		UserID: "test-user-id",
+	}
+	ctx := context.WithValue(req.Context(), userClaimsKey, claims)
+	return req.WithContext(ctx)
+}
 
 // ============================================================================
 // POST /api/v1/usage/report Handler Tests
@@ -262,7 +281,7 @@ func TestHandleCheckLimit_ValidCheck_ReturnsCanProceedAndRemaining(t *testing.T)
 
 	handler := handleCheckLimit(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?user=user@example.com&tier=solo&limit_key=ai_credits", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -302,7 +321,7 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 
 	handler := handleCheckLimit(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?user=user@example.com&tier=solo&limit_key=ai_credits", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -324,30 +343,35 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 }
 
 func TestHandleCheckLimit_MissingParams_Returns400(t *testing.T) {
-	testCases := []struct {
-		name     string
-		queryStr string
-	}{
-		{"missing user", "?tier=solo&limit_key=ai_credits"},
-		{"missing limit_key", "?user=user@example.com&tier=solo"},
-		{"missing both", "?tier=solo"},
-	}
+	t.Run("missing limit_key", func(t *testing.T) {
+		svc, _, db := createTestUsageService(t)
+		defer db.Close()
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			svc, _, db := createTestUsageService(t)
-			defer db.Close()
+		handler := handleCheckLimit(svc)
 
-			handler := handleCheckLimit(svc)
+		req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo", nil, "user@example.com")
+		w := httptest.NewRecorder()
+		handler(w, req)
 
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check"+tc.queryStr, nil)
-			w := httptest.NewRecorder()
-			handler(w, req)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for missing limit_key, got %d", w.Code)
+		}
+	})
+}
 
-			if w.Code != http.StatusBadRequest {
-				t.Errorf("Expected status 400 for %s, got %d", tc.name, w.Code)
-			}
-		})
+func TestHandleCheckLimit_Unauthenticated_Returns401(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	handler := handleCheckLimit(svc)
+
+	// Request without auth context
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("Expected status 401 for unauthenticated request, got %d", w.Code)
 	}
 }
 
@@ -359,7 +383,7 @@ func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T
 
 	handler := handleCheckLimit(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?user=user@example.com&tier=business&limit_key=ai_credits", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=business&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -405,7 +429,7 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 
 	handler := handleGetUsageSummary(svc, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/summary?user=user@example.com&tier=solo", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -445,7 +469,7 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 
 	handler := handleGetUsageSummary(svc, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/summary?user=newuser@example.com&tier=solo", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "newuser@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -613,7 +637,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	handler := handleCheckLimit(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?user=user@example.com&tier=solo&limit_key=ai_credits", nil)
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 

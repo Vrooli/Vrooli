@@ -105,8 +105,152 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 ---
 
+## AI Gateway Seams (NEW)
+
+The AI Gateway provides centralized AI access with credit management for all Vrooli applications.
+
+### OpenRouterClient Seam (Strong)
+
+**Location:** `api/openrouter_client.go`
+
+**Interface:**
+```go
+type OpenRouterClient interface {
+    Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error)
+    ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error)
+    VerifyAPIKey(ctx context.Context) error
+}
+```
+
+**Test Doubles:**
+- `MockOpenRouterClient` - Configurable mock with function fields for custom behavior
+
+**Status:** Strong
+- Clean interface separating HTTP concerns from business logic
+- Mock enables testing AI gateway service without network calls
+- Compile-time interface enforcement
+
+**Testing Pattern:**
+```go
+mockClient := &MockOpenRouterClient{
+    ChatFn: func(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+        return &OpenRouterChatResponse{
+            Content: "Test response",
+            Usage: OpenRouterUsage{PromptTokens: 10, CompletionTokens: 20},
+        }, nil
+    },
+}
+svc := NewAIGatewayService(AIGatewayServiceOptions{
+    OpenRouterClient: mockClient,
+    // ...
+})
+```
+
+### AIGateway Seam (Strong)
+
+**Location:** `api/ai_gateway_interface.go`
+
+**Interface:**
+```go
+type AIGateway interface {
+    ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
+    ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
+    GetAvailableModels() []string
+    HealthCheck(ctx context.Context) error
+}
+```
+
+**Test Doubles:**
+- `MockAIGateway` - Full interface mock for handler testing
+
+**Status:** Strong
+- Handlers accept `AIGateway` interface, not concrete `*AIGatewayService`
+- Enables isolated handler testing without real service
+- Compile-time interface enforcement
+
+**Testing Pattern:**
+```go
+mock := &MockAIGateway{
+    ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+        return &AIResponse{Content: "Mock response"}, nil
+    },
+}
+handler := handleAIChat(mock)
+```
+
+### AI Gateway Service Injection Seams
+
+**Location:** `api/ai_gateway_service.go`
+
+The service has multiple injection points:
+
+1. **OpenRouter Client** - `UseOpenRouterClient(client OpenRouterClient)`
+   - Primary seam for testing AI provider communication
+
+2. **Logger** - Via `AIGatewayServiceOptions.Logger`
+   - Enables capturing logs in tests
+
+**Status:** Strong
+
+### AI Gateway Rate Limiter Seam
+
+**Location:** `api/ai_gateway_handlers.go`
+
+**Design:**
+- Package-level `aiGatewayRateLimiter` with `UseTimeProvider()` injection
+- Enables controlling time progression in tests
+
+**Testing Pattern:**
+```go
+// Control time for rate limit testing
+fixedTime := time.Now()
+aiGatewayRateLimiter.UseTimeProvider(func() time.Time { return fixedTime })
+defer aiGatewayRateLimiter.UseTimeProvider(nil)
+```
+
+### AI Gateway Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      AI Gateway Service                          │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ OpenRouterClient │───▶ Chat(), ChatStream()              │   │
+│  │ (testing seam)   │    VerifyAPIKey()                     │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ UsageService     │───▶ ReserveAndCharge() (atomic)       │   │
+│  │                  │    CheckLimit(), RecordUsage()        │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ AccountService   │───▶ GetSubscription() (tier lookup)   │   │
+│  │                  │                                        │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Credit Flow:**
+
+1. **Non-streaming (atomic):**
+   - Estimate cost → ReserveAndCharge (atomic) → Call OpenRouter → Adjust if needed
+
+2. **Streaming (check-then-charge):**
+   - Estimate cost → CheckLimit → Stream response → RecordUsage after completion
+
+**Credit Units:**
+- Internal unit = 1/1,000,000 of a cent
+- $1.00 = 100,000,000 internal units
+- Pricing stored as cost per 1K tokens in internal units
+
+---
+
 ## See Also
 
 - `docs/STRIPE_RESTRICTED_KEYS.md`
 - `docs/STRIPE_WEBHOOKS.md`
 - `docs/api/payments.md`
+- `docs/AI_GATEWAY.md`

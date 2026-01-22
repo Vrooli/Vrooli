@@ -795,4 +795,4 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 	return nil
 }
 
-// Note: ErrInsufficientCredits is defined in ai_gateway_service.go
+// Note: ErrInsufficientCredits is defined in ai_gateway_errors.go (centralized AI gateway errors)

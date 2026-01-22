@@ -7,14 +7,24 @@ import (
 	"time"
 )
 
-// AI Gateway rate limiter - 60 requests per minute per user
+// aiGatewayRateLimiter enforces 60 requests per minute per user for AI endpoints.
+// Package-level for singleton behavior; use UseTimeProvider() in tests to control time.
 var aiGatewayRateLimiter = NewRateLimiter(60, time.Minute)
 
 // handleAIChat handles non-streaming AI chat completion requests.
 // POST /api/v1/ai/chat
-func handleAIChat(svc *AIGatewayService) http.HandlerFunc {
+//
+// Responsibilities:
+//   - Authentication (via middleware that sets user in context)
+//   - Rate limiting
+//   - Request validation (format, bounds)
+//   - Delegating to the AIGateway service
+//   - Mapping errors to HTTP responses
+//
+// The handler does NOT handle credit checking - that's the service's responsibility.
+func handleAIChat(svc AIGateway) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 1. Get user from context (JWT auth)
+		// 1. Get user from context (JWT auth handled by middleware)
 		userIdentity := getUserEmail(r.Context())
 		if userIdentity == "" {
 			writeJSONError(w, http.StatusUnauthorized, "Authentication required", ApiErrorTypeUnauthorized)
@@ -34,13 +44,13 @@ func handleAIChat(svc *AIGatewayService) http.HandlerFunc {
 			return
 		}
 
-		// 4. Validate request
+		// 4. Validate request (handler owns input validation)
 		if err := validateAIRequest(&req); err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
 
-		// 5. Execute chat completion
+		// 5. Execute chat completion (service handles business logic + credits)
 		resp, err := svc.ExecuteChat(r.Context(), userIdentity, req)
 		if err != nil {
 			handleAIError(w, err)
@@ -53,9 +63,14 @@ func handleAIChat(svc *AIGatewayService) http.HandlerFunc {
 	}
 }
 
-// handleAIStream handles streaming AI chat completion requests via SSE.
+// handleAIStream handles streaming AI chat completion requests via Server-Sent Events.
 // POST /api/v1/ai/stream
-func handleAIStream(svc *AIGatewayService) http.HandlerFunc {
+//
+// SSE Response Format:
+//   - Content chunks:  data: {"type":"chunk","content":"partial text"}\n\n
+//   - Completion:      data: {"type":"done","usage":{...}}\n\n
+//   - Errors:          data: {"type":"error","error":"message"}\n\n
+func handleAIStream(svc AIGateway) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Get user from context (JWT auth)
 		userIdentity := getUserEmail(r.Context())
@@ -113,7 +128,8 @@ func handleAIStream(svc *AIGatewayService) http.HandlerFunc {
 
 // handleAIModels returns the list of available AI models.
 // GET /api/v1/ai/models
-func handleAIModels(svc *AIGatewayService) http.HandlerFunc {
+// Public endpoint - no authentication required.
+func handleAIModels(svc AIGateway) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		models := svc.GetAvailableModels()
 
@@ -126,7 +142,8 @@ func handleAIModels(svc *AIGatewayService) http.HandlerFunc {
 
 // handleAIUsage returns AI usage statistics for the current user.
 // GET /api/v1/ai/usage
-func handleAIUsage(svc *AIGatewayService, usageSvc *UsageService, accountSvc *AccountService) http.HandlerFunc {
+// Requires user authentication.
+func handleAIUsage(svc AIGateway, usageSvc *UsageService, accountSvc *AccountService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userIdentity := getUserEmail(r.Context())
 		if userIdentity == "" {
@@ -159,7 +176,9 @@ func handleAIUsage(svc *AIGatewayService, usageSvc *UsageService, accountSvc *Ac
 		aiCreditsLimit := summary.Limits["ai_credits"]
 		aiCreditsRemaining := summary.Remaining["ai_credits"]
 
-		// Convert to display format (divide by 100000 for user-friendly display)
+		// Convert to display format.
+		// Internal unit = 1/1,000,000 of a cent, so 100,000 internal units = $0.001
+		// Dividing by 100,000 gives a user-friendly "credit" unit.
 		displayUsed := float64(aiCreditsUsed) / 100000.0
 		displayLimit := float64(aiCreditsLimit) / 100000.0
 		displayRemaining := float64(aiCreditsRemaining) / 100000.0
@@ -172,12 +191,12 @@ func handleAIUsage(svc *AIGatewayService, usageSvc *UsageService, accountSvc *Ac
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"user_identity":     userIdentity,
-			"tier":              tier,
-			"billing_period":    summary.BillingPeriod,
-			"reset_date":        summary.ResetDate.Format(time.RFC3339),
-			"ai_credits_used":   aiCreditsUsed,
-			"ai_credits_limit":  aiCreditsLimit,
+			"user_identity":        userIdentity,
+			"tier":                 tier,
+			"billing_period":       summary.BillingPeriod,
+			"reset_date":           summary.ResetDate.Format(time.RFC3339),
+			"ai_credits_used":      aiCreditsUsed,
+			"ai_credits_limit":     aiCreditsLimit,
 			"ai_credits_remaining": aiCreditsRemaining,
 			"display": map[string]interface{}{
 				"used":      displayUsed,
@@ -191,7 +210,8 @@ func handleAIUsage(svc *AIGatewayService, usageSvc *UsageService, accountSvc *Ac
 
 // handleAIHealth checks if the AI gateway is healthy.
 // GET /api/v1/ai/health
-func handleAIHealth(svc *AIGatewayService) http.HandlerFunc {
+// Public endpoint - no authentication required.
+func handleAIHealth(svc AIGateway) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := svc.HealthCheck(r.Context())
 
@@ -212,7 +232,15 @@ func handleAIHealth(svc *AIGatewayService) http.HandlerFunc {
 	}
 }
 
+// AI Request Validation Constants
+const (
+	maxMessageLength = 100 * 1024 // 100KB per message
+	maxMessages      = 100        // Maximum messages per request
+	maxMaxTokens     = 16384      // Maximum value for max_tokens parameter
+)
+
 // validateAIRequest validates an AI request.
+// This is presentation-layer validation (format, bounds) not business logic.
 func validateAIRequest(req *AIRequest) error {
 	if req.Model == "" {
 		return errors.New("model is required")
@@ -222,8 +250,12 @@ func validateAIRequest(req *AIRequest) error {
 		return errors.New("at least one message is required")
 	}
 
-	// Validate message length (max 100KB per message)
-	const maxMessageLength = 100 * 1024
+	// Validate message count
+	if len(req.Messages) > maxMessages {
+		return errors.New("too many messages (maximum 100)")
+	}
+
+	// Validate each message
 	for i, msg := range req.Messages {
 		if msg.Role == "" {
 			return errors.New("message role is required")
@@ -239,16 +271,11 @@ func validateAIRequest(req *AIRequest) error {
 		}
 	}
 
-	// Validate max messages (limit to 100 messages per request)
-	if len(req.Messages) > 100 {
-		return errors.New("too many messages (maximum 100)")
-	}
-
 	// Validate max_tokens if provided
 	if req.MaxTokens < 0 {
 		return errors.New("max_tokens must be non-negative")
 	}
-	if req.MaxTokens > 16384 {
+	if req.MaxTokens > maxMaxTokens {
 		return errors.New("max_tokens exceeds maximum (16384)")
 	}
 
@@ -256,6 +283,7 @@ func validateAIRequest(req *AIRequest) error {
 }
 
 // handleAIError maps AI service errors to HTTP responses.
+// Centralizes error mapping to keep handlers thin.
 func handleAIError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrInsufficientCredits):
