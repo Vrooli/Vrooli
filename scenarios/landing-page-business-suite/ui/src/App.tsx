@@ -28,6 +28,9 @@ import { APIKeysSettings } from './surfaces/admin-portal/routes/APIKeysSettings'
 import { TierLimitsSettings } from './surfaces/admin-portal/routes/TierLimitsSettings';
 import { AppLimitsSettings } from './surfaces/admin-portal/routes/AppLimitsSettings';
 import { UsageDashboard } from './surfaces/admin-portal/routes/UsageDashboard';
+import { AppsManagement } from './surfaces/admin-portal/routes/AppsManagement';
+import { TiersManagement } from './surfaces/admin-portal/routes/TiersManagement';
+import { UserAccounts } from './surfaces/admin-portal/routes/UserAccounts';
 import { UserLogin, VerifyMagicLink } from './surfaces/user-auth';
 
 /**
@@ -314,6 +317,38 @@ export default function App() {
                   <ProtectedRoute>
                     <ErrorBoundary level="route" name="UsageDashboard">
                       <UsageDashboard />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Stub Pages */}
+              <Route
+                path="/admin/apps"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="AppsManagement">
+                      <AppsManagement />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/tiers"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="TiersManagement">
+                      <TiersManagement />
+                    </ErrorBoundary>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/accounts"
+                element={
+                  <ProtectedRoute>
+                    <ErrorBoundary level="route" name="UserAccounts">
+                      <UserAccounts />
                     </ErrorBoundary>
                   </ProtectedRoute>
                 }

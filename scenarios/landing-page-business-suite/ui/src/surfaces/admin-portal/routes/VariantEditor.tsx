@@ -1,38 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Plus, Clipboard } from 'lucide-react';
-import Editor, { type OnMount } from '@monaco-editor/react';
-import type { IDisposable, editor as MonacoEditor, Uri as MonacoUri } from 'monaco-editor';
+import Editor from '@monaco-editor/react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
-import {
-  type Variant,
-  type ContentSection,
-  type VariantSpace,
-  type VariantAxes,
-  type LandingHeaderConfig,
-  type LandingHeaderNavLink,
-  type LandingSection,
-  type HeaderCTAMode,
-} from '../../../shared/api';
-import {
-  buildAxesSelection,
-  hydrateFormFromVariant,
-  loadVariantEditorData,
-  loadVariantSpaceDefinition,
-  loadVariantSnapshot,
-  persistVariant,
-  persistVariantSnapshot,
-  sanitizeSlugInput,
-  validateVariantForm,
-  type VariantFormState,
-  type VariantSnapshotPayload,
-} from '../controllers/variantEditorController';
-import { rememberVariantSession } from '../../../shared/lib/adminExperience';
-import { buildDefaultHeaderConfig, cloneHeaderConfig, normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
-import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId } from '../../../shared/lib/sections';
+import { HeaderConfigurator } from '../components/HeaderConfigurator';
+import { useVariantForm } from '../hooks/useVariantForm';
+import { sanitizeSlugInput } from '../controllers/variantEditorController';
 import variantSchema from '../../../../../.vrooli/schemas/variant.schema.json';
 import heroSchema from '../../../../../.vrooli/schemas/sections/hero.schema.json';
 import featuresSchema from '../../../../../.vrooli/schemas/sections/features.schema.json';
@@ -56,6 +31,7 @@ const monacoSchemaCatalog = [
   { uri: `${sectionSchemaBase}footer.schema.json`, schema: footerSchema },
   { uri: `${sectionSchemaBase}video.schema.json`, schema: videoSchema },
 ];
+const editorModelPath = 'inmemory://model/landing-variant.json';
 
 /**
  * Variant Editor - Create or edit a variant and its sections
@@ -67,290 +43,68 @@ export function VariantEditor() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const isNew = slug === 'new';
-
-  const [variant, setVariant] = useState<Variant | null>(null);
-  const [sections, setSections] = useState<ContentSection[]>([]);
-  const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [variantSpace, setVariantSpace] = useState<VariantSpace | null>(null);
-  const [axesSelection, setAxesSelection] = useState<VariantAxes>({});
-  const [axesSeeded, setAxesSeeded] = useState(false);
-  const [form, setForm] = useState<VariantFormState>({
-    name: '',
-    slug: '',
-    description: '',
-    weight: 50,
-  });
-  const [headerConfig, setHeaderConfig] = useState<LandingHeaderConfig>(() => buildDefaultHeaderConfig(''));
-  const [activeTab, setActiveTab] = useState<'form' | 'json'>('form');
-  const [snapshotDraft, setSnapshotDraft] = useState('');
-  const [snapshotError, setSnapshotError] = useState<string | null>(null);
-  const [snapshotLoading, setSnapshotLoading] = useState(!isNew);
-  const [snapshotSaving, setSnapshotSaving] = useState(false);
-  const [schemaIssues, setSchemaIssues] = useState<string[]>([]);
-  const [copyStatus, setCopyStatus] = useState<string | null>(null);
-  // [REQ:SIGNAL-FEEDBACK] Success feedback for completed operations
   const toast = useToast();
-  const isJsonTab = activeTab === 'json';
-  const currentSaving = isJsonTab ? snapshotSaving : saving;
-  const savingLabel = isJsonTab
-    ? snapshotSaving
-      ? 'Saving JSON...'
-      : 'Save JSON'
-    : saving
-    ? 'Saving...'
-    : 'Save';
-  const editorModelPath = 'inmemory://model/landing-variant.json';
-  const markersListener = useRef<IDisposable | null>(null);
 
-  const handleEditorMount: OnMount = (_editor, monaco) => {
-    const jsonDefaults = (monaco.languages as typeof monaco.languages & {
-      json?: { jsonDefaults?: { setDiagnosticsOptions: (options: unknown) => void } };
-    }).json?.jsonDefaults;
-    if (jsonDefaults) {
-      jsonDefaults.setDiagnosticsOptions({
-        validate: true,
-        allowComments: false,
-        schemas: monacoSchemaCatalog.map(({ uri, schema }) => ({
-          uri,
-          fileMatch: uri === variantSchemaUri ? [editorModelPath] : [uri],
-          schema,
-        })),
-      });
-    }
+  const {
+    // Data state
+    variant,
+    sections,
+    loading,
+    error,
+    validationError,
 
-    const uri = monaco.Uri.parse(editorModelPath);
-    const refreshMarkers = () => {
-      const markers = monaco.editor.getModelMarkers({ resource: uri });
-      setSchemaIssues(
-        markers.map(
-          (marker: MonacoEditor.IMarker) =>
-            `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
-        )
-      );
-    };
+    // Variant space
+    variantSpace,
+    axesSelection,
+    updateAxesSelection,
 
-    markersListener.current?.dispose();
-    markersListener.current = monaco.editor.onDidChangeMarkers((changed: readonly MonacoUri[]) => {
-      const affected = changed.some((change: MonacoUri) => change.toString() === uri.toString());
-      if (affected) {
-        refreshMarkers();
+    // Form state
+    form,
+    updateFormField,
+
+    // Header config
+    headerConfig,
+    setHeaderConfig,
+
+    // Tab state
+    activeTab,
+    setActiveTab,
+    isJsonTab,
+    currentSaving,
+    savingLabel,
+
+    // Snapshot state
+    snapshotDraft,
+    setSnapshotDraft,
+    snapshotError,
+    snapshotLoading,
+    schemaIssues,
+    copyStatus,
+
+    // Actions
+    handleSave,
+    handleSaveJson,
+    handleEditorMount,
+    handleCopyIssues,
+    handleCopySchema,
+  } = useVariantForm({
+    slug,
+    isNew,
+    monacoSchemaCatalog,
+    variantSchemaUri,
+    editorModelPath,
+    onSuccess: (message, title) => toast.success(message, title),
+    onError: (message) => toast.error(message),
+  });
+
+  const handleSaveClick = async () => {
+    if (isJsonTab) {
+      await handleSaveJson();
+    } else {
+      const result = await handleSave();
+      if (result.success && result.savedVariant && isNew) {
+        navigate(`/admin/customization/variants/${result.savedVariant.slug}`);
       }
-    });
-
-    refreshMarkers();
-  };
-
-  const applyAxesSelection = (space: VariantSpace, existing?: VariantAxes) => {
-    setAxesSelection(buildAxesSelection(space, existing));
-  };
-
-  const updateFormField = <K extends keyof VariantFormState>(field: K, value: VariantFormState[K]) => {
-    if (validationError) {
-      setValidationError(null);
-    }
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  useEffect(() => {
-    if (!isNew && slug) {
-      fetchVariant();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchVariant is stable via slug dep
-  }, [isNew, slug]);
-
-  useEffect(() => {
-    const fetchVariantSpaceData = async () => {
-      try {
-        const space = await loadVariantSpaceDefinition();
-        setVariantSpace(space);
-      } catch (err) {
-        console.error('Variant space fetch error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load variant axes');
-      }
-    };
-    fetchVariantSpaceData();
-  }, []);
-
-  const fetchSnapshot = async () => {
-    if (!slug || isNew) return;
-    try {
-      setSnapshotLoading(true);
-      const snapshot = await loadVariantSnapshot(slug);
-      setSnapshotDraft(JSON.stringify(snapshot, null, 2));
-      setSnapshotError(null);
-    } catch (err) {
-      console.error('Variant snapshot fetch error:', err);
-      setSnapshotError(err instanceof Error ? err.message : 'Failed to load variant JSON');
-    } finally {
-      setSnapshotLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!variantSpace || axesSeeded) {
-      return;
-    }
-
-    if (isNew) {
-      applyAxesSelection(variantSpace);
-      setAxesSeeded(true);
-      return;
-    }
-
-    if (variant?.axes) {
-      applyAxesSelection(variantSpace, variant.axes);
-      setAxesSeeded(true);
-    }
-  }, [variantSpace, variant, isNew, axesSeeded]);
-
-  const fetchVariant = async () => {
-    if (!slug) return;
-
-    try {
-      setLoading(true);
-      const data = await loadVariantEditorData(slug);
-      setAxesSeeded(false);
-      setVariant(data.variant);
-      setForm(hydrateFormFromVariant(data.variant));
-      setAxesSelection(data.variant.axes || {});
-      setSections(data.sections);
-      setHeaderConfig(normalizeHeaderConfig(data.variant.header_config, data.variant.name));
-      rememberVariantSession({
-        slug: data.variant.slug,
-        name: data.variant.name,
-        surface: 'variant',
-      });
-      await fetchSnapshot();
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load variant');
-      console.error('Variant fetch error:', err);
-      setSnapshotLoading(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    const validationMessage = validateVariantForm({
-      form,
-      variantSpace,
-      axesSelection,
-      requireSlug: isNew,
-    });
-
-    if (validationMessage) {
-      setValidationError(validationMessage);
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setValidationError(null);
-
-      const saved = await persistVariant({
-        isNew,
-        slugFromRoute: slug,
-        form,
-        axesSelection,
-        headerConfig,
-      });
-
-      if (saved && isNew) {
-        rememberVariantSession({
-          slug: saved.slug,
-          name: saved.name,
-          surface: 'variant',
-        });
-        // [REQ:SIGNAL-FEEDBACK] Success notification for new variant creation
-        toast.success(`Variant "${saved.name}" created`, 'Variant created');
-        navigate(`/admin/customization/variants/${saved.slug}`);
-      } else if (slug) {
-        await fetchVariant();
-        // [REQ:SIGNAL-FEEDBACK] Success notification for variant update
-        toast.success('Variant settings saved', 'Changes saved');
-      }
-
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save variant');
-      // [REQ:SIGNAL-FEEDBACK] Error toast for failed save
-      toast.error('Failed to save variant changes');
-      console.error('Variant save error:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSaveJson = async () => {
-    if (!slug) {
-      setSnapshotError('Variant slug missing');
-      return;
-    }
-    try {
-      setSnapshotSaving(true);
-      setSnapshotError(null);
-
-      const parsed = JSON.parse(snapshotDraft) as VariantSnapshotPayload;
-      const saved = await persistVariantSnapshot(slug, parsed);
-      setSnapshotDraft(JSON.stringify(saved, null, 2));
-      await fetchVariant();
-      // [REQ:SIGNAL-FEEDBACK] Success notification for JSON save
-      toast.success('Variant JSON applied successfully', 'JSON saved');
-    } catch (err) {
-      if (err instanceof SyntaxError) {
-        setSnapshotError(`Invalid JSON: ${err.message}`);
-        toast.error('Invalid JSON syntax');
-      } else {
-        setSnapshotError(err instanceof Error ? err.message : 'Failed to save variant JSON');
-        toast.error('Failed to apply variant JSON');
-      }
-    } finally {
-      setSnapshotSaving(false);
-    }
-  };
-
-  useEffect(
-    () => () => {
-      markersListener.current?.dispose();
-    },
-    []
-  );
-
-  const handleCopyIssues = async () => {
-    if (schemaIssues.length === 0) {
-      setCopyStatus('No schema issues to copy');
-      setTimeout(() => setCopyStatus(null), 2000);
-      return;
-    }
-    const text = schemaIssues.join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopyStatus('Copied schema issues');
-    } catch {
-      // Fallback using a temporary textarea
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        setCopyStatus('Copied schema issues');
-      } catch {
-        setCopyStatus('Copy failed (clipboard blocked)');
-      } finally {
-        document.body.removeChild(textarea);
-      }
-    } finally {
-      setTimeout(() => setCopyStatus(null), 2000);
     }
   };
 
@@ -385,7 +139,7 @@ export function VariantEditor() {
             </p>
           </div>
           <Button
-            onClick={isJsonTab ? handleSaveJson : handleSave}
+            onClick={handleSaveClick}
             disabled={currentSaving || (isJsonTab && (snapshotLoading || isNew))}
             className="gap-2"
             data-testid="save-variant"
@@ -395,6 +149,7 @@ export function VariantEditor() {
           </Button>
         </div>
 
+        {/* Tab Switcher */}
         <div className="flex items-center gap-3 mb-4">
           <Button
             variant={!isJsonTab ? 'default' : 'outline'}
@@ -419,6 +174,7 @@ export function VariantEditor() {
           )}
         </div>
 
+        {/* Error Display */}
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">
             <p className="text-red-400">{error}</p>
@@ -453,14 +209,6 @@ export function VariantEditor() {
                       value={snapshotDraft}
                       onChange={(value) => setSnapshotDraft(value ?? '')}
                       onMount={handleEditorMount}
-                      onValidate={(markers) => {
-                        setSchemaIssues(
-                          markers.map(
-                            (marker) =>
-                              `${marker.message} (line ${marker.startLineNumber}:${marker.startColumn})`
-                          )
-                        );
-                      }}
                       options={{
                         minimap: { enabled: false },
                         fontSize: 13,
@@ -479,17 +227,7 @@ export function VariantEditor() {
                       variant="outline"
                       size="sm"
                       className="gap-2"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(JSON.stringify(variantSchema, null, 2));
-                          setCopyStatus('Schema copied');
-                        } catch (err) {
-                          setCopyStatus('Copy failed');
-                          console.error('Schema copy failed', err);
-                        } finally {
-                          setTimeout(() => setCopyStatus(null), 2000);
-                        }
-                      }}
+                      onClick={() => handleCopySchema(variantSchema)}
                     >
                       <Clipboard className="h-4 w-4" />
                       Copy variant schema
@@ -587,7 +325,7 @@ export function VariantEditor() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-medium text-slate-300">Variant Axes</label>
-                      <span className="text-xs text-slate-500">Persona • Jobs-to-be-done • Conversion style</span>
+                      <span className="text-xs text-slate-500">Persona · Jobs-to-be-done · Conversion style</span>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       {Object.entries(variantSpace.axes).map(([axisId, axisDef]) => {
@@ -601,15 +339,7 @@ export function VariantEditor() {
                             <select
                               className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
                               value={selectedValue}
-                              onChange={(e) => {
-                                if (validationError) {
-                                  setValidationError(null);
-                                }
-                                setAxesSelection((prev) => ({
-                                  ...prev,
-                                  [axisId]: e.target.value,
-                                }));
-                              }}
+                              onChange={(e) => updateAxesSelection(axisId, e.target.value)}
                             >
                               {axisDef.variants.map((axisVariant) => (
                                 <option key={axisVariant.id} value={axisVariant.id}>
@@ -737,540 +467,4 @@ export function VariantEditor() {
       </div>
     </AdminLayout>
   );
-}
-
-interface HeaderConfiguratorProps {
-  config: LandingHeaderConfig;
-  sections: ContentSection[];
-  onChange: React.Dispatch<React.SetStateAction<LandingHeaderConfig>>;
-  variantName: string;
-}
-
-function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderConfiguratorProps) {
-  const [navTarget, setNavTarget] = useState('');
-  const downloadsSection = sections.some((section) => section.section_type === 'downloads');
-
-  const updateConfig = (updater: (draft: LandingHeaderConfig) => void) => {
-    onChange((prev) => {
-      const next = cloneHeaderConfig(prev);
-      updater(next);
-      return next;
-    });
-  };
-
-  const handleAddLink = () => {
-    if (!navTarget) {
-      return;
-    }
-    try {
-      const parsed = JSON.parse(navTarget) as { type: string; id?: number; section_type?: string; order?: number };
-      if (parsed.type === 'downloads') {
-        updateConfig((draft) => {
-          draft.nav.links.push({
-            id: generateNavLinkId('downloads'),
-            type: 'downloads',
-            label: 'Downloads',
-            anchor: DOWNLOAD_ANCHOR_ID,
-            visible_on: { desktop: true, mobile: true },
-          });
-        });
-      } else if (parsed.type === 'section') {
-        const targetSection = sections.find((section) => {
-          if (typeof parsed.id === 'number' && section.id) {
-            return section.id === parsed.id;
-          }
-          return section.section_type === parsed.section_type && section.order === parsed.order;
-        });
-        if (targetSection) {
-          updateConfig((draft) => {
-            draft.nav.links.push(createNavLinkFromSection(targetSection));
-          });
-        }
-      }
-      setNavTarget('');
-    } catch (err) {
-      console.warn('Invalid nav target', err);
-    }
-  };
-
-  const handleNavLabelChange = (index: number, value: string) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[index];
-      if (!link) return;
-      link.label = value;
-    });
-  };
-
-  const handleMenuChildChange = (
-    linkIndex: number,
-    childIndex: number,
-    field: 'label' | 'href',
-    value: string,
-  ) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      if (!link.children[childIndex]) {
-        link.children[childIndex] = {
-          id: generateNavLinkId('child'),
-          type: 'custom',
-          label: '',
-          href: '',
-          visible_on: { desktop: true, mobile: true },
-        };
-      }
-      if (field === 'label') {
-        link.children[childIndex].label = value;
-      } else {
-        link.children[childIndex].href = value;
-      }
-    });
-  };
-
-  const handleAddMenuChild = (linkIndex: number) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      link.children.push({
-        id: generateNavLinkId('child'),
-        type: 'custom',
-        label: 'Menu item',
-        href: '#',
-        visible_on: { desktop: true, mobile: true },
-      });
-    });
-  };
-
-  const handleRemoveMenuChild = (linkIndex: number, childIndex: number) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu' || !Array.isArray(link.children)) return;
-      link.children.splice(childIndex, 1);
-    });
-  };
-
-  const handleVisibilityToggle = (index: number, key: 'desktop' | 'mobile', value: boolean) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[index];
-      if (!link) return;
-      link.visible_on = {
-        desktop: key === 'desktop' ? value : link.visible_on?.desktop ?? true,
-        mobile: key === 'mobile' ? value : link.visible_on?.mobile ?? true,
-      };
-    });
-  };
-
-  const handleRemoveLink = (index: number) => {
-    updateConfig((draft) => {
-      if (index < 0 || index >= draft.nav.links.length) return;
-      draft.nav.links.splice(index, 1);
-    });
-  };
-
-  const handleAddMenu = () => {
-    updateConfig((draft) => {
-      draft.nav.links.push({
-        id: generateNavLinkId('menu'),
-        type: 'menu',
-        label: 'Menu',
-        visible_on: { desktop: true, mobile: true },
-        children: [
-          {
-            id: generateNavLinkId('menu-item'),
-            type: 'custom',
-            label: 'First link',
-            href: '#',
-            visible_on: { desktop: true, mobile: true },
-          },
-          {
-            id: generateNavLinkId('menu-item'),
-            type: 'custom',
-            label: 'Second link',
-            href: '#',
-            visible_on: { desktop: true, mobile: true },
-          },
-        ],
-      });
-    });
-  };
-
-  const handleMoveLink = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= config.nav.links.length) {
-      return;
-    }
-    updateConfig((draft) => {
-      const [link] = draft.nav.links.splice(index, 1);
-      draft.nav.links.splice(nextIndex, 0, link);
-    });
-  };
-
-  const handleCTAModeChange = (
-    target: 'primary' | 'secondary',
-    updates: { mode?: HeaderCTAMode; label?: string; href?: string; variant?: 'solid' | 'ghost' },
-  ) => {
-    updateConfig((draft) => {
-      draft.ctas[target] = {
-        ...draft.ctas[target],
-        ...updates,
-      };
-    });
-  };
-
-  return (
-    <Card className="bg-white/5 border-white/10 mb-6">
-      <CardHeader>
-        <CardTitle>Header Presentation</CardTitle>
-        <CardDescription className="text-slate-400">Branding, navigation, and CTA controls</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-slate-200 font-medium">Branding</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm text-slate-300 mb-1 block">Display mode</label>
-              <select
-                value={config.branding?.mode ?? 'logo_and_name'}
-                onChange={(e) =>
-                  updateConfig((draft) => {
-                    draft.branding.mode = e.target.value as LandingHeaderConfig['branding']['mode'];
-                  })
-                }
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
-              >
-                <option value="logo_and_name">Logo + Name</option>
-                <option value="logo">Logo only</option>
-                <option value="name">Name only</option>
-                <option value="none">Minimal</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm text-slate-300 mb-1 block">Mobile emphasis</label>
-              <select
-                value={config.branding?.mobile_preference ?? 'auto'}
-                onChange={(e) =>
-                  updateConfig((draft) => {
-                    draft.branding.mobile_preference = e.target.value as LandingHeaderConfig['branding']['mobile_preference'];
-                  })
-                }
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
-              >
-                <option value="auto">Show both</option>
-                <option value="logo">Logo on mobile</option>
-                <option value="name">Name on mobile</option>
-                <option value="stacked">Stacked</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm text-slate-300 mb-1 block">Brand label</label>
-              <input
-                type="text"
-                value={config.branding?.label ?? variantName}
-                onChange={(e) =>
-                  updateConfig((draft) => {
-                    draft.branding.label = e.target.value;
-                  })
-                }
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
-                placeholder="Header title"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-slate-300 mb-1 block">Subtitle</label>
-              <input
-                type="text"
-                value={config.branding?.subtitle ?? ''}
-                onChange={(e) =>
-                  updateConfig((draft) => {
-                    draft.branding.subtitle = e.target.value;
-                  })
-                }
-                className="w-full bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
-                placeholder="Optional tagline"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-slate-200 font-medium">Navigation Links</h3>
-            <div className="flex gap-2">
-              <select
-                value={navTarget}
-                onChange={(e) => setNavTarget(e.target.value)}
-                className="bg-slate-900/50 border border-slate-800 rounded-lg px-3 py-2 text-white"
-              >
-                <option value="">Select target</option>
-                {sections.map((section, index) => (
-                  <option
-                    key={`${section.section_type}-${section.id ?? index}`}
-                    value={JSON.stringify({
-                      type: 'section',
-                      id: section.id ?? null,
-                      section_type: section.section_type,
-                      order: section.order,
-                    })}
-                  >
-                    Section · {section.section_type} #{section.order}
-                  </option>
-                ))}
-                <option
-                  value={JSON.stringify({ type: 'downloads' })}
-                  disabled={!downloadsSection}
-                >
-                  Downloads anchor
-                </option>
-              </select>
-              <Button variant="secondary" size="sm" onClick={handleAddLink}>
-                Add link
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleAddMenu}>
-                Add menu
-              </Button>
-            </div>
-          </div>
-          {config.nav.links.length === 0 ? (
-            <p className="text-sm text-slate-400">
-              No manual links added. The header will mirror section order automatically.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {config.nav.links.map((link, index) => (
-                <div key={link.id} className="rounded-lg border border-white/5 bg-slate-900/40 p-3 space-y-2">
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <div className="flex-1">
-                      <label className="text-xs text-slate-400 block mb-1">Label</label>
-                      <input
-                        type="text"
-                        value={link.label}
-                        onChange={(e) => handleNavLabelChange(index, e.target.value)}
-                        className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-2 text-white"
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <label className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={link.visible_on?.desktop ?? true}
-                          onChange={(e) => handleVisibilityToggle(index, 'desktop', e.target.checked)}
-                        />
-                        Desktop
-                      </label>
-                      <label className="flex items-center gap-1">
-                        <input
-                          type="checkbox"
-                          checked={link.visible_on?.mobile ?? true}
-                          onChange={(e) => handleVisibilityToggle(index, 'mobile', e.target.checked)}
-                        />
-                        Mobile
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleMoveLink(index, -1)} disabled={index === 0}>
-                        ↑
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleMoveLink(index, 1)}
-                        disabled={index === config.nav.links.length - 1}
-                      >
-                        ↓
-                      </Button>
-                      <Button variant="destructive" size="icon" onClick={() => handleRemoveLink(index)}>
-                        ×
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {link.type === 'downloads'
-                      ? 'Downloads anchor'
-                      : link.type === 'menu'
-                        ? 'Dropdown menu'
-                        : `Link to ${link.section_type ?? 'custom target'}`}
-                  </p>
-                  {link.type === 'menu' && (
-                    <div className="space-y-2 rounded-md border border-white/10 bg-slate-900/60 p-3">
-                      <div className="flex items-center justify-between text-xs text-slate-400">
-                        <span>Menu items</span>
-                        <Button size="sm" variant="secondary" onClick={() => handleAddMenuChild(index)}>
-                          Add item
-                        </Button>
-                      </div>
-                      {(!link.children || link.children.length === 0) && (
-                        <p className="text-xs text-slate-500">No items yet.</p>
-                      )}
-                      {link.children?.map((child, childIndex) => (
-                        <div key={child.id} className="flex flex-col gap-2 rounded border border-white/5 bg-slate-900/50 p-2 md:flex-row md:items-center md:gap-3">
-                          <div className="flex-1">
-                            <label className="text-[11px] text-slate-400 block mb-1">Item label</label>
-                            <input
-                              type="text"
-                              value={child.label}
-                              onChange={(e) => handleMenuChildChange(index, childIndex, 'label', e.target.value)}
-                              className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label className="text-[11px] text-slate-400 block mb-1">URL or anchor</label>
-                            <input
-                              type="text"
-                              value={child.href ?? ''}
-                              onChange={(e) => handleMenuChildChange(index, childIndex, 'href', e.target.value)}
-                              className="w-full bg-slate-900/60 border border-slate-800 rounded px-3 py-1.5 text-white"
-                            />
-                          </div>
-                          <Button variant="destructive" size="sm" onClick={() => handleRemoveMenuChild(index, childIndex)}>
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <h3 className="text-slate-200 font-medium">Primary CTA</h3>
-            <select
-              value={config.ctas.primary.mode ?? 'inherit_hero'}
-              onChange={(e) => handleCTAModeChange('primary', { mode: e.target.value as HeaderCTAMode })}
-              className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-            >
-              <option value="inherit_hero">Use hero CTA</option>
-              <option value="downloads">Downloads anchor</option>
-              <option value="custom">Custom link</option>
-              <option value="hidden">Hidden</option>
-            </select>
-            {config.ctas.primary.mode === 'custom' && (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-                  placeholder="Button label"
-                  value={config.ctas.primary.label ?? ''}
-                  onChange={(e) => handleCTAModeChange('primary', { label: e.target.value })}
-                />
-                <input
-                  type="text"
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-                  placeholder="https://example.com"
-                  value={config.ctas.primary.href ?? ''}
-                  onChange={(e) => handleCTAModeChange('primary', { href: e.target.value })}
-                />
-              </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-slate-200 font-medium">Secondary CTA</h3>
-            <select
-              value={config.ctas.secondary.mode ?? 'downloads'}
-              onChange={(e) => handleCTAModeChange('secondary', { mode: e.target.value as HeaderCTAMode })}
-              className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-            >
-              <option value="downloads">Downloads anchor</option>
-              <option value="inherit_hero">Use hero CTA</option>
-              <option value="custom">Custom link</option>
-              <option value="hidden">Hidden</option>
-            </select>
-            {(config.ctas.secondary.mode === 'custom' || config.ctas.secondary.mode === 'downloads') && (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-                  placeholder="Button label"
-                  value={config.ctas.secondary.label ?? ''}
-                  onChange={(e) => handleCTAModeChange('secondary', { label: e.target.value })}
-                />
-                {config.ctas.secondary.mode === 'custom' && (
-                  <input
-                    type="text"
-                    className="w-full bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-white"
-                    placeholder="https://example.com"
-                    value={config.ctas.secondary.href ?? ''}
-                    onChange={(e) => handleCTAModeChange('secondary', { href: e.target.value })}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-slate-200 font-medium">Behavior</h3>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={config.behavior.sticky}
-              onChange={(e) =>
-                updateConfig((draft) => {
-                  draft.behavior.sticky = e.target.checked;
-                  if (!e.target.checked) {
-                    draft.behavior.hide_on_scroll = false;
-                  }
-                })
-              }
-            />
-            Sticky header
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={config.behavior.hide_on_scroll}
-              disabled={!config.behavior.sticky}
-              onChange={(e) =>
-                updateConfig((draft) => {
-                  draft.behavior.hide_on_scroll = e.target.checked;
-                })
-              }
-            />
-            Hide on downward scroll
-          </label>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function createNavLinkFromSection(section: ContentSection): LandingHeaderNavLink {
-  const anchorSection = {
-    id: section.id,
-    section_type: section.section_type,
-    order: section.order,
-    content: section.content,
-  } as LandingSection;
-
-  return {
-    id: generateNavLinkId(section.section_type),
-    type: 'section',
-    label: section.section_type.replace(/_/g, ' '),
-    section_type: section.section_type,
-    section_id: section.id ?? undefined,
-    anchor: getSectionAnchorId(anchorSection),
-    visible_on: { desktop: true, mobile: true },
-  };
-}
-
-function generateNavLinkId(prefix: string) {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      // ignore
-    }
-  }
-  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 1000)}`;
 }
