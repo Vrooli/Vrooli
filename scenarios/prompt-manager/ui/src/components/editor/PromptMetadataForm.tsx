@@ -42,7 +42,7 @@ export function PromptMetadataForm({
           onChange={(v) => onFieldChange('icon', v)}
         />
         <div className="flex-1">
-          <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-1">
+          <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">
             Name <span className="text-red-400">*</span>
           </label>
           <input
@@ -52,9 +52,9 @@ export function PromptMetadataForm({
             onChange={(e) => onFieldChange('name', e.target.value)}
             placeholder="Prompt name..."
             className={cn(
-              'w-full px-3 py-2 bg-slate-800 border rounded-lg text-white text-sm',
-              'placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500',
-              validation.errors.name ? 'border-red-500' : 'border-white/10'
+              'w-full px-3 py-2 bg-muted border rounded-lg text-foreground text-sm',
+              'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary',
+              validation.errors.name ? 'border-red-500' : 'border-border'
             )}
           />
           {validation.errors.name && (
@@ -65,7 +65,7 @@ export function PromptMetadataForm({
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-1">
+        <label htmlFor="description" className="block text-sm font-medium text-muted-foreground mb-1">
           Description
         </label>
         <textarea
@@ -75,9 +75,9 @@ export function PromptMetadataForm({
           placeholder="Brief description of what this prompt does..."
           rows={2}
           className={cn(
-            'w-full px-3 py-2 bg-slate-800 border rounded-lg text-white text-sm resize-none',
-            'placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500',
-            validation.errors.description ? 'border-red-500' : 'border-white/10'
+            'w-full px-3 py-2 bg-muted border rounded-lg text-foreground text-sm resize-none',
+            'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary',
+            validation.errors.description ? 'border-red-500' : 'border-border'
           )}
         />
         {validation.errors.description && (
@@ -97,7 +97,7 @@ export function PromptMetadataForm({
       {/* Tags and Draft row */}
       <div className="flex gap-4">
         <div className="flex-1">
-          <label htmlFor="tags" className="block text-sm font-medium text-slate-300 mb-1">
+          <label htmlFor="tags" className="block text-sm font-medium text-muted-foreground mb-1">
             Tags
           </label>
           <input
@@ -106,9 +106,9 @@ export function PromptMetadataForm({
             value={formState.tags}
             onChange={(e) => onFieldChange('tags', e.target.value)}
             placeholder="Comma-separated tags..."
-            className="w-full px-3 py-2 bg-slate-800 border border-white/10 rounded-lg text-white text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <p className="mt-1 text-xs text-slate-500">Separate multiple tags with commas</p>
+          <p className="mt-1 text-xs text-muted-foreground">Separate multiple tags with commas</p>
         </div>
 
         <div className="flex items-end pb-6">
@@ -117,16 +117,16 @@ export function PromptMetadataForm({
               type="checkbox"
               checked={formState.draft}
               onChange={(e) => onFieldChange('draft', e.target.checked)}
-              className="w-4 h-4 rounded border-white/20 bg-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0"
+              className="w-4 h-4 rounded border-border bg-muted text-primary focus:ring-primary focus:ring-offset-0"
             />
-            <span className="text-sm text-slate-300">Draft</span>
+            <span className="text-sm text-muted-foreground">Draft</span>
           </label>
         </div>
       </div>
 
       {/* Folder selector */}
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">
+        <label className="block text-sm font-medium text-muted-foreground mb-2">
           Storage Location
         </label>
         <div className="space-y-2">
@@ -134,8 +134,8 @@ export function PromptMetadataForm({
             className={cn(
               'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
               formState.folder === 'internal'
-                ? 'border-indigo-500 bg-indigo-500/10'
-                : 'border-white/10 hover:border-white/20 bg-slate-800/50'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-border/80 bg-muted/50'
             )}
           >
             <input
@@ -144,11 +144,11 @@ export function PromptMetadataForm({
               value="internal"
               checked={formState.folder === 'internal'}
               onChange={() => onFieldChange('folder', 'internal')}
-              className="mt-0.5 w-4 h-4 text-indigo-600 bg-slate-800 border-white/20 focus:ring-indigo-500 focus:ring-offset-0"
+              className="mt-0.5 w-4 h-4 text-primary bg-muted border-border focus:ring-primary focus:ring-offset-0"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium text-white">Internal</div>
-              <div className="text-xs text-slate-400 mt-0.5">
+              <div className="text-sm font-medium text-foreground">Internal</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Personal prompts, gitignored. Only visible on this machine.
               </div>
             </div>
@@ -157,8 +157,8 @@ export function PromptMetadataForm({
             className={cn(
               'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
               formState.folder === 'core'
-                ? 'border-indigo-500 bg-indigo-500/10'
-                : 'border-white/10 hover:border-white/20 bg-slate-800/50'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:border-border/80 bg-muted/50'
             )}
           >
             <input
@@ -167,11 +167,11 @@ export function PromptMetadataForm({
               value="core"
               checked={formState.folder === 'core'}
               onChange={() => onFieldChange('folder', 'core')}
-              className="mt-0.5 w-4 h-4 text-indigo-600 bg-slate-800 border-white/20 focus:ring-indigo-500 focus:ring-offset-0"
+              className="mt-0.5 w-4 h-4 text-primary bg-muted border-border focus:ring-primary focus:ring-offset-0"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium text-white">Core</div>
-              <div className="text-xs text-slate-400 mt-0.5">
+              <div className="text-sm font-medium text-foreground">Core</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
                 Shared prompts, git-tracked. Available across all instances.
               </div>
             </div>

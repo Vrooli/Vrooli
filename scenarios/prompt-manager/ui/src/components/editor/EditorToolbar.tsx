@@ -63,8 +63,8 @@ export function EditorToolbar({
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
           canSave
-            ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
-            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+            : 'bg-muted text-muted-foreground cursor-not-allowed'
         )}
         title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
       >
@@ -81,8 +81,8 @@ export function EditorToolbar({
           className={cn(
             'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
             canSaveAll
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              ? 'bg-emerald-600 hover:bg-emerald-500 text-white dark:bg-emerald-600 dark:hover:bg-emerald-500'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           title={`Save all ${dirtyCount} pending changes (Ctrl+Shift+S)`}
         >
@@ -99,8 +99,8 @@ export function EditorToolbar({
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
           canDiscard
-            ? 'bg-slate-700 hover:bg-slate-600 text-white'
-            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            ? 'bg-muted hover:bg-muted/80 text-foreground'
+            : 'bg-muted text-muted-foreground cursor-not-allowed'
         )}
         title="Discard changes"
       >
@@ -120,8 +120,8 @@ export function EditorToolbar({
           className={cn(
             'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
             !isSaving
-              ? 'bg-amber-600 hover:bg-amber-500 text-white'
-              : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              ? 'bg-amber-600 hover:bg-amber-500 text-white dark:bg-amber-600 dark:hover:bg-amber-500'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           title="Test prompt with Ollama"
         >
@@ -138,8 +138,8 @@ export function EditorToolbar({
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
           canDelete
-            ? 'bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/50 hover:border-red-600'
-            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            ? 'bg-destructive/20 hover:bg-destructive text-destructive hover:text-destructive-foreground border border-destructive/50 hover:border-destructive'
+            : 'bg-muted text-muted-foreground cursor-not-allowed'
         )}
         title="Delete prompt"
       >

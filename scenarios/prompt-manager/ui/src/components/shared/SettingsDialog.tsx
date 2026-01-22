@@ -38,7 +38,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           aria-describedby="settings-dialog-description"
           className={cn(
             'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
-            'w-full max-w-md bg-slate-900 border border-white/10 rounded-xl shadow-2xl',
+            'w-full max-w-md bg-card border border-border rounded-xl shadow-2xl',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
@@ -52,14 +52,14 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           </Dialog.Description>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <Dialog.Title className="text-lg font-semibold text-white">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <Dialog.Title className="text-lg font-semibold text-foreground">
               Settings
             </Dialog.Title>
             <Dialog.Close asChild>
               <button
                 type="button"
-                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
@@ -71,7 +71,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           <div className="px-6 py-4 space-y-6">
             {/* Theme Section */}
             <div>
-              <h4 className="text-sm font-medium text-slate-300 mb-3">Appearance</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Appearance</h4>
               <div className="flex gap-2">
                 {themeOptions.map((option) => {
                   const Icon = option.icon
@@ -84,8 +84,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                       className={cn(
                         'flex-1 flex flex-col items-center gap-2 px-4 py-3 rounded-lg border transition-all',
                         isSelected
-                          ? 'bg-indigo-600/20 border-indigo-500 text-white'
-                          : 'bg-slate-800/50 border-white/10 text-slate-400 hover:bg-slate-800 hover:text-white'
+                          ? 'bg-primary/20 border-primary text-foreground'
+                          : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:text-foreground'
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -98,7 +98,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
             {/* Keyboard Shortcuts Section */}
             <div>
-              <h4 className="text-sm font-medium text-slate-300 mb-3">Keyboard Shortcuts</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Keyboard Shortcuts</h4>
               <div className="space-y-2 text-sm">
                 <ShortcutRow label="Save current prompt" shortcut={getShortcutDisplay('save')} />
                 <ShortcutRow label="Save all changes" shortcut={getShortcutDisplay('saveAll')} />
@@ -111,8 +111,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-white/10">
-            <p className="text-xs text-slate-500 text-center">
+          <div className="px-6 py-4 border-t border-border">
+            <p className="text-xs text-muted-foreground text-center">
               Prompt Manager v1.0
             </p>
           </div>
@@ -125,8 +125,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 function ShortcutRow({ label, shortcut }: { label: string; shortcut: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-slate-400">{label}</span>
-      <kbd className="px-2 py-1 text-xs font-mono bg-slate-800 border border-white/10 rounded text-slate-300">
+      <span className="text-muted-foreground">{label}</span>
+      <kbd className="px-2 py-1 text-xs font-mono bg-muted border border-border rounded text-foreground">
         {shortcut}
       </kbd>
     </div>

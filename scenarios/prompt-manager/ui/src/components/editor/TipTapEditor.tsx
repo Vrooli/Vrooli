@@ -64,8 +64,8 @@ function ToolbarButton({ onClick, isActive, disabled, title, children }: Toolbar
       className={cn(
         'p-1.5 rounded transition-colors',
         isActive
-          ? 'bg-indigo-600/30 text-indigo-300'
-          : 'text-slate-400 hover:text-white hover:bg-white/10',
+          ? 'bg-primary/30 text-primary'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >
@@ -75,7 +75,7 @@ function ToolbarButton({ onClick, isActive, disabled, title, children }: Toolbar
 }
 
 function ToolbarDivider() {
-  return <div className="w-px h-6 bg-white/10 mx-1" />
+  return <div className="w-px h-6 bg-border mx-1" />
 }
 
 export function TipTapEditor({
@@ -99,7 +99,7 @@ export function TipTapEditor({
         codeBlock: false,
         code: {
           HTMLAttributes: {
-            class: 'bg-slate-800 rounded px-1.5 py-0.5 font-mono text-sm text-indigo-300',
+            class: 'bg-muted rounded px-1.5 py-0.5 font-mono text-sm text-primary',
           },
         },
       }),
@@ -136,7 +136,7 @@ export function TipTapEditor({
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'text-indigo-400 underline hover:text-indigo-300 cursor-pointer',
+          class: 'text-primary underline hover:text-primary/80 cursor-pointer',
         },
       }),
     ],
@@ -146,20 +146,20 @@ export function TipTapEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-invert prose-sm max-w-none',
+          'prose dark:prose-invert prose-sm max-w-none',
           'focus:outline-none min-h-[200px] p-4',
           // Heading styles - distinct sizes for visual hierarchy
-          'prose-h1:text-2xl prose-h1:font-bold prose-h1:text-white prose-h1:mt-6 prose-h1:mb-4',
-          'prose-h2:text-xl prose-h2:font-bold prose-h2:text-white prose-h2:mt-5 prose-h2:mb-3',
-          'prose-h3:text-lg prose-h3:font-semibold prose-h3:text-white prose-h3:mt-4 prose-h3:mb-2',
-          'prose-p:text-slate-300 prose-p:leading-relaxed',
-          'prose-a:text-indigo-400 prose-a:no-underline hover:prose-a:underline',
-          'prose-strong:text-white prose-em:text-slate-200',
-          'prose-code:text-indigo-300 prose-code:bg-slate-800',
-          'prose-pre:bg-slate-800 prose-pre:rounded-lg',
-          'prose-blockquote:border-indigo-500 prose-blockquote:text-slate-400',
-          'prose-ul:text-slate-300 prose-ol:text-slate-300',
-          'prose-li:text-slate-300'
+          'prose-h1:text-2xl prose-h1:font-bold prose-h1:text-foreground prose-h1:mt-6 prose-h1:mb-4',
+          'prose-h2:text-xl prose-h2:font-bold prose-h2:text-foreground prose-h2:mt-5 prose-h2:mb-3',
+          'prose-h3:text-lg prose-h3:font-semibold prose-h3:text-foreground prose-h3:mt-4 prose-h3:mb-2',
+          'prose-p:text-muted-foreground prose-p:leading-relaxed',
+          'prose-a:text-primary prose-a:no-underline hover:prose-a:underline',
+          'prose-strong:text-foreground prose-em:text-foreground/90',
+          'prose-code:text-primary prose-code:bg-muted',
+          'prose-pre:bg-muted prose-pre:rounded-lg',
+          'prose-blockquote:border-primary prose-blockquote:text-muted-foreground',
+          'prose-ul:text-muted-foreground prose-ol:text-muted-foreground',
+          'prose-li:text-muted-foreground'
         ),
       },
     },
@@ -237,8 +237,8 @@ export function TipTapEditor({
 
   if (!editor) {
     return (
-      <div className={cn('flex-1 bg-slate-800 rounded-lg border border-white/10', className)}>
-        <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+      <div className={cn('flex-1 bg-card rounded-lg border border-border', className)}>
+        <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
           Loading editor...
         </div>
       </div>
@@ -246,10 +246,10 @@ export function TipTapEditor({
   }
 
   return (
-    <div className={cn('flex flex-col bg-slate-800 rounded-lg border border-white/10', className)}>
+    <div className={cn('flex flex-col bg-card rounded-lg border border-border', className)}>
       {/* Toolbar */}
       {!disabled && (
-        <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-white/10">
+        <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
           <ToolbarButton
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
@@ -388,8 +388,8 @@ export function TipTapEditor({
 
       {/* Link input dialog */}
       {showLinkInput && (
-        <div className="flex-shrink-0 flex items-center gap-2 px-2 py-2 border-b border-white/10 bg-slate-900/50">
-          <LinkIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        <div className="flex-shrink-0 flex items-center gap-2 px-2 py-2 border-b border-border bg-muted/50">
+          <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           <input
             ref={linkInputRef}
             type="url"
@@ -407,15 +407,15 @@ export function TipTapEditor({
             placeholder="Enter URL (e.g., https://example.com)"
             className={cn(
               'flex-1 px-2 py-1 text-sm',
-              'bg-slate-800 border border-white/10 rounded',
-              'text-white placeholder:text-slate-500',
-              'focus:outline-none focus:ring-2 focus:ring-indigo-500'
+              'bg-muted border border-border rounded',
+              'text-foreground placeholder:text-muted-foreground',
+              'focus:outline-none focus:ring-2 focus:ring-primary'
             )}
           />
           <button
             type="button"
             onClick={setLink}
-            className="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+            className="px-3 py-1 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors"
           >
             Add
           </button>
@@ -425,7 +425,7 @@ export function TipTapEditor({
               setShowLinkInput(false)
               setLinkUrl('')
             }}
-            className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+            className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 text-foreground rounded transition-colors"
           >
             Cancel
           </button>

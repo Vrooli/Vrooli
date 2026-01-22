@@ -18,6 +18,7 @@ import {
   validateFormState,
   createEmptyFormState,
 } from '@/services/editorService'
+import * as promptService from '@/services/promptService'
 
 interface UsePromptEditorProps {
   prompts: Prompt[]
@@ -139,8 +140,7 @@ export function usePromptEditor({
   }, [selectedItemId])
 
   // Effect 2: Load form when selection or prompts change
-  // Uses a ref to access pendingChanges without adding to deps
-  // This prevents the stale closure issue while avoiding re-runs on pendingChanges changes
+  // Fetches full prompt with content if the list prompt doesn't include content
   useEffect(() => {
     if (!selectedItemId) return
 
@@ -152,10 +152,29 @@ export function usePromptEditor({
     }
 
     // Find prompt directly instead of relying on memo to avoid race condition
-    const prompt = prompts.find((p) => p.id === selectedItemId)
-    if (prompt) {
-      setFormState(promptToFormState(prompt))
+    const listPrompt = prompts.find((p) => p.id === selectedItemId)
+    if (!listPrompt) return
+
+    // If list prompt has content, use it directly
+    if (listPrompt.content && listPrompt.content.trim()) {
+      setFormState(promptToFormState(listPrompt))
+      return
     }
+
+    // Fetch full prompt with content from API
+    promptService.getPrompt(selectedItemId)
+      .then((fullPrompt) => {
+        if (fullPrompt) {
+          setFormState(promptToFormState(fullPrompt))
+        } else {
+          // Fallback to list prompt if fetch fails
+          setFormState(promptToFormState(listPrompt))
+        }
+      })
+      .catch(() => {
+        // Fallback to list prompt on error
+        setFormState(promptToFormState(listPrompt))
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingChanges intentionally excluded to prevent stale closure
   }, [selectedItemId, prompts])
 

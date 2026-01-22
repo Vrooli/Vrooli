@@ -144,8 +144,8 @@ function Combobox({
             placeholder={placeholder || `Level ${level + 1}`}
             disabled={disabled}
             className={cn(
-              'w-full px-3 py-2 pr-8 bg-slate-800 border border-white/10 rounded-lg text-white text-sm',
-              'placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500',
+              'w-full px-3 py-2 pr-8 bg-muted border border-border rounded-lg text-foreground text-sm',
+              'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary',
               disabled && 'opacity-50 cursor-not-allowed'
             )}
           />
@@ -153,7 +153,7 @@ function Combobox({
             type="button"
             onClick={() => !disabled && setIsOpen(!isOpen)}
             disabled={disabled}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           >
             <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
           </button>
@@ -171,7 +171,7 @@ function Combobox({
           <div
             className={cn(
               'absolute z-50 mt-1 w-full max-h-48 overflow-y-auto',
-              'bg-slate-900 border border-white/10 rounded-lg shadow-xl',
+              'bg-popover border border-border rounded-lg shadow-xl',
               'animate-in fade-in-0 zoom-in-95 duration-100'
             )}
           >
@@ -183,15 +183,15 @@ function Combobox({
                   onClick={() => handleSelect(suggestion)}
                   className={cn(
                     'w-full px-3 py-2 text-left text-sm transition-colors',
-                    'hover:bg-white/5 focus:bg-white/5 focus:outline-none',
-                    suggestion === value ? 'text-indigo-300 bg-indigo-600/20' : 'text-slate-300'
+                    'hover:bg-muted focus:bg-muted focus:outline-none',
+                    suggestion === value ? 'text-primary bg-primary/20' : 'text-muted-foreground'
                   )}
                 >
                   {suggestion}
                 </button>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-slate-500">
+              <div className="px-3 py-2 text-sm text-muted-foreground">
                 Press Enter to create "{inputValue}"
               </div>
             )}
@@ -206,7 +206,7 @@ function Combobox({
           onClick={onDelete}
           disabled={disabled}
           className={cn(
-            'p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-red-400 transition-colors',
+            'p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-colors',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           title="Remove level"
@@ -279,7 +279,7 @@ export function CategoryPathEditor({
   return (
     <div className="space-y-2">
       {/* Label */}
-      <label className="block text-sm font-medium text-slate-300">
+      <label className="block text-sm font-medium text-muted-foreground">
         {label}
         {required && <span className="text-red-400 ml-1">*</span>}
       </label>
@@ -310,8 +310,8 @@ export function CategoryPathEditor({
           onClick={handleAddLevel}
           disabled={disabled}
           className={cn(
-            'flex items-center gap-1.5 px-2 py-1.5 text-xs text-slate-400 hover:text-white',
-            'hover:bg-white/5 rounded-lg transition-colors',
+            'flex items-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground',
+            'hover:bg-muted rounded-lg transition-colors',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
         >
@@ -321,7 +321,7 @@ export function CategoryPathEditor({
       )}
 
       {/* Path preview */}
-      <p className="text-xs text-slate-500">Path: {pathPreview}</p>
+      <p className="text-xs text-muted-foreground">Path: {pathPreview}</p>
 
       {/* Error message */}
       {error && <p className="text-xs text-red-400">{error}</p>}

@@ -54,19 +54,13 @@ export async function getPrompts(forceRefresh = false): Promise<Prompt[]> {
 
 /**
  * Get a single prompt by ID.
- * Uses cached data if available, otherwise fetches.
+ * Always fetches from API since the list cache doesn't include content.
  *
  * @param id - Prompt ID
  * @returns The prompt, or undefined if not found
  */
 export async function getPrompt(id: string): Promise<Prompt | undefined> {
-  // Try cache first
-  if (isCacheValid(promptsCache)) {
-    const cached = promptsCache.data.find((p) => p.id === id)
-    if (cached) return cached
-  }
-
-  // Fetch from API
+  // Always fetch from API - list cache doesn't include content
   try {
     return await api.getPrompt(id)
   } catch (error) {

@@ -31,6 +31,8 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import type { Prompt, CreatePromptRequest } from '@/types'
 
+const COLLAPSED_SIDEBAR_WIDTH = 60
+
 /**
  * Main layout component for the prompt manager.
  */
@@ -293,37 +295,39 @@ export function PromptManagerLayout() {
       {/* Desktop sidebar with resize handle */}
       {!isMobile && (
         <div
-          className="relative flex-shrink-0"
-          style={{ width: sidebarWidth }}
+          className="relative flex-shrink-0 transition-[width] duration-200"
+          style={{ width: isCollapsed ? COLLAPSED_SIDEBAR_WIDTH : sidebarWidth }}
         >
           {sidebar}
           {/* Resize handle - wider hit area (12px) with narrow visual indicator */}
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize sidebar"
-            tabIndex={0}
-            onMouseDown={handleResizeStart}
-            className={`
-              absolute top-0 right-0 h-full w-3 cursor-col-resize
-              flex items-center justify-center group
-              ${isResizing ? '' : ''}
-            `}
-          >
-            {/* Visual indicator - narrow line with subtle visibility */}
+          {!isCollapsed && (
             <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              tabIndex={0}
+              onMouseDown={handleResizeStart}
               className={`
-                absolute right-0 top-0 h-full w-0.5 transition-colors
-                ${isResizing ? 'bg-indigo-500' : 'bg-slate-700 group-hover:bg-indigo-500/50'}
+                absolute top-0 right-0 h-full w-3 cursor-col-resize
+                flex items-center justify-center group
+                ${isResizing ? '' : ''}
               `}
-            />
-            <GripVertical
-              className={`
-                h-6 w-3 text-slate-600 opacity-30 group-hover:opacity-100 transition-opacity z-10
-                ${isResizing ? 'opacity-100 text-indigo-400' : ''}
-              `}
-            />
-          </div>
+            >
+              {/* Visual indicator - narrow line with subtle visibility */}
+              <div
+                className={`
+                  absolute right-0 top-0 h-full w-0.5 transition-colors
+                  ${isResizing ? 'bg-primary' : 'bg-border group-hover:bg-primary/50'}
+                `}
+              />
+              <GripVertical
+                className={`
+                  h-6 w-3 text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity z-10
+                  ${isResizing ? 'opacity-100 text-primary' : ''}
+                `}
+              />
+            </div>
+          )}
         </div>
       )}
 
