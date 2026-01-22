@@ -9,7 +9,7 @@
  */
 
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { Check, Copy } from 'lucide-react'
 import { detectLanguage, normalizeLanguage } from './languageDetection'
 
@@ -85,8 +85,23 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
   node,
   updateAttributes,
   extension,
+  editor,
 }: NodeViewProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
+
+  // Track editor focus state using React's useSyncExternalStore for reliable updates
+  const isEditorFocused = useSyncExternalStore(
+    (callback) => {
+      editor.on('focus', callback)
+      editor.on('blur', callback)
+      return () => {
+        editor.off('focus', callback)
+        editor.off('blur', callback)
+      }
+    },
+    () => editor.isFocused,
+    () => false // SSR fallback
+  )
 
   // Get the code content from the node
   const code = node.textContent || ''
@@ -203,7 +218,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
 
       {/* Code content - show highlighted or editable content */}
       <div className="bg-slate-800 overflow-x-auto">
-        {highlightedHtml && !document.activeElement?.closest('.ProseMirror') ? (
+        {highlightedHtml && !isEditorFocused ? (
           // Show highlighted HTML when not editing
           <div
             className="p-4 text-sm [&>pre]:!bg-transparent [&>pre]:!m-0 [&>pre]:!p-0 font-mono"
@@ -212,7 +227,7 @@ export const TipTapCodeBlockView = memo(function TipTapCodeBlockView({
           />
         ) : null}
         {/* Editable content area - always rendered but may be hidden */}
-        <div className={highlightedHtml && !document.activeElement?.closest('.ProseMirror') ? 'hidden' : ''}>
+        <div className={highlightedHtml && !isEditorFocused ? 'hidden' : ''}>
           <NodeViewContent
             as="pre"
             className="p-4 text-sm text-slate-200 font-mono whitespace-pre overflow-x-auto !bg-transparent !m-0"

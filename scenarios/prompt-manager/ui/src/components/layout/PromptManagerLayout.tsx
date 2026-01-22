@@ -18,6 +18,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { Menu, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { PromptTreeSidebar } from '../tree/PromptTreeSidebar'
 import { PromptEditorPanel } from '../editor/PromptEditorPanel'
 import { usePromptsData } from '@/hooks/usePromptsData'
@@ -248,25 +249,27 @@ export function PromptManagerLayout() {
 
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
-    <PromptTreeSidebar
-      treeNodes={filteredTreeNodes}
-      prompts={prompts}
-      selectedItemId={selectedItemId}
-      onSelectItem={handleSelectItem}
-      dirtyItemIds={dirtyItemIds}
-      expandedNodes={expandedNodes}
-      onToggleNode={toggleNode}
-      renderItemIcon={renderItemIcon}
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
-      isCollapsed={isCollapsed}
-      onToggleCollapse={toggleCollapse}
-      onExpandAll={expandAll}
-      onCollapseAll={collapseAll}
-      onCreateNew={() => void handleCreateNew()}
-      searchInputRef={searchInputRef}
-      onOpenSettings={() => setShowSettingsDialog(true)}
-    />
+    <PanelErrorBoundary panelName="Prompt Tree" className="h-full">
+      <PromptTreeSidebar
+        treeNodes={filteredTreeNodes}
+        prompts={prompts}
+        selectedItemId={selectedItemId}
+        onSelectItem={handleSelectItem}
+        dirtyItemIds={dirtyItemIds}
+        expandedNodes={expandedNodes}
+        onToggleNode={toggleNode}
+        renderItemIcon={renderItemIcon}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleCollapse}
+        onExpandAll={expandAll}
+        onCollapseAll={collapseAll}
+        onCreateNew={() => void handleCreateNew()}
+        searchInputRef={searchInputRef}
+        onOpenSettings={() => setShowSettingsDialog(true)}
+      />
+    </PanelErrorBoundary>
   )
 
   return (
@@ -340,23 +343,25 @@ export function PromptManagerLayout() {
 
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
-          <PromptEditorPanel
-            currentPrompt={currentPrompt}
-            formState={formState}
-            validation={validation}
-            isDirty={isDirty}
-            dirtyCount={dirtyCount}
-            onFieldChange={updateField}
-            onModesChange={setModes}
-            getSuggestionsAtLevel={getSuggestionsAtLevel}
-            onSave={() => void saveCurrentPrompt()}
-            onSaveAll={() => void saveAllChanges()}
-            onDiscard={discardCurrentChanges}
-            onDelete={() => setShowDeleteDialog(true)}
-            isSaving={isSaving}
-            isDeleting={isDeleting}
-            className="h-full"
-          />
+          <PanelErrorBoundary panelName="Editor" className="h-full">
+            <PromptEditorPanel
+              currentPrompt={currentPrompt}
+              formState={formState}
+              validation={validation}
+              isDirty={isDirty}
+              dirtyCount={dirtyCount}
+              onFieldChange={updateField}
+              onModesChange={setModes}
+              getSuggestionsAtLevel={getSuggestionsAtLevel}
+              onSave={() => void saveCurrentPrompt()}
+              onSaveAll={() => void saveAllChanges()}
+              onDiscard={discardCurrentChanges}
+              onDelete={() => setShowDeleteDialog(true)}
+              isSaving={isSaving}
+              isDeleting={isDeleting}
+              className="h-full"
+            />
+          </PanelErrorBoundary>
         </main>
       </div>
 
