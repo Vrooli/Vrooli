@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { getDocsTree, getDocContent, type DocEntry, type DocContent } from '../../../shared/api';
+import type { DocEntry } from '../../../shared/api';
+import { useDocsViewer } from '../hooks/useDocsViewer';
 import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink } from 'lucide-react';
 
 interface TreeNodeProps {
@@ -81,7 +81,6 @@ function MarkdownRenderer({ content }: { content: string }) {
   let i = 0;
   let inCodeBlock = false;
   let codeBlockContent: string[] = [];
-  let codeBlockLang = '';
 
   while (i < lines.length) {
     const line = lines[i];
@@ -90,7 +89,6 @@ function MarkdownRenderer({ content }: { content: string }) {
     if (line.startsWith('```')) {
       if (!inCodeBlock) {
         inCodeBlock = true;
-        codeBlockLang = line.slice(3).trim();
         codeBlockContent = [];
       } else {
         elements.push(
@@ -100,7 +98,6 @@ function MarkdownRenderer({ content }: { content: string }) {
         );
         inCodeBlock = false;
         codeBlockContent = [];
-        codeBlockLang = '';
       }
       i++;
       continue;
@@ -305,75 +302,18 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
 }
 
 export function DocsViewer() {
-  const [tree, setTree] = useState<DocEntry[]>([]);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [selectedDoc, setSelectedDoc] = useState<DocContent | null>(null);
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [loadingDoc, setLoadingDoc] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadTree = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getDocsTree();
-      setTree(data);
-      // Auto-expand root level directories
-      const rootDirs = data.filter(e => e.isDir).map(e => e.path);
-      setExpandedPaths(new Set(rootDirs));
-      // Auto-select first markdown file if available
-      const firstFile = findFirstFile(data);
-      if (firstFile) {
-        loadDoc(firstFile);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documentation');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const findFirstFile = (entries: DocEntry[]): string | null => {
-    for (const entry of entries) {
-      if (!entry.isDir) return entry.path;
-      if (entry.children) {
-        const found = findFirstFile(entry.children);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  const loadDoc = async (path: string) => {
-    setSelectedPath(path);
-    setLoadingDoc(true);
-    try {
-      const doc = await getDocContent(path);
-      setSelectedDoc(doc);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load document');
-      setSelectedDoc(null);
-    } finally {
-      setLoadingDoc(false);
-    }
-  };
-
-  const handleToggle = (path: string) => {
-    setExpandedPaths(prev => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    loadTree();
-  }, [loadTree]);
+  const {
+    tree,
+    selectedPath,
+    selectedDoc,
+    expandedPaths,
+    loading,
+    loadingDoc,
+    error,
+    loadTree,
+    loadDoc,
+    handleToggle,
+  } = useDocsViewer();
 
   return (
     <AdminLayout>
@@ -398,11 +338,11 @@ export function DocsViewer() {
         </div>
 
         {loading ? (
-          <div className="text-slate-400">Loading documentation...</div>
+          <div className="text-slate-400" data-testid="docs-loading">Loading documentation...</div>
         ) : error ? (
-          <div className="text-rose-400">{error}</div>
+          <div className="text-rose-400" data-testid="docs-error">{error}</div>
         ) : tree.length === 0 ? (
-          <Card className="border-white/10 bg-slate-900/60">
+          <Card className="border-white/10 bg-slate-900/60" data-testid="docs-empty">
             <CardContent className="py-12 text-center">
               <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">No Documentation Found</h3>
@@ -412,7 +352,7 @@ export function DocsViewer() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" data-testid="docs-content">
             {/* Sidebar - File Tree */}
             <Card className="border-white/10 bg-slate-900/60 lg:col-span-1">
               <CardHeader className="pb-3">
@@ -422,7 +362,7 @@ export function DocsViewer() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-2">
-                <div className="space-y-0.5 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-0.5 max-h-[60vh] overflow-y-auto" data-testid="docs-tree">
                   {tree.map((entry) => (
                     <TreeNode
                       key={entry.path}
@@ -469,11 +409,11 @@ export function DocsViewer() {
               </CardHeader>
               <CardContent className="p-6">
                 {loadingDoc ? (
-                  <div className="text-slate-400">Loading document...</div>
+                  <div className="text-slate-400" data-testid="docs-loading-doc">Loading document...</div>
                 ) : selectedDoc ? (
                   <MarkdownRenderer content={selectedDoc.content} />
                 ) : (
-                  <div className="text-center py-12">
+                  <div className="text-center py-12" data-testid="docs-no-selection">
                     <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
                     <p className="text-slate-400">Select a document from the sidebar to view its contents.</p>
                   </div>
