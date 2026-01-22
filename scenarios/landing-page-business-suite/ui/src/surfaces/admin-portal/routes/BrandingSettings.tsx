@@ -1,269 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { getBranding, updateBranding, clearBrandingField, type SiteBranding, type Asset } from '../../../shared/api';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, CheckCircle2, AlertCircle, MessageCircle, HelpCircle, Mail, Eye, EyeOff, Clock, Info } from 'lucide-react';
-
-interface BrandingFormState {
-  site_name: string;
-  tagline: string;
-  logo_url: string;
-  logo_icon_url: string;
-  favicon_url: string;
-  apple_touch_icon_url: string;
-  default_title: string;
-  default_description: string;
-  default_og_image_url: string;
-  theme_primary_color: string;
-  theme_background_color: string;
-  canonical_base_url: string;
-  google_site_verification: string;
-  robots_txt: string;
-  support_chat_url: string;
-  support_email: string;
-  smtp_host: string;
-  smtp_port: string;
-  smtp_username: string;
-  smtp_password: string;
-  smtp_from: string;
-  coming_soon_enabled: boolean;
-  coming_soon_message: string;
-}
-
-const defaultForm: BrandingFormState = {
-  site_name: '',
-  tagline: '',
-  logo_url: '',
-  logo_icon_url: '',
-  favicon_url: '',
-  apple_touch_icon_url: '',
-  default_title: '',
-  default_description: '',
-  default_og_image_url: '',
-  theme_primary_color: '',
-  theme_background_color: '',
-  canonical_base_url: '',
-  google_site_verification: '',
-  robots_txt: '',
-  support_chat_url: '',
-  support_email: '',
-  smtp_host: '',
-  smtp_port: '587',
-  smtp_username: '',
-  smtp_password: '',
-  smtp_from: '',
-  coming_soon_enabled: false,
-  coming_soon_message: '',
-};
-
-function brandingToForm(branding: SiteBranding): BrandingFormState {
-  return {
-    site_name: branding.site_name ?? '',
-    tagline: branding.tagline ?? '',
-    logo_url: branding.logo_url ?? '',
-    logo_icon_url: branding.logo_icon_url ?? '',
-    favicon_url: branding.favicon_url ?? '',
-    apple_touch_icon_url: branding.apple_touch_icon_url ?? '',
-    default_title: branding.default_title ?? '',
-    default_description: branding.default_description ?? '',
-    default_og_image_url: branding.default_og_image_url ?? '',
-    theme_primary_color: branding.theme_primary_color ?? '',
-    theme_background_color: branding.theme_background_color ?? '',
-    canonical_base_url: branding.canonical_base_url ?? '',
-    google_site_verification: branding.google_site_verification ?? '',
-    robots_txt: branding.robots_txt ?? '',
-    support_chat_url: branding.support_chat_url ?? '',
-    support_email: branding.support_email ?? '',
-    smtp_host: branding.smtp_host ?? '',
-    smtp_port: branding.smtp_port?.toString() ?? '587',
-    smtp_username: branding.smtp_username ?? '',
-    smtp_password: branding.smtp_password ?? '',
-    smtp_from: branding.smtp_from ?? '',
-    coming_soon_enabled: branding.coming_soon_enabled ?? false,
-    coming_soon_message: branding.coming_soon_message ?? '',
-  };
-}
+import { useBrandingForm } from '../hooks/useBrandingForm';
 
 export function BrandingSettings() {
-  const [branding, setBranding] = useState<SiteBranding | null>(null);
-  const [form, setForm] = useState<BrandingFormState>(defaultForm);
-  const [originalForm, setOriginalForm] = useState<BrandingFormState>(defaultForm);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const loadBranding = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getBranding();
-      setBranding(data);
-      const formData = brandingToForm(data);
-      setForm(formData);
-      setOriginalForm(formData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load branding');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBranding();
-  }, [loadBranding]);
-
-  const handleInput = (field: keyof BrandingFormState) => (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setForm((prev) => ({ ...prev, [field]: event.target.value }));
-    setSuccessMessage(null);
-  };
-
-  const handleImageChange = (field: keyof BrandingFormState) => (url: string | null) => {
-    setForm((prev) => ({ ...prev, [field]: url ?? '' }));
-    setSuccessMessage(null);
-  };
-
-  const applyLogoDerivatives = (asset: Asset) => {
-    const primaryLogo =
-      asset.derivatives?.logo_512 || asset.derivatives?.logo_256 || asset.url || form.logo_url;
-    const iconLogo =
-      asset.derivatives?.logo_icon ||
-      asset.derivatives?.logo_256 ||
-      asset.derivatives?.logo_128 ||
-      form.logo_icon_url ||
-      primaryLogo;
-    const favicon =
-      asset.derivatives?.favicon_32 ||
-      asset.derivatives?.favicon_64 ||
-      asset.derivatives?.favicon ||
-      form.favicon_url;
-    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
-
-    setForm((prev) => ({
-      ...prev,
-      logo_url: primaryLogo,
-      logo_icon_url: iconLogo,
-      favicon_url: favicon ?? prev.favicon_url,
-      apple_touch_icon_url: touch ?? prev.apple_touch_icon_url,
-    }));
-    setSuccessMessage(null);
-  };
-
-  const applyFaviconDerivatives = (asset: Asset) => {
-    const favicon =
-      asset.derivatives?.favicon ||
-      asset.derivatives?.favicon_32 ||
-      asset.derivatives?.favicon_64 ||
-      asset.url ||
-      form.favicon_url;
-    const touch = asset.derivatives?.apple_touch_180 || form.apple_touch_icon_url || favicon;
-    setForm((prev) => ({
-      ...prev,
-      favicon_url: favicon,
-      apple_touch_icon_url: touch,
-    }));
-    setSuccessMessage(null);
-  };
-
-  const applyOgDerivatives = (asset: Asset) => {
-    const og = asset.derivatives?.og_image_1200x630 || asset.url;
-    setForm((prev) => ({
-      ...prev,
-      default_og_image_url: og ?? '',
-    }));
-    setSuccessMessage(null);
-  };
-
-  const handleClearField = async (field: keyof BrandingFormState) => {
-    try {
-      const data = await clearBrandingField(field);
-      setBranding(data);
-      const formData = brandingToForm(data);
-      setForm(formData);
-      setOriginalForm(formData);
-      setSuccessMessage(`Cleared ${field.replace(/_/g, ' ')}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear field');
-    }
-  };
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const payload: Record<string, string | number | boolean> = {};
-      (Object.keys(form) as (keyof BrandingFormState)[]).forEach((key) => {
-        const current = form[key];
-        const original = originalForm[key];
-
-        // Handle boolean fields (coming_soon_enabled)
-        if (key === 'coming_soon_enabled') {
-          const currentBool = Boolean(current);
-          const originalBool = Boolean(original);
-          if (currentBool !== originalBool) {
-            payload[key] = currentBool;
-          }
-          return;
-        }
-
-        // Handle string fields - ensure we have strings
-        const currentStr = String(current ?? '').trim();
-        const originalStr = String(original ?? '').trim();
-        if (currentStr !== originalStr && currentStr.length > 0) {
-          // Convert smtp_port to number
-          if (key === 'smtp_port') {
-            payload[key] = parseInt(currentStr, 10);
-          } else {
-            payload[key] = currentStr;
-          }
-        }
-      });
-
-      if (Object.keys(payload).length === 0) {
-        setError('No changes to save');
-        setSaving(false);
-        return;
-      }
-
-      const updated = await updateBranding(payload);
-      setBranding(updated);
-      const formData = brandingToForm(updated);
-      setForm(formData);
-      setOriginalForm(formData);
-      setSuccessMessage('Branding updated successfully');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update branding');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isDirty = JSON.stringify(form) !== JSON.stringify(originalForm);
-
-  // Compute branding setup health
-  const brandingHealth = useMemo(() => {
-    const checks = {
-      identity: Boolean(form.site_name && form.logo_url),
-      favicon: Boolean(form.favicon_url),
-      seo: Boolean(form.default_title && form.default_description),
-      ogImage: Boolean(form.default_og_image_url),
-    };
-    const configured = Object.values(checks).filter(Boolean).length;
-    const total = Object.keys(checks).length;
-    return { checks, configured, total, percentage: Math.round((configured / total) * 100) };
-  }, [form]);
-
-  const previewPublicLanding = () => {
-    window.open('/', '_blank', 'noopener,noreferrer');
-  };
+  const {
+    branding,
+    form,
+    loading,
+    saving,
+    error,
+    successMessage,
+    isDirty,
+    brandingHealth,
+    loadBrandingData,
+    handleInput,
+    handleFieldChange,
+    handleImageChange,
+    applyLogoDerivatives,
+    applyFaviconDerivatives,
+    applyOgDerivatives,
+    handleClearField,
+    handleSubmit,
+    toggleComingSoon,
+    previewPublicLanding,
+  } = useBrandingForm();
 
   const renderColorPreview = (color: string) => {
     if (!color) return null;
@@ -294,7 +59,7 @@ export function BrandingSettings() {
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
               </Button>
-              <Button variant="ghost" size="sm" onClick={loadBranding} className="gap-2" data-testid="branding-refresh">
+              <Button variant="ghost" size="sm" onClick={loadBrandingData} className="gap-2" data-testid="branding-refresh">
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
@@ -488,10 +253,7 @@ export function BrandingSettings() {
                     type="button"
                     role="switch"
                     aria-checked={form.coming_soon_enabled}
-                    onClick={() => {
-                      setForm((prev) => ({ ...prev, coming_soon_enabled: !prev.coming_soon_enabled }));
-                      setSuccessMessage(null);
-                    }}
+                    onClick={toggleComingSoon}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                       form.coming_soon_enabled ? 'bg-amber-500' : 'bg-slate-700'
                     }`}
@@ -513,10 +275,7 @@ export function BrandingSettings() {
                       </label>
                       <textarea
                         value={form.coming_soon_message}
-                        onChange={(e) => {
-                          setForm((prev) => ({ ...prev, coming_soon_message: e.target.value }));
-                          setSuccessMessage(null);
-                        }}
+                        onChange={handleInput('coming_soon_message')}
                         placeholder="We are working hard to bring you something amazing. Stay tuned!"
                         rows={3}
                         className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
@@ -571,7 +330,7 @@ export function BrandingSettings() {
                       <input
                         type="color"
                         value={form.theme_primary_color || '#3B82F6'}
-                        onChange={(e) => setForm((prev) => ({ ...prev, theme_primary_color: e.target.value }))}
+                        onChange={(e) => handleFieldChange('theme_primary_color', e.target.value)}
                         className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                       />
                       {form.theme_primary_color && (
@@ -602,7 +361,7 @@ export function BrandingSettings() {
                       <input
                         type="color"
                         value={form.theme_background_color || '#07090F'}
-                        onChange={(e) => setForm((prev) => ({ ...prev, theme_background_color: e.target.value }))}
+                        onChange={(e) => handleFieldChange('theme_background_color', e.target.value)}
                         className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                       />
                       {form.theme_background_color && (

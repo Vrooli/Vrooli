@@ -10,11 +10,9 @@ import { useToast } from '../../../shared/ui/Toast';
 import { listVariants, archiveVariant, deleteVariant, updateVariant, type Variant, type AnalyticsSummary, type VariantStats } from '../../../shared/api';
 import { buildDateRange, fetchAnalyticsSummary } from '../controllers/analyticsController';
 import { loadVariantEditorData } from '../controllers/variantEditorController';
+import { STALE_VARIANT_DAYS, DAY_MS, type WeightStatus } from '../services/adminHome.service';
 
-const STALE_VARIANT_DAYS = 10;
 const SNAPSHOT_DAYS = 7;
-const DAY_MS = 24 * 60 * 60 * 1000;
-type WeightStatus = 'empty' | 'balanced' | 'under' | 'over';
 type TrafficShareMode = 'weighted' | 'even';
 
 const getTrendGlyph = (trend?: VariantStats['trend']) => {
