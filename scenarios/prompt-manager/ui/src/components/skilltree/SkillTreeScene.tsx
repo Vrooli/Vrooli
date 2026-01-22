@@ -18,6 +18,12 @@ interface SkillTreeSceneProps {
   cursorPosition: { x: number; y: number } | null
   onNodeClick: (nodeId: string, event: MouseEvent) => void
   onNodeHover: (nodeId: string | null) => void
+  onAvatarClick?: () => void
+  avatarColors?: {
+    body: string
+    head: string
+    accent: string
+  }
 }
 
 export function SkillTreeScene({
@@ -28,6 +34,8 @@ export function SkillTreeScene({
   cursorPosition,
   onNodeClick,
   onNodeHover,
+  onAvatarClick,
+  avatarColors,
 }: SkillTreeSceneProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null)
@@ -99,6 +107,8 @@ export function SkillTreeScene({
         cursorPosition={cursorPosition}
         selectedNodes={selectedNodeIds}
         isAnimating={false}
+        onAvatarClick={onAvatarClick}
+        colors={avatarColors}
       />
     </>
   )

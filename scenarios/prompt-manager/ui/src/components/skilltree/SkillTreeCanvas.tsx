@@ -10,16 +10,23 @@ import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
 import { useSkillTree3D } from '@/hooks/useSkillTree3D'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useCameraStore } from '@/stores/cameraStore'
+import { useAvatarData } from '@/hooks/useAvatarData'
 import { AvatarProvider } from './AvatarProvider'
 import { SkillTreeScene } from './SkillTreeScene'
 import { SkillTreeControls } from './SkillTreeControls'
 import { CombinePanel } from './CombinePanel'
+import { AvatarOverlay } from './AvatarOverlay'
+import { AvatarCustomizeModal } from '../avatar/AvatarCustomizeModal'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 interface SkillTreeCanvasProps {
   prompts: Prompt[]
   onSelectPrompt?: (promptId: string) => void
   onCombinePrompts?: (combined: string, format: CombineFormat) => void
   avatarType?: string
+  /** ID of the avatar to display in the scene (uses first avatar if not specified) */
+  activeAvatarId?: string
   className?: string
 }
 
@@ -28,6 +35,7 @@ export function SkillTreeCanvas({
   onSelectPrompt,
   onCombinePrompts,
   avatarType = 'geometric',
+  activeAvatarId,
   className,
 }: SkillTreeCanvasProps) {
   // Cursor tracking for avatar
@@ -37,6 +45,33 @@ export function SkillTreeCanvas({
   const selectedPromptIds = useSelectionStore((state) => state.selectedPromptIds)
   const setSelectedPromptIds = useSelectionStore((state) => state.setSelectedPromptIds)
   const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+
+  // Camera store for avatar zoom
+  const cameraMode = useCameraStore((state) => state.mode)
+  const focusedAvatarId = useCameraStore((state) => state.focusedAvatarId)
+  const exitZoom = useCameraStore((state) => state.exitZoom)
+  const zoomToAvatar = useCameraStore((state) => state.zoomToAvatar)
+
+  // Avatar data
+  const { avatars, updateAvatar, deleteAvatar, createAvatar, isUpdating, isDeleting } = useAvatarData()
+  const focusedAvatar = avatars.find((a) => a.id === focusedAvatarId) ?? null
+
+  // Get the active avatar for display (default to first if not specified)
+  const activeAvatar = avatars.find((a) => a.id === activeAvatarId) ?? avatars[0] ?? null
+  const activeAvatarColors = activeAvatar
+    ? { body: activeAvatar.bodyColor, head: activeAvatar.headColor, accent: activeAvatar.accentColor }
+    : undefined
+
+  // Handle avatar click in 3D scene
+  const handleAvatarClick = useCallback(() => {
+    if (activeAvatar) {
+      zoomToAvatar(activeAvatar.id, [0, 0, 0]) // Avatar is at origin
+    }
+  }, [activeAvatar, zoomToAvatar])
+
+  // Modal state
+  const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
   // Handle node click - updates both multi-selection and single selection
   const handleNodeSelection = useCallback(
@@ -88,6 +123,49 @@ export function SkillTreeCanvas({
   // Get full prompt objects for selected IDs
   const selectedPromptObjects = prompts.filter((p) => selectedPromptIds.includes(p.id))
 
+  // Avatar overlay handlers
+  const handleCloseOverlay = useCallback(() => {
+    exitZoom()
+  }, [exitZoom])
+
+  const handleCustomize = useCallback(() => {
+    setIsCustomizeModalOpen(true)
+  }, [])
+
+  const handleSetSkills = useCallback(() => {
+    // TODO: Open skill assignment panel
+    // For now, just assign currently selected prompts
+    if (focusedAvatarId && selectedPromptIds.length > 0) {
+      void updateAvatar(focusedAvatarId, {
+        skills: [...new Set([...(focusedAvatar?.skills ?? []), ...selectedPromptIds])],
+      })
+    }
+  }, [focusedAvatarId, focusedAvatar, selectedPromptIds, updateAvatar])
+
+  const handleDuplicate = useCallback(async () => {
+    if (!focusedAvatar) return
+    await createAvatar({
+      name: `${focusedAvatar.name} (Copy)`,
+      bodyColor: focusedAvatar.bodyColor,
+      headColor: focusedAvatar.headColor,
+      accentColor: focusedAvatar.accentColor,
+      skills: [...focusedAvatar.skills],
+    })
+    exitZoom()
+  }, [focusedAvatar, createAvatar, exitZoom])
+
+  const handleDeleteClick = useCallback(() => {
+    setIsDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (focusedAvatarId) {
+      await deleteAvatar(focusedAvatarId)
+      exitZoom()
+    }
+    setIsDeleteDialogOpen(false)
+  }, [focusedAvatarId, deleteAvatar, exitZoom])
+
   return (
     <div
       className={`relative w-full h-full bg-slate-900 ${className || ''}`}
@@ -117,6 +195,8 @@ export function SkillTreeCanvas({
               cursorPosition={cursorPosition}
               onNodeClick={handleNodeClick}
               onNodeHover={handleNodeHover}
+              onAvatarClick={handleAvatarClick}
+              avatarColors={activeAvatarColors}
             />
           </Suspense>
         </AvatarProvider>
@@ -178,6 +258,42 @@ export function SkillTreeCanvas({
           </div>
         </div>
       )}
+
+      {/* Avatar overlay - appears when zoomed to avatar */}
+      <AvatarOverlay
+        avatar={focusedAvatar}
+        isVisible={cameraMode === 'zoomed-avatar'}
+        onClose={handleCloseOverlay}
+        onCustomize={handleCustomize}
+        onSetSkills={handleSetSkills}
+        onDuplicate={() => void handleDuplicate()}
+        onDelete={handleDeleteClick}
+      />
+
+      {/* Avatar customize modal */}
+      <AvatarCustomizeModal
+        isOpen={isCustomizeModalOpen}
+        onClose={() => setIsCustomizeModalOpen(false)}
+        avatar={focusedAvatar}
+        onSave={async (updates) => {
+          if (focusedAvatarId) {
+            await updateAvatar(focusedAvatarId, updates)
+          }
+        }}
+        isLoading={isUpdating}
+      />
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={() => void handleConfirmDelete()}
+        title="Delete Avatar"
+        message={`Are you sure you want to delete "${focusedAvatar?.name ?? 'this avatar'}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   )
 }

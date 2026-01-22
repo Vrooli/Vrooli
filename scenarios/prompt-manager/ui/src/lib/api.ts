@@ -29,6 +29,7 @@ import type {
   Folder,
   FolderType,
 } from '@/types'
+import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
 import type { CombineFormat, CombineResponse } from '@/types/skilltree'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
@@ -247,6 +248,35 @@ class ApiClient {
   // Health check
   async healthCheck(): Promise<HealthResponse> {
     return this.request<HealthResponse>('/health')
+  }
+
+  // Avatar methods - aligned with api/avatars/handlers.go
+  async getAvatars(): Promise<Avatar[]> {
+    return this.request<Avatar[]>('/avatars')
+  }
+
+  async getAvatar(id: string): Promise<Avatar> {
+    return this.request<Avatar>(`/avatars/${encodeURIComponent(id)}`)
+  }
+
+  async createAvatar(avatar: CreateAvatarRequest): Promise<Avatar> {
+    return this.request<Avatar>('/avatars', {
+      method: 'POST',
+      body: JSON.stringify(avatar),
+    })
+  }
+
+  async updateAvatar(id: string, updates: UpdateAvatarRequest): Promise<Avatar> {
+    return this.request<Avatar>(`/avatars/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteAvatar(id: string): Promise<void> {
+    await this.request<Record<string, never>>(`/avatars/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
   }
 }
 

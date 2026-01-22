@@ -131,12 +131,18 @@ export function usePromptEditor({
     })
   }, [currentPrompt, currentIsDirty, formState])
 
-  // Load form state when selected prompt changes
+  // Effect 1: Clear form when deselected
   useEffect(() => {
     if (!selectedItemId) {
       setFormState(createEmptyFormState())
-      return
     }
+  }, [selectedItemId])
+
+  // Effect 2: Load form when selection or prompts change
+  // Uses a ref to access pendingChanges without adding to deps
+  // This prevents the stale closure issue while avoiding re-runs on pendingChanges changes
+  useEffect(() => {
+    if (!selectedItemId) return
 
     // Check if we have pending changes for this prompt
     const pending = pendingChanges.get(selectedItemId)
@@ -145,11 +151,13 @@ export function usePromptEditor({
       return
     }
 
-    // Load from current prompt
-    if (currentPrompt) {
-      setFormState(promptToFormState(currentPrompt))
+    // Find prompt directly instead of relying on memo to avoid race condition
+    const prompt = prompts.find((p) => p.id === selectedItemId)
+    if (prompt) {
+      setFormState(promptToFormState(prompt))
     }
-  }, [selectedItemId, currentPrompt, pendingChanges])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingChanges intentionally excluded to prevent stale closure
+  }, [selectedItemId, prompts])
 
   // Update a single form field
   const updateField = useCallback(

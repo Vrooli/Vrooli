@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"prompt-manager/avatars"
 	"prompt-manager/metrics"
 	"prompt-manager/prompts"
 	"prompt-manager/tags"
@@ -69,6 +70,11 @@ func main() {
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, promptStore)
 
+	// Avatar store and handlers
+	avatarDataDir := filepath.Join(promptsDir, "data")
+	avatarStore := avatars.NewStore(avatarDataDir)
+	avatarHandlers := avatars.NewHandlers(avatarStore)
+
 	// Setup routes
 	router := mux.NewRouter()
 
@@ -107,6 +113,13 @@ func main() {
 	// Testing routes
 	v1.HandleFunc("/prompts/{id}/test", testingHandlers.Test).Methods("POST")
 	v1.HandleFunc("/prompts/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
+
+	// Avatar routes
+	v1.HandleFunc("/avatars", avatarHandlers.List).Methods("GET")
+	v1.HandleFunc("/avatars", avatarHandlers.Create).Methods("POST")
+	v1.HandleFunc("/avatars/{id}", avatarHandlers.Get).Methods("GET")
+	v1.HandleFunc("/avatars/{id}", avatarHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/avatars/{id}", avatarHandlers.Delete).Methods("DELETE")
 
 	log.Printf("Prompt Manager API v2.0 starting")
 	log.Printf("Prompts directory: %s", promptsDir)

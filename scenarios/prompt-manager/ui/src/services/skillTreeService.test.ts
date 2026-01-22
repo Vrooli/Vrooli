@@ -46,7 +46,7 @@ describe('buildSkillTree', () => {
     expect(tree.maxDepth).toBe(0)
   })
 
-  it('should create nodes for each prompt', () => {
+  it('should create nodes for each prompt (no modes = root level)', () => {
     const prompts = [
       createTestPrompt({ id: '1', name: 'Prompt 1' }),
       createTestPrompt({ id: '2', name: 'Prompt 2' }),
@@ -55,13 +55,17 @@ describe('buildSkillTree', () => {
 
     const tree = buildSkillTree(prompts)
 
+    // Prompts without modes go directly to root as leaf nodes
     expect(tree.nodes).toHaveLength(3)
     expect(tree.nodes.map(n => n.promptId)).toContain('1')
     expect(tree.nodes.map(n => n.promptId)).toContain('2')
     expect(tree.nodes.map(n => n.promptId)).toContain('3')
+
+    // All should be at root level
+    expect(tree.roots).toHaveLength(3)
   })
 
-  it('should group prompts by mode prefix', () => {
+  it('should create hierarchical tree from mode paths', () => {
     const prompts = [
       createTestPrompt({ id: '1', name: 'Code Review', modes: ['coding/review'] }),
       createTestPrompt({ id: '2', name: 'Code Debug', modes: ['coding/debug'] }),
@@ -70,10 +74,26 @@ describe('buildSkillTree', () => {
 
     const tree = buildSkillTree(prompts)
 
-    expect(tree.nodes).toHaveLength(3)
+    // Should create mode nodes + prompt nodes:
+    // - mode-coding, mode-coding/review, mode-coding/debug (3 mode nodes under coding)
+    // - mode-writing, mode-writing/blog (2 mode nodes under writing)
+    // - 3 prompt leaf nodes
+    // Total: 8 nodes (5 mode nodes + 3 prompt nodes)
+    expect(tree.nodes).toHaveLength(8)
 
-    // All nodes should be root level (flat structure)
-    expect(tree.roots).toHaveLength(3)
+    // Root level should have top-level mode nodes
+    expect(tree.roots).toHaveLength(2)
+    expect(tree.roots).toContain('mode-coding')
+    expect(tree.roots).toContain('mode-writing')
+
+    // Prompt nodes should exist
+    expect(tree.nodes.some(n => n.promptId === '1')).toBe(true)
+    expect(tree.nodes.some(n => n.promptId === '2')).toBe(true)
+    expect(tree.nodes.some(n => n.promptId === '3')).toBe(true)
+
+    // Mode nodes should be marked as such
+    const modeNodes = tree.nodes.filter(n => n.isModeNode === true)
+    expect(modeNodes.length).toBe(5)
   })
 
   it('should assign positions to nodes', () => {
@@ -82,10 +102,12 @@ describe('buildSkillTree', () => {
     ]
 
     const tree = buildSkillTree(prompts)
-    const node = tree.nodes[0]
 
-    expect(node).toBeDefined()
-    if (node) {
+    // With mode 'dev', we get: mode-dev (mode node) + node-1 (prompt node)
+    expect(tree.nodes).toHaveLength(2)
+
+    // Check that all nodes have valid positions
+    for (const node of tree.nodes) {
       expect(node.position).toBeDefined()
       expect(node.position).toHaveLength(3)
       expect(typeof node.position[0]).toBe('number')
@@ -103,6 +125,10 @@ describe('buildSkillTree', () => {
     ]
 
     const tree = buildSkillTree(prompts)
+
+    // With modes, we get: 3 mode nodes (coding, writing, analysis) + 4 prompt nodes
+    // The prompt without modes (id: '4') goes directly to root
+    expect(tree.nodes.length).toBeGreaterThanOrEqual(4)
 
     // Each node should have a color
     tree.nodes.forEach((node) => {
@@ -129,7 +155,7 @@ describe('buildSkillTree', () => {
     }
   })
 
-  it('should create connections between nodes in same group', () => {
+  it('should create connections between parent and child nodes', () => {
     const prompts = [
       createTestPrompt({ id: '1', modes: ['coding'] }),
       createTestPrompt({ id: '2', modes: ['coding'] }),
@@ -138,24 +164,31 @@ describe('buildSkillTree', () => {
 
     const tree = buildSkillTree(prompts)
 
-    // Should have connections between nodes in the same group
-    expect(tree.connections.length).toBeGreaterThan(0)
+    // With mode 'coding', we get: 1 mode node + 3 prompt nodes
+    // Each prompt node connects to its parent mode node
+    expect(tree.nodes).toHaveLength(4)
+
+    // Should have connections from mode node to each prompt
+    expect(tree.connections.length).toBe(3)
     for (const conn of tree.connections) {
       expect(conn.source).toHaveLength(3)
       expect(conn.target).toHaveLength(3)
     }
   })
 
-  it('should store original prompt reference in node', () => {
+  it('should store original prompt reference in prompt nodes', () => {
     const prompts = [createTestPrompt({ id: '1', name: 'Test Prompt' })]
 
     const tree = buildSkillTree(prompts)
-    const node = tree.nodes[0]
 
-    expect(node).toBeDefined()
-    expect(node?.prompt).toBeDefined()
-    expect(node?.prompt.id).toBe('1')
-    expect(node?.prompt.name).toBe('Test Prompt')
+    // Prompt without modes goes directly to root
+    const promptNode = tree.nodes.find(n => n.promptId === '1')
+
+    expect(promptNode).toBeDefined()
+    expect(promptNode?.prompt).toBeDefined()
+    expect(promptNode?.prompt.id).toBe('1')
+    expect(promptNode?.prompt.name).toBe('Test Prompt')
+    expect(promptNode?.isModeNode).toBeFalsy()
   })
 })
 

@@ -806,4 +806,123 @@ describe('usePromptEditor', () => {
       // Without pending changes, it should load from the updated prompt
     })
   })
+
+  describe('race condition fix - immediate form population', () => {
+    it('should immediately populate form when selecting a prompt', () => {
+      const prompt1 = createTestPrompt({ id: 'prompt-1', name: 'First Prompt', content: 'First content' })
+      const prompt2 = createTestPrompt({ id: 'prompt-2', name: 'Second Prompt', content: 'Second content' })
+
+      const { result, rerender } = renderHook(
+        ({ selectedItemId }: { selectedItemId: string | null }) =>
+          usePromptEditor({
+            prompts: [prompt1, prompt2],
+            selectedItemId,
+            onSave: mockOnSave,
+            onDelete: mockOnDelete,
+          }),
+        { initialProps: { selectedItemId: null as string | null } }
+      )
+
+      // Initially no selection
+      expect(result.current.currentPrompt).toBeNull()
+
+      // Select first prompt - form should immediately populate
+      rerender({ selectedItemId: 'prompt-1' as string | null })
+      expect(result.current.formState.name).toBe('First Prompt')
+      expect(result.current.formState.content).toBe('First content')
+
+      // Switch to second prompt - form should immediately populate
+      rerender({ selectedItemId: 'prompt-2' as string | null })
+      expect(result.current.formState.name).toBe('Second Prompt')
+      expect(result.current.formState.content).toBe('Second content')
+    })
+
+    it('should preserve pending changes when switching prompts', () => {
+      const prompt1 = createTestPrompt({ id: 'prompt-1', name: 'First Prompt' })
+      const prompt2 = createTestPrompt({ id: 'prompt-2', name: 'Second Prompt' })
+
+      const { result, rerender } = renderHook(
+        ({ selectedItemId }: { selectedItemId: string }) =>
+          usePromptEditor({
+            prompts: [prompt1, prompt2],
+            selectedItemId,
+            onSave: mockOnSave,
+            onDelete: mockOnDelete,
+          }),
+        { initialProps: { selectedItemId: 'prompt-1' } }
+      )
+
+      // Modify prompt 1
+      act(() => {
+        result.current.updateField('name', 'Modified First')
+      })
+
+      // Store changes
+      act(() => {
+        result.current.storeCurrentChanges()
+      })
+
+      // Switch to prompt 2
+      rerender({ selectedItemId: 'prompt-2' })
+      expect(result.current.formState.name).toBe('Second Prompt')
+
+      // Switch back to prompt 1 - should restore pending changes
+      rerender({ selectedItemId: 'prompt-1' })
+      expect(result.current.formState.name).toBe('Modified First')
+    })
+
+    it('should clear form state when deselecting', () => {
+      const prompt = createTestPrompt()
+
+      const { result, rerender } = renderHook(
+        ({ selectedItemId }: { selectedItemId: string | null }) =>
+          usePromptEditor({
+            prompts: [prompt],
+            selectedItemId,
+            onSave: mockOnSave,
+            onDelete: mockOnDelete,
+          }),
+        { initialProps: { selectedItemId: prompt.id as string | null } }
+      )
+
+      // Form should be populated
+      expect(result.current.formState.name).toBe('Test Prompt')
+
+      // Deselect
+      rerender({ selectedItemId: null as string | null })
+
+      // Form should be cleared (empty state)
+      expect(result.current.formState.name).toBe('')
+      expect(result.current.formState.content).toBe('')
+    })
+
+    it('should handle rapid prompt switches correctly', () => {
+      const prompts = [
+        createTestPrompt({ id: 'p1', name: 'Prompt 1', content: 'Content 1' }),
+        createTestPrompt({ id: 'p2', name: 'Prompt 2', content: 'Content 2' }),
+        createTestPrompt({ id: 'p3', name: 'Prompt 3', content: 'Content 3' }),
+      ]
+
+      const { result, rerender } = renderHook(
+        ({ selectedItemId }: { selectedItemId: string }) =>
+          usePromptEditor({
+            prompts,
+            selectedItemId,
+            onSave: mockOnSave,
+            onDelete: mockOnDelete,
+          }),
+        { initialProps: { selectedItemId: 'p1' } }
+      )
+
+      // Rapid switches
+      rerender({ selectedItemId: 'p2' })
+      rerender({ selectedItemId: 'p3' })
+      rerender({ selectedItemId: 'p1' })
+      rerender({ selectedItemId: 'p3' })
+
+      // Final state should match p3
+      expect(result.current.formState.name).toBe('Prompt 3')
+      expect(result.current.formState.content).toBe('Content 3')
+    })
+  })
 })

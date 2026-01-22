@@ -13,8 +13,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
+import Link from '@tiptap/extension-link'
 import { CodeBlockExtension } from './codeblock'
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState } from 'react'
 import {
   Bold,
   Italic,
@@ -31,6 +32,8 @@ import {
   Redo,
   FileCode,
   Highlighter,
+  Link as LinkIcon,
+  Unlink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isHtml, markdownToHtml, htmlToMarkdown } from '@/services/contentConverter'
@@ -130,6 +133,12 @@ export function TipTapEditor({
         },
       }),
       Typography,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-indigo-400 underline hover:text-indigo-300 cursor-pointer',
+        },
+      }),
     ],
     // Convert markdown to HTML for initial content since TipTap works with HTML
     content: isHtml(value) ? value : markdownToHtml(value),
@@ -195,6 +204,36 @@ export function TipTapEditor({
     },
     [editor]
   )
+
+  // Link dialog state
+  const [showLinkInput, setShowLinkInput] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const linkInputRef = useRef<HTMLInputElement>(null)
+
+  const openLinkDialog = useCallback(() => {
+    if (!editor) return
+    // Pre-populate with existing link if present
+    const existingUrl = editor.getAttributes('link').href as string | undefined
+    setLinkUrl(existingUrl ?? '')
+    setShowLinkInput(true)
+    // Focus input after state update
+    setTimeout(() => linkInputRef.current?.focus(), 0)
+  }, [editor])
+
+  const setLink = useCallback(() => {
+    if (!editor) return
+    if (linkUrl.trim()) {
+      // Add https:// if no protocol specified
+      const url = linkUrl.match(/^https?:\/\//) ? linkUrl : `https://${linkUrl}`
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    }
+    setShowLinkInput(false)
+    setLinkUrl('')
+  }, [editor, linkUrl])
+
+  const removeLink = useCallback(() => {
+    editor?.chain().focus().unsetLink().run()
+  }, [editor])
 
   if (!editor) {
     return (
@@ -301,6 +340,23 @@ export function TipTapEditor({
           <ToolbarDivider />
 
           <ToolbarButton
+            onClick={openLinkDialog}
+            isActive={editor.isActive('link')}
+            title="Add Link"
+          >
+            <LinkIcon className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={removeLink}
+            disabled={!editor.isActive('link')}
+            title="Remove Link"
+          >
+            <Unlink className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarDivider />
+
+          <ToolbarButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             isActive={editor.isActive('bulletList')}
             title="Bullet List"
@@ -327,6 +383,52 @@ export function TipTapEditor({
           >
             <Minus className="h-4 w-4" />
           </ToolbarButton>
+        </div>
+      )}
+
+      {/* Link input dialog */}
+      {showLinkInput && (
+        <div className="flex-shrink-0 flex items-center gap-2 px-2 py-2 border-b border-white/10 bg-slate-900/50">
+          <LinkIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+          <input
+            ref={linkInputRef}
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                setLink()
+              } else if (e.key === 'Escape') {
+                setShowLinkInput(false)
+                setLinkUrl('')
+              }
+            }}
+            placeholder="Enter URL (e.g., https://example.com)"
+            className={cn(
+              'flex-1 px-2 py-1 text-sm',
+              'bg-slate-800 border border-white/10 rounded',
+              'text-white placeholder:text-slate-500',
+              'focus:outline-none focus:ring-2 focus:ring-indigo-500'
+            )}
+          />
+          <button
+            type="button"
+            onClick={setLink}
+            className="px-3 py-1 text-sm bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+          >
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowLinkInput(false)
+              setLinkUrl('')
+            }}
+            className="px-3 py-1 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       )}
 

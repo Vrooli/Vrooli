@@ -3,15 +3,15 @@
  * Features cursor tracking, idle animations, and reaction animations.
  */
 
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
 import type { AvatarProps } from '@/types/skilltree'
 
-// Avatar colors
-const COLORS = {
+// Default avatar colors
+const DEFAULT_COLORS = {
   body: '#6366f1', // Indigo
   head: '#818cf8', // Light indigo
   eye: '#ffffff',
@@ -26,7 +26,21 @@ export function GeometricAvatar({
   selectedNodes,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isAnimating: _isAnimating,
+  onAvatarClick,
+  colors,
 }: AvatarProps) {
+  // Merge custom colors with defaults
+  const COLORS = useMemo(
+    () => ({
+      body: colors?.body ?? DEFAULT_COLORS.body,
+      head: colors?.head ?? DEFAULT_COLORS.head,
+      eye: DEFAULT_COLORS.eye,
+      pupil: DEFAULT_COLORS.pupil,
+      accent: colors?.accent ?? DEFAULT_COLORS.accent,
+      glow: DEFAULT_COLORS.glow,
+    }),
+    [colors]
+  )
   const groupRef = useRef<Group>(null)
   const headRef = useRef<Mesh>(null)
   const bodyRef = useRef<Mesh>(null)
@@ -56,7 +70,7 @@ export function GeometricAvatar({
   }
   prevSelectionCount.current = selectedNodes.length
 
-  // Create materials
+  // Create materials - depend on COLORS to update when colors change
   const materials = useMemo(
     () => ({
       body: new THREE.MeshStandardMaterial({
@@ -79,7 +93,16 @@ export function GeometricAvatar({
         emissiveIntensity: 0.2,
       }),
     }),
-    []
+    [COLORS]
+  )
+
+  // Handle click on avatar
+  const handleClick = useCallback(
+    (event: { stopPropagation: () => void }) => {
+      event.stopPropagation()
+      onAvatarClick?.()
+    },
+    [onAvatarClick]
   )
 
   // Animation loop
@@ -165,7 +188,7 @@ export function GeometricAvatar({
   })
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} onClick={handleClick}>
       {/* Body - capsule shape */}
       <mesh ref={bodyRef} position={[0, -0.3, 0]} material={materials.body}>
         <capsuleGeometry args={[0.25, 0.5, 8, 16]} />
@@ -256,8 +279,8 @@ function FloatingOrb({ index, total }: { index: number; total: number }) {
     <mesh ref={meshRef}>
       <sphereGeometry args={[0.04, 8, 8]} />
       <MeshWobbleMaterial
-        color={COLORS.glow}
-        emissive={COLORS.accent}
+        color={DEFAULT_COLORS.glow}
+        emissive={DEFAULT_COLORS.accent}
         emissiveIntensity={0.5}
         factor={0.5}
         speed={2}

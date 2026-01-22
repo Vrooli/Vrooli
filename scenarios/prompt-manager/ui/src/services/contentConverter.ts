@@ -62,6 +62,7 @@ export function isHtml(content: string): boolean {
  * - Headers (h1-h3)
  * - Bold, italic, strikethrough
  * - Highlight (==text==)
+ * - Links ([text](url))
  * - Blockquotes
  * - Lists (unordered and ordered)
  * - Horizontal rules
@@ -92,6 +93,10 @@ export function markdownToHtml(markdown: string): string {
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>')
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>')
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>')
+
+  // Links (must be before bold/italic to avoid conflicts with brackets)
+  // Match [text](url) pattern
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
 
   // Bold and italic
   html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')

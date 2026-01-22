@@ -102,17 +102,17 @@ export function PromptEditorPanel({
   return (
     <div className={cn('h-full', className)}>
       <div
-        className="flex flex-col h-full bg-slate-900/50"
+        className="flex flex-col h-full bg-card/50"
       >
       {/* Header with prompt name and navigation */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-white/10">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-border">
         {/* Top row: Close button, prompt name, and status */}
         <div className="flex items-center gap-3 mb-3">
           {/* Close button */}
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close editor and return to skill tree"
             title="Close (Esc)"
           >
@@ -121,8 +121,8 @@ export function PromptEditorPanel({
 
           {/* Prompt icon and name */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <FileText className="h-5 w-5 text-indigo-400 flex-shrink-0" />
-            <h2 className="text-lg font-semibold text-white truncate">
+            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+            <h2 className="text-lg font-semibold text-foreground truncate">
               {formState.name || 'Untitled Prompt'}
             </h2>
           </div>

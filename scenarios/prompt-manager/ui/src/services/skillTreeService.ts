@@ -58,7 +58,210 @@ function getNodeSize(prompt: Prompt): number {
 
 
 /**
- * Transform an array of prompts into a 3D skill tree structure.
+ * Build a hierarchical tree structure from modes[].
+ * Mode paths like "coding/typescript/debugging" become tree branches.
+ */
+interface ModeTreeNode {
+  mode: string
+  fullPath: string
+  children: Map<string, ModeTreeNode>
+  prompts: Prompt[]
+}
+
+function buildModeTree(prompts: Prompt[]): ModeTreeNode {
+  const root: ModeTreeNode = {
+    mode: 'root',
+    fullPath: '',
+    children: new Map(),
+    prompts: [],
+  }
+
+  for (const prompt of prompts) {
+    // Use first mode as primary for tree placement
+    const primaryMode = prompt.modes[0]
+    if (!primaryMode) {
+      // Ungrouped prompts go to root
+      root.prompts.push(prompt)
+      continue
+    }
+
+    // Split mode path: "coding/typescript" -> ["coding", "typescript"]
+    const modeParts = primaryMode.split('/')
+    let currentNode = root
+    let currentPath = ''
+
+    for (const part of modeParts) {
+      currentPath = currentPath ? `${currentPath}/${part}` : part
+
+      if (!currentNode.children.has(part)) {
+        currentNode.children.set(part, {
+          mode: part,
+          fullPath: currentPath,
+          children: new Map(),
+          prompts: [],
+        })
+      }
+
+      const childNode = currentNode.children.get(part)
+      if (childNode) {
+        currentNode = childNode
+      }
+    }
+
+    // Add prompt to the deepest mode node
+    currentNode.prompts.push(prompt)
+  }
+
+  return root
+}
+
+/**
+ * Calculate positions for a hierarchical tree layout.
+ */
+function layoutModeTree(
+  modeTree: ModeTreeNode,
+  nodes: SkillTreeNode[],
+  connections: SkillTreeConnection[],
+  roots: string[],
+  options: LayoutOptions,
+  parentId: string | null = null,
+  parentPosition: [number, number, number] = [0, 0, 0],
+  depth: number = 0,
+  angleStart: number = 0,
+  angleSpan: number = Math.PI * 2
+): number {
+  let maxDepthSeen = depth
+
+  // Calculate how many children/prompts we need to position
+  const childModes = Array.from(modeTree.children.values())
+  const totalItems = childModes.length + modeTree.prompts.length
+
+  if (totalItems === 0) return maxDepthSeen
+
+  let itemIndex = 0
+
+  // Position child mode nodes (category nodes)
+  for (const childMode of childModes) {
+    const angle = angleStart + (itemIndex / totalItems) * angleSpan
+    const radius = options.horizontalSpacing * (depth + 1) * 1.5
+    const position: [number, number, number] = [
+      parentPosition[0] + Math.cos(angle) * radius,
+      depth * options.verticalSpacing,
+      parentPosition[2] + Math.sin(angle) * radius,
+    ]
+
+    // Create mode node (category node)
+    const modeNodeId = `mode-${childMode.fullPath}`
+    const modeNode: SkillTreeNode = {
+      id: modeNodeId,
+      promptId: '', // Mode nodes don't have a prompt
+      name: childMode.mode,
+      description: `Category: ${childMode.fullPath}`,
+      position,
+      parentId,
+      children: [],
+      isSelected: false,
+      depth,
+      prompt: null as unknown as Prompt, // Mode nodes don't have prompts
+      color: CATEGORY_COLORS[childMode.mode.toLowerCase()] ?? CATEGORY_COLORS.default ?? '#64748b',
+      size: 0.6, // Mode nodes are slightly larger
+      isModeNode: true,
+    }
+
+    nodes.push(modeNode)
+
+    if (parentId === null) {
+      roots.push(modeNodeId)
+    } else {
+      // Connect to parent
+      const parentNode = nodes.find((n) => n.id === parentId)
+      if (parentNode) {
+        parentNode.children.push(modeNodeId)
+        connections.push({
+          id: `conn-${parentId}-${modeNodeId}`,
+          sourceId: parentId,
+          targetId: modeNodeId,
+          source: parentNode.position,
+          target: position,
+          strength: 0.7,
+        })
+      }
+    }
+
+    // Recursively layout children
+    const childAngleSpan = angleSpan / totalItems
+    const childDepth = layoutModeTree(
+      childMode,
+      nodes,
+      connections,
+      roots,
+      options,
+      modeNodeId,
+      position,
+      depth + 1,
+      angle - childAngleSpan / 2,
+      childAngleSpan
+    )
+    maxDepthSeen = Math.max(maxDepthSeen, childDepth)
+
+    itemIndex++
+  }
+
+  // Position prompt nodes (leaf nodes)
+  for (const prompt of modeTree.prompts) {
+    const angle = angleStart + (itemIndex / totalItems) * angleSpan
+    const radius = options.horizontalSpacing * (depth + 1) * 1.5
+    const position: [number, number, number] = [
+      parentPosition[0] + Math.cos(angle) * radius,
+      depth * options.verticalSpacing,
+      parentPosition[2] + Math.sin(angle) * radius,
+    ]
+
+    const promptNodeId = `node-${prompt.id}`
+    const promptNode: SkillTreeNode = {
+      id: promptNodeId,
+      promptId: prompt.id,
+      name: prompt.name,
+      description: prompt.description || '',
+      position,
+      parentId,
+      children: [],
+      isSelected: false,
+      depth,
+      prompt,
+      color: getPromptColor(prompt),
+      size: getNodeSize(prompt),
+    }
+
+    nodes.push(promptNode)
+
+    if (parentId === null) {
+      roots.push(promptNodeId)
+    } else {
+      // Connect to parent
+      const parentNode = nodes.find((n) => n.id === parentId)
+      if (parentNode) {
+        parentNode.children.push(promptNodeId)
+        connections.push({
+          id: `conn-${parentId}-${promptNodeId}`,
+          sourceId: parentId,
+          targetId: promptNodeId,
+          source: parentNode.position,
+          target: position,
+          strength: 0.5,
+        })
+      }
+    }
+
+    itemIndex++
+  }
+
+  return maxDepthSeen
+}
+
+/**
+ * Transform an array of prompts into a hierarchical 3D skill tree structure.
+ * Uses modes[] to create tree hierarchy (e.g., "coding/typescript" -> coding -> typescript -> prompt)
  */
 export function buildSkillTree(
   prompts: Prompt[],
@@ -73,125 +276,23 @@ export function buildSkillTree(
     return { nodes, connections, roots, maxDepth: 0 }
   }
 
-  // Group prompts by primary mode for clustering
-  const modeGroups = new Map<string, Prompt[]>()
-  const ungrouped: Prompt[] = []
+  // Build mode tree from prompts
+  const modeTree = buildModeTree(prompts)
 
-  prompts.forEach((prompt) => {
-    const primaryMode = prompt.modes[0]?.split('/')[0]
-    if (primaryMode) {
-      const group = modeGroups.get(primaryMode)
-      if (group) {
-        group.push(prompt)
-      } else {
-        modeGroups.set(primaryMode, [prompt])
-      }
-    } else {
-      ungrouped.push(prompt)
-    }
-  })
-
-  // All grouped prompts become group roots
-  const allGroups = Array.from(modeGroups.entries())
-
-  // Position each group as a cluster
-  allGroups.forEach(([_mode, groupPrompts], groupIndex) => {
-    const groupAngle = (groupIndex / allGroups.length) * Math.PI * 2
-    const groupRadius = layoutOptions.horizontalSpacing * 3
-    const groupCenter: [number, number, number] = [
-      Math.cos(groupAngle) * groupRadius,
-      0,
-      Math.sin(groupAngle) * groupRadius,
-    ]
-
-    // Position prompts within the group
-    groupPrompts.forEach((prompt, promptIndex) => {
-      const localAngle = (promptIndex / groupPrompts.length) * Math.PI * 2
-      const localRadius = layoutOptions.horizontalSpacing * 0.8
-      const position: [number, number, number] = [
-        groupCenter[0] + Math.cos(localAngle) * localRadius,
-        groupCenter[1],
-        groupCenter[2] + Math.sin(localAngle) * localRadius,
-      ]
-
-      const node: SkillTreeNode = {
-        id: `node-${prompt.id}`,
-        promptId: prompt.id,
-        name: prompt.name,
-        description: prompt.description || '',
-        position,
-        parentId: null,
-        children: [],
-        isSelected: false,
-        depth: 0,
-        prompt,
-        color: getPromptColor(prompt),
-        size: getNodeSize(prompt),
-      }
-
-      nodes.push(node)
-      roots.push(node.id)
-    })
-
-    // Create connections between nodes in the same group
-    if (groupPrompts.length > 1) {
-      for (let i = 0; i < groupPrompts.length; i++) {
-        const j = (i + 1) % groupPrompts.length
-        const sourceNode = nodes.find(
-          (n) => n.promptId === groupPrompts[i]?.id
-        )
-        const targetNode = nodes.find(
-          (n) => n.promptId === groupPrompts[j]?.id
-        )
-
-        if (sourceNode && targetNode) {
-          connections.push({
-            id: `conn-${sourceNode.id}-${targetNode.id}`,
-            sourceId: sourceNode.id,
-            targetId: targetNode.id,
-            source: sourceNode.position,
-            target: targetNode.position,
-            strength: 0.3,
-          })
-        }
-      }
-    }
-  })
-
-  // Position ungrouped prompts in the center
-  ungrouped.forEach((prompt, index) => {
-    const angle = (index / Math.max(ungrouped.length, 1)) * Math.PI * 2
-    const radius = layoutOptions.horizontalSpacing * 0.5
-    const position: [number, number, number] = [
-      Math.cos(angle) * radius,
-      layoutOptions.verticalSpacing,
-      Math.sin(angle) * radius,
-    ]
-
-    const node: SkillTreeNode = {
-      id: `node-${prompt.id}`,
-      promptId: prompt.id,
-      name: prompt.name,
-      description: prompt.description || '',
-      position,
-      parentId: null,
-      children: [],
-      isSelected: false,
-      depth: 0,
-      prompt,
-      color: getPromptColor(prompt),
-      size: getNodeSize(prompt),
-    }
-
-    nodes.push(node)
-    roots.push(node.id)
-  })
+  // Layout the tree hierarchically
+  const maxDepth = layoutModeTree(
+    modeTree,
+    nodes,
+    connections,
+    roots,
+    layoutOptions
+  )
 
   return {
     nodes,
     connections,
     roots,
-    maxDepth: 0, // Flat structure for now
+    maxDepth,
   }
 }
 

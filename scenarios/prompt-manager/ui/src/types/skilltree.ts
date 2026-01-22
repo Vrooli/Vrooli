@@ -28,6 +28,8 @@ export interface SkillTreeNode {
   color: string
   /** Node size based on usage/importance */
   size: number
+  /** Whether this is a mode/category node rather than a prompt node */
+  isModeNode?: boolean
 }
 
 /**
@@ -71,6 +73,16 @@ export interface AvatarProps {
   isAnimating: boolean
   /** Callback when avatar animation completes */
   onAnimationComplete?: () => void
+  /** Callback when avatar is clicked */
+  onAvatarClick?: () => void
+  /** Avatar ID for identification */
+  avatarId?: string
+  /** Custom colors for the avatar */
+  colors?: {
+    body: string
+    head: string
+    accent: string
+  }
 }
 
 /**

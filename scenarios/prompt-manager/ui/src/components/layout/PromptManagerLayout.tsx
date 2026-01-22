@@ -213,7 +213,7 @@ export function PromptManagerLayout() {
   // Render item icon in tree
   const renderItemIcon = useCallback((prompt: Prompt) => {
     const Icon = getIcon(prompt.icon || '')
-    return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
+    return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
   }, [])
 
   // Keyboard shortcuts (defined after callbacks so they're available)
@@ -289,7 +289,7 @@ export function PromptManagerLayout() {
   )
 
   return (
-    <div ref={containerRef} className="flex h-screen bg-gradient-to-br from-slate-950 to-slate-900">
+    <div ref={containerRef} className="flex h-screen bg-gradient-to-br from-background to-background dark:from-slate-950 dark:to-slate-900">
       {/* Desktop sidebar with resize handle */}
       {!isMobile && (
         <div
@@ -331,16 +331,16 @@ export function PromptManagerLayout() {
       <div className={`flex-1 flex flex-col min-w-0 ${isResizing ? 'select-none' : ''}`}>
         {/* Mobile header with menu button */}
         {isMobile && (
-          <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-slate-900/50">
+          <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border bg-card/50">
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Open menu"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="flex-1 text-lg font-semibold text-white">Prompt Manager</h1>
+            <h1 className="flex-1 text-lg font-semibold text-foreground">Prompt Manager</h1>
             {dirtyCount > 0 && (
               <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400 rounded-full">
                 {dirtyCount} unsaved
@@ -349,7 +349,7 @@ export function PromptManagerLayout() {
             <button
               type="button"
               onClick={() => setShowSettingsDialog(true)}
-              className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Settings"
             >
               <Settings className="h-5 w-5" />
@@ -393,13 +393,13 @@ export function PromptManagerLayout() {
           />
 
           {/* Sidebar drawer */}
-          <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-slate-900 shadow-2xl animate-in slide-in-from-left duration-200">
-            <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
-              <h2 className="text-sm font-semibold text-white">Prompts</h2>
+          <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-card shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">Prompts</h2>
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
@@ -458,10 +458,10 @@ export function PromptManagerLayout() {
 
       {/* Loading overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="text-center">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-slate-400">Loading prompts...</p>
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Loading prompts...</p>
           </div>
         </div>
       )}

@@ -1,9 +1,20 @@
 /**
- * Avatar animation state machine and behavior service.
- * Manages avatar states, transitions, and animations.
+ * Avatar Service - Avatar state machine, animations, and API functions.
+ *
+ * Provides:
+ * - Avatar state machine for behavior management
+ * - Animation calculations (look rotation, idle sway, wave, celebration)
+ * - Easing functions
+ * - API wrapper with caching
  */
 
+import { api } from '@/lib/api'
+import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
 import type { AvatarState } from '@/types/skilltree'
+
+// ============================================================================
+// State Machine
+// ============================================================================
 
 /**
  * State machine configuration for avatar behaviors.
@@ -61,35 +72,22 @@ export class AvatarStateMachine {
     this.stateStartTime = Date.now()
   }
 
-  /**
-   * Get the current state.
-   */
   getState(): AvatarState {
     return this.currentState
   }
 
-  /**
-   * Get time elapsed in current state (ms).
-   */
   getStateTime(): number {
     return Date.now() - this.stateStartTime
   }
 
-  /**
-   * Check if state duration has elapsed.
-   */
   isStateComplete(): boolean {
     const config = STATE_CONFIG[this.currentState]
     return this.getStateTime() >= config.duration
   }
 
-  /**
-   * Attempt to transition to a new state.
-   */
   transition(newState: AvatarState): boolean {
     const currentConfig = STATE_CONFIG[this.currentState]
 
-    // Check if transition is allowed
     if (!currentConfig.canInterrupt && !this.isStateComplete()) {
       return false
     }
@@ -104,158 +102,276 @@ export class AvatarStateMachine {
     return true
   }
 
-  /**
-   * Force transition (bypasses rules).
-   */
   forceTransition(newState: AvatarState): void {
     this.currentState = newState
     this.stateStartTime = Date.now()
     this.notifyListeners()
   }
 
-  /**
-   * Subscribe to state changes.
-   */
   subscribe(listener: (state: AvatarState) => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
 
   private notifyListeners(): void {
-    this.listeners.forEach((listener) => listener(this.currentState))
+    for (const listener of this.listeners) {
+      listener(this.currentState)
+    }
   }
 }
 
+// ============================================================================
+// Animation Calculations
+// ============================================================================
+
 /**
- * Calculate head rotation to look at a target position.
- * Returns [rotationX, rotationY] in radians.
+ * Calculate head rotation to look at cursor position.
  */
 export function calculateLookRotation(
-  headPosition: [number, number, number],
-  targetPosition: { x: number; y: number; z?: number },
+  headPos: [number, number, number],
+  target: { x: number; y: number; z?: number },
   maxRotation: number = Math.PI / 3
 ): [number, number] {
-  const dx = targetPosition.x - headPosition[0]
-  const dy = (targetPosition.y || 0) - headPosition[1]
-  const dz = (targetPosition.z || 5) - headPosition[2]
+  const dx = target.x - headPos[0]
+  const dy = target.y - headPos[1]
+  const dz = (target.z ?? 5) - headPos[2]
 
-  // Calculate angles
-  const horizontalAngle = Math.atan2(dx, dz)
-  const verticalAngle = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))
+  const horizontalDist = Math.sqrt(dx * dx + dz * dz)
 
-  // Clamp to max rotation
-  const clampedHorizontal = Math.max(
-    -maxRotation,
-    Math.min(maxRotation, horizontalAngle)
-  )
-  const clampedVertical = Math.max(
-    -maxRotation / 2,
-    Math.min(maxRotation / 2, verticalAngle)
-  )
+  let rotY = Math.atan2(dx, dz)
+  let rotX = -Math.atan2(dy, horizontalDist)
 
-  return [clampedVertical, clampedHorizontal]
+  // Clamp rotations
+  rotY = Math.max(-maxRotation, Math.min(maxRotation, rotY))
+  rotX = Math.max(-maxRotation / 2, Math.min(maxRotation / 2, rotX))
+
+  return [rotX, rotY]
 }
 
 /**
- * Calculate body sway based on time.
- * Returns offset values for idle animation.
+ * Calculate idle sway animation offsets.
  */
 export function calculateIdleSway(time: number): {
   positionOffset: [number, number, number]
   rotationOffset: [number, number, number]
 } {
-  const slowCycle = time * 0.5
-  const fastCycle = time * 1.2
+  const swayAmplitude = 0.02
+  const swayFrequency = 0.5
 
   return {
     positionOffset: [
-      Math.sin(slowCycle) * 0.02,
-      Math.sin(fastCycle) * 0.03 + Math.sin(slowCycle * 0.7) * 0.02,
-      Math.cos(slowCycle * 0.8) * 0.01,
+      Math.sin(time * swayFrequency) * swayAmplitude,
+      Math.sin(time * swayFrequency * 1.3) * swayAmplitude * 0.5,
+      Math.cos(time * swayFrequency * 0.7) * swayAmplitude * 0.3,
     ],
     rotationOffset: [
-      Math.sin(slowCycle * 0.6) * 0.02,
-      Math.sin(slowCycle * 0.4) * 0.01,
-      Math.sin(slowCycle * 0.9) * 0.015,
+      Math.sin(time * swayFrequency * 0.8) * swayAmplitude * 2,
+      Math.sin(time * swayFrequency * 1.1) * swayAmplitude,
+      Math.cos(time * swayFrequency * 0.9) * swayAmplitude * 0.5,
     ],
   }
 }
 
 /**
- * Calculate wave animation.
- * Returns arm rotation in radians.
+ * Calculate wave animation rotation values.
  */
-export function calculateWaveAnimation(
-  progress: number
-): [number, number, number] {
-  // progress is 0-1 over the wave duration
-  const wavePhase = progress * Math.PI * 4 // Two full waves
+export function calculateWaveAnimation(progress: number): [number, number, number] {
+  const wavePhase = progress * Math.PI * 4
+  const armRaise = Math.sin(progress * Math.PI) * 0.8
+  const waveMotion = Math.sin(wavePhase) * 0.3 * Math.sin(progress * Math.PI)
 
   return [
-    Math.sin(wavePhase) * 0.5, // Upper arm rotation
-    Math.sin(wavePhase * 2) * 0.3 + 0.5, // Forearm rotation
-    Math.sin(wavePhase) * 0.2, // Wrist rotation
+    armRaise,
+    waveMotion,
+    Math.sin(progress * Math.PI * 2) * 0.1,
   ]
 }
 
 /**
- * Calculate celebration animation.
- * Returns various animation parameters.
+ * Calculate celebration animation values.
  */
 export function calculateCelebrationAnimation(progress: number): {
   scale: number
   rotation: number
   particleBurst: boolean
 } {
-  const bouncePhase = progress * Math.PI * 6
+  const scale = 1 + Math.sin(progress * Math.PI * 2) * 0.1
+  const rotation = progress * Math.PI * 2
 
-  return {
-    scale: 1 + Math.sin(bouncePhase) * 0.1,
-    rotation: progress * Math.PI * 2, // Full spin
-    particleBurst: progress < 0.1 || progress > 0.9,
-  }
+  // Trigger particle bursts at start and near end
+  const particleBurst = progress < 0.1 || progress > 0.9
+
+  return { scale, rotation, particleBurst }
 }
 
-/**
- * Easing functions for smooth animations.
- */
+// ============================================================================
+// Easing Functions
+// ============================================================================
+
 export const easing = {
-  linear: (t: number) => t,
-  easeInOut: (t: number) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
-  easeOut: (t: number) => 1 - Math.pow(1 - t, 3),
-  easeIn: (t: number) => t * t * t,
-  bounce: (t: number) => {
+  linear: (t: number): number => t,
+
+  easeInOut: (t: number): number => {
+    return t < 0.5
+      ? 2 * t * t
+      : 1 - Math.pow(-2 * t + 2, 2) / 2
+  },
+
+  easeOut: (t: number): number => {
+    return 1 - Math.pow(1 - t, 2)
+  },
+
+  easeIn: (t: number): number => {
+    return t * t
+  },
+
+  bounce: (t: number): number => {
     const n1 = 7.5625
     const d1 = 2.75
-    if (t < 1 / d1) return n1 * t * t
-    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75
-    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375
-    return n1 * (t -= 2.625 / d1) * t + 0.984375
+
+    if (t < 1 / d1) {
+      return n1 * t * t
+    } else if (t < 2 / d1) {
+      return n1 * (t -= 1.5 / d1) * t + 0.75
+    } else if (t < 2.5 / d1) {
+      return n1 * (t -= 2.25 / d1) * t + 0.9375
+    } else {
+      return n1 * (t -= 2.625 / d1) * t + 0.984375
+    }
   },
-  elastic: (t: number) => {
-    const c4 = (2 * Math.PI) / 3
-    return t === 0
-      ? 0
-      : t === 1
-      ? 1
-      : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1
+
+  elastic: (t: number): number => {
+    if (t === 0) return 0
+    if (t === 1) return 1
+    const p = 0.3
+    const a = 1
+    const s = p / 4
+    return a * Math.pow(2, -10 * t) * Math.sin((t - s) * (2 * Math.PI) / p) + 1
   },
 }
 
+// ============================================================================
+// Interpolation Helpers
+// ============================================================================
+
 /**
- * Interpolate between two values.
+ * Linear interpolation between two values.
  */
 export function lerp(start: number, end: number, t: number): number {
   return start + (end - start) * t
 }
 
 /**
- * Interpolate between two 3D positions.
+ * Linear interpolation between two 3D positions.
  */
 export function lerpPosition(
   start: [number, number, number],
   end: [number, number, number],
   t: number
 ): [number, number, number] {
-  return [lerp(start[0], end[0], t), lerp(start[1], end[1], t), lerp(start[2], end[2], t)]
+  return [
+    lerp(start[0], end[0], t),
+    lerp(start[1], end[1], t),
+    lerp(start[2], end[2], t),
+  ]
+}
+
+// Cache configuration
+const CACHE_TTL_MS = 5000 // 5 seconds
+
+// Cache state
+interface CacheEntry<T> {
+  data: T
+  timestamp: number
+}
+
+let avatarsCache: CacheEntry<Avatar[]> | null = null
+
+/**
+ * Check if cache entry is still valid.
+ */
+function isCacheValid<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
+  if (!entry) return false
+  return Date.now() - entry.timestamp < CACHE_TTL_MS
+}
+
+/**
+ * Invalidate all caches. Call after mutations.
+ */
+export function invalidateCache(): void {
+  avatarsCache = null
+}
+
+/**
+ * Get all avatars with caching.
+ *
+ * @param forceRefresh - Skip cache and fetch fresh data
+ * @returns Array of all avatars
+ */
+export async function getAvatars(forceRefresh = false): Promise<Avatar[]> {
+  if (!forceRefresh && isCacheValid(avatarsCache)) {
+    return avatarsCache.data
+  }
+
+  const data = await api.getAvatars()
+  avatarsCache = { data, timestamp: Date.now() }
+  return data
+}
+
+/**
+ * Get a single avatar by ID.
+ * Uses cached data if available, otherwise fetches.
+ *
+ * @param id - Avatar ID
+ * @returns The avatar, or undefined if not found
+ */
+export async function getAvatar(id: string): Promise<Avatar | undefined> {
+  // Try cache first
+  if (isCacheValid(avatarsCache)) {
+    const cached = avatarsCache.data.find((a) => a.id === id)
+    if (cached) return cached
+  }
+
+  // Fetch from API
+  try {
+    return await api.getAvatar(id)
+  } catch (error) {
+    console.error(`[avatarService] Failed to get avatar ${id}:`, error)
+    return undefined
+  }
+}
+
+/**
+ * Create a new avatar.
+ *
+ * @param request - Create request data
+ * @returns The created avatar
+ */
+export async function createAvatar(request: CreateAvatarRequest): Promise<Avatar> {
+  const avatar = await api.createAvatar(request)
+  invalidateCache()
+  return avatar
+}
+
+/**
+ * Update an avatar.
+ *
+ * @param id - Avatar ID to update
+ * @param updates - Fields to update
+ * @returns The updated avatar
+ */
+export async function updateAvatar(id: string, updates: UpdateAvatarRequest): Promise<Avatar> {
+  const avatar = await api.updateAvatar(id, updates)
+  invalidateCache()
+  return avatar
+}
+
+/**
+ * Delete an avatar.
+ *
+ * @param id - Avatar ID to delete
+ */
+export async function deleteAvatar(id: string): Promise<void> {
+  await api.deleteAvatar(id)
+  invalidateCache()
 }
