@@ -63,7 +63,7 @@ export function usePromptsData(): UsePromptsDataReturn {
   const createMutation = useMutation({
     mutationFn: (request: CreatePromptRequest) => promptService.createPrompt(request),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
     },
   })
 
@@ -72,7 +72,7 @@ export function usePromptsData(): UsePromptsDataReturn {
     mutationFn: ({ id, updates }: { id: string; updates: UpdatePromptRequest }) =>
       promptService.updatePrompt(id, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
     },
   })
 
@@ -80,7 +80,7 @@ export function usePromptsData(): UsePromptsDataReturn {
   const batchUpdateMutation = useMutation({
     mutationFn: (updates: Map<string, UpdatePromptRequest>) => promptService.updatePrompts(updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
     },
   })
 
@@ -88,7 +88,7 @@ export function usePromptsData(): UsePromptsDataReturn {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => promptService.deletePrompt(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
     },
   })
 
@@ -99,7 +99,7 @@ export function usePromptsData(): UsePromptsDataReturn {
     // Loading/error states
     isLoading,
     isError,
-    error: error as Error | null,
+    error: error ?? null,
 
     // Mutations
     createPrompt: createMutation.mutateAsync,
@@ -114,6 +114,6 @@ export function usePromptsData(): UsePromptsDataReturn {
     isDeleting: deleteMutation.isPending,
 
     // Utilities
-    refetch: () => refetch(),
+    refetch: () => void refetch(),
   }
 }

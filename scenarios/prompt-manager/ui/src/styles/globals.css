@@ -165,3 +165,32 @@ code, pre {
 .button-glow:hover::before {
   left: 100%;
 }
+
+/* TipTap Editor styles */
+.ProseMirror {
+  min-height: 100%;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground) / 0.5);
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.5);
+  margin: 1rem 0;
+  padding-left: 1rem;
+}

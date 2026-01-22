@@ -18,7 +18,6 @@ import {
   validateFormState,
   createEmptyFormState,
 } from '@/services/editorService'
-import { isEditable } from '@/services/promptService'
 
 interface UsePromptEditorProps {
   prompts: Prompt[]
@@ -31,7 +30,6 @@ interface UsePromptEditorReturn {
   // Current editor state
   currentPrompt: Prompt | null
   formState: PromptFormState
-  isReadonly: boolean
 
   // Form operations
   updateField: <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => void
@@ -89,12 +87,6 @@ export function usePromptEditor({
     if (!selectedItemId) return null
     return prompts.find((p) => p.id === selectedItemId) ?? null
   }, [prompts, selectedItemId])
-
-  // Check if current prompt is readonly
-  const isReadonly = useMemo(() => {
-    if (!currentPrompt) return true
-    return !isEditable(currentPrompt)
-  }, [currentPrompt])
 
   // Check if current form has changes
   const currentIsDirty = useMemo(() => {
@@ -162,19 +154,17 @@ export function usePromptEditor({
   // Update a single form field
   const updateField = useCallback(
     <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => {
-      if (isReadonly) return
       setFormState((prev) => ({ ...prev, [field]: value }))
     },
-    [isReadonly]
+    []
   )
 
   // Update modes array
   const setModes = useCallback(
     (modes: string[]) => {
-      if (isReadonly) return
       setFormState((prev) => ({ ...prev, modes }))
     },
-    [isReadonly]
+    []
   )
 
   // Reset form to original prompt state
@@ -272,7 +262,7 @@ export function usePromptEditor({
 
   // Delete current prompt
   const deleteCurrentPrompt = useCallback(async () => {
-    if (!currentPrompt || isReadonly) return
+    if (!currentPrompt) return
 
     setIsDeleting(true)
     try {
@@ -287,13 +277,12 @@ export function usePromptEditor({
     } finally {
       setIsDeleting(false)
     }
-  }, [currentPrompt, isReadonly, onDelete])
+  }, [currentPrompt, onDelete])
 
   return {
     // Current editor state
     currentPrompt,
     formState,
-    isReadonly,
 
     // Form operations
     updateField,

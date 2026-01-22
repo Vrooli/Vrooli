@@ -3,11 +3,11 @@
 
 /**
  * Folder represents the organizational structure for prompts.
- * - "core": Read-only system prompts (e.g., steering prompts)
- * - "local": User-created prompts that persist
+ * - "core": Important prompts (git-tracked)
+ * - "internal": Personal prompts (gitignored)
  * - "drafts": Work-in-progress prompts
  */
-export type FolderType = 'core' | 'local' | 'drafts'
+export type FolderType = 'core' | 'internal' | 'drafts'
 
 /**
  * Folder metadata for UI display
@@ -17,7 +17,6 @@ export interface Folder {
   name: string
   description: string
   icon: string
-  readonly: boolean
   promptCount: number
 }
 
@@ -55,7 +54,7 @@ export interface CreatePromptRequest {
   icon?: string
   targetToolId?: string | null
   draft?: boolean
-  folder: 'local' | 'drafts'  // Can only create in writable folders
+  folder: FolderType  // Can create in any folder
 }
 
 /**
@@ -70,6 +69,7 @@ export interface UpdatePromptRequest {
   icon?: string
   targetToolId?: string | null
   draft?: boolean
+  folder?: FolderType
 }
 
 /**

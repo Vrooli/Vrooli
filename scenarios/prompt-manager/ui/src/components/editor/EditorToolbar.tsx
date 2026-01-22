@@ -25,7 +25,6 @@ interface EditorToolbarProps {
   // Loading/disabled states
   isSaving: boolean
   isDeleting: boolean
-  isReadonly: boolean
   isValid: boolean
 
   // Optional test button
@@ -45,15 +44,14 @@ export function EditorToolbar({
   onDelete,
   isSaving,
   isDeleting,
-  isReadonly,
   isValid,
   onTest,
   className,
 }: EditorToolbarProps) {
-  const canSave = isDirty && !isReadonly && !isSaving && isValid
+  const canSave = isDirty && !isSaving && isValid
   const canSaveAll = dirtyCount > 0 && !isSaving
   const canDiscard = isDirty && !isSaving
-  const canDelete = !isReadonly && !isDeleting
+  const canDelete = !isDeleting
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
@@ -68,7 +66,7 @@ export function EditorToolbar({
             ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
             : 'bg-slate-800 text-slate-500 cursor-not-allowed'
         )}
-        title={isReadonly ? 'Cannot edit read-only prompt' : isDirty ? 'Save changes' : 'No changes to save'}
+        title={isDirty ? 'Save changes' : 'No changes to save'}
       >
         <Save className="h-4 w-4" />
         {isSaving ? 'Saving...' : 'Save'}
@@ -118,10 +116,10 @@ export function EditorToolbar({
         <button
           type="button"
           onClick={onTest}
-          disabled={isReadonly || isSaving}
+          disabled={isSaving}
           className={cn(
             'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
-            !isReadonly && !isSaving
+            !isSaving
               ? 'bg-amber-600 hover:bg-amber-500 text-white'
               : 'bg-slate-800 text-slate-500 cursor-not-allowed'
           )}
@@ -143,7 +141,7 @@ export function EditorToolbar({
             ? 'bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/50 hover:border-red-600'
             : 'bg-slate-800 text-slate-500 cursor-not-allowed'
         )}
-        title={isReadonly ? 'Cannot delete read-only prompt' : 'Delete prompt'}
+        title="Delete prompt"
       >
         <Trash2 className="h-4 w-4" />
         {isDeleting ? 'Deleting...' : 'Delete'}

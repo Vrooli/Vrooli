@@ -1,36 +1,24 @@
 /**
  * App.tsx - Main application entry point.
  *
- * Simplified wrapper that provides:
- * - Theme context
- * - Error boundary
- * - React Query provider
+ * Provides:
+ * - Error boundaries for graceful error handling
+ * - Theme context for light/dark mode support
  *
+ * Note: QueryClientProvider is already configured in main.tsx.
  * The actual layout and state management is handled by PromptManagerLayout.
  */
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ThemeProvider } from './hooks/use-theme'
 import { PromptManagerLayout } from './components/layout/PromptManagerLayout'
-
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5000, // 5 seconds
-      refetchOnWindowFocus: false,
-    },
-  },
-})
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ErrorBoundary>
-          <PromptManagerLayout />
-        </ErrorBoundary>
-      </QueryClientProvider>
+      <ThemeProvider>
+        <PromptManagerLayout />
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

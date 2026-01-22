@@ -36,23 +36,25 @@ console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
 
 /**
  * Static folder definitions.
- * The API uses folder-based organization, not campaigns.
+ * The API uses folder-based organization.
+ * Folders determine git behavior, not editability:
+ * - core: Important prompts (git-tracked)
+ * - internal: Personal prompts (gitignored)
+ * - drafts: Work in progress prompts
  */
 export const FOLDERS: Folder[] = [
   {
     id: 'core',
     name: 'Core',
-    description: 'System prompts and steering templates (read-only)',
+    description: 'Important prompts (git-tracked)',
     icon: 'shield',
-    readonly: true,
     promptCount: 0,  // Updated dynamically
   },
   {
-    id: 'local',
-    name: 'Local',
-    description: 'Your saved prompts',
+    id: 'internal',
+    name: 'Internal',
+    description: 'Personal prompts (gitignored)',
     icon: 'folder',
-    readonly: false,
     promptCount: 0,
   },
   {
@@ -60,7 +62,6 @@ export const FOLDERS: Folder[] = [
     name: 'Drafts',
     description: 'Work in progress prompts',
     icon: 'edit',
-    readonly: false,
     promptCount: 0,
   },
 ]
@@ -125,7 +126,7 @@ class ApiClient {
   async getFolders(): Promise<Folder[]> {
     // Get all prompts and compute folder counts
     const prompts = await this.getPrompts()
-    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0 }
+    const counts: Record<FolderType, number> = { core: 0, internal: 0, drafts: 0 }
 
     for (const prompt of prompts) {
       if (prompt.folder in counts) {

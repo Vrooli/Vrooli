@@ -26,6 +26,7 @@ export function promptToFormState(prompt: Prompt): PromptFormState {
     icon: prompt.icon ?? '',
     targetToolId: prompt.targetToolId ?? '',
     draft: prompt.draft,
+    folder: prompt.folder,
   }
 }
 
@@ -45,6 +46,7 @@ export function formStateToUpdateRequest(formState: PromptFormState): UpdateProm
     icon: formState.icon || undefined,
     targetToolId: formState.targetToolId || undefined,
     draft: formState.draft,
+    folder: formState.folder,
   }
 }
 
@@ -119,6 +121,7 @@ export function isDirty(original: Prompt, current: PromptFormState): boolean {
   if (original.description !== current.description) return true
   if (original.content !== current.content) return true
   if (original.draft !== current.draft) return true
+  if (original.folder !== current.folder) return true
   if ((original.icon ?? '') !== current.icon) return true
   if ((original.targetToolId ?? '') !== current.targetToolId) return true
 
@@ -158,6 +161,7 @@ export function createEmptyFormState(): PromptFormState {
     icon: '',
     targetToolId: '',
     draft: true,
+    folder: 'internal',
   }
 }
 
@@ -175,6 +179,7 @@ export function getChangeSummary(original: Prompt, current: PromptFormState): st
   if (original.description !== current.description) changes.push('description')
   if (original.content !== current.content) changes.push('content')
   if (original.draft !== current.draft) changes.push('draft status')
+  if (original.folder !== current.folder) changes.push('folder')
   if ((original.icon ?? '') !== current.icon) changes.push('icon')
   if ((original.targetToolId ?? '') !== current.targetToolId) changes.push('target tool')
 

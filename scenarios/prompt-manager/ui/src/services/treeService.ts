@@ -19,8 +19,7 @@ export function buildTree(prompts: Prompt[]): TreeNode[] {
   const nodeMap = new Map<string, TreeNode>()
 
   for (const prompt of prompts) {
-    const modes = prompt.modes ?? []
-    const isReadonly = prompt.folder === 'core'
+    const modes = prompt.modes
 
     if (modes.length === 0) {
       // Items without modes go to "Other" category
@@ -42,7 +41,6 @@ export function buildTree(prompts: Prompt[]): TreeNode[] {
         children: [],
         itemId: prompt.id,
         depth: 1,
-        isReadonly,
       })
       continue
     }
@@ -79,7 +77,6 @@ export function buildTree(prompts: Prompt[]): TreeNode[] {
       children: [],
       itemId: prompt.id,
       depth: modes.length,
-      isReadonly,
     })
   }
 
@@ -196,7 +193,7 @@ export function getModesAtLevel(prompts: Prompt[], level: number, parentPath: st
   const modes = new Set<string>()
 
   for (const prompt of prompts) {
-    const promptModes = prompt.modes ?? []
+    const promptModes = prompt.modes
 
     // Check if this prompt matches the parent path
     let matches = true

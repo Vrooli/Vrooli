@@ -163,16 +163,6 @@ export async function searchPrompts(query: string): Promise<Prompt[]> {
 }
 
 /**
- * Check if a prompt is editable (not from core folder).
- *
- * @param prompt - The prompt to check
- * @returns True if the prompt can be edited
- */
-export function isEditable(prompt: Prompt): boolean {
-  return prompt.folder !== 'core'
-}
-
-/**
  * Get all unique tags from prompts.
  *
  * @returns Array of unique tags sorted alphabetically

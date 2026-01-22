@@ -3,7 +3,7 @@
  * Separated from API types to maintain clean boundaries.
  */
 
-import type { Prompt } from './index'
+import type { Prompt, FolderType } from './index'
 
 /**
  * Tree node structure for displaying prompts in a hierarchical view.
@@ -16,7 +16,6 @@ export interface TreeNode {
   children: TreeNode[]
   itemId?: string      // Only for leaf nodes - the actual prompt ID
   depth: number
-  isReadonly?: boolean // true for core prompts
 }
 
 /**
@@ -32,6 +31,7 @@ export interface PromptFormState {
   icon: string
   targetToolId: string
   draft: boolean
+  folder: FolderType   // Folder determines git behavior
 }
 
 /**

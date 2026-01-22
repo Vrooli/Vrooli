@@ -38,7 +38,8 @@ export default tseslint.config(
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
 
-      // TypeScript safety rules
+      // TypeScript safety rules - prevents 'any' type from bypassing type checking
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-assignment": "warn",
@@ -61,6 +62,19 @@ export default tseslint.config(
       // Relax some strict rules that are too noisy
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
+    },
+  },
+  // Test file overrides
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/test/**/*.{ts,tsx}"],
+    rules: {
+      // Allow unbound methods in tests (common pattern with vi.mocked)
+      "@typescript-eslint/unbound-method": "off",
+      // Allow act from @testing-library/react (deprecation refers to react-dom/test-utils)
+      "@typescript-eslint/no-deprecated": "off",
+      // Relax unsafe rules in tests since we often work with mocks
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
     },
   }
 );

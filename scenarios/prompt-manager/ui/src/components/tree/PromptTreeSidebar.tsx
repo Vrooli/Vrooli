@@ -10,7 +10,7 @@
  * - New prompt button
  */
 
-import { type ReactNode } from 'react'
+import { type ReactNode, type RefObject } from 'react'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
@@ -33,6 +33,8 @@ interface PromptTreeSidebarProps {
   onExpandAll: () => void
   onCollapseAll: () => void
   onCreateNew: () => void
+  /** Ref for the search input (for keyboard shortcuts) */
+  searchInputRef?: RefObject<HTMLInputElement>
   className?: string
 }
 
@@ -55,6 +57,7 @@ export function PromptTreeSidebar({
   onExpandAll,
   onCollapseAll,
   onCreateNew,
+  searchInputRef,
   className = '',
 }: PromptTreeSidebarProps) {
   // Count total dirty items
@@ -132,6 +135,7 @@ export function PromptTreeSidebar({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
           <input
+            ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}

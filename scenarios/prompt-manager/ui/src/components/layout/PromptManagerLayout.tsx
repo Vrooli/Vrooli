@@ -2,7 +2,7 @@
  * PromptManagerLayout - Main two-panel layout for the prompt manager.
  *
  * Brings together all the components:
- * - PromptTreeSidebar (left)
+ * - PromptTreeSidebar (left, resizable)
  * - PromptEditorPanel (right)
  * - Confirmation dialogs
  * - New prompt creation
@@ -11,11 +11,12 @@
  * - Responsive behavior (drawer on mobile)
  * - Storing changes when switching prompts
  * - Unsaved changes confirmation
+ * - Resizable sidebar with localStorage persistence
  */
 
-import { useState, useCallback, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
-import { getIcon } from '../shared/IconSelector'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Menu, X, GripVertical, Settings } from 'lucide-react'
+import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PromptTreeSidebar } from '../tree/PromptTreeSidebar'
 import { PromptEditorPanel } from '../editor/PromptEditorPanel'
@@ -23,6 +24,9 @@ import { usePromptsData } from '@/hooks/usePromptsData'
 import { usePromptTree } from '@/hooks/usePromptTree'
 import { usePromptEditor } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
+import { useResizableSidebar } from '@/hooks/useResizableSidebar'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { SettingsDialog } from '../shared/SettingsDialog'
 import type { Prompt, CreatePromptRequest } from '@/types'
 
 /**
@@ -38,7 +42,11 @@ export function PromptManagerLayout() {
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [pendingSelection, setPendingSelection] = useState<string | null>(null)
+
+  // Search input ref for keyboard shortcut
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Data fetching
   const {
@@ -68,7 +76,6 @@ export function PromptManagerLayout() {
   const {
     currentPrompt,
     formState,
-    isReadonly,
     updateField,
     setModes,
     validation,
@@ -91,6 +98,18 @@ export function PromptManagerLayout() {
 
   // Mode suggestions
   const { getSuggestionsAtLevel } = useModeSuggestions({ prompts })
+
+  // Resizable sidebar
+  const {
+    width: sidebarWidth,
+    isResizing,
+    containerRef,
+    handleResizeStart,
+  } = useResizableSidebar({
+    defaultWidth: 280,
+    minWidth: 200,
+    maxWidthRatio: 0.5,
+  })
 
   // Handle window resize
   useEffect(() => {
@@ -163,7 +182,7 @@ export function PromptManagerLayout() {
       content: '# New Prompt\n\nEnter your prompt content here...',
       modes: [],
       tags: [],
-      folder: 'local',
+      folder: 'internal',
       draft: true,
     }
 
@@ -185,6 +204,48 @@ export function PromptManagerLayout() {
     return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
   }, [])
 
+  // Keyboard shortcuts (defined after callbacks so they're available)
+  useKeyboardShortcuts({
+    onSave: () => {
+      if (isDirty && validation.valid) {
+        void saveCurrentPrompt()
+      }
+    },
+    onSaveAll: () => {
+      if (dirtyCount > 0) {
+        void saveAllChanges()
+      }
+    },
+    onNew: () => void handleCreateNew(),
+    onFocusSearch: () => {
+      searchInputRef.current?.focus()
+    },
+    onEscape: () => {
+      // Close any open dialogs first
+      if (showDeleteDialog) {
+        setShowDeleteDialog(false)
+        return
+      }
+      if (showDiscardDialog) {
+        setShowDiscardDialog(false)
+        setPendingSelection(null)
+        return
+      }
+      if (showSettingsDialog) {
+        setShowSettingsDialog(false)
+        return
+      }
+      // If no dialogs open and on mobile, close the sidebar
+      if (isMobile && isMobileSidebarOpen) {
+        setIsMobileSidebarOpen(false)
+        return
+      }
+    },
+    onOpenSettings: () => {
+      setShowSettingsDialog(true)
+    },
+  })
+
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
     <PromptTreeSidebar
@@ -202,17 +263,52 @@ export function PromptManagerLayout() {
       onToggleCollapse={toggleCollapse}
       onExpandAll={expandAll}
       onCollapseAll={collapseAll}
-      onCreateNew={handleCreateNew}
+      onCreateNew={() => void handleCreateNew()}
+      searchInputRef={searchInputRef}
     />
   )
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-950 to-slate-900">
-      {/* Desktop sidebar */}
-      {!isMobile && sidebar}
+    <div ref={containerRef} className="flex h-screen bg-gradient-to-br from-slate-950 to-slate-900">
+      {/* Desktop sidebar with resize handle */}
+      {!isMobile && (
+        <div
+          className="relative flex-shrink-0"
+          style={{ width: sidebarWidth }}
+        >
+          {sidebar}
+          {/* Resize handle - wider hit area (12px) with narrow visual indicator */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            tabIndex={0}
+            onMouseDown={handleResizeStart}
+            className={`
+              absolute top-0 right-0 h-full w-3 cursor-col-resize
+              flex items-center justify-center group
+              ${isResizing ? '' : ''}
+            `}
+          >
+            {/* Visual indicator - narrow line with subtle visibility */}
+            <div
+              className={`
+                absolute right-0 top-0 h-full w-0.5 transition-colors
+                ${isResizing ? 'bg-indigo-500' : 'bg-slate-700 group-hover:bg-indigo-500/50'}
+              `}
+            />
+            <GripVertical
+              className={`
+                h-6 w-3 text-slate-600 opacity-30 group-hover:opacity-100 transition-opacity z-10
+                ${isResizing ? 'opacity-100 text-indigo-400' : ''}
+              `}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex flex-col min-w-0 ${isResizing ? 'select-none' : ''}`}>
         {/* Mobile header with menu button */}
         {isMobile && (
           <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-slate-900/50">
@@ -224,29 +320,36 @@ export function PromptManagerLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="text-lg font-semibold text-white">Prompt Manager</h1>
+            <h1 className="flex-1 text-lg font-semibold text-white">Prompt Manager</h1>
             {dirtyCount > 0 && (
               <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400 rounded-full">
                 {dirtyCount} unsaved
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setShowSettingsDialog(true)}
+              className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              aria-label="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
           </header>
         )}
 
         {/* Editor panel */}
-        <main className="flex-1 p-4 overflow-hidden">
+        <main className="flex-1 overflow-hidden">
           <PromptEditorPanel
             currentPrompt={currentPrompt}
             formState={formState}
             validation={validation}
-            isReadonly={isReadonly}
             isDirty={isDirty}
             dirtyCount={dirtyCount}
             onFieldChange={updateField}
             onModesChange={setModes}
             getSuggestionsAtLevel={getSuggestionsAtLevel}
-            onSave={saveCurrentPrompt}
-            onSaveAll={saveAllChanges}
+            onSave={() => void saveCurrentPrompt()}
+            onSaveAll={() => void saveAllChanges()}
             onDiscard={discardCurrentChanges}
             onDelete={() => setShowDeleteDialog(true)}
             isSaving={isSaving}
@@ -294,7 +397,7 @@ export function PromptManagerLayout() {
                 onToggleCollapse={() => {}}
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
-                onCreateNew={handleCreateNew}
+                onCreateNew={() => void handleCreateNew()}
                 className="border-r-0"
               />
             </div>
@@ -306,7 +409,7 @@ export function PromptManagerLayout() {
       <ConfirmDialog
         isOpen={showDeleteDialog}
         onClose={() => setShowDeleteDialog(false)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => void handleConfirmDelete()}
         title="Delete Prompt"
         message={`Are you sure you want to delete "${currentPrompt?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
@@ -338,6 +441,12 @@ export function PromptManagerLayout() {
           </div>
         </div>
       )}
+
+      {/* Settings dialog */}
+      <SettingsDialog
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+      />
     </div>
   )
 }
