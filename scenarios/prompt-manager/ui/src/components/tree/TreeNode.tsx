@@ -50,7 +50,7 @@ export function TreeNodeComponent({
         <button
           type="button"
           onClick={() => onToggleNode(node.id)}
-          className="w-full flex items-center gap-2 py-1.5 px-2 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors text-xs"
+          className="w-full flex items-center gap-2 py-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs"
           style={{ paddingLeft }}
         >
           {isExpanded ? (
@@ -58,7 +58,7 @@ export function TreeNodeComponent({
           ) : (
             <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" />
           )}
-          <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-slate-500" />
+          <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
           <span className="truncate flex-1 text-left">{node.label}</span>
           {dirtyCount > 0 && (
             <span
@@ -100,8 +100,8 @@ export function TreeNodeComponent({
       className={cn(
         'w-full flex items-center gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
         isSelected
-          ? 'bg-indigo-600/30 text-white'
-          : 'text-slate-300 hover:bg-white/5 hover:text-white'
+          ? 'bg-primary/30 text-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
       style={{ paddingLeft }}
     >

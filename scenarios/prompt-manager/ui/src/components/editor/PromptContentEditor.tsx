@@ -79,18 +79,18 @@ export function PromptContentEditor({
     <div className={cn('flex flex-col', className)}>
       {/* Header with label and editor toggle */}
       <div className="flex items-center justify-between mb-1">
-        <label className="block text-sm font-medium text-slate-300">
+        <label className="block text-sm font-medium text-muted-foreground">
           Content <span className="text-red-400">*</span>
         </label>
-        <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
           <button
             type="button"
             onClick={() => setEditorType('code')}
             className={cn(
               'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
               editorType === 'code'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             )}
             title="Code Editor (Monaco)"
           >
@@ -103,8 +103,8 @@ export function PromptContentEditor({
             className={cn(
               'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
               editorType === 'wysiwyg'
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
             )}
             title="Rich Text Editor (WYSIWYG)"
           >
@@ -118,7 +118,7 @@ export function PromptContentEditor({
       <div
         className={cn(
           'flex-1 rounded-lg overflow-hidden border',
-          error ? 'border-red-500' : 'border-white/10'
+          error ? 'border-red-500' : 'border-border'
         )}
       >
         {editorType === 'code' ? (

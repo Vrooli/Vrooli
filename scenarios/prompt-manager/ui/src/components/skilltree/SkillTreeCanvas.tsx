@@ -8,6 +8,7 @@ import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
+import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSkillTree3D } from '@/hooks/useSkillTree3D'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
@@ -38,6 +39,10 @@ export function SkillTreeCanvas({
   activeAvatarId,
   className,
 }: SkillTreeCanvasProps) {
+  // Theme for 3D colors
+  const resolvedTheme = useResolvedTheme()
+  const isDarkMode = resolvedTheme === 'dark'
+
   // Cursor tracking for avatar
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
 
@@ -168,7 +173,7 @@ export function SkillTreeCanvas({
 
   return (
     <div
-      className={`relative w-full h-full bg-slate-900 ${className || ''}`}
+      className={`relative w-full h-full bg-background ${className || ''}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
@@ -184,7 +189,7 @@ export function SkillTreeCanvas({
         gl={{ antialias: true, alpha: false }}
         dpr={[1, 2]}
       >
-        <color attach="background" args={['#0f172a']} />
+        <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
         <AvatarProvider avatar={avatarType}>
           <Suspense fallback={null}>
             <SkillTreeScene
@@ -197,6 +202,7 @@ export function SkillTreeCanvas({
               onNodeHover={handleNodeHover}
               onAvatarClick={handleAvatarClick}
               avatarColors={activeAvatarColors}
+              isDarkMode={isDarkMode}
             />
           </Suspense>
         </AvatarProvider>
@@ -205,13 +211,13 @@ export function SkillTreeCanvas({
       {/* Loading indicator */}
       <Loader
         containerStyles={{
-          background: 'rgba(15, 23, 42, 0.9)',
+          background: isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(248, 250, 252, 0.9)',
         }}
         barStyles={{
           background: '#6366f1',
         }}
         dataStyles={{
-          color: '#e2e8f0',
+          color: isDarkMode ? '#e2e8f0' : '#1e293b',
           fontSize: '14px',
         }}
       />
@@ -236,9 +242,9 @@ export function SkillTreeCanvas({
       {prompts.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-slate-800 rounded-2xl flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-2xl flex items-center justify-center">
               <svg
-                className="w-8 h-8 text-slate-600"
+                className="w-8 h-8 text-muted-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -251,8 +257,8 @@ export function SkillTreeCanvas({
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-slate-400 mb-2">No Prompts Yet</h3>
-            <p className="text-sm text-slate-500 max-w-xs">
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">No Prompts Yet</h3>
+            <p className="text-sm text-muted-foreground/70 max-w-xs">
               Create your first prompt to see it appear in the skill tree.
             </p>
           </div>

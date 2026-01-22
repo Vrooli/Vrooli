@@ -24,6 +24,7 @@ interface SkillTreeSceneProps {
     head: string
     accent: string
   }
+  isDarkMode?: boolean
 }
 
 export function SkillTreeScene({
@@ -36,6 +37,7 @@ export function SkillTreeScene({
   onNodeHover,
   onAvatarClick,
   avatarColors,
+  isDarkMode = true,
 }: SkillTreeSceneProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null)
@@ -67,8 +69,8 @@ export function SkillTreeScene({
       <pointLight position={[10, -5, 10]} intensity={0.3} color="#22d3ee" />
 
       {/* Environment */}
-      <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />
-      <fog attach="fog" args={['#0f172a', 10, 50]} />
+      {isDarkMode && <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />}
+      <fog attach="fog" args={[isDarkMode ? '#0f172a' : '#f8fafc', 10, 50]} />
 
       {/* Controls */}
       <OrbitControls
@@ -83,7 +85,7 @@ export function SkillTreeScene({
 
       {/* Grid helper */}
       <gridHelper
-        args={[30, 30, '#1e293b', '#1e293b']}
+        args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
         position={[0, -2, 0]}
       />
 

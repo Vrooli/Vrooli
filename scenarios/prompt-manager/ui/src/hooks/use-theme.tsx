@@ -69,3 +69,37 @@ export function useTheme() {
   }
   return context
 }
+
+/**
+ * Hook to get the resolved theme (always 'light' or 'dark', never 'system').
+ * Useful for components that need the actual theme value, like 3D renderers.
+ */
+export function useResolvedTheme(): 'light' | 'dark' {
+  const { theme } = useTheme()
+  const [resolved, setResolved] = useState<'light' | 'dark'>(() => {
+    if (theme === 'system') {
+      return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+    }
+    return theme
+  })
+
+  useEffect(() => {
+    if (theme !== 'system') {
+      setResolved(theme)
+      return
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      setResolved(e.matches ? 'dark' : 'light')
+    }
+
+    setResolved(mediaQuery.matches ? 'dark' : 'light')
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [theme])
+
+  return resolved
+}
