@@ -1,113 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { getAdminProfile, updateAdminProfile, type AdminProfile } from '../../../shared/api';
-
-type FormStatus = {
-  saving: boolean;
-  message?: string;
-  error?: string;
-};
-
-const MIN_PASSWORD_LENGTH = 12;
-
-const cleanError = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message.replace(/^API call failed \(\d+\):\s*/, '');
-  }
-  return 'Request failed';
-};
+import { useProfileForm } from '../hooks/useProfileForm';
 
 export function ProfileSettings() {
-  const [profile, setProfile] = useState<AdminProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const [emailForm, setEmailForm] = useState({ newEmail: '', currentPassword: '' });
-  const [emailStatus, setEmailStatus] = useState<FormStatus>({ saving: false });
-
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [passwordStatus, setPasswordStatus] = useState<FormStatus>({ saving: false });
-
-  const defaultCredentialRisk = useMemo(() => {
-    if (!profile) return false;
-    return profile.is_default_email || profile.is_default_password;
-  }, [profile]);
-
-  useEffect(() => {
-    const loadProfile = async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const data = await getAdminProfile();
-        setProfile(data);
-      } catch (error) {
-        setLoadError(cleanError(error));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadProfile();
-  }, []);
-
-  const handleEmailSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setEmailStatus({ saving: true });
-
-    if (!emailForm.newEmail.trim()) {
-      setEmailStatus({ saving: false, error: 'Enter a new email to update your profile.' });
-      return;
-    }
-    if (!emailForm.currentPassword.trim()) {
-      setEmailStatus({ saving: false, error: 'Confirm with your current password before saving changes.' });
-      return;
-    }
-
-    try {
-      const updated = await updateAdminProfile({
-        current_password: emailForm.currentPassword.trim(),
-        new_email: emailForm.newEmail.trim(),
-      });
-      setProfile(updated);
-      setEmailStatus({ saving: false, message: 'Email updated. New sign-in is active immediately.' });
-      setEmailForm({ newEmail: '', currentPassword: '' });
-    } catch (error) {
-      setEmailStatus({ saving: false, error: cleanError(error) });
-    }
-  };
-
-  const handlePasswordSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setPasswordStatus({ saving: true });
-
-    if (!passwordForm.newPassword.trim() || !passwordForm.confirmPassword.trim()) {
-      setPasswordStatus({ saving: false, error: 'Enter and confirm your new password.' });
-      return;
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordStatus({ saving: false, error: 'Passwords do not match.' });
-      return;
-    }
-    if (!passwordForm.currentPassword.trim()) {
-      setPasswordStatus({ saving: false, error: 'Enter your current password to authorize this change.' });
-      return;
-    }
-
-    try {
-      const updated = await updateAdminProfile({
-        current_password: passwordForm.currentPassword.trim(),
-        new_password: passwordForm.newPassword.trim(),
-      });
-      setProfile(updated);
-      setPasswordStatus({ saving: false, message: 'Password updated. Future logins will require the new secret.' });
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (error) {
-      setPasswordStatus({ saving: false, error: cleanError(error) });
-    }
-  };
+  const {
+    profile,
+    loading,
+    loadError,
+    emailForm,
+    emailStatus,
+    updateEmailForm,
+    handleEmailSubmit,
+    passwordForm,
+    passwordStatus,
+    updatePasswordForm,
+    handlePasswordSubmit,
+    defaultCredentialRisk,
+    MIN_PASSWORD_LENGTH,
+  } = useProfileForm();
 
   return (
     <AdminLayout>
@@ -177,7 +89,7 @@ export function ProfileSettings() {
                     <input
                       type="email"
                       value={emailForm.newEmail}
-                      onChange={(event) => setEmailForm((prev) => ({ ...prev, newEmail: event.target.value }))}
+                      onChange={(event) => updateEmailForm('newEmail', event.target.value)}
                       placeholder="you@company.com"
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       data-testid="profile-email-new"
@@ -188,7 +100,7 @@ export function ProfileSettings() {
                     <input
                       type="password"
                       value={emailForm.currentPassword}
-                      onChange={(event) => setEmailForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                      onChange={(event) => updateEmailForm('currentPassword', event.target.value)}
                       placeholder="Confirm with current password"
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       data-testid="profile-email-current-password"
@@ -237,7 +149,7 @@ export function ProfileSettings() {
                     <input
                       type="password"
                       value={passwordForm.newPassword}
-                      onChange={(event) => setPasswordForm((prev) => ({ ...prev, newPassword: event.target.value }))}
+                      onChange={(event) => updatePasswordForm('newPassword', event.target.value)}
                       placeholder="At least 12 characters, letters + numbers"
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       data-testid="profile-password-new"
@@ -249,7 +161,7 @@ export function ProfileSettings() {
                     <input
                       type="password"
                       value={passwordForm.confirmPassword}
-                      onChange={(event) => setPasswordForm((prev) => ({ ...prev, confirmPassword: event.target.value }))}
+                      onChange={(event) => updatePasswordForm('confirmPassword', event.target.value)}
                       placeholder="Re-enter new password"
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       data-testid="profile-password-confirm"
@@ -261,7 +173,7 @@ export function ProfileSettings() {
                     <input
                       type="password"
                       value={passwordForm.currentPassword}
-                      onChange={(event) => setPasswordForm((prev) => ({ ...prev, currentPassword: event.target.value }))}
+                      onChange={(event) => updatePasswordForm('currentPassword', event.target.value)}
                       placeholder="Confirm with current password"
                       className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
                       data-testid="profile-password-current"

@@ -1,22 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, CheckCircle2, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
-import { getAdminExperienceSnapshot, type AdminExperienceSnapshot } from "../../../shared/lib/adminExperience";
-import { listVariants, type Variant, getStripeSettings, type StripeSettingsResponse, resetDemoData, getBranding, listDownloadAppsAdmin } from "../../../shared/api";
-import { buildDateRange, fetchAnalyticsSummary } from "../controllers/analyticsController";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
+import type { Variant, StripeSettingsResponse } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import {
   HEALTH_SNAPSHOT_DAYS,
-  buildHealthSnapshot,
-  computeBrandingHealth,
-  computeDownloadsHealth,
   describeWeightStatus,
   type HealthSnapshot,
   type BrandingHealthStatus,
   type DownloadsHealthStatus,
 } from "../services/adminHome.service";
+import { useAdminHome } from "../hooks/useAdminHome";
 
 const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   url_param: "URL parameter",
@@ -39,154 +34,44 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
  */
 export function AdminHome() {
   const navigate = useNavigate();
-  const [experience, setExperience] = useState<AdminExperienceSnapshot | null>(null);
   const { variant: liveVariant, resolution: liveResolution, statusNote: liveStatusNote } = useLandingVariant();
-  const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
-  const [healthError, setHealthError] = useState<string | null>(null);
-  const [healthMetricsDegraded, setHealthMetricsDegraded] = useState(false);
-  const [stripeSettings, setStripeSettings] = useState<StripeSettingsResponse | null>(null);
-  const [stripeLoading, setStripeLoading] = useState(true);
-  const [stripeError, setStripeError] = useState<string | null>(null);
-  const [resettingDemoData, setResettingDemoData] = useState(false);
-  const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [brandingHealth, setBrandingHealth] = useState<BrandingHealthStatus | null>(null);
-  const [brandingLoading, setBrandingLoading] = useState(true);
-  const [downloadsHealth, setDownloadsHealth] = useState<DownloadsHealthStatus | null>(null);
-  const [downloadsLoading, setDownloadsLoading] = useState(true);
 
-  useEffect(() => {
-    setExperience(getAdminExperienceSnapshot());
-  }, []);
-
-  const refreshHealthSnapshot = useCallback(async () => {
-    setHealthLoading(true);
-    setHealthError(null);
-    setHealthMetricsDegraded(false);
-    try {
-      const range = buildDateRange(HEALTH_SNAPSHOT_DAYS);
-      const [variantPayload, analyticsPayload] = await Promise.all([
-        listVariants(),
-        fetchAnalyticsSummary(range)
-          .then((data) => ({ ok: true as const, data }))
-          .catch((error) => ({ ok: false as const, error })),
-      ]);
-
-      if (!analyticsPayload.ok) {
-        console.warn("Admin health analytics unavailable:", analyticsPayload.error);
-        setHealthMetricsDegraded(true);
-      }
-
-      setHealthSnapshot(
-        buildHealthSnapshot(
-          variantPayload.variants,
-          analyticsPayload.ok ? analyticsPayload.data : null
-        )
-      );
-    } catch (error) {
-      setHealthError(error instanceof Error ? error.message : "Failed to load admin health snapshot");
-      setHealthSnapshot(null);
-    } finally {
-      setHealthLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshHealthSnapshot();
-  }, [refreshHealthSnapshot]);
-
-  const refreshStripeStatus = useCallback(async () => {
-    setStripeLoading(true);
-    setStripeError(null);
-    try {
-      const data = await getStripeSettings();
-      setStripeSettings(data);
-    } catch (error) {
-      setStripeSettings(null);
-      setStripeError(error instanceof Error ? error.message : "Failed to load monetization status");
-    } finally {
-      setStripeLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshStripeStatus();
-  }, [refreshStripeStatus]);
-
-  const refreshBrandingHealth = useCallback(async () => {
-    setBrandingLoading(true);
-    try {
-      const branding = await getBranding();
-      setBrandingHealth(computeBrandingHealth(branding));
-    } catch {
-      setBrandingHealth(null);
-    } finally {
-      setBrandingLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshBrandingHealth();
-  }, [refreshBrandingHealth]);
-
-  const refreshDownloadsHealth = useCallback(async () => {
-    setDownloadsLoading(true);
-    try {
-      const { apps } = await listDownloadAppsAdmin();
-      setDownloadsHealth(computeDownloadsHealth(apps));
-    } catch {
-      setDownloadsHealth(null);
-    } finally {
-      setDownloadsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshDownloadsHealth();
-  }, [refreshDownloadsHealth]);
-
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
-  const handleResetDemoData = useCallback(async () => {
-    setResettingDemoData(true);
-    setResetError(null);
-    setResetMessage(null);
-    setShowResetConfirm(false);
-    try {
-      await resetDemoData();
-      setResetMessage('Demo data restored to template defaults.');
-      await Promise.all([refreshHealthSnapshot(), refreshStripeStatus()]);
-    } catch (error) {
-      setResetError(error instanceof Error ? error.message : 'Failed to reset demo data');
-    } finally {
-      setResettingDemoData(false);
-    }
-  }, [refreshHealthSnapshot, refreshStripeStatus]);
+  const {
+    experience,
+    healthSnapshot,
+    healthLoading,
+    healthError,
+    healthMetricsDegraded,
+    refreshHealthSnapshot,
+    stripeSettings,
+    stripeLoading,
+    stripeError,
+    refreshStripeStatus,
+    brandingHealth,
+    brandingLoading,
+    downloadsHealth,
+    downloadsLoading,
+    resettingDemoData,
+    resetMessage,
+    resetError,
+    showResetConfirm,
+    setShowResetConfirm,
+    handleResetDemoData,
+    buildResumeVariantPath,
+    buildResumeAnalyticsPath,
+  } = useAdminHome();
 
   const resumeVariant = experience?.lastVariant;
   const resumeAnalytics = experience?.lastAnalytics;
 
   const handleResumeVariant = () => {
-    if (!resumeVariant) return;
-    const basePath =
-      resumeVariant.surface === "section" && resumeVariant.sectionId
-        ? `/admin/customization/variants/${resumeVariant.slug}/sections/${resumeVariant.sectionId}`
-        : `/admin/customization/variants/${resumeVariant.slug}`;
-    navigate(basePath);
+    const path = buildResumeVariantPath();
+    if (path) navigate(path);
   };
 
   const handleResumeAnalytics = () => {
-    if (!resumeAnalytics) return;
-    const params = new URLSearchParams();
-    if (resumeAnalytics.variantSlug) {
-      params.set("variant", resumeAnalytics.variantSlug);
-    }
-    if (resumeAnalytics.timeRangeDays && resumeAnalytics.timeRangeDays !== 7) {
-      params.set("range", String(resumeAnalytics.timeRangeDays));
-    }
-    const query = params.toString() ? `?${params.toString()}` : "";
-    navigate(`/admin/analytics${query}`);
+    const path = buildResumeAnalyticsPath();
+    if (path) navigate(path);
   };
 
   const previewPublicLanding = () => {

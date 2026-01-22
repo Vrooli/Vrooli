@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -6,115 +6,40 @@ import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { Gauge, Save, AlertCircle, Infinity, DollarSign } from 'lucide-react';
-import {
-  getAllTierLimits,
-  updateTierLimit,
-  TierLimit,
-  TierLimitUpdate,
-  formatDollars,
-  TIER_OPTIONS,
-} from '../../../shared/api';
+import { formatDollars } from '../../../shared/api';
+import { useTierLimitsForm } from '../hooks/useTierLimitsForm';
 
 export function TierLimitsSettings() {
   const { addToast } = useToast();
-  const [limits, setLimits] = useState<Record<string, TierLimit[]>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [editedValues, setEditedValues] = useState<Record<string, string>>({});
 
-  const fetchLimits = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllTierLimits();
-      setLimits(response.limits || {});
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to load tier limits',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    limits,
+    loading,
+    saving,
+    editedValues,
+    toasts,
+    handleSave,
+    updateEditedValue,
+    resetToDefaults,
+    doubleAllLimits,
+    clearToasts,
+    getEditKey,
+    getTierLabel,
+    getTierColor,
+    findAICreditsLimit,
+    isUnlimitedValue,
+    TIER_OPTIONS,
+  } = useTierLimitsForm();
 
+  // Forward toasts from hook to toast context
   useEffect(() => {
-    fetchLimits();
-  }, []);
-
-  const getEditKey = (tierID: string, limitKey: string) => `${tierID}:${limitKey}`;
-
-  const handleSave = async (tierID: string, limit: TierLimit) => {
-    const editKey = getEditKey(tierID, limit.limit_key);
-    const editedValue = editedValues[editKey];
-
-    if (editedValue === undefined) return;
-
-    try {
-      setSaving(editKey);
-
-      let update: TierLimitUpdate;
-      if (editedValue === 'unlimited' || editedValue === '-1') {
-        update = { is_unlimited: true };
-      } else {
-        const dollars = parseFloat(editedValue);
-        if (isNaN(dollars) || dollars < 0) {
-          addToast({ type: 'error', message: 'Please enter a valid dollar amount' });
-          return;
-        }
-        update = { display_dollars: dollars };
-      }
-
-      await updateTierLimit(tierID, limit.limit_key, update);
-      addToast({ type: 'success', message: `Limit for ${tierID}/${limit.limit_key} updated` });
-
-      // Clear edited value and refresh
-      setEditedValues((prev) => {
-        const next = { ...prev };
-        delete next[editKey];
-        return next;
-      });
-      await fetchLimits();
-    } catch (error) {
-      addToast({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to update limit',
-      });
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const getTierLabel = (tierID: string) => {
-    const option = TIER_OPTIONS.find((t) => t.value === tierID);
-    return option?.label || tierID;
-  };
-
-  const getTierColor = (tierID: string) => {
-    switch (tierID) {
-      case 'free':
-        return 'text-slate-400';
-      case 'solo':
-        return 'text-blue-400';
-      case 'pro':
-        return 'text-purple-400';
-      case 'studio':
-        return 'text-amber-400';
-      case 'business':
-        return 'text-emerald-400';
-      default:
-        return 'text-slate-400';
-    }
-  };
-
-  // Group limits by limit_key across all tiers
-  const limitKeys = new Set<string>();
-  Object.values(limits).forEach((tierLimits) => {
-    tierLimits.forEach((limit) => {
-      if (limit.limit_type === 'cost_based') {
-        limitKeys.add(limit.limit_key);
-      }
+    toasts.forEach((toast) => {
+      addToast(toast);
     });
-  });
+    if (toasts.length > 0) {
+      clearToasts();
+    }
+  }, [toasts, addToast, clearToasts]);
 
   return (
     <AdminLayout>
@@ -173,17 +98,14 @@ export function TierLimitsSettings() {
                 <div className="grid gap-4">
                   {TIER_OPTIONS.map((tierOption) => {
                     const tierID = tierOption.value;
-                    const tierLimits = limits[tierID] || [];
-                    const aiCreditsLimit = tierLimits.find(
-                      (l) => l.limit_key === 'ai_credits' && l.limit_type === 'cost_based'
-                    );
+                    const aiCreditsLimit = findAICreditsLimit(limits[tierID]);
 
                     if (!aiCreditsLimit) return null;
 
                     const editKey = getEditKey(tierID, 'ai_credits');
                     const isEdited = editedValues[editKey] !== undefined;
                     const currentValue = aiCreditsLimit.limit_value;
-                    const isUnlimited = currentValue < 0;
+                    const isUnlimited = isUnlimitedValue(currentValue);
 
                     return (
                       <div
@@ -224,13 +146,7 @@ export function TierLimitsSettings() {
                                     ? 'unlimited'
                                     : aiCreditsLimit.display_dollars?.toFixed(2) ?? '0')
                                 }
-                                onChange={(e) => {
-                                  const val = e.target.value.toLowerCase();
-                                  setEditedValues((prev) => ({
-                                    ...prev,
-                                    [editKey]: val,
-                                  }));
-                                }}
+                                onChange={(e) => updateEditedValue(editKey, e.target.value)}
                                 className="w-32 pl-8"
                                 placeholder="0.00"
                               />
@@ -263,35 +179,14 @@ export function TierLimitsSettings() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      // Set all tiers to typical values
-                      setEditedValues({
-                        'free:ai_credits': '0',
-                        'solo:ai_credits': '5',
-                        'pro:ai_credits': '20',
-                        'studio:ai_credits': '100',
-                        'business:ai_credits': 'unlimited',
-                      });
-                    }}
+                    onClick={resetToDefaults}
                   >
                     Reset to Defaults
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      // Double all limits
-                      const doubled: Record<string, string> = {};
-                      TIER_OPTIONS.forEach((tier) => {
-                        const limit = limits[tier.value]?.find(
-                          (l) => l.limit_key === 'ai_credits' && l.limit_type === 'cost_based'
-                        );
-                        if (limit && limit.display_dollars && limit.limit_value >= 0) {
-                          doubled[`${tier.value}:ai_credits`] = (limit.display_dollars * 2).toString();
-                        }
-                      });
-                      setEditedValues((prev) => ({ ...prev, ...doubled }));
-                    }}
+                    onClick={doubleAllLimits}
                   >
                     Double All Limits
                   </Button>
