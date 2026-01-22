@@ -44,7 +44,9 @@ export function SkillTreeNodes({
 
   // Update instance matrices
   useFrame(() => {
-    if (!meshRef.current || !glowRef.current) return
+    const mesh = meshRef.current
+    const glow = glowRef.current
+    if (!mesh || !glow) return
 
     nodes.forEach((node, i) => {
       const [x, y, z] = node.position
@@ -55,8 +57,8 @@ export function SkillTreeNodes({
       tempObject.scale.setScalar(scale * hoverScale)
       tempObject.updateMatrix()
 
-      meshRef.current!.setMatrixAt(i, tempObject.matrix)
-      glowRef.current!.setMatrixAt(i, tempObject.matrix)
+      mesh.setMatrixAt(i, tempObject.matrix)
+      glow.setMatrixAt(i, tempObject.matrix)
 
       // Update colors for selection state
       if (node.isSelected) {
@@ -64,14 +66,14 @@ export function SkillTreeNodes({
       } else {
         tempColor.set(node.color)
       }
-      meshRef.current!.setColorAt(i, tempColor)
+      mesh.setColorAt(i, tempColor)
     })
 
-    meshRef.current.instanceMatrix.needsUpdate = true
-    if (meshRef.current.instanceColor) {
-      meshRef.current.instanceColor.needsUpdate = true
+    mesh.instanceMatrix.needsUpdate = true
+    if (mesh.instanceColor) {
+      mesh.instanceColor.needsUpdate = true
     }
-    glowRef.current.instanceMatrix.needsUpdate = true
+    glow.instanceMatrix.needsUpdate = true
   })
 
   // Handle click on instances

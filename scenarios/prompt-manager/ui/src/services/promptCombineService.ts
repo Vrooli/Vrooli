@@ -35,8 +35,8 @@ function combineToXml(prompts: Prompt[]): string {
   ]
 
   prompts.forEach((prompt) => {
-    const modes = (prompt.modes || []).join('/')
-    const tags = (prompt.tags || []).join(', ')
+    const modes = prompt.modes.join('/')
+    const tags = prompt.tags.join(', ')
 
     lines.push(`  <prompt id="${escapeXml(prompt.id)}" name="${escapeXml(prompt.name)}"${modes ? ` modes="${escapeXml(modes)}"` : ''}>`)
 
@@ -73,8 +73,8 @@ function combineToMarkdown(prompts: Prompt[]): string {
   ]
 
   prompts.forEach((prompt, index) => {
-    const modes = (prompt.modes || []).join(' / ')
-    const tags = (prompt.tags || []).map((t) => `\`${t}\``).join(' ')
+    const modes = prompt.modes.join(' / ')
+    const tags = prompt.tags.map((t) => `\`${t}\``).join(' ')
 
     lines.push(`## ${index + 1}. ${prompt.name}`)
     lines.push('')
@@ -207,7 +207,7 @@ export function validateForCombine(prompts: Prompt[]): {
   }
 
   // Check for missing content
-  const missingContent = prompts.filter((p) => !p.content?.trim())
+  const missingContent = prompts.filter((p) => !p.content.trim())
   if (missingContent.length > 0) {
     warnings.push(
       `${missingContent.length} prompt(s) have no content: ${missingContent.map((p) => p.name).join(', ')}`
@@ -224,7 +224,7 @@ export function validateForCombine(prompts: Prompt[]): {
 
   // Estimate combined size
   const totalContent = prompts.reduce(
-    (sum, p) => sum + (p.content?.length || 0),
+    (sum, p) => sum + p.content.length,
     0
   )
   if (totalContent > 50000) {

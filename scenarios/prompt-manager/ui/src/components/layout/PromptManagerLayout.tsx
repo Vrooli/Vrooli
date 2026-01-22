@@ -27,6 +27,7 @@ import { usePromptEditor } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import type { Prompt, CreatePromptRequest } from '@/types'
 
@@ -58,11 +59,13 @@ export function PromptManagerLayout() {
     deletePrompt: deletePromptApi,
   } = usePromptsData()
 
-  // Tree state
+  // Centralized selection state from Zustand store
+  const selectedPromptId = useSelectionStore((state) => state.selectedPromptId)
+  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+
+  // Tree state (expansion, filtering, collapse - but NOT selection)
   const {
     filteredTreeNodes,
-    selectedItemId,
-    setSelectedItemId,
     expandedNodes,
     toggleNode,
     expandAll,
@@ -71,6 +74,7 @@ export function PromptManagerLayout() {
     setSearchQuery,
     isCollapsed,
     toggleCollapse,
+    expandToItem,
   } = usePromptTree({ prompts })
 
   // Editor state
@@ -92,10 +96,17 @@ export function PromptManagerLayout() {
     isDeleting,
   } = usePromptEditor({
     prompts,
-    selectedItemId,
+    selectedItemId: selectedPromptId,
     onSave: updatePrompts,
     onDelete: deletePromptApi,
   })
+
+  // Auto-expand tree to show selected item
+  useEffect(() => {
+    if (selectedPromptId) {
+      expandToItem(selectedPromptId)
+    }
+  }, [selectedPromptId, expandToItem])
 
   // Mode suggestions
   const { getSuggestionsAtLevel } = useModeSuggestions({ prompts })
@@ -136,7 +147,7 @@ export function PromptManagerLayout() {
   const handleSelectItem = useCallback(
     (id: string) => {
       // If there are unsaved changes, ask for confirmation
-      if (isDirty && id !== selectedItemId) {
+      if (isDirty && id !== selectedPromptId) {
         setPendingSelection(id)
         setShowDiscardDialog(true)
         return
@@ -144,21 +155,21 @@ export function PromptManagerLayout() {
 
       // Store any changes before switching
       storeCurrentChanges()
-      setSelectedItemId(id)
+      setSelectedPromptId(id)
 
       // Close mobile sidebar after selection
       if (isMobile) {
         setIsMobileSidebarOpen(false)
       }
     },
-    [isDirty, selectedItemId, storeCurrentChanges, setSelectedItemId, isMobile]
+    [isDirty, selectedPromptId, storeCurrentChanges, setSelectedPromptId, isMobile]
   )
 
   // Handle discard confirmation
   const handleConfirmDiscard = useCallback(() => {
     discardCurrentChanges()
     if (pendingSelection) {
-      setSelectedItemId(pendingSelection)
+      setSelectedPromptId(pendingSelection)
       setPendingSelection(null)
     }
     setShowDiscardDialog(false)
@@ -166,14 +177,14 @@ export function PromptManagerLayout() {
     if (isMobile) {
       setIsMobileSidebarOpen(false)
     }
-  }, [discardCurrentChanges, pendingSelection, setSelectedItemId, isMobile])
+  }, [discardCurrentChanges, pendingSelection, setSelectedPromptId, isMobile])
 
   // Handle delete confirmation
   const handleConfirmDelete = useCallback(async () => {
     await deleteCurrentPrompt()
     setShowDeleteDialog(false)
-    setSelectedItemId(null)
-  }, [deleteCurrentPrompt, setSelectedItemId])
+    setSelectedPromptId(null)
+  }, [deleteCurrentPrompt, setSelectedPromptId])
 
   // Handle new prompt creation
   const handleCreateNew = useCallback(async () => {
@@ -189,7 +200,7 @@ export function PromptManagerLayout() {
 
     try {
       const created = await createPrompt(newPrompt)
-      setSelectedItemId(created.id)
+      setSelectedPromptId(created.id)
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
@@ -197,7 +208,7 @@ export function PromptManagerLayout() {
     } catch (error) {
       console.error('Failed to create prompt:', error)
     }
-  }, [createPrompt, setSelectedItemId, isMobile])
+  }, [createPrompt, setSelectedPromptId, isMobile])
 
   // Render item icon in tree
   const renderItemIcon = useCallback((prompt: Prompt) => {
@@ -241,6 +252,11 @@ export function PromptManagerLayout() {
         setIsMobileSidebarOpen(false)
         return
       }
+      // If editing a prompt and not dirty, close the editor and return to skill tree
+      if (selectedPromptId && !isDirty) {
+        setSelectedPromptId(null)
+        return
+      }
     },
     onOpenSettings: () => {
       setShowSettingsDialog(true)
@@ -253,7 +269,7 @@ export function PromptManagerLayout() {
       <PromptTreeSidebar
         treeNodes={filteredTreeNodes}
         prompts={prompts}
-        selectedItemId={selectedItemId}
+        selectedItemId={selectedPromptId}
         onSelectItem={handleSelectItem}
         dirtyItemIds={dirtyItemIds}
         expandedNodes={expandedNodes}
@@ -348,6 +364,7 @@ export function PromptManagerLayout() {
               currentPrompt={currentPrompt}
               formState={formState}
               validation={validation}
+              allPrompts={prompts}
               isDirty={isDirty}
               dirtyCount={dirtyCount}
               onFieldChange={updateField}
@@ -357,6 +374,7 @@ export function PromptManagerLayout() {
               onSaveAll={() => void saveAllChanges()}
               onDiscard={discardCurrentChanges}
               onDelete={() => setShowDeleteDialog(true)}
+              onSelectPrompt={handleSelectItem}
               isSaving={isSaving}
               isDeleting={isDeleting}
               className="h-full"
@@ -391,7 +409,7 @@ export function PromptManagerLayout() {
               <PromptTreeSidebar
                 treeNodes={filteredTreeNodes}
                 prompts={prompts}
-                selectedItemId={selectedItemId}
+                selectedItemId={selectedPromptId}
                 onSelectItem={handleSelectItem}
                 dirtyItemIds={dirtyItemIds}
                 expandedNodes={expandedNodes}

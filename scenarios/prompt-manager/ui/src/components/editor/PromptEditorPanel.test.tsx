@@ -33,7 +33,7 @@ vi.mock('./TipTapEditor', () => ({
 vi.mock('@/components/skilltree', () => ({
   SkillTreeCanvas: ({ prompts }: { prompts: unknown[] }) => (
     <div data-testid="skill-tree-canvas">
-      {prompts?.length === 0 ? 'No Prompts Yet' : `${prompts?.length ?? 0} prompts in tree`}
+      {prompts.length === 0 ? 'No Prompts Yet' : `${prompts.length} prompts in tree`}
     </div>
   ),
 }))

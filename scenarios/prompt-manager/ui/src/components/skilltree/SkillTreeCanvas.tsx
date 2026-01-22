@@ -9,7 +9,7 @@ import { Loader } from '@react-three/drei'
 import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
 import { useSkillTree3D } from '@/hooks/useSkillTree3D'
-import { usePromptSelection } from '@/hooks/usePromptSelection'
+import { useSelectionStore } from '@/stores/selectionStore'
 import { AvatarProvider } from './AvatarProvider'
 import { SkillTreeScene } from './SkillTreeScene'
 import { SkillTreeControls } from './SkillTreeControls'
@@ -33,13 +33,19 @@ export function SkillTreeCanvas({
   // Cursor tracking for avatar
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
 
-  // Selection state (available for future enhancements)
-  usePromptSelection({
-    maxSelection: 10,
-  })
+  // Selection state from centralized Zustand store
+  const selectedPromptIds = useSelectionStore((state) => state.selectedPromptIds)
+  const setSelectedPromptIds = useSelectionStore((state) => state.setSelectedPromptIds)
+  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
 
-  // Selection state managed locally for 3D tree
-  const [localSelectedIds, setLocalSelectedIds] = useState<string[]>([])
+  // Handle node click - updates both multi-selection and single selection
+  const handleNodeSelection = useCallback(
+    (promptId: string) => {
+      setSelectedPromptId(promptId)
+      onSelectPrompt?.(promptId)
+    },
+    [setSelectedPromptId, onSelectPrompt]
+  )
 
   // Skill tree 3D state
   const {
@@ -54,9 +60,9 @@ export function SkillTreeCanvas({
     nodeCount,
   } = useSkillTree3D({
     prompts,
-    selectedPromptIds: localSelectedIds,
-    onSelectionChange: setLocalSelectedIds,
-    onNodeClick: onSelectPrompt,
+    selectedPromptIds,
+    onSelectionChange: setSelectedPromptIds,
+    onNodeClick: handleNodeSelection,
   })
 
   // Handle mouse move for cursor tracking
@@ -80,7 +86,7 @@ export function SkillTreeCanvas({
   )
 
   // Get full prompt objects for selected IDs
-  const selectedPromptObjects = prompts.filter((p) => localSelectedIds.includes(p.id))
+  const selectedPromptObjects = prompts.filter((p) => selectedPromptIds.includes(p.id))
 
   return (
     <div
@@ -106,7 +112,7 @@ export function SkillTreeCanvas({
             <SkillTreeScene
               treeData={treeData}
               cameraState={cameraState}
-              selectedNodeIds={localSelectedIds}
+              selectedNodeIds={selectedPromptIds}
               hoveredNodeId={hoveredNodeId}
               cursorPosition={cursorPosition}
               onNodeClick={handleNodeClick}
@@ -136,13 +142,13 @@ export function SkillTreeCanvas({
         onZoomOut={zoomOut}
         onReset={resetCamera}
         nodeCount={nodeCount}
-        selectionCount={localSelectedIds.length}
+        selectionCount={selectedPromptIds.length}
       />
 
       {/* Combine panel */}
       <CombinePanel
         selectedPrompts={selectedPromptObjects}
-        onClear={() => setLocalSelectedIds([])}
+        onClear={() => setSelectedPromptIds([])}
         onCombine={handleCombine}
       />
 

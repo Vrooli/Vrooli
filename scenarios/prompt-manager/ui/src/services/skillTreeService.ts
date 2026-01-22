@@ -34,9 +34,7 @@ const CATEGORY_COLORS: Record<string, string> = {
  * Get color for a prompt based on its modes/tags.
  */
 function getPromptColor(prompt: Prompt): string {
-  const modes = prompt.modes || []
-  const tags = prompt.tags || []
-  const combined = [...modes, ...tags]
+  const combined = [...prompt.modes, ...prompt.tags]
 
   for (const item of combined) {
     const category = item.split('/')[0]?.toLowerCase() || ''
@@ -80,12 +78,14 @@ export function buildSkillTree(
   const ungrouped: Prompt[] = []
 
   prompts.forEach((prompt) => {
-    const primaryMode = (prompt.modes || [])[0]?.split('/')[0]
+    const primaryMode = prompt.modes[0]?.split('/')[0]
     if (primaryMode) {
-      if (!modeGroups.has(primaryMode)) {
-        modeGroups.set(primaryMode, [])
+      const group = modeGroups.get(primaryMode)
+      if (group) {
+        group.push(prompt)
+      } else {
+        modeGroups.set(primaryMode, [prompt])
       }
-      modeGroups.get(primaryMode)!.push(prompt)
     } else {
       ungrouped.push(prompt)
     }
@@ -93,7 +93,6 @@ export function buildSkillTree(
 
   // All grouped prompts become group roots
   const allGroups = Array.from(modeGroups.entries())
-  let nodeIndex = 0
 
   // Position each group as a cluster
   allGroups.forEach(([_mode, groupPrompts], groupIndex) => {
@@ -132,7 +131,6 @@ export function buildSkillTree(
 
       nodes.push(node)
       roots.push(node.id)
-      nodeIndex++
     })
 
     // Create connections between nodes in the same group

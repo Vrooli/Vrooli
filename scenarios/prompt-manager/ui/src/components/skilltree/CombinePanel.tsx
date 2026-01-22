@@ -7,9 +7,10 @@ import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, X, FileCode, FileText, Braces, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { api } from '@/lib/api'
 import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
-import { combinePrompts, generatePreview, validateForCombine, copyToClipboard } from '@/services/promptCombineService'
+import { combinePrompts, generatePreview, validateForCombine } from '@/services/promptCombineService'
 
 interface CombinePanelProps {
   selectedPrompts: Prompt[]
@@ -46,13 +47,29 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
     [selectedPrompts, format]
   )
 
-  // Handle copy
+  // Handle copy - uses API for authoritative combining
   const handleCopy = async () => {
-    const result = await copyToClipboard(selectedPrompts, format)
-    if (result.success) {
+    try {
+      // Get combined content from API
+      const promptIds = selectedPrompts.map((p) => p.id)
+      const response = await api.combinePrompts(promptIds, format)
+
+      // Copy to clipboard
+      await navigator.clipboard.writeText(response.combined)
       setCopied(true)
-      onCombine?.(combineResult.combined, format)
+      onCombine?.(response.combined, format)
       setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to combine and copy prompts:', error)
+      // Fallback to client-side combining if API fails
+      try {
+        await navigator.clipboard.writeText(combineResult.combined)
+        setCopied(true)
+        onCombine?.(combineResult.combined, format)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (fallbackError) {
+        console.error('Fallback copy also failed:', fallbackError)
+      }
     }
   }
 
@@ -143,7 +160,7 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
 
           <Button
             size="sm"
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             disabled={!validation.valid}
             className="gap-1.5"
           >

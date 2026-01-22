@@ -11,7 +11,9 @@
  * - Empty state with 3D skill tree visualization
  */
 
+import { X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSelectionStore } from '@/stores/selectionStore'
 import type { PromptFormState, ValidationResult } from '@/types/editor'
 import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
@@ -76,6 +78,14 @@ export function PromptEditorPanel({
   isDeleting,
   className,
 }: PromptEditorPanelProps) {
+  // Access the selection store for closing the editor
+  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+
+  // Handle close - return to skill tree view
+  const handleClose = () => {
+    setSelectedPromptId(null)
+  }
+
   // Show 3D skill tree when no prompt selected
   if (!currentPrompt) {
     return (
@@ -94,16 +104,35 @@ export function PromptEditorPanel({
       <div
         className="flex flex-col h-full bg-slate-900/50"
       >
-      {/* Header with status indicator */}
+      {/* Header with prompt name and navigation */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-white/10">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            {isDirty && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs">
-                Unsaved changes
-              </div>
-            )}
+        {/* Top row: Close button, prompt name, and status */}
+        <div className="flex items-center gap-3 mb-3">
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            aria-label="Close editor and return to skill tree"
+            title="Close (Esc)"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {/* Prompt icon and name */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <FileText className="h-5 w-5 text-indigo-400 flex-shrink-0" />
+            <h2 className="text-lg font-semibold text-white truncate">
+              {formState.name || 'Untitled Prompt'}
+            </h2>
           </div>
+
+          {/* Status indicator */}
+          {isDirty && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+              Unsaved changes
+            </div>
+          )}
         </div>
 
         {/* Toolbar */}

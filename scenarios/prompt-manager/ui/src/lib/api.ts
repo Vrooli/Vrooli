@@ -29,6 +29,7 @@ import type {
   Folder,
   FolderType,
 } from '@/types'
+import type { CombineFormat, CombineResponse } from '@/types/skilltree'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
@@ -233,6 +234,14 @@ class ApiClient {
       prompt.content.toLowerCase().includes(lowerQuery) ||
       prompt.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
     )
+  }
+
+  // Combine prompts
+  async combinePrompts(promptIds: string[], format: CombineFormat = 'xml'): Promise<CombineResponse> {
+    return this.request<CombineResponse>('/prompts/combine', {
+      method: 'POST',
+      body: JSON.stringify({ promptIds, format }),
+    })
   }
 
   // Health check
