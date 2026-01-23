@@ -303,3 +303,69 @@ func setupMinimalAuthServer(t *testing.T, authService *UserAuthService) *Server 
 		userAuthService: authService,
 	}
 }
+
+// MinIO testcontainer support for S3-compatible storage testing
+var (
+	minioOnce      sync.Once
+	minioContainer tc.Container
+	minioEndpoint  string
+	minioInitErr   error
+)
+
+// setupMinIOContainer starts a MinIO container for S3 integration tests.
+// Returns endpoint URL, access key, and secret key.
+// The container is shared across all tests in the test run.
+func setupMinIOContainer(t *testing.T) (endpoint, accessKey, secretKey string) {
+	t.Helper()
+
+	minioOnce.Do(func() {
+		if strings.EqualFold(os.Getenv("TESTCONTAINERS_DISABLED"), "true") {
+			minioInitErr = fmt.Errorf("testcontainers explicitly disabled")
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		req := tc.ContainerRequest{
+			Image:        "minio/minio:latest",
+			ExposedPorts: []string{"9000/tcp"},
+			Env: map[string]string{
+				"MINIO_ROOT_USER":     "minioadmin",
+				"MINIO_ROOT_PASSWORD": "minioadmin",
+			},
+			Cmd:        []string{"server", "/data"},
+			WaitingFor: wait.ForHTTP("/minio/health/live").WithPort("9000"),
+		}
+
+		container, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+			ContainerRequest: req,
+			Started:          true,
+		})
+		if err != nil {
+			minioInitErr = fmt.Errorf("start minio container: %w", err)
+			return
+		}
+
+		host, err := container.Host(ctx)
+		if err != nil {
+			minioInitErr = fmt.Errorf("get container host: %w", err)
+			return
+		}
+
+		port, err := container.MappedPort(ctx, "9000")
+		if err != nil {
+			minioInitErr = fmt.Errorf("get mapped port: %w", err)
+			return
+		}
+
+		minioContainer = container
+		minioEndpoint = fmt.Sprintf("http://%s:%s", host, port.Port())
+	})
+
+	if minioInitErr != nil {
+		t.Skipf("MinIO container not available: %v", minioInitErr)
+	}
+
+	return minioEndpoint, "minioadmin", "minioadmin"
+}

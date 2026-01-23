@@ -15,6 +15,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// setupTestAssetsService creates an AssetsService with a temp upload directory
+// to prevent tests from polluting the real uploads folder.
+func setupTestAssetsService(t *testing.T, db *sql.DB) *AssetsService {
+	t.Helper()
+	tmpDir := t.TempDir()
+	t.Setenv("UPLOAD_DIR", tmpDir)
+	return NewAssetsService(db)
+}
+
 // --- handleAssetUpload Tests ---
 
 func TestHandleAssetUpload_Success(t *testing.T) {
@@ -22,7 +31,7 @@ func TestHandleAssetUpload_Success(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	body, contentType := createMultipartRequest(t, "file", "test.png", createTestPNG(), "image/png", nil)
@@ -53,7 +62,7 @@ func TestHandleAssetUpload_InvalidFileType(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	// Upload a text file (not allowed)
@@ -73,7 +82,7 @@ func TestHandleAssetUpload_NoFile(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	// Create multipart request without file
@@ -97,7 +106,7 @@ func TestHandleAssetUpload_InvalidMultipart(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	// Send non-multipart request
@@ -117,7 +126,7 @@ func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	extraFields := map[string]string{
@@ -157,7 +166,7 @@ func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
 
 	// Upload without specifying category
@@ -189,7 +198,7 @@ func TestHandleAssetsList_Success(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 
 	// Create test assets
 	for i := 0; i < 3; i++ {
@@ -226,7 +235,7 @@ func TestHandleAssetsList_WithCategory(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 
 	// Create assets in different categories
 	insertTestAsset(t, db, "logo1.png", "logo")
@@ -260,7 +269,7 @@ func TestHandleAssetsList_Empty(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetsList(assetsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/assets", nil)
@@ -293,7 +302,7 @@ func TestHandleAssetGet_Success(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 
 	// Create test asset
 	assetID := insertTestAsset(t, db, "test.png", "general")
@@ -327,7 +336,7 @@ func TestHandleAssetGet_NotFound(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetGet(assetsService)
 
 	router := mux.NewRouter()
@@ -347,7 +356,7 @@ func TestHandleAssetGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetGet(assetsService)
 
 	router := mux.NewRouter()
@@ -370,7 +379,7 @@ func TestHandleAssetDelete_Success(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 
 	// Create test asset
 	assetID := insertTestAsset(t, db, "to-delete.png", "general")
@@ -405,7 +414,7 @@ func TestHandleAssetDelete_NotFound(t *testing.T) {
 	defer db.Close()
 	cleanupAssets(t, db)
 
-	assetsService := NewAssetsService(db)
+	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetDelete(assetsService)
 
 	router := mux.NewRouter()

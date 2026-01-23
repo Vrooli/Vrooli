@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -838,5 +839,375 @@ func cleanupDownloadArtifacts(t *testing.T, db *sql.DB) {
 	t.Helper()
 	if _, err := db.Exec("DELETE FROM download_artifacts"); err != nil {
 		t.Fatalf("Failed to cleanup download_artifacts table: %v", err)
+	}
+}
+
+// ============================================================================
+// Helper Function Tests
+// ============================================================================
+
+func TestNormalizeOptionalString_Nil(t *testing.T) {
+	result := normalizeOptionalString(nil)
+	if result != nil {
+		t.Errorf("expected nil for nil input, got %v", result)
+	}
+}
+
+func TestNormalizeOptionalString_Empty(t *testing.T) {
+	empty := ""
+	result := normalizeOptionalString(&empty)
+	if result != nil {
+		t.Errorf("expected nil for empty string, got %v", result)
+	}
+}
+
+func TestNormalizeOptionalString_Whitespace(t *testing.T) {
+	whitespace := "   "
+	result := normalizeOptionalString(&whitespace)
+	if result != nil {
+		t.Errorf("expected nil for whitespace-only string, got %v", result)
+	}
+}
+
+func TestNormalizeOptionalString_ValidValue(t *testing.T) {
+	value := "  test-value  "
+	result := normalizeOptionalString(&value)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if *result != "test-value" {
+		t.Errorf("expected 'test-value', got '%s'", *result)
+	}
+}
+
+func TestStableS3URI_Basic(t *testing.T) {
+	result := stableS3URI("my-bucket", "path/to/object.zip")
+	expected := "s3://my-bucket/path/to/object.zip"
+	if result != expected {
+		t.Errorf("expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestStableS3URI_EmptyKey(t *testing.T) {
+	result := stableS3URI("my-bucket", "")
+	expected := "s3://my-bucket/"
+	if result != expected {
+		t.Errorf("expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestS3DownloadStorageProvider_ProviderKey(t *testing.T) {
+	provider := S3DownloadStorageProvider{}
+	if key := provider.ProviderKey(); key != "s3" {
+		t.Errorf("expected 's3', got '%s'", key)
+	}
+}
+
+func TestRandomHex_Generates12Chars(t *testing.T) {
+	result, err := randomHex(6)
+	if err != nil {
+		t.Fatalf("randomHex failed: %v", err)
+	}
+	if len(result) != 12 { // 6 bytes = 12 hex chars
+		t.Errorf("expected 12 characters, got %d", len(result))
+	}
+}
+
+func TestRandomHex_GeneratesUnique(t *testing.T) {
+	results := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		hex, err := randomHex(6)
+		if err != nil {
+			t.Fatalf("randomHex failed: %v", err)
+		}
+		if results[hex] {
+			t.Errorf("duplicate hex generated: %s", hex)
+		}
+		results[hex] = true
+	}
+}
+
+func TestBuildObjectKey_WithAllSegments(t *testing.T) {
+	settings := DownloadStorageSettings{
+		DefaultPrefix: "artifacts/",
+	}
+
+	req := PresignUploadRequest{
+		Filename:       "app.zip",
+		AppKey:         "my-app",
+		Platform:       "windows",
+		ReleaseVersion: "1.0.0",
+	}
+
+	key, err := buildObjectKey(settings, "test_bundle", req)
+	if err != nil {
+		t.Fatalf("buildObjectKey failed: %v", err)
+	}
+
+	// Should contain: prefix/bundle/app/platform/version/timestamp-nonce-filename
+	if key == "" {
+		t.Error("expected non-empty key")
+	}
+	if !strings.Contains(key, "artifacts/") {
+		t.Error("expected key to contain prefix")
+	}
+	if !strings.Contains(key, "test_bundle") {
+		t.Error("expected key to contain bundle key")
+	}
+	if !strings.Contains(key, "my-app") {
+		t.Error("expected key to contain app key")
+	}
+	if !strings.Contains(key, "windows") {
+		t.Error("expected key to contain platform")
+	}
+	if !strings.Contains(key, "1.0.0") {
+		t.Error("expected key to contain version")
+	}
+	if !strings.Contains(key, "app.zip") {
+		t.Error("expected key to contain filename")
+	}
+}
+
+func TestBuildObjectKey_WithoutOptionalSegments(t *testing.T) {
+	settings := DownloadStorageSettings{}
+
+	req := PresignUploadRequest{
+		Filename: "simple.bin",
+	}
+
+	key, err := buildObjectKey(settings, "bundle", req)
+	if err != nil {
+		t.Fatalf("buildObjectKey failed: %v", err)
+	}
+
+	if !strings.Contains(key, "bundle") {
+		t.Error("expected key to contain bundle key")
+	}
+	if !strings.Contains(key, "simple.bin") {
+		t.Error("expected key to contain filename")
+	}
+}
+
+func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadHostingService(db)
+
+	settings := DownloadStorageSettings{
+		Provider:            "unsupported",
+		Bucket:              "test-bucket",
+		SignedURLTTLSeconds: 900,
+	}
+
+	err := service.validateStorageSettings(settings)
+	if err == nil {
+		t.Error("expected error for unsupported provider")
+	}
+	if !strings.Contains(err.Error(), "unsupported provider") {
+		t.Errorf("expected error about unsupported provider, got: %v", err)
+	}
+}
+
+func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadHostingService(db)
+
+	settings := DownloadStorageSettings{
+		Provider:            "s3",
+		Bucket:              "test-bucket",
+		Endpoint:            "not-a-url",
+		SignedURLTTLSeconds: 900,
+	}
+
+	err := service.validateStorageSettings(settings)
+	if err == nil {
+		t.Error("expected error for invalid endpoint")
+	}
+}
+
+func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadHostingService(db)
+
+	tests := []struct {
+		name string
+		ttl  int
+	}{
+		{"zero", 0},
+		{"negative", -100},
+		{"too_large", 100000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := DownloadStorageSettings{
+				Provider:            "s3",
+				Bucket:              "test-bucket",
+				SignedURLTTLSeconds: tt.ttl,
+			}
+
+			err := service.validateStorageSettings(settings)
+			if err == nil {
+				t.Errorf("expected error for TTL %d", tt.ttl)
+			}
+		})
+	}
+}
+
+func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadHostingService(db)
+
+	// Only access key, no secret
+	settings := DownloadStorageSettings{
+		Provider:            "s3",
+		Bucket:              "test-bucket",
+		SignedURLTTLSeconds: 900,
+		AccessKeyID:         "access-key",
+	}
+
+	err := service.validateStorageSettings(settings)
+	if err == nil {
+		t.Error("expected error for mismatched credentials")
+	}
+
+	// Only secret, no access key
+	settings = DownloadStorageSettings{
+		Provider:            "s3",
+		Bucket:              "test-bucket",
+		SignedURLTTLSeconds: 900,
+		SecretAccessKey:     "secret-key",
+	}
+
+	err = service.validateStorageSettings(settings)
+	if err == nil {
+		t.Error("expected error for mismatched credentials")
+	}
+}
+
+func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	service := NewDownloadHostingService(db)
+
+	settings := DownloadStorageSettings{
+		Provider:            "s3",
+		Bucket:              "test-bucket",
+		Region:              "us-east-1",
+		Endpoint:            "https://s3.amazonaws.com",
+		SignedURLTTLSeconds: 900,
+		AccessKeyID:         "access-key",
+		SecretAccessKey:     "secret-key",
+	}
+
+	err := service.validateStorageSettings(settings)
+	if err != nil {
+		t.Errorf("expected no error for valid settings, got: %v", err)
+	}
+}
+
+func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "abc123",
+		headSize:        1000,
+		headContentType: "application/octet-stream",
+	}
+	mockProvider := &mockStorageProvider{storage: mockStorage}
+
+	service := NewDownloadHostingService(db, mockProvider)
+	ctx := context.Background()
+
+	_, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('search_test', 's3', 'test-bucket', 'us-east-1', 900)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert settings: %v", err)
+	}
+
+	// Create artifacts with different names
+	artifacts := []CommitArtifactRequest{
+		{Bucket: "test-bucket", ObjectKey: "search/alpha.zip", OriginalFilename: "alpha.zip"},
+		{Bucket: "test-bucket", ObjectKey: "search/beta.zip", OriginalFilename: "beta.zip"},
+		{Bucket: "test-bucket", ObjectKey: "search/gamma.zip", OriginalFilename: "gamma.zip"},
+	}
+
+	for _, req := range artifacts {
+		_, err := service.CommitArtifact(ctx, "search_test", req)
+		if err != nil {
+			t.Fatalf("CommitArtifact failed: %v", err)
+		}
+	}
+
+	// Search for "alpha"
+	result, err := service.ListArtifacts(ctx, "search_test", "alpha", "", 1, 50)
+	if err != nil {
+		t.Fatalf("ListArtifacts failed: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Errorf("expected 1 result for 'alpha' search, got %d", result.Total)
+	}
+}
+
+func TestDownloadHostingService_ListArtifacts_WithPlatformFilter(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+
+	mockStorage := &mockDownloadStorage{
+		headEtag:        "abc123",
+		headSize:        1000,
+		headContentType: "application/octet-stream",
+	}
+	mockProvider := &mockStorageProvider{storage: mockStorage}
+
+	service := NewDownloadHostingService(db, mockProvider)
+	ctx := context.Background()
+
+	_, err := db.Exec(`
+		INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
+		VALUES ('platform_test', 's3', 'test-bucket', 'us-east-1', 900)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert settings: %v", err)
+	}
+
+	// Create artifacts with different platforms
+	artifacts := []CommitArtifactRequest{
+		{Bucket: "test-bucket", ObjectKey: "platform/win.exe", Platform: "windows"},
+		{Bucket: "test-bucket", ObjectKey: "platform/mac.dmg", Platform: "macos"},
+		{Bucket: "test-bucket", ObjectKey: "platform/linux.tar", Platform: "linux"},
+	}
+
+	for _, req := range artifacts {
+		_, err := service.CommitArtifact(ctx, "platform_test", req)
+		if err != nil {
+			t.Fatalf("CommitArtifact failed: %v", err)
+		}
+	}
+
+	// Filter by platform
+	result, err := service.ListArtifacts(ctx, "platform_test", "", "windows", 1, 50)
+	if err != nil {
+		t.Fatalf("ListArtifacts failed: %v", err)
+	}
+
+	if result.Total != 1 {
+		t.Errorf("expected 1 result for 'windows' platform, got %d", result.Total)
 	}
 }

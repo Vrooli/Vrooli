@@ -55,6 +55,51 @@ const (
 	sessionTypeSupporterContribution = "supporter_contribution"
 )
 
+// StripePriceInfo provides typed price verification results.
+type StripePriceInfo struct {
+	ID          string `json:"id"`
+	LookupKey   string `json:"lookup_key,omitempty"`
+	Currency    string `json:"currency"`
+	AmountCents int64  `json:"amount_cents"`
+	Interval    string `json:"interval,omitempty"`
+	Active      bool   `json:"active"`
+	ProductName string `json:"product_name,omitempty"`
+}
+
+// VerifyStripePriceTyped returns typed price info (testable wrapper).
+func (s *StripeService) VerifyStripePriceTyped(key string) (*StripePriceInfo, error) {
+	result, err := s.VerifyStripePrice(key)
+	if err != nil {
+		return nil, err
+	}
+
+	info := &StripePriceInfo{}
+
+	if id, ok := result["id"].(string); ok {
+		info.ID = id
+	}
+	if lookupKey, ok := result["lookup_key"].(string); ok {
+		info.LookupKey = lookupKey
+	}
+	if currency, ok := result["currency"].(string); ok {
+		info.Currency = currency
+	}
+	if amountCents, ok := result["amount_cents"].(int64); ok {
+		info.AmountCents = amountCents
+	}
+	if interval, ok := result["interval"].(string); ok {
+		info.Interval = interval
+	}
+	if active, ok := result["active"].(bool); ok {
+		info.Active = active
+	}
+	if productName, ok := result["product"].(string); ok {
+		info.ProductName = productName
+	}
+
+	return info, nil
+}
+
 // NewStripeService creates a new Stripe service instance.
 func NewStripeService(db *sql.DB) *StripeService {
 	return NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))

@@ -1,0 +1,435 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"github.com/gorilla/mux"
+)
+
+// ============================================================================
+// handleAdminBundleCatalog Tests
+// ============================================================================
+
+func TestHandleAdminBundleCatalog_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "catalog_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Catalog Bundle", "prod_catalog", "catalog_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_catalog_1", "Catalog Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
+
+	planService := NewPlanService(db)
+	handler := handleAdminBundleCatalog(planService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/bundle-catalog", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Use generic JSON parsing to avoid protobuf unmarshaling issues
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	bundles, ok := resp["bundles"].([]interface{})
+	if !ok {
+		t.Fatal("expected 'bundles' to be an array")
+	}
+
+	if len(bundles) == 0 {
+		t.Error("expected at least one bundle in catalog")
+	}
+}
+
+func TestHandleAdminBundleCatalog_EmptyCatalog(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Use a non-matching environment to get empty results
+	os.Setenv("STRIPE_ENVIRONMENT", "nonexistent_env_12345")
+	defer os.Unsetenv("STRIPE_ENVIRONMENT")
+
+	planService := NewPlanService(db)
+	handler := handleAdminBundleCatalog(planService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/bundle-catalog", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+
+	// Just verify the response contains valid JSON with a bundles field
+	// Don't try to unmarshal into protobuf types
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	// Should return a response with bundles key
+	if _, ok := resp["bundles"]; !ok {
+		t.Error("expected 'bundles' key in response")
+	}
+}
+
+// ============================================================================
+// handleAdminUpdateBundlePrice Tests
+// ============================================================================
+
+func TestHandleAdminUpdateBundlePrice_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "update_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Update Bundle", "prod_update", "update_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_to_update", "Original Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	newName := "Updated Plan Name"
+	body.PlanName = &newName
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/admin/bundles/%s/prices/price_to_update", bundleKey), bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": bundleKey,
+		"price_id":   "price_to_update",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandleAdminUpdateBundlePrice_MissingBundleKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/bundles//prices/price_123", bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": "",
+		"price_id":   "price_123",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminUpdateBundlePrice_MissingPriceID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/bundles/bundle_key/prices/", bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": "bundle_key",
+		"price_id":   "",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminUpdateBundlePrice_InvalidJSON(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/bundles/bundle_key/prices/price_id", bytes.NewReader([]byte("invalid json")))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": "bundle_key",
+		"price_id":   "price_id",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminUpdateBundlePrice_NotFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "notfound_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "NotFound Bundle", "prod_notfound", "notfound_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	newName := "New Name"
+	body.PlanName = &newName
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/admin/bundles/%s/prices/nonexistent_price", bundleKey), bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": bundleKey,
+		"price_id":   "nonexistent_price",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400 for not found, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// ============================================================================
+// handleAdminVerifyStripePrice Tests
+// ============================================================================
+
+func TestHandleAdminVerifyStripePrice_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/prices/price_verify" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{
+				"id": "price_verify",
+				"currency": "usd",
+				"unit_amount": 4900,
+				"active": true,
+				"recurring": {"interval": "month"}
+			}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	stripeService := NewStripeService(db)
+	stripeService.UseHTTPClient(stripeServer.Client())
+	stripeService.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	stripeService.RefreshConfig(context.Background())
+
+	handler := handleAdminVerifyStripePrice(stripeService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/verify-stripe-price?key=price_verify", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandleAdminVerifyStripePrice_MissingKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	stripeService := NewStripeService(db)
+	handler := handleAdminVerifyStripePrice(stripeService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/verify-stripe-price", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminVerifyStripePrice_EmptyKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	stripeService := NewStripeService(db)
+	handler := handleAdminVerifyStripePrice(stripeService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/verify-stripe-price?key=", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminVerifyStripePrice_WhitespaceKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	stripeService := NewStripeService(db)
+	handler := handleAdminVerifyStripePrice(stripeService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/verify-stripe-price?key=+++", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleAdminVerifyStripePrice_InvalidKey(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return empty list for lookup keys
+		if r.URL.RawQuery != "" && r.URL.Path == "/v1/prices" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data": []}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, `{"error": {"message": "No such price"}}`)
+	}))
+	defer stripeServer.Close()
+
+	stripeService := NewStripeService(db)
+	stripeService.UseHTTPClient(stripeServer.Client())
+	stripeService.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			apiBase:        stripeServer.URL,
+		}, nil
+	})
+	stripeService.RefreshConfig(context.Background())
+
+	handler := handleAdminVerifyStripePrice(stripeService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/verify-stripe-price?key=invalid_price", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+}
+
+// ============================================================================
+// updateBundlePriceRequest Additional Tests
+// ============================================================================
+
+func TestHandleAdminUpdateBundlePrice_UpdateDisplayWeight(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "weight_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Weight Bundle", "prod_weight", "weight_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_weight", "Weight Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	newWeight := 99
+	body.DisplayWeight = &newWeight
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/admin/bundles/%s/prices/price_weight", bundleKey), bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": bundleKey,
+		"price_id":   "price_weight",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandleAdminUpdateBundlePrice_ToggleDisplayEnabled(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "toggle_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Toggle Bundle", "prod_toggle", "toggle_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_toggle", "Toggle Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
+
+	planService := NewPlanService(db)
+	handler := handleAdminUpdateBundlePrice(planService)
+
+	body := updateBundlePriceRequest{}
+	enabled := false
+	body.DisplayEnabled = &enabled
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/admin/bundles/%s/prices/price_toggle", bundleKey), bytes.NewReader(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": bundleKey,
+		"price_id":   "price_toggle",
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+}

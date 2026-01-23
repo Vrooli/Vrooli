@@ -37,10 +37,21 @@ func (c *SendGridConfig) IsConfigured() bool {
 	return c.APIKey != "" && c.FromEmail != ""
 }
 
+// SMTPSenderFunc abstracts SMTP sending for testability.
+type SMTPSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
+// EmailServiceOptions configures the EmailService for testing.
+type EmailServiceOptions struct {
+	SendGridConfig *SendGridConfig
+	HTTPClient     *http.Client
+	SMTPSender     SMTPSenderFunc
+}
+
 // EmailService handles sending emails using config from branding or SendGrid
 type EmailService struct {
 	sendGridConfig *SendGridConfig
 	httpClient     *http.Client
+	smtpSender     SMTPSenderFunc
 }
 
 // NewEmailService creates a new email service
@@ -80,6 +91,26 @@ func NewEmailService() *EmailService {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		smtpSender: smtp.SendMail,
+	}
+}
+
+// NewEmailServiceWithOptions creates a new email service with custom options (for testing).
+func NewEmailServiceWithOptions(opts EmailServiceOptions) *EmailService {
+	sender := opts.SMTPSender
+	if sender == nil {
+		sender = smtp.SendMail
+	}
+
+	httpClient := opts.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+
+	return &EmailService{
+		sendGridConfig: opts.SendGridConfig,
+		httpClient:     httpClient,
+		smtpSender:     sender,
 	}
 }
 
@@ -164,7 +195,12 @@ func (s *EmailService) Send(config *SMTPConfig, to, subject, body string) error 
 	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
 
-	err := smtp.SendMail(addr, auth, config.From, []string{to}, []byte(msg))
+	sender := s.smtpSender
+	if sender == nil {
+		sender = smtp.SendMail
+	}
+
+	err := sender(addr, auth, config.From, []string{to}, []byte(msg))
 	if err != nil {
 		logStructuredError("email_send_failed", map[string]interface{}{
 			"to":    to,
