@@ -28,7 +28,9 @@ describe('useSidebarPersistence', () => {
       store[key] = value
     }),
     removeItem: vi.fn((key: string) => {
-      delete store[key]
+      // Use destructuring to avoid dynamic delete lint error
+      const { [key]: _, ...rest } = store
+      store = rest
     }),
     clear: vi.fn(() => {
       store = {}
@@ -174,7 +176,7 @@ describe('useSidebarPersistence', () => {
       })
 
       // Now it should be saved
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState
       expect(saved).toEqual({
         isCollapsed: true,
         expandedNodes: ['folder-1'],
@@ -263,7 +265,7 @@ describe('useSidebarPersistence', () => {
       })
 
       // Only the final state should be saved
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as SidebarPersistedState
       expect(saved).toEqual({
         isCollapsed: true,
         expandedNodes: ['a', 'b'],

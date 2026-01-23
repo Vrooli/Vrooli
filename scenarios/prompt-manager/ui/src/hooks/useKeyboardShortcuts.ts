@@ -125,22 +125,17 @@ export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers): void {
       return
     }
 
-    // Ctrl/Cmd+Z - Undo (not in text inputs to allow native undo)
+    // Ctrl/Cmd+Z - Undo
     if (hasModifier(e) && e.key === 'z' && !e.shiftKey) {
-      // Only handle undo when not in a text input (let native undo work there)
-      if (!isTextInput) {
-        e.preventDefault()
-        h.onUndo?.()
-      }
+      e.preventDefault()
+      h.onUndo?.()
       return
     }
 
-    // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y - Redo (not in text inputs)
+    // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y - Redo
     if (hasModifier(e) && ((e.key === 'Z' && e.shiftKey) || (e.key === 'y' && !e.shiftKey))) {
-      if (!isTextInput) {
-        e.preventDefault()
-        h.onRedo?.()
-      }
+      e.preventDefault()
+      h.onRedo?.()
       return
     }
 

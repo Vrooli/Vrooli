@@ -35,6 +35,7 @@ import {
  */
 export function normalizeSkill(skill: Skill): NormalizedFormState {
   return {
+    file: skill.file,
     name: skill.name,
     description: skill.description,
     content: skill.content,
@@ -51,6 +52,7 @@ export function normalizeSkill(skill: Skill): NormalizedFormState {
  */
 export function createEmptyNormalizedState(): NormalizedFormState {
   return {
+    file: '',
     name: '',
     description: '',
     content: '',
@@ -69,6 +71,7 @@ export function isFormStateEqual(
   a: NormalizedFormState,
   b: NormalizedFormState
 ): boolean {
+  if (a.file !== b.file) return false
   if (a.name !== b.name) return false
   if (a.description !== b.description) return false
   if (a.content !== b.content) return false
@@ -413,7 +416,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     // Pop from undo stack
     const newUndoStack = [...state.undoStack]
-    const previousSnapshot = newUndoStack.pop()!
+    const previousSnapshot = newUndoStack.pop()
+    if (!previousSnapshot) return // Shouldn't happen due to length check above
 
     // Push current to redo stack
     const redoSnapshot: FormSnapshot = {
@@ -443,7 +447,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     // Pop from redo stack
     const newRedoStack = [...state.redoStack]
-    const nextSnapshot = newRedoStack.pop()!
+    const nextSnapshot = newRedoStack.pop()
+    if (!nextSnapshot) return // Shouldn't happen due to length check above
 
     // Push current to undo stack
     const undoSnapshot: FormSnapshot = {

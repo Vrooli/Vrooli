@@ -6,6 +6,7 @@
  * - Syntax highlighting for markdown in Monaco
  * - Rich text formatting in TipTap
  * - Editor preference persisted to localStorage
+ * - Toggle is embedded in each editor's header for maximum space efficiency
  */
 
 import { useCallback, useRef, useState, useEffect } from 'react'
@@ -14,9 +15,53 @@ import { Code, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TipTapEditor } from './TipTapEditor'
 
-type EditorType = 'code' | 'wysiwyg'
+export type EditorType = 'code' | 'wysiwyg'
 
 const STORAGE_KEY = 'pm.editorType'
+
+interface EditorToggleProps {
+  editorType: EditorType
+  onEditorTypeChange: (type: EditorType) => void
+  className?: string
+}
+
+/**
+ * Shared toggle component for switching between Code and Rich Text modes.
+ */
+export function EditorToggle({ editorType, onEditorTypeChange, className }: EditorToggleProps) {
+  return (
+    <div className={cn('flex items-center gap-1 bg-muted rounded-lg p-0.5', className)}>
+      <button
+        type="button"
+        onClick={() => onEditorTypeChange('code')}
+        className={cn(
+          'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
+          editorType === 'code'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Code Editor (Monaco)"
+      >
+        <Code className="h-3.5 w-3.5" />
+        Code
+      </button>
+      <button
+        type="button"
+        onClick={() => onEditorTypeChange('wysiwyg')}
+        className={cn(
+          'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
+          editorType === 'wysiwyg'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Rich Text Editor (WYSIWYG)"
+      >
+        <Type className="h-3.5 w-3.5" />
+        Rich Text
+      </button>
+    </div>
+  )
+}
 
 interface SkillContentEditorProps {
   value: string
@@ -77,88 +122,64 @@ export function SkillContentEditor({
 
   return (
     <div className={cn('flex flex-col', className)}>
-      {/* Header with label and editor toggle */}
-      <div className="flex items-center justify-between mb-1">
-        <label className="block text-sm font-medium text-muted-foreground">
-          Content <span className="text-red-400">*</span>
-        </label>
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setEditorType('code')}
-            className={cn(
-              'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
-              editorType === 'code'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title="Code Editor (Monaco)"
-          >
-            <Code className="h-3.5 w-3.5" />
-            Code
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditorType('wysiwyg')}
-            className={cn(
-              'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
-              editorType === 'wysiwyg'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title="Rich Text Editor (WYSIWYG)"
-          >
-            <Type className="h-3.5 w-3.5" />
-            Rich Text
-          </button>
-        </div>
-      </div>
-
-      {/* Editor container */}
+      {/* Editor container - takes full height */}
       <div
         className={cn(
-          'flex-1 rounded-lg overflow-hidden border',
-          error ? 'border-red-500' : 'border-border'
+          'flex-1 flex flex-col overflow-hidden',
+          error && 'ring-1 ring-red-500'
         )}
       >
         {editorType === 'code' ? (
-          <Editor
-            height="100%"
-            defaultLanguage="markdown"
-            value={value}
-            onChange={handleMonacoChange}
-            onMount={handleEditorMount}
-            theme="vs-dark"
-            options={{
-              minimap: { enabled: false },
-              wordWrap: 'on',
-              lineNumbers: 'on',
-              fontSize: 13,
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              tabSize: 2,
-              scrollBeyondLastLine: false,
-              padding: { top: 12, bottom: 12 },
-              renderLineHighlight: 'line',
-              cursorBlinking: 'smooth',
-              smoothScrolling: true,
-              scrollbar: {
-                vertical: 'auto',
-                horizontal: 'auto',
-                verticalScrollbarSize: 8,
-                horizontalScrollbarSize: 8,
-              },
-              overviewRulerBorder: false,
-              hideCursorInOverviewRuler: true,
-              folding: true,
-              foldingStrategy: 'indentation',
-              automaticLayout: true,
-            }}
-          />
+          <div className="flex flex-col h-full">
+            {/* Monaco header bar with toggle */}
+            <div className="flex-shrink-0 flex items-center justify-end px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
+              <EditorToggle
+                editorType={editorType}
+                onEditorTypeChange={setEditorType}
+              />
+            </div>
+            <div className="flex-1">
+              <Editor
+                height="100%"
+                defaultLanguage="markdown"
+                value={value}
+                onChange={handleMonacoChange}
+                onMount={handleEditorMount}
+                theme="vs-dark"
+                options={{
+                  minimap: { enabled: false },
+                  wordWrap: 'on',
+                  lineNumbers: 'on',
+                  fontSize: 13,
+                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                  tabSize: 2,
+                  scrollBeyondLastLine: false,
+                  padding: { top: 12, bottom: 12 },
+                  renderLineHighlight: 'line',
+                  cursorBlinking: 'smooth',
+                  smoothScrolling: true,
+                  scrollbar: {
+                    vertical: 'auto',
+                    horizontal: 'auto',
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8,
+                  },
+                  overviewRulerBorder: false,
+                  hideCursorInOverviewRuler: true,
+                  folding: true,
+                  foldingStrategy: 'indentation',
+                  automaticLayout: true,
+                }}
+              />
+            </div>
+          </div>
         ) : (
           <TipTapEditor
             value={value}
             onChange={handleTipTapChange}
             placeholder="Start writing your skill content..."
+            editorType={editorType}
+            onEditorTypeChange={setEditorType}
             className="h-full"
           />
         )}

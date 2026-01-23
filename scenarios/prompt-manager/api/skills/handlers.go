@@ -248,7 +248,18 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Track old filename for potential rename
+	oldFile := skill.File
+
 	// Update fields
+	if req.File != nil && *req.File != "" {
+		// Validate new filename
+		newFile := *req.File
+		if !strings.HasSuffix(newFile, ".md") {
+			newFile = newFile + ".md"
+		}
+		skill.File = newFile
+	}
 	if req.Name != nil {
 		skill.Name = *req.Name
 	}
@@ -273,8 +284,27 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	skill.UpdatedAt = time.Now().Format(time.RFC3339)
 
-	// Update content if provided
-	if req.Content != nil {
+	// Handle file rename if filename changed
+	if skill.File != oldFile {
+		// Read old content
+		oldContent, err := h.store.GetContent(folder, oldFile)
+		if err != nil {
+			http.Error(w, "Failed to read existing content for rename", http.StatusInternalServerError)
+			return
+		}
+		// Write to new file (use req.Content if provided, otherwise old content)
+		newContent := oldContent
+		if req.Content != nil {
+			newContent = *req.Content
+		}
+		if err := h.store.SaveContent(folder, skill.File, newContent); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Delete old file
+		h.store.DeleteContent(folder, oldFile)
+	} else if req.Content != nil {
+		// No rename, just update content
 		if err := h.store.SaveContent(folder, skill.File, *req.Content); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -435,9 +465,13 @@ func (h *Handlers) toResponse(p Metadata) Response {
 		UpdatedAt:    p.UpdatedAt,
 	}
 
-	// Extract folder from file path
-	if parts := strings.SplitN(p.File, "/", 2); len(parts) > 0 {
+	// Extract folder and filename from file path (format: "folder/filename.md")
+	if parts := strings.SplitN(p.File, "/", 2); len(parts) == 2 {
 		response.Folder = parts[0]
+		response.File = parts[1]
+	} else {
+		// No folder prefix - just the filename
+		response.File = p.File
 	}
 
 	// Load metrics from database

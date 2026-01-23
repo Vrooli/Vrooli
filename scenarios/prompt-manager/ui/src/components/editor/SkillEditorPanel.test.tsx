@@ -42,6 +42,7 @@ vi.mock('@/components/world', () => ({
 function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
+    file: 'test-1.md',
     name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
@@ -59,6 +60,7 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
 // Helper to create default form state
 function createFormState(overrides: Partial<NormalizedFormState> = {}): NormalizedFormState {
   return {
+    file: 'test-1.md',
     name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',

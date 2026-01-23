@@ -197,10 +197,14 @@ export function getChangeSummary(original: Skill, current: SkillFormState): stri
  * Tags are already an array, so no parsing needed.
  *
  * @param state - The normalized form state
+ * @param originalFile - Original filename to detect renames
  * @returns Update request for the API
  */
-export function normalizedStateToUpdateRequest(state: NormalizedFormState): UpdateSkillRequest {
-  return {
+export function normalizedStateToUpdateRequest(
+  state: NormalizedFormState,
+  originalFile?: string
+): UpdateSkillRequest {
+  const request: UpdateSkillRequest = {
     name: state.name,
     description: state.description,
     content: state.content,
@@ -210,6 +214,11 @@ export function normalizedStateToUpdateRequest(state: NormalizedFormState): Upda
     draft: state.draft,
     folder: state.folder,
   }
+  // Only include file if it changed (to trigger rename)
+  if (originalFile && state.file !== originalFile) {
+    request.file = state.file
+  }
+  return request
 }
 
 /**
@@ -217,10 +226,15 @@ export function normalizedStateToUpdateRequest(state: NormalizedFormState): Upda
  * Useful during migration period.
  *
  * @param formState - Legacy form state with comma-separated tags
+ * @param file - Optional filename (legacy state doesn't have this)
  * @returns Normalized form state with tags as array
  */
-export function legacyToNormalizedState(formState: SkillFormState): NormalizedFormState {
+export function legacyToNormalizedState(
+  formState: SkillFormState,
+  file = ''
+): NormalizedFormState {
   return {
+    file,
     name: formState.name,
     description: formState.description,
     content: formState.content,
@@ -234,7 +248,7 @@ export function legacyToNormalizedState(formState: SkillFormState): NormalizedFo
 
 /**
  * Convert NormalizedFormState to legacy SkillFormState.
- * Useful during migration period.
+ * Useful during migration period. Note: file field is lost.
  *
  * @param state - Normalized form state with tags as array
  * @returns Legacy form state with comma-separated tags

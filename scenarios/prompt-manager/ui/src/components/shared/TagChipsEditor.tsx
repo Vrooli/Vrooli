@@ -119,11 +119,8 @@ export function TagChipsEditor({
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <div className="flex items-center gap-1 flex-wrap">
-        {/* Tag label */}
-        <span className="flex items-center gap-1 text-xs text-muted-foreground mr-1">
-          <Tag className="h-3 w-3" />
-          Tags:
-        </span>
+        {/* Tag icon */}
+        <Tag className="h-3 w-3 text-muted-foreground mr-0.5" />
 
         {/* Existing tags as chips */}
         {tags.map((tag) => (

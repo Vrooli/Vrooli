@@ -195,48 +195,34 @@ code, pre {
   padding-left: 1rem;
 }
 
-/* Inline code with copy button */
-.ProseMirror code:not(pre code) {
-  position: relative;
-}
-
-.inline-code-copy-btn {
-  position: absolute;
-  top: 50%;
-  right: -6px;
-  transform: translateY(-50%) translateX(100%);
-  display: flex;
+/* Inline code with floating copy button */
+.inline-code-copy-btn-floating {
+  display: none;
   align-items: center;
   justify-content: center;
-  padding: 2px 4px;
-  background: hsl(var(--muted));
+  padding: 4px 6px;
+  background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: 4px;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
-  z-index: 10;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.ProseMirror code:not(pre code):hover .inline-code-copy-btn,
-.inline-code-copy-btn:hover {
-  opacity: 1;
-}
-
-.inline-code-copy-btn:hover {
+.inline-code-copy-btn-floating:hover {
   background: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
   border-color: hsl(var(--primary) / 0.3);
 }
 
-.inline-code-copy-btn.copied {
+.inline-code-copy-btn-floating.copied {
   background: hsl(142 76% 36% / 0.1);
   color: hsl(142 76% 36%);
   border-color: hsl(142 76% 36% / 0.3);
 }
 
-.inline-code-copy-btn svg {
+.inline-code-copy-btn-floating svg {
   width: 12px;
   height: 12px;
 }

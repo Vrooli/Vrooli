@@ -34,6 +34,7 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
     icon: 'file',
     draft: false,
     folder: 'local',
+    file: 'test-skill.md',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 5,

@@ -14,6 +14,7 @@ import type { FolderType } from './index'
  * This eliminates type conversion issues that cause false-positive dirty detection.
  */
 export interface NormalizedFormState {
+  file: string // Filename (e.g., "my-skill.md")
   name: string
   description: string
   content: string

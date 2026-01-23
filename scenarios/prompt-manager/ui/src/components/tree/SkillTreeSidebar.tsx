@@ -210,7 +210,7 @@ export function SkillTreeSidebar({
 
   // Get all available mode paths from skills
   const availableModePaths = skills
-    .filter((s) => s.modes && s.modes.length > 0)
+    .filter((s) => s.modes.length > 0)
     .map((s) => s.modes)
 
   // Collapsed state - show narrow strip with expand button

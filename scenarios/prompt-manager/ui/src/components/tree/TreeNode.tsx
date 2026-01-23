@@ -91,6 +91,12 @@ export function TreeNodeComponent({
   const paddingLeft = `${node.depth * 12 + 8}px`
   const selectionState = getSelectionState?.(node) ?? 'none'
 
+  // IMPORTANT: Hooks must be called unconditionally at the top level
+  // Get live form state for display name override (used only for leaf nodes)
+  const formState = useEditorStore((state) =>
+    node.itemId ? state.getFormState(node.itemId) : null
+  )
+
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onCheckboxChange?.(node)
@@ -166,11 +172,6 @@ export function TreeNodeComponent({
   const skill = skills.find((p) => p.id === node.itemId)
   const isSelected = selectedItemId === node.itemId
   const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
-
-  // Get live form state for display name override
-  const formState = useEditorStore((state) =>
-    node.itemId ? state.getFormState(node.itemId) : null
-  )
   const displayLabel = formState?.name || node.label
 
   // In checkbox mode, clicking the row toggles the checkbox

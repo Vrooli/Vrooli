@@ -34,8 +34,6 @@ import {
   ListOrdered,
   Quote,
   Minus,
-  Undo,
-  Redo,
   FileCode,
   Highlighter,
   Link as LinkIcon,
@@ -43,12 +41,17 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { isHtml, markdownToHtml, htmlToMarkdown } from '@/services/contentConverter'
+import { EditorToggle, type EditorType } from './SkillContentEditor'
+import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 
 interface TipTapEditorProps {
   value: string
   onChange: (value: string) => void
   disabled?: boolean
   placeholder?: string
+  editorType?: EditorType
+  onEditorTypeChange?: (type: EditorType) => void
   className?: string
 }
 
@@ -89,6 +92,8 @@ export function TipTapEditor({
   onChange,
   disabled = false,
   placeholder = 'Start writing your prompt...',
+  editorType,
+  onEditorTypeChange,
   className,
 }: TipTapEditorProps) {
   // Track the last markdown value we output to avoid infinite loops
@@ -270,6 +275,8 @@ export function TipTapEditor({
     editor?.chain().focus().unsetLink().run()
   }, [editor])
 
+  const isMobile = useIsMobile()
+
   if (!editor) {
     return (
       <div className={cn('flex-1 bg-card rounded-lg border border-border', className)}>
@@ -280,144 +287,271 @@ export function TipTapEditor({
     )
   }
 
+  // Check if any heading is active
+  const hasActiveHeading =
+    editor.isActive('heading', { level: 1 }) ||
+    editor.isActive('heading', { level: 2 }) ||
+    editor.isActive('heading', { level: 3 })
+
+  // Check if any text formatting is active
+  const hasActiveTextFormat =
+    editor.isActive('bold') ||
+    editor.isActive('italic') ||
+    editor.isActive('strike') ||
+    editor.isActive('highlight')
+
   return (
-    <div className={cn('flex flex-col bg-card rounded-lg border border-border', className)}>
+    <div className={cn('flex flex-col bg-card', className)}>
       {/* Toolbar */}
       {!disabled && (
         <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
-          <ToolbarButton
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
-            title="Undo"
-          >
-            <Undo className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
-            title="Redo"
-          >
-            <Redo className="h-4 w-4" />
-          </ToolbarButton>
+          {isMobile ? (
+            // Mobile: Use dropdowns for grouped buttons
+            <>
+              {/* Headings dropdown */}
+              <ToolbarDropdown
+                icon={<Heading1 className="h-4 w-4" />}
+                label="Headings"
+                hasActiveItem={hasActiveHeading}
+              >
+                <DropdownItem
+                  onClick={() => setHeading(1)}
+                  isActive={editor.isActive('heading', { level: 1 })}
+                  icon={<Heading1 className="h-4 w-4" />}
+                  label="Heading 1"
+                />
+                <DropdownItem
+                  onClick={() => setHeading(2)}
+                  isActive={editor.isActive('heading', { level: 2 })}
+                  icon={<Heading2 className="h-4 w-4" />}
+                  label="Heading 2"
+                />
+                <DropdownItem
+                  onClick={() => setHeading(3)}
+                  isActive={editor.isActive('heading', { level: 3 })}
+                  icon={<Heading3 className="h-4 w-4" />}
+                  label="Heading 3"
+                />
+              </ToolbarDropdown>
 
-          <ToolbarDivider />
+              {/* Text formatting dropdown */}
+              <ToolbarDropdown
+                icon={<Bold className="h-4 w-4" />}
+                label="Formatting"
+                hasActiveItem={hasActiveTextFormat}
+              >
+                <DropdownItem
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  isActive={editor.isActive('bold')}
+                  icon={<Bold className="h-4 w-4" />}
+                  label="Bold"
+                />
+                <DropdownItem
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  isActive={editor.isActive('italic')}
+                  icon={<Italic className="h-4 w-4" />}
+                  label="Italic"
+                />
+                <DropdownItem
+                  onClick={() => editor.chain().focus().toggleStrike().run()}
+                  isActive={editor.isActive('strike')}
+                  icon={<Strikethrough className="h-4 w-4" />}
+                  label="Strikethrough"
+                />
+                <DropdownItem
+                  onClick={() => editor.chain().focus().toggleHighlight().run()}
+                  isActive={editor.isActive('highlight')}
+                  icon={<Highlighter className="h-4 w-4" />}
+                  label="Highlight"
+                />
+              </ToolbarDropdown>
 
-          <ToolbarButton
-            onClick={() => setHeading(1)}
-            isActive={editor.isActive('heading', { level: 1 })}
-            title="Heading 1"
-          >
-            <Heading1 className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => setHeading(2)}
-            isActive={editor.isActive('heading', { level: 2 })}
-            title="Heading 2"
-          >
-            <Heading2 className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => setHeading(3)}
-            isActive={editor.isActive('heading', { level: 3 })}
-            title="Heading 3"
-          >
-            <Heading3 className="h-4 w-4" />
-          </ToolbarButton>
+              <ToolbarDivider />
 
-          <ToolbarDivider />
+              {/* Code buttons - inline */}
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleCode().run()}
+                isActive={editor.isActive('code')}
+                title="Inline Code"
+              >
+                <Code className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                isActive={editor.isActive('codeBlock')}
+                title="Code Block"
+              >
+                <FileCode className="h-4 w-4" />
+              </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            isActive={editor.isActive('bold')}
-            title="Bold"
-          >
-            <Bold className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            isActive={editor.isActive('italic')}
-            title="Italic"
-          >
-            <Italic className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            isActive={editor.isActive('strike')}
-            title="Strikethrough"
-          >
-            <Strikethrough className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            isActive={editor.isActive('highlight')}
-            title="Highlight"
-          >
-            <Highlighter className="h-4 w-4" />
-          </ToolbarButton>
+              <ToolbarDivider />
 
-          <ToolbarDivider />
+              {/* Link buttons - inline */}
+              <ToolbarButton
+                onClick={openLinkDialog}
+                isActive={editor.isActive('link')}
+                title="Add Link"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={removeLink}
+                disabled={!editor.isActive('link')}
+                title="Remove Link"
+              >
+                <Unlink className="h-4 w-4" />
+              </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            isActive={editor.isActive('code')}
-            title="Inline Code"
-          >
-            <Code className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            isActive={editor.isActive('codeBlock')}
-            title="Code Block"
-          >
-            <FileCode className="h-4 w-4" />
-          </ToolbarButton>
+              <ToolbarDivider />
 
-          <ToolbarDivider />
+              {/* List buttons - inline */}
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                isActive={editor.isActive('bulletList')}
+                title="Bullet List"
+              >
+                <List className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                isActive={editor.isActive('orderedList')}
+                title="Numbered List"
+              >
+                <ListOrdered className="h-4 w-4" />
+              </ToolbarButton>
+            </>
+          ) : (
+            // Desktop: Show all buttons inline
+            <>
+              <ToolbarButton
+                onClick={() => setHeading(1)}
+                isActive={editor.isActive('heading', { level: 1 })}
+                title="Heading 1"
+              >
+                <Heading1 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => setHeading(2)}
+                isActive={editor.isActive('heading', { level: 2 })}
+                title="Heading 2"
+              >
+                <Heading2 className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => setHeading(3)}
+                isActive={editor.isActive('heading', { level: 3 })}
+                title="Heading 3"
+              >
+                <Heading3 className="h-4 w-4" />
+              </ToolbarButton>
 
-          <ToolbarButton
-            onClick={openLinkDialog}
-            isActive={editor.isActive('link')}
-            title="Add Link"
-          >
-            <LinkIcon className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={removeLink}
-            disabled={!editor.isActive('link')}
-            title="Remove Link"
-          >
-            <Unlink className="h-4 w-4" />
-          </ToolbarButton>
+              <ToolbarDivider />
 
-          <ToolbarDivider />
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                isActive={editor.isActive('bold')}
+                title="Bold"
+              >
+                <Bold className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                isActive={editor.isActive('italic')}
+                title="Italic"
+              >
+                <Italic className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                isActive={editor.isActive('strike')}
+                title="Strikethrough"
+              >
+                <Strikethrough className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleHighlight().run()}
+                isActive={editor.isActive('highlight')}
+                title="Highlight"
+              >
+                <Highlighter className="h-4 w-4" />
+              </ToolbarButton>
 
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            isActive={editor.isActive('bulletList')}
-            title="Bullet List"
-          >
-            <List className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            isActive={editor.isActive('orderedList')}
-            title="Numbered List"
-          >
-            <ListOrdered className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            isActive={editor.isActive('blockquote')}
-            title="Blockquote"
-          >
-            <Quote className="h-4 w-4" />
-          </ToolbarButton>
-          <ToolbarButton
-            onClick={() => editor.chain().focus().setHorizontalRule().run()}
-            title="Horizontal Rule"
-          >
-            <Minus className="h-4 w-4" />
-          </ToolbarButton>
+              <ToolbarDivider />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleCode().run()}
+                isActive={editor.isActive('code')}
+                title="Inline Code"
+              >
+                <Code className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+                isActive={editor.isActive('codeBlock')}
+                title="Code Block"
+              >
+                <FileCode className="h-4 w-4" />
+              </ToolbarButton>
+
+              <ToolbarDivider />
+
+              <ToolbarButton
+                onClick={openLinkDialog}
+                isActive={editor.isActive('link')}
+                title="Add Link"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={removeLink}
+                disabled={!editor.isActive('link')}
+                title="Remove Link"
+              >
+                <Unlink className="h-4 w-4" />
+              </ToolbarButton>
+
+              <ToolbarDivider />
+
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBulletList().run()}
+                isActive={editor.isActive('bulletList')}
+                title="Bullet List"
+              >
+                <List className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                isActive={editor.isActive('orderedList')}
+                title="Numbered List"
+              >
+                <ListOrdered className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                isActive={editor.isActive('blockquote')}
+                title="Blockquote"
+              >
+                <Quote className="h-4 w-4" />
+              </ToolbarButton>
+              <ToolbarButton
+                onClick={() => editor.chain().focus().setHorizontalRule().run()}
+                title="Horizontal Rule"
+              >
+                <Minus className="h-4 w-4" />
+              </ToolbarButton>
+            </>
+          )}
+
+          {/* Editor type toggle - pushed to right */}
+          {editorType && onEditorTypeChange && (
+            <>
+              <div className="flex-1" />
+              <EditorToggle
+                editorType={editorType}
+                onEditorTypeChange={onEditorTypeChange}
+              />
+            </>
+          )}
         </div>
       )}
 

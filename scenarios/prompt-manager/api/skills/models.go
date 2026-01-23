@@ -26,6 +26,7 @@ type MetadataFile struct {
 // Response is the API response for a skill, enriched with content and metrics.
 type Response struct {
 	ID                  string   `json:"id"`
+	File                string   `json:"file"`
 	Name                string   `json:"name"`
 	Description         string   `json:"description"`
 	Content             string   `json:"content"`
@@ -65,6 +66,7 @@ type CreateRequest struct {
 
 // UpdateRequest is the request body for updating a skill.
 type UpdateRequest struct {
+	File         *string  `json:"file,omitempty"`
 	Name         *string  `json:"name,omitempty"`
 	Description  *string  `json:"description,omitempty"`
 	Content      *string  `json:"content,omitempty"`

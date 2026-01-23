@@ -2,6 +2,8 @@
  * Custom InlineCode extension for TipTap with copy functionality.
  *
  * Extends the default code mark to add a hover-triggered copy button.
+ * Uses a floating button approach that doesn't modify the DOM structure
+ * to avoid conflicts with ProseMirror's state management.
  */
 
 import Code from '@tiptap/extension-code'
@@ -9,11 +11,17 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 const INLINE_CODE_COPY_PLUGIN_KEY = new PluginKey('inlineCodeCopy')
 
-// Create the copy button element
-function createCopyButton(): HTMLButtonElement {
+// Create a singleton floating button that gets reused
+let floatingButton: HTMLButtonElement | null = null
+
+function getOrCreateFloatingButton(): HTMLButtonElement {
+  if (floatingButton && document.body.contains(floatingButton)) {
+    return floatingButton
+  }
+
   const button = document.createElement('button')
   button.type = 'button'
-  button.className = 'inline-code-copy-btn'
+  button.className = 'inline-code-copy-btn-floating'
   button.innerHTML = `
     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
@@ -21,6 +29,8 @@ function createCopyButton(): HTMLButtonElement {
     </svg>
   `
   button.title = 'Copy code'
+  document.body.appendChild(button)
+  floatingButton = button
   return button
 }
 
@@ -55,17 +65,49 @@ async function copyToClipboard(text: string, button: HTMLButtonElement): Promise
 
 /**
  * Create the inline code copy plugin.
+ * Uses a floating button positioned via getBoundingClientRect().
+ * Does NOT modify the DOM structure to avoid ProseMirror state conflicts.
  */
 function createInlineCodeCopyPlugin(): Plugin {
-  let currentButton: HTMLButtonElement | null = null
   let currentTarget: HTMLElement | null = null
+  let clickHandler: ((e: MouseEvent) => void) | null = null
 
-  const cleanup = () => {
-    if (currentButton && currentButton.parentNode) {
-      currentButton.parentNode.removeChild(currentButton)
+  const hideButton = () => {
+    if (floatingButton) {
+      floatingButton.style.display = 'none'
+      if (clickHandler) {
+        floatingButton.removeEventListener('click', clickHandler)
+        clickHandler = null
+      }
     }
-    currentButton = null
     currentTarget = null
+  }
+
+  const showButton = (target: HTMLElement) => {
+    const button = getOrCreateFloatingButton()
+    const rect = target.getBoundingClientRect()
+
+    // Position button to the right of the code element
+    button.style.display = 'flex'
+    button.style.position = 'fixed'
+    button.style.top = `${rect.top + rect.height / 2}px`
+    button.style.left = `${rect.right + 4}px`
+    button.style.transform = 'translateY(-50%)'
+    button.style.zIndex = '9999'
+
+    // Remove old click handler and add new one
+    if (clickHandler) {
+      button.removeEventListener('click', clickHandler)
+    }
+    clickHandler = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const code = target.textContent || ''
+      void copyToClipboard(code, button)
+    }
+    button.addEventListener('click', clickHandler)
+
+    currentTarget = target
   }
 
   return new Plugin({
@@ -73,7 +115,12 @@ function createInlineCodeCopyPlugin(): Plugin {
     view() {
       return {
         destroy() {
-          cleanup()
+          hideButton()
+          // Clean up floating button when editor is destroyed
+          if (floatingButton && floatingButton.parentNode) {
+            floatingButton.parentNode.removeChild(floatingButton)
+            floatingButton = null
+          }
         },
       }
     },
@@ -82,30 +129,12 @@ function createInlineCodeCopyPlugin(): Plugin {
         mouseover(_view: unknown, event: MouseEvent) {
           const target = event.target as HTMLElement
 
-          // Check if hovering over an inline code element
+          // Check if hovering over an inline code element (not inside pre/code block)
           if (target.tagName === 'CODE' && !target.closest('pre')) {
-            // Don't add another button if already present
+            // Don't reposition if already showing for this target
             if (target === currentTarget) return false
 
-            // Clean up any existing button
-            cleanup()
-
-            // Create and position the copy button
-            const button = createCopyButton()
-            currentButton = button
-            currentTarget = target
-
-            // Position the button relative to the code element
-            target.style.position = 'relative'
-            target.appendChild(button)
-
-            // Handle click
-            button.addEventListener('click', (e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              const code = target.textContent || ''
-              void copyToClipboard(code, button)
-            })
+            showButton(target)
           }
 
           return false
@@ -114,19 +143,19 @@ function createInlineCodeCopyPlugin(): Plugin {
           const target = event.target as HTMLElement
           const relatedTarget = event.relatedTarget as HTMLElement | null
 
-          // Check if we're leaving the code element (but not to the button)
+          // Only hide if we're leaving the code element and not going to the button
           if (target === currentTarget) {
-            // If moving to the button, don't clean up
-            if (relatedTarget === currentButton || currentButton?.contains(relatedTarget)) {
+            // If moving to the floating button, don't hide
+            if (relatedTarget === floatingButton || floatingButton?.contains(relatedTarget)) {
               return false
             }
-            cleanup()
+            hideButton()
           }
 
-          // If leaving the button, check if going back to code
-          if (target === currentButton || currentButton?.contains(target)) {
+          // If leaving the button, check if going back to the code element
+          if (target === floatingButton || floatingButton?.contains(target)) {
             if (relatedTarget !== currentTarget && !currentTarget?.contains(relatedTarget)) {
-              cleanup()
+              hideButton()
             }
           }
 

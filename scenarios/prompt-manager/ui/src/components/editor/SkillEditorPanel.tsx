@@ -19,14 +19,15 @@
  * - Empty state with 3D world visualization
  */
 
-import { X, FolderOpen, HardDrive } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
-import type { Skill, FolderType } from '@/types'
+import type { Skill } from '@/types'
 import type { CombineFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
 import { SkillContentEditor } from './SkillContentEditor'
+import { FilePathMenu } from './FilePathMenu'
 import { WorldCanvas } from '@/components/world'
 import { IconSelector } from '../shared/IconSelector'
 import { InlineEditableText } from '../shared/InlineEditableText'
@@ -121,24 +122,6 @@ export function SkillEditorPanel({
     )
   }
 
-  // Helper to get storage location display
-  const getStorageDisplay = (folder: FolderType) => {
-    switch (folder) {
-      case 'local':
-        return { icon: HardDrive, label: 'Local', title: 'Personal skill, gitignored' }
-      case 'core':
-        return { icon: FolderOpen, label: 'Core', title: 'Shared skill, git-tracked' }
-      case 'drafts':
-        return { icon: HardDrive, label: 'Drafts', title: 'Draft skill' }
-      default:
-        return { icon: HardDrive, label: 'Local', title: 'Personal skill' }
-    }
-  }
-
-  const storage = getStorageDisplay(formState.folder)
-  const StorageIcon = storage.icon
-  const modePath = formState.modes.filter(Boolean).join(' / ') || '(none)'
-
   return (
     <div className={cn('h-full', className)}>
       <div className="flex flex-col h-full bg-card/50">
@@ -183,23 +166,6 @@ export function SkillEditorPanel({
               className="flex-shrink-0"
             />
 
-            {/* Storage indicator */}
-            <button
-              type="button"
-              onClick={() => onFieldChange('folder', formState.folder === 'local' ? 'core' : 'local')}
-              title={`${storage.title}. Click to change.`}
-              className={cn(
-                'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors flex-shrink-0',
-                'hover:bg-muted/50',
-                formState.folder === 'core'
-                  ? 'text-emerald-300'
-                  : 'text-muted-foreground'
-              )}
-            >
-              <StorageIcon className="h-3 w-3" />
-              {storage.label}
-            </button>
-
             {/* Unsaved indicator */}
             {isDirty && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
@@ -217,7 +183,7 @@ export function SkillEditorPanel({
             className="text-muted-foreground"
           />
 
-          {/* Row 3: Tags and Mode path */}
+          {/* Row 3: Tags and File path menu */}
           <div className="flex items-center gap-4 flex-wrap">
             <TagChipsEditor
               value={formState.tags}
@@ -227,12 +193,15 @@ export function SkillEditorPanel({
               className="flex-1 min-w-0"
             />
 
-            {/* Mode path display (read-only, edit via right-click context menu) */}
-            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-              <FolderOpen className="h-3 w-3" />
-              <span>Path:</span>
-              <span className="text-foreground">{modePath}</span>
-            </div>
+            {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
+            <FilePathMenu
+              file={formState.file}
+              modes={formState.modes}
+              folder={formState.folder}
+              onFileChange={(v) => onFieldChange('file', v)}
+              onFolderChange={(v) => onFieldChange('folder', v)}
+              className="flex-shrink-0"
+            />
           </div>
 
           {/* Row 4: Toolbar */}
@@ -254,7 +223,7 @@ export function SkillEditorPanel({
         </div>
 
         {/* Content area - full width */}
-        <div className="flex-1 overflow-hidden p-4">
+        <div className="flex-1 overflow-hidden">
           <SkillContentEditor
             value={formState.content}
             onChange={(v) => onFieldChange('content', v)}

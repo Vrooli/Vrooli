@@ -25,6 +25,7 @@ export interface Folder {
  */
 export interface Skill {
   id: string
+  file: string
   name: string
   description: string
   content: string
@@ -61,6 +62,7 @@ export interface CreateSkillRequest {
  * UpdateSkillRequest matches the API's UpdateRequest type
  */
 export interface UpdateSkillRequest {
+  file?: string
   name?: string
   description?: string
   content?: string

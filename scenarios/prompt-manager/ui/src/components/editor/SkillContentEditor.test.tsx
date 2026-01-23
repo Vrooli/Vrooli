@@ -31,15 +31,36 @@ vi.mock('@monaco-editor/react', () => ({
   ),
 }))
 
-// Mock TipTap Editor
+// Mock TipTap Editor - includes EditorToggle when props are provided
 vi.mock('./TipTapEditor', () => ({
-  TipTapEditor: ({ value, onChange, disabled, placeholder }: {
+  TipTapEditor: ({ value, onChange, disabled, placeholder, editorType, onEditorTypeChange }: {
     value: string
     onChange: (value: string) => void
     disabled?: boolean
     placeholder?: string
+    editorType?: string
+    onEditorTypeChange?: (type: string) => void
   }) => (
     <div data-testid="tiptap-editor" data-disabled={disabled}>
+      {/* Render EditorToggle when props are provided (matching real TipTapEditor behavior) */}
+      {editorType && onEditorTypeChange && (
+        <div className="editor-toggle">
+          <button
+            type="button"
+            onClick={() => onEditorTypeChange('code')}
+            title="Code Editor (Monaco)"
+          >
+            Code
+          </button>
+          <button
+            type="button"
+            onClick={() => onEditorTypeChange('wysiwyg')}
+            title="Rich Text Editor (WYSIWYG)"
+          >
+            Rich Text
+          </button>
+        </div>
+      )}
       <textarea
         data-testid="tiptap-textarea"
         value={value}
@@ -78,13 +99,6 @@ describe('SkillContentEditor', () => {
 
       expect(screen.getByTestId('tiptap-editor')).toBeInTheDocument()
       expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
-    })
-
-    it('should render label with required indicator', () => {
-      render(<SkillContentEditor {...defaultProps} />)
-
-      expect(screen.getByText('Content')).toBeInTheDocument()
-      expect(screen.getByText('*')).toBeInTheDocument()
     })
   })
 

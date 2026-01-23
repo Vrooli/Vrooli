@@ -26,7 +26,9 @@ const localStorageMock = (() => {
       store[key] = value
     }),
     removeItem: vi.fn((key: string) => {
-      delete store[key]
+      // Use Object.assign to avoid dynamic delete lint error
+      const { [key]: _, ...rest } = store
+      store = rest
     }),
     clear: vi.fn(() => {
       store = {}
@@ -49,6 +51,7 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
     targetToolId: 'tool-123',
     draft: false,
     folder: 'local',
+    file: 'test-skill.md',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 5,
@@ -86,7 +89,7 @@ describe('usePromptEditor', () => {
   })
 
   describe('initial state', () => {
-    it('should return null currentSkill when no item selected', async () => {
+    it('should return null currentSkill when no item selected', () => {
       const { result } = renderHook(() =>
         usePromptEditor({
           skills: [createTestSkill()],
@@ -121,7 +124,7 @@ describe('usePromptEditor', () => {
       })
     })
 
-    it('should return null for non-existent selected item', async () => {
+    it('should return null for non-existent selected item', () => {
       const { result } = renderHook(() =>
         usePromptEditor({
           skills: [createTestSkill()],
