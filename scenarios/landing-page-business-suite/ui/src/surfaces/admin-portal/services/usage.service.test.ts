@@ -1,68 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
-  getCurrentBillingPeriod,
-  navigateToBillingPeriod,
-  isCurrentMonth,
-  formatBillingPeriod,
   calculateTotalUsage,
   calculateUsagePercentage,
   sortByUsageDesc,
   getTopUsers,
   getSortedAppTotals,
-  formatActivityDate,
   getLimitedRecords,
 } from './usage.service';
 
 describe('usage.service', () => {
-  describe('getCurrentBillingPeriod', () => {
-    it('returns current month in YYYY-MM format', () => {
-      const result = getCurrentBillingPeriod();
-      expect(result).toMatch(/^\d{4}-\d{2}$/);
-    });
-  });
-
-  describe('navigateToBillingPeriod', () => {
-    it('navigates to previous month', () => {
-      expect(navigateToBillingPeriod('2024-03', -1)).toBe('2024-02');
-    });
-
-    it('navigates to next month', () => {
-      expect(navigateToBillingPeriod('2024-03', 1)).toBe('2024-04');
-    });
-
-    it('handles year boundary going back', () => {
-      expect(navigateToBillingPeriod('2024-01', -1)).toBe('2023-12');
-    });
-
-    it('handles year boundary going forward', () => {
-      expect(navigateToBillingPeriod('2024-12', 1)).toBe('2025-01');
-    });
-  });
-
-  describe('isCurrentMonth', () => {
-    it('returns true for current month', () => {
-      const current = getCurrentBillingPeriod();
-      expect(isCurrentMonth(current)).toBe(true);
-    });
-
-    it('returns false for past month', () => {
-      expect(isCurrentMonth('2020-01')).toBe(false);
-    });
-  });
-
-  describe('formatBillingPeriod', () => {
-    it('formats period to readable string', () => {
-      const result = formatBillingPeriod('2024-01');
-      expect(result).toContain('January');
-      expect(result).toContain('2024');
-    });
-
-    it('formats different months correctly', () => {
-      const result = formatBillingPeriod('2024-12');
-      expect(result).toContain('December');
-    });
-  });
-
   describe('calculateTotalUsage', () => {
     it('sums all user totals', () => {
       const userTotals = {
@@ -168,22 +114,6 @@ describe('usage.service', () => {
     it('handles empty totals', () => {
       const result = getSortedAppTotals({});
       expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('formatActivityDate', () => {
-    it('formats valid date string', () => {
-      const result = formatActivityDate('2024-01-15T10:30:00Z');
-      expect(typeof result).toBe('string');
-      expect(result).not.toBe('-');
-    });
-
-    it('returns "-" for null', () => {
-      expect(formatActivityDate(null)).toBe('-');
-    });
-
-    it('returns "-" for undefined', () => {
-      expect(formatActivityDate(undefined)).toBe('-');
     });
   });
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../../shared/ui/button';
 import { RefreshCw, Trash2, Download, Mail, Users, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { useWaitlistForm } from '../hooks/useWaitlistForm';
-import { formatDate } from '../services/waitlist.service';
+import { formatDateTime } from '../../../shared/lib/dateFormatters';
 
 export function WaitlistManagement() {
   const {
@@ -191,7 +191,7 @@ export function WaitlistManagement() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-sm text-slate-400">
-                          {formatDate(email.created_at)}
+                          {formatDateTime(email.created_at, 'full')}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <Button

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useUsageDashboard } from './useUsageDashboard';
 import * as usageService from '../services/usage.service';
+import * as dateFormatters from '../../../shared/lib/dateFormatters';
 import type { AdminUsageSummary, UsageRecord } from '../../../shared/api';
 
 // Mock the service module
@@ -10,17 +11,25 @@ vi.mock('../services/usage.service', async () => {
   return {
     ...actual,
     fetchUsageSummary: vi.fn(),
-    getCurrentBillingPeriod: vi.fn(),
-    isCurrentMonth: vi.fn(),
+  };
+});
+
+// Mock the date formatters module
+vi.mock('../../../shared/lib/dateFormatters', async () => {
+  const actual = await vi.importActual('../../../shared/lib/dateFormatters');
+  return {
+    ...actual,
+    getCurrentPeriod: vi.fn(),
+    isCurrentPeriod: vi.fn(),
   };
 });
 
 const mockFetchUsageSummary = vi.mocked(usageService.fetchUsageSummary);
-const mockGetCurrentBillingPeriod = vi.mocked(usageService.getCurrentBillingPeriod);
-const mockIsCurrentMonth = vi.mocked(usageService.isCurrentMonth);
+const mockGetCurrentPeriod = vi.mocked(dateFormatters.getCurrentPeriod);
+const mockIsCurrentPeriod = vi.mocked(dateFormatters.isCurrentPeriod);
 
 const createMockUsageRecord = (overrides: Partial<UsageRecord> = {}): UsageRecord => ({
-  id: 1,
+  id: '1',
   user_identity: 'user@example.com',
   limit_key: 'ai_chat',
   usage_amount: 100,
@@ -33,6 +42,7 @@ const createMockUsageRecord = (overrides: Partial<UsageRecord> = {}): UsageRecor
 });
 
 const createMockSummary = (overrides: Partial<AdminUsageSummary> = {}): AdminUsageSummary => ({
+  billing_period: '2024-01',
   total_users: 5,
   total_records: 100,
   user_totals: {
@@ -43,15 +53,15 @@ const createMockSummary = (overrides: Partial<AdminUsageSummary> = {}): AdminUsa
     'app-1': 600,
     'app-2': 200,
   },
-  records: [createMockUsageRecord({ id: 1 }), createMockUsageRecord({ id: 2 })],
+  records: [createMockUsageRecord({ id: '1' }), createMockUsageRecord({ id: '2' })],
   ...overrides,
 });
 
 describe('useUsageDashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetCurrentBillingPeriod.mockReturnValue('2024-01');
-    mockIsCurrentMonth.mockImplementation((period: string) => period === '2024-01');
+    mockGetCurrentPeriod.mockReturnValue('2024-01');
+    mockIsCurrentPeriod.mockImplementation((period: string) => period === '2024-01');
     mockFetchUsageSummary.mockResolvedValue(createMockSummary());
   });
 
@@ -72,7 +82,7 @@ describe('useUsageDashboard', () => {
     });
 
     it('uses current billing period', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-03');
+      mockGetCurrentPeriod.mockReturnValue('2024-03');
       const { result } = renderHook(() => useUsageDashboard());
       expect(result.current.billingPeriod).toBe('2024-03');
       await waitFor(() => expect(result.current.loading).toBe(false));
@@ -119,7 +129,7 @@ describe('useUsageDashboard', () => {
 
   describe('period navigation', () => {
     it('navigates to previous month', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-03');
+      mockGetCurrentPeriod.mockReturnValue('2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
@@ -132,7 +142,7 @@ describe('useUsageDashboard', () => {
     });
 
     it('navigates to next month', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-03');
+      mockGetCurrentPeriod.mockReturnValue('2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
@@ -151,7 +161,7 @@ describe('useUsageDashboard', () => {
     });
 
     it('fetches new data when period changes', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-03');
+      mockGetCurrentPeriod.mockReturnValue('2024-03');
       mockFetchUsageSummary.mockResolvedValue(createMockSummary());
 
       const { result } = renderHook(() => useUsageDashboard());
@@ -169,8 +179,8 @@ describe('useUsageDashboard', () => {
     });
 
     it('detects current period correctly', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-03');
-      mockIsCurrentMonth.mockImplementation((period: string) => period === '2024-03');
+      mockGetCurrentPeriod.mockReturnValue('2024-03');
+      mockIsCurrentPeriod.mockImplementation((period: string) => period === '2024-03');
 
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
@@ -185,7 +195,7 @@ describe('useUsageDashboard', () => {
     });
 
     it('formats period correctly', async () => {
-      mockGetCurrentBillingPeriod.mockReturnValue('2024-01');
+      mockGetCurrentPeriod.mockReturnValue('2024-01');
 
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
@@ -265,7 +275,7 @@ describe('useUsageDashboard', () => {
 
     it('limits recent records', async () => {
       const manyRecords = Array.from({ length: 30 }, (_, i) =>
-        createMockUsageRecord({ id: i + 1 })
+        createMockUsageRecord({ id: String(i + 1) })
       );
       const mockSummary = createMockSummary({ records: manyRecords });
       mockFetchUsageSummary.mockResolvedValue(mockSummary);

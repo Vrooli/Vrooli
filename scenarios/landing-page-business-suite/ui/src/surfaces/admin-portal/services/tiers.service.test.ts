@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TierLimit } from '../../../shared/api';
 import {
-  DEFAULT_TIER_VALUES,
   getEditKey,
   getTierLabel,
   getTierColor,
@@ -9,10 +8,13 @@ import {
   parseEditedValue,
   buildTierLimitUpdate,
   getDisplayValue,
+  TIER_OPTIONS,
+} from '../../../shared/lib/tierUtils';
+import {
+  DEFAULT_TIER_VALUES,
   collectCostBasedLimitKeys,
   findAICreditsLimit,
   calculateDoubledLimits,
-  TIER_OPTIONS,
 } from './tiers.service';
 
 const createMockLimit = (overrides: Partial<TierLimit> = {}): TierLimit => ({

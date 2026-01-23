@@ -5,8 +5,9 @@ import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X, AlertCircle } from 'lucide-react';
+import { formatDateOnly } from '../../../shared/lib/dateFormatters';
 import { useAPIKeysForm } from '../hooks/useAPIKeysForm';
-import { getProviderLabel, getProviderDescription, formatVerifiedDate } from '../services/apiKeys.service';
+import { getProviderLabel, getProviderDescription } from '../services/apiKeys.service';
 
 export function APIKeysSettings() {
   const { addToast } = useToast();
@@ -163,7 +164,7 @@ export function APIKeysSettings() {
                       {key.last_verified_at && (
                         <p>
                           <span className="text-slate-500">Last verified:</span>{' '}
-                          {formatVerifiedDate(key.last_verified_at)}
+                          {formatDateOnly(key.last_verified_at)}
                         </p>
                       )}
                     </div>

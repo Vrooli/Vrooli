@@ -24,7 +24,7 @@ const mockTestAPIKey = vi.mocked(apiKeysService.testAPIKey);
 const mockToggleAPIKey = vi.mocked(apiKeysService.toggleAPIKey);
 
 const createMockAPIKey = (overrides: Partial<APIKey> = {}): APIKey => ({
-  id: 1,
+  id: '1',
   provider: 'openai',
   key_hint: 'sk-...abc',
   is_active: true,
@@ -69,8 +69,8 @@ describe('useAPIKeysForm', () => {
   describe('loading data', () => {
     it('fetches keys on mount', async () => {
       const mockKeys = [
-        createMockAPIKey({ id: 1, provider: 'openai' }),
-        createMockAPIKey({ id: 2, provider: 'anthropic' }),
+        createMockAPIKey({ id: '1', provider: 'openai' }),
+        createMockAPIKey({ id: '2', provider: 'anthropic' }),
       ];
       mockFetchAPIKeys.mockResolvedValue(mockKeys);
 

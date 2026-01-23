@@ -58,18 +58,20 @@ const createMockVariant = (overrides: Partial<Variant> = {}): Variant => ({
 });
 
 const createMockVariantStats = (overrides: Partial<VariantStats> = {}): VariantStats => ({
+  variant_id: 1,
   variant_slug: 'test-variant',
+  variant_name: 'Test Variant',
   views: 1000,
+  cta_clicks: 100,
   conversions: 50,
+  downloads: 25,
   conversion_rate: 5.0,
   trend: 'up',
   ...overrides,
 });
 
 const createMockAnalyticsSummary = (overrides: Partial<AnalyticsSummary> = {}): AnalyticsSummary => ({
-  total_views: 2000,
-  total_conversions: 100,
-  overall_conversion_rate: 5.0,
+  total_visitors: 2000,
   variant_stats: [],
   ...overrides,
 });

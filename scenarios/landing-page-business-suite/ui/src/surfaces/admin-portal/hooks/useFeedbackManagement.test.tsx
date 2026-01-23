@@ -31,6 +31,7 @@ const createMockFeedback = (overrides: Partial<FeedbackRequest> = {}): FeedbackR
   type: 'general',
   status: 'pending',
   created_at: '2024-01-15T10:30:00Z',
+  updated_at: '2024-01-15T10:30:00Z',
   ...overrides,
 });
 

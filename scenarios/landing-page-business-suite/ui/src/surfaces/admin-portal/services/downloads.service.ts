@@ -4,6 +4,7 @@ import type {
   DownloadAsset,
   DownloadStorefront,
 } from '../../../shared/api';
+import { isFormDirtyNormalized } from '../../../shared/lib/formUtils';
 
 /**
  * Platform keys supported for desktop installers
@@ -252,7 +253,7 @@ export function normalizePayload(values: AppFormValues): DownloadAppInput {
  * @returns True if the form has unsaved changes
  */
 export function isFormDirty(current: AppFormValues, original: AppFormValues): boolean {
-  return JSON.stringify(normalizePayload(current)) !== JSON.stringify(normalizePayload(original));
+  return isFormDirtyNormalized(current, original, normalizePayload);
 }
 
 /**

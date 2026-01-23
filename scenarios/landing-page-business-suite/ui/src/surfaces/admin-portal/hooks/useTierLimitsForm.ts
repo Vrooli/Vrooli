@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { TierLimit } from '../../../shared/api';
 import {
-  fetchAllTierLimits,
-  saveTierLimit,
   getEditKey,
   getTierLabel,
   getTierColor,
   parseEditedValue,
   buildTierLimitUpdate,
   getDisplayValue,
+  isUnlimitedValue,
+  TIER_OPTIONS,
+} from '../../../shared/lib/tierUtils';
+import {
+  fetchAllTierLimits,
+  saveTierLimit,
   findAICreditsLimit,
   calculateDoubledLimits,
-  isUnlimitedValue,
   DEFAULT_TIER_VALUES,
-  TIER_OPTIONS,
 } from '../services/tiers.service';
 
 /**

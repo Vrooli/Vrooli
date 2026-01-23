@@ -7,7 +7,6 @@ import {
   getProviderDescription,
   getAvailableProviders,
   hasAvailableProviders,
-  formatVerifiedDate,
   removeTestResult,
   addTestResult,
   PROVIDER_OPTIONS,
@@ -127,22 +126,6 @@ describe('apiKeys.service', () => {
         createMockKey({ id: String(i), provider: p.value })
       );
       expect(hasAvailableProviders(configured)).toBe(false);
-    });
-  });
-
-  describe('formatVerifiedDate', () => {
-    it('returns formatted date for valid date string', () => {
-      const result = formatVerifiedDate('2024-01-15T10:30:00Z');
-      expect(typeof result).toBe('string');
-      expect(result).toBeTruthy();
-    });
-
-    it('returns null for undefined', () => {
-      expect(formatVerifiedDate(undefined)).toBeNull();
-    });
-
-    it('returns null for null', () => {
-      expect(formatVerifiedDate(null)).toBeNull();
     });
   });
 

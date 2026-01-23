@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -643,5 +644,110 @@ func TestAPIKeyService_NoEncryptionKey_StoresPlaintext(t *testing.T) {
 	// In dev mode (no encryption key), the key should be stored as plaintext
 	if storedKey != plainKey {
 		t.Errorf("Expected plaintext key '%s', got '%s'", plainKey, storedKey)
+	}
+}
+
+// ============================================================================
+// Production Environment Tests
+// ============================================================================
+
+func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
+	// Save current environment
+	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
+	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	defer func() {
+		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
+		if oldKey != "" {
+			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
+		} else {
+			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+		}
+	}()
+
+	// Set production mode without encryption key
+	os.Setenv("LPBS_ENVIRONMENT", "production")
+	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+
+	// Attempting to create service without encryption key in production should fail
+	_, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	if err == nil {
+		t.Error("Expected error when creating API key service in production without encryption key")
+	}
+
+	// Verify the error message is helpful
+	if !strings.Contains(err.Error(), "LPBS_API_KEY_ENCRYPTION_KEY") {
+		t.Errorf("Error message should mention LPBS_API_KEY_ENCRYPTION_KEY, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "production") {
+		t.Errorf("Error message should mention production, got: %v", err)
+	}
+}
+
+func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
+	// Save current environment
+	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
+	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	defer func() {
+		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
+		if oldKey != "" {
+			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
+		} else {
+			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+		}
+	}()
+
+	// Set production mode with valid encryption key
+	os.Setenv("LPBS_ENVIRONMENT", "production")
+	// Generate a valid 32-byte key encoded as base64
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
+	os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", testKey)
+
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+
+	// Should succeed with encryption key
+	svc, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	if err != nil {
+		t.Fatalf("Expected success with encryption key in production, got error: %v", err)
+	}
+	if svc == nil {
+		t.Error("Expected non-nil service")
+	}
+}
+
+func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
+	// Save current environment
+	oldEnv := os.Getenv("LPBS_ENVIRONMENT")
+	oldKey := os.Getenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	defer func() {
+		if oldEnv != "" {
+			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
+		} else {
+			os.Unsetenv("LPBS_ENVIRONMENT")
+		}
+		if oldKey != "" {
+			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
+		} else {
+			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+		}
+	}()
+
+	// Set development mode (or empty, which defaults to dev)
+	os.Setenv("LPBS_ENVIRONMENT", "development")
+	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+
+	// Should succeed in development without encryption key (with warning)
+	svc, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	if err != nil {
+		t.Fatalf("Expected success in development without encryption key, got error: %v", err)
+	}
+	if svc == nil {
+		t.Error("Expected non-nil service")
 	}
 }

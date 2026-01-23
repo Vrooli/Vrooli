@@ -6,6 +6,7 @@ import { SectionEditor } from './SectionEditor';
 import * as controller from '../controllers/sectionEditorController';
 import * as api from '../../../shared/api';
 import type { LandingConfigResponse } from '../../../shared/api';
+import { ToastProvider } from '../../../shared/ui/Toast';
 
 // Mock the controller module
 vi.mock('../controllers/sectionEditorController', () => ({
@@ -128,7 +129,9 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   const renderEditor = () => {
     return render(
       <BrowserRouter>
-        <SectionEditor />
+        <ToastProvider>
+          <SectionEditor />
+        </ToastProvider>
       </BrowserRouter>
     );
   };

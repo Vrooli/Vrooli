@@ -295,25 +295,6 @@ func defaultAxesSelection() map[string]string {
 	}
 }
 
-// testVariantSpace creates a variant space for testing
-func testVariantSpace() *VariantSpace {
-	return &VariantSpace{
-		Name:          "test-space",
-		SchemaVersion: 1,
-		Axes: map[string]*AxisDefinition{
-			"persona": {
-				Variants: []AxisVariant{{ID: "ops_leader", Label: "Ops Leader"}},
-			},
-			"jtbd": {
-				Variants: []AxisVariant{{ID: "launch_bundle", Label: "Launch bundle"}},
-			},
-			"conversionStyle": {
-				Variants: []AxisVariant{{ID: "demo_led", Label: "Demo-led"}},
-			},
-		},
-	}
-}
-
 // setupMinimalAuthServer creates a lightweight server for middleware testing.
 // Only initializes the userAuthService, which is all that's needed for auth middleware tests.
 func setupMinimalAuthServer(t *testing.T, authService *UserAuthService) *Server {

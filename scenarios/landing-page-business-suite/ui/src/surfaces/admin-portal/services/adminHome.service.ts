@@ -1,10 +1,17 @@
 import type { AnalyticsSummary, DownloadApp, SiteBranding, Variant, VariantStats } from '../../../shared/api';
+import {
+  calculateDaysSince,
+  formatRelativeTime,
+  DAY_MS,
+} from '../../../shared/lib/dateFormatters';
 
 /**
  * Shared constants for variant staleness calculations
  */
 export const STALE_VARIANT_DAYS = 10;
-export const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Re-export for backward compatibility
+export { DAY_MS };
 
 /**
  * Number of days used for the health snapshot analytics window
@@ -64,30 +71,12 @@ export interface DownloadsHealthStatus {
   hasApps: boolean;
 }
 
-/**
- * Calculate days since a variant was last updated
- *
- * @param updatedAt - ISO date string of last update
- * @returns Number of days since update, or null if date is invalid/missing
- */
-export function calculateDaysSinceUpdate(updatedAt?: string | null): number | null {
-  if (!updatedAt) {
-    return null;
-  }
-  const parsed = new Date(updatedAt);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / DAY_MS));
-}
 
 /**
- * Format a human-readable label for when a variant was last updated
- *
- * @param updatedAt - ISO date string of last update
- * @returns Human-readable update label
+ * Format variant updated label for display.
+ * Uses formatRelativeTime but handles invalid dates specially.
  */
-export function formatVariantUpdatedLabel(updatedAt?: string | null): string {
+function formatUpdatedLabel(updatedAt?: string | null): string {
   if (!updatedAt) {
     return 'Never customized';
   }
@@ -95,15 +84,10 @@ export function formatVariantUpdatedLabel(updatedAt?: string | null): string {
   if (Number.isNaN(parsed.getTime())) {
     return 'Last updated date unavailable';
   }
-  const diffMs = Date.now() - parsed.getTime();
-  const diffDays = Math.max(0, Math.floor(diffMs / DAY_MS));
-  if (diffDays === 0) {
-    return 'Updated today';
-  }
-  if (diffDays === 1) {
-    return 'Updated yesterday';
-  }
-  return `Updated ${diffDays} days ago`;
+  return formatRelativeTime(updatedAt, {
+    nullLabel: 'Never customized',
+    prefix: 'Updated ',
+  });
 }
 
 /**
@@ -213,8 +197,8 @@ export function buildHealthSnapshot(
       name: variant.name ?? variant.slug,
       reasons: [reason],
       conversionRate: extras?.conversionRate,
-      daysSinceUpdate: calculateDaysSinceUpdate(variant.updated_at),
-      updatedLabel: formatVariantUpdatedLabel(variant.updated_at),
+      daysSinceUpdate: calculateDaysSince(variant.updated_at),
+      updatedLabel: formatUpdatedLabel(variant.updated_at),
       sectionId: extras?.sectionId,
       sectionType: extras?.sectionType ?? 'hero',
     });
@@ -222,7 +206,7 @@ export function buildHealthSnapshot(
 
   // Check for stale/never-customized variants
   activeVariants.forEach((variant) => {
-    const daysSinceUpdate = calculateDaysSinceUpdate(variant.updated_at);
+    const daysSinceUpdate = calculateDaysSince(variant.updated_at);
     if (daysSinceUpdate === null) {
       registerAttention(variant, 'Never customized');
     } else if (daysSinceUpdate >= STALE_VARIANT_DAYS) {

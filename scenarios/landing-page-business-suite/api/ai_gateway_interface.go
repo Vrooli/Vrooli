@@ -55,8 +55,8 @@ func (m *MockAIGateway) ExecuteChatStream(ctx context.Context, userIdentity stri
 	}
 	// Default: write a simple SSE response
 	w.Header().Set("Content-Type", "text/event-stream")
-	w.Write([]byte("data: {\"type\":\"chunk\",\"content\":\"Mock\"}\n\n"))
-	w.Write([]byte("data: {\"type\":\"done\",\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":1,\"total_tokens\":11,\"credits_charged\":500}}\n\n"))
+	_, _ = w.Write([]byte("data: {\"type\":\"chunk\",\"content\":\"Mock\"}\n\n"))
+	_, _ = w.Write([]byte("data: {\"type\":\"done\",\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":1,\"total_tokens\":11,\"credits_charged\":500}}\n\n"))
 	return nil
 }
 

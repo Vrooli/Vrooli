@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 )
@@ -626,6 +627,12 @@ func TestMagicLinkVerifyHandler_MissingToken(t *testing.T) {
 }
 
 func TestGetClientIP(t *testing.T) {
+	// Configure trusted proxies for tests that use XFF/X-Real-IP
+	// The 10.0.0.0/8 range is used as the trusted proxy network
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
 	testCases := []struct {
 		name       string
 		xff        string
@@ -636,19 +643,19 @@ func TestGetClientIP(t *testing.T) {
 		{
 			name:       "X-Forwarded-For single IP",
 			xff:        "192.168.1.1",
-			remoteAddr: "10.0.0.1:12345",
+			remoteAddr: "10.0.0.1:12345", // From trusted proxy
 			expected:   "192.168.1.1",
 		},
 		{
 			name:       "X-Forwarded-For multiple IPs",
 			xff:        "192.168.1.1, 10.0.0.2, 10.0.0.3",
-			remoteAddr: "10.0.0.1:12345",
+			remoteAddr: "10.0.0.1:12345", // From trusted proxy
 			expected:   "192.168.1.1",
 		},
 		{
 			name:       "X-Real-IP",
 			xri:        "192.168.1.1",
-			remoteAddr: "10.0.0.1:12345",
+			remoteAddr: "10.0.0.1:12345", // From trusted proxy
 			expected:   "192.168.1.1",
 		},
 		{
@@ -670,6 +677,9 @@ func TestGetClientIP(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			resetTrustedProxies()
+			os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
 			if tc.xff != "" {
 				req.Header.Set("X-Forwarded-For", tc.xff)

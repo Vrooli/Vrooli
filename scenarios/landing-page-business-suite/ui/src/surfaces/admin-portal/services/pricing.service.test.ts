@@ -94,6 +94,33 @@ describe('pricing.service', () => {
       expect(normalizeInterval(null)).toBe('other');
       expect(normalizeInterval(undefined)).toBe('other');
     });
+
+    it('normalizes "annual" to year', () => {
+      expect(normalizeInterval('annual')).toBe('year');
+    });
+
+    it('normalizes mixed case variants', () => {
+      expect(normalizeInterval('Month')).toBe('month');
+      expect(normalizeInterval('MONTHLY')).toBe('month');
+      expect(normalizeInterval('Yearly')).toBe('year');
+      expect(normalizeInterval('ANNUAL')).toBe('year');
+      expect(normalizeInterval('One_Time')).toBe('one_time');
+    });
+
+    it('does NOT match partial strings (regression test)', () => {
+      expect(normalizeInterval('bimonthly')).toBe('other');
+      expect(normalizeInterval('5months')).toBe('other');
+      expect(normalizeInterval('year_end')).toBe('other');
+      expect(normalizeInterval('monthly_premium')).toBe('other');
+    });
+
+    it('returns other for empty string', () => {
+      expect(normalizeInterval('')).toBe('other');
+    });
+
+    it('returns other for whitespace-only string', () => {
+      expect(normalizeInterval('   ')).toBe('other');
+    });
   });
 
   describe('getIntervalLabel', () => {

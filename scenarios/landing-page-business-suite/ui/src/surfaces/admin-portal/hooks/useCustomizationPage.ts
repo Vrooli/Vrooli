@@ -71,7 +71,7 @@ export interface UseCustomizationPageReturn {
   clearOperationAlert: () => void;
 
   // Ref for scroll
-  variantListRef: React.RefObject<HTMLDivElement | null>;
+  variantListRef: React.RefObject<HTMLDivElement>;
 
   // Constants
   snapshotDays: number;
@@ -136,7 +136,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
   // Focus tracking
   const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
   const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
-  const variantListRef = useRef<HTMLDivElement | null>(null);
+  const variantListRef = useRef<HTMLDivElement>(null);
 
   // URL params
   const focusSlug = searchParams.get('focus');

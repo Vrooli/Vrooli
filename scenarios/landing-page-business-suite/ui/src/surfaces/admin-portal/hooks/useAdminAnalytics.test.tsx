@@ -61,7 +61,7 @@ describe('useAdminAnalytics', () => {
     vi.clearAllMocks();
     // Reset URL to clear any params from previous tests
     window.history.replaceState({}, '', '/');
-    mockGetAdminExperienceSnapshot.mockReturnValue({ lastAnalytics: null });
+    mockGetAdminExperienceSnapshot.mockReturnValue({ version: 1, lastAnalytics: undefined });
     mockFetchAnalyticsSummary.mockResolvedValue(createMockSummary());
     mockFetchVariantAnalytics.mockResolvedValue([]);
   });
@@ -87,9 +87,11 @@ describe('useAdminAnalytics', () => {
 
     it('uses admin experience for initial values if available', async () => {
       mockGetAdminExperienceSnapshot.mockReturnValue({
+        version: 1,
         lastAnalytics: {
           variantSlug: 'saved-variant',
           timeRangeDays: 30,
+          savedAt: new Date().toISOString(),
         },
       });
 

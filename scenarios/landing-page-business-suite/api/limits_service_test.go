@@ -153,7 +153,7 @@ func TestLimitsService_GetTierLimits_NonExistentTier_ReturnsEmpty(t *testing.T) 
 		t.Fatalf("GetTierLimits() returned error: %v", err)
 	}
 
-	if limits != nil && len(limits) != 0 {
+	if len(limits) != 0 {
 		t.Errorf("Expected empty slice for nonexistent tier, got %d items", len(limits))
 	}
 }

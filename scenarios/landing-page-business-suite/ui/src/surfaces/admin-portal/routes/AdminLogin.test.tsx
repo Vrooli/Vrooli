@@ -11,10 +11,14 @@ const { mockAdminLogin, mockCheckAdminSession } = vi.hoisted(() => ({
   mockCheckAdminSession: vi.fn(),
 }));
 
-vi.mock('../../../shared/api', () => ({
-  adminLogin: mockAdminLogin,
-  checkAdminSession: mockCheckAdminSession,
-}));
+vi.mock('../../../shared/api', async () => {
+  const actual = await vi.importActual('../../../shared/api');
+  return {
+    ...actual,
+    adminLogin: mockAdminLogin,
+    checkAdminSession: mockCheckAdminSession,
+  };
+});
 
 const mockNavigate = vi.fn();
 
@@ -103,7 +107,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
   it('[REQ:ADMIN-AUTH] should display error message on login failure', async () => {
     const user = userEvent.setup();
-    mockAdminLogin.mockRejectedValue(new Error('Invalid'));
+    mockAdminLogin.mockImplementation(() => Promise.reject(new Error('Invalid')));
 
     renderWithRouter(<AdminLogin />);
 
@@ -117,7 +121,8 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('admin-login-error')).toBeInTheDocument();
-      expect(screen.getByText('Invalid email or password')).toBeInTheDocument();
+      // Text includes period from component
+      expect(screen.getByText('Invalid email or password.')).toBeInTheDocument();
     });
   });
 

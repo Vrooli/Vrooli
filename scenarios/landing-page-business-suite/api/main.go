@@ -58,6 +58,9 @@ type Server struct {
 	magicLinkLimiter *RateLimiter
 	// AI Gateway service
 	aiGatewayService *AIGatewayService
+	aiGatewayDeps    *AIGatewayDeps
+	// Session management for admin auth
+	sessionManager SessionManager
 }
 
 // NewServer initializes configuration, database, and routes
@@ -120,6 +123,9 @@ func NewServer() (*Server, error) {
 		Logger:         logStructured,
 	})
 
+	// Create AI gateway dependencies with rate limiters
+	aiGatewayDeps := DefaultAIGatewayDeps(aiGatewayService, usageService, accountService)
+
 	srv := &Server{
 		config:               &Config{},
 		db:                   db,
@@ -149,10 +155,10 @@ func NewServer() (*Server, error) {
 		magicLinkLimiter: magicLinkLimiter,
 		// AI Gateway service
 		aiGatewayService: aiGatewayService,
+		aiGatewayDeps:    aiGatewayDeps,
+		// Session management
+		sessionManager: initSessionManager(),
 	}
-
-	// Initialize session store for authentication
-	initSessionStore()
 
 	srv.setupRoutes()
 	return srv, nil
@@ -348,13 +354,13 @@ func (s *Server) setupRoutes() {
 
 	// AI Gateway endpoints
 	// Public endpoint for listing available models
-	s.router.HandleFunc("/api/v1/ai/models", handleAIModels(s.aiGatewayService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/models", handleAIModels(s.aiGatewayDeps)).Methods("GET")
 	// Health check (public for monitoring)
-	s.router.HandleFunc("/api/v1/ai/health", handleAIHealth(s.aiGatewayService)).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/health", handleAIHealth(s.aiGatewayDeps)).Methods("GET")
 	// User auth required for AI operations
-	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(handleAIChat(s.aiGatewayService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(handleAIStream(s.aiGatewayService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(handleAIUsage(s.aiGatewayService, s.usageService, s.accountService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(handleAIChat(s.aiGatewayDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(handleAIStream(s.aiGatewayDeps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(handleAIUsage(s.aiGatewayDeps))).Methods("GET")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
@@ -857,6 +863,18 @@ func ensureSchema(db *sql.DB) error {
 			last_login TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);`,
+		// Admin sessions table for server-side session tracking
+		`CREATE TABLE IF NOT EXISTS admin_sessions (
+			id TEXT PRIMARY KEY,
+			admin_email TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT NOW(),
+			last_activity TIMESTAMP DEFAULT NOW(),
+			expires_at TIMESTAMP NOT NULL,
+			ip_address TEXT,
+			user_agent TEXT
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_email ON admin_sessions(admin_email);`,
+		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);`,
 		// NOTE: variants, variant_axes, and content_sections tables have been removed.
 		// Variant configuration is now stored in JSON files (.vrooli/variants/*.json).
 		`CREATE TABLE IF NOT EXISTS metrics_events (

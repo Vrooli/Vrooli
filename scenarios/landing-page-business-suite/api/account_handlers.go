@@ -81,7 +81,13 @@ func handleMeCredits(accountService *AccountService) http.HandlerFunc {
 		balance := map[string]interface{}{}
 		if credits.Balance != nil {
 			if data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(credits.Balance); err == nil {
-				_ = json.Unmarshal(data, &balance)
+				if unmarshalErr := json.Unmarshal(data, &balance); unmarshalErr != nil {
+					logStructuredError("credits_balance_unmarshal_failed", map[string]interface{}{
+						"user":  user,
+						"error": unmarshalErr.Error(),
+					})
+					// Continue with empty balance - non-critical
+				}
 			}
 		}
 

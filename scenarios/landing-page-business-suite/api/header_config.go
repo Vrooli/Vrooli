@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -194,8 +193,4 @@ func normalizeHeaderCTA(input HeaderCTAConfig, fallback HeaderCTAConfig) HeaderC
 		cfg.Variant = variant
 	}
 	return cfg
-}
-
-func marshalHeaderConfig(cfg LandingHeaderConfig) ([]byte, error) {
-	return json.Marshal(cfg)
 }

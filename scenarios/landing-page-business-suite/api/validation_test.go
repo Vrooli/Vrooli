@@ -226,3 +226,182 @@ func TestValidateInList_CaseSensitive(t *testing.T) {
 		t.Error("Expected an error for case-mismatched value")
 	}
 }
+
+// ============================================================================
+// URL Validation Tests
+// ============================================================================
+
+func TestValidateURL_Valid(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"https simple", "https://example.com", "https://example.com"},
+		{"http simple", "http://example.com", "http://example.com"},
+		{"with path", "https://example.com/path/to/resource", "https://example.com/path/to/resource"},
+		{"with query", "https://example.com/page?foo=bar", "https://example.com/page?foo=bar"},
+		{"with port", "https://example.com:8080/path", "https://example.com:8080/path"},
+		{"with whitespace", "  https://example.com  ", "https://example.com"},
+		{"subdomain", "https://api.example.com", "https://api.example.com"},
+		{"localhost", "http://localhost:3000", "http://localhost:3000"},
+		{"ip address", "http://192.168.1.1:8080/api", "http://192.168.1.1:8080/api"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ValidateURL(tt.input)
+			if err != nil {
+				t.Errorf("Expected no error, got: %v", err)
+			}
+			if result != tt.expected {
+				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestValidateURL_Invalid(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expectedErr error
+	}{
+		{"empty", "", ErrURLRequired},
+		{"whitespace only", "   ", ErrURLRequired},
+		{"no scheme", "example.com", ErrURLInvalid},
+		{"ftp scheme", "ftp://example.com", ErrURLInvalid},
+		{"missing host", "https://", ErrURLInvalid},
+		{"missing host with path", "https:///path", ErrURLInvalid},
+		{"just scheme", "https:", ErrURLInvalid},
+		{"relative path", "/path/to/resource", ErrURLInvalid},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ValidateURL(tt.input)
+			if err == nil {
+				t.Error("Expected an error, got nil")
+				return
+			}
+			if !errors.Is(err, tt.expectedErr) {
+				t.Errorf("Expected error %v, got %v", tt.expectedErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateURLOptional_Empty(t *testing.T) {
+	result, err := ValidateURLOptional("")
+	if err != nil {
+		t.Errorf("Expected no error for empty optional URL, got: %v", err)
+	}
+	if result != "" {
+		t.Errorf("Expected empty string, got '%s'", result)
+	}
+}
+
+func TestValidateURLOptional_Valid(t *testing.T) {
+	result, err := ValidateURLOptional("https://example.com")
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if result != "https://example.com" {
+		t.Errorf("Expected 'https://example.com', got '%s'", result)
+	}
+}
+
+func TestValidateURLOptional_Invalid(t *testing.T) {
+	_, err := ValidateURLOptional("invalid-url")
+	if err == nil {
+		t.Error("Expected an error for invalid URL, got nil")
+	}
+}
+
+func TestValidateURLForHandler_Valid(t *testing.T) {
+	w := httptest.NewRecorder()
+	url, ok := ValidateURLForHandler(w, "https://example.com", "website")
+
+	if !ok {
+		t.Error("Expected ValidateURLForHandler to return true for valid URL")
+	}
+	if url != "https://example.com" {
+		t.Errorf("Expected 'https://example.com', got '%s'", url)
+	}
+}
+
+func TestValidateURLForHandler_Empty(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, ok := ValidateURLForHandler(w, "", "website")
+
+	if ok {
+		t.Error("Expected ValidateURLForHandler to return false for empty URL")
+	}
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+
+	var errResp ApiErrorResponse
+	if err := json.NewDecoder(w.Body).Decode(&errResp); err != nil {
+		t.Fatalf("Failed to decode error response: %v", err)
+	}
+	if errResp.Error != "website is required" {
+		t.Errorf("Expected error message 'website is required', got '%s'", errResp.Error)
+	}
+}
+
+func TestValidateURLForHandler_Invalid(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, ok := ValidateURLForHandler(w, "invalid-url", "website")
+
+	if ok {
+		t.Error("Expected ValidateURLForHandler to return false for invalid URL")
+	}
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+// ============================================================================
+// Batch Size Validation Tests
+// ============================================================================
+
+func TestValidateBatchSize_Valid(t *testing.T) {
+	tests := []struct {
+		size    int
+		maxSize int
+	}{
+		{5, 10},
+		{10, 10},
+		{0, 10},
+		{1, 1},
+	}
+
+	for _, tt := range tests {
+		err := ValidateBatchSize(tt.size, tt.maxSize)
+		if err != nil {
+			t.Errorf("ValidateBatchSize(%d, %d) expected no error, got: %v", tt.size, tt.maxSize, err)
+		}
+	}
+}
+
+func TestValidateBatchSize_TooLarge(t *testing.T) {
+	tests := []struct {
+		size    int
+		maxSize int
+	}{
+		{11, 10},
+		{100, 50},
+		{2, 1},
+	}
+
+	for _, tt := range tests {
+		err := ValidateBatchSize(tt.size, tt.maxSize)
+		if err == nil {
+			t.Errorf("ValidateBatchSize(%d, %d) expected error, got nil", tt.size, tt.maxSize)
+		}
+		if !errors.Is(err, ErrBatchTooLarge) {
+			t.Errorf("Expected ErrBatchTooLarge, got: %v", err)
+		}
+	}
+}

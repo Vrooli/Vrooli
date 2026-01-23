@@ -28,8 +28,8 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	initSessionStore()
-	server := &Server{db: db, configStore: cs}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
 	resp := httptest.NewRecorder()
@@ -83,8 +83,8 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	// Set env var for the handler
 	t.Setenv("VARIANT_SNAPSHOT_DIR", variantsDir)
 
-	initSessionStore()
-	server := &Server{db: db, configStore: cs}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/variants/sync", nil)
 	attachAdminSession(t, req, defaultAdminEmail)
@@ -125,8 +125,8 @@ func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	// Use the file path as the variants dir (which is invalid)
 	cs := NewConfigStore(filePath, brandingPath, defaultVariantSpace)
 
-	initSessionStore()
-	server := &Server{db: db, configStore: cs}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, configStore: cs, sessionManager: sessionMgr}
 
 	t.Setenv("VARIANT_SNAPSHOT_DIR", filePath)
 

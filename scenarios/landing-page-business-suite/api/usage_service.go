@@ -531,9 +531,11 @@ func handleReportUsage(svc *UsageService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -566,7 +568,9 @@ func handleGetUsageSummary(svc *UsageService, accountSvc *AccountService) http.H
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(summary)
+		if err := json.NewEncoder(w).Encode(summary); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -599,14 +603,16 @@ func handleAdminUsageSummary(svc *UsageService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"billing_period": billingPeriod,
 			"records":        records,
 			"user_totals":    userTotals,
 			"app_totals":     appTotals,
 			"total_users":    len(userTotals),
 			"total_records":  len(records),
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -641,11 +647,13 @@ func handleCheckLimit(svc *UsageService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"can_proceed": canProceed,
 			"remaining":   remaining,
 			"limit_key":   limitKey,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -662,10 +670,12 @@ func handleUsageHealth(svc *UsageService) http.HandlerFunc {
 				"error": err.Error(),
 			})
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if encErr := json.NewEncoder(w).Encode(map[string]interface{}{
 				"healthy": false,
 				"error":   err.Error(),
-			})
+			}); encErr != nil {
+				logStructuredError("encode_response_failed", map[string]interface{}{"error": encErr.Error()})
+			}
 			return
 		}
 
@@ -673,7 +683,9 @@ func handleUsageHealth(svc *UsageService) http.HandlerFunc {
 		if !status.Healthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
-		json.NewEncoder(w).Encode(status)
+		if err := json.NewEncoder(w).Encode(status); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 

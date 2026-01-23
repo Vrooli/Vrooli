@@ -7,18 +7,20 @@
  * - pricing.service
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   parseEditedValue,
   buildTierLimitUpdate,
   getDisplayValue,
+  getEditKey,
+  TIER_OPTIONS,
+} from '../../../../shared/lib/tierUtils';
+import {
   calculateDoubledLimits,
   findAICreditsLimit,
   DEFAULT_TIER_VALUES,
-  TIER_OPTIONS,
 } from '../../services/tiers.service';
 import {
-  getEditKey,
   collectLimitKeys,
   buildCreateLimitPayload,
   type NewLimitFormState,

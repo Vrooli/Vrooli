@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AdminUsageSummary } from '../../../shared/api';
 import {
-  getCurrentBillingPeriod,
-  navigateToBillingPeriod,
-  isCurrentMonth,
-  formatBillingPeriod,
+  getCurrentPeriod,
+  navigatePeriod,
+  isCurrentPeriod,
+  formatMonthYear,
+} from '../../../shared/lib/dateFormatters';
+import {
   calculateTotalUsage,
   getSortedAppTotals,
   getTopUsers,
@@ -48,7 +50,7 @@ export function useUsageDashboard(): UseUsageDashboardReturn {
   const [summary, setSummary] = useState<AdminUsageSummary | null>(null);
 
   // Period state
-  const [billingPeriod, setBillingPeriod] = useState(() => getCurrentBillingPeriod());
+  const [billingPeriod, setBillingPeriod] = useState(() => getCurrentPeriod());
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export function useUsageDashboard(): UseUsageDashboardReturn {
    * Navigate to previous or next month
    */
   const navigateMonth = useCallback((delta: number) => {
-    setBillingPeriod((current) => navigateToBillingPeriod(current, delta));
+    setBillingPeriod((current) => navigatePeriod(current, delta));
   }, []);
 
   /**
@@ -111,12 +113,12 @@ export function useUsageDashboard(): UseUsageDashboardReturn {
   );
 
   const formattedPeriod = useMemo(
-    () => formatBillingPeriod(billingPeriod),
+    () => formatMonthYear(billingPeriod),
     [billingPeriod]
   );
 
-  const isCurrentPeriod = useMemo(
-    () => isCurrentMonth(billingPeriod),
+  const isCurrentBillingPeriod = useMemo(
+    () => isCurrentPeriod(billingPeriod),
     [billingPeriod]
   );
 
@@ -131,7 +133,7 @@ export function useUsageDashboard(): UseUsageDashboardReturn {
     // Period state
     billingPeriod,
     formattedPeriod,
-    isCurrentPeriod,
+    isCurrentPeriod: isCurrentBillingPeriod,
 
     // UI state
     loading,

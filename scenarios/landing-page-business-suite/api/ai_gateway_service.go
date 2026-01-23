@@ -255,10 +255,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	// Convert messages to OpenRouter format
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
 	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage{
-			Role:    msg.Role,
-			Content: msg.Content,
-		}
+		orMessages[i] = OpenRouterMessage(msg)
 	}
 
 	// Execute the chat request
@@ -277,14 +274,21 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	if actualCost > estimatedCost {
 		// Charge additional credits if actual cost exceeds estimate
 		extraCost := actualCost - estimatedCost
-		_ = s.usageService.RecordUsage(ctx, UsageReportRequest{
+		if err := s.usageService.RecordUsage(ctx, UsageReportRequest{
 			UserIdentity: userIdentity,
 			LimitKey:     "ai_credits",
 			Amount:       extraCost,
 			AppBundleKey: req.Metadata.AppBundleKey,
 			Operation:    req.Metadata.Operation,
 			Metadata:     map[string]string{"type": "cost_adjustment"},
-		})
+		}); err != nil {
+			s.log("cost_adjustment_charge_failed", map[string]interface{}{
+				"level":         "warn",
+				"user_identity": userIdentity,
+				"extra_cost":    extraCost,
+				"error":         err.Error(),
+			})
+		}
 	} else if actualCost < estimatedCost {
 		// Refund overage when actual cost is less than estimated
 		refundAmount := estimatedCost - actualCost
@@ -370,7 +374,14 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		// Release reservation on failure
-		_ = s.usageService.ReleaseReservation(ctx, reservationID)
+		if err := s.usageService.ReleaseReservation(ctx, reservationID); err != nil {
+			s.log("reservation_release_failed", map[string]interface{}{
+				"level":          "warn",
+				"user_identity":  userIdentity,
+				"reservation_id": reservationID,
+				"error":          err.Error(),
+			})
+		}
 		return ErrStreamingNotSupported
 	}
 
@@ -383,17 +394,21 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
 		// Release reservation on failure
-		_ = s.usageService.ReleaseReservation(ctx, reservationID)
+		if releaseErr := s.usageService.ReleaseReservation(ctx, reservationID); releaseErr != nil {
+			s.log("reservation_release_failed", map[string]interface{}{
+				"level":          "warn",
+				"user_identity":  userIdentity,
+				"reservation_id": reservationID,
+				"error":          releaseErr.Error(),
+			})
+		}
 		return err
 	}
 
 	// Convert messages to OpenRouter format
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
 	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage{
-			Role:    msg.Role,
-			Content: msg.Content,
-		}
+		orMessages[i] = OpenRouterMessage(msg)
 	}
 
 	// Stream response, forwarding chunks to client as SSE events
@@ -412,7 +427,14 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 	})
 	if err != nil {
 		// Release reservation on failure
-		_ = s.usageService.ReleaseReservation(ctx, reservationID)
+		if releaseErr := s.usageService.ReleaseReservation(ctx, reservationID); releaseErr != nil {
+			s.log("reservation_release_failed", map[string]interface{}{
+				"level":          "warn",
+				"user_identity":  userIdentity,
+				"reservation_id": reservationID,
+				"error":          releaseErr.Error(),
+			})
+		}
 		return fmt.Errorf("streaming failed: %w", err)
 	}
 
@@ -435,13 +457,22 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 			"error":          err.Error(),
 		})
 		// Fallback: try to record usage directly if finalize fails
-		_ = s.usageService.RecordUsage(ctx, UsageReportRequest{
+		if fallbackErr := s.usageService.RecordUsage(ctx, UsageReportRequest{
 			UserIdentity: userIdentity,
 			LimitKey:     "ai_credits",
 			Amount:       actualCost,
 			AppBundleKey: req.Metadata.AppBundleKey,
 			Operation:    req.Metadata.Operation,
-		})
+		}); fallbackErr != nil {
+			s.log("finalize_fallback_record_failed", map[string]interface{}{
+				"level":          "error",
+				"user_identity":  userIdentity,
+				"reservation_id": reservationID,
+				"actual_cost":    actualCost,
+				"error":          fallbackErr.Error(),
+				"security":       true,
+			})
+		}
 	}
 
 	// Send done event with usage info

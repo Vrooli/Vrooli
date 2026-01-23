@@ -7,24 +7,49 @@ import (
 	"time"
 )
 
-// aiGatewayRateLimiter enforces 60 requests per minute per user for AI endpoints.
-// Package-level for singleton behavior; use UseTimeProvider() in tests to control time.
-// Memory bounded to 100k entries with LRU eviction and periodic cleanup.
-var aiGatewayRateLimiter = NewRateLimiter(60, time.Minute)
+// AIGatewayDeps holds injectable dependencies for AI gateway handlers.
+// This struct enables testing by allowing injection of mock rate limiters and services.
+type AIGatewayDeps struct {
+	Service         AIGateway
+	UsageService    *UsageService
+	AccountService  *AccountService
+	UserRateLimiter *RateLimiter
+	IPRateLimiter   *RateLimiter
+	IPKeyFunc       RateLimitKeyFunc
+}
 
-// aiGatewayIPRateLimiter enforces 120 requests per minute per IP address for AI endpoints.
-// This is more permissive than user-based limiting (120 vs 60) to allow multiple users
-// on corporate networks while still preventing single-IP abuse/DDoS attempts.
-var aiGatewayIPRateLimiter = NewRateLimiter(120, time.Minute)
+// DefaultAIGatewayDeps creates production dependencies for AI gateway handlers.
+// Rate limiters are created with cleanup goroutines for memory management.
+func DefaultAIGatewayDeps(svc AIGateway, usageSvc *UsageService, accountSvc *AccountService) *AIGatewayDeps {
+	// User-based: 60 requests per minute
+	userLimiter := NewRateLimiter(60, time.Minute)
+	userLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
 
-// ipKeyFunc extracts the client IP for rate limiting.
-var ipKeyFunc = IPKeyFunc()
+	// IP-based: 120 requests per minute (more permissive for shared IPs)
+	ipLimiter := NewRateLimiter(120, time.Minute)
+	ipLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
 
-func init() {
-	// Start background cleanup goroutines to prevent memory exhaustion.
-	// Cleans up buckets not accessed in the last 10 minutes, every 5 minutes.
-	aiGatewayRateLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
-	aiGatewayIPRateLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
+	return &AIGatewayDeps{
+		Service:         svc,
+		UsageService:    usageSvc,
+		AccountService:  accountSvc,
+		UserRateLimiter: userLimiter,
+		IPRateLimiter:   ipLimiter,
+		IPKeyFunc:       IPKeyFunc(),
+	}
+}
+
+// NewTestAIGatewayDeps creates AIGatewayDeps for testing with injectable components.
+// Rate limiters are not started with cleanup goroutines to avoid test interference.
+func NewTestAIGatewayDeps(svc AIGateway, usageSvc *UsageService, accountSvc *AccountService) *AIGatewayDeps {
+	return &AIGatewayDeps{
+		Service:         svc,
+		UsageService:    usageSvc,
+		AccountService:  accountSvc,
+		UserRateLimiter: NewRateLimiter(60, time.Minute),
+		IPRateLimiter:   NewRateLimiter(120, time.Minute),
+		IPKeyFunc:       IPKeyFunc(),
+	}
 }
 
 // handleAIChat handles non-streaming AI chat completion requests.
@@ -38,7 +63,7 @@ func init() {
 //   - Mapping errors to HTTP responses
 //
 // The handler does NOT handle credit checking - that's the service's responsibility.
-func handleAIChat(svc AIGateway) http.HandlerFunc {
+func handleAIChat(deps *AIGatewayDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Get user from context (JWT auth handled by middleware)
 		userIdentity := getUserEmail(r.Context())
@@ -48,14 +73,14 @@ func handleAIChat(svc AIGateway) http.HandlerFunc {
 		}
 
 		// 2. Rate limiting (per-user)
-		if !aiGatewayRateLimiter.Allow(userIdentity) {
+		if !deps.UserRateLimiter.Allow(userIdentity) {
 			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.", ApiErrorTypeRateLimited)
 			return
 		}
 
 		// 3. IP-based rate limiting (defense in depth against multi-account abuse)
-		clientIP := ipKeyFunc(r)
-		if !aiGatewayIPRateLimiter.Allow(clientIP) {
+		clientIP := deps.IPKeyFunc(r)
+		if !deps.IPRateLimiter.Allow(clientIP) {
 			logStructured("ai_rate_limit_ip_exceeded", map[string]interface{}{
 				"level":         "warn",
 				"client_ip":     clientIP,
@@ -80,7 +105,7 @@ func handleAIChat(svc AIGateway) http.HandlerFunc {
 		}
 
 		// 6. Execute chat completion (service handles business logic + credits)
-		resp, err := svc.ExecuteChat(r.Context(), userIdentity, req)
+		resp, err := deps.Service.ExecuteChat(r.Context(), userIdentity, req)
 		if err != nil {
 			handleAIError(w, err)
 			return
@@ -88,7 +113,9 @@ func handleAIChat(svc AIGateway) http.HandlerFunc {
 
 		// 7. Return response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -99,7 +126,7 @@ func handleAIChat(svc AIGateway) http.HandlerFunc {
 //   - Content chunks:  data: {"type":"chunk","content":"partial text"}\n\n
 //   - Completion:      data: {"type":"done","usage":{...}}\n\n
 //   - Errors:          data: {"type":"error","error":"message"}\n\n
-func handleAIStream(svc AIGateway) http.HandlerFunc {
+func handleAIStream(deps *AIGatewayDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// 1. Get user from context (JWT auth)
 		userIdentity := getUserEmail(r.Context())
@@ -109,14 +136,14 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 		}
 
 		// 2. Rate limiting (per-user)
-		if !aiGatewayRateLimiter.Allow(userIdentity) {
+		if !deps.UserRateLimiter.Allow(userIdentity) {
 			writeJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.", ApiErrorTypeRateLimited)
 			return
 		}
 
 		// 3. IP-based rate limiting (defense in depth against multi-account abuse)
-		clientIP := ipKeyFunc(r)
-		if !aiGatewayIPRateLimiter.Allow(clientIP) {
+		clientIP := deps.IPKeyFunc(r)
+		if !deps.IPRateLimiter.Allow(clientIP) {
 			logStructured("ai_rate_limit_ip_exceeded", map[string]interface{}{
 				"level":         "warn",
 				"client_ip":     clientIP,
@@ -144,7 +171,7 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 		req.Stream = true
 
 		// 6. Execute streaming chat completion
-		if err := svc.ExecuteChatStream(r.Context(), userIdentity, req, w); err != nil {
+		if err := deps.Service.ExecuteChatStream(r.Context(), userIdentity, req, w); err != nil {
 			// If headers haven't been written yet, send error as JSON
 			// Otherwise, send as SSE error event
 			if w.Header().Get("Content-Type") != "text/event-stream" {
@@ -156,9 +183,9 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 					Error: err.Error(),
 				}
 				eventData, _ := json.Marshal(errorEvent)
-				w.Write([]byte("data: "))
-				w.Write(eventData)
-				w.Write([]byte("\n\n"))
+				_, _ = w.Write([]byte("data: "))
+				_, _ = w.Write(eventData)
+				_, _ = w.Write([]byte("\n\n"))
 				if flusher, ok := w.(http.Flusher); ok {
 					flusher.Flush()
 				}
@@ -171,21 +198,23 @@ func handleAIStream(svc AIGateway) http.HandlerFunc {
 // handleAIModels returns the list of available AI models.
 // GET /api/v1/ai/models
 // Public endpoint - no authentication required.
-func handleAIModels(svc AIGateway) http.HandlerFunc {
+func handleAIModels(deps *AIGatewayDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		models := svc.GetAvailableModels()
+		models := deps.Service.GetAvailableModels()
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"models": models,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleAIUsage returns AI usage statistics for the current user.
 // GET /api/v1/ai/usage
 // Requires user authentication.
-func handleAIUsage(svc AIGateway, usageSvc *UsageService, accountSvc *AccountService) http.HandlerFunc {
+func handleAIUsage(deps *AIGatewayDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userIdentity := getUserEmail(r.Context())
 		if userIdentity == "" {
@@ -195,15 +224,15 @@ func handleAIUsage(svc AIGateway, usageSvc *UsageService, accountSvc *AccountSer
 
 		// Get the user's tier
 		tier := "free"
-		if accountSvc != nil {
-			sub, err := accountSvc.GetSubscription(userIdentity)
+		if deps.AccountService != nil {
+			sub, err := deps.AccountService.GetSubscription(userIdentity)
 			if err == nil && sub != nil && sub.PlanTier != nil {
 				tier = *sub.PlanTier
 			}
 		}
 
 		// Get usage summary
-		summary, err := usageSvc.GetUsageSummary(r.Context(), userIdentity, tier)
+		summary, err := deps.UsageService.GetUsageSummary(r.Context(), userIdentity, tier)
 		if err != nil {
 			logStructuredError("ai_usage_fetch_failed", map[string]interface{}{
 				"error":         err.Error(),
@@ -232,7 +261,7 @@ func handleAIUsage(svc AIGateway, usageSvc *UsageService, accountSvc *AccountSer
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"user_identity":        userIdentity,
 			"tier":                 tier,
 			"billing_period":       summary.BillingPeriod,
@@ -246,31 +275,37 @@ func handleAIUsage(svc AIGateway, usageSvc *UsageService, accountSvc *AccountSer
 				"remaining": displayRemaining,
 				"unit":      "credits",
 			},
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
 // handleAIHealth checks if the AI gateway is healthy.
 // GET /api/v1/ai/health
 // Public endpoint - no authentication required.
-func handleAIHealth(svc AIGateway) http.HandlerFunc {
+func handleAIHealth(deps *AIGatewayDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		err := svc.HealthCheck(r.Context())
+		err := deps.Service.HealthCheck(r.Context())
 
 		w.Header().Set("Content-Type", "application/json")
 
 		if err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if encErr := json.NewEncoder(w).Encode(map[string]interface{}{
 				"healthy": false,
 				"error":   err.Error(),
-			})
+			}); encErr != nil {
+				logStructuredError("encode_response_failed", map[string]interface{}{"error": encErr.Error()})
+			}
 			return
 		}
 
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"healthy": true,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 

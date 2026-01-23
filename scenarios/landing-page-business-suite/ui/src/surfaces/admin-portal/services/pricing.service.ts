@@ -1,5 +1,6 @@
 import type { BundleCatalogEntry, PlanOption, PlanDisplayMetadata, PricingOverview } from '../../../shared/api';
 import { injectDemoPlansForBundle, isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
+import { isFormDirty } from '../../../shared/lib/formUtils';
 
 /**
  * Interval type slugs for pricing categorization
@@ -42,6 +43,21 @@ export interface PricingPreviewData {
 }
 
 /**
+ * Explicit interval string mappings to avoid fragile substring matching.
+ * Keys are normalized (lowercase) string representations.
+ */
+const INTERVAL_MAPPINGS: Record<string, IntervalSlug> = {
+  month: 'month',
+  monthly: 'month',
+  year: 'year',
+  yearly: 'year',
+  annual: 'year',
+  one_time: 'one_time',
+  'one-time': 'one_time',
+  onetime: 'one_time',
+};
+
+/**
  * Normalize billing interval to a consistent slug
  */
 export function normalizeInterval(value: PlanOption['billing_interval'] | string | number | null | undefined): IntervalSlug {
@@ -51,10 +67,7 @@ export function normalizeInterval(value: PlanOption['billing_interval'] | string
     if (value === 3) return 'one_time';
   }
   const raw = String(value ?? '').toLowerCase();
-  if (raw.includes('month')) return 'month';
-  if (raw.includes('year')) return 'year';
-  if (raw.includes('one_time') || raw.includes('one-time') || raw.includes('onetime')) return 'one_time';
-  return 'other';
+  return INTERVAL_MAPPINGS[raw] ?? 'other';
 }
 
 /**
@@ -169,7 +182,7 @@ export function getPriceIdentifier(price: PlanOption): string {
  * Check if a price form has unsaved changes
  */
 export function isPriceFormDirty(state: PriceFormState): boolean {
-  return JSON.stringify(state.original) !== JSON.stringify(state.values);
+  return isFormDirty(state.values, state.original);
 }
 
 /**

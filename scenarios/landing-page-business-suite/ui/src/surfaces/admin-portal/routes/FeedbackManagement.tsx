@@ -27,8 +27,10 @@ import {
   type FeedbackStatus,
   TYPE_CONFIG,
   STATUS_CONFIG,
-  formatFeedbackDate,
+  getTypeColor,
+  getStatusColor,
 } from '../services/feedback.service';
+import { formatFeedbackTimestamp } from '../../../shared/lib/dateFormatters';
 
 // Icons are component-specific (JSX), so they live in the route
 const typeIcons: Record<FeedbackType, React.ReactNode> = {
@@ -251,7 +253,7 @@ export function FeedbackManagement() {
                         className="flex-1 flex items-start gap-4 text-left hover:bg-white/5 -m-2 p-2 rounded-lg transition-colors"
                       >
                         {/* Type Badge */}
-                        <div className={`p-2 rounded-lg border ${typeConfig.color}`}>
+                        <div className={`p-2 rounded-lg border ${getTypeColor(feedback.type)}`}>
                           {typeIcon}
                         </div>
 
@@ -259,7 +261,7 @@ export function FeedbackManagement() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium truncate">{feedback.subject}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full border ${statusConfig.color} flex items-center gap-1`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${getStatusColor(feedback.status)} flex items-center gap-1`}>
                               {statusIcon}
                               {statusConfig.label}
                             </span>
@@ -267,7 +269,7 @@ export function FeedbackManagement() {
                           <div className="flex items-center gap-3 text-sm text-slate-400">
                             <span>{feedback.email}</span>
                             <span className="text-slate-600">•</span>
-                            <span>{formatFeedbackDate(feedback.created_at)}</span>
+                            <span>{formatFeedbackTimestamp(feedback.created_at)}</span>
                             {feedback.order_id && (
                               <>
                                 <span className="text-slate-600">•</span>

@@ -4,8 +4,8 @@ import {
   updateTierLimit as apiUpdateTierLimit,
   createTierLimit as apiCreateTierLimit,
   deleteTierLimit as apiDeleteTierLimit,
-  TIER_OPTIONS,
 } from '../../../shared/api';
+import { TIER_OPTIONS } from '../../../shared/lib/tierUtils';
 
 /**
  * App options for app-specific limits configuration
@@ -35,40 +35,6 @@ export const DEFAULT_NEW_LIMIT: NewLimitFormState = {
   display_dollars: '',
 };
 
-/**
- * Generate a unique key for identifying a limit edit
- */
-export function getEditKey(tierID: string, limitKey: string): string {
-  return `${tierID}:${limitKey}`;
-}
-
-/**
- * Get human-readable label for a tier
- */
-export function getTierLabel(tierID: string): string {
-  const option = TIER_OPTIONS.find((t) => t.value === tierID);
-  return option?.label || tierID;
-}
-
-/**
- * Get color class for tier badge styling
- */
-export function getTierColor(tierID: string): string {
-  switch (tierID) {
-    case 'free':
-      return 'text-slate-400';
-    case 'solo':
-      return 'text-blue-400';
-    case 'pro':
-      return 'text-purple-400';
-    case 'studio':
-      return 'text-amber-400';
-    case 'business':
-      return 'text-emerald-400';
-    default:
-      return 'text-slate-400';
-  }
-}
 
 /**
  * Collect all unique limit keys across tiers
@@ -83,38 +49,6 @@ export function collectLimitKeys(limits: Record<string, TierLimit[]>): Set<strin
   return limitKeys;
 }
 
-/**
- * Parse and validate a limit value input
- * Returns { isUnlimited: true } or { displayDollars: number } or null if invalid
- */
-export function parseEditedValue(
-  value: string
-): { isUnlimited: true } | { displayDollars: number } | null {
-  const normalizedValue = value.toLowerCase().trim();
-
-  if (normalizedValue === 'unlimited' || normalizedValue === '-1') {
-    return { isUnlimited: true };
-  }
-
-  const dollars = parseFloat(normalizedValue);
-  if (isNaN(dollars) || dollars < 0) {
-    return null;
-  }
-
-  return { displayDollars: dollars };
-}
-
-/**
- * Build TierLimitUpdate from parsed value
- */
-export function buildTierLimitUpdate(
-  parsedValue: { isUnlimited: true } | { displayDollars: number }
-): TierLimitUpdate {
-  if ('isUnlimited' in parsedValue) {
-    return { is_unlimited: true };
-  }
-  return { display_dollars: parsedValue.displayDollars };
-}
 
 /**
  * Validate new limit form data
@@ -146,23 +80,6 @@ export function buildCreateLimitPayload(
   };
 }
 
-/**
- * Get display value for limit input
- */
-export function getDisplayValue(limit: TierLimit): string {
-  const isUnlimited = limit.limit_value < 0;
-  if (isUnlimited) {
-    return 'unlimited';
-  }
-  return limit.display_dollars?.toFixed(2) ?? '0';
-}
-
-/**
- * Check if a limit value is unlimited
- */
-export function isUnlimitedValue(limitValue: number): boolean {
-  return limitValue < 0;
-}
 
 /**
  * Get the selected app label

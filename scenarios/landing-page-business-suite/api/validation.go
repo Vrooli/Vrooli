@@ -89,3 +89,98 @@ func ValidateInList(value, fieldName string, allowed []string) error {
 	}
 	return errors.New(fieldName + " must be one of: " + strings.Join(allowed, ", "))
 }
+
+// Common validation errors for URL and batch validation
+var (
+	ErrURLRequired  = errors.New("URL is required")
+	ErrURLInvalid   = errors.New("invalid URL format")
+	ErrBatchTooLarge = errors.New("batch size exceeds maximum")
+)
+
+// ValidateURL validates that a string is a valid URL.
+// It checks for proper scheme (http/https) and basic URL structure.
+// Returns the normalized URL on success, or an error if invalid.
+func ValidateURL(urlStr string) (string, error) {
+	urlStr = strings.TrimSpace(urlStr)
+	if urlStr == "" {
+		return "", ErrURLRequired
+	}
+
+	// Must start with http:// or https://
+	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
+		return "", ErrURLInvalid
+	}
+
+	// Basic structure check - must have at least scheme + host
+	parts := strings.SplitN(urlStr, "://", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return "", ErrURLInvalid
+	}
+
+	// Check for valid host part (at least one character before path/query)
+	hostPart := parts[1]
+	slashIdx := strings.Index(hostPart, "/")
+	if slashIdx == 0 {
+		return "", ErrURLInvalid
+	}
+	if slashIdx == -1 {
+		// No path - host is the whole thing
+		if len(hostPart) == 0 {
+			return "", ErrURLInvalid
+		}
+	} else {
+		// Has path - check host is non-empty
+		if slashIdx == 0 {
+			return "", ErrURLInvalid
+		}
+	}
+
+	return urlStr, nil
+}
+
+// ValidateURLOptional validates a URL if provided, returns empty string if not provided.
+// This is useful for optional URL fields.
+func ValidateURLOptional(urlStr string) (string, error) {
+	urlStr = strings.TrimSpace(urlStr)
+	if urlStr == "" {
+		return "", nil // Optional - empty is valid
+	}
+	return ValidateURL(urlStr)
+}
+
+// ValidateURLForHandler validates a URL and writes an error response if invalid.
+// Returns the normalized URL and true on success, or empty string and false on failure.
+func ValidateURLForHandler(w http.ResponseWriter, urlStr, fieldName string) (string, bool) {
+	normalized, err := ValidateURL(urlStr)
+	if err != nil {
+		if errors.Is(err, ErrURLRequired) {
+			writeJSONError(w, http.StatusBadRequest, fieldName+" is required", ApiErrorTypeValidation)
+		} else {
+			writeJSONError(w, http.StatusBadRequest, "Invalid "+fieldName+" format", ApiErrorTypeValidation)
+		}
+		return "", false
+	}
+	return normalized, true
+}
+
+// ValidateBatchSize validates that a batch operation size is within limits.
+// maxSize is the maximum allowed batch size.
+// Returns nil if valid, or an error if the batch is too large.
+func ValidateBatchSize(size, maxSize int) error {
+	if size > maxSize {
+		return ErrBatchTooLarge
+	}
+	return nil
+}
+
+// ValidateBatchSizeForHandler validates batch size and writes an error response if too large.
+// Returns true if valid, or false and writes error response if too large.
+func ValidateBatchSizeForHandler(w http.ResponseWriter, size, maxSize int, fieldName string) bool {
+	if err := ValidateBatchSize(size, maxSize); err != nil {
+		writeJSONError(w, http.StatusBadRequest,
+			fieldName+" exceeds maximum allowed batch size",
+			ApiErrorTypeValidation)
+		return false
+	}
+	return true
+}

@@ -6,6 +6,17 @@ import (
 	"strings"
 )
 
+// SEOServicer defines the interface for SEO operations.
+// This interface allows for easy mocking in tests.
+type SEOServicer interface {
+	VariantSEO(slug string) (*SEOResponse, error)
+	SitemapXML(fallbackBase string) (string, error)
+	RobotsTXT(fallbackBase string) (string, error)
+}
+
+// Compile-time check that SEOService implements SEOServicer
+var _ SEOServicer = (*SEOService)(nil)
+
 // VariantSEOConfig represents per-variant SEO settings.
 // Lives alongside the SEO service to keep domain rules out of HTTP handlers.
 type VariantSEOConfig struct {
@@ -66,7 +77,7 @@ func (s *SEOService) VariantSEO(slug string) (*SEOResponse, error) {
 	}
 
 	var variantSEO VariantSEOConfig
-	if variant.Variant.SEOConfig != nil && len(variant.Variant.SEOConfig) > 0 {
+	if len(variant.Variant.SEOConfig) > 0 {
 		if err := json.Unmarshal(variant.Variant.SEOConfig, &variantSEO); err != nil {
 			logStructuredError("parse_variant_seo_failed", map[string]interface{}{
 				"slug":  slug,
@@ -132,7 +143,7 @@ func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 
 	for _, v := range variants {
 		var seoConfig VariantSEOConfig
-		if v.Variant.SEOConfig != nil && len(v.Variant.SEOConfig) > 0 {
+		if len(v.Variant.SEOConfig) > 0 {
 			if err := json.Unmarshal(v.Variant.SEOConfig, &seoConfig); err != nil {
 				logStructuredError("seo_config_parse_failed", map[string]interface{}{
 					"slug":  v.Variant.Slug,

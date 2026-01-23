@@ -10,6 +10,7 @@ import {
 } from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
 import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession } from './types';
+import { normalizeTimestamp } from '../lib/protobuf-utils';
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -54,23 +55,6 @@ function flattenStripeSettings(snapshot?: StripeConfigSnapshot, settings?: Strip
       default:
         return typeof source === 'number' ? String(source) : source ?? 'env';
     }
-  };
-
-  const normalizeTimestamp = (value: unknown): string | undefined => {
-    if (!value) return undefined;
-    // Buf Timestamp with toJsonString
-    if (typeof (value as { toJsonString?: () => string }).toJsonString === 'function') {
-      return (value as { toJsonString: () => string }).toJsonString();
-    }
-    if (typeof value === 'string') return value;
-    if (value instanceof Date) return value.toISOString();
-    // Fallback for plain objects with seconds/nanos
-    const maybe = value as { seconds?: number; nanos?: number };
-    if (typeof maybe.seconds === 'number') {
-      const ms = maybe.seconds * 1000 + (maybe.nanos ? maybe.nanos / 1_000_000 : 0);
-      return new Date(ms).toISOString();
-    }
-    return undefined;
   };
 
   return {

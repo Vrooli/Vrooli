@@ -1,18 +1,20 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { TierLimit } from '../../../shared/api';
 import {
-  APP_OPTIONS,
-  DEFAULT_NEW_LIMIT,
   getEditKey,
   getTierLabel,
   getTierColor,
-  collectLimitKeys,
   parseEditedValue,
   buildTierLimitUpdate,
-  validateNewLimitForm,
-  buildCreateLimitPayload,
   getDisplayValue,
   isUnlimitedValue,
+} from '../../../shared/lib/tierUtils';
+import {
+  APP_OPTIONS,
+  DEFAULT_NEW_LIMIT,
+  collectLimitKeys,
+  validateNewLimitForm,
+  buildCreateLimitPayload,
   getSelectedAppLabel,
   type NewLimitFormState,
 } from './appLimits.service';

@@ -5,6 +5,7 @@ import {
   type SiteBranding,
   type Asset,
 } from '../../../shared/api';
+import { isFormDirty } from '../../../shared/lib/formUtils';
 
 /**
  * Form state for branding configuration
@@ -184,7 +185,7 @@ export function isBrandingDirty(
   form: BrandingFormState,
   original: BrandingFormState
 ): boolean {
-  return JSON.stringify(form) !== JSON.stringify(original);
+  return isFormDirty(form, original);
 }
 
 /**

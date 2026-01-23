@@ -72,9 +72,11 @@ func handleMagicLinkRequest(authService *UserAuthService, rateLimiter *RateLimit
 
 		// Always return success to prevent email enumeration
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(MagicLinkResponse{
+		if err := json.NewEncoder(w).Encode(MagicLinkResponse{
 			Message: "Check your email for a login link",
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -132,7 +134,7 @@ func handleMagicLinkVerify(authService *UserAuthService) http.HandlerFunc {
 
 		// Return token pair as JSON
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token":  tokenPair.AccessToken,
 			"refresh_token": tokenPair.RefreshToken,
 			"expires_at":    tokenPair.ExpiresAt.Format(time.RFC3339),
@@ -142,7 +144,9 @@ func handleMagicLinkVerify(authService *UserAuthService) http.HandlerFunc {
 				"email":          user.Email,
 				"email_verified": user.EmailVerified,
 			},
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -203,12 +207,14 @@ func handleTokenRefresh(authService *UserAuthService) http.HandlerFunc {
 		setAuthCookies(w, tokenPair)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token":  tokenPair.AccessToken,
 			"refresh_token": tokenPair.RefreshToken,
 			"expires_at":    tokenPair.ExpiresAt.Format(time.RFC3339),
 			"token_type":    tokenPair.TokenType,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -263,7 +269,7 @@ func handleAuthMe(authService *UserAuthService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"user": map[string]interface{}{
 				"id":                 user.ID,
 				"email":              user.Email,
@@ -272,7 +278,9 @@ func handleAuthMe(authService *UserAuthService) http.HandlerFunc {
 				"created_at":         user.CreatedAt.Format(time.RFC3339),
 				"last_login_at":      formatNullableTime(user.LastLoginAt),
 			},
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -336,12 +344,14 @@ func redirectWithTokens(w http.ResponseWriter, r *http.Request, redirectURL stri
 		})
 		// Fall back to JSON response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if encErr := json.NewEncoder(w).Encode(map[string]interface{}{
 			"access_token":  tokenPair.AccessToken,
 			"refresh_token": tokenPair.RefreshToken,
 			"expires_at":    tokenPair.ExpiresAt.Format(time.RFC3339),
 			"token_type":    tokenPair.TokenType,
-		})
+		}); encErr != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": encErr.Error()})
+		}
 		return
 	}
 

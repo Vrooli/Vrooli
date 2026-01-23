@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -426,5 +428,197 @@ func TestOptionalUserAuth_NoToken(t *testing.T) {
 	// User ID should be empty (no auth)
 	if receivedUserID != "" {
 		t.Errorf("Expected empty user ID for no token, got %s", receivedUserID)
+	}
+}
+
+// resetTrustedProxies resets the trusted proxies configuration for testing.
+// This must be called before each test that modifies TRUSTED_PROXY_CIDRS.
+func resetTrustedProxies() {
+	trustedProxyCIDRs = nil
+	trustedProxiesOnce = sync.Once{}
+}
+
+func TestGetClientIP_NoTrustedProxies(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "1.2.3.4:12345"
+	req.Header.Set("X-Forwarded-For", "5.6.7.8")
+
+	ip := getClientIP(req)
+
+	// Without trusted proxies, should return the direct IP (RemoteAddr)
+	if ip != "1.2.3.4" {
+		t.Errorf("Expected direct IP 1.2.3.4, got %s", ip)
+	}
+}
+
+func TestGetClientIP_TrustedProxyWithXFF(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "10.0.0.5:12345" // From trusted proxy
+	req.Header.Set("X-Forwarded-For", "5.6.7.8, 10.0.0.1")
+
+	ip := getClientIP(req)
+
+	// With trusted proxy, should return the first IP from X-Forwarded-For
+	if ip != "5.6.7.8" {
+		t.Errorf("Expected client IP 5.6.7.8 from XFF, got %s", ip)
+	}
+}
+
+func TestGetClientIP_UntrustedProxyXFFIgnored(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "192.168.1.100:12345" // NOT from trusted proxy
+	req.Header.Set("X-Forwarded-For", "5.6.7.8") // Spoofed header - should be ignored
+
+	ip := getClientIP(req)
+
+	// Connection not from trusted proxy, XFF should be ignored
+	if ip != "192.168.1.100" {
+		t.Errorf("Expected direct IP 192.168.1.100 (XFF ignored), got %s", ip)
+	}
+}
+
+func TestGetClientIP_TrustedProxyWithXRealIP(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "172.16.0.0/12")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "172.17.0.1:12345" // From trusted proxy
+	req.Header.Set("X-Real-IP", "8.8.8.8")
+
+	ip := getClientIP(req)
+
+	// With trusted proxy and X-Real-IP, should return X-Real-IP
+	if ip != "8.8.8.8" {
+		t.Errorf("Expected client IP 8.8.8.8 from X-Real-IP, got %s", ip)
+	}
+}
+
+func TestGetClientIP_InvalidXFFFormat(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "10.0.0.5:12345" // From trusted proxy
+	req.Header.Set("X-Forwarded-For", "not-an-ip-address")
+
+	ip := getClientIP(req)
+
+	// Invalid IP in XFF, should fall back to RemoteAddr
+	if ip != "10.0.0.5" {
+		t.Errorf("Expected fallback to direct IP 10.0.0.5, got %s", ip)
+	}
+}
+
+func TestGetClientIP_IPv6Address(t *testing.T) {
+	resetTrustedProxies()
+	os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "[::1]:12345"
+
+	ip := getClientIP(req)
+
+	if ip != "::1" {
+		t.Errorf("Expected IPv6 address ::1, got %s", ip)
+	}
+}
+
+func TestGetClientIP_MultipleTrustedCIDRs(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	testCases := []struct {
+		name       string
+		remoteAddr string
+		xff        string
+		expected   string
+	}{
+		{"10.x from trusted", "10.1.2.3:12345", "1.2.3.4", "1.2.3.4"},
+		{"172.x from trusted", "172.20.0.5:12345", "2.3.4.5", "2.3.4.5"},
+		{"192.168.x from trusted", "192.168.1.1:12345", "3.4.5.6", "3.4.5.6"},
+		{"public IP not trusted", "8.8.8.8:12345", "spoofed.ip", "8.8.8.8"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetTrustedProxies()
+			os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16")
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.RemoteAddr = tc.remoteAddr
+			req.Header.Set("X-Forwarded-For", tc.xff)
+
+			ip := getClientIP(req)
+			if ip != tc.expected {
+				t.Errorf("Expected %s, got %s", tc.expected, ip)
+			}
+		})
+	}
+}
+
+func TestIsIPFromTrustedProxy(t *testing.T) {
+	resetTrustedProxies()
+	os.Setenv("TRUSTED_PROXY_CIDRS", "10.0.0.0/8,127.0.0.1/32")
+	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
+
+	testCases := []struct {
+		ip      string
+		trusted bool
+	}{
+		{"10.0.0.1", true},
+		{"10.255.255.255", true},
+		{"127.0.0.1", true},
+		{"127.0.0.2", false}, // Not in /32
+		{"192.168.1.1", false},
+		{"8.8.8.8", false},
+		{"invalid", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ip, func(t *testing.T) {
+			result := isIPFromTrustedProxy(tc.ip)
+			if result != tc.trusted {
+				t.Errorf("isIPFromTrustedProxy(%s) = %v, expected %v", tc.ip, result, tc.trusted)
+			}
+		})
+	}
+}
+
+func TestValidateIPFormat(t *testing.T) {
+	testCases := []struct {
+		ip    string
+		valid bool
+	}{
+		{"1.2.3.4", true},
+		{"192.168.1.1", true},
+		{"::1", true},
+		{"2001:db8::1", true},
+		{"not-an-ip", false},
+		{"1.2.3.4.5", false},
+		{"", false},
+		{"1.2.3", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ip, func(t *testing.T) {
+			result := validateIPFormat(tc.ip)
+			if result != tc.valid {
+				t.Errorf("validateIPFormat(%s) = %v, expected %v", tc.ip, result, tc.valid)
+			}
+		})
 	}
 }

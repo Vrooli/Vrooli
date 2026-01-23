@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Button } from '../../../shared/ui/button';
 import { Activity, Users, Server, Calendar, RefreshCw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCredits } from '../../../shared/api';
+import { formatDateTime } from '../../../shared/lib/dateFormatters';
 import { useUsageDashboard } from '../hooks/useUsageDashboard';
-import { formatActivityDate } from '../services/usage.service';
 
 export function UsageDashboard() {
   const {
@@ -216,7 +216,7 @@ export function UsageDashboard() {
                               {formatCredits(record.usage_amount)}
                             </td>
                             <td className="py-3 text-right text-slate-400">
-                              {formatActivityDate(record.last_operation_at)}
+                              {formatDateTime(record.last_operation_at, 'full')}
                             </td>
                           </tr>
                         ))}

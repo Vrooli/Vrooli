@@ -4,8 +4,6 @@ import {
   STALE_VARIANT_DAYS,
   DAY_MS,
   HEALTH_SNAPSHOT_DAYS,
-  calculateDaysSinceUpdate,
-  formatVariantUpdatedLabel,
   getAttentionPriority,
   describeWeightStatus,
   buildHealthSnapshot,
@@ -62,82 +60,6 @@ describe('adminHome.service', () => {
       expect(STALE_VARIANT_DAYS).toBe(10);
       expect(DAY_MS).toBe(24 * 60 * 60 * 1000);
       expect(HEALTH_SNAPSHOT_DAYS).toBe(7);
-    });
-  });
-
-  describe('calculateDaysSinceUpdate', () => {
-    let realDate: typeof Date;
-
-    beforeEach(() => {
-      realDate = global.Date;
-      const mockDate = new Date('2025-01-15T12:00:00Z');
-      vi.setSystemTime(mockDate);
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('returns null for null/undefined input', () => {
-      expect(calculateDaysSinceUpdate(null)).toBeNull();
-      expect(calculateDaysSinceUpdate(undefined)).toBeNull();
-    });
-
-    it('returns null for invalid date string', () => {
-      expect(calculateDaysSinceUpdate('invalid-date')).toBeNull();
-    });
-
-    it('returns 0 for today', () => {
-      expect(calculateDaysSinceUpdate('2025-01-15T00:00:00Z')).toBe(0);
-    });
-
-    it('returns 1 for yesterday', () => {
-      expect(calculateDaysSinceUpdate('2025-01-14T00:00:00Z')).toBe(1);
-    });
-
-    it('returns correct days for older dates', () => {
-      expect(calculateDaysSinceUpdate('2025-01-10T00:00:00Z')).toBe(5);
-      expect(calculateDaysSinceUpdate('2025-01-01T00:00:00Z')).toBe(14);
-    });
-
-    it('returns 0 for future dates', () => {
-      expect(calculateDaysSinceUpdate('2025-01-20T00:00:00Z')).toBe(0);
-    });
-  });
-
-  describe('formatVariantUpdatedLabel', () => {
-    let realDate: typeof Date;
-
-    beforeEach(() => {
-      realDate = global.Date;
-      const mockDate = new Date('2025-01-15T12:00:00Z');
-      vi.setSystemTime(mockDate);
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('returns "Never customized" for null/undefined', () => {
-      expect(formatVariantUpdatedLabel(null)).toBe('Never customized');
-      expect(formatVariantUpdatedLabel(undefined)).toBe('Never customized');
-    });
-
-    it('returns unavailable message for invalid date', () => {
-      expect(formatVariantUpdatedLabel('invalid')).toBe('Last updated date unavailable');
-    });
-
-    it('returns "Updated today" for today', () => {
-      expect(formatVariantUpdatedLabel('2025-01-15T08:00:00Z')).toBe('Updated today');
-    });
-
-    it('returns "Updated yesterday" for yesterday', () => {
-      expect(formatVariantUpdatedLabel('2025-01-14T08:00:00Z')).toBe('Updated yesterday');
-    });
-
-    it('returns "Updated X days ago" for older dates', () => {
-      expect(formatVariantUpdatedLabel('2025-01-10T08:00:00Z')).toBe('Updated 5 days ago');
-      expect(formatVariantUpdatedLabel('2025-01-01T08:00:00Z')).toBe('Updated 14 days ago');
     });
   });
 

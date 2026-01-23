@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete, apiPut, API_BASE } from './common';
+import { apiGet, apiPost, apiDelete, apiPut } from './common';
 
 // Types for the credit system
 
@@ -78,14 +78,7 @@ export async function createAPIKey(request: APIKeyCreateRequest): Promise<APIKey
 }
 
 export async function deleteAPIKey(provider: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/v1/admin/api-keys?provider=${encodeURIComponent(provider)}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Failed to delete API key' }));
-    throw new Error(error.message || 'Failed to delete API key');
-  }
+  await apiDelete<void>(`/api/v1/admin/api-keys?provider=${encodeURIComponent(provider)}`);
 }
 
 export async function testAPIKey(provider: string): Promise<APIKeyTestResult> {

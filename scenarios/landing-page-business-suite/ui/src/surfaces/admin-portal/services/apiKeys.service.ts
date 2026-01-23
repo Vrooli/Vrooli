@@ -81,14 +81,6 @@ export function hasAvailableProviders(configuredKeys: APIKey[]): boolean {
 }
 
 /**
- * Format date for last verified display
- */
-export function formatVerifiedDate(dateStr: string | undefined | null): string | null {
-  if (!dateStr) return null;
-  return new Date(dateStr).toLocaleDateString();
-}
-
-/**
  * Remove test result for a provider from results map
  */
 export function removeTestResult(

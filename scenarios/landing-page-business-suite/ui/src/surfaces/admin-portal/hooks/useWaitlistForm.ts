@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { WaitlistEmail } from '../../../shared/api';
 import {
   calculateStats,
-  removeEmailFromList,
   fetchWaitlistEmails,
   deleteWaitlistEmail,
   fetchBranding,
@@ -10,6 +9,7 @@ import {
   exportToCsv,
   type WaitlistStats,
 } from '../services/waitlist.service';
+import { removeById } from '../../../shared/lib/collections';
 
 export interface UseWaitlistFormReturn {
   // Data state
@@ -85,7 +85,7 @@ export function useWaitlistForm(): UseWaitlistFormReturn {
       try {
         await deleteWaitlistEmail(id);
         // Optimistically remove from local state
-        setEmails((prev) => removeEmailFromList(prev, id));
+        setEmails((prev) => removeById(prev, id));
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete email';

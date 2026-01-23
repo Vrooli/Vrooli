@@ -57,6 +57,12 @@ func NewAPIKeyServiceWithHTTPClient(db *sql.DB, httpClient HTTPDoer) (*APIKeySer
 	return NewAPIKeyServiceWithOptions(db, httpClient, "postgres")
 }
 
+// isProductionEnvironment checks if the service is running in production mode.
+func isProductionEnvironment() bool {
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+	return env == "production" || env == "prod"
+}
+
 // NewAPIKeyServiceWithOptions creates a new API key service with custom options.
 // Dialect can be "postgres" or "sqlite".
 func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string) (*APIKeyService, error) {
@@ -65,10 +71,20 @@ func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string
 	// Get encryption key from environment
 	keyStr := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
 	if keyStr == "" {
-		// Generate a warning but allow operation with no encryption in development
-		logStructured("apikeys_no_encryption_key", map[string]interface{}{
-			"level":   "warn",
-			"message": "LPBS_API_KEY_ENCRYPTION_KEY not set; API keys will be stored unencrypted",
+		// In production, encryption is mandatory
+		if isProductionEnvironment() {
+			return nil, fmt.Errorf(
+				"LPBS_API_KEY_ENCRYPTION_KEY is required in production.\n" +
+					"Generate a key with: ./lpbs-api generate-encryption-key\n" +
+					"Then set it in your environment or .vrooli/secrets.json",
+			)
+		}
+		// Development mode - allow unencrypted storage with prominent warning
+		logStructured("apikeys_no_encryption_key_dev", map[string]interface{}{
+			"level":    "warn",
+			"message":  "LPBS_API_KEY_ENCRYPTION_KEY not set; API keys will be stored unencrypted",
+			"security": true,
+			"action":   "Set LPBS_API_KEY_ENCRYPTION_KEY before deploying to production",
 		})
 		return &APIKeyService{db: db, encryptionKey: nil, httpClient: httpClient, dialects: dialects}, nil
 	}
@@ -373,7 +389,10 @@ func (s *APIKeyService) Test(ctx context.Context, provider string) (bool, string
 		} else {
 			updateQuery = `UPDATE api_keys SET last_verified_at = NOW(), updated_at = NOW() WHERE provider = $1`
 		}
-		_, _ = s.db.ExecContext(ctx, updateQuery, provider)
+		_, updateErr := s.db.ExecContext(ctx, updateQuery, provider)
+		logOnError(updateErr, "update_api_key_last_verified", map[string]interface{}{
+			"provider": provider,
+		})
 	}
 
 	return success, message, nil
@@ -473,9 +492,11 @@ func handleListAPIKeys(svc *APIKeyService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"keys": keys,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -499,7 +520,9 @@ func handleCreateAPIKey(svc *APIKeyService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(key)
+		if err := json.NewEncoder(w).Encode(key); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -543,11 +566,13 @@ func handleTestAPIKey(svc *APIKeyService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":  success,
 			"message":  message,
 			"provider": provider,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 

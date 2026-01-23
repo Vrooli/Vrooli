@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { TierLimit } from '../../../shared/api';
 import {
-  APP_OPTIONS,
-  DEFAULT_NEW_LIMIT,
   getEditKey,
   parseEditedValue,
   buildTierLimitUpdate,
+} from '../../../shared/lib/tierUtils';
+import {
+  APP_OPTIONS,
+  DEFAULT_NEW_LIMIT,
   validateNewLimitForm,
   buildCreateLimitPayload,
   collectLimitKeys,

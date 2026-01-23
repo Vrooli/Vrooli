@@ -302,5 +302,5 @@ export function getTrendType(
   return 'neutral';
 }
 
-// Re-export constants
-export { STALE_VARIANT_DAYS, DAY_MS };
+// Re-export constants and types
+export { STALE_VARIANT_DAYS, DAY_MS, type WeightStatus };

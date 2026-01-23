@@ -28,8 +28,8 @@ func attachAdminSession(t *testing.T, req *http.Request, email string) {
 
 func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 	db := setupTestDB(t)
-	initSessionStore()
-	server := &Server{db: db}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
 	attachAdminSession(t, req, defaultAdminEmail)
@@ -59,8 +59,8 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 
 func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	db := setupTestDB(t)
-	initSessionStore()
-	server := &Server{db: db}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, sessionManager: sessionMgr}
 
 	replacer := strings.NewReplacer("/", "_", ".", "_")
 	suffix := replacer.Replace(strings.ToLower(t.Name()))
@@ -115,8 +115,8 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 
 func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 	db := setupTestDB(t)
-	initSessionStore()
-	server := &Server{db: db}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, sessionManager: sessionMgr}
 
 	payload := `{"current_password":"wrongpass","new_password":"Sup3rSecurePass!"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
@@ -132,8 +132,8 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 
 func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	db := setupTestDB(t)
-	initSessionStore()
-	server := &Server{db: db}
+	sessionMgr := initSessionManager()
+	server := &Server{db: db, sessionManager: sessionMgr}
 
 	// Use a unique suffix based on test name and timestamp for better isolation
 	replacer := strings.NewReplacer("/", "_", ".", "_")

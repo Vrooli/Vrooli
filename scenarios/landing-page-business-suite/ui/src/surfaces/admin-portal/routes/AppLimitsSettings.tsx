@@ -6,14 +6,16 @@ import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { AppWindow, Save, AlertCircle, Infinity, DollarSign, Plus, Trash2 } from 'lucide-react';
 import { formatDollars, TIER_OPTIONS } from '../../../shared/api';
-import { useAppLimitsForm } from '../hooks/useAppLimitsForm';
 import {
-  APP_OPTIONS,
   getEditKey,
   getTierLabel,
   getTierColor,
-  getSelectedAppLabel,
   isUnlimitedValue,
+} from '../../../shared/lib/tierUtils';
+import { useAppLimitsForm } from '../hooks/useAppLimitsForm';
+import {
+  APP_OPTIONS,
+  getSelectedAppLabel,
 } from '../services/appLimits.service';
 
 export function AppLimitsSettings() {

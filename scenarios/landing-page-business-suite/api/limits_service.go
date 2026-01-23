@@ -442,9 +442,11 @@ func handleGetTierLimits(svc *LimitsService) http.HandlerFunc {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			if err := json.NewEncoder(w).Encode(map[string]interface{}{
 				"limits": limits,
-			})
+			}); err != nil {
+				logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+			}
 			return
 		}
 
@@ -463,10 +465,12 @@ func handleGetTierLimits(svc *LimitsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"tier_id": tierID,
 			"limits":  limits,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -508,7 +512,9 @@ func handleUpdateTierLimits(svc *LimitsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(limit)
+		if err := json.NewEncoder(w).Encode(limit); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -533,10 +539,12 @@ func handleGetAppLimits(svc *LimitsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"app_bundle_key": appKey,
 			"limits":         limits,
-		})
+		}); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 
@@ -559,7 +567,9 @@ func handleCreateTierLimit(svc *LimitsService) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(result)
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
+		}
 	}
 }
 

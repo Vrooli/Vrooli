@@ -1,14 +1,28 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { WaitlistEmail } from '../../../shared/api';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { WaitlistEmail, SiteBranding } from '../../../shared/api';
 import {
-  formatDate,
   calculateStats,
-  filterEmailsBySource,
-  searchEmails,
-  sortEmailsByDate,
-  removeEmailFromList,
-  getUniqueSources,
+  fetchWaitlistEmails,
+  deleteWaitlistEmail,
+  fetchBranding,
+  toggleComingSoonMode,
+  getExportUrl,
+  exportToCsv,
 } from './waitlist.service';
+import * as waitlistApi from '../../../shared/api/waitlist';
+import * as brandingApi from '../../../shared/api/branding';
+import { createWindowOpenMock } from '../../../shared/test-utils/api-mocks';
+
+vi.mock('../../../shared/api/waitlist', () => ({
+  getWaitlistEmails: vi.fn(),
+  deleteWaitlistEmail: vi.fn(),
+  getWaitlistExportUrl: vi.fn(() => 'https://api.example.com/waitlist/export'),
+}));
+
+vi.mock('../../../shared/api/branding', () => ({
+  getBranding: vi.fn(),
+  updateBranding: vi.fn(),
+}));
 
 const createMockEmail = (overrides: Partial<WaitlistEmail> = {}): WaitlistEmail => ({
   id: 1,
@@ -18,21 +32,14 @@ const createMockEmail = (overrides: Partial<WaitlistEmail> = {}): WaitlistEmail 
   ...overrides,
 });
 
+const createMockBranding = (overrides: Partial<SiteBranding> = {}): SiteBranding => ({
+  id: 1,
+  site_name: 'Test Site',
+  coming_soon_enabled: false,
+  ...overrides,
+} as SiteBranding);
+
 describe('waitlist.service', () => {
-  describe('formatDate', () => {
-    it('formats date string to locale string', () => {
-      const result = formatDate('2024-01-15T10:30:00Z');
-      // Just verify it returns a non-empty string (locale dependent)
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
-    });
-
-    it('handles different date formats', () => {
-      const result = formatDate('2024-12-25T23:59:59Z');
-      expect(typeof result).toBe('string');
-    });
-  });
-
   describe('calculateStats', () => {
     it('calculates correct stats for empty list', () => {
       const stats = calculateStats([]);
@@ -76,148 +83,132 @@ describe('waitlist.service', () => {
     });
   });
 
-  describe('filterEmailsBySource', () => {
-    const emails: WaitlistEmail[] = [
-      createMockEmail({ id: 1, source: 'coming_soon' }),
-      createMockEmail({ id: 2, source: 'coming_soon' }),
-      createMockEmail({ id: 3, source: 'newsletter' }),
-    ];
-
-    it('filters emails by source', () => {
-      const result = filterEmailsBySource(emails, 'coming_soon');
-      expect(result).toHaveLength(2);
-      expect(result.every((e) => e.source === 'coming_soon')).toBe(true);
+  describe('fetchWaitlistEmails', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
     });
 
-    it('returns empty array for non-matching source', () => {
-      const result = filterEmailsBySource(emails, 'nonexistent');
-      expect(result).toHaveLength(0);
+    it('returns emails from API', async () => {
+      const mockEmails = [createMockEmail({ id: 1 }), createMockEmail({ id: 2 })];
+      vi.mocked(waitlistApi.getWaitlistEmails).mockResolvedValue(mockEmails);
+
+      const result = await fetchWaitlistEmails();
+
+      expect(result).toEqual(mockEmails);
+      expect(waitlistApi.getWaitlistEmails).toHaveBeenCalledTimes(1);
     });
 
-    it('returns all emails for empty source array', () => {
-      const result = filterEmailsBySource([], 'coming_soon');
-      expect(result).toHaveLength(0);
-    });
-  });
+    it('returns empty array when API returns null', async () => {
+      vi.mocked(waitlistApi.getWaitlistEmails).mockResolvedValue(null as unknown as WaitlistEmail[]);
 
-  describe('searchEmails', () => {
-    const emails: WaitlistEmail[] = [
-      createMockEmail({ id: 1, email: 'john@example.com' }),
-      createMockEmail({ id: 2, email: 'jane@example.com' }),
-      createMockEmail({ id: 3, email: 'bob@test.org' }),
-    ];
+      const result = await fetchWaitlistEmails();
 
-    it('searches by email substring', () => {
-      const result = searchEmails(emails, 'example');
-      expect(result).toHaveLength(2);
-    });
-
-    it('search is case insensitive', () => {
-      const result = searchEmails(emails, 'JOHN');
-      expect(result).toHaveLength(1);
-      expect(result[0].email).toBe('john@example.com');
-    });
-
-    it('returns all emails for empty query', () => {
-      const result = searchEmails(emails, '');
-      expect(result).toHaveLength(3);
-    });
-
-    it('returns all emails for whitespace-only query', () => {
-      const result = searchEmails(emails, '   ');
-      expect(result).toHaveLength(3);
-    });
-
-    it('returns empty array for non-matching query', () => {
-      const result = searchEmails(emails, 'nonexistent');
-      expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('sortEmailsByDate', () => {
-    const emails: WaitlistEmail[] = [
-      createMockEmail({ id: 1, created_at: '2024-01-15T10:00:00Z' }),
-      createMockEmail({ id: 2, created_at: '2024-01-16T10:00:00Z' }),
-      createMockEmail({ id: 3, created_at: '2024-01-14T10:00:00Z' }),
-    ];
-
-    it('sorts by date descending by default (newest first)', () => {
-      const result = sortEmailsByDate(emails);
-      expect(result[0].id).toBe(2);
-      expect(result[1].id).toBe(1);
-      expect(result[2].id).toBe(3);
-    });
-
-    it('sorts by date ascending when specified', () => {
-      const result = sortEmailsByDate(emails, true);
-      expect(result[0].id).toBe(3);
-      expect(result[1].id).toBe(1);
-      expect(result[2].id).toBe(2);
-    });
-
-    it('does not mutate original array', () => {
-      const original = [...emails];
-      sortEmailsByDate(emails);
-      expect(emails).toEqual(original);
-    });
-  });
-
-  describe('removeEmailFromList', () => {
-    const emails: WaitlistEmail[] = [
-      createMockEmail({ id: 1 }),
-      createMockEmail({ id: 2 }),
-      createMockEmail({ id: 3 }),
-    ];
-
-    it('removes email by id', () => {
-      const result = removeEmailFromList(emails, 2);
-      expect(result).toHaveLength(2);
-      expect(result.find((e) => e.id === 2)).toBeUndefined();
-    });
-
-    it('returns same array if id not found', () => {
-      const result = removeEmailFromList(emails, 999);
-      expect(result).toHaveLength(3);
-    });
-
-    it('does not mutate original array', () => {
-      const original = [...emails];
-      removeEmailFromList(emails, 1);
-      expect(emails).toEqual(original);
-    });
-
-    it('handles empty array', () => {
-      const result = removeEmailFromList([], 1);
-      expect(result).toHaveLength(0);
-    });
-  });
-
-  describe('getUniqueSources', () => {
-    it('returns unique sorted sources', () => {
-      const emails: WaitlistEmail[] = [
-        createMockEmail({ id: 1, source: 'newsletter' }),
-        createMockEmail({ id: 2, source: 'coming_soon' }),
-        createMockEmail({ id: 3, source: 'newsletter' }),
-        createMockEmail({ id: 4, source: 'referral' }),
-      ];
-
-      const result = getUniqueSources(emails);
-      expect(result).toEqual(['coming_soon', 'newsletter', 'referral']);
-    });
-
-    it('returns empty array for empty list', () => {
-      const result = getUniqueSources([]);
       expect(result).toEqual([]);
     });
 
-    it('returns single source when all same', () => {
-      const emails: WaitlistEmail[] = [
-        createMockEmail({ id: 1, source: 'coming_soon' }),
-        createMockEmail({ id: 2, source: 'coming_soon' }),
-      ];
+    it('propagates API errors', async () => {
+      vi.mocked(waitlistApi.getWaitlistEmails).mockRejectedValue(new Error('Network error'));
 
-      const result = getUniqueSources(emails);
-      expect(result).toEqual(['coming_soon']);
+      await expect(fetchWaitlistEmails()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('deleteWaitlistEmail', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('deletes email via API', async () => {
+      vi.mocked(waitlistApi.deleteWaitlistEmail).mockResolvedValue(undefined);
+
+      await deleteWaitlistEmail(1);
+
+      expect(waitlistApi.deleteWaitlistEmail).toHaveBeenCalledWith(1);
+    });
+
+    it('propagates API errors', async () => {
+      vi.mocked(waitlistApi.deleteWaitlistEmail).mockRejectedValue(new Error('Not found'));
+
+      await expect(deleteWaitlistEmail(999)).rejects.toThrow('Not found');
+    });
+  });
+
+  describe('fetchBranding', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('returns branding from API', async () => {
+      const mockBranding = createMockBranding({ coming_soon_enabled: true });
+      vi.mocked(brandingApi.getBranding).mockResolvedValue(mockBranding);
+
+      const result = await fetchBranding();
+
+      expect(result).toEqual(mockBranding);
+      expect(brandingApi.getBranding).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates API errors', async () => {
+      vi.mocked(brandingApi.getBranding).mockRejectedValue(new Error('Server error'));
+
+      await expect(fetchBranding()).rejects.toThrow('Server error');
+    });
+  });
+
+  describe('toggleComingSoonMode', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('toggles from false to true', async () => {
+      vi.mocked(brandingApi.updateBranding).mockResolvedValue(createMockBranding({ coming_soon_enabled: true }));
+
+      const result = await toggleComingSoonMode(false);
+
+      expect(result).toBe(true);
+      expect(brandingApi.updateBranding).toHaveBeenCalledWith({ coming_soon_enabled: true });
+    });
+
+    it('toggles from true to false', async () => {
+      vi.mocked(brandingApi.updateBranding).mockResolvedValue(createMockBranding({ coming_soon_enabled: false }));
+
+      const result = await toggleComingSoonMode(true);
+
+      expect(result).toBe(false);
+      expect(brandingApi.updateBranding).toHaveBeenCalledWith({ coming_soon_enabled: false });
+    });
+
+    it('propagates API errors', async () => {
+      vi.mocked(brandingApi.updateBranding).mockRejectedValue(new Error('Update failed'));
+
+      await expect(toggleComingSoonMode(false)).rejects.toThrow('Update failed');
+    });
+  });
+
+  describe('getExportUrl', () => {
+    it('returns export URL from API', () => {
+      const result = getExportUrl();
+      expect(result).toBe('https://api.example.com/waitlist/export');
+    });
+  });
+
+  describe('exportToCsv', () => {
+    let windowMock: ReturnType<typeof createWindowOpenMock>;
+
+    beforeEach(() => {
+      windowMock = createWindowOpenMock();
+    });
+
+    afterEach(() => {
+      windowMock.restore();
+    });
+
+    it('opens export URL in new window', () => {
+      exportToCsv();
+      expect(windowMock.mock).toHaveBeenCalledWith(
+        'https://api.example.com/waitlist/export',
+        '_blank'
+      );
     });
   });
 });

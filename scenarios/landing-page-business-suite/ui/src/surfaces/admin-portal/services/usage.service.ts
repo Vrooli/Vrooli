@@ -2,44 +2,6 @@ import type { AdminUsageSummary, UsageRecord } from '../../../shared/api';
 import { getAdminUsageSummary as apiGetAdminUsageSummary, formatCredits } from '../../../shared/api';
 
 /**
- * Get current billing period in YYYY-MM format
- */
-export function getCurrentBillingPeriod(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/**
- * Navigate to next or previous month
- */
-export function navigateToBillingPeriod(
-  currentPeriod: string,
-  delta: number
-): string {
-  const [year, month] = currentPeriod.split('-').map(Number);
-  const date = new Date(year, month - 1 + delta, 1);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/**
- * Check if period is current month (cannot navigate forward)
- */
-export function isCurrentMonth(period: string): boolean {
-  return period === getCurrentBillingPeriod();
-}
-
-/**
- * Format billing period for display
- */
-export function formatBillingPeriod(period: string): string {
-  const [year, month] = period.split('-').map(Number);
-  return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  });
-}
-
-/**
  * Calculate total usage from user totals
  */
 export function calculateTotalUsage(
@@ -97,14 +59,6 @@ export function getSortedAppTotals(
       usage,
       percentage: calculateUsagePercentage(usage, totalUsage),
     }));
-}
-
-/**
- * Format date for activity display
- */
-export function formatActivityDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '-';
-  return new Date(dateStr).toLocaleString();
 }
 
 /**

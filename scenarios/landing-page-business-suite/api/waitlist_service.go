@@ -6,6 +6,18 @@ import (
 	"time"
 )
 
+// WaitlistServicer defines the interface for waitlist operations.
+// This interface allows for easy mocking in tests.
+type WaitlistServicer interface {
+	Create(ctx context.Context, email, source string) (*WaitlistEmail, error)
+	List(ctx context.Context) ([]WaitlistEmail, error)
+	Delete(ctx context.Context, id int64) error
+	Count(ctx context.Context) (int64, error)
+}
+
+// Compile-time check that WaitlistService implements WaitlistServicer
+var _ WaitlistServicer = (*WaitlistService)(nil)
+
 // WaitlistEmail represents an email collected from the waitlist/coming soon form
 type WaitlistEmail struct {
 	ID        int64     `json:"id"`

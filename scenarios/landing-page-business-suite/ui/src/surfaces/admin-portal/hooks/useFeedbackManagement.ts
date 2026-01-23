@@ -2,20 +2,22 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { FeedbackRequest } from '../../../shared/api';
 import {
   type FeedbackStatus,
-  filterFeedback,
-  countByStatus,
-  toggleSelection,
-  toggleSelectAll,
-  removeFromList,
-  removeMultipleFromList,
-  removeFromSelection,
-  updateStatusInList,
   openEmailReply,
   fetchFeedbackList,
   updateFeedbackStatus,
   deleteFeedback,
   deleteFeedbackBulk,
 } from '../services/feedback.service';
+import {
+  filterByProperties,
+  countByProperty,
+  toggleInSet,
+  selectAll,
+  removeById,
+  removeByIds,
+  removeFromSet,
+  updateById,
+} from '../../../shared/lib/collections';
 
 export interface UseFeedbackManagementReturn {
   // Data state
@@ -115,7 +117,7 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
       setActionLoading(id);
       try {
         const updated = await updateFeedbackStatus(id, newStatus);
-        setFeedbackList((prev) => updateStatusInList(prev, id, updated));
+        setFeedbackList((prev) => updateById(prev, id, updated));
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to update status';
@@ -136,8 +138,8 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
       setActionLoading(id);
       try {
         await deleteFeedback(id);
-        setFeedbackList((prev) => removeFromList(prev, id));
-        setSelectedIds((prev) => removeFromSelection(prev, id));
+        setFeedbackList((prev) => removeById(prev, id));
+        setSelectedIds((prev) => removeFromSet(prev, id));
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete feedback';
@@ -161,7 +163,7 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
     setBulkActionLoading(true);
     try {
       await deleteFeedbackBulk(Array.from(selectedIds));
-      setFeedbackList((prev) => removeMultipleFromList(prev, selectedIds));
+      setFeedbackList((prev) => removeByIds(prev, selectedIds));
       setSelectedIds(new Set());
       return { success: true };
     } catch (err) {
@@ -177,14 +179,17 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
    * Toggle selection of a single item
    */
   const handleToggleSelect = useCallback((id: number) => {
-    setSelectedIds((prev) => toggleSelection(prev, id));
+    setSelectedIds((prev) => toggleInSet(prev, id));
   }, []);
 
   /**
    * Computed filtered feedback list
    */
   const filteredFeedback = useMemo(
-    () => filterFeedback(feedbackList, statusFilter, typeFilter),
+    () => filterByProperties(feedbackList, {
+      status: statusFilter as FeedbackRequest['status'] | 'all',
+      type: typeFilter as FeedbackRequest['type'] | 'all',
+    }),
     [feedbackList, statusFilter, typeFilter]
   );
 
@@ -192,7 +197,7 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
    * Toggle select all (based on filtered list)
    */
   const handleToggleSelectAll = useCallback(() => {
-    setSelectedIds((prev) => toggleSelectAll(prev, filteredFeedback));
+    setSelectedIds((prev) => selectAll(filteredFeedback, prev));
   }, [filteredFeedback]);
 
   /**
@@ -210,8 +215,8 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
   }, []);
 
   // Computed counts
-  const pendingCount = useMemo(() => countByStatus(feedbackList, 'pending'), [feedbackList]);
-  const inProgressCount = useMemo(() => countByStatus(feedbackList, 'in_progress'), [feedbackList]);
+  const pendingCount = useMemo(() => countByProperty(feedbackList, 'status', 'pending'), [feedbackList]);
+  const inProgressCount = useMemo(() => countByProperty(feedbackList, 'status', 'in_progress'), [feedbackList]);
 
   return {
     // Data state

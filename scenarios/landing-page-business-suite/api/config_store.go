@@ -12,6 +12,37 @@ import (
 	"time"
 )
 
+// ConfigStoreReader provides read-only access to configuration.
+// Use this interface for handlers that only need to read variants/branding.
+type ConfigStoreReader interface {
+	GetVariant(slug string) (*VariantSnapshot, error)
+	ListVariants() []*VariantSnapshot
+	GetBranding() *SiteBranding
+	VariantCount() int
+	GetVariantsDir() string
+}
+
+// ConfigStoreWriter provides write access to configuration.
+// Use this interface for handlers that need to modify variants/branding.
+type ConfigStoreWriter interface {
+	SaveVariant(slug string, snapshot *VariantSnapshot) error
+	DeleteVariant(slug string) error
+	SaveBranding(branding *SiteBranding) error
+	UpdateBranding(req *BrandingUpdateRequest) (*SiteBranding, error)
+	ClearBrandingField(field string) error
+	LoadAll() error
+}
+
+// ConfigStorer combines read and write access to configuration.
+// This is the full interface implemented by ConfigStore.
+type ConfigStorer interface {
+	ConfigStoreReader
+	ConfigStoreWriter
+}
+
+// Compile-time check that ConfigStore implements ConfigStorer
+var _ ConfigStorer = (*ConfigStore)(nil)
+
 // ConfigStore provides in-memory caching of variant and branding configuration
 // loaded from JSON files. It serves as the single source of truth for config,
 // replacing the previous database-backed variant/branding storage.

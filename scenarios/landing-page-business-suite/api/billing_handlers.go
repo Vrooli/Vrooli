@@ -7,7 +7,9 @@ import (
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
-func handleBillingCreateCheckoutSession(service *StripeService) http.HandlerFunc {
+// createCheckoutSessionHandler creates a parameterized checkout session handler.
+// This consolidates common logic between subscription and credits checkout flows.
+func createCheckoutSessionHandler(service *StripeService, logKey, errorMsg string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req landing_page_react_vite_v1.CreateCheckoutSessionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -17,38 +19,33 @@ func handleBillingCreateCheckoutSession(service *StripeService) http.HandlerFunc
 
 		session, err := service.CreateCheckoutSession(req.PriceId, req.SuccessUrl, req.CancelUrl, req.CustomerEmail)
 		if err != nil {
-			logStructuredError("billing_checkout_session_failed", map[string]interface{}{
+			logStructuredError(logKey, map[string]interface{}{
 				"error":    err.Error(),
 				"price_id": req.PriceId,
 			})
 			// Stripe errors could be config issues (retryable) or validation (not retryable)
 			// Default to server_error since Stripe integration issues are typically transient
-			writeJSONError(w, http.StatusBadRequest, "Failed to create checkout session. Please try again.", ApiErrorTypeServerError)
+			writeJSONError(w, http.StatusBadRequest, errorMsg, ApiErrorTypeServerError)
 			return
 		}
 		writeJSON(w, &landing_page_react_vite_v1.CreateCheckoutSessionResponse{Session: session})
 	}
 }
 
-func handleBillingCreateCreditsSession(service *StripeService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req landing_page_react_vite_v1.CreateCheckoutSessionRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
-			return
-		}
+func handleBillingCreateCheckoutSession(service *StripeService) http.HandlerFunc {
+	return createCheckoutSessionHandler(
+		service,
+		"billing_checkout_session_failed",
+		"Failed to create checkout session. Please try again.",
+	)
+}
 
-		session, err := service.CreateCheckoutSession(req.PriceId, req.SuccessUrl, req.CancelUrl, req.CustomerEmail)
-		if err != nil {
-			logStructuredError("billing_credits_session_failed", map[string]interface{}{
-				"error":    err.Error(),
-				"price_id": req.PriceId,
-			})
-			writeJSONError(w, http.StatusBadRequest, "Failed to create credits checkout. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		writeJSON(w, &landing_page_react_vite_v1.CreateCheckoutSessionResponse{Session: session})
-	}
+func handleBillingCreateCreditsSession(service *StripeService) http.HandlerFunc {
+	return createCheckoutSessionHandler(
+		service,
+		"billing_credits_session_failed",
+		"Failed to create credits checkout. Please try again.",
+	)
 }
 
 func handleBillingPortalURL(service *StripeService) http.HandlerFunc {
