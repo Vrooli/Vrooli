@@ -13,7 +13,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SkillEditorPanel } from './SkillEditorPanel'
 import type { Skill } from '@/types'
-import type { SkillFormState, ValidationResult } from '@/types/editor'
+import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 
 // Mock Monaco editor since it requires browser environment
 vi.mock('@monaco-editor/react', () => ({
@@ -57,13 +57,13 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
 }
 
 // Helper to create default form state
-function createFormState(overrides: Partial<SkillFormState> = {}): SkillFormState {
+function createFormState(overrides: Partial<NormalizedFormState> = {}): NormalizedFormState {
   return {
     name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: ['development'],
-    tags: 'tag1',
+    tags: ['tag1'],  // Now an array
     icon: '',
     draft: false,
     folder: 'local',

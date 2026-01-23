@@ -4,16 +4,18 @@
  * Display tags as removable chips
  * [+] button opens popover for adding tags
  * Autocomplete from existing tags in codebase
+ *
+ * Note: This component now accepts tags as string[] (not comma-separated).
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Plus, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface TagChipsEditorProps {
-  /** Comma-separated tags string */
-  value: string
-  onChange: (value: string) => void
+  /** Tags array */
+  value: string[]
+  onChange: (value: string[]) => void
   /** Available tags for autocomplete */
   availableTags?: string[]
   placeholder?: string
@@ -37,28 +39,19 @@ export function TagChipsEditor({
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Parse tags from comma-separated string
-  const tags = useMemo(() => {
-    return value
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
-  }, [value])
+  // Tags are now passed as an array directly
+  const tags = value
 
   // Filter suggestions based on input and exclude already-selected tags
-  const filteredSuggestions = useMemo(() => {
-    const lower = inputValue.toLowerCase()
-    return availableTags
-      .filter((t) => !tags.includes(t))
-      .filter((t) => !inputValue || t.toLowerCase().includes(lower))
-      .slice(0, 10)
-  }, [availableTags, tags, inputValue])
+  const lower = inputValue.toLowerCase()
+  const filteredSuggestions = availableTags
+    .filter((t) => !tags.includes(t))
+    .filter((t) => !inputValue || t.toLowerCase().includes(lower))
+    .slice(0, 10)
 
   // Check if current input is a new tag
-  const isNewTag = useMemo(() => {
-    const trimmed = inputValue.trim()
-    return trimmed && !availableTags.includes(trimmed) && !tags.includes(trimmed)
-  }, [inputValue, availableTags, tags])
+  const trimmedInput = inputValue.trim()
+  const isNewTag = trimmedInput && !availableTags.includes(trimmedInput) && !tags.includes(trimmedInput)
 
   // Handle click outside to close popover
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -92,8 +85,7 @@ export function TagChipsEditor({
     (tag: string) => {
       const trimmed = tag.trim()
       if (trimmed && !tags.includes(trimmed)) {
-        const newTags = [...tags, trimmed]
-        onChange(newTags.join(', '))
+        onChange([...tags, trimmed])
       }
       setInputValue('')
       inputRef.current?.focus()
@@ -103,8 +95,7 @@ export function TagChipsEditor({
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
-      const newTags = tags.filter((t) => t !== tagToRemove)
-      onChange(newTags.join(', '))
+      onChange(tags.filter((t) => t !== tagToRemove))
     },
     [tags, onChange]
   )

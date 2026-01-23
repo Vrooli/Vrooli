@@ -23,7 +23,7 @@ import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useSkillTree } from '@/hooks/useSkillTree'
-import { useSkillEditor } from '@/hooks/useSkillEditor'
+import { usePromptEditor } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -52,9 +52,7 @@ export function SkillManagerLayout() {
 
   // Dialog states
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
-  const [pendingSelection, setPendingSelection] = useState<string | null>(null)
 
   // Delete folder dialog state
   const [deleteFolderDialog, setDeleteFolderDialog] = useState<{
@@ -165,9 +163,13 @@ export function SkillManagerLayout() {
     saveAllChanges,
     discardCurrentChanges,
     deleteCurrentSkill,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     isSaving,
     isDeleting,
-  } = useSkillEditor({
+  } = usePromptEditor({
     skills,
     selectedItemId: selectedSkillId,
     onSave: updateSkills,
@@ -243,18 +245,10 @@ export function SkillManagerLayout() {
     }
   }, [isMobile])
 
-  // Handle item selection with dirty check
+  // Handle item selection - new architecture supports multi-prompt editing
   const handleSelectItem = useCallback(
     (id: string) => {
-      // If there are unsaved changes, ask for confirmation
-      if (isDirty && id !== selectedSkillId) {
-        setPendingSelection(id)
-        setShowDiscardDialog(true)
-        return
-      }
-
-      // Store any changes before switching
-      storeCurrentChanges()
+      // Changes are auto-saved to store, just switch
       setSelectedSkillId(id)
 
       // Close mobile sidebar after selection
@@ -262,22 +256,8 @@ export function SkillManagerLayout() {
         setIsMobileSidebarOpen(false)
       }
     },
-    [isDirty, selectedSkillId, storeCurrentChanges, setSelectedSkillId, isMobile]
+    [setSelectedSkillId, isMobile]
   )
-
-  // Handle discard confirmation
-  const handleConfirmDiscard = useCallback(() => {
-    discardCurrentChanges()
-    if (pendingSelection) {
-      setSelectedSkillId(pendingSelection)
-      setPendingSelection(null)
-    }
-    setShowDiscardDialog(false)
-
-    if (isMobile) {
-      setIsMobileSidebarOpen(false)
-    }
-  }, [discardCurrentChanges, pendingSelection, setSelectedSkillId, isMobile])
 
   // Handle delete confirmation
   const handleConfirmDelete = useCallback(async () => {
@@ -431,6 +411,16 @@ export function SkillManagerLayout() {
         void saveAllChanges()
       }
     },
+    onUndo: () => {
+      if (canUndo) {
+        undo()
+      }
+    },
+    onRedo: () => {
+      if (canRedo) {
+        redo()
+      }
+    },
     onNew: () => void handleCreateNew(),
     onFocusSearch: () => {
       searchInputRef.current?.focus()
@@ -439,11 +429,6 @@ export function SkillManagerLayout() {
       // Close any open dialogs first
       if (showDeleteDialog) {
         setShowDeleteDialog(false)
-        return
-      }
-      if (showDiscardDialog) {
-        setShowDiscardDialog(false)
-        setPendingSelection(null)
         return
       }
       if (showSettingsDialog) {
@@ -597,6 +582,10 @@ export function SkillManagerLayout() {
               dirtyCount={dirtyCount}
               onFieldChange={updateField}
               availableTags={availableTags}
+              onUndo={undo}
+              onRedo={redo}
+              canUndo={canUndo}
+              canRedo={canRedo}
               onSave={() => void saveCurrentSkill()}
               onSaveAll={() => void saveAllChanges()}
               onDiscard={discardCurrentChanges}
@@ -689,21 +678,6 @@ export function SkillManagerLayout() {
         confirmLabel="Delete"
         variant="danger"
         isLoading={isDeleting}
-      />
-
-      {/* Discard changes dialog */}
-      <ConfirmDialog
-        isOpen={showDiscardDialog}
-        onClose={() => {
-          setShowDiscardDialog(false)
-          setPendingSelection(null)
-        }}
-        onConfirm={handleConfirmDiscard}
-        title="Discard Changes?"
-        message="You have unsaved changes. Do you want to discard them and switch to a different skill?"
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        variant="warning"
       />
 
       {/* Delete folder confirmation dialog */}

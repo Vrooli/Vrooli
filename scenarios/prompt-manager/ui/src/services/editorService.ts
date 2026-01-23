@@ -2,13 +2,15 @@
  * Editor Service - Pure functions for form state management and validation.
  *
  * Handles:
- * - Converting between Skill and SkillFormState
+ * - Converting between Skill and SkillFormState (legacy)
+ * - Converting between Skill and NormalizedFormState (new)
  * - Validating form fields
  * - Detecting dirty state
  */
 
 import type { Skill, UpdateSkillRequest } from '@/types'
 import type { SkillFormState, ValidationResult } from '@/types/editor'
+import type { NormalizedFormState } from '@/types/editorStore'
 
 /**
  * Convert a Skill to editable form state.
@@ -184,4 +186,68 @@ export function getChangeSummary(original: Skill, current: SkillFormState): stri
   if (!arraysEqual(original.modes, current.modes)) changes.push('modes')
 
   return changes
+}
+
+// ============================================================================
+// Normalized Form State Functions (New API)
+// ============================================================================
+
+/**
+ * Convert NormalizedFormState to API update request.
+ * Tags are already an array, so no parsing needed.
+ *
+ * @param state - The normalized form state
+ * @returns Update request for the API
+ */
+export function normalizedStateToUpdateRequest(state: NormalizedFormState): UpdateSkillRequest {
+  return {
+    name: state.name,
+    description: state.description,
+    content: state.content,
+    modes: state.modes,
+    tags: state.tags, // Already an array
+    icon: state.icon || undefined,
+    draft: state.draft,
+    folder: state.folder,
+  }
+}
+
+/**
+ * Convert legacy SkillFormState to NormalizedFormState.
+ * Useful during migration period.
+ *
+ * @param formState - Legacy form state with comma-separated tags
+ * @returns Normalized form state with tags as array
+ */
+export function legacyToNormalizedState(formState: SkillFormState): NormalizedFormState {
+  return {
+    name: formState.name,
+    description: formState.description,
+    content: formState.content,
+    modes: formState.modes,
+    tags: parseTags(formState.tags), // Parse comma-separated string
+    icon: formState.icon,
+    draft: formState.draft,
+    folder: formState.folder,
+  }
+}
+
+/**
+ * Convert NormalizedFormState to legacy SkillFormState.
+ * Useful during migration period.
+ *
+ * @param state - Normalized form state with tags as array
+ * @returns Legacy form state with comma-separated tags
+ */
+export function normalizedToLegacyState(state: NormalizedFormState): SkillFormState {
+  return {
+    name: state.name,
+    description: state.description,
+    content: state.content,
+    modes: state.modes,
+    tags: formatTags(state.tags), // Convert array to comma-separated string
+    icon: state.icon,
+    draft: state.draft,
+    folder: state.folder,
+  }
 }

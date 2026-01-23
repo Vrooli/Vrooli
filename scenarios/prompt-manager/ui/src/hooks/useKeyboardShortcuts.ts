@@ -4,6 +4,8 @@
  * Provides fixed keyboard shortcuts for the prompt manager:
  * - Ctrl/Cmd+S: Save current prompt
  * - Ctrl/Cmd+Shift+S: Save all changes
+ * - Ctrl/Cmd+Z: Undo
+ * - Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y: Redo
  * - Ctrl/Cmd+N: New prompt
  * - Ctrl/Cmd+K: Focus search
  * - Escape: Discard changes / close dialogs
@@ -31,6 +33,10 @@ export interface KeyboardShortcutHandlers {
   onSave?: () => void
   /** Save all unsaved changes */
   onSaveAll?: () => void
+  /** Undo the last change */
+  onUndo?: () => void
+  /** Redo a previously undone change */
+  onRedo?: () => void
   /** Create a new prompt */
   onNew?: () => void
   /** Focus the search input */
@@ -119,6 +125,25 @@ export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers): void {
       return
     }
 
+    // Ctrl/Cmd+Z - Undo (not in text inputs to allow native undo)
+    if (hasModifier(e) && e.key === 'z' && !e.shiftKey) {
+      // Only handle undo when not in a text input (let native undo work there)
+      if (!isTextInput) {
+        e.preventDefault()
+        h.onUndo?.()
+      }
+      return
+    }
+
+    // Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y - Redo (not in text inputs)
+    if (hasModifier(e) && ((e.key === 'Z' && e.shiftKey) || (e.key === 'y' && !e.shiftKey))) {
+      if (!isTextInput) {
+        e.preventDefault()
+        h.onRedo?.()
+      }
+      return
+    }
+
     // Ctrl/Cmd+N - New prompt
     if (hasModifier(e) && e.key === 'n' && !e.shiftKey) {
       e.preventDefault()
@@ -162,6 +187,10 @@ export function getShortcutDisplay(shortcut: string): string {
       return `${modifier}S`
     case 'saveAll':
       return `${modifier}Shift+S`
+    case 'undo':
+      return `${modifier}Z`
+    case 'redo':
+      return `${modifier}Shift+Z`
     case 'new':
       return `${modifier}N`
     case 'search':

@@ -2,19 +2,26 @@
  * EditorToolbar - Action buttons for the prompt editor.
  *
  * Includes:
+ * - Undo/Redo buttons
  * - Save button
  * - Save All button (when multiple dirty)
  * - Discard button
  * - Delete button
  */
 
-import { Save, Trash2, RotateCcw, Zap } from 'lucide-react'
+import { Save, Trash2, RotateCcw, Zap, Undo2, Redo2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface EditorToolbarProps {
   // Dirty state
   isDirty: boolean
   dirtyCount: number
+
+  // Undo/Redo
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
 
   // Actions
   onSave: () => void
@@ -38,6 +45,10 @@ interface EditorToolbarProps {
 export function EditorToolbar({
   isDirty,
   dirtyCount,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   onSave,
   onSaveAll,
   onDiscard,
@@ -48,21 +59,60 @@ export function EditorToolbar({
   onTest,
   className,
 }: EditorToolbarProps) {
-  const canSave = isDirty && !isSaving && isValid
+  const canSaveBtn = isDirty && !isSaving && isValid
   const canSaveAll = dirtyCount > 0 && !isSaving
-  const canDiscard = isDirty && !isSaving
+  const canDiscardBtn = isDirty && !isSaving
   const canDelete = !isDeleting
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
+      {/* Undo */}
+      {onUndo && (
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo || isSaving}
+          className={cn(
+            'flex items-center gap-1 px-2 py-1.5 text-sm font-medium rounded-lg transition-colors',
+            canUndo && !isSaving
+              ? 'bg-muted hover:bg-muted/80 text-foreground'
+              : 'bg-muted/50 text-muted-foreground cursor-not-allowed'
+          )}
+          title="Undo (Ctrl+Z)"
+        >
+          <Undo2 className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* Redo */}
+      {onRedo && (
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo || isSaving}
+          className={cn(
+            'flex items-center gap-1 px-2 py-1.5 text-sm font-medium rounded-lg transition-colors',
+            canRedo && !isSaving
+              ? 'bg-muted hover:bg-muted/80 text-foreground'
+              : 'bg-muted/50 text-muted-foreground cursor-not-allowed'
+          )}
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          <Redo2 className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* Separator when undo/redo shown */}
+      {(onUndo || onRedo) && <div className="w-px h-6 bg-border mx-1" />}
+
       {/* Save current */}
       <button
         type="button"
         onClick={onSave}
-        disabled={!canSave}
+        disabled={!canSaveBtn}
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
-          canSave
+          canSaveBtn
             ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
         )}
@@ -95,10 +145,10 @@ export function EditorToolbar({
       <button
         type="button"
         onClick={onDiscard}
-        disabled={!canDiscard}
+        disabled={!canDiscardBtn}
         className={cn(
           'flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
-          canDiscard
+          canDiscardBtn
             ? 'bg-muted hover:bg-muted/80 text-foreground'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
         )}

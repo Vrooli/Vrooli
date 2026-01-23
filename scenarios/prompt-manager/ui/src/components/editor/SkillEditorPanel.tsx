@@ -22,7 +22,7 @@
 import { X, FolderOpen, HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
-import type { SkillFormState, ValidationResult } from '@/types/editor'
+import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill, FolderType } from '@/types'
 import type { CombineFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
@@ -37,7 +37,7 @@ import { TagChipsEditor } from '../shared/TagChipsEditor'
 interface SkillEditorPanelProps {
   // Current state
   currentSkill: Skill | null
-  formState: SkillFormState
+  formState: NormalizedFormState
   validation: ValidationResult
 
   // All skills for skill tree
@@ -48,10 +48,16 @@ interface SkillEditorPanelProps {
   dirtyCount: number
 
   // Form operations
-  onFieldChange: <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => void
+  onFieldChange: <K extends keyof NormalizedFormState>(field: K, value: NormalizedFormState[K]) => void
 
   // Available tags for autocomplete
   availableTags?: string[]
+
+  // Undo/Redo
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
 
   // Actions
   onSave: () => void
@@ -80,6 +86,10 @@ export function SkillEditorPanel({
   dirtyCount,
   onFieldChange,
   availableTags = [],
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   onSave,
   onSaveAll,
   onDiscard,
@@ -229,6 +239,10 @@ export function SkillEditorPanel({
           <EditorToolbar
             isDirty={isDirty}
             dirtyCount={dirtyCount}
+            onUndo={onUndo}
+            onRedo={onRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
             onSave={onSave}
             onSaveAll={onSaveAll}
             onDiscard={onDiscard}
