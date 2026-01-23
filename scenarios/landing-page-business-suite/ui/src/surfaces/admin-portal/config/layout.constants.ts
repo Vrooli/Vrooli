@@ -46,10 +46,36 @@ export const LAYOUT = {
 
   /**
    * Common card styling for admin forms.
+   * - base: Standard border and background
+   * - hover: Interactive hover state
+   * - elevated: Prominent cards with shadow
+   * - interactive: Cards that respond to hover
+   * - section: Large section containers
    */
   card: {
     base: 'border-white/10 bg-slate-900/60',
     hover: 'hover:border-white/20',
+    elevated: 'rounded-2xl border border-white/10 bg-white/5 shadow-lg',
+    interactive: 'rounded-2xl border border-white/10 bg-white/5 hover:border-white/20 transition-colors',
+    section: 'rounded-3xl border border-white/5 bg-white/5',
+  },
+
+  /**
+   * Border radius presets for consistency.
+   */
+  borderRadius: {
+    default: 'rounded-xl',
+    large: 'rounded-2xl',
+    extraLarge: 'rounded-3xl',
+  },
+
+  /**
+   * Border opacity presets.
+   */
+  borderOpacity: {
+    subtle: 'border-white/5',
+    default: 'border-white/10',
+    prominent: 'border-white/20',
   },
 } as const;
 

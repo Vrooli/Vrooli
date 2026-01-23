@@ -4,6 +4,14 @@ import { useMetrics } from '../../../shared/hooks/useMetrics';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { createBillingPortalSession, requestDownload, getAssetUrl } from '../../../shared/api'
 import { useEntitlements } from '../../../shared/hooks/useEntitlements';
+import {
+  detectPlatform,
+  getDownloadAssetKey,
+  sanitizeArtifactUrl,
+  openDownloadWindow,
+  getVariantLabel,
+  type DetectedPlatform,
+} from '../services/downloads.service';
 
 interface DownloadSectionProps {
   content?: {
@@ -19,8 +27,6 @@ type DownloadStatus = {
   success?: boolean;
   message?: string;
 };
-
-type DetectedPlatform = 'windows' | 'mac' | 'linux' | 'unknown';
 
 interface PlatformGroup {
   platform: DetectedPlatform | string;
@@ -54,73 +60,13 @@ const PLATFORM_DISPLAY: Record<string, { label: string; icon: JSX.Element }> = {
   },
 };
 
-function detectPlatform(): DetectedPlatform {
-  if (typeof navigator === 'undefined') return 'unknown';
-
-  const ua = navigator.userAgent.toLowerCase();
-  const platform = (navigator.platform || '').toLowerCase();
-
-  if (platform.includes('win') || ua.includes('windows')) return 'windows';
-  if (platform.includes('mac') || ua.includes('macintosh') || ua.includes('mac os')) return 'mac';
-  if (platform.includes('linux') || ua.includes('linux')) return 'linux';
-
-  return 'unknown';
-}
-
-export function getDownloadAssetKey(download: DownloadAsset): string {
-  if (typeof download.id === 'number') {
-    return `asset-${download.id}`;
-  }
-  const version = download.release_version || 'unknown';
-  const artifact = download.artifact_url || 'na';
-  return `app-${download.app_key}-${download.platform}-${version}-${artifact}`;
-}
-
-function sanitizeArtifactUrl(artifactUrl?: string) {
-  if (typeof artifactUrl !== 'string') return '';
-  const trimmed = artifactUrl.trim();
-  if (!trimmed) return '';
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return '';
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^[./]/.test(trimmed) || !trimmed.includes(':')) return trimmed;
-  return '';
-}
-
-function openDownloadWindow(url: string) {
-  if (typeof window === 'undefined' || typeof window.open !== 'function') return false;
-  const target = window.open(url, '_blank', 'noopener,noreferrer');
-  return target !== null;
-}
+// Re-export for backwards compatibility
+export { getDownloadAssetKey } from '../services/downloads.service';
 
 function hasInstallTargets(app: DownloadApp) {
   return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
 }
 
-/** Extract a human-readable variant label from artifact URL or release notes */
-function getVariantLabel(installer: DownloadAsset): string {
-  const url = installer.artifact_url?.toLowerCase() ?? '';
-  const notes = installer.release_notes?.toLowerCase() ?? '';
-
-  // Check for specific formats
-  if (url.includes('.appimage') || notes.includes('appimage')) return 'AppImage';
-  if (url.includes('.deb') || notes.includes('.deb')) return '.deb';
-  if (url.includes('.rpm') || notes.includes('.rpm')) return '.rpm';
-  if (url.includes('.tar.gz') || url.includes('.tgz')) return '.tar.gz';
-  if (url.includes('.dmg') || notes.includes('.dmg')) return '.dmg';
-  if (url.includes('.pkg') || notes.includes('.pkg')) return '.pkg';
-  if (url.includes('.exe') || notes.includes('.exe')) return 'Installer';
-  if (url.includes('.msi') || notes.includes('.msi')) return '.msi';
-  if (url.includes('.zip')) return '.zip';
-
-  // Check for architecture
-  if (url.includes('arm64') || url.includes('aarch64') || notes.includes('arm')) return 'ARM64';
-  if (url.includes('x64') || url.includes('x86_64') || url.includes('amd64')) return '64-bit';
-  if (url.includes('x86') || url.includes('i386') || url.includes('i686')) return '32-bit';
-
-  // Fallback to version
-  return installer.release_version ? `v${installer.release_version}` : 'Download';
-}
 
 export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   // Compute filtered apps before any hooks

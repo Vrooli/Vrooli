@@ -67,8 +67,8 @@ export function BillingSettings() {
   const publishablePreview = stripeSettings?.publishable_key_preview;
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="wide">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="Billing & Subscription"

@@ -75,8 +75,8 @@ export function AdminAnalytics() {
   }
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="wide">
+      <div className={LAYOUT.pageSpacing}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader

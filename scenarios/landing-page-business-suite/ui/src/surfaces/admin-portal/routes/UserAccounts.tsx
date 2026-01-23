@@ -62,8 +62,8 @@ export function UserAccounts() {
   }, [selectedUser, loadUserSessions]);
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="wide">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="User Accounts"

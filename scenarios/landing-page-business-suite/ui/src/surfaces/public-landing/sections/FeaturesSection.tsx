@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Layers, Target, Database, Zap, Shield, Sparkles, Rocket, Video, BarChart3 } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
+import { PUBLIC_CARD_STYLES } from '../config/styles.constants';
 
 const iconMap = {
   layers: Layers,
@@ -154,7 +155,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[1.8fr_0.9fr]">
           <div className="space-y-6">
-            <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/5 p-2">
+            <div className={`flex flex-wrap gap-2 ${PUBLIC_CARD_STYLES.default} p-2`}>
               {categories.map((category) => (
                 <button
                   key={category.id}
@@ -207,7 +208,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
             </div>
           </div>
 
-          <aside className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-6">
+          <aside className={`space-y-4 ${PUBLIC_CARD_STYLES.section} p-6`}>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Proof & momentum</p>
             <div className="space-y-3">
               {[
@@ -224,7 +225,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
                 </div>
               ))}
             </div>
-            <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className={`flex flex-col gap-3 ${PUBLIC_CARD_STYLES.default} p-4`}>
               <p className="text-sm text-slate-200">See how it works, from first automation to downloads.</p>
               <div className="flex flex-wrap gap-3">
                 <Button asChild variant="default" size="sm" className="px-4">
@@ -238,7 +239,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
           </aside>
         </div>
 
-        <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-slate-300">
+        <div className={`mt-12 ${PUBLIC_CARD_STYLES.section} p-6 text-sm text-slate-300`}>
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p>Consistent pricing, no matter how many features and apps we ship. That's the Vrooli guarantee.</p>
             <div className="flex gap-3">

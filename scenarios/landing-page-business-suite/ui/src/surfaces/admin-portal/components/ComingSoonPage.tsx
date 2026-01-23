@@ -62,8 +62,8 @@ export function ComingSoonPage({
   alternatives,
 }: ComingSoonPageProps) {
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.narrow} mx-auto ${LAYOUT.sectionSpacing}`}>
+    <AdminLayout maxWidth="narrow">
+      <div className={LAYOUT.sectionSpacing}>
         <PageHeader
           variant="icon-title"
           title={title}

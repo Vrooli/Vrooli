@@ -136,8 +136,8 @@ export function SectionEditor() {
   }
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.extraWide} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="extraWide">
+      <div className={LAYOUT.pageSpacing}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader

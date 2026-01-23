@@ -38,8 +38,8 @@ export function AgentCustomization() {
   };
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.narrow} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="narrow">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="Agent Customization"

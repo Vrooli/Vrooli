@@ -124,8 +124,8 @@ export function VariantEditor() {
   }
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader

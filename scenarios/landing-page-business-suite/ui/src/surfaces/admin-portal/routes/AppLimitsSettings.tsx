@@ -62,8 +62,8 @@ export function AppLimitsSettings() {
   };
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="App Limits"

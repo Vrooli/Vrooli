@@ -49,8 +49,8 @@ export function BrandingSettings() {
   };
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="Configure how your landing page looks and ranks"

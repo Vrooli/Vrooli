@@ -4,6 +4,7 @@ import { Lock, Mail, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
 import { isApiError } from '../../../shared/api';
+import { LAYOUT } from '../config/layout.constants';
 
 /**
  * Admin login page - implements ADMIN-AUTH requirement (OT-P0-008)
@@ -69,7 +70,7 @@ export function AdminLogin() {
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
 
-      <div className="relative z-10 w-full max-w-md">
+      <div className={`relative z-10 w-full ${LAYOUT.maxWidth.narrow}`}>
         {/* Logo/Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 mb-4">

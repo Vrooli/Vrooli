@@ -21,6 +21,14 @@ import { VideoSection } from '../sections/VideoSection';
 import { DownloadSection } from '../sections/DownloadSection';
 import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId, getSectionKey } from '../../../shared/lib/sections';
 import { normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
+import {
+  buildNavItems,
+  hasDownloadTargets,
+  formatDownloadPlatform,
+  getDownloadButtonLabel,
+  getSectionNavLabel,
+  type NavItem,
+} from '../services/navigation.service';
 
 interface SectionRendererContext {
   section: LandingSection;
@@ -28,11 +36,6 @@ interface SectionRendererContext {
 }
 
 type SectionRenderer = (context: SectionRendererContext) => JSX.Element | null;
-
-interface NavItem {
-  id: string;
-  label: string;
-}
 
 interface HeaderNavRenderItem {
   id: string;
@@ -71,17 +74,6 @@ interface HeaderRuntimeMeta {
   statusNote: string | null;
 }
 
-const SECTION_NAV_ORDER = ['hero', 'video', 'features', 'pricing', 'testimonials', 'faq', 'cta', 'footer'] as const;
-const SECTION_NAV_LABELS: Record<string, string> = {
-  hero: 'Overview',
-  video: 'Demo',
-  features: 'Features',
-  pricing: 'Pricing',
-  testimonials: 'Proof',
-  faq: 'FAQ',
-  cta: 'Call to Action',
-  footer: 'More',
-};
 const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   url_param: 'URL parameter',
   local_storage: 'Stored assignment',
@@ -89,22 +81,6 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   fallback: 'Offline fallback',
   unknown: 'Unknown source',
 };
-const DOWNLOAD_PLATFORM_LABELS: Record<string, string> = {
-  windows: 'Windows',
-  mac: 'macOS',
-  linux: 'Linux',
-};
-
-function hasDownloadTargets(app: DownloadApp) {
-  return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;
-}
-
-function formatDownloadPlatform(platform?: string) {
-  if (!platform) {
-    return 'Download';
-  }
-  return DOWNLOAD_PLATFORM_LABELS[platform.toLowerCase()] ?? platform;
-}
 
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
@@ -125,20 +101,6 @@ const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
   ),
 };
 
-function buildNavItems(sections: LandingSection[], includeDownloads: boolean, downloadAnchorId: string): NavItem[] {
-  const items: NavItem[] = [];
-  for (const type of SECTION_NAV_ORDER) {
-    const match = sections.find((section) => section.section_type === type);
-    if (!match) {
-      continue;
-    }
-    items.push({ id: getSectionAnchorId(match), label: SECTION_NAV_LABELS[type] ?? type });
-  }
-  if (includeDownloads) {
-    items.push({ id: downloadAnchorId, label: 'Downloads' });
-  }
-  return items;
-}
 
 /**
  * Public Landing Page
@@ -191,23 +153,10 @@ export function PublicLanding() {
   const heroCtaUrl = typeof heroCTAContent?.cta_url === 'string' ? heroCTAContent.cta_url : undefined;
   const variantLabel = variant?.name ?? variant?.slug ?? 'Variant not resolved';
   const resolutionLabel = RESOLUTION_LABELS[resolution] ?? RESOLUTION_LABELS.unknown;
-  const downloadButtonLabel = useMemo(() => {
-    if (!hasDownloads) {
-      return 'Downloads';
-    }
-    if (downloadApps.length === 1) {
-      const single = downloadApps[0];
-      const singleInstaller = single.platforms?.[0];
-      if ((single.platforms?.length ?? 0) === 1 && singleInstaller) {
-        return `Download ${formatDownloadPlatform(singleInstaller.platform)}`;
-      }
-      if ((single.storefronts?.length ?? 0) === 1 && (single.platforms?.length ?? 0) === 0) {
-        return `Open ${single.storefronts?.[0]?.label ?? 'store'}`;
-      }
-      return `View ${single.name}`;
-    }
-    return 'View downloads';
-  }, [downloadApps, hasDownloads]);
+  const downloadButtonLabel = useMemo(
+    () => getDownloadButtonLabel(downloadApps),
+    [downloadApps]
+  );
   const headerConfig = useMemo(
     () => normalizeHeaderConfig(config?.header, config?.branding?.site_name ?? variantLabel),
     [config?.branding?.site_name, config?.header, variantLabel],
@@ -673,7 +622,7 @@ function resolveNavLinks(
 
   return configuredLinks.flatMap<HeaderNavRenderItem>((link, index) => {
     const visibility = ensureVisibilityFlags(link.visible_on);
-    const label = link.label || SECTION_NAV_LABELS[link.section_type ?? ''] || 'Section';
+    const label = link.label || getSectionNavLabel(link.section_type ?? '') || 'Section';
 
     if (link.type === 'downloads') {
       if (!downloadsAvailable) {
@@ -708,7 +657,7 @@ function resolveNavLinks(
       const children: HeaderNavRenderChild[] = link.children.map((child, childIdx) => {
         const childVisibility = ensureVisibilityFlags(child.visible_on);
         // child visibility influences only child; parent visibility still used for desktop render
-        const childLabel = child.label || SECTION_NAV_LABELS[child.section_type ?? ''] || 'Item';
+        const childLabel = child.label || getSectionNavLabel(child.section_type ?? '') || 'Item';
         const childAnchor =
           child.anchor ||
           (typeof child.section_id === 'number'

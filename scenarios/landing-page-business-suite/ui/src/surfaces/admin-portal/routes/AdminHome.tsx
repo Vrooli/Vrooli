@@ -101,8 +101,8 @@ export function AdminHome() {
   };
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.sectionSpacing}`}>
+    <AdminLayout maxWidth="wide">
+      <div className={LAYOUT.sectionSpacing}>
         <PageHeader
           variant="icon-title"
           title="Landing Manager Admin"

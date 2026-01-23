@@ -1,39 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
-import { FormField, inputClassName } from '../components/FormField';
-import { StatusBadge, StatusBadgeGrid } from '../components/StatusBadge';
+import { StatusBadgeGrid } from '../components/StatusBadge';
 import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { LAYOUT } from '../config/layout.constants';
-import {
-  applyDownloadArtifactAdmin,
-  commitDownloadArtifactAdmin,
-  getDownloadStorageAdmin,
-  listDownloadArtifactsAdmin,
-  presignDownloadArtifactGetAdmin,
-  presignDownloadArtifactUploadAdmin,
-  testDownloadStorageAdmin,
-  updateDownloadStorageAdmin,
-  type DownloadArtifact,
-  type DownloadStorageSettingsSnapshot,
-} from '../../../shared/api';
+import { presignDownloadArtifactGetAdmin } from '../../../shared/api';
 import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical, ImageIcon } from 'lucide-react';
 import { useDownloadsForm, type AppFormState } from '../hooks/useDownloadsForm';
+import { useDownloadHosting } from '../hooks/useDownloadHosting';
 import {
   isFormDirty,
-  buildDefaultStorageForm,
-  buildDefaultCredentialsForm,
-  buildStorageUpdatePayload,
   PLATFORM_KEYS,
   type PlatformKey,
   type AppFormValues,
   type PlatformFormValues,
-  type StorageFormValues,
-  type CredentialsFormValues,
 } from '../services/downloads.service';
 
 export function DownloadSettings() {
@@ -63,189 +47,47 @@ export function DownloadSettings() {
 
   const [activeTab, setActiveTab] = useState<'apps' | 'hosting'>('apps');
 
-  const [storageSettings, setStorageSettings] = useState<DownloadStorageSettingsSnapshot | null>(null);
-  const [storageLoading, setStorageLoading] = useState(false);
-  const [storageSaving, setStorageSaving] = useState(false);
-  const [storageError, setStorageError] = useState<string | null>(null);
-  const [storageSuccess, setStorageSuccess] = useState<string | null>(null);
-  const [storageForm, setStorageForm] = useState<StorageFormValues>(buildDefaultStorageForm());
-  const [credentialsForm, setCredentialsForm] = useState<CredentialsFormValues>(buildDefaultCredentialsForm());
+  const getFirstAppKey = useCallback(() => forms[0]?.values.appKey ?? '', [forms]);
 
-  const [artifactsLoading, setArtifactsLoading] = useState(false);
-  const [artifactsError, setArtifactsError] = useState<string | null>(null);
-  const [artifactsQuery, setArtifactsQuery] = useState('');
-  const [artifactsPlatform, setArtifactsPlatform] = useState<PlatformKey | ''>('');
-  const [artifacts, setArtifacts] = useState<DownloadArtifact[]>([]);
-  const [selectedArtifact, setSelectedArtifact] = useState<DownloadArtifact | null>(null);
-  const [applyTarget, setApplyTarget] = useState({
-    appKey: '',
-    platform: 'windows' as PlatformKey,
-    requiresEntitlement: false,
-    releaseVersion: '',
-    releaseNotes: '',
-  });
-
-  const [uploadState, setUploadState] = useState({
-    file: null as File | null,
-    platform: '' as PlatformKey | '',
-    releaseVersion: '',
-    appKey: '',
-    busy: false,
-    message: '' as string,
-    error: '' as string,
-  });
-
-  const loadStorage = useCallback(async () => {
-    setStorageLoading(true);
-    setStorageError(null);
-    setStorageSuccess(null);
-    try {
-      const { settings } = await getDownloadStorageAdmin();
-      setStorageSettings(settings);
-      setStorageForm({
-        bucket: settings.bucket ?? '',
-        region: settings.region ?? '',
-        endpoint: settings.endpoint ?? '',
-        forcePathStyle: settings.force_path_style ?? false,
-        defaultPrefix: settings.default_prefix ?? '',
-        signedUrlTtlSeconds: settings.signed_url_ttl_seconds ?? 900,
-        publicBaseUrl: settings.public_base_url ?? '',
-      });
-      setCredentialsForm((prev) => ({
-        ...prev,
-        accessKeyId: '',
-        secretAccessKey: '',
-        sessionToken: '',
-        clearAccessKeyId: false,
-        clearSecretAccessKey: false,
-        clearSessionToken: false,
-      }));
-    } catch (err) {
-      setStorageError(err instanceof Error ? err.message : 'Failed to load storage settings');
-    } finally {
-      setStorageLoading(false);
-    }
-  }, []);
-
-  const loadArtifacts = useCallback(async () => {
-    setArtifactsLoading(true);
-    setArtifactsError(null);
-    try {
-      const response = await listDownloadArtifactsAdmin({
-        query: artifactsQuery.trim() || undefined,
-        platform: artifactsPlatform || undefined,
-        page_size: 50,
-      });
-      setArtifacts(response.artifacts ?? []);
-    } catch (err) {
-      setArtifactsError(err instanceof Error ? err.message : 'Failed to load artifacts');
-    } finally {
-      setArtifactsLoading(false);
-    }
-  }, [artifactsPlatform, artifactsQuery]);
-
-  useEffect(() => {
-    if (activeTab !== 'hosting') return;
-    void loadStorage();
-    void loadArtifacts();
-  }, [activeTab, loadArtifacts, loadStorage]);
-
-  const handleSaveStorage = async () => {
-    setStorageSaving(true);
-    setStorageError(null);
-    setStorageSuccess(null);
-    try {
-      const payload = buildStorageUpdatePayload(storageForm, credentialsForm);
-      const { settings } = await updateDownloadStorageAdmin(payload as any);
-      setStorageSettings(settings);
-      setStorageSuccess('Saved storage settings.');
-    } catch (err) {
-      setStorageError(err instanceof Error ? err.message : 'Failed to save settings');
-    } finally {
-      setStorageSaving(false);
-    }
-  };
-
-  const handleTestStorage = async () => {
-    setStorageError(null);
-    setStorageSuccess(null);
-    try {
-      await testDownloadStorageAdmin();
-      setStorageSuccess('Connection test succeeded.');
-    } catch (err) {
-      setStorageError(err instanceof Error ? err.message : 'Connection test failed');
-    }
-  };
-
-  const handleUploadArtifact = async () => {
-    if (!uploadState.file) {
-      setUploadState((prev) => ({ ...prev, error: 'Choose a file first.' }));
-      return;
-    }
-    setUploadState((prev) => ({ ...prev, busy: true, error: '', message: '' }));
-    try {
-      const presign = await presignDownloadArtifactUploadAdmin({
-        filename: uploadState.file.name,
-        content_type: uploadState.file.type || 'application/octet-stream',
-        app_key: uploadState.appKey.trim() || undefined,
-        platform: uploadState.platform || undefined,
-        release_version: uploadState.releaseVersion.trim() || undefined,
-      });
-      const headers = new Headers();
-      Object.entries(presign.required_headers ?? {}).forEach(([key, value]) => {
-        if (key.toLowerCase() === 'host') return;
-        headers.set(key, value);
-      });
-      if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', uploadState.file.type || 'application/octet-stream');
-      }
-      const uploadResp = await fetch(presign.upload_url, { method: 'PUT', headers, body: uploadState.file });
-      if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
-      await commitDownloadArtifactAdmin({
-        bucket: presign.bucket,
-        object_key: presign.object_key,
-        original_filename: uploadState.file.name,
-        content_type: uploadState.file.type || undefined,
-        platform: uploadState.platform || undefined,
-        release_version: uploadState.releaseVersion.trim() || undefined,
-      });
-      setUploadState((prev) => ({ ...prev, busy: false, file: null, message: 'Upload committed.', error: '' }));
-      await loadArtifacts();
-    } catch (err) {
-      setUploadState((prev) => ({ ...prev, busy: false, error: err instanceof Error ? err.message : 'Upload failed' }));
-    }
-  };
-
-  const handleApplyArtifact = async () => {
-    if (!selectedArtifact) return;
-    if (!applyTarget.appKey.trim()) {
-      setArtifactsError('Select an app to apply to.');
-      return;
-    }
-    try {
-      await applyDownloadArtifactAdmin({
-        app_key: applyTarget.appKey,
-        platform: applyTarget.platform,
-        artifact_id: selectedArtifact.id,
-        release_version: applyTarget.releaseVersion.trim() || undefined,
-        release_notes: applyTarget.releaseNotes.trim() || undefined,
-        requires_entitlement: applyTarget.requiresEntitlement,
-      });
-      setSelectedArtifact(null);
-      await loadApps();
-      setStorageSuccess('Applied artifact to download asset.');
-    } catch (err) {
-      setArtifactsError(err instanceof Error ? err.message : 'Failed to apply artifact');
-    }
-  };
+  const {
+    storageSettings,
+    storageLoading,
+    storageSaving,
+    storageError,
+    storageSuccess,
+    storageForm,
+    setStorageForm,
+    credentialsForm,
+    setCredentialsForm,
+    loadStorage,
+    handleSaveStorage,
+    handleTestStorage,
+    artifactsLoading,
+    artifactsError,
+    setArtifactsError,
+    artifactsQuery,
+    setArtifactsQuery,
+    artifactsPlatform,
+    setArtifactsPlatform,
+    artifacts,
+    selectedArtifact,
+    setSelectedArtifact,
+    applyTarget,
+    setApplyTarget,
+    loadArtifacts,
+    handleApplyArtifact,
+    uploadState,
+    setUploadState,
+    handleUploadArtifact,
+  } = useDownloadHosting({ activeTab, loadApps, getFirstAppKey });
 
   const previewPublicLanding = () => {
     window.open('/', '_blank', 'noopener,noreferrer');
   };
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.sectionSpacing}`}>
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="Configure apps and installers for your landing page"

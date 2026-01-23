@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import type {
@@ -6,17 +5,7 @@ import type {
   LandingHeaderConfig,
   HeaderCTAMode,
 } from '../../../shared/api';
-import { cloneHeaderConfig } from '../../../shared/lib/headerConfig';
-import { DOWNLOAD_ANCHOR_ID } from '../../../shared/lib/sections';
-import {
-  createNavLinkFromSection,
-  createDownloadsNavLink,
-  createMenuNavLink,
-  createMenuChildLink,
-  generateNavLinkId,
-  findSectionByTarget,
-  parseNavTarget,
-} from '../services/variant.service';
+import { useHeaderConfiguration } from '../hooks/useHeaderConfiguration';
 
 interface HeaderConfiguratorProps {
   config: LandingHeaderConfig;
@@ -26,132 +15,22 @@ interface HeaderConfiguratorProps {
 }
 
 export function HeaderConfigurator({ config, sections, onChange, variantName }: HeaderConfiguratorProps) {
-  const [navTarget, setNavTarget] = useState('');
-  const downloadsSection = sections.some((section) => section.section_type === 'downloads');
-
-  const updateConfig = (updater: (draft: LandingHeaderConfig) => void) => {
-    onChange((prev) => {
-      const next = cloneHeaderConfig(prev);
-      updater(next);
-      return next;
-    });
-  };
-
-  const handleAddLink = () => {
-    if (!navTarget) return;
-
-    const parsed = parseNavTarget(navTarget);
-    if (!parsed) return;
-
-    if (parsed.type === 'downloads') {
-      updateConfig((draft) => {
-        draft.nav.links.push(createDownloadsNavLink());
-      });
-    } else if (parsed.type === 'section') {
-      const targetSection = findSectionByTarget(sections, parsed);
-      if (targetSection) {
-        updateConfig((draft) => {
-          draft.nav.links.push(createNavLinkFromSection(targetSection));
-        });
-      }
-    }
-    setNavTarget('');
-  };
-
-  const handleNavLabelChange = (index: number, value: string) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[index];
-      if (!link) return;
-      link.label = value;
-    });
-  };
-
-  const handleMenuChildChange = (
-    linkIndex: number,
-    childIndex: number,
-    field: 'label' | 'href',
-    value: string,
-  ) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      if (!link.children[childIndex]) {
-        link.children[childIndex] = createMenuChildLink();
-      }
-      if (field === 'label') {
-        link.children[childIndex].label = value;
-      } else {
-        link.children[childIndex].href = value;
-      }
-    });
-  };
-
-  const handleAddMenuChild = (linkIndex: number) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu') return;
-      if (!Array.isArray(link.children)) {
-        link.children = [];
-      }
-      link.children.push(createMenuChildLink());
-    });
-  };
-
-  const handleRemoveMenuChild = (linkIndex: number, childIndex: number) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[linkIndex];
-      if (!link || link.type !== 'menu' || !Array.isArray(link.children)) return;
-      link.children.splice(childIndex, 1);
-    });
-  };
-
-  const handleVisibilityToggle = (index: number, key: 'desktop' | 'mobile', value: boolean) => {
-    updateConfig((draft) => {
-      const link = draft.nav.links[index];
-      if (!link) return;
-      link.visible_on = {
-        desktop: key === 'desktop' ? value : link.visible_on?.desktop ?? true,
-        mobile: key === 'mobile' ? value : link.visible_on?.mobile ?? true,
-      };
-    });
-  };
-
-  const handleRemoveLink = (index: number) => {
-    updateConfig((draft) => {
-      if (index < 0 || index >= draft.nav.links.length) return;
-      draft.nav.links.splice(index, 1);
-    });
-  };
-
-  const handleAddMenu = () => {
-    updateConfig((draft) => {
-      draft.nav.links.push(createMenuNavLink());
-    });
-  };
-
-  const handleMoveLink = (index: number, direction: -1 | 1) => {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= config.nav.links.length) return;
-    updateConfig((draft) => {
-      const [link] = draft.nav.links.splice(index, 1);
-      draft.nav.links.splice(nextIndex, 0, link);
-    });
-  };
-
-  const handleCTAModeChange = (
-    target: 'primary' | 'secondary',
-    updates: { mode?: HeaderCTAMode; label?: string; href?: string; variant?: 'solid' | 'ghost' },
-  ) => {
-    updateConfig((draft) => {
-      draft.ctas[target] = {
-        ...draft.ctas[target],
-        ...updates,
-      };
-    });
-  };
+  const {
+    navTarget,
+    setNavTarget,
+    downloadsSection,
+    updateConfig,
+    handleAddLink,
+    handleNavLabelChange,
+    handleMenuChildChange,
+    handleAddMenuChild,
+    handleRemoveMenuChild,
+    handleVisibilityToggle,
+    handleRemoveLink,
+    handleAddMenu,
+    handleMoveLink,
+    handleCTAModeChange,
+  } = useHeaderConfiguration({ config, sections, onChange });
 
   return (
     <Card className="bg-white/5 border-white/10 mb-6">

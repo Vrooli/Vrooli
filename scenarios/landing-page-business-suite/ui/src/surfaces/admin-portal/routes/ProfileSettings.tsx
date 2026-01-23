@@ -25,8 +25,8 @@ export function ProfileSettings() {
   } = useProfileForm();
 
   return (
-    <AdminLayout>
-      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
+    <AdminLayout maxWidth="default">
+      <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
           title="Harden the default admin identity"

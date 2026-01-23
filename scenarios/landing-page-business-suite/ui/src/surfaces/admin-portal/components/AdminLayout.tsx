@@ -6,9 +6,14 @@ import { adminLogout } from '../../../shared/api';
 import { NAVIGATION_CONFIG } from '../config/navigation';
 import { buildBreadcrumbs, isGroupActive } from '../config/navigation.utils';
 import type { NavGroup } from '../config/navigation.types';
+import { LAYOUT } from '../config/layout.constants';
+
+export type MaxWidthPreset = 'narrow' | 'default' | 'wide' | 'extraWide' | 'full';
 
 interface AdminLayoutProps {
   children: ReactNode;
+  /** Content max-width preset. When set, constrains main content width. */
+  maxWidth?: MaxWidthPreset;
 }
 
 // Dropdown component for nav groups
@@ -74,7 +79,7 @@ function NavDropdown({ group, currentPath }: {
   );
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -88,6 +93,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   const breadcrumbs = buildBreadcrumbs(location.pathname);
+
+  // Compute max-width class from preset
+  const maxWidthClass = maxWidth && maxWidth !== 'full'
+    ? LAYOUT.maxWidth[maxWidth]
+    : '';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
@@ -163,7 +173,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
+      <main className={`mx-auto px-6 py-8 ${maxWidthClass}`}>
         {children}
       </main>
     </div>
