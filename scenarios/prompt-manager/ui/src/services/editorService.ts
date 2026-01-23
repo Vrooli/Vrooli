@@ -157,7 +157,7 @@ export function createEmptyFormState(): PromptFormState {
     tags: '',
     icon: '',
     draft: true,
-    folder: 'internal',
+    folder: 'local',
   }
 }
 

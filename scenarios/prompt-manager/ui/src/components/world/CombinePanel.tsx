@@ -9,7 +9,7 @@ import { Copy, Check, X, FileCode, FileText, Braces, ChevronDown, ChevronUp } fr
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import type { Prompt } from '@/types'
-import type { CombineFormat } from '@/types/skilltree'
+import type { CombineFormat } from '@/types/world'
 import { combinePrompts, generatePreview, validateForCombine } from '@/services/promptCombineService'
 
 interface CombinePanelProps {

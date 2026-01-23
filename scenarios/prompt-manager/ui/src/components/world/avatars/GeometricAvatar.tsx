@@ -8,7 +8,7 @@ import { useFrame } from '@react-three/fiber'
 import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
-import type { AvatarProps } from '@/types/skilltree'
+import type { AvatarProps } from '@/types/world'
 
 // Default avatar colors
 const DEFAULT_COLORS = {
@@ -24,11 +24,11 @@ export function GeometricAvatar({
   position,
   cursorPosition,
   selectedNodes,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   isAnimating: _isAnimating,
   onAvatarClick,
   colors,
 }: AvatarProps) {
+  void _isAnimating // Reserved for future animation triggers
   // Merge custom colors with defaults
   const COLORS = useMemo(
     () => ({

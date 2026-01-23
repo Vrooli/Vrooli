@@ -25,7 +25,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     modes: [],
     tags: [],
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 0,

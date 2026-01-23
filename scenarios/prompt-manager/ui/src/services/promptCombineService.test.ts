@@ -28,7 +28,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     modes: [],
     tags: [],
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 0,
@@ -157,19 +157,34 @@ describe('combinePrompts', () => {
   })
 
   describe('JSON format', () => {
+    // Type for parsed JSON output
+    interface CombinedJsonOutput {
+      combined: boolean
+      count: number
+      generated: string
+      prompts: Array<{
+        id: string
+        name: string
+        description: string
+        modes: string[]
+        tags: string[]
+        content: string
+      }>
+    }
+
     it('should generate valid JSON', () => {
       const prompts = [createTestPrompt({ id: '1', name: 'Test' })]
 
       const result = combinePrompts(prompts, 'json')
 
-      expect(() => JSON.parse(result.combined)).not.toThrow()
+      expect(() => JSON.parse(result.combined) as unknown).not.toThrow()
     })
 
     it('should include combined flag and count', () => {
       const prompts = [createTestPrompt(), createTestPrompt({ id: '2' })]
 
       const result = combinePrompts(prompts, 'json')
-      const parsed = JSON.parse(result.combined)
+      const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
 
       expect(parsed.combined).toBe(true)
       expect(parsed.count).toBe(2)
@@ -188,14 +203,16 @@ describe('combinePrompts', () => {
       ]
 
       const result = combinePrompts(prompts, 'json')
-      const parsed = JSON.parse(result.combined)
+      const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
+      const firstPrompt = parsed.prompts[0]
 
-      expect(parsed.prompts[0].id).toBe('test-id')
-      expect(parsed.prompts[0].name).toBe('Test Name')
-      expect(parsed.prompts[0].description).toBe('Test Desc')
-      expect(parsed.prompts[0].modes).toEqual(['m1'])
-      expect(parsed.prompts[0].tags).toEqual(['t1'])
-      expect(parsed.prompts[0].content).toBe('Test Content')
+      expect(firstPrompt).toBeDefined()
+      expect(firstPrompt?.id).toBe('test-id')
+      expect(firstPrompt?.name).toBe('Test Name')
+      expect(firstPrompt?.description).toBe('Test Desc')
+      expect(firstPrompt?.modes).toEqual(['m1'])
+      expect(firstPrompt?.tags).toEqual(['t1'])
+      expect(firstPrompt?.content).toBe('Test Content')
     })
   })
 

@@ -271,6 +271,20 @@ export function getAllItemIdsInSubtree(node: TreeNode): string[] {
 }
 
 /**
+ * Extract the modes path from a tree node.
+ * Category nodes have IDs like "Writing/Blog/Technical", leaf nodes have IDs like "item-{id}".
+ *
+ * @param node - The tree node
+ * @returns The modes array for this node's path, empty for leaf nodes or "Other"
+ */
+export function getModesPathFromNode(node: TreeNode): string[] {
+  if (!node.isCategory || node.id === '__other__') {
+    return []
+  }
+  return node.id.split('/')
+}
+
+/**
  * Get all unique modes from prompts at a specific level.
  * Used for mode suggestions in the category path editor.
  *

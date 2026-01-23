@@ -133,7 +133,7 @@ export function PromptMetadataForm({
           <label
             className={cn(
               'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
-              formState.folder === 'internal'
+              formState.folder === 'local'
                 ? 'border-primary bg-primary/10'
                 : 'border-border hover:border-border/80 bg-muted/50'
             )}
@@ -141,13 +141,13 @@ export function PromptMetadataForm({
             <input
               type="radio"
               name="folder"
-              value="internal"
-              checked={formState.folder === 'internal'}
-              onChange={() => onFieldChange('folder', 'internal')}
+              value="local"
+              checked={formState.folder === 'local'}
+              onChange={() => onFieldChange('folder', 'local')}
               className="mt-0.5 w-4 h-4 text-primary bg-muted border-border focus:ring-primary focus:ring-offset-0"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium text-foreground">Internal</div>
+              <div className="text-sm font-medium text-foreground">Local</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Personal prompts, gitignored. Only visible on this machine.
               </div>

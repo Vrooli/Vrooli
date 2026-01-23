@@ -31,6 +31,9 @@ interface TreeNodeProps {
   selectionState?: SelectionState
   onCheckboxChange?: (node: TreeNodeType) => void
   getSelectionState?: (node: TreeNodeType) => SelectionState
+  // Context menu props
+  onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
+  onPromptContextMenu?: (promptId: string, promptName: string, x: number, y: number) => void
 }
 
 /**
@@ -80,6 +83,8 @@ export function TreeNodeComponent({
   showCheckbox = false,
   onCheckboxChange,
   getSelectionState,
+  onCategoryContextMenu,
+  onPromptContextMenu,
 }: TreeNodeProps) {
   const isExpanded = expandedNodes.has(node.id)
   const paddingLeft = `${node.depth * 12 + 8}px`
@@ -94,11 +99,19 @@ export function TreeNodeComponent({
     // Count dirty children for this category
     const dirtyCount = countDirtyInSubtree(node, dirtyItemIds)
 
+    const handleContextMenu = (e: React.MouseEvent) => {
+      if (onCategoryContextMenu && !showCheckbox) {
+        e.preventDefault()
+        onCategoryContextMenu(node, e.clientX, e.clientY)
+      }
+    }
+
     return (
       <div>
         <button
           type="button"
           onClick={() => onToggleNode(node.id)}
+          onContextMenu={handleContextMenu}
           className="w-full flex items-center gap-2 py-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs"
           style={{ paddingLeft }}
         >
@@ -138,6 +151,8 @@ export function TreeNodeComponent({
                 showCheckbox={showCheckbox}
                 onCheckboxChange={onCheckboxChange}
                 getSelectionState={getSelectionState}
+                onCategoryContextMenu={onCategoryContextMenu}
+                onPromptContextMenu={onPromptContextMenu}
               />
             ))}
           </div>
@@ -160,10 +175,18 @@ export function TreeNodeComponent({
     }
   }
 
+  const handlePromptContextMenu = (e: React.MouseEvent) => {
+    if (onPromptContextMenu && !showCheckbox && node.itemId) {
+      e.preventDefault()
+      onPromptContextMenu(node.itemId, node.label, e.clientX, e.clientY)
+    }
+  }
+
   return (
     <button
       type="button"
       onClick={handleRowClick}
+      onContextMenu={handlePromptContextMenu}
       className={cn(
         'w-full flex items-center gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
         showCheckbox

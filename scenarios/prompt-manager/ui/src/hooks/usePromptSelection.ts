@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useState } from 'react'
-import type { SelectionMode, SelectionState } from '@/types/skilltree'
+import type { SelectionMode, SelectionState } from '@/types/world'
 
 const INITIAL_STATE: SelectionState = {
   selectedIds: [],

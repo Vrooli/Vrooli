@@ -1,5 +1,5 @@
 /**
- * SkillTreeScene - Composes the 3D scene with avatars, lights, and controls.
+ * WorldScene - Composes the 3D scene with avatars, lights, and controls.
  *
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
  * This scene now focuses on avatar display with ambient environment.
@@ -10,6 +10,12 @@ import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useAvatarComponent } from './AvatarProvider'
 import type { Avatar } from '@/types/avatar'
+
+/** Type for OrbitControls ref - drei doesn't export proper types */
+type OrbitControlsRef = {
+  target: { set: (x: number, y: number, z: number) => void }
+  update: () => void
+}
 
 interface CameraState {
   position: [number, number, number]
@@ -23,7 +29,7 @@ export interface AvatarWithPosition {
   position: [number, number, number]
 }
 
-interface SkillTreeSceneProps {
+interface WorldSceneProps {
   cameraState: CameraState
   selectedNodeIds: string[]
   cursorPosition: { x: number; y: number } | null
@@ -34,16 +40,15 @@ interface SkillTreeSceneProps {
   isDarkMode?: boolean
 }
 
-export function SkillTreeScene({
+export function WorldScene({
   cameraState,
   selectedNodeIds,
   cursorPosition,
   avatarsWithPositions,
   onAvatarClick,
   isDarkMode = true,
-}: SkillTreeSceneProps) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const controlsRef = useRef<any>(null)
+}: WorldSceneProps) {
+  const controlsRef = useRef<OrbitControlsRef>(null)
   const { camera } = useThree()
 
   // Get avatar component from DI
@@ -77,7 +82,7 @@ export function SkillTreeScene({
 
       {/* Controls */}
       <OrbitControls
-        ref={controlsRef}
+        ref={controlsRef as React.Ref<never>}
         enableDamping
         dampingFactor={0.05}
         minDistance={3}

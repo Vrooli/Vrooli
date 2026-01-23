@@ -27,7 +27,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     icon: 'file',
     targetToolId: 'tool-123',
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 5,

@@ -37,7 +37,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     icon: 'file',
     targetToolId: 'tool-123',
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 5,
@@ -165,7 +165,7 @@ describe('usePromptsData', () => {
         name: 'New Prompt',
         description: 'New description',
         content: 'New content',
-        folder: 'internal',
+        folder: 'local',
       }
 
       const created = await result.current.createPrompt(request)
@@ -193,7 +193,7 @@ describe('usePromptsData', () => {
         name: 'New',
         description: '',
         content: 'Content',
-        folder: 'internal',
+        folder: 'local',
       })
 
       await waitFor(() => {
@@ -392,7 +392,7 @@ describe('usePromptsData', () => {
           name: 'Test',
           description: '',
           content: 'Content',
-          folder: 'internal',
+          folder: 'local',
         })
       ).rejects.toThrow('Create failed')
     })

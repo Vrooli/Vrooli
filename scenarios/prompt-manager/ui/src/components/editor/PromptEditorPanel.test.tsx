@@ -29,11 +29,11 @@ vi.mock('./TipTapEditor', () => ({
   ),
 }))
 
-// Mock SkillTreeCanvas - it shows when no prompt is selected
-vi.mock('@/components/skilltree', () => ({
-  SkillTreeCanvas: ({ prompts }: { prompts: unknown[] }) => (
-    <div data-testid="skill-tree-canvas">
-      {prompts.length === 0 ? 'No Prompts Yet' : `${prompts.length} prompts in tree`}
+// Mock WorldCanvas - it shows when no prompt is selected
+vi.mock('@/components/world', () => ({
+  WorldCanvas: ({ prompts }: { prompts: unknown[] }) => (
+    <div data-testid="world-canvas">
+      {prompts.length === 0 ? 'No Prompts Yet' : `${prompts.length} prompts in world`}
     </div>
   ),
 }))
@@ -48,7 +48,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     modes: ['development'],
     tags: ['tag1'],
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 0,
@@ -66,7 +66,7 @@ function createFormState(overrides: Partial<PromptFormState> = {}): PromptFormSt
     tags: 'tag1',
     icon: '',
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     ...overrides,
   }
 }
@@ -97,12 +97,12 @@ const defaultProps = {
 }
 
 describe('PromptEditorPanel', () => {
-  describe('empty state (skill tree)', () => {
-    it('should show skill tree canvas when no prompt is selected', () => {
+  describe('empty state (world)', () => {
+    it('should show world canvas when no prompt is selected', () => {
       render(<PromptEditorPanel {...defaultProps} currentPrompt={null} />)
 
-      // Now shows skill tree instead of empty message
-      expect(screen.getByTestId('skill-tree-canvas')).toBeInTheDocument()
+      // Now shows world instead of empty message
+      expect(screen.getByTestId('world-canvas')).toBeInTheDocument()
     })
 
     it('should show empty tree message when no prompts available', () => {
@@ -122,7 +122,7 @@ describe('PromptEditorPanel', () => {
         />
       )
 
-      expect(screen.getByText('2 prompts in tree')).toBeInTheDocument()
+      expect(screen.getByText('2 prompts in world')).toBeInTheDocument()
     })
   })
 

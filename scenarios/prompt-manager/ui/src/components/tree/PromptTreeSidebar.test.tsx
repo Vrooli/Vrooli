@@ -28,7 +28,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     tags: [],
     icon: 'file',
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 0,
@@ -86,6 +86,9 @@ describe('PromptTreeSidebar', () => {
     onSkillSelectionCancel: vi.fn(),
     getSkillSelectionState: vi.fn().mockReturnValue('none' as const),
     onSkillCheckboxChange: vi.fn(),
+    // Context menu callbacks
+    onDeleteFolder: vi.fn(),
+    onCopyPrompt: vi.fn(),
   }
 
   beforeEach(() => {

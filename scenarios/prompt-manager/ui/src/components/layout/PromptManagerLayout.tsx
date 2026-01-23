@@ -52,6 +52,12 @@ export function PromptManagerLayout() {
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [pendingSelection, setPendingSelection] = useState<string | null>(null)
 
+  // Delete folder dialog state
+  const [deleteFolderDialog, setDeleteFolderDialog] = useState<{
+    promptIds: string[]
+    folderLabel: string
+  } | null>(null)
+
   // Search input ref for keyboard shortcut
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -236,14 +242,14 @@ export function PromptManagerLayout() {
   }, [deleteCurrentPrompt, setSelectedPromptId])
 
   // Handle new prompt creation
-  const handleCreateNew = useCallback(async () => {
+  const handleCreateNew = useCallback(async (modes: string[] = []) => {
     const newPrompt: CreatePromptRequest = {
       name: 'New Prompt',
       description: '',
       content: '# New Prompt\n\nEnter your prompt content here...',
-      modes: [],
+      modes,
       tags: [],
-      folder: 'internal',
+      folder: 'local',
       draft: true,
     }
 
@@ -258,6 +264,59 @@ export function PromptManagerLayout() {
       console.error('Failed to create prompt:', error)
     }
   }, [createPrompt, setSelectedPromptId, isMobile])
+
+  // Handle delete folder request (shows confirmation dialog)
+  const handleDeleteFolderRequest = useCallback((promptIds: string[], folderLabel: string) => {
+    setDeleteFolderDialog({ promptIds, folderLabel })
+  }, [])
+
+  // Handle delete folder confirmation
+  const handleConfirmDeleteFolder = useCallback(async () => {
+    if (!deleteFolderDialog) return
+
+    try {
+      // Delete all prompts in the folder
+      for (const promptId of deleteFolderDialog.promptIds) {
+        await deletePromptApi(promptId)
+      }
+      // Clear selection if the selected prompt was in the deleted folder
+      if (selectedPromptId && deleteFolderDialog.promptIds.includes(selectedPromptId)) {
+        setSelectedPromptId(null)
+      }
+    } catch (error) {
+      console.error('Failed to delete folder:', error)
+    } finally {
+      setDeleteFolderDialog(null)
+    }
+  }, [deleteFolderDialog, deletePromptApi, selectedPromptId, setSelectedPromptId])
+
+  // Handle copy prompt
+  const handleCopyPrompt = useCallback(async (promptId: string) => {
+    const prompt = prompts.find(p => p.id === promptId)
+    if (!prompt) return
+
+    const newPrompt: CreatePromptRequest = {
+      name: `${prompt.name} (Copy)`,
+      description: prompt.description,
+      content: prompt.content,
+      modes: [...prompt.modes],
+      tags: [...prompt.tags],
+      icon: prompt.icon,
+      folder: prompt.folder,
+      draft: true,
+    }
+
+    try {
+      const created = await createPrompt(newPrompt)
+      setSelectedPromptId(created.id)
+
+      if (isMobile) {
+        setIsMobileSidebarOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to copy prompt:', error)
+    }
+  }, [prompts, createPrompt, setSelectedPromptId, isMobile])
 
   // Render item icon in tree
   const renderItemIcon = useCallback((prompt: Prompt) => {
@@ -296,6 +355,10 @@ export function PromptManagerLayout() {
         setShowSettingsDialog(false)
         return
       }
+      if (deleteFolderDialog) {
+        setDeleteFolderDialog(null)
+        return
+      }
       // If no dialogs open and on mobile, close the sidebar
       if (isMobile && isMobileSidebarOpen) {
         setIsMobileSidebarOpen(false)
@@ -330,7 +393,7 @@ export function PromptManagerLayout() {
         onToggleCollapse={toggleCollapse}
         onExpandAll={expandAll}
         onCollapseAll={collapseAll}
-        onCreateNew={() => void handleCreateNew()}
+        onCreateNew={(modes) => void handleCreateNew(modes)}
         searchInputRef={searchInputRef}
         onOpenSettings={() => setShowSettingsDialog(true)}
         selectedTags={selectedTags}
@@ -343,6 +406,8 @@ export function PromptManagerLayout() {
         onSkillSelectionCancel={exitSkillSelectionMode}
         getSkillSelectionState={getSkillSelectionState}
         onSkillCheckboxChange={handleSkillCheckboxChange}
+        onDeleteFolder={handleDeleteFolderRequest}
+        onCopyPrompt={(promptId) => void handleCopyPrompt(promptId)}
       />
     </PanelErrorBoundary>
   )
@@ -482,7 +547,7 @@ export function PromptManagerLayout() {
                 onToggleCollapse={() => {}}
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
-                onCreateNew={() => void handleCreateNew()}
+                onCreateNew={(modes) => void handleCreateNew(modes)}
                 selectedTags={selectedTags}
                 onSelectedTagsChange={setSelectedTags}
                 availableTags={availableTags}
@@ -493,6 +558,8 @@ export function PromptManagerLayout() {
                 onSkillSelectionCancel={exitSkillSelectionMode}
                 getSkillSelectionState={getSkillSelectionState}
                 onSkillCheckboxChange={handleSkillCheckboxChange}
+                onDeleteFolder={handleDeleteFolderRequest}
+                onCopyPrompt={(promptId) => void handleCopyPrompt(promptId)}
                 className="border-r-0"
               />
             </div>
@@ -525,6 +592,21 @@ export function PromptManagerLayout() {
         confirmLabel="Discard"
         cancelLabel="Keep Editing"
         variant="warning"
+      />
+
+      {/* Delete folder confirmation dialog */}
+      <ConfirmDialog
+        isOpen={deleteFolderDialog !== null}
+        onClose={() => setDeleteFolderDialog(null)}
+        onConfirm={() => void handleConfirmDeleteFolder()}
+        title="Delete Folder?"
+        message={deleteFolderDialog
+          ? `Are you sure you want to delete the folder "${deleteFolderDialog.folderLabel}" and all ${deleteFolderDialog.promptIds.length} prompt${deleteFolderDialog.promptIds.length !== 1 ? 's' : ''} inside it? This action cannot be undone.`
+          : ''
+        }
+        confirmLabel="Delete All"
+        cancelLabel="Cancel"
+        variant="danger"
       />
 
       {/* Loading overlay */}

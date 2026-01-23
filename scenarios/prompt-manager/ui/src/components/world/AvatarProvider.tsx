@@ -3,8 +3,9 @@
  * Allows easy swapping of avatar implementations.
  */
 
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from 'react'
-import type { AvatarConfig, AvatarRegistry, AvatarProps } from '@/types/skilltree'
+import type { AvatarConfig, AvatarRegistry, AvatarProps } from '@/types/world'
 import { GeometricAvatar } from './avatars/GeometricAvatar'
 
 // Avatar registry - add new avatars here

@@ -1,5 +1,5 @@
 /**
- * SkillTreeControls - UI overlay for skill tree controls.
+ * WorldControls - UI overlay for world controls.
  * Includes camera mode toggle and help button.
  */
 
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import type { CameraMode } from '@/stores/cameraStore'
 import { HelpModal } from './HelpModal'
 
-interface SkillTreeControlsProps {
+interface WorldControlsProps {
   cameraMode: CameraMode
   onCycleCameraMode: () => void
   nodeCount: number
@@ -29,13 +29,13 @@ const CAMERA_MODE_LABELS: Record<CameraMode, string> = {
   'top-down': 'Aerial View',
 }
 
-export function SkillTreeControls({
+export function WorldControls({
   cameraMode,
   onCycleCameraMode,
   nodeCount,
   selectionCount,
   avatarCount,
-}: SkillTreeControlsProps) {
+}: WorldControlsProps) {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
 
   return (

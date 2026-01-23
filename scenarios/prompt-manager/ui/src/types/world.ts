@@ -1,5 +1,5 @@
 /**
- * Type definitions for the Skill Tree visualization and avatar system.
+ * Type definitions for the World visualization and avatar system.
  *
  * Note: 3D skill tree types (SkillTreeNode, SkillTreeConnection, SkillTreeData)
  * have been removed. Skill selection now uses the 2D overlay with types defined

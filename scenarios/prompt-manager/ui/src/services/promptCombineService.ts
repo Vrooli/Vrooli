@@ -3,7 +3,7 @@
  */
 
 import type { Prompt } from '@/types'
-import type { CombineFormat, CombineResponse } from '@/types/skilltree'
+import type { CombineFormat, CombineResponse } from '@/types/world'
 
 /**
  * Escape XML special characters.

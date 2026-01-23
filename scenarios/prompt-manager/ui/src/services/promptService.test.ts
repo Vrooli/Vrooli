@@ -46,7 +46,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     modes: [],
     tags: ['tag1', 'tag2'],
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 0,
@@ -168,7 +168,7 @@ describe('promptService', () => {
         name: 'New Prompt',
         description: 'Description',
         content: 'Content',
-        folder: 'internal',
+        folder: 'local',
       }
       const mockCreated = createTestPrompt({ id: 'new-1', name: 'New Prompt' })
       vi.mocked(api.createPrompt).mockResolvedValue(mockCreated)

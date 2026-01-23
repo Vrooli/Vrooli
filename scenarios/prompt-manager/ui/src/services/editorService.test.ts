@@ -33,7 +33,7 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
     tags: ['tag1', 'tag2'],
     icon: 'file',
     draft: false,
-    folder: 'internal',
+    folder: 'local',
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
     usageCount: 5,
@@ -55,7 +55,7 @@ describe('promptToFormState', () => {
     expect(formState.tags).toBe('tag1, tag2')
     expect(formState.icon).toBe('file')
     expect(formState.draft).toBe(false)
-    expect(formState.folder).toBe('internal')
+    expect(formState.folder).toBe('local')
   })
 
   it('should handle undefined icon', () => {
@@ -87,7 +87,7 @@ describe('formStateToUpdateRequest', () => {
       tags: 'tag1, tag2, tag3',
       icon: 'star',
       draft: true,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const request = formStateToUpdateRequest(formState)
@@ -99,7 +99,7 @@ describe('formStateToUpdateRequest', () => {
     expect(request.tags).toEqual(['tag1', 'tag2', 'tag3'])
     expect(request.icon).toBe('star')
     expect(request.draft).toBe(true)
-    expect(request.folder).toBe('internal')
+    expect(request.folder).toBe('local')
   })
 
   it('should convert empty icon to undefined', () => {
@@ -111,7 +111,7 @@ describe('formStateToUpdateRequest', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const request = formStateToUpdateRequest(formState)
@@ -170,7 +170,7 @@ describe('validateFormState', () => {
       tags: 'tag1',
       icon: 'file',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -188,7 +188,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -206,7 +206,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -224,7 +224,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -242,7 +242,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -259,7 +259,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -277,7 +277,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -295,7 +295,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -313,7 +313,7 @@ describe('validateFormState', () => {
       tags: '',
       icon: '',
       draft: false,
-      folder: 'internal',
+      folder: 'local',
     }
 
     const result = validateFormState(formState)
@@ -442,7 +442,7 @@ describe('createEmptyFormState', () => {
     expect(formState.tags).toBe('')
     expect(formState.icon).toBe('')
     expect(formState.draft).toBe(true)
-    expect(formState.folder).toBe('internal')
+    expect(formState.folder).toBe('local')
   })
 })
 

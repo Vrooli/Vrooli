@@ -4,10 +4,10 @@
 /**
  * Folder represents the organizational structure for prompts.
  * - "core": Important prompts (git-tracked)
- * - "internal": Personal prompts (gitignored)
+ * - "local": Personal prompts (gitignored)
  * - "drafts": Work-in-progress prompts
  */
-export type FolderType = 'core' | 'internal' | 'drafts'
+export type FolderType = 'core' | 'local' | 'drafts'
 
 /**
  * Folder metadata for UI display

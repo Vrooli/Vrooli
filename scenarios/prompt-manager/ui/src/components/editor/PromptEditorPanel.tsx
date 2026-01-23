@@ -5,10 +5,10 @@
  * - EditorToolbar
  * - PromptMetadataForm
  * - PromptContentEditor
- * - SkillTreeCanvas (when no prompt selected)
+ * - WorldCanvas (when no prompt selected)
  *
  * Also handles:
- * - Empty state with 3D skill tree visualization
+ * - Empty state with 3D world visualization
  */
 
 import { X, FileText } from 'lucide-react'
@@ -16,11 +16,11 @@ import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { PromptFormState, ValidationResult } from '@/types/editor'
 import type { Prompt } from '@/types'
-import type { CombineFormat } from '@/types/skilltree'
+import type { CombineFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
 import { PromptMetadataForm } from './PromptMetadataForm'
 import { PromptContentEditor } from './PromptContentEditor'
-import { SkillTreeCanvas } from '@/components/skilltree'
+import { WorldCanvas } from '@/components/world'
 
 interface PromptEditorPanelProps {
   // Current state
@@ -86,11 +86,11 @@ export function PromptEditorPanel({
     setSelectedPromptId(null)
   }
 
-  // Show 3D skill tree when no prompt selected
+  // Show 3D world when no prompt selected
   if (!currentPrompt) {
     return (
       <div className={cn('h-full', className)}>
-        <SkillTreeCanvas
+        <WorldCanvas
           prompts={allPrompts}
           onSelectPrompt={onSelectPrompt}
           onCombinePrompts={onCombinePrompts}
@@ -113,7 +113,7 @@ export function PromptEditorPanel({
             type="button"
             onClick={handleClose}
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close editor and return to skill tree"
+            aria-label="Close editor and return to world"
             title="Close (Esc)"
           >
             <X className="h-5 w-5" />

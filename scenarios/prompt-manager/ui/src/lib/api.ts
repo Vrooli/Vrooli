@@ -30,7 +30,7 @@ import type {
   FolderType,
 } from '@/types'
 import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
-import type { CombineFormat, CombineResponse } from '@/types/skilltree'
+import type { CombineFormat, CombineResponse } from '@/types/world'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
@@ -41,7 +41,7 @@ console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
  * The API uses folder-based organization.
  * Folders determine git behavior, not editability:
  * - core: Important prompts (git-tracked)
- * - internal: Personal prompts (gitignored)
+ * - local: Personal prompts (gitignored)
  * - drafts: Work in progress prompts
  */
 export const FOLDERS: Folder[] = [
@@ -53,8 +53,8 @@ export const FOLDERS: Folder[] = [
     promptCount: 0,  // Updated dynamically
   },
   {
-    id: 'internal',
-    name: 'Internal',
+    id: 'local',
+    name: 'Local',
     description: 'Personal prompts (gitignored)',
     icon: 'folder',
     promptCount: 0,
@@ -128,7 +128,7 @@ class ApiClient {
   async getFolders(): Promise<Folder[]> {
     // Get all prompts and compute folder counts
     const prompts = await this.getPrompts()
-    const counts: Record<FolderType, number> = { core: 0, internal: 0, drafts: 0 }
+    const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0 }
 
     for (const prompt of prompts) {
       if (prompt.folder in counts) {

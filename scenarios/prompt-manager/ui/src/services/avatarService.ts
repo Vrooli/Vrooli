@@ -10,7 +10,7 @@
 
 import { api } from '@/lib/api'
 import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
-import type { AvatarState } from '@/types/skilltree'
+import type { AvatarState } from '@/types/world'
 
 // ============================================================================
 // State Machine

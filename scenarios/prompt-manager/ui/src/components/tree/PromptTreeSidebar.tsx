@@ -12,7 +12,7 @@
  * - New prompt button
  */
 
-import { type ReactNode, type RefObject, useState, useRef } from 'react'
+import { type ReactNode, type RefObject, useState, useRef, useCallback } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,6 +23,9 @@ import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
 import { AvatarListPanel } from '../avatar/AvatarListPanel'
+import { FolderContextMenu } from './FolderContextMenu'
+import { PromptContextMenu } from './PromptContextMenu'
+import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 
 interface PromptTreeSidebarProps {
   treeNodes: TreeNode[]
@@ -39,7 +42,7 @@ interface PromptTreeSidebarProps {
   onToggleCollapse: () => void
   onExpandAll: () => void
   onCollapseAll: () => void
-  onCreateNew: () => void
+  onCreateNew: (modes?: string[]) => void
   /** Ref for the search input (for keyboard shortcuts) */
   searchInputRef?: RefObject<HTMLInputElement>
   /** Callback to open settings modal */
@@ -56,6 +59,9 @@ interface PromptTreeSidebarProps {
   onSkillSelectionCancel: () => void
   getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
   onSkillCheckboxChange: (node: TreeNode) => void
+  // Context menu callbacks
+  onDeleteFolder: (promptIds: string[], folderLabel: string) => void
+  onCopyPrompt: (promptId: string) => void
   className?: string
 }
 
@@ -90,6 +96,8 @@ export function PromptTreeSidebar({
   onSkillSelectionCancel,
   getSkillSelectionState,
   onSkillCheckboxChange,
+  onDeleteFolder,
+  onCopyPrompt,
   className = '',
 }: PromptTreeSidebarProps) {
   // Count total dirty items
@@ -105,6 +113,62 @@ export function PromptTreeSidebar({
   // Active tab state - locked to prompts when in skill selection mode
   const [activeTab, setActiveTab] = useState('prompts')
   const effectiveTab = skillSelectionMode ? 'prompts' : activeTab
+
+  // Folder context menu state
+  const [folderContextMenu, setFolderContextMenu] = useState<{
+    node: TreeNode
+    x: number
+    y: number
+  } | null>(null)
+
+  // Prompt context menu state
+  const [promptContextMenu, setPromptContextMenu] = useState<{
+    promptId: string
+    promptName: string
+    x: number
+    y: number
+  } | null>(null)
+
+  const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
+    setPromptContextMenu(null) // Close any open prompt menu
+    setFolderContextMenu({ node, x, y })
+  }, [])
+
+  const handlePromptContextMenu = useCallback((promptId: string, promptName: string, x: number, y: number) => {
+    setFolderContextMenu(null) // Close any open folder menu
+    setPromptContextMenu({ promptId, promptName, x, y })
+  }, [])
+
+  const handleCloseFolderContextMenu = useCallback(() => {
+    setFolderContextMenu(null)
+  }, [])
+
+  const handleClosePromptContextMenu = useCallback(() => {
+    setPromptContextMenu(null)
+  }, [])
+
+  const handleAddPromptInFolder = useCallback(() => {
+    if (folderContextMenu) {
+      const modes = getModesPathFromNode(folderContextMenu.node)
+      onCreateNew(modes)
+      setFolderContextMenu(null)
+    }
+  }, [folderContextMenu, onCreateNew])
+
+  const handleDeleteFolder = useCallback(() => {
+    if (folderContextMenu) {
+      const promptIds = getAllItemIdsInSubtree(folderContextMenu.node)
+      onDeleteFolder(promptIds, folderContextMenu.node.label)
+      setFolderContextMenu(null)
+    }
+  }, [folderContextMenu, onDeleteFolder])
+
+  const handleCopyPrompt = useCallback(() => {
+    if (promptContextMenu) {
+      onCopyPrompt(promptContextMenu.promptId)
+      setPromptContextMenu(null)
+    }
+  }, [promptContextMenu, onCopyPrompt])
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -144,7 +208,7 @@ export function PromptTreeSidebar({
           )}
           <button
             type="button"
-            onClick={onCreateNew}
+            onClick={() => onCreateNew()}
             className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             title="New prompt (Ctrl+N)"
           >
@@ -336,8 +400,34 @@ export function PromptTreeSidebar({
                   showCheckbox={skillSelectionMode}
                   onCheckboxChange={onSkillCheckboxChange}
                   getSelectionState={getSkillSelectionState}
+                  onCategoryContextMenu={handleCategoryContextMenu}
+                  onPromptContextMenu={handlePromptContextMenu}
                 />
               ))
+            )}
+
+            {/* Folder context menu */}
+            {folderContextMenu && (
+              <FolderContextMenu
+                x={folderContextMenu.x}
+                y={folderContextMenu.y}
+                folderLabel={folderContextMenu.node.label}
+                promptCount={getAllItemIdsInSubtree(folderContextMenu.node).length}
+                onClose={handleCloseFolderContextMenu}
+                onAddPrompt={handleAddPromptInFolder}
+                onDeleteFolder={handleDeleteFolder}
+              />
+            )}
+
+            {/* Prompt context menu */}
+            {promptContextMenu && (
+              <PromptContextMenu
+                x={promptContextMenu.x}
+                y={promptContextMenu.y}
+                promptName={promptContextMenu.promptName}
+                onClose={handleClosePromptContextMenu}
+                onCopyPrompt={handleCopyPrompt}
+              />
             )}
           </div>
 
@@ -371,7 +461,7 @@ export function PromptTreeSidebar({
             ) : (
               <button
                 type="button"
-                onClick={onCreateNew}
+                onClick={() => onCreateNew()}
                 title="Create new prompt (Ctrl+N)"
                 className={cn(
                   'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',

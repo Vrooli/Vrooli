@@ -1,5 +1,5 @@
 /**
- * SkillTreeCanvas - Main entry point for the 3D avatar visualization.
+ * WorldCanvas - Main entry point for the 3D avatar visualization.
  *
  * Skill selection is now handled via the sidebar in skill selection mode.
  * When "Set Skills" is clicked on an avatar, it triggers the sidebar to
@@ -10,15 +10,15 @@ import { Suspense, useCallback, useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Prompt } from '@/types'
-import type { CombineFormat } from '@/types/skilltree'
+import type { CombineFormat } from '@/types/world'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
 import { useAvatarData } from '@/hooks/useAvatarData'
 import { AvatarProvider } from './AvatarProvider'
-import { SkillTreeScene, type AvatarWithPosition } from './SkillTreeScene'
-import { SkillTreeControls } from './SkillTreeControls'
+import { WorldScene, type AvatarWithPosition } from './WorldScene'
+import { WorldControls } from './WorldControls'
 import { CombinePanel } from './CombinePanel'
 import { AvatarOverlay } from './AvatarOverlay'
 import { AvatarCustomizeModal } from '../avatar/AvatarCustomizeModal'
@@ -59,7 +59,7 @@ function generateAvatarPosition(avatarId: string, index: number, total: number):
   return [x, 0, z]
 }
 
-interface SkillTreeCanvasProps {
+interface WorldCanvasProps {
   prompts: Prompt[]
   onSelectPrompt?: (promptId: string) => void
   onCombinePrompts?: (combined: string, format: CombineFormat) => void
@@ -67,13 +67,13 @@ interface SkillTreeCanvasProps {
   className?: string
 }
 
-export function SkillTreeCanvas({
+export function WorldCanvas({
   prompts,
   onSelectPrompt: _onSelectPrompt,
   onCombinePrompts,
   avatarType = 'geometric',
   className,
-}: SkillTreeCanvasProps) {
+}: WorldCanvasProps) {
   // Note: onSelectPrompt is kept for API compatibility but not used since
   // skill selection is now handled via the sidebar
   void _onSelectPrompt
@@ -256,7 +256,7 @@ export function SkillTreeCanvas({
         <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
         <AvatarProvider avatar={avatarType}>
           <Suspense fallback={null}>
-            <SkillTreeScene
+            <WorldScene
               cameraState={cameraState}
               selectedNodeIds={selectedPromptIds}
               cursorPosition={cursorPosition}
@@ -283,7 +283,7 @@ export function SkillTreeCanvas({
       />
 
       {/* UI Overlays */}
-      <SkillTreeControls
+      <WorldControls
         cameraMode={cameraMode}
         onCycleCameraMode={handleCycleCameraMode}
         nodeCount={prompts.length}

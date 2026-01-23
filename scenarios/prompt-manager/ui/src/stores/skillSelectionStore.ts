@@ -3,7 +3,7 @@
  *
  * This store manages the skill selection mode that allows users to assign
  * prompts as skills to avatars. It's shared between:
- * - SkillTreeCanvas (triggers entering skill selection mode)
+ * - WorldCanvas (triggers entering skill selection mode)
  * - PromptTreeSidebar (shows checkboxes and handles selection)
  */
 

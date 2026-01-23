@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AvatarState } from '@/types/skilltree'
+import type { AvatarState } from '@/types/world'
 import {
   AvatarStateMachine,
   calculateLookRotation,
