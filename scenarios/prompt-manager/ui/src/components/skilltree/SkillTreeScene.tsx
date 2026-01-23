@@ -1,23 +1,25 @@
 /**
- * SkillTreeScene - Composes the 3D scene with lights, camera, and controls.
+ * SkillTreeScene - Composes the 3D scene with avatar, lights, and controls.
+ *
+ * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
+ * This scene now focuses on the avatar display with ambient environment.
  */
 
 import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
-import type { SkillTreeData, CameraState } from '@/types/skilltree'
-import { SkillTreeNodes } from './SkillTreeNodes'
-import { SkillTreeConnections } from './SkillTreeConnections'
 import { useAvatarComponent } from './AvatarProvider'
 
+interface CameraState {
+  position: [number, number, number]
+  target: [number, number, number]
+  zoom: number
+}
+
 interface SkillTreeSceneProps {
-  treeData: SkillTreeData
   cameraState: CameraState
   selectedNodeIds: string[]
-  hoveredNodeId: string | null
   cursorPosition: { x: number; y: number } | null
-  onNodeClick: (nodeId: string, event: MouseEvent) => void
-  onNodeHover: (nodeId: string | null) => void
   onAvatarClick?: () => void
   avatarColors?: {
     body: string
@@ -28,13 +30,9 @@ interface SkillTreeSceneProps {
 }
 
 export function SkillTreeScene({
-  treeData,
   cameraState,
   selectedNodeIds,
-  hoveredNodeId,
   cursorPosition,
-  onNodeClick,
-  onNodeHover,
   onAvatarClick,
   avatarColors,
   isDarkMode = true,
@@ -87,20 +85,6 @@ export function SkillTreeScene({
       <gridHelper
         args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
         position={[0, -2, 0]}
-      />
-
-      {/* Connections */}
-      <SkillTreeConnections
-        connections={treeData.connections}
-        selectedNodeIds={selectedNodeIds}
-      />
-
-      {/* Nodes */}
-      <SkillTreeNodes
-        nodes={treeData.nodes}
-        hoveredNodeId={hoveredNodeId}
-        onNodeClick={onNodeClick}
-        onNodeHover={onNodeHover}
       />
 
       {/* Avatar */}

@@ -1,6 +1,9 @@
 /**
- * SkillTreeCanvas - Main entry point for the 3D skill tree visualization.
- * Wraps the R3F Canvas with providers and UI overlays.
+ * SkillTreeCanvas - Main entry point for the 3D avatar visualization.
+ *
+ * Skill selection is now handled via the sidebar in skill selection mode.
+ * When "Set Skills" is clicked on an avatar, it triggers the sidebar to
+ * enter skill selection mode with checkboxes.
  */
 
 import { Suspense, useCallback, useState } from 'react'
@@ -9,8 +12,8 @@ import { Loader } from '@react-three/drei'
 import type { Prompt } from '@/types'
 import type { CombineFormat } from '@/types/skilltree'
 import { useResolvedTheme } from '@/hooks/use-theme'
-import { useSkillTree3D } from '@/hooks/useSkillTree3D'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
 import { useAvatarData } from '@/hooks/useAvatarData'
 import { AvatarProvider } from './AvatarProvider'
@@ -20,6 +23,10 @@ import { CombinePanel } from './CombinePanel'
 import { AvatarOverlay } from './AvatarOverlay'
 import { AvatarCustomizeModal } from '../avatar/AvatarCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+
+// Default camera values (moved outside component to satisfy exhaustive-deps)
+const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
+const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 
 interface SkillTreeCanvasProps {
   prompts: Prompt[]
@@ -33,12 +40,15 @@ interface SkillTreeCanvasProps {
 
 export function SkillTreeCanvas({
   prompts,
-  onSelectPrompt,
+  onSelectPrompt: _onSelectPrompt,
   onCombinePrompts,
   avatarType = 'geometric',
   activeAvatarId,
   className,
 }: SkillTreeCanvasProps) {
+  // Note: onSelectPrompt is kept for API compatibility but not used since
+  // skill selection is now handled via the sidebar
+  void _onSelectPrompt
   // Theme for 3D colors
   const resolvedTheme = useResolvedTheme()
   const isDarkMode = resolvedTheme === 'dark'
@@ -49,7 +59,9 @@ export function SkillTreeCanvas({
   // Selection state from centralized Zustand store
   const selectedPromptIds = useSelectionStore((state) => state.selectedPromptIds)
   const setSelectedPromptIds = useSelectionStore((state) => state.setSelectedPromptIds)
-  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+
+  // Skill selection store
+  const enterSkillSelectionMode = useSkillSelectionStore((state) => state.enterSkillSelectionMode)
 
   // Camera store for avatar zoom
   const cameraMode = useCameraStore((state) => state.mode)
@@ -78,32 +90,35 @@ export function SkillTreeCanvas({
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  // Handle node click - updates both multi-selection and single selection
-  const handleNodeSelection = useCallback(
-    (promptId: string) => {
-      setSelectedPromptId(promptId)
-      onSelectPrompt?.(promptId)
-    },
-    [setSelectedPromptId, onSelectPrompt]
-  )
-
-  // Skill tree 3D state
-  const {
-    treeData,
-    cameraState,
-    hoveredNodeId,
-    handleNodeClick,
-    handleNodeHover,
-    resetCamera,
-    zoomIn,
-    zoomOut,
-    nodeCount,
-  } = useSkillTree3D({
-    prompts,
-    selectedPromptIds,
-    onSelectionChange: setSelectedPromptIds,
-    onNodeClick: handleNodeSelection,
+  // Camera state for 3D scene
+  const [cameraState, setCameraState] = useState({
+    position: DEFAULT_CAMERA_POSITION,
+    target: DEFAULT_CAMERA_TARGET,
+    zoom: 1,
   })
+
+  // Camera controls
+  const resetCamera = useCallback(() => {
+    setCameraState({
+      position: DEFAULT_CAMERA_POSITION,
+      target: DEFAULT_CAMERA_TARGET,
+      zoom: 1,
+    })
+  }, [])
+
+  const zoomIn = useCallback(() => {
+    setCameraState((prev) => ({
+      ...prev,
+      zoom: Math.min(prev.zoom * 1.2, 3),
+    }))
+  }, [])
+
+  const zoomOut = useCallback(() => {
+    setCameraState((prev) => ({
+      ...prev,
+      zoom: Math.max(prev.zoom / 1.2, 0.5),
+    }))
+  }, [])
 
   // Handle mouse move for cursor tracking
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -138,14 +153,20 @@ export function SkillTreeCanvas({
   }, [])
 
   const handleSetSkills = useCallback(() => {
-    // TODO: Open skill assignment panel
-    // For now, just assign currently selected prompts
-    if (focusedAvatarId && selectedPromptIds.length > 0) {
-      void updateAvatar(focusedAvatarId, {
-        skills: [...new Set([...(focusedAvatar?.skills ?? []), ...selectedPromptIds])],
-      })
+    // Enter skill selection mode via the store
+    // This will trigger the sidebar to show checkboxes
+    if (focusedAvatar) {
+      enterSkillSelectionMode(
+        focusedAvatar,
+        focusedAvatar.skills,
+        async (skillIds) => {
+          await updateAvatar(focusedAvatar.id, { skills: skillIds })
+        }
+      )
+      // Close the avatar overlay so the user can see the sidebar
+      exitZoom()
     }
-  }, [focusedAvatarId, focusedAvatar, selectedPromptIds, updateAvatar])
+  }, [focusedAvatar, enterSkillSelectionMode, updateAvatar, exitZoom])
 
   const handleDuplicate = useCallback(async () => {
     if (!focusedAvatar) return
@@ -193,13 +214,9 @@ export function SkillTreeCanvas({
         <AvatarProvider avatar={avatarType}>
           <Suspense fallback={null}>
             <SkillTreeScene
-              treeData={treeData}
               cameraState={cameraState}
               selectedNodeIds={selectedPromptIds}
-              hoveredNodeId={hoveredNodeId}
               cursorPosition={cursorPosition}
-              onNodeClick={handleNodeClick}
-              onNodeHover={handleNodeHover}
               onAvatarClick={handleAvatarClick}
               avatarColors={activeAvatarColors}
               isDarkMode={isDarkMode}
@@ -227,7 +244,7 @@ export function SkillTreeCanvas({
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onReset={resetCamera}
-        nodeCount={nodeCount}
+        nodeCount={prompts.length}
         selectionCount={selectedPromptIds.length}
       />
 

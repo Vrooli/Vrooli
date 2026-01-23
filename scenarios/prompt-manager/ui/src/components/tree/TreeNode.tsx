@@ -5,14 +5,17 @@
  * - Category nodes (expandable)
  * - Leaf nodes (selectable prompts)
  * - Dirty indicators
+ * - Checkbox selection for skill selection mode
  */
 
 import { type ReactNode } from 'react'
-import { ChevronRight, ChevronDown, FolderOpen } from 'lucide-react'
+import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Prompt } from '@/types'
 import { countDirtyInSubtree } from '@/services/treeService'
+
+type SelectionState = 'none' | 'partial' | 'all'
 
 interface TreeNodeProps {
   node: TreeNodeType
@@ -23,6 +26,43 @@ interface TreeNodeProps {
   expandedNodes: Set<string>
   onToggleNode: (nodeId: string) => void
   renderItemIcon?: (prompt: Prompt) => ReactNode
+  // Skill selection mode props
+  showCheckbox?: boolean
+  selectionState?: SelectionState
+  onCheckboxChange?: (node: TreeNodeType) => void
+  getSelectionState?: (node: TreeNodeType) => SelectionState
+}
+
+/**
+ * Checkbox component for skill selection.
+ */
+function SelectionCheckbox({
+  state,
+  onClick,
+  className,
+}: {
+  state: SelectionState
+  onClick: (e: React.MouseEvent) => void
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors',
+        state === 'all'
+          ? 'bg-primary border-primary'
+          : state === 'partial'
+            ? 'bg-primary/50 border-primary'
+            : 'border-muted-foreground/30 hover:border-primary/50',
+        className
+      )}
+    >
+      {state === 'all' && <Check className="h-3 w-3 text-primary-foreground" />}
+      {state === 'partial' && <Minus className="h-3 w-3 text-primary-foreground" />}
+    </button>
+  )
 }
 
 /**
@@ -37,9 +77,18 @@ export function TreeNodeComponent({
   expandedNodes,
   onToggleNode,
   renderItemIcon,
+  showCheckbox = false,
+  onCheckboxChange,
+  getSelectionState,
 }: TreeNodeProps) {
   const isExpanded = expandedNodes.has(node.id)
   const paddingLeft = `${node.depth * 12 + 8}px`
+  const selectionState = getSelectionState?.(node) ?? 'none'
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onCheckboxChange?.(node)
+  }
 
   if (node.isCategory) {
     // Count dirty children for this category
@@ -53,6 +102,12 @@ export function TreeNodeComponent({
           className="w-full flex items-center gap-2 py-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs"
           style={{ paddingLeft }}
         >
+          {showCheckbox && (
+            <SelectionCheckbox
+              state={selectionState}
+              onClick={handleCheckboxClick}
+            />
+          )}
           {isExpanded ? (
             <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
           ) : (
@@ -60,7 +115,7 @@ export function TreeNodeComponent({
           )}
           <FolderOpen className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
           <span className="truncate flex-1 text-left">{node.label}</span>
-          {dirtyCount > 0 && (
+          {dirtyCount > 0 && !showCheckbox && (
             <span
               className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
               title={`${dirtyCount} unsaved`}
@@ -80,6 +135,9 @@ export function TreeNodeComponent({
                 expandedNodes={expandedNodes}
                 onToggleNode={onToggleNode}
                 renderItemIcon={renderItemIcon}
+                showCheckbox={showCheckbox}
+                onCheckboxChange={onCheckboxChange}
+                getSelectionState={getSelectionState}
               />
             ))}
           </div>
@@ -93,25 +151,44 @@ export function TreeNodeComponent({
   const isSelected = selectedItemId === node.itemId
   const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
 
+  // In checkbox mode, clicking the row toggles the checkbox
+  const handleRowClick = () => {
+    if (showCheckbox) {
+      onCheckboxChange?.(node)
+    } else if (node.itemId) {
+      onSelectItem(node.itemId)
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => node.itemId && onSelectItem(node.itemId)}
+      onClick={handleRowClick}
       className={cn(
         'w-full flex items-center gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
-        isSelected
-          ? 'bg-primary/30 text-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        showCheckbox
+          ? selectionState === 'all'
+            ? 'bg-primary/10 text-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : isSelected
+            ? 'bg-primary/30 text-foreground'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
       style={{ paddingLeft }}
     >
-      {renderItemIcon && prompt ? (
-        renderItemIcon(prompt)
-      ) : (
-        <div className="w-3.5 h-3.5 flex-shrink-0" /> // Spacer when no icon
+      {showCheckbox && (
+        <SelectionCheckbox
+          state={selectionState}
+          onClick={handleCheckboxClick}
+        />
       )}
+      {!showCheckbox && renderItemIcon && prompt ? (
+        renderItemIcon(prompt)
+      ) : !showCheckbox ? (
+        <div className="w-3.5 h-3.5 flex-shrink-0" /> // Spacer when no icon
+      ) : null}
       <span className="truncate flex-1">{node.label}</span>
-      {isDirty && (
+      {isDirty && !showCheckbox && (
         <span
           className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"
           title="Unsaved changes"

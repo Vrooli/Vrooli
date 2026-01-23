@@ -56,6 +56,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.17.0
         version: 5.90.19(react@18.3.1)
+      '@tiptap/extension-code':
+        specifier: ^2.27.2
+        version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
       '@tiptap/extension-code-block':
         specifier: ^2.27.2
         version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
@@ -71,6 +74,9 @@ importers:
       '@tiptap/extension-typography':
         specifier: ^2.1.0
         version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))
+      '@tiptap/pm':
+        specifier: ^2.27.2
+        version: 2.27.2
       '@tiptap/react':
         specifier: ^2.1.0
         version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

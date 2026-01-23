@@ -1,63 +1,10 @@
 /**
- * Type definitions for the 3D Skill Tree visualization.
+ * Type definitions for the Skill Tree visualization and avatar system.
+ *
+ * Note: 3D skill tree types (SkillTreeNode, SkillTreeConnection, SkillTreeData)
+ * have been removed. Skill selection now uses the 2D overlay with types defined
+ * in skillLayoutService.ts.
  */
-
-import type { Prompt } from '@/types'
-
-/**
- * Represents a node in the 3D skill tree.
- */
-export interface SkillTreeNode {
-  id: string
-  promptId: string
-  name: string
-  description: string
-  /** 3D position in world space [x, y, z] */
-  position: [number, number, number]
-  /** Parent node ID for hierarchy */
-  parentId: string | null
-  /** Child node IDs */
-  children: string[]
-  /** Selection state */
-  isSelected: boolean
-  /** Depth level in the tree (0 = root) */
-  depth: number
-  /** Original prompt data */
-  prompt: Prompt
-  /** Node color based on category/tags */
-  color: string
-  /** Node size based on usage/importance */
-  size: number
-  /** Whether this is a mode/category node rather than a prompt node */
-  isModeNode?: boolean
-}
-
-/**
- * Connection between two nodes in the skill tree.
- */
-export interface SkillTreeConnection {
-  id: string
-  sourceId: string
-  targetId: string
-  /** Source position [x, y, z] */
-  source: [number, number, number]
-  /** Target position [x, y, z] */
-  target: [number, number, number]
-  /** Connection strength for visual weight */
-  strength: number
-}
-
-/**
- * Complete skill tree data structure.
- */
-export interface SkillTreeData {
-  nodes: SkillTreeNode[]
-  connections: SkillTreeConnection[]
-  /** Root node IDs (nodes without parents) */
-  roots: string[]
-  /** Maximum depth of the tree */
-  maxDepth: number
-}
 
 /**
  * Props for avatar components.
@@ -151,35 +98,3 @@ export interface CombineResponse {
   format: CombineFormat
 }
 
-/**
- * Camera state for the skill tree scene.
- */
-export interface CameraState {
-  position: [number, number, number]
-  target: [number, number, number]
-  zoom: number
-}
-
-/**
- * Options for skill tree layout algorithm.
- */
-export interface LayoutOptions {
-  /** Horizontal spacing between nodes */
-  horizontalSpacing: number
-  /** Vertical spacing between depth levels */
-  verticalSpacing: number
-  /** Radial spread angle for children */
-  radialSpread: number
-  /** Whether to use 3D depth or keep nodes on a plane */
-  use3DDepth: boolean
-}
-
-/**
- * Event types for skill tree interactions.
- */
-export interface SkillTreeEvents {
-  onNodeClick: (nodeId: string, event: MouseEvent) => void
-  onNodeHover: (nodeId: string | null) => void
-  onSelectionChange: (selectedIds: string[]) => void
-  onCombineRequest: (selectedIds: string[]) => void
-}

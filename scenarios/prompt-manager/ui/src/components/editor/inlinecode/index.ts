@@ -1,0 +1,1 @@
+export { InlineCodeExtension } from './InlineCodeExtension'

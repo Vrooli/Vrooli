@@ -28,7 +28,10 @@ import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
+import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
+import type { TreeNode } from '@/types/editor'
 import type { Prompt, CreatePromptRequest } from '@/types'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
@@ -77,7 +80,51 @@ export function PromptManagerLayout() {
     isCollapsed,
     toggleCollapse,
     expandToItem,
+    selectedTags,
+    setSelectedTags,
+    availableTags,
   } = usePromptTree({ prompts })
+
+  // Skill selection store
+  const skillSelectionMode = useSkillSelectionStore((state) => state.isActive)
+  const skillSelectedIds = useSkillSelectionStore((state) => state.selectedSkillIds)
+  const currentAvatar = useSkillSelectionStore((state) => state.currentAvatar)
+  const exitSkillSelectionMode = useSkillSelectionStore((state) => state.exitSkillSelectionMode)
+  const toggleSkillSelection = useSkillSelectionStore((state) => state.toggleSkillSelection)
+  const toggleMultipleSkills = useSkillSelectionStore((state) => state.toggleMultipleSkills)
+  const saveAndExitSkillSelection = useSkillSelectionStore((state) => state.saveAndExit)
+
+  // Skill selection helper functions
+  const handleSkillCheckboxChange = useCallback(
+    (node: TreeNode) => {
+      if (node.isCategory) {
+        // Toggle all items in the folder
+        const allIds = getAllItemIdsInSubtree(node)
+        const allSelected = allIds.every((id) => skillSelectedIds.has(id))
+        toggleMultipleSkills(allIds, !allSelected)
+      } else if (node.itemId) {
+        toggleSkillSelection(node.itemId)
+      }
+    },
+    [skillSelectedIds, toggleSkillSelection, toggleMultipleSkills]
+  )
+
+  const getSkillSelectionState = useCallback(
+    (node: TreeNode): 'none' | 'partial' | 'all' => {
+      if (!node.isCategory && node.itemId) {
+        return skillSelectedIds.has(node.itemId) ? 'all' : 'none'
+      }
+
+      const allIds = getAllItemIdsInSubtree(node)
+      if (allIds.length === 0) return 'none'
+
+      const selectedCount = countSelectedInSubtree(node, skillSelectedIds)
+      if (selectedCount === 0) return 'none'
+      if (selectedCount === allIds.length) return 'all'
+      return 'partial'
+    },
+    [skillSelectedIds]
+  )
 
   // Editor state
   const {
@@ -286,6 +333,16 @@ export function PromptManagerLayout() {
         onCreateNew={() => void handleCreateNew()}
         searchInputRef={searchInputRef}
         onOpenSettings={() => setShowSettingsDialog(true)}
+        selectedTags={selectedTags}
+        onSelectedTagsChange={setSelectedTags}
+        availableTags={availableTags}
+        skillSelectionMode={skillSelectionMode}
+        skillSelectedIds={skillSelectedIds}
+        currentAvatar={currentAvatar}
+        onSkillSelectionSave={() => void saveAndExitSkillSelection()}
+        onSkillSelectionCancel={exitSkillSelectionMode}
+        getSkillSelectionState={getSkillSelectionState}
+        onSkillCheckboxChange={handleSkillCheckboxChange}
       />
     </PanelErrorBoundary>
   )
@@ -426,6 +483,16 @@ export function PromptManagerLayout() {
                 onExpandAll={expandAll}
                 onCollapseAll={collapseAll}
                 onCreateNew={() => void handleCreateNew()}
+                selectedTags={selectedTags}
+                onSelectedTagsChange={setSelectedTags}
+                availableTags={availableTags}
+                skillSelectionMode={skillSelectionMode}
+                skillSelectedIds={skillSelectedIds}
+                currentAvatar={currentAvatar}
+                onSkillSelectionSave={() => void saveAndExitSkillSelection()}
+                onSkillSelectionCancel={exitSkillSelectionMode}
+                getSkillSelectionState={getSkillSelectionState}
+                onSkillCheckboxChange={handleSkillCheckboxChange}
                 className="border-r-0"
               />
             </div>

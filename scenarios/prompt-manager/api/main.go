@@ -11,6 +11,7 @@ import (
 
 	"prompt-manager/avatars"
 	"prompt-manager/metrics"
+	"prompt-manager/ogmeta"
 	"prompt-manager/prompts"
 	"prompt-manager/tags"
 	"prompt-manager/testing"
@@ -75,6 +76,9 @@ func main() {
 	avatarStore := avatars.NewStore(avatarDataDir)
 	avatarHandlers := avatars.NewHandlers(avatarStore)
 
+	// OG metadata handlers
+	ogmetaHandlers := ogmeta.NewHandlers()
+
 	// Setup routes
 	router := mux.NewRouter()
 
@@ -120,6 +124,9 @@ func main() {
 	v1.HandleFunc("/avatars/{id}", avatarHandlers.Get).Methods("GET")
 	v1.HandleFunc("/avatars/{id}", avatarHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/avatars/{id}", avatarHandlers.Delete).Methods("DELETE")
+
+	// OG metadata routes (for link previews)
+	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
 
 	log.Printf("Prompt Manager API v2.0 starting")
 	log.Printf("Prompts directory: %s", promptsDir)

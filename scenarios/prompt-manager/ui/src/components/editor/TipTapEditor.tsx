@@ -13,8 +13,14 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
-import Link from '@tiptap/extension-link'
 import { CodeBlockExtension } from './codeblock'
+import { InlineCodeExtension } from './inlinecode'
+import {
+  LinkPreviewExtension,
+  setLinkHoverCallback,
+  LinkPreviewTooltip,
+  type LinkHoverEvent,
+} from './linkpreview'
 import { useEffect, useCallback, useRef, useState } from 'react'
 import {
   Bold,
@@ -97,10 +103,13 @@ export function TipTapEditor({
         },
         // Disable default codeBlock - we use our custom extension
         codeBlock: false,
-        code: {
-          HTMLAttributes: {
-            class: 'bg-muted rounded px-1.5 py-0.5 font-mono text-sm text-primary',
-          },
+        // Disable default code mark - we use our custom extension with copy button
+        code: false,
+      }),
+      // Custom inline code with copy button on hover
+      InlineCodeExtension.configure({
+        HTMLAttributes: {
+          class: 'bg-muted rounded px-1.5 py-0.5 font-mono text-sm text-primary',
         },
       }),
       // Custom code block with syntax highlighting and copy button
@@ -133,7 +142,7 @@ export function TipTapEditor({
         },
       }),
       Typography,
-      Link.configure({
+      LinkPreviewExtension.configure({
         openOnClick: false,
         HTMLAttributes: {
           class: 'text-primary underline hover:text-primary/80 cursor-pointer',
@@ -209,6 +218,32 @@ export function TipTapEditor({
   const [showLinkInput, setShowLinkInput] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const linkInputRef = useRef<HTMLInputElement>(null)
+
+  // Link preview state
+  const [linkPreview, setLinkPreview] = useState<{
+    url: string
+    position: { x: number; y: number }
+  } | null>(null)
+
+  // Set up link hover callback
+  useEffect(() => {
+    const handleLinkHover = (event: LinkHoverEvent) => {
+      if (event.type === 'hover') {
+        setLinkPreview({
+          url: event.url,
+          position: event.position,
+        })
+      } else {
+        setLinkPreview(null)
+      }
+    }
+
+    setLinkHoverCallback(handleLinkHover)
+
+    return () => {
+      setLinkHoverCallback(null)
+    }
+  }, [])
 
   const openLinkDialog = useCallback(() => {
     if (!editor) return
@@ -436,6 +471,15 @@ export function TipTapEditor({
       <div className={cn('flex-1 overflow-y-auto', disabled && 'opacity-50')}>
         <EditorContent editor={editor} />
       </div>
+
+      {/* Link preview tooltip */}
+      {linkPreview && (
+        <LinkPreviewTooltip
+          url={linkPreview.url}
+          position={linkPreview.position}
+          onClose={() => setLinkPreview(null)}
+        />
+      )}
     </div>
   )
 }

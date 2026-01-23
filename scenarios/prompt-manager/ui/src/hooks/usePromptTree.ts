@@ -5,13 +5,23 @@
  * - Expanded/collapsed node state
  * - Selected item tracking
  * - Search/filter state
+ * - Tag filtering
+ * - Skill selection mode for avatars
  * - Auto-expand to selected item
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import type { Prompt } from '@/types'
 import type { TreeNode } from '@/types/editor'
-import { buildTree, filterTree, getPathsToItem } from '@/services/treeService'
+import {
+  buildTree,
+  filterTree,
+  filterTreeByTags,
+  getPathsToItem,
+  getAllTags,
+  countSelectedInSubtree,
+  getAllItemIdsInSubtree,
+} from '@/services/treeService'
 
 interface UsePromptTreeProps {
   prompts: Prompt[]
@@ -38,6 +48,21 @@ interface UsePromptTreeReturn {
   searchQuery: string
   setSearchQuery: (query: string) => void
 
+  // Tag filter state
+  selectedTags: string[]
+  setSelectedTags: (tags: string[]) => void
+  availableTags: string[]
+
+  // Skill selection mode
+  skillSelectionMode: boolean
+  skillSelectedIds: Set<string>
+  currentAvatarId: string | null
+  enterSkillSelectionMode: (avatarId: string, currentSkills: string[]) => void
+  exitSkillSelectionMode: () => void
+  toggleSkillSelection: (promptId: string) => void
+  toggleFolderSkillSelection: (node: TreeNode) => void
+  getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
+
   // Sidebar collapse
   isCollapsed: boolean
   toggleCollapse: () => void
@@ -59,14 +84,36 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Tag filter state
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+
+  // Skill selection mode state
+  const [skillSelectionMode, setSkillSelectionMode] = useState(false)
+  const [skillSelectedIds, setSkillSelectedIds] = useState<Set<string>>(new Set())
+  const [currentAvatarId, setCurrentAvatarId] = useState<string | null>(null)
+
   // Sidebar collapse state
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  // Filter tree based on search query
+  // Get all available tags from prompts
+  const availableTags = useMemo(() => getAllTags(prompts), [prompts])
+
+  // Filter tree based on search query and tags
   const filteredTreeNodes = useMemo(() => {
-    if (!searchQuery.trim()) return treeNodes
-    return filterTree(treeNodes, searchQuery, prompts)
-  }, [treeNodes, searchQuery, prompts])
+    let filtered = treeNodes
+
+    // Apply tag filter
+    if (selectedTags.length > 0) {
+      filtered = filterTreeByTags(filtered, selectedTags, prompts)
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filterTree(filtered, searchQuery, prompts)
+    }
+
+    return filtered
+  }, [treeNodes, searchQuery, selectedTags, prompts])
 
   // Toggle a single node's expanded state
   const toggleNode = useCallback((nodeId: string) => {
@@ -125,6 +172,70 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
     setIsCollapsed((prev) => !prev)
   }, [])
 
+  // Skill selection mode functions
+  const enterSkillSelectionMode = useCallback((avatarId: string, currentSkills: string[]) => {
+    setSkillSelectionMode(true)
+    setCurrentAvatarId(avatarId)
+    setSkillSelectedIds(new Set(currentSkills))
+  }, [])
+
+  const exitSkillSelectionMode = useCallback(() => {
+    setSkillSelectionMode(false)
+    setCurrentAvatarId(null)
+    setSkillSelectedIds(new Set())
+  }, [])
+
+  const toggleSkillSelection = useCallback((promptId: string) => {
+    setSkillSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(promptId)) {
+        next.delete(promptId)
+      } else {
+        next.add(promptId)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleFolderSkillSelection = useCallback((node: TreeNode) => {
+    const allIds = getAllItemIdsInSubtree(node)
+    setSkillSelectedIds((prev) => {
+      const next = new Set(prev)
+      // Check if all are selected
+      const allSelected = allIds.every((id) => prev.has(id))
+
+      if (allSelected) {
+        // Deselect all
+        for (const id of allIds) {
+          next.delete(id)
+        }
+      } else {
+        // Select all
+        for (const id of allIds) {
+          next.add(id)
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const getSkillSelectionState = useCallback(
+    (node: TreeNode): 'none' | 'partial' | 'all' => {
+      if (!node.isCategory && node.itemId) {
+        return skillSelectedIds.has(node.itemId) ? 'all' : 'none'
+      }
+
+      const allIds = getAllItemIdsInSubtree(node)
+      if (allIds.length === 0) return 'none'
+
+      const selectedCount = countSelectedInSubtree(node, skillSelectedIds)
+      if (selectedCount === 0) return 'none'
+      if (selectedCount === allIds.length) return 'all'
+      return 'partial'
+    },
+    [skillSelectedIds]
+  )
+
   // Auto-expand to selected item when selection changes
   useEffect(() => {
     if (selectedItemId) {
@@ -171,6 +282,21 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
     // Search state
     searchQuery,
     setSearchQuery,
+
+    // Tag filter state
+    selectedTags,
+    setSelectedTags,
+    availableTags,
+
+    // Skill selection mode
+    skillSelectionMode,
+    skillSelectedIds,
+    currentAvatarId,
+    enterSkillSelectionMode,
+    exitSkillSelectionMode,
+    toggleSkillSelection,
+    toggleFolderSkillSelection,
+    getSkillSelectionState,
 
     // Sidebar collapse
     isCollapsed,

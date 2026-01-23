@@ -5,18 +5,23 @@
  * Features:
  * - Mode-based tree navigation
  * - Search filtering
+ * - Tag filtering
+ * - Skill selection mode for avatars
  * - Dirty indicators
  * - Collapse/expand controls
  * - New prompt button
  */
 
-import { type ReactNode, type RefObject, useState } from 'react'
+import { type ReactNode, type RefObject, useState, useRef } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Prompt } from '@/types'
+import type { Avatar } from '@/types/avatar'
 import { TreeNodeComponent } from './TreeNode'
+import { TagFilterChips } from './TagFilterChips'
+import { TagFilterPopover } from './TagFilterPopover'
 import { AvatarListPanel } from '../avatar/AvatarListPanel'
 
 interface PromptTreeSidebarProps {
@@ -39,6 +44,18 @@ interface PromptTreeSidebarProps {
   searchInputRef?: RefObject<HTMLInputElement>
   /** Callback to open settings modal */
   onOpenSettings?: () => void
+  // Tag filter props
+  selectedTags: string[]
+  onSelectedTagsChange: (tags: string[]) => void
+  availableTags: string[]
+  // Skill selection mode props
+  skillSelectionMode: boolean
+  skillSelectedIds: Set<string>
+  currentAvatar: Avatar | null
+  onSkillSelectionSave: () => void
+  onSkillSelectionCancel: () => void
+  getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
+  onSkillCheckboxChange: (node: TreeNode) => void
   className?: string
 }
 
@@ -63,10 +80,31 @@ export function PromptTreeSidebar({
   onCreateNew,
   searchInputRef,
   onOpenSettings,
+  selectedTags,
+  onSelectedTagsChange,
+  availableTags,
+  skillSelectionMode,
+  skillSelectedIds,
+  currentAvatar,
+  onSkillSelectionSave,
+  onSkillSelectionCancel,
+  getSkillSelectionState,
+  onSkillCheckboxChange,
   className = '',
 }: PromptTreeSidebarProps) {
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size
+
+  // Tag filter popover state
+  const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false)
+  const tagFilterRef = useRef<HTMLDivElement>(null)
+
+  // Avatar state
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
+
+  // Active tab state - locked to prompts when in skill selection mode
+  const [activeTab, setActiveTab] = useState('prompts')
+  const effectiveTab = skillSelectionMode ? 'prompts' : activeTab
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -117,9 +155,6 @@ export function PromptTreeSidebar({
     )
   }
 
-  // Avatar state
-  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
-
   // Expanded state - full sidebar with tabs
   return (
     <div
@@ -133,14 +168,29 @@ export function PromptTreeSidebar({
         {/* Top bar with settings and collapse */}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1">
-            {dirtyCount > 0 && (
+            {skillSelectionMode && currentAvatar ? (
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: currentAvatar.bodyColor }}
+                >
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: currentAvatar.headColor }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-foreground">
+                  {skillSelectedIds.size} skill{skillSelectedIds.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+            ) : dirtyCount > 0 ? (
               <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-400 rounded">
                 {dirtyCount} unsaved
               </span>
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-1">
-            {onOpenSettings && (
+            {onOpenSettings && !skillSelectionMode && (
               <button
                 type="button"
                 onClick={onOpenSettings}
@@ -150,29 +200,37 @@ export function PromptTreeSidebar({
                 <Settings className="h-4 w-4" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Collapse sidebar"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
+            {!skillSelectionMode && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <Tabs.Root defaultValue="prompts" className="flex flex-col flex-1 min-h-0">
+      <Tabs.Root
+        value={effectiveTab}
+        onValueChange={skillSelectionMode ? undefined : setActiveTab}
+        className="flex flex-col flex-1 min-h-0"
+      >
         {/* Tab triggers */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border">
           <Tabs.Trigger
             value="prompts"
+            disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
+              'transition-colors',
+              skillSelectionMode && 'cursor-default'
             )}
           >
             <Search className="h-3.5 w-3.5" />
@@ -180,12 +238,14 @@ export function PromptTreeSidebar({
           </Tabs.Trigger>
           <Tabs.Trigger
             value="avatars"
+            disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
               'border-b-2 border-transparent',
               'text-muted-foreground hover:text-foreground',
               'data-[state=active]:text-foreground data-[state=active]:border-primary',
-              'transition-colors'
+              'transition-colors',
+              skillSelectionMode && 'opacity-50 cursor-not-allowed'
             )}
           >
             <User className="h-3.5 w-3.5" />
@@ -204,7 +264,7 @@ export function PromptTreeSidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search prompts... (Ctrl+K)"
+                placeholder={skillSelectionMode ? 'Search skills...' : 'Search prompts... (Ctrl+K)'}
                 className={cn(
                   'w-full pl-8 pr-3 py-1.5 text-xs',
                   'bg-muted border border-border rounded-md',
@@ -214,26 +274,42 @@ export function PromptTreeSidebar({
               />
             </div>
 
-            {/* Expand/Collapse all */}
-            <div className="flex items-center gap-1 mt-2">
-              <button
-                type="button"
-                onClick={onExpandAll}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                title="Expand all"
-              >
-                <ChevronDown className="h-3 w-3" />
-                Expand
-              </button>
-              <button
-                type="button"
-                onClick={onCollapseAll}
-                className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
-                title="Collapse all"
-              >
-                <ChevronUp className="h-3 w-3" />
-                Collapse
-              </button>
+            {/* Tag filter + Expand/Collapse controls */}
+            <div className="flex items-center justify-between mt-2 gap-2" ref={tagFilterRef}>
+              <div className="relative flex-1 min-w-0">
+                <TagFilterChips
+                  selectedTags={selectedTags}
+                  onRemoveTag={(tag) => onSelectedTagsChange(selectedTags.filter((t) => t !== tag))}
+                  onAddFilter={() => setIsTagPopoverOpen(true)}
+                  onClearAll={() => onSelectedTagsChange([])}
+                />
+                <TagFilterPopover
+                  availableTags={availableTags}
+                  selectedTags={selectedTags}
+                  isOpen={isTagPopoverOpen}
+                  onClose={() => setIsTagPopoverOpen(false)}
+                  onApply={onSelectedTagsChange}
+                  className="left-0 top-full"
+                />
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={onExpandAll}
+                  className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                  title="Expand all"
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onCollapseAll}
+                  className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
+                  title="Collapse all"
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -242,7 +318,7 @@ export function PromptTreeSidebar({
             {treeNodes.length === 0 ? (
               <div className="px-3 py-8 text-center">
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery ? 'No prompts match your search' : 'No prompts yet'}
+                  {searchQuery || selectedTags.length > 0 ? 'No prompts match your filters' : 'No prompts yet'}
                 </p>
               </div>
             ) : (
@@ -257,25 +333,55 @@ export function PromptTreeSidebar({
                   expandedNodes={expandedNodes}
                   onToggleNode={onToggleNode}
                   renderItemIcon={renderItemIcon}
+                  showCheckbox={skillSelectionMode}
+                  onCheckboxChange={onSkillCheckboxChange}
+                  getSelectionState={getSkillSelectionState}
                 />
               ))
             )}
           </div>
 
-          {/* Footer - New prompt button */}
+          {/* Footer - Context dependent */}
           <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-            <button
-              type="button"
-              onClick={onCreateNew}
-              title="Create new prompt (Ctrl+N)"
-              className={cn(
-                'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
-                'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
-              )}
-            >
-              <Plus className="h-4 w-4" />
-              New Prompt
-            </button>
+            {skillSelectionMode ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onSkillSelectionCancel}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm',
+                    'bg-muted hover:bg-muted/80 text-foreground rounded-lg transition-colors'
+                  )}
+                >
+                  <X className="h-4 w-4" />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onSkillSelectionSave}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm',
+                    'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
+                  )}
+                >
+                  <Check className="h-4 w-4" />
+                  Save Skills
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onCreateNew}
+                title="Create new prompt (Ctrl+N)"
+                className={cn(
+                  'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
+                  'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
+                )}
+              >
+                <Plus className="h-4 w-4" />
+                New Prompt
+              </button>
+            )}
           </div>
         </Tabs.Content>
 

@@ -74,6 +74,18 @@ describe('PromptTreeSidebar', () => {
     onExpandAll: vi.fn(),
     onCollapseAll: vi.fn(),
     onCreateNew: vi.fn(),
+    // Tag filter props
+    selectedTags: [] as string[],
+    onSelectedTagsChange: vi.fn(),
+    availableTags: [] as string[],
+    // Skill selection mode props
+    skillSelectionMode: false,
+    skillSelectedIds: new Set<string>(),
+    currentAvatar: null,
+    onSkillSelectionSave: vi.fn(),
+    onSkillSelectionCancel: vi.fn(),
+    getSkillSelectionState: vi.fn().mockReturnValue('none' as const),
+    onSkillCheckboxChange: vi.fn(),
   }
 
   beforeEach(() => {
@@ -124,7 +136,7 @@ describe('PromptTreeSidebar', () => {
     it('should render search empty message when search has no results', () => {
       render(<PromptTreeSidebar {...defaultProps} searchQuery="nonexistent" />)
 
-      expect(screen.getByText('No prompts match your search')).toBeInTheDocument()
+      expect(screen.getByText('No prompts match your filters')).toBeInTheDocument()
     })
   })
 

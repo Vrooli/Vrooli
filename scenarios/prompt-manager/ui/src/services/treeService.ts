@@ -181,6 +181,96 @@ export function filterTree(nodes: TreeNode[], query: string, prompts: Prompt[]):
 }
 
 /**
+ * Get all unique tags from prompts.
+ *
+ * @param prompts - All prompts to extract tags from
+ * @returns Sorted array of unique tag values
+ */
+export function getAllTags(prompts: Prompt[]): string[] {
+  const tags = new Set<string>()
+
+  for (const prompt of prompts) {
+    for (const tag of prompt.tags) {
+      tags.add(tag)
+    }
+  }
+
+  return Array.from(tags).sort()
+}
+
+/**
+ * Filter tree nodes by selected tags.
+ * Returns a new tree with only items that have at least one of the selected tags.
+ *
+ * @param nodes - Tree nodes to filter
+ * @param selectedTags - Tags to filter by (items must have at least one)
+ * @param prompts - All prompts for tag lookup
+ * @returns Filtered tree nodes
+ */
+export function filterTreeByTags(
+  nodes: TreeNode[],
+  selectedTags: string[],
+  prompts: Prompt[]
+): TreeNode[] {
+  if (selectedTags.length === 0) return nodes
+
+  const tagSet = new Set(selectedTags)
+
+  // Find all matching prompt IDs
+  const matchingIds = new Set(
+    prompts
+      .filter((p) => p.tags.some((tag) => tagSet.has(tag)))
+      .map((p) => p.id)
+  )
+
+  // Recursively filter tree, keeping categories that have matching descendants
+  function filterNode(node: TreeNode): TreeNode | null {
+    if (!node.isCategory) {
+      // Leaf node - include if it matches
+      return node.itemId && matchingIds.has(node.itemId) ? node : null
+    }
+
+    // Category node - include if any children match
+    const filteredChildren = node.children
+      .map(filterNode)
+      .filter((n): n is TreeNode => n !== null)
+
+    if (filteredChildren.length === 0) return null
+
+    return { ...node, children: filteredChildren }
+  }
+
+  return nodes.map(filterNode).filter((n): n is TreeNode => n !== null)
+}
+
+/**
+ * Get the count of selected items in a subtree.
+ *
+ * @param node - Root node of subtree to count
+ * @param selectedIds - Set of selected prompt IDs
+ * @returns Number of selected items in subtree
+ */
+export function countSelectedInSubtree(node: TreeNode, selectedIds: Set<string>): number {
+  if (!node.isCategory && node.itemId) {
+    return selectedIds.has(node.itemId) ? 1 : 0
+  }
+  return node.children.reduce((acc, child) => acc + countSelectedInSubtree(child, selectedIds), 0)
+}
+
+/**
+ * Get all prompt IDs in a subtree.
+ *
+ * @param node - Root node of subtree
+ * @returns Array of all prompt IDs in the subtree
+ */
+export function getAllItemIdsInSubtree(node: TreeNode): string[] {
+  if (!node.isCategory && node.itemId) {
+    return [node.itemId]
+  }
+  return node.children.flatMap(getAllItemIdsInSubtree)
+}
+
+/**
  * Get all unique modes from prompts at a specific level.
  * Used for mode suggestions in the category path editor.
  *
