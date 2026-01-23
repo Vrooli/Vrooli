@@ -89,6 +89,9 @@ describe('SkillTreeSidebar', () => {
     // Context menu callbacks
     onDeleteFolder: vi.fn(),
     onCopySkill: vi.fn(),
+    onMoveToFolder: vi.fn(),
+    onChangeStorage: vi.fn(),
+    onCreateNewFolder: vi.fn(),
   }
 
   beforeEach(() => {

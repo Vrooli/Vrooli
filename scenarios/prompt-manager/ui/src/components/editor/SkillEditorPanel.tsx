@@ -3,24 +3,36 @@
  *
  * Brings together:
  * - EditorToolbar
- * - SkillMetadataForm
- * - SkillContentEditor
+ * - SkillContentEditor (full width)
  * - WorldCanvas (when no skill selected)
+ *
+ * Header contains:
+ * - Icon selector
+ * - Inline editable name
+ * - Draft toggle
+ * - Storage indicator
+ * - Expandable description
+ * - Tag chips editor
+ * - Mode path display
  *
  * Also handles:
  * - Empty state with 3D world visualization
  */
 
-import { X, FileText } from 'lucide-react'
+import { X, FolderOpen, HardDrive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { SkillFormState, ValidationResult } from '@/types/editor'
-import type { Skill } from '@/types'
+import type { Skill, FolderType } from '@/types'
 import type { CombineFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
-import { SkillMetadataForm } from './SkillMetadataForm'
 import { SkillContentEditor } from './SkillContentEditor'
 import { WorldCanvas } from '@/components/world'
+import { IconSelector } from '../shared/IconSelector'
+import { InlineEditableText } from '../shared/InlineEditableText'
+import { DraftToggle } from '../shared/DraftToggle'
+import { ExpandableDescription } from '../shared/ExpandableDescription'
+import { TagChipsEditor } from '../shared/TagChipsEditor'
 
 interface SkillEditorPanelProps {
   // Current state
@@ -37,8 +49,9 @@ interface SkillEditorPanelProps {
 
   // Form operations
   onFieldChange: <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => void
-  onModesChange: (modes: string[]) => void
-  getSuggestionsAtLevel: (level: number, parentPath: string[]) => string[]
+
+  // Available tags for autocomplete
+  availableTags?: string[]
 
   // Actions
   onSave: () => void
@@ -66,8 +79,7 @@ export function SkillEditorPanel({
   isDirty,
   dirtyCount,
   onFieldChange,
-  onModesChange,
-  getSuggestionsAtLevel,
+  availableTags = [],
   onSave,
   onSaveAll,
   onDiscard,
@@ -99,83 +111,143 @@ export function SkillEditorPanel({
     )
   }
 
+  // Helper to get storage location display
+  const getStorageDisplay = (folder: FolderType) => {
+    switch (folder) {
+      case 'local':
+        return { icon: HardDrive, label: 'Local', title: 'Personal skill, gitignored' }
+      case 'core':
+        return { icon: FolderOpen, label: 'Core', title: 'Shared skill, git-tracked' }
+      case 'drafts':
+        return { icon: HardDrive, label: 'Drafts', title: 'Draft skill' }
+      default:
+        return { icon: HardDrive, label: 'Local', title: 'Personal skill' }
+    }
+  }
+
+  const storage = getStorageDisplay(formState.folder)
+  const StorageIcon = storage.icon
+  const modePath = formState.modes.filter(Boolean).join(' / ') || '(none)'
+
   return (
     <div className={cn('h-full', className)}>
-      <div
-        className="flex flex-col h-full bg-card/50"
-      >
-      {/* Header with skill name and navigation */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-border">
-        {/* Top row: Close button, skill name, and status */}
-        <div className="flex items-center gap-3 mb-3">
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Close editor and return to world"
-            title="Close (Esc)"
-          >
-            <X className="h-5 w-5" />
-          </button>
+      <div className="flex flex-col h-full bg-card/50">
+        {/* Header with all metadata */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2">
+          {/* Row 1: Close, Icon, Name, Draft toggle, Storage, Unsaved indicator */}
+          <div className="flex items-center gap-2">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label="Close editor and return to world"
+              title="Close (Esc)"
+            >
+              <X className="h-5 w-5" />
+            </button>
 
-          {/* Skill icon and name */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-            <h2 className="text-lg font-semibold text-foreground truncate">
-              {formState.name || 'Untitled Skill'}
-            </h2>
-          </div>
+            {/* Icon selector */}
+            <IconSelector
+              value={formState.icon}
+              onChange={(v) => onFieldChange('icon', v)}
+              className="flex-shrink-0"
+            />
 
-          {/* Status indicator */}
-          {isDirty && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
-              Unsaved changes
+            {/* Editable name */}
+            <div className="flex-1 min-w-0">
+              <InlineEditableText
+                value={formState.name}
+                onChange={(v) => onFieldChange('name', v)}
+                placeholder="Untitled Skill"
+                error={validation.errors.name}
+                as="h2"
+                className="text-foreground"
+              />
             </div>
-          )}
-        </div>
 
-        {/* Toolbar */}
-        <EditorToolbar
-          isDirty={isDirty}
-          dirtyCount={dirtyCount}
-          onSave={onSave}
-          onSaveAll={onSaveAll}
-          onDiscard={onDiscard}
-          onDelete={onDelete}
-          isSaving={isSaving}
-          isDeleting={isDeleting}
-          isValid={validation.valid}
-        />
-      </div>
-
-      {/* Content area - responsive layout */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* On large screens (>=1280px): side-by-side layout */}
-        {/* On smaller screens: stacked layout */}
-        <div className="h-full flex flex-col xl:flex-row xl:gap-4">
-          {/* Metadata form - 1/3 width on large screens */}
-          <div className="flex-shrink-0 xl:w-1/3 xl:max-w-md xl:overflow-y-auto">
-            <SkillMetadataForm
-              formState={formState}
-              onFieldChange={onFieldChange}
-              onModesChange={onModesChange}
-              getSuggestionsAtLevel={getSuggestionsAtLevel}
-              validation={validation}
+            {/* Draft toggle */}
+            <DraftToggle
+              isDraft={formState.draft}
+              onChange={(v) => onFieldChange('draft', v)}
+              className="flex-shrink-0"
             />
+
+            {/* Storage indicator */}
+            <button
+              type="button"
+              onClick={() => onFieldChange('folder', formState.folder === 'local' ? 'core' : 'local')}
+              title={`${storage.title}. Click to change.`}
+              className={cn(
+                'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors flex-shrink-0',
+                'hover:bg-muted/50',
+                formState.folder === 'core'
+                  ? 'text-emerald-300'
+                  : 'text-muted-foreground'
+              )}
+            >
+              <StorageIcon className="h-3 w-3" />
+              {storage.label}
+            </button>
+
+            {/* Unsaved indicator */}
+            {isDirty && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+                Unsaved
+              </div>
+            )}
           </div>
 
-          {/* Content editor - 2/3 width on large screens, takes remaining height */}
-          <div className="flex-1 mt-4 xl:mt-0 min-h-[300px] xl:min-h-0">
-            <SkillContentEditor
-              value={formState.content}
-              onChange={(v) => onFieldChange('content', v)}
-              error={validation.errors.content}
-              className="h-full"
+          {/* Row 2: Description */}
+          <ExpandableDescription
+            value={formState.description}
+            onChange={(v) => onFieldChange('description', v)}
+            placeholder="Click to add description..."
+            error={validation.errors.description}
+            className="text-muted-foreground"
+          />
+
+          {/* Row 3: Tags and Mode path */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <TagChipsEditor
+              value={formState.tags}
+              onChange={(v) => onFieldChange('tags', v)}
+              availableTags={availableTags}
+              placeholder="Add tags..."
+              className="flex-1 min-w-0"
             />
+
+            {/* Mode path display (read-only, edit via right-click context menu) */}
+            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+              <FolderOpen className="h-3 w-3" />
+              <span>Path:</span>
+              <span className="text-foreground">{modePath}</span>
+            </div>
           </div>
+
+          {/* Row 4: Toolbar */}
+          <EditorToolbar
+            isDirty={isDirty}
+            dirtyCount={dirtyCount}
+            onSave={onSave}
+            onSaveAll={onSaveAll}
+            onDiscard={onDiscard}
+            onDelete={onDelete}
+            isSaving={isSaving}
+            isDeleting={isDeleting}
+            isValid={validation.valid}
+          />
         </div>
-      </div>
+
+        {/* Content area - full width */}
+        <div className="flex-1 overflow-hidden p-4">
+          <SkillContentEditor
+            value={formState.content}
+            onChange={(v) => onFieldChange('content', v)}
+            error={validation.errors.content}
+            className="h-full"
+          />
+        </div>
       </div>
     </div>
   )

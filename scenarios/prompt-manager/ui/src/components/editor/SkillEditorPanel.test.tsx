@@ -86,8 +86,6 @@ const defaultProps = {
   isDirty: false,
   dirtyCount: 0,
   onFieldChange: vi.fn(),
-  onModesChange: vi.fn(),
-  getSuggestionsAtLevel: vi.fn(() => []),
   onSave: vi.fn(),
   onSaveAll: vi.fn(),
   onDiscard: vi.fn(),
@@ -165,7 +163,7 @@ describe('SkillEditorPanel', () => {
         />
       )
 
-      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
     })
 
     it('should not show unsaved changes indicator when not dirty', () => {
@@ -179,7 +177,7 @@ describe('SkillEditorPanel', () => {
         />
       )
 
-      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument()
+      expect(screen.queryByText('Unsaved')).not.toBeInTheDocument()
     })
   })
 

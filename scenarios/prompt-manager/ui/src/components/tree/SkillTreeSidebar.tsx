@@ -17,7 +17,7 @@ import * as Tabs from '@radix-ui/react-tabs'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
-import type { Skill } from '@/types'
+import type { Skill, FolderType } from '@/types'
 import type { Member } from '@/types/member'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
@@ -62,6 +62,9 @@ interface SkillTreeSidebarProps {
   // Context menu callbacks
   onDeleteFolder: (skillIds: string[], folderLabel: string) => void
   onCopySkill: (skillId: string) => void
+  onMoveToFolder: (skillId: string, path: string[]) => void
+  onChangeStorage: (skillId: string, folder: FolderType) => void
+  onCreateNewFolder: (skillId: string) => void
   className?: string
 }
 
@@ -98,6 +101,9 @@ export function SkillTreeSidebar({
   onSkillCheckboxChange,
   onDeleteFolder,
   onCopySkill,
+  onMoveToFolder,
+  onChangeStorage,
+  onCreateNewFolder,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -125,6 +131,8 @@ export function SkillTreeSidebar({
   const [skillContextMenu, setSkillContextMenu] = useState<{
     skillId: string
     skillName: string
+    currentModes: string[]
+    currentFolder: FolderType
     x: number
     y: number
   } | null>(null)
@@ -136,8 +144,17 @@ export function SkillTreeSidebar({
 
   const handleSkillContextMenu = useCallback((skillId: string, skillName: string, x: number, y: number) => {
     setFolderContextMenu(null) // Close any open folder menu
-    setSkillContextMenu({ skillId, skillName, x, y })
-  }, [])
+    // Find the skill to get its current modes and folder
+    const skill = skills.find((s) => s.id === skillId)
+    setSkillContextMenu({
+      skillId,
+      skillName,
+      currentModes: skill?.modes || [],
+      currentFolder: skill?.folder || 'local',
+      x,
+      y,
+    })
+  }, [skills])
 
   const handleCloseFolderContextMenu = useCallback(() => {
     setFolderContextMenu(null)
@@ -169,6 +186,32 @@ export function SkillTreeSidebar({
       setSkillContextMenu(null)
     }
   }, [skillContextMenu, onCopySkill])
+
+  const handleMoveToFolder = useCallback((path: string[]) => {
+    if (skillContextMenu) {
+      onMoveToFolder(skillContextMenu.skillId, path)
+      setSkillContextMenu(null)
+    }
+  }, [skillContextMenu, onMoveToFolder])
+
+  const handleChangeStorage = useCallback((folder: FolderType) => {
+    if (skillContextMenu) {
+      onChangeStorage(skillContextMenu.skillId, folder)
+      setSkillContextMenu(null)
+    }
+  }, [skillContextMenu, onChangeStorage])
+
+  const handleCreateNewFolder = useCallback(() => {
+    if (skillContextMenu) {
+      onCreateNewFolder(skillContextMenu.skillId)
+      setSkillContextMenu(null)
+    }
+  }, [skillContextMenu, onCreateNewFolder])
+
+  // Get all available mode paths from skills
+  const availableModePaths = skills
+    .filter((s) => s.modes && s.modes.length > 0)
+    .map((s) => s.modes)
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -424,9 +467,16 @@ export function SkillTreeSidebar({
               <SkillContextMenu
                 x={skillContextMenu.x}
                 y={skillContextMenu.y}
+                skillId={skillContextMenu.skillId}
                 skillName={skillContextMenu.skillName}
+                currentModes={skillContextMenu.currentModes}
+                currentFolder={skillContextMenu.currentFolder}
+                availableModePaths={availableModePaths}
                 onClose={handleCloseSkillContextMenu}
                 onCopySkill={handleCopySkill}
+                onMoveToFolder={handleMoveToFolder}
+                onChangeStorage={handleChangeStorage}
+                onCreateNewFolder={handleCreateNewFolder}
               />
             )}
           </div>

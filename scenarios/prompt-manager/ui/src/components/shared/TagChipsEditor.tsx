@@ -1,0 +1,253 @@
+/**
+ * TagChipsEditor - Inline tag editing with chips.
+ *
+ * Display tags as removable chips
+ * [+] button opens popover for adding tags
+ * Autocomplete from existing tags in codebase
+ */
+
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { X, Plus, Tag } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface TagChipsEditorProps {
+  /** Comma-separated tags string */
+  value: string
+  onChange: (value: string) => void
+  /** Available tags for autocomplete */
+  availableTags?: string[]
+  placeholder?: string
+  disabled?: boolean
+  className?: string
+}
+
+/**
+ * Tag chips editor component.
+ */
+export function TagChipsEditor({
+  value,
+  onChange,
+  availableTags = [],
+  placeholder = 'Add tags...',
+  disabled,
+  className,
+}: TagChipsEditorProps) {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [inputValue, setInputValue] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Parse tags from comma-separated string
+  const tags = useMemo(() => {
+    return value
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+  }, [value])
+
+  // Filter suggestions based on input and exclude already-selected tags
+  const filteredSuggestions = useMemo(() => {
+    const lower = inputValue.toLowerCase()
+    return availableTags
+      .filter((t) => !tags.includes(t))
+      .filter((t) => !inputValue || t.toLowerCase().includes(lower))
+      .slice(0, 10)
+  }, [availableTags, tags, inputValue])
+
+  // Check if current input is a new tag
+  const isNewTag = useMemo(() => {
+    const trimmed = inputValue.trim()
+    return trimmed && !availableTags.includes(trimmed) && !tags.includes(trimmed)
+  }, [inputValue, availableTags, tags])
+
+  // Handle click outside to close popover
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      setIsPopoverOpen(false)
+      setInputValue('')
+    }
+  }, [])
+
+  const handleEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setIsPopoverOpen(false)
+      setInputValue('')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+      // Focus input when popover opens
+      setTimeout(() => inputRef.current?.focus(), 0)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isPopoverOpen, handleClickOutside, handleEscape])
+
+  const addTag = useCallback(
+    (tag: string) => {
+      const trimmed = tag.trim()
+      if (trimmed && !tags.includes(trimmed)) {
+        const newTags = [...tags, trimmed]
+        onChange(newTags.join(', '))
+      }
+      setInputValue('')
+      inputRef.current?.focus()
+    },
+    [tags, onChange]
+  )
+
+  const removeTag = useCallback(
+    (tagToRemove: string) => {
+      const newTags = tags.filter((t) => t !== tagToRemove)
+      onChange(newTags.join(', '))
+    },
+    [tags, onChange]
+  )
+
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' && inputValue.trim()) {
+        e.preventDefault()
+        addTag(inputValue)
+      } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+        // Remove last tag on backspace when input is empty
+        const lastTag = tags[tags.length - 1]
+        if (lastTag) {
+          removeTag(lastTag)
+        }
+      }
+    },
+    [inputValue, addTag, tags, removeTag]
+  )
+
+  return (
+    <div ref={containerRef} className={cn('relative', className)}>
+      <div className="flex items-center gap-1 flex-wrap">
+        {/* Tag label */}
+        <span className="flex items-center gap-1 text-xs text-muted-foreground mr-1">
+          <Tag className="h-3 w-3" />
+          Tags:
+        </span>
+
+        {/* Existing tags as chips */}
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5',
+              'text-xs bg-primary/20 text-primary rounded-full',
+              'whitespace-nowrap'
+            )}
+          >
+            {tag}
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="p-0.5 hover:bg-primary/30 rounded-full transition-colors"
+                title={`Remove ${tag}`}
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
+          </span>
+        ))}
+
+        {/* Add button */}
+        {!disabled && (
+          <button
+            type="button"
+            onClick={() => setIsPopoverOpen(true)}
+            className={cn(
+              'inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs',
+              'text-muted-foreground hover:text-foreground',
+              'hover:bg-muted/50 rounded transition-colors'
+            )}
+            title="Add tag"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
+
+        {/* Empty state */}
+        {tags.length === 0 && !isPopoverOpen && (
+          <span className="text-xs text-muted-foreground italic">{placeholder}</span>
+        )}
+      </div>
+
+      {/* Add tag popover */}
+      {isPopoverOpen && (
+        <div
+          className={cn(
+            'absolute z-50 mt-1 p-2 w-56',
+            'bg-popover border border-border rounded-lg shadow-xl',
+            'animate-in fade-in-0 zoom-in-95 duration-100'
+          )}
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleInputKeyDown}
+            placeholder="Type tag name..."
+            className={cn(
+              'w-full px-2 py-1.5 text-sm',
+              'bg-muted border border-border rounded-md',
+              'text-foreground placeholder:text-muted-foreground',
+              'focus:outline-none focus:ring-2 focus:ring-primary'
+            )}
+          />
+
+          {/* Suggestions list */}
+          {(filteredSuggestions.length > 0 || isNewTag) && (
+            <div className="mt-2 max-h-32 overflow-y-auto">
+              {/* New tag option */}
+              {isNewTag && (
+                <button
+                  type="button"
+                  onClick={() => addTag(inputValue)}
+                  className={cn(
+                    'w-full px-2 py-1.5 text-left text-sm rounded',
+                    'hover:bg-muted transition-colors',
+                    'flex items-center justify-between'
+                  )}
+                >
+                  <span className="text-foreground">Create "{inputValue.trim()}"</span>
+                  <span className="px-1.5 py-0.5 text-[10px] bg-emerald-600/30 text-emerald-300 rounded">
+                    NEW
+                  </span>
+                </button>
+              )}
+
+              {/* Existing tag suggestions */}
+              {filteredSuggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => addTag(suggestion)}
+                  className={cn(
+                    'w-full px-2 py-1.5 text-left text-sm rounded',
+                    'text-muted-foreground hover:bg-muted hover:text-foreground transition-colors'
+                  )}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Help text */}
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Press Enter to add, Escape to close
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -33,6 +33,7 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
+import { NewFolderDialog } from '../tree/NewFolderDialog'
 import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, CreateSkillRequest } from '@/types'
@@ -155,7 +156,6 @@ export function SkillManagerLayout() {
     currentSkill,
     formState,
     updateField,
-    setModes,
     validation,
     isDirty,
     dirtyItemIds,
@@ -367,6 +367,52 @@ export function SkillManagerLayout() {
     }
   }, [createSkill, setSelectedSkillId, isMobile])
 
+  // Handle move to folder (update skill modes)
+  const handleMoveToFolder = useCallback(async (skillId: string, path: string[]) => {
+    try {
+      const updates = new Map<string, { modes: string[] }>()
+      updates.set(skillId, { modes: path })
+      await updateSkills(updates)
+    } catch (error) {
+      console.error('Failed to move skill to folder:', error)
+    }
+  }, [updateSkills])
+
+  // Handle change storage location (update skill folder)
+  const handleChangeStorage = useCallback(async (skillId: string, folder: 'local' | 'core' | 'drafts') => {
+    try {
+      const updates = new Map<string, { folder: 'local' | 'core' | 'drafts' }>()
+      updates.set(skillId, { folder })
+      await updateSkills(updates)
+    } catch (error) {
+      console.error('Failed to change storage location:', error)
+    }
+  }, [updateSkills])
+
+  // New folder dialog state
+  const [newFolderDialog, setNewFolderDialog] = useState<{
+    skillId: string
+  } | null>(null)
+
+  // Handle create new folder request (opens dialog)
+  const handleCreateNewFolderRequest = useCallback((skillId: string) => {
+    setNewFolderDialog({ skillId })
+  }, [])
+
+  // Handle new folder dialog confirm
+  const handleNewFolderConfirm = useCallback(async (path: string[]) => {
+    if (newFolderDialog) {
+      try {
+        const updates = new Map<string, { modes: string[] }>()
+        updates.set(newFolderDialog.skillId, { modes: path })
+        await updateSkills(updates)
+      } catch (error) {
+        console.error('Failed to move skill to new folder:', error)
+      }
+      setNewFolderDialog(null)
+    }
+  }, [newFolderDialog, updateSkills])
+
   // Render item icon in tree
   const renderItemIcon = useCallback((skill: Skill) => {
     const Icon = getIcon(skill.icon || '')
@@ -406,6 +452,10 @@ export function SkillManagerLayout() {
       }
       if (deleteFolderDialog) {
         setDeleteFolderDialog(null)
+        return
+      }
+      if (newFolderDialog) {
+        setNewFolderDialog(null)
         return
       }
       // If no dialogs open and on mobile, close the sidebar
@@ -457,6 +507,9 @@ export function SkillManagerLayout() {
         onSkillCheckboxChange={handleSkillCheckboxChange}
         onDeleteFolder={handleDeleteFolderRequest}
         onCopySkill={(skillId) => void handleCopySkill(skillId)}
+        onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
+        onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
+        onCreateNewFolder={handleCreateNewFolderRequest}
       />
     </PanelErrorBoundary>
   )
@@ -543,8 +596,7 @@ export function SkillManagerLayout() {
               isDirty={isDirty}
               dirtyCount={dirtyCount}
               onFieldChange={updateField}
-              onModesChange={setModes}
-              getSuggestionsAtLevel={getSuggestionsAtLevel}
+              availableTags={availableTags}
               onSave={() => void saveCurrentSkill()}
               onSaveAll={() => void saveAllChanges()}
               onDiscard={discardCurrentChanges}
@@ -609,12 +661,23 @@ export function SkillManagerLayout() {
                 onSkillCheckboxChange={handleSkillCheckboxChange}
                 onDeleteFolder={handleDeleteFolderRequest}
                 onCopySkill={(skillId) => void handleCopySkill(skillId)}
+                onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
+                onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
+                onCreateNewFolder={handleCreateNewFolderRequest}
                 className="border-r-0"
               />
             </div>
           </div>
         </div>
       )}
+
+      {/* New folder dialog */}
+      <NewFolderDialog
+        isOpen={newFolderDialog !== null}
+        onClose={() => setNewFolderDialog(null)}
+        onConfirm={(path) => void handleNewFolderConfirm(path)}
+        getSuggestionsAtLevel={getSuggestionsAtLevel}
+      />
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
