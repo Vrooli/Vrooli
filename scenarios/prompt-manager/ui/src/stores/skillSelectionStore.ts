@@ -2,19 +2,19 @@
  * Zustand store for skill selection mode state.
  *
  * This store manages the skill selection mode that allows users to assign
- * prompts as skills to avatars. It's shared between:
+ * skills to members. It's shared between:
  * - WorldCanvas (triggers entering skill selection mode)
- * - PromptTreeSidebar (shows checkboxes and handles selection)
+ * - SkillTreeSidebar (shows checkboxes and handles selection)
  */
 
 import { create } from 'zustand'
-import type { Avatar } from '@/types/avatar'
+import type { Member } from '@/types/member'
 
 interface SkillSelectionStore {
   // Mode state
   isActive: boolean
-  currentAvatarId: string | null
-  currentAvatar: Avatar | null
+  currentMemberId: string | null
+  currentMember: Member | null
 
   // Selection state
   selectedSkillIds: Set<string>
@@ -24,28 +24,28 @@ interface SkillSelectionStore {
 
   // Actions
   enterSkillSelectionMode: (
-    avatar: Avatar,
+    member: Member,
     currentSkills: string[],
     onSave: (skillIds: string[]) => Promise<void>
   ) => void
   exitSkillSelectionMode: () => void
-  toggleSkillSelection: (promptId: string) => void
-  toggleMultipleSkills: (promptIds: string[], select: boolean) => void
+  toggleSkillSelection: (skillId: string) => void
+  toggleMultipleSkills: (skillIds: string[], select: boolean) => void
   saveAndExit: () => Promise<void>
 }
 
 export const useSkillSelectionStore = create<SkillSelectionStore>((set, get) => ({
   isActive: false,
-  currentAvatarId: null,
-  currentAvatar: null,
+  currentMemberId: null,
+  currentMember: null,
   selectedSkillIds: new Set(),
   onSave: null,
 
-  enterSkillSelectionMode: (avatar, currentSkills, onSave) => {
+  enterSkillSelectionMode: (member, currentSkills, onSave) => {
     set({
       isActive: true,
-      currentAvatarId: avatar.id,
-      currentAvatar: avatar,
+      currentMemberId: member.id,
+      currentMember: member,
       selectedSkillIds: new Set(currentSkills),
       onSave,
     })
@@ -54,29 +54,29 @@ export const useSkillSelectionStore = create<SkillSelectionStore>((set, get) => 
   exitSkillSelectionMode: () => {
     set({
       isActive: false,
-      currentAvatarId: null,
-      currentAvatar: null,
+      currentMemberId: null,
+      currentMember: null,
       selectedSkillIds: new Set(),
       onSave: null,
     })
   },
 
-  toggleSkillSelection: (promptId) => {
+  toggleSkillSelection: (skillId) => {
     set((state) => {
       const next = new Set(state.selectedSkillIds)
-      if (next.has(promptId)) {
-        next.delete(promptId)
+      if (next.has(skillId)) {
+        next.delete(skillId)
       } else {
-        next.add(promptId)
+        next.add(skillId)
       }
       return { selectedSkillIds: next }
     })
   },
 
-  toggleMultipleSkills: (promptIds, select) => {
+  toggleMultipleSkills: (skillIds, select) => {
     set((state) => {
       const next = new Set(state.selectedSkillIds)
-      for (const id of promptIds) {
+      for (const id of skillIds) {
         if (select) {
           next.add(id)
         } else {

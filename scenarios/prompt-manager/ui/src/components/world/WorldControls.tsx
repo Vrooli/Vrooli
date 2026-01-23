@@ -14,17 +14,17 @@ interface WorldControlsProps {
   onCycleCameraMode: () => void
   nodeCount: number
   selectionCount: number
-  avatarCount: number
+  memberCount: number
 }
 
 const CAMERA_MODE_ICONS: Record<CameraMode, React.ReactNode> = {
-  'zoomed-avatar': <User className="h-4 w-4" />,
+  'zoomed-member': <User className="h-4 w-4" />,
   freeform: <Eye className="h-4 w-4" />,
   'top-down': <Map className="h-4 w-4" />,
 }
 
 const CAMERA_MODE_LABELS: Record<CameraMode, string> = {
-  'zoomed-avatar': 'Focus on Avatar',
+  'zoomed-member': 'Focus on Member',
   freeform: 'Default View',
   'top-down': 'Aerial View',
 }
@@ -34,7 +34,7 @@ export function WorldControls({
   onCycleCameraMode,
   nodeCount,
   selectionCount,
-  avatarCount,
+  memberCount,
 }: WorldControlsProps) {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
 
@@ -65,7 +65,7 @@ export function WorldControls({
       {/* Info - top left */}
       <div className="absolute top-4 left-4 flex items-center gap-3">
         <div className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300">
-          {avatarCount} avatar{avatarCount !== 1 ? 's' : ''} • {nodeCount} prompts
+          {memberCount} member{memberCount !== 1 ? 's' : ''} • {nodeCount} skills
         </div>
         {selectionCount > 0 && (
           <div className="px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-md text-xs text-amber-300">

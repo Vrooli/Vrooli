@@ -1,9 +1,9 @@
-// Package prompts provides the core domain types and operations for prompt management.
-// This is the heart of the prompt-manager scenario - all prompt-related concepts live here.
-package prompts
+// Package skills provides the core domain types and operations for skill management.
+// This is the heart of the prompt-manager scenario - all skill-related concepts live here.
+package skills
 
-// Metadata represents a prompt entry in metadata.json.
-// Prompts are stored as markdown files with metadata tracked in JSON.
+// Metadata represents a skill entry in metadata.json.
+// Skills are stored as markdown files with metadata tracked in JSON.
 type Metadata struct {
 	ID           string   `json:"id"`
 	File         string   `json:"file"`
@@ -20,10 +20,10 @@ type Metadata struct {
 
 // MetadataFile represents the structure of metadata.json files in each folder.
 type MetadataFile struct {
-	Prompts []Metadata `json:"prompts"`
+	Skills []Metadata `json:"skills"`
 }
 
-// Response is the API response for a prompt, enriched with content and metrics.
+// Response is the API response for a skill, enriched with content and metrics.
 type Response struct {
 	ID                  string   `json:"id"`
 	Name                string   `json:"name"`
@@ -44,12 +44,12 @@ type Response struct {
 
 // SyncResponse is returned by the sync endpoint for consumers like ecosystem-manager.
 type SyncResponse struct {
-	Prompts     []Response `json:"prompts"`
+	Skills      []Response `json:"skills"`
 	LastUpdated string     `json:"lastUpdated"`
 	Hash        string     `json:"hash"`
 }
 
-// CreateRequest is the request body for creating a prompt.
+// CreateRequest is the request body for creating a skill.
 type CreateRequest struct {
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
@@ -63,7 +63,7 @@ type CreateRequest struct {
 	Folder       string   `json:"folder"` // "local" or "drafts" only
 }
 
-// UpdateRequest is the request body for updating a prompt.
+// UpdateRequest is the request body for updating a skill.
 type UpdateRequest struct {
 	Name         *string  `json:"name,omitempty"`
 	Description  *string  `json:"description,omitempty"`
@@ -75,24 +75,24 @@ type UpdateRequest struct {
 	Draft        *bool    `json:"draft,omitempty"`
 }
 
-// CombineRequest is the request body for combining multiple prompts.
+// CombineRequest is the request body for combining multiple skills.
 type CombineRequest struct {
-	PromptIDs []string `json:"promptIds"`
-	Format    string   `json:"format,omitempty"` // "xml", "markdown", or "json"
+	SkillIDs []string `json:"skillIds"`
+	Format   string   `json:"format,omitempty"` // "xml", "markdown", or "json"
 }
 
-// CombineResponse is the response for combined prompts.
+// CombineResponse is the response for combined skills.
 type CombineResponse struct {
 	Combined    string `json:"combined"`
-	PromptCount int    `json:"promptCount"`
+	SkillCount  int    `json:"skillCount"`
 	TotalTokens int    `json:"totalTokens"`
 	Format      string `json:"format"`
 }
 
-// Folders defines the valid folder names for prompt storage.
+// Folders defines the valid folder names for skill storage.
 var Folders = []string{"core", "local", "drafts"}
 
-// WritableFolders defines folders where prompts can be created/updated/deleted.
+// WritableFolders defines folders where skills can be created/updated/deleted.
 var WritableFolders = []string{"local", "drafts"}
 
 // IsWritableFolder checks if a folder allows modifications.

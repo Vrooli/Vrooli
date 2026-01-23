@@ -1,4 +1,4 @@
-package prompts
+package skills
 
 import (
 	"bytes"
@@ -10,30 +10,30 @@ import (
 	"time"
 )
 
-// MockStore implements PromptStore for testing.
+// MockStore implements SkillStore for testing.
 type MockStore struct {
-	prompts  map[string][]Metadata // folder -> prompts
+	skills   map[string][]Metadata // folder -> skills
 	contents map[string]string     // folder/filename -> content
 }
 
 func NewMockStore() *MockStore {
 	return &MockStore{
-		prompts:  make(map[string][]Metadata),
+		skills:   make(map[string][]Metadata),
 		contents: make(map[string]string),
 	}
 }
 
 func (m *MockStore) GetAll() ([]Metadata, error) {
 	var all []Metadata
-	for _, prompts := range m.prompts {
-		all = append(all, prompts...)
+	for _, skills := range m.skills {
+		all = append(all, skills...)
 	}
 	return all, nil
 }
 
 func (m *MockStore) FindByID(id string) (*Metadata, string, error) {
-	for folder, prompts := range m.prompts {
-		for _, p := range prompts {
+	for folder, skills := range m.skills {
+		for _, p := range skills {
 			if p.ID == id {
 				return &p, folder, nil
 			}
@@ -43,11 +43,11 @@ func (m *MockStore) FindByID(id string) (*Metadata, string, error) {
 }
 
 func (m *MockStore) LoadMetadata(folder string) ([]Metadata, error) {
-	return m.prompts[folder], nil
+	return m.skills[folder], nil
 }
 
-func (m *MockStore) SaveMetadata(folder string, prompts []Metadata) error {
-	m.prompts[folder] = prompts
+func (m *MockStore) SaveMetadata(folder string, skills []Metadata) error {
+	m.skills[folder] = skills
 	return nil
 }
 
@@ -74,19 +74,19 @@ func (m *MockStore) DeleteContent(folder, filename string) error {
 // MockMetricsService implements MetricsService for testing.
 type MockMetricsService struct{}
 
-func (m *MockMetricsService) Get(promptID string) (*PromptMetrics, error) {
+func (m *MockMetricsService) Get(skillID string) (*SkillMetrics, error) {
 	return nil, nil
 }
 
-func (m *MockMetricsService) RecordUsage(promptID string) (int, time.Time, error) {
+func (m *MockMetricsService) RecordUsage(skillID string) (int, time.Time, error) {
 	return 1, time.Now(), nil
 }
 
-func (m *MockMetricsService) SetRating(promptID string, rating int, notes *string) error {
+func (m *MockMetricsService) SetRating(skillID string, rating int, notes *string) error {
 	return nil
 }
 
-func (m *MockMetricsService) Delete(promptID string) error {
+func (m *MockMetricsService) Delete(skillID string) error {
 	return nil
 }
 
@@ -95,14 +95,14 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics)
 
-	// Create first prompt with name "New Prompt"
+	// Create first skill with name "New Skill"
 	req1 := CreateRequest{
-		Name:    "New Prompt",
+		Name:    "New Skill",
 		Content: "test content 1",
 		Folder:  "local",
 	}
 	body1, _ := json.Marshal(req1)
-	r1 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body1))
+	r1 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body1))
 	w1 := httptest.NewRecorder()
 	handlers.Create(w1, r1)
 
@@ -112,18 +112,18 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 
 	var resp1 Response
 	json.Unmarshal(w1.Body.Bytes(), &resp1)
-	if resp1.ID != "new-prompt" {
-		t.Errorf("first prompt: expected ID 'new-prompt', got '%s'", resp1.ID)
+	if resp1.ID != "new-skill" {
+		t.Errorf("first skill: expected ID 'new-skill', got '%s'", resp1.ID)
 	}
 
-	// Create second prompt with same name - should auto-increment
+	// Create second skill with same name - should auto-increment
 	req2 := CreateRequest{
-		Name:    "New Prompt",
+		Name:    "New Skill",
 		Content: "test content 2",
 		Folder:  "local",
 	}
 	body2, _ := json.Marshal(req2)
-	r2 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body2))
+	r2 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body2))
 	w2 := httptest.NewRecorder()
 	handlers.Create(w2, r2)
 
@@ -133,18 +133,18 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 
 	var resp2 Response
 	json.Unmarshal(w2.Body.Bytes(), &resp2)
-	if resp2.ID != "new-prompt-1" {
-		t.Errorf("second prompt: expected ID 'new-prompt-1', got '%s'", resp2.ID)
+	if resp2.ID != "new-skill-1" {
+		t.Errorf("second skill: expected ID 'new-skill-1', got '%s'", resp2.ID)
 	}
 
-	// Create third prompt with same name - should continue incrementing
+	// Create third skill with same name - should continue incrementing
 	req3 := CreateRequest{
-		Name:    "New Prompt",
+		Name:    "New Skill",
 		Content: "test content 3",
 		Folder:  "local",
 	}
 	body3, _ := json.Marshal(req3)
-	r3 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body3))
+	r3 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body3))
 	w3 := httptest.NewRecorder()
 	handlers.Create(w3, r3)
 
@@ -154,8 +154,8 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 
 	var resp3 Response
 	json.Unmarshal(w3.Body.Bytes(), &resp3)
-	if resp3.ID != "new-prompt-2" {
-		t.Errorf("third prompt: expected ID 'new-prompt-2', got '%s'", resp3.ID)
+	if resp3.ID != "new-skill-2" {
+		t.Errorf("third skill: expected ID 'new-skill-2', got '%s'", resp3.ID)
 	}
 }
 
@@ -164,15 +164,15 @@ func TestCreate_ExplicitIDConflict(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics)
 
-	// Create first prompt with explicit ID
+	// Create first skill with explicit ID
 	req1 := CreateRequest{
 		ID:      "my-custom-id",
-		Name:    "First Prompt",
+		Name:    "First Skill",
 		Content: "test content 1",
 		Folder:  "local",
 	}
 	body1, _ := json.Marshal(req1)
-	r1 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body1))
+	r1 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body1))
 	w1 := httptest.NewRecorder()
 	handlers.Create(w1, r1)
 
@@ -180,15 +180,15 @@ func TestCreate_ExplicitIDConflict(t *testing.T) {
 		t.Fatalf("first create: expected status 201, got %d: %s", w1.Code, w1.Body.String())
 	}
 
-	// Try to create second prompt with same explicit ID - should fail
+	// Try to create second skill with same explicit ID - should fail
 	req2 := CreateRequest{
 		ID:      "my-custom-id",
-		Name:    "Second Prompt",
+		Name:    "Second Skill",
 		Content: "test content 2",
 		Folder:  "local",
 	}
 	body2, _ := json.Marshal(req2)
-	r2 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body2))
+	r2 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body2))
 	w2 := httptest.NewRecorder()
 	handlers.Create(w2, r2)
 
@@ -202,14 +202,14 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics)
 
-	// Create prompt with special characters that produce empty slug
+	// Create skill with special characters that produce empty slug
 	req := CreateRequest{
 		Name:    "!!!",
 		Content: "test content",
 		Folder:  "local",
 	}
 	body, _ := json.Marshal(req)
-	r := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body))
+	r := httptest.NewRequest("POST", "/skills", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 	handlers.Create(w, r)
 
@@ -225,7 +225,7 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 
 	// Create another with same special name - should increment
 	body2, _ := json.Marshal(req)
-	r2 := httptest.NewRequest("POST", "/prompts", bytes.NewReader(body2))
+	r2 := httptest.NewRequest("POST", "/skills", bytes.NewReader(body2))
 	w2 := httptest.NewRecorder()
 	handlers.Create(w2, r2)
 
@@ -235,7 +235,7 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 
 	var resp2 Response
 	json.Unmarshal(w2.Body.Bytes(), &resp2)
-	if resp2.ID != "prompt-1" {
-		t.Errorf("expected ID 'prompt-1', got '%s'", resp2.ID)
+	if resp2.ID != "skill-1" {
+		t.Errorf("expected ID 'skill-1', got '%s'", resp2.ID)
 	}
 }

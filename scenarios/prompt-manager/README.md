@@ -1,10 +1,10 @@
 # Prompt Manager
 
-AI maintenance task management system for Vrooli, organizing automated code quality and maintenance prompts with web interface, API, and CLI access.
+AI maintenance task management system for Vrooli, organizing automated code quality and maintenance skills with web interface, API, and CLI access.
 
 ## Features
 
-- **AI Maintenance Tasks**: Pre-configured maintenance prompts for code quality, testing, performance, and security
+- **AI Maintenance Tasks**: Pre-configured maintenance skills for code quality, testing, performance, and security
 - **Campaign Organization**: Tasks grouped by purpose (Testing, Performance, Security, UX, Code Health, etc.)
 - **Task ID System**: Track AI maintenance work with standardized IDs (TEST_QUALITY, REACT_PERF, etc.)
 - **Multiple Interfaces**: Web UI, REST API, and command-line tool for accessing maintenance tasks
@@ -24,7 +24,7 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 3. **Use the CLI:**
    ```bash
    prompt-manager help
-   prompt-manager add "My first prompt" debugging
+   prompt-manager add "My first skill" debugging
    prompt-manager list
    ```
 
@@ -35,8 +35,8 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 
 ### Components
 
-- **Go API Server** (port allocated by lifecycle): RESTful backend with campaign and prompt management
-- **React UI** (port allocated by lifecycle): Web interface with campaign sidebar and prompt editor  
+- **Go API Server** (port allocated by lifecycle): RESTful backend with campaign and skill management
+- **React UI** (port allocated by lifecycle): Web interface with campaign sidebar and skill editor  
 - **Bash CLI**: Command-line tool for quick operations
 - **PostgreSQL**: Primary data storage
 - **Qdrant** (optional): Vector database for semantic search
@@ -45,10 +45,10 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 ### Database Schema
 
 - **campaigns**: Organizing containers (debugging, UX, coding, etc.)
-- **prompts**: Individual prompt content with metadata
-- **tags**: Labeling system for prompts
-- **templates**: Reusable prompt patterns
-- **test_results**: History of prompt testing with LLMs
+- **skills**: Individual skill content with metadata
+- **tags**: Labeling system for skills
+- **templates**: Reusable skill patterns
+- **test_results**: History of skill testing with LLMs
 
 ## API Endpoints
 
@@ -56,24 +56,24 @@ AI maintenance task management system for Vrooli, organizing automated code qual
 - `GET /api/campaigns` - List all campaigns
 - `POST /api/campaigns` - Create new campaign
 - `GET /api/campaigns/{id}` - Get campaign details
-- `GET /api/campaigns/{id}/prompts` - Get prompts in campaign
+- `GET /api/campaigns/{id}/skills` - Get skills in campaign
 
-### Prompts
-- `GET /api/prompts` - List prompts with filters
-- `POST /api/prompts` - Create new prompt
-- `GET /api/prompts/{id}` - Get prompt details
-- `PUT /api/prompts/{id}` - Update prompt
-- `POST /api/prompts/{id}/use` - Record usage
+### Skills
+- `GET /api/skills` - List skills with filters
+- `POST /api/skills` - Create new skill
+- `GET /api/skills/{id}` - Get skill details
+- `PUT /api/skills/{id}` - Update skill
+- `POST /api/skills/{id}/use` - Record usage
 
 ### Search & Discovery
-- `GET /api/search/prompts?q={query}` - Full-text search
-- `POST /api/prompts/semantic` - Vector similarity search
-- `GET /api/prompts/recent` - Recently used prompts
-- `GET /api/prompts/favorites` - Favorite prompts
+- `GET /api/search/skills?q={query}` - Full-text search
+- `POST /api/skills/semantic` - Vector similarity search
+- `GET /api/skills/recent` - Recently used skills
+- `GET /api/skills/favorites` - Favorite skills
 
 ### Export/Import
 - `GET /api/v1/export` - Export all data to JSON
-  - Query params: `campaign_id` (filter by campaign), `include_archived` (include archived prompts)
+  - Query params: `campaign_id` (filter by campaign), `include_archived` (include archived skills)
 - `POST /api/v1/import` - Import data from JSON
   - Body: JSON export file content
   - Returns: Summary of imported items and any errors
@@ -88,16 +88,16 @@ prompt-manager status
 prompt-manager campaigns list
 prompt-manager campaigns create "My Campaign" "Description"
 
-# Prompt operations
-prompt-manager add "Prompt title" campaign-name
+# Skill operations
+prompt-manager add "Skill title" campaign-name
 prompt-manager list [campaign] [filter]
 prompt-manager search "query"
-prompt-manager show <prompt-id>
-prompt-manager use <prompt-id>  # Copy and record usage
+prompt-manager show <skill-id>
+prompt-manager use <skill-id>  # Copy and record usage
 
 # Version control (NEW)
-prompt-manager versions <prompt-id>           # View version history
-prompt-manager revert <prompt-id> <version>   # Revert to previous version
+prompt-manager versions <skill-id>           # View version history
+prompt-manager revert <skill-id> <version>   # Revert to previous version
 
 # Quick access
 prompt-manager quick <key>      # Access by quick key
@@ -167,21 +167,21 @@ bash deployment/validate.sh
 ## Optional Enhancements
 
 ### Semantic Search (requires Qdrant)
-- Vector embeddings for prompt content
+- Vector embeddings for skill content
 - Similarity-based discovery
-- Related prompt suggestions
+- Related skill suggestions
 
-### Prompt Testing (requires Ollama)  
-- Test prompts with local LLMs
+### Skill Testing (requires Ollama)
+- Test skills with local LLMs
 - Performance and quality metrics
 - Effectiveness ratings
 
 ## Use Cases
 
 - **Developers**: Debug patterns, code review templates, architecture decisions
-- **Designers**: UX research methods, design system components, user journey analysis  
+- **Designers**: UX research methods, design system components, user journey analysis
 - **Writers**: Content templates, documentation patterns, communication frameworks
-- **General**: Personal AI prompt library with organized access
+- **General**: Personal AI skill library with organized access
 
 ## Data Flow
 

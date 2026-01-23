@@ -1,5 +1,5 @@
-// Package prompts provides the core domain types and operations for prompt management.
-package prompts
+// Package skills provides the core domain types and operations for skill management.
+package skills
 
 import (
 	"time"
@@ -8,7 +8,7 @@ import (
 )
 
 // MetricsAdapter adapts metrics.Repository to the MetricsService interface.
-// This allows the prompts package to depend on an interface while using the
+// This allows the skills package to depend on an interface while using the
 // metrics package implementation in production.
 type MetricsAdapter struct {
 	repo *metrics.Repository
@@ -19,18 +19,18 @@ func NewMetricsAdapter(repo *metrics.Repository) *MetricsAdapter {
 	return &MetricsAdapter{repo: repo}
 }
 
-// Get retrieves metrics for a specific prompt.
-func (a *MetricsAdapter) Get(promptID string) (*PromptMetrics, error) {
-	m, err := a.repo.Get(promptID)
+// Get retrieves metrics for a specific skill.
+func (a *MetricsAdapter) Get(skillID string) (*SkillMetrics, error) {
+	m, err := a.repo.Get(skillID)
 	if err != nil {
 		return nil, err
 	}
 	if m == nil {
 		return nil, nil
 	}
-	// Convert metrics.PromptMetrics to prompts.PromptMetrics
-	return &PromptMetrics{
-		PromptID:            m.PromptID,
+	// Convert metrics.SkillMetrics to skills.SkillMetrics
+	return &SkillMetrics{
+		SkillID:             m.SkillID,
 		UsageCount:          m.UsageCount,
 		LastUsed:            m.LastUsed,
 		EffectivenessRating: m.EffectivenessRating,
@@ -39,16 +39,16 @@ func (a *MetricsAdapter) Get(promptID string) (*PromptMetrics, error) {
 }
 
 // RecordUsage increments the usage count and updates last_used timestamp.
-func (a *MetricsAdapter) RecordUsage(promptID string) (int, time.Time, error) {
-	return a.repo.RecordUsage(promptID)
+func (a *MetricsAdapter) RecordUsage(skillID string) (int, time.Time, error) {
+	return a.repo.RecordUsage(skillID)
 }
 
-// SetRating sets the effectiveness rating for a prompt.
-func (a *MetricsAdapter) SetRating(promptID string, rating int, notes *string) error {
-	return a.repo.SetRating(promptID, rating, notes)
+// SetRating sets the effectiveness rating for a skill.
+func (a *MetricsAdapter) SetRating(skillID string, rating int, notes *string) error {
+	return a.repo.SetRating(skillID, rating, notes)
 }
 
-// Delete removes metrics for a prompt.
-func (a *MetricsAdapter) Delete(promptID string) error {
-	return a.repo.Delete(promptID)
+// Delete removes metrics for a skill.
+func (a *MetricsAdapter) Delete(skillID string) error {
+	return a.repo.Delete(skillID)
 }

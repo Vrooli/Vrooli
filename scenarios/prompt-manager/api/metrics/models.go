@@ -1,12 +1,12 @@
-// Package metrics provides usage tracking and effectiveness ratings for prompts.
-// Metrics are stored in PostgreSQL while prompts themselves are stored in files.
+// Package metrics provides usage tracking and effectiveness ratings for skills.
+// Metrics are stored in PostgreSQL while skills themselves are stored in files.
 package metrics
 
 import "time"
 
-// PromptMetrics represents usage metrics for a prompt.
-type PromptMetrics struct {
-	PromptID            string     `json:"promptId"`
+// SkillMetrics represents usage metrics for a skill.
+type SkillMetrics struct {
+	SkillID             string     `json:"skillId"`
 	UsageCount          int        `json:"usageCount"`
 	LastUsed            *time.Time `json:"lastUsed,omitempty"`
 	EffectivenessRating *int       `json:"effectivenessRating,omitempty"`
@@ -19,7 +19,7 @@ type RatingRequest struct {
 	Notes  *string `json:"notes,omitempty"`
 }
 
-// UsageResponse is returned after recording prompt usage.
+// UsageResponse is returned after recording skill usage.
 type UsageResponse struct {
 	Status     string    `json:"status"`
 	UsageCount int       `json:"usageCount"`

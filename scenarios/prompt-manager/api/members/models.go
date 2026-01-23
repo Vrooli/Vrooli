@@ -1,25 +1,25 @@
-// Package avatars provides types and operations for avatar management.
-// Avatars represent visual characters in the 3D skill tree that can have prompts (skills) assigned.
-package avatars
+// Package members provides types and operations for member management.
+// Members represent virtual employees in the 3D skill tree that can have skills assigned.
+package members
 
-// Avatar represents a visual character in the skill tree.
-type Avatar struct {
+// Member represents a virtual employee in the skill tree.
+type Member struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	BodyColor   string   `json:"bodyColor"`   // hex color
 	HeadColor   string   `json:"headColor"`   // hex color
 	AccentColor string   `json:"accentColor"` // hex color
-	Skills      []string `json:"skills"`      // Prompt IDs assigned to this avatar
+	Skills      []string `json:"skills"`      // Skill IDs assigned to this member
 	CreatedAt   string   `json:"createdAt"`
 	UpdatedAt   string   `json:"updatedAt"`
 }
 
-// AvatarsFile represents the structure of avatars.json.
-type AvatarsFile struct {
-	Avatars []Avatar `json:"avatars"`
+// MembersFile represents the structure of members.json.
+type MembersFile struct {
+	Members []Member `json:"members"`
 }
 
-// CreateRequest is the request body for creating an avatar.
+// CreateRequest is the request body for creating a member.
 type CreateRequest struct {
 	ID          string   `json:"id,omitempty"`
 	Name        string   `json:"name"`
@@ -29,7 +29,7 @@ type CreateRequest struct {
 	Skills      []string `json:"skills,omitempty"`
 }
 
-// UpdateRequest is the request body for updating an avatar.
+// UpdateRequest is the request body for updating a member.
 type UpdateRequest struct {
 	Name        *string  `json:"name,omitempty"`
 	BodyColor   *string  `json:"bodyColor,omitempty"`
@@ -38,7 +38,7 @@ type UpdateRequest struct {
 	Skills      []string `json:"skills,omitempty"`
 }
 
-// Response is the API response for an avatar.
+// Response is the API response for a member.
 type Response struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`

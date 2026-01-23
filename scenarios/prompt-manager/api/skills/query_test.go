@@ -1,4 +1,4 @@
-package prompts
+package skills
 
 import (
 	"testing"
@@ -10,47 +10,47 @@ func TestGenerateUniqueID_NoConflict(t *testing.T) {
 		return false
 	}
 
-	result, err := GenerateUniqueID("New Prompt", idExists)
+	result, err := GenerateUniqueID("New Skill", idExists)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "new-prompt" {
-		t.Errorf("expected 'new-prompt', got '%s'", result)
+	if result != "new-skill" {
+		t.Errorf("expected 'new-skill', got '%s'", result)
 	}
 }
 
 func TestGenerateUniqueID_SingleConflict(t *testing.T) {
-	// "new-prompt" exists, so should return "new-prompt-1"
+	// "new-skill" exists, so should return "new-skill-1"
 	idExists := func(id string) bool {
-		return id == "new-prompt"
+		return id == "new-skill"
 	}
 
-	result, err := GenerateUniqueID("New Prompt", idExists)
+	result, err := GenerateUniqueID("New Skill", idExists)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "new-prompt-1" {
-		t.Errorf("expected 'new-prompt-1', got '%s'", result)
+	if result != "new-skill-1" {
+		t.Errorf("expected 'new-skill-1', got '%s'", result)
 	}
 }
 
 func TestGenerateUniqueID_MultipleConflicts(t *testing.T) {
-	// "new-prompt", "new-prompt-1", "new-prompt-2" exist
+	// "new-skill", "new-skill-1", "new-skill-2" exist
 	existing := map[string]bool{
-		"new-prompt":   true,
-		"new-prompt-1": true,
-		"new-prompt-2": true,
+		"new-skill":   true,
+		"new-skill-1": true,
+		"new-skill-2": true,
 	}
 	idExists := func(id string) bool {
 		return existing[id]
 	}
 
-	result, err := GenerateUniqueID("New Prompt", idExists)
+	result, err := GenerateUniqueID("New Skill", idExists)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "new-prompt-3" {
-		t.Errorf("expected 'new-prompt-3', got '%s'", result)
+	if result != "new-skill-3" {
+		t.Errorf("expected 'new-skill-3', got '%s'", result)
 	}
 }
 
@@ -70,17 +70,17 @@ func TestGenerateUniqueID_EmptySlug(t *testing.T) {
 }
 
 func TestGenerateUniqueID_EmptySlugWithConflict(t *testing.T) {
-	// Empty slug with existing "prompt", should return "prompt-1"
+	// Empty slug with existing "skill", should return "skill-1"
 	idExists := func(id string) bool {
-		return id == "prompt"
+		return id == "skill"
 	}
 
 	result, err := GenerateUniqueID("!!!", idExists)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "prompt-1" {
-		t.Errorf("expected 'prompt-1', got '%s'", result)
+	if result != "skill-1" {
+		t.Errorf("expected 'skill-1', got '%s'", result)
 	}
 }
 
@@ -97,18 +97,18 @@ func TestGenerateUniqueID_MaxAttemptsExceeded(t *testing.T) {
 }
 
 func TestGenerateUniqueID_NameWithNumber(t *testing.T) {
-	// Name "New Prompt 1" slugifies to "new-prompt-1"
-	// If "new-prompt-1" exists, should return "new-prompt-1-1"
+	// Name "New Skill 1" slugifies to "new-skill-1"
+	// If "new-skill-1" exists, should return "new-skill-1-1"
 	idExists := func(id string) bool {
-		return id == "new-prompt-1"
+		return id == "new-skill-1"
 	}
 
-	result, err := GenerateUniqueID("New Prompt 1", idExists)
+	result, err := GenerateUniqueID("New Skill 1", idExists)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "new-prompt-1-1" {
-		t.Errorf("expected 'new-prompt-1-1', got '%s'", result)
+	if result != "new-skill-1-1" {
+		t.Errorf("expected 'new-skill-1-1', got '%s'", result)
 	}
 }
 
@@ -117,12 +117,12 @@ func TestSlugify(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"New Prompt", "new-prompt"},
+		{"New Skill", "new-skill"},
 		{"hello world", "hello-world"},
 		{"Hello_World", "hello-world"},
-		{"Test  Prompt", "test-prompt"},
+		{"Test  Skill", "test-skill"},
 		{"!!!", ""},
-		{"Test@#$%Prompt", "testprompt"},
+		{"Test@#$%Skill", "testskill"},
 		{"  Spaces  ", "spaces"},
 		{"Already-Slugified", "already-slugified"},
 		{"123 Numbers", "123-numbers"},

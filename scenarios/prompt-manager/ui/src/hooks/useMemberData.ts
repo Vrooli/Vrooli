@@ -1,24 +1,24 @@
 /**
- * useAvatarData - Data fetching hook for avatars.
+ * useMemberData - Data fetching hook for members.
  *
  * Handles:
- * - Fetching all avatars via react-query
+ * - Fetching all members via react-query
  * - CRUD operations with cache invalidation
  * - Loading and error states
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import * as avatarService from '@/services/avatarService'
-import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
+import * as memberService from '@/services/memberService'
+import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
 
 // Query key constants
 const QUERY_KEYS = {
-  avatars: ['avatars'] as const,
+  members: ['members'] as const,
 }
 
-interface UseAvatarDataReturn {
+interface UseMemberDataReturn {
   // Data
-  avatars: Avatar[]
+  members: Member[]
 
   // Loading/error states
   isLoading: boolean
@@ -26,9 +26,9 @@ interface UseAvatarDataReturn {
   error: Error | null
 
   // Mutations
-  createAvatar: (request: CreateAvatarRequest) => Promise<Avatar>
-  updateAvatar: (id: string, updates: UpdateAvatarRequest) => Promise<Avatar>
-  deleteAvatar: (id: string) => Promise<void>
+  createMember: (request: CreateMemberRequest) => Promise<Member>
+  updateMember: (id: string, updates: UpdateMemberRequest) => Promise<Member>
+  deleteMember: (id: string) => Promise<void>
 
   // Mutation states
   isCreating: boolean
@@ -40,52 +40,52 @@ interface UseAvatarDataReturn {
 }
 
 /**
- * Hook for fetching and mutating avatar data.
+ * Hook for fetching and mutating member data.
  */
-export function useAvatarData(): UseAvatarDataReturn {
+export function useMemberData(): UseMemberDataReturn {
   const queryClient = useQueryClient()
 
-  // Query for all avatars
+  // Query for all members
   const {
-    data: avatars = [],
+    data: members = [],
     isLoading,
     isError,
     error,
     refetch,
   } = useQuery({
-    queryKey: QUERY_KEYS.avatars,
-    queryFn: () => avatarService.getAvatars(true), // Force refresh on query
+    queryKey: QUERY_KEYS.members,
+    queryFn: () => memberService.getMembers(true), // Force refresh on query
     staleTime: 5000, // Match service cache TTL
   })
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (request: CreateAvatarRequest) => avatarService.createAvatar(request),
+    mutationFn: (request: CreateMemberRequest) => memberService.createMember(request),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.avatars })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },
   })
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: UpdateAvatarRequest }) =>
-      avatarService.updateAvatar(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: UpdateMemberRequest }) =>
+      memberService.updateMember(id, updates),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.avatars })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },
   })
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => avatarService.deleteAvatar(id),
+    mutationFn: (id: string) => memberService.deleteMember(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.avatars })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },
   })
 
   return {
     // Data
-    avatars,
+    members,
 
     // Loading/error states
     isLoading,
@@ -93,10 +93,10 @@ export function useAvatarData(): UseAvatarDataReturn {
     error: error ?? null,
 
     // Mutations
-    createAvatar: createMutation.mutateAsync,
-    updateAvatar: (id: string, updates: UpdateAvatarRequest) =>
+    createMember: createMutation.mutateAsync,
+    updateMember: (id: string, updates: UpdateMemberRequest) =>
       updateMutation.mutateAsync({ id, updates }),
-    deleteAvatar: deleteMutation.mutateAsync,
+    deleteMember: deleteMutation.mutateAsync,
 
     // Mutation states
     isCreating: createMutation.isPending,

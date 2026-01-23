@@ -1,5 +1,5 @@
 /**
- * PromptContentEditor - Dual-mode editor for prompt content.
+ * SkillContentEditor - Dual-mode editor for skill content.
  *
  * Features:
  * - Toggle between Monaco (code) and TipTap (WYSIWYG) editors
@@ -18,7 +18,7 @@ type EditorType = 'code' | 'wysiwyg'
 
 const STORAGE_KEY = 'pm.editorType'
 
-interface PromptContentEditorProps {
+interface SkillContentEditorProps {
   value: string
   onChange: (value: string) => void
   error?: string
@@ -26,14 +26,14 @@ interface PromptContentEditorProps {
 }
 
 /**
- * Dual-mode content editor for prompts.
+ * Dual-mode content editor for skills.
  */
-export function PromptContentEditor({
+export function SkillContentEditor({
   value,
   onChange,
   error,
   className,
-}: PromptContentEditorProps) {
+}: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
 
   // Initialize editor type from localStorage
@@ -158,7 +158,7 @@ export function PromptContentEditor({
           <TipTapEditor
             value={value}
             onChange={handleTipTapChange}
-            placeholder="Start writing your prompt content..."
+            placeholder="Start writing your skill content..."
             className="h-full"
           />
         )}

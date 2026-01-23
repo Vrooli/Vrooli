@@ -3,10 +3,10 @@
  * Separated from API types to maintain clean boundaries.
  */
 
-import type { Prompt, FolderType } from './index'
+import type { Skill, FolderType } from './index'
 
 /**
- * Tree node structure for displaying prompts in a hierarchical view.
+ * Tree node structure for displaying skills in a hierarchical view.
  * Adapted from agent-inbox ItemTreeSidebar.
  */
 export interface TreeNode {
@@ -14,15 +14,15 @@ export interface TreeNode {
   label: string        // Display name
   isCategory: boolean  // true for folders, false for items
   children: TreeNode[]
-  itemId?: string      // Only for leaf nodes - the actual prompt ID
+  itemId?: string      // Only for leaf nodes - the actual skill ID
   depth: number
 }
 
 /**
- * Form state for editing a prompt.
- * Separated from Prompt to allow independent tracking of edits.
+ * Form state for editing a skill.
+ * Separated from Skill to allow independent tracking of edits.
  */
-export interface PromptFormState {
+export interface SkillFormState {
   name: string
   description: string
   content: string
@@ -34,12 +34,12 @@ export interface PromptFormState {
 }
 
 /**
- * Tracks pending changes for a single prompt.
+ * Tracks pending changes for a single skill.
  * Enables multi-item editing with save/discard functionality.
  */
 export interface PendingChange {
-  original: Prompt
-  current: PromptFormState
+  original: Skill
+  current: SkillFormState
   isDirty: boolean
 }
 
@@ -56,5 +56,5 @@ export interface ValidationResult {
  */
 export interface ModeSuggestion {
   value: string
-  isNew: boolean // True if this is a new mode not used by existing prompts
+  isNew: boolean // True if this is a new mode not used by existing skills
 }

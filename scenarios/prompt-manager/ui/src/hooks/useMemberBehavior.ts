@@ -1,30 +1,30 @@
 /**
- * Hook for managing avatar behavior and animations.
+ * Hook for managing member behavior and animations.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AvatarState } from '@/types/world'
+import type { MemberState } from '@/types/world'
 import {
-  AvatarStateMachine,
+  MemberStateMachine,
   calculateLookRotation,
   calculateIdleSway,
   calculateWaveAnimation,
   calculateCelebrationAnimation,
   easing,
-} from '@/services/avatarService'
+} from '@/services/memberService'
 
-interface UseAvatarBehaviorOptions {
+interface UseMemberBehaviorOptions {
   position?: [number, number, number]
   selectedNodeCount?: number
   onAnimationComplete?: () => void
 }
 
-export function useAvatarBehavior(options: UseAvatarBehaviorOptions = {}) {
+export function useMemberBehavior(options: UseMemberBehaviorOptions = {}) {
   const { position = [0, 0, 0], selectedNodeCount = 0, onAnimationComplete } = options
 
   // State machine
-  const stateMachineRef = useRef<AvatarStateMachine>(new AvatarStateMachine())
-  const [currentState, setCurrentState] = useState<AvatarState>('idle')
+  const stateMachineRef = useRef<MemberStateMachine>(new MemberStateMachine())
+  const [currentState, setCurrentState] = useState<MemberState>('idle')
 
   // Cursor tracking
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
@@ -182,6 +182,6 @@ export function useAvatarBehavior(options: UseAvatarBehaviorOptions = {}) {
     celebrate,
 
     // Direct state control
-    setState: (state: AvatarState) => stateMachineRef.current.forceTransition(state),
+    setState: (state: MemberState) => stateMachineRef.current.forceTransition(state),
   }
 }

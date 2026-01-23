@@ -6,7 +6,7 @@
 
 import { create } from 'zustand'
 
-export type CameraMode = 'freeform' | 'zoomed-avatar' | 'top-down'
+export type CameraMode = 'freeform' | 'zoomed-member' | 'top-down'
 
 interface CameraHistoryEntry {
   position: [number, number, number]
@@ -23,7 +23,7 @@ interface CameraStore {
   mode: CameraMode
 
   // Focus tracking
-  focusedAvatarId: string | null
+  focusedMemberId: string | null
 
   // History for back navigation
   history: CameraHistoryEntry[]
@@ -39,11 +39,11 @@ interface CameraStore {
   setIsAnimating: (isAnimating: boolean) => void
 
   // Compound actions
-  zoomToAvatar: (avatarId: string, position: [number, number, number]) => void
+  zoomToMember: (memberId: string, position: [number, number, number]) => void
   exitZoom: () => void
   setTopDown: () => void
   setFreeform: () => void
-  cycleCameraMode: (avatarId?: string, avatarPosition?: [number, number, number]) => void
+  cycleCameraMode: (memberId?: string, memberPosition?: [number, number, number]) => void
 
   // History management
   pushHistory: () => void
@@ -65,7 +65,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   target: DEFAULT_TARGET,
   zoom: DEFAULT_ZOOM,
   mode: 'freeform',
-  focusedAvatarId: null,
+  focusedMemberId: null,
   history: [],
   isAnimating: false,
 
@@ -75,27 +75,27 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   setMode: (mode) => set({ mode }),
   setIsAnimating: (isAnimating) => set({ isAnimating }),
 
-  zoomToAvatar: (avatarId, avatarPosition) => {
+  zoomToMember: (memberId, memberPosition) => {
     const state = get()
 
     // Push current state to history
     state.pushHistory()
 
-    // Calculate camera position to focus on avatar
-    // Position camera in front of and above avatar
+    // Calculate camera position to focus on member
+    // Position camera in front of and above member
     const cameraOffset: [number, number, number] = [0, 2, 5]
     const newPosition: [number, number, number] = [
-      avatarPosition[0] + cameraOffset[0],
-      avatarPosition[1] + cameraOffset[1],
-      avatarPosition[2] + cameraOffset[2],
+      memberPosition[0] + cameraOffset[0],
+      memberPosition[1] + cameraOffset[1],
+      memberPosition[2] + cameraOffset[2],
     ]
 
     set({
       position: newPosition,
-      target: avatarPosition,
+      target: memberPosition,
       zoom: 2,
-      mode: 'zoomed-avatar',
-      focusedAvatarId: avatarId,
+      mode: 'zoomed-member',
+      focusedMemberId: memberId,
       isAnimating: true,
     })
 
@@ -114,7 +114,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         target: history.target,
         zoom: history.zoom,
         mode: history.mode,
-        focusedAvatarId: null,
+        focusedMemberId: null,
         isAnimating: true,
       })
     } else {
@@ -124,7 +124,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         target: DEFAULT_TARGET,
         zoom: DEFAULT_ZOOM,
         mode: 'freeform',
-        focusedAvatarId: null,
+        focusedMemberId: null,
         isAnimating: true,
       })
     }
@@ -143,7 +143,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       target: TOP_DOWN_TARGET,
       zoom: 1,
       mode: 'top-down',
-      focusedAvatarId: null,
+      focusedMemberId: null,
       isAnimating: true,
     })
 
@@ -161,7 +161,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       target: DEFAULT_TARGET,
       zoom: DEFAULT_ZOOM,
       mode: 'freeform',
-      focusedAvatarId: null,
+      focusedMemberId: null,
       isAnimating: true,
     })
 
@@ -170,23 +170,23 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     }, 1000)
   },
 
-  cycleCameraMode: (avatarId?: string, avatarPosition?: [number, number, number]) => {
+  cycleCameraMode: (memberId?: string, memberPosition?: [number, number, number]) => {
     const state = get()
     const currentMode = state.mode
 
-    // Cycle: zoomed-avatar -> freeform -> top-down -> zoomed-avatar
-    if (currentMode === 'zoomed-avatar') {
+    // Cycle: zoomed-member -> freeform -> top-down -> zoomed-member
+    if (currentMode === 'zoomed-member') {
       // Go to freeform
       state.setFreeform()
     } else if (currentMode === 'freeform') {
       // Go to top-down
       state.setTopDown()
     } else {
-      // top-down -> zoomed-avatar (if we have an avatar to zoom to)
-      if (avatarId && avatarPosition) {
-        state.zoomToAvatar(avatarId, avatarPosition)
+      // top-down -> zoomed-member (if we have a member to zoom to)
+      if (memberId && memberPosition) {
+        state.zoomToMember(memberId, memberPosition)
       } else {
-        // No avatar available, go back to freeform
+        // No member available, go back to freeform
         state.setFreeform()
       }
     }

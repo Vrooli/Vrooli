@@ -1,8 +1,8 @@
 /**
- * Service for combining multiple prompts into various output formats.
+ * Service for combining multiple skills into various output formats.
  */
 
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { CombineFormat, CombineResponse } from '@/types/world'
 
 /**
@@ -26,22 +26,22 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * Combine prompts into XML format.
+ * Combine skills into XML format.
  */
-function combineToXml(prompts: Prompt[]): string {
+function combineToXml(skills: Skill[]): string {
   const lines: string[] = [
     `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<combined-prompts count="${prompts.length}">`,
+    `<combined-skills count="${skills.length}">`,
   ]
 
-  prompts.forEach((prompt) => {
-    const modes = prompt.modes.join('/')
-    const tags = prompt.tags.join(', ')
+  skills.forEach((skill) => {
+    const modes = skill.modes.join('/')
+    const tags = skill.tags.join(', ')
 
-    lines.push(`  <prompt id="${escapeXml(prompt.id)}" name="${escapeXml(prompt.name)}"${modes ? ` modes="${escapeXml(modes)}"` : ''}>`)
+    lines.push(`  <skill id="${escapeXml(skill.id)}" name="${escapeXml(skill.name)}"${modes ? ` modes="${escapeXml(modes)}"` : ''}>`)
 
-    if (prompt.description) {
-      lines.push(`    <description>${escapeXml(prompt.description)}</description>`)
+    if (skill.description) {
+      lines.push(`    <description>${escapeXml(skill.description)}</description>`)
     }
 
     if (tags) {
@@ -49,22 +49,22 @@ function combineToXml(prompts: Prompt[]): string {
     }
 
     lines.push(`    <content><![CDATA[`)
-    lines.push(prompt.content || '')
+    lines.push(skill.content || '')
     lines.push(`]]></content>`)
-    lines.push(`  </prompt>`)
+    lines.push(`  </skill>`)
   })
 
-  lines.push(`</combined-prompts>`)
+  lines.push(`</combined-skills>`)
 
   return lines.join('\n')
 }
 
 /**
- * Combine prompts into Markdown format.
+ * Combine skills into Markdown format.
  */
-function combineToMarkdown(prompts: Prompt[]): string {
+function combineToMarkdown(skills: Skill[]): string {
   const lines: string[] = [
-    `# Combined Prompts (${prompts.length})`,
+    `# Combined Skills (${skills.length})`,
     '',
     `*Generated: ${new Date().toISOString()}*`,
     '',
@@ -72,15 +72,15 @@ function combineToMarkdown(prompts: Prompt[]): string {
     '',
   ]
 
-  prompts.forEach((prompt, index) => {
-    const modes = prompt.modes.join(' / ')
-    const tags = prompt.tags.map((t) => `\`${t}\``).join(' ')
+  skills.forEach((skill, index) => {
+    const modes = skill.modes.join(' / ')
+    const tags = skill.tags.map((t) => `\`${t}\``).join(' ')
 
-    lines.push(`## ${index + 1}. ${prompt.name}`)
+    lines.push(`## ${index + 1}. ${skill.name}`)
     lines.push('')
 
-    if (prompt.description) {
-      lines.push(`> ${prompt.description}`)
+    if (skill.description) {
+      lines.push(`> ${skill.description}`)
       lines.push('')
     }
 
@@ -99,7 +99,7 @@ function combineToMarkdown(prompts: Prompt[]): string {
     lines.push('### Content')
     lines.push('')
     lines.push('```')
-    lines.push(prompt.content || '')
+    lines.push(skill.content || '')
     lines.push('```')
     lines.push('')
     lines.push('---')
@@ -110,14 +110,14 @@ function combineToMarkdown(prompts: Prompt[]): string {
 }
 
 /**
- * Combine prompts into JSON format.
+ * Combine skills into JSON format.
  */
-function combineToJson(prompts: Prompt[]): string {
+function combineToJson(skills: Skill[]): string {
   const data = {
     combined: true,
-    count: prompts.length,
+    count: skills.length,
     generated: new Date().toISOString(),
-    prompts: prompts.map((p) => ({
+    skills: skills.map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
@@ -131,16 +131,16 @@ function combineToJson(prompts: Prompt[]): string {
 }
 
 /**
- * Combine multiple prompts into the specified format.
+ * Combine multiple skills into the specified format.
  */
-export function combinePrompts(
-  prompts: Prompt[],
+export function combineSkills(
+  skills: Skill[],
   format: CombineFormat = 'xml'
 ): CombineResponse {
-  if (prompts.length === 0) {
+  if (skills.length === 0) {
     return {
       combined: '',
-      promptCount: 0,
+      skillCount: 0,
       totalTokens: 0,
       format,
     }
@@ -150,35 +150,35 @@ export function combinePrompts(
 
   switch (format) {
     case 'xml':
-      combined = combineToXml(prompts)
+      combined = combineToXml(skills)
       break
     case 'markdown':
-      combined = combineToMarkdown(prompts)
+      combined = combineToMarkdown(skills)
       break
     case 'json':
-      combined = combineToJson(prompts)
+      combined = combineToJson(skills)
       break
     default:
-      combined = combineToXml(prompts)
+      combined = combineToXml(skills)
   }
 
   return {
     combined,
-    promptCount: prompts.length,
+    skillCount: skills.length,
     totalTokens: estimateTokens(combined),
     format,
   }
 }
 
 /**
- * Generate a preview of combined prompts (first N characters).
+ * Generate a preview of combined skills (first N characters).
  */
 export function generatePreview(
-  prompts: Prompt[],
+  skills: Skill[],
   format: CombineFormat = 'xml',
   maxLength: number = 500
 ): string {
-  const result = combinePrompts(prompts, format)
+  const result = combineSkills(skills, format)
 
   if (result.combined.length <= maxLength) {
     return result.combined
@@ -188,9 +188,9 @@ export function generatePreview(
 }
 
 /**
- * Validate prompts for combination.
+ * Validate skills for combination.
  */
-export function validateForCombine(prompts: Prompt[]): {
+export function validateForCombine(skills: Skill[]): {
   valid: boolean
   errors: string[]
   warnings: string[]
@@ -198,38 +198,38 @@ export function validateForCombine(prompts: Prompt[]): {
   const errors: string[] = []
   const warnings: string[] = []
 
-  if (prompts.length === 0) {
-    errors.push('No prompts selected')
+  if (skills.length === 0) {
+    errors.push('No skills selected')
   }
 
-  if (prompts.length === 1) {
-    warnings.push('Only one prompt selected - combining is optional')
+  if (skills.length === 1) {
+    warnings.push('Only one skill selected - combining is optional')
   }
 
   // Check for missing content
-  const missingContent = prompts.filter((p) => !p.content.trim())
+  const missingContent = skills.filter((p) => !p.content.trim())
   if (missingContent.length > 0) {
     warnings.push(
-      `${missingContent.length} prompt(s) have no content: ${missingContent.map((p) => p.name).join(', ')}`
+      `${missingContent.length} skill(s) have no content: ${missingContent.map((p) => p.name).join(', ')}`
     )
   }
 
-  // Check for draft prompts
-  const drafts = prompts.filter((p) => p.draft)
+  // Check for draft skills
+  const drafts = skills.filter((p) => p.draft)
   if (drafts.length > 0) {
     warnings.push(
-      `${drafts.length} prompt(s) are drafts: ${drafts.map((p) => p.name).join(', ')}`
+      `${drafts.length} skill(s) are drafts: ${drafts.map((p) => p.name).join(', ')}`
     )
   }
 
   // Estimate combined size
-  const totalContent = prompts.reduce(
+  const totalContent = skills.reduce(
     (sum, p) => sum + p.content.length,
     0
   )
   if (totalContent > 50000) {
     warnings.push(
-      `Combined content is large (~${Math.round(totalContent / 1000)}KB). Consider selecting fewer prompts.`
+      `Combined content is large (~${Math.round(totalContent / 1000)}KB). Consider selecting fewer skills.`
     )
   }
 
@@ -244,11 +244,11 @@ export function validateForCombine(prompts: Prompt[]): {
  * Copy combined content to clipboard.
  */
 export async function copyToClipboard(
-  prompts: Prompt[],
+  skills: Skill[],
   format: CombineFormat = 'xml'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const result = combinePrompts(prompts, format)
+    const result = combineSkills(skills, format)
     await navigator.clipboard.writeText(result.combined)
     return { success: true }
   } catch (error) {

@@ -1,27 +1,27 @@
 /**
- * WorldCanvas - Main entry point for the 3D avatar visualization.
+ * WorldCanvas - Main entry point for the 3D member visualization.
  *
  * Skill selection is now handled via the sidebar in skill selection mode.
- * When "Set Skills" is clicked on an avatar, it triggers the sidebar to
+ * When "Set Skills" is clicked on a member, it triggers the sidebar to
  * enter skill selection mode with checkboxes.
  */
 
 import { Suspense, useCallback, useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { CombineFormat } from '@/types/world'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
-import { useAvatarData } from '@/hooks/useAvatarData'
-import { AvatarProvider } from './AvatarProvider'
-import { WorldScene, type AvatarWithPosition } from './WorldScene'
+import { useMemberData } from '@/hooks/useMemberData'
+import { MemberProvider } from './MemberProvider'
+import { WorldScene, type MemberWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
 import { CombinePanel } from './CombinePanel'
-import { AvatarOverlay } from './AvatarOverlay'
-import { AvatarCustomizeModal } from '../avatar/AvatarCustomizeModal'
+import { MemberOverlay } from './MemberOverlay'
+import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
@@ -29,24 +29,24 @@ const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 
 /**
- * Generate a deterministic position for an avatar based on its ID.
- * Uses a simple hash to ensure the same avatar always gets the same position.
+ * Generate a deterministic position for a member based on its ID.
+ * Uses a simple hash to ensure the same member always gets the same position.
  */
-function generateAvatarPosition(avatarId: string, index: number, total: number): [number, number, number] {
-  // Simple hash from avatar ID for deterministic randomness
+function generateMemberPosition(memberId: string, index: number, total: number): [number, number, number] {
+  // Simple hash from member ID for deterministic randomness
   let hash = 0
-  for (let i = 0; i < avatarId.length; i++) {
-    hash = ((hash << 5) - hash) + avatarId.charCodeAt(i)
+  for (let i = 0; i < memberId.length; i++) {
+    hash = ((hash << 5) - hash) + memberId.charCodeAt(i)
     hash = hash & hash // Convert to 32-bit integer
   }
 
-  // If only one avatar, place at origin
+  // If only one member, place at origin
   if (total === 1) {
     return [0, 0, 0]
   }
 
-  // Distribute avatars in a circular pattern with some randomness
-  const radius = 4 + (total > 5 ? 2 : 0) // Larger radius for more avatars
+  // Distribute members in a circular pattern with some randomness
+  const radius = 4 + (total > 5 ? 2 : 0) // Larger radius for more members
   const angleOffset = (hash % 1000) / 1000 * Math.PI * 2
   const baseAngle = (index / total) * Math.PI * 2 + angleOffset
 
@@ -60,91 +60,91 @@ function generateAvatarPosition(avatarId: string, index: number, total: number):
 }
 
 interface WorldCanvasProps {
-  prompts: Prompt[]
-  onSelectPrompt?: (promptId: string) => void
-  onCombinePrompts?: (combined: string, format: CombineFormat) => void
-  avatarType?: string
+  skills: Skill[]
+  onSelectSkill?: (skillId: string) => void
+  onCombineSkills?: (combined: string, format: CombineFormat) => void
+  memberType?: string
   className?: string
 }
 
 export function WorldCanvas({
-  prompts,
-  onSelectPrompt: _onSelectPrompt,
-  onCombinePrompts,
-  avatarType = 'geometric',
+  skills,
+  onSelectSkill: _onSelectSkill,
+  onCombineSkills,
+  memberType = 'geometric',
   className,
 }: WorldCanvasProps) {
-  // Note: onSelectPrompt is kept for API compatibility but not used since
+  // Note: onSelectSkill is kept for API compatibility but not used since
   // skill selection is now handled via the sidebar
-  void _onSelectPrompt
+  void _onSelectSkill
   // Theme for 3D colors
   const resolvedTheme = useResolvedTheme()
   const isDarkMode = resolvedTheme === 'dark'
 
-  // Cursor tracking for avatar
+  // Cursor tracking for member
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
 
   // Selection state from centralized Zustand store
-  const selectedPromptIds = useSelectionStore((state) => state.selectedPromptIds)
-  const setSelectedPromptIds = useSelectionStore((state) => state.setSelectedPromptIds)
+  const selectedSkillIds = useSelectionStore((state) => state.selectedSkillIds)
+  const setSelectedSkillIds = useSelectionStore((state) => state.setSelectedSkillIds)
 
   // Skill selection store
   const enterSkillSelectionMode = useSkillSelectionStore((state) => state.enterSkillSelectionMode)
 
-  // Camera store for avatar zoom
+  // Camera store for member zoom
   const cameraMode = useCameraStore((state) => state.mode)
-  const focusedAvatarId = useCameraStore((state) => state.focusedAvatarId)
+  const focusedMemberId = useCameraStore((state) => state.focusedMemberId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
-  const zoomToAvatar = useCameraStore((state) => state.zoomToAvatar)
+  const zoomToMember = useCameraStore((state) => state.zoomToMember)
   const cycleCameraMode = useCameraStore((state) => state.cycleCameraMode)
 
-  // Avatar data
-  const { avatars, updateAvatar, deleteAvatar, createAvatar, isUpdating, isDeleting } = useAvatarData()
-  const focusedAvatar = avatars.find((a) => a.id === focusedAvatarId) ?? null
+  // Member data
+  const { members, updateMember, deleteMember, createMember, isUpdating, isDeleting } = useMemberData()
+  const focusedMember = members.find((a) => a.id === focusedMemberId) ?? null
 
-  // Generate positions for all avatars (memoized for stability)
-  const avatarsWithPositions = useMemo<AvatarWithPosition[]>(() => {
-    return avatars.map((avatar, index) => ({
-      avatar,
-      position: generateAvatarPosition(avatar.id, index, avatars.length),
+  // Generate positions for all members (memoized for stability)
+  const membersWithPositions = useMemo<MemberWithPosition[]>(() => {
+    return members.map((member, index) => ({
+      member,
+      position: generateMemberPosition(member.id, index, members.length),
     }))
-  }, [avatars])
+  }, [members])
 
-  // Get position of focused avatar (for camera targeting)
-  const focusedAvatarPosition = useMemo(() => {
-    const found = avatarsWithPositions.find((a) => a.avatar.id === focusedAvatarId)
+  // Get position of focused member (for camera targeting)
+  const focusedMemberPosition = useMemo(() => {
+    const found = membersWithPositions.find((a) => a.member.id === focusedMemberId)
     return found?.position ?? null
-  }, [avatarsWithPositions, focusedAvatarId])
+  }, [membersWithPositions, focusedMemberId])
 
-  // Handle avatar click in 3D scene - opens the avatar menu
-  const handleAvatarClick = useCallback((avatarId: string, position: [number, number, number]) => {
-    zoomToAvatar(avatarId, position)
-  }, [zoomToAvatar])
+  // Handle member click in 3D scene - opens the member menu
+  const handleMemberClick = useCallback((memberId: string, position: [number, number, number]) => {
+    zoomToMember(memberId, position)
+  }, [zoomToMember])
 
   // Handle camera mode cycling
   const handleCycleCameraMode = useCallback(() => {
-    // Get the first avatar for zoom target (or focused if available)
-    const targetAvatar = focusedAvatarId
-      ? avatarsWithPositions.find((a) => a.avatar.id === focusedAvatarId)
-      : avatarsWithPositions[0]
+    // Get the first member for zoom target (or focused if available)
+    const targetMember = focusedMemberId
+      ? membersWithPositions.find((a) => a.member.id === focusedMemberId)
+      : membersWithPositions[0]
 
-    cycleCameraMode(targetAvatar?.avatar.id, targetAvatar?.position)
-  }, [cycleCameraMode, focusedAvatarId, avatarsWithPositions])
+    cycleCameraMode(targetMember?.member.id, targetMember?.position)
+  }, [cycleCameraMode, focusedMemberId, membersWithPositions])
 
   // Modal state
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  // Camera state for 3D scene - use focused avatar position when zoomed
+  // Camera state for 3D scene - use focused member position when zoomed
   const cameraState = useMemo(() => {
-    if (cameraMode === 'zoomed-avatar' && focusedAvatarPosition) {
+    if (cameraMode === 'zoomed-member' && focusedMemberPosition) {
       return {
         position: [
-          focusedAvatarPosition[0],
-          focusedAvatarPosition[1] + 2,
-          focusedAvatarPosition[2] + 5,
+          focusedMemberPosition[0],
+          focusedMemberPosition[1] + 2,
+          focusedMemberPosition[2] + 5,
         ] as [number, number, number],
-        target: focusedAvatarPosition,
+        target: focusedMemberPosition,
         zoom: 2,
       }
     }
@@ -161,7 +161,7 @@ export function WorldCanvas({
       target: DEFAULT_CAMERA_TARGET,
       zoom: 1,
     }
-  }, [cameraMode, focusedAvatarPosition])
+  }, [cameraMode, focusedMemberPosition])
 
   // Handle mouse move for cursor tracking
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -178,15 +178,15 @@ export function WorldCanvas({
   // Handle combine
   const handleCombine = useCallback(
     (combined: string, format: CombineFormat) => {
-      onCombinePrompts?.(combined, format)
+      onCombineSkills?.(combined, format)
     },
-    [onCombinePrompts]
+    [onCombineSkills]
   )
 
-  // Get full prompt objects for selected IDs
-  const selectedPromptObjects = prompts.filter((p) => selectedPromptIds.includes(p.id))
+  // Get full skill objects for selected IDs
+  const selectedSkillObjects = skills.filter((p) => selectedSkillIds.includes(p.id))
 
-  // Avatar overlay handlers
+  // Member overlay handlers
   const handleCloseOverlay = useCallback(() => {
     exitZoom()
   }, [exitZoom])
@@ -198,42 +198,42 @@ export function WorldCanvas({
   const handleSetSkills = useCallback(() => {
     // Enter skill selection mode via the store
     // This will trigger the sidebar to show checkboxes
-    if (focusedAvatar) {
+    if (focusedMember) {
       enterSkillSelectionMode(
-        focusedAvatar,
-        focusedAvatar.skills,
+        focusedMember,
+        focusedMember.skills,
         async (skillIds) => {
-          await updateAvatar(focusedAvatar.id, { skills: skillIds })
+          await updateMember(focusedMember.id, { skills: skillIds })
         }
       )
-      // Close the avatar overlay so the user can see the sidebar
+      // Close the member overlay so the user can see the sidebar
       exitZoom()
     }
-  }, [focusedAvatar, enterSkillSelectionMode, updateAvatar, exitZoom])
+  }, [focusedMember, enterSkillSelectionMode, updateMember, exitZoom])
 
   const handleDuplicate = useCallback(async () => {
-    if (!focusedAvatar) return
-    await createAvatar({
-      name: `${focusedAvatar.name} (Copy)`,
-      bodyColor: focusedAvatar.bodyColor,
-      headColor: focusedAvatar.headColor,
-      accentColor: focusedAvatar.accentColor,
-      skills: [...focusedAvatar.skills],
+    if (!focusedMember) return
+    await createMember({
+      name: `${focusedMember.name} (Copy)`,
+      bodyColor: focusedMember.bodyColor,
+      headColor: focusedMember.headColor,
+      accentColor: focusedMember.accentColor,
+      skills: [...focusedMember.skills],
     })
     exitZoom()
-  }, [focusedAvatar, createAvatar, exitZoom])
+  }, [focusedMember, createMember, exitZoom])
 
   const handleDeleteClick = useCallback(() => {
     setIsDeleteDialogOpen(true)
   }, [])
 
   const handleConfirmDelete = useCallback(async () => {
-    if (focusedAvatarId) {
-      await deleteAvatar(focusedAvatarId)
+    if (focusedMemberId) {
+      await deleteMember(focusedMemberId)
       exitZoom()
     }
     setIsDeleteDialogOpen(false)
-  }, [focusedAvatarId, deleteAvatar, exitZoom])
+  }, [focusedMemberId, deleteMember, exitZoom])
 
   return (
     <div
@@ -254,18 +254,18 @@ export function WorldCanvas({
         dpr={[1, 2]}
       >
         <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
-        <AvatarProvider avatar={avatarType}>
+        <MemberProvider member={memberType}>
           <Suspense fallback={null}>
             <WorldScene
               cameraState={cameraState}
-              selectedNodeIds={selectedPromptIds}
+              selectedNodeIds={selectedSkillIds}
               cursorPosition={cursorPosition}
-              avatarsWithPositions={avatarsWithPositions}
-              onAvatarClick={handleAvatarClick}
+              membersWithPositions={membersWithPositions}
+              onMemberClick={handleMemberClick}
               isDarkMode={isDarkMode}
             />
           </Suspense>
-        </AvatarProvider>
+        </MemberProvider>
       </Canvas>
 
       {/* Loading indicator */}
@@ -286,20 +286,20 @@ export function WorldCanvas({
       <WorldControls
         cameraMode={cameraMode}
         onCycleCameraMode={handleCycleCameraMode}
-        nodeCount={prompts.length}
-        selectionCount={selectedPromptIds.length}
-        avatarCount={avatars.length}
+        nodeCount={skills.length}
+        selectionCount={selectedSkillIds.length}
+        memberCount={members.length}
       />
 
       {/* Combine panel */}
       <CombinePanel
-        selectedPrompts={selectedPromptObjects}
-        onClear={() => setSelectedPromptIds([])}
+        selectedSkills={selectedSkillObjects}
+        onClear={() => setSelectedSkillIds([])}
         onCombine={handleCombine}
       />
 
       {/* Empty state */}
-      {prompts.length === 0 && (
+      {skills.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center">
             <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-2xl flex items-center justify-center">
@@ -317,18 +317,18 @@ export function WorldCanvas({
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-muted-foreground mb-2">No Prompts Yet</h3>
+            <h3 className="text-lg font-medium text-muted-foreground mb-2">No Skills Yet</h3>
             <p className="text-sm text-muted-foreground/70 max-w-xs">
-              Create your first prompt to see it appear in the skill tree.
+              Create your first skill to see it appear in the skill tree.
             </p>
           </div>
         </div>
       )}
 
-      {/* Avatar overlay - appears when zoomed to avatar */}
-      <AvatarOverlay
-        avatar={focusedAvatar}
-        isVisible={cameraMode === 'zoomed-avatar'}
+      {/* Member overlay - appears when zoomed to member */}
+      <MemberOverlay
+        member={focusedMember}
+        isVisible={cameraMode === 'zoomed-member'}
         onClose={handleCloseOverlay}
         onCustomize={handleCustomize}
         onSetSkills={handleSetSkills}
@@ -336,14 +336,14 @@ export function WorldCanvas({
         onDelete={handleDeleteClick}
       />
 
-      {/* Avatar customize modal */}
-      <AvatarCustomizeModal
+      {/* Member customize modal */}
+      <MemberCustomizeModal
         isOpen={isCustomizeModalOpen}
         onClose={() => setIsCustomizeModalOpen(false)}
-        avatar={focusedAvatar}
+        member={focusedMember}
         onSave={async (updates) => {
-          if (focusedAvatarId) {
-            await updateAvatar(focusedAvatarId, updates)
+          if (focusedMemberId) {
+            await updateMember(focusedMemberId, updates)
           }
         }}
         isLoading={isUpdating}
@@ -354,8 +354,8 @@ export function WorldCanvas({
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={() => void handleConfirmDelete()}
-        title="Delete Avatar"
-        message={`Are you sure you want to delete "${focusedAvatar?.name ?? 'this avatar'}"? This action cannot be undone.`}
+        title="Delete Member"
+        message={`Are you sure you want to delete "${focusedMember?.name ?? 'this member'}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
         isLoading={isDeleting}

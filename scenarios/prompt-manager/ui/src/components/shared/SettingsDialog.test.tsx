@@ -91,9 +91,9 @@ describe('SettingsDialog', () => {
         <SettingsDialog isOpen={true} onClose={vi.fn()} />
       )
 
-      expect(screen.getByText('Save current prompt')).toBeInTheDocument()
+      expect(screen.getByText('Save current skill')).toBeInTheDocument()
       expect(screen.getByText('Save all changes')).toBeInTheDocument()
-      expect(screen.getByText('New prompt')).toBeInTheDocument()
+      expect(screen.getByText('New skill')).toBeInTheDocument()
       expect(screen.getByText('Focus search')).toBeInTheDocument()
       expect(screen.getByText('Close / Cancel')).toBeInTheDocument()
       expect(screen.getByText('Open settings')).toBeInTheDocument()

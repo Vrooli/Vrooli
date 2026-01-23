@@ -2,7 +2,7 @@
  * Tests for treeService.ts
  *
  * Tests cover:
- * - Building tree structures from prompts
+ * - Building tree structures from skills
  * - Counting dirty items in subtrees
  * - Finding paths to items
  * - Filtering tree by search query
@@ -17,14 +17,14 @@ import {
   filterTree,
   getModesAtLevel,
 } from './treeService'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
 
-// Helper to create a minimal prompt for testing
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create a minimal skill for testing
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: [],
@@ -39,18 +39,18 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
 }
 
 describe('buildTree', () => {
-  it('should create empty tree for empty prompts array', () => {
+  it('should create empty tree for empty skills array', () => {
     const tree = buildTree([])
     expect(tree).toEqual([])
   })
 
-  it('should put prompts without modes in "Other" category', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', modes: [] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', modes: [] }),
+  it('should put skills without modes in "Other" category', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', modes: [] }),
+      createTestSkill({ id: '2', name: 'Skill 2', modes: [] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
     expect(tree).toHaveLength(1)
     expect(tree[0]?.id).toBe('__other__')
@@ -60,13 +60,13 @@ describe('buildTree', () => {
   })
 
   it('should create category nodes for single-level modes', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', modes: ['development'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', modes: ['development'] }),
-      createTestPrompt({ id: '3', name: 'Prompt 3', modes: ['testing'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', modes: ['development'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', modes: ['development'] }),
+      createTestSkill({ id: '3', name: 'Skill 3', modes: ['testing'] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
     // Should have two categories: development and testing
     expect(tree).toHaveLength(2)
@@ -82,13 +82,13 @@ describe('buildTree', () => {
   })
 
   it('should create nested category nodes for multi-level modes', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', modes: ['development', 'react'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', modes: ['development', 'react'] }),
-      createTestPrompt({ id: '3', name: 'Prompt 3', modes: ['development', 'vue'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', modes: ['development', 'react'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', modes: ['development', 'react'] }),
+      createTestSkill({ id: '3', name: 'Skill 3', modes: ['development', 'vue'] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
     expect(tree).toHaveLength(1)
     const devCategory = tree[0]
@@ -104,27 +104,27 @@ describe('buildTree', () => {
   })
 
   it('should create leaf nodes with correct itemId', () => {
-    const prompts = [
-      createTestPrompt({ id: 'prompt-123', name: 'My Prompt', modes: ['dev'] }),
+    const skills = [
+      createTestSkill({ id: 'skill-123', name: 'My Skill', modes: ['dev'] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
     const leaf = tree[0]?.children[0]
 
-    expect(leaf?.id).toBe('item-prompt-123')
-    expect(leaf?.itemId).toBe('prompt-123')
-    expect(leaf?.label).toBe('My Prompt')
+    expect(leaf?.id).toBe('item-skill-123')
+    expect(leaf?.itemId).toBe('skill-123')
+    expect(leaf?.label).toBe('My Skill')
     expect(leaf?.isCategory).toBe(false)
   })
 
   it('should sort categories before items, then alphabetically', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Zebra', modes: ['dev'] }),
-      createTestPrompt({ id: '2', name: 'Alpha', modes: ['dev'] }),
-      createTestPrompt({ id: '3', name: 'Beta', modes: ['dev', 'sub'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Zebra', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Alpha', modes: ['dev'] }),
+      createTestSkill({ id: '3', name: 'Beta', modes: ['dev', 'sub'] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
     const devChildren = tree[0]?.children ?? []
 
     // The 'sub' category should come first (categories before items)
@@ -137,11 +137,11 @@ describe('buildTree', () => {
   })
 
   it('should set correct depth for nodes', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt', modes: ['level1', 'level2', 'level3'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill', modes: ['level1', 'level2', 'level3'] }),
     ]
 
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
     expect(tree[0]?.depth).toBe(0)
     expect(tree[0]?.children[0]?.depth).toBe(1)
@@ -218,25 +218,25 @@ describe('countDirtyInSubtree', () => {
 })
 
 describe('getPathsToItem', () => {
-  it('should return empty array for prompt without modes', () => {
-    const prompts = [createTestPrompt({ id: '1', modes: [] })]
-    expect(getPathsToItem(prompts, '1')).toEqual([])
+  it('should return empty array for skill without modes', () => {
+    const skills = [createTestSkill({ id: '1', modes: [] })]
+    expect(getPathsToItem(skills, '1')).toEqual([])
   })
 
-  it('should return empty array for non-existent prompt', () => {
-    const prompts = [createTestPrompt({ id: '1', modes: ['dev'] })]
-    expect(getPathsToItem(prompts, 'non-existent')).toEqual([])
+  it('should return empty array for non-existent skill', () => {
+    const skills = [createTestSkill({ id: '1', modes: ['dev'] })]
+    expect(getPathsToItem(skills, 'non-existent')).toEqual([])
   })
 
   it('should return single path for single-level mode', () => {
-    const prompts = [createTestPrompt({ id: '1', modes: ['development'] })]
-    expect(getPathsToItem(prompts, '1')).toEqual(['development'])
+    const skills = [createTestSkill({ id: '1', modes: ['development'] })]
+    expect(getPathsToItem(skills, '1')).toEqual(['development'])
   })
 
   it('should return all path segments for multi-level modes', () => {
-    const prompts = [createTestPrompt({ id: '1', modes: ['development', 'react', 'hooks'] })]
+    const skills = [createTestSkill({ id: '1', modes: ['development', 'react', 'hooks'] })]
 
-    expect(getPathsToItem(prompts, '1')).toEqual([
+    expect(getPathsToItem(skills, '1')).toEqual([
       'development',
       'development/react',
       'development/react/hooks',
@@ -246,74 +246,74 @@ describe('getPathsToItem', () => {
 
 describe('filterTree', () => {
   it('should return original tree for empty query', () => {
-    const prompts = [createTestPrompt({ id: '1', name: 'Test', modes: ['dev'] })]
-    const tree = buildTree(prompts)
+    const skills = [createTestSkill({ id: '1', name: 'Test', modes: ['dev'] })]
+    const tree = buildTree(skills)
 
-    expect(filterTree(tree, '', prompts)).toEqual(tree)
-    expect(filterTree(tree, '   ', prompts)).toEqual(tree)
+    expect(filterTree(tree, '', skills)).toEqual(tree)
+    expect(filterTree(tree, '   ', skills)).toEqual(tree)
   })
 
-  it('should filter by prompt name', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Alpha Prompt', modes: ['dev'] }),
-      createTestPrompt({ id: '2', name: 'Beta Prompt', modes: ['dev'] }),
+  it('should filter by skill name', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Alpha Skill', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Beta Skill', modes: ['dev'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'Alpha', prompts)
+    const filtered = filterTree(tree, 'Alpha', skills)
 
     expect(filtered).toHaveLength(1)
     expect(filtered[0]?.children).toHaveLength(1)
     expect(filtered[0]?.children[0]?.itemId).toBe('1')
   })
 
-  it('should filter by prompt description', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', description: 'Contains search term', modes: ['dev'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', description: 'No match here', modes: ['dev'] }),
+  it('should filter by skill description', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', description: 'Contains search term', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', description: 'No match here', modes: ['dev'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'search term', prompts)
+    const filtered = filterTree(tree, 'search term', skills)
 
     expect(filtered[0]?.children).toHaveLength(1)
     expect(filtered[0]?.children[0]?.itemId).toBe('1')
   })
 
-  it('should filter by prompt content', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', content: 'findme in content', modes: ['dev'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', content: 'nothing here', modes: ['dev'] }),
+  it('should filter by skill content', () => {
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', content: 'findme in content', modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', content: 'nothing here', modes: ['dev'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'findme', prompts)
+    const filtered = filterTree(tree, 'findme', skills)
 
     expect(filtered[0]?.children).toHaveLength(1)
     expect(filtered[0]?.children[0]?.itemId).toBe('1')
   })
 
   it('should filter by tags', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', tags: ['important', 'urgent'], modes: ['dev'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', tags: ['low-priority'], modes: ['dev'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', tags: ['important', 'urgent'], modes: ['dev'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', tags: ['low-priority'], modes: ['dev'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'urgent', prompts)
+    const filtered = filterTree(tree, 'urgent', skills)
 
     expect(filtered[0]?.children).toHaveLength(1)
     expect(filtered[0]?.children[0]?.itemId).toBe('1')
   })
 
   it('should filter by modes', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Prompt 1', modes: ['development', 'react'] }),
-      createTestPrompt({ id: '2', name: 'Prompt 2', modes: ['development', 'vue'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Skill 1', modes: ['development', 'react'] }),
+      createTestSkill({ id: '2', name: 'Skill 2', modes: ['development', 'vue'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'react', prompts)
+    const filtered = filterTree(tree, 'react', skills)
 
     // Development category should still exist, with only react subcategory
     expect(filtered).toHaveLength(1)
@@ -323,22 +323,22 @@ describe('filterTree', () => {
   })
 
   it('should be case-insensitive', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'UPPERCASE', modes: ['dev'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'UPPERCASE', modes: ['dev'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'uppercase', prompts)
+    const filtered = filterTree(tree, 'uppercase', skills)
     expect(filtered[0]?.children).toHaveLength(1)
   })
 
   it('should keep parent categories when children match', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', name: 'Match', modes: ['category1', 'subcategory'] }),
+    const skills = [
+      createTestSkill({ id: '1', name: 'Match', modes: ['category1', 'subcategory'] }),
     ]
-    const tree = buildTree(prompts)
+    const tree = buildTree(skills)
 
-    const filtered = filterTree(tree, 'Match', prompts)
+    const filtered = filterTree(tree, 'Match', skills)
 
     expect(filtered).toHaveLength(1)
     expect(filtered[0]?.label).toBe('category1')
@@ -348,14 +348,14 @@ describe('filterTree', () => {
 
 describe('getModesAtLevel', () => {
   it('should return unique modes at level 0', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', modes: ['development'] }),
-      createTestPrompt({ id: '2', modes: ['development'] }),
-      createTestPrompt({ id: '3', modes: ['testing'] }),
-      createTestPrompt({ id: '4', modes: ['production'] }),
+    const skills = [
+      createTestSkill({ id: '1', modes: ['development'] }),
+      createTestSkill({ id: '2', modes: ['development'] }),
+      createTestSkill({ id: '3', modes: ['testing'] }),
+      createTestSkill({ id: '4', modes: ['production'] }),
     ]
 
-    const modes = getModesAtLevel(prompts, 0, [])
+    const modes = getModesAtLevel(skills, 0, [])
 
     expect(modes).toHaveLength(3)
     expect(modes).toContain('development')
@@ -364,13 +364,13 @@ describe('getModesAtLevel', () => {
   })
 
   it('should return modes at level 1 filtered by parent path', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', modes: ['development', 'react'] }),
-      createTestPrompt({ id: '2', modes: ['development', 'vue'] }),
-      createTestPrompt({ id: '3', modes: ['testing', 'unit'] }),
+    const skills = [
+      createTestSkill({ id: '1', modes: ['development', 'react'] }),
+      createTestSkill({ id: '2', modes: ['development', 'vue'] }),
+      createTestSkill({ id: '3', modes: ['testing', 'unit'] }),
     ]
 
-    const modes = getModesAtLevel(prompts, 1, ['development'])
+    const modes = getModesAtLevel(skills, 1, ['development'])
 
     expect(modes).toHaveLength(2)
     expect(modes).toContain('react')
@@ -378,36 +378,36 @@ describe('getModesAtLevel', () => {
     expect(modes).not.toContain('unit')
   })
 
-  it('should return empty array when no prompts match parent path', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', modes: ['development', 'react'] }),
+  it('should return empty array when no skills match parent path', () => {
+    const skills = [
+      createTestSkill({ id: '1', modes: ['development', 'react'] }),
     ]
 
-    const modes = getModesAtLevel(prompts, 1, ['testing'])
+    const modes = getModesAtLevel(skills, 1, ['testing'])
 
     expect(modes).toEqual([])
   })
 
   it('should return sorted modes', () => {
-    const prompts = [
-      createTestPrompt({ id: '1', modes: ['zebra'] }),
-      createTestPrompt({ id: '2', modes: ['alpha'] }),
-      createTestPrompt({ id: '3', modes: ['beta'] }),
+    const skills = [
+      createTestSkill({ id: '1', modes: ['zebra'] }),
+      createTestSkill({ id: '2', modes: ['alpha'] }),
+      createTestSkill({ id: '3', modes: ['beta'] }),
     ]
 
-    const modes = getModesAtLevel(prompts, 0, [])
+    const modes = getModesAtLevel(skills, 0, [])
 
     expect(modes).toEqual(['alpha', 'beta', 'zebra'])
   })
 
-  it('should handle prompts with null/undefined modes', () => {
+  it('should handle skills with null/undefined modes', () => {
     // Test with empty modes array (simulating undefined after nullish coalescing)
-    const prompts = [
-      createTestPrompt({ id: '1', modes: [] }),
-      createTestPrompt({ id: '2', modes: ['development'] }),
+    const skills = [
+      createTestSkill({ id: '1', modes: [] }),
+      createTestSkill({ id: '2', modes: ['development'] }),
     ]
 
-    const modes = getModesAtLevel(prompts, 0, [])
+    const modes = getModesAtLevel(skills, 0, [])
 
     expect(modes).toEqual(['development'])
   })

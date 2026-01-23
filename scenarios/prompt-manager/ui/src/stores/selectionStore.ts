@@ -1,5 +1,5 @@
 /**
- * Zustand store for centralized prompt selection state.
+ * Zustand store for centralized skill selection state.
  *
  * This store synchronizes selection between:
  * - The sidebar tree (single selection for editing)
@@ -10,90 +10,90 @@ import { create } from 'zustand'
 
 interface SelectionStore {
   // Single selection for editing (sidebar tree)
-  selectedPromptId: string | null
+  selectedSkillId: string | null
 
   // Multi-selection for combining (3D skill tree)
-  selectedPromptIds: string[]
+  selectedSkillIds: string[]
 
   // Actions
-  setSelectedPromptId: (id: string | null) => void
-  togglePromptSelection: (id: string) => void
+  setSelectedSkillId: (id: string | null) => void
+  toggleSkillSelection: (id: string) => void
   addToSelection: (id: string) => void
   removeFromSelection: (id: string) => void
-  setSelectedPromptIds: (ids: string[]) => void
+  setSelectedSkillIds: (ids: string[]) => void
   clearSelection: () => void
   clearAllSelection: () => void
 }
 
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
-  selectedPromptId: null,
-  selectedPromptIds: [],
+  selectedSkillId: null,
+  selectedSkillIds: [],
 
-  setSelectedPromptId: (id) => {
+  setSelectedSkillId: (id) => {
     set({
-      selectedPromptId: id,
-      // When selecting a single prompt for editing, also update multi-selection
-      // This ensures the 3D tree highlights the selected prompt
-      selectedPromptIds: id ? [id] : [],
+      selectedSkillId: id,
+      // When selecting a single skill for editing, also update multi-selection
+      // This ensures the 3D tree highlights the selected skill
+      selectedSkillIds: id ? [id] : [],
     })
   },
 
-  togglePromptSelection: (id) => {
-    const { selectedPromptIds } = get()
-    if (selectedPromptIds.includes(id)) {
-      const newIds = selectedPromptIds.filter((sid) => sid !== id)
+  toggleSkillSelection: (id) => {
+    const { selectedSkillIds } = get()
+    if (selectedSkillIds.includes(id)) {
+      const newIds = selectedSkillIds.filter((sid) => sid !== id)
       set({
-        selectedPromptIds: newIds,
+        selectedSkillIds: newIds,
         // Update single selection if we just toggled off the selected item
-        selectedPromptId: newIds.length === 1 ? newIds[0] : get().selectedPromptId,
+        selectedSkillId: newIds.length === 1 ? newIds[0] : get().selectedSkillId,
       })
     } else {
-      const newIds = [...selectedPromptIds, id]
+      const newIds = [...selectedSkillIds, id]
       set({
-        selectedPromptIds: newIds,
+        selectedSkillIds: newIds,
         // If this is the first selection, also set as single selected
-        selectedPromptId: newIds.length === 1 ? id : get().selectedPromptId,
+        selectedSkillId: newIds.length === 1 ? id : get().selectedSkillId,
       })
     }
   },
 
   addToSelection: (id) => {
-    const { selectedPromptIds } = get()
-    if (!selectedPromptIds.includes(id)) {
-      const newIds = [...selectedPromptIds, id]
+    const { selectedSkillIds } = get()
+    if (!selectedSkillIds.includes(id)) {
+      const newIds = [...selectedSkillIds, id]
       set({
-        selectedPromptIds: newIds,
-        selectedPromptId: newIds.length === 1 ? id : get().selectedPromptId,
+        selectedSkillIds: newIds,
+        selectedSkillId: newIds.length === 1 ? id : get().selectedSkillId,
       })
     }
   },
 
   removeFromSelection: (id) => {
-    const { selectedPromptIds } = get()
-    const newIds = selectedPromptIds.filter((sid) => sid !== id)
+    const { selectedSkillIds } = get()
+    const newIds = selectedSkillIds.filter((sid) => sid !== id)
     set({
-      selectedPromptIds: newIds,
+      selectedSkillIds: newIds,
       // Update single selection if we just removed the selected item
-      selectedPromptId: get().selectedPromptId === id ? null : get().selectedPromptId,
+      selectedSkillId: get().selectedSkillId === id ? null : get().selectedSkillId,
     })
   },
 
-  setSelectedPromptIds: (ids) => {
+  setSelectedSkillIds: (ids) => {
     set({
-      selectedPromptIds: ids,
+      selectedSkillIds: ids,
       // If there's exactly one selection, also set it as the single selected
-      selectedPromptId: ids.length === 1 ? ids[0] : get().selectedPromptId,
+      selectedSkillId: ids.length === 1 ? ids[0] : get().selectedSkillId,
     })
   },
 
   clearSelection: () => {
-    set({ selectedPromptIds: [] })
+    set({ selectedSkillIds: [] })
   },
 
   clearAllSelection: () => {
     set({
-      selectedPromptId: null,
-      selectedPromptIds: [],
+      selectedSkillId: null,
+      selectedSkillIds: [],
     })
   },
 }))

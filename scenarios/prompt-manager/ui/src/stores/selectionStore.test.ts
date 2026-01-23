@@ -17,187 +17,187 @@ describe('selectionStore', () => {
   beforeEach(() => {
     // Reset store state before each test
     useSelectionStore.setState({
-      selectedPromptId: null,
-      selectedPromptIds: [],
+      selectedSkillId: null,
+      selectedSkillIds: [],
     })
   })
 
   describe('initial state', () => {
-    it('should start with null selectedPromptId', () => {
+    it('should start with null selectedSkillId', () => {
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBeNull()
+      expect(state.selectedSkillId).toBeNull()
     })
 
-    it('should start with empty selectedPromptIds', () => {
+    it('should start with empty selectedSkillIds', () => {
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual([])
+      expect(state.selectedSkillIds).toEqual([])
     })
   })
 
-  describe('setSelectedPromptId', () => {
+  describe('setSelectedSkillId', () => {
     it('should set single selection', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
 
     it('should also update multi-selection to match', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual(['prompt-1'])
+      expect(state.selectedSkillIds).toEqual(['skill-1'])
     })
 
     it('should clear multi-selection when setting to null', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.getState().setSelectedPromptId(null)
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setSelectedSkillId(null)
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBeNull()
-      expect(state.selectedPromptIds).toEqual([])
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedSkillIds).toEqual([])
     })
   })
 
-  describe('togglePromptSelection', () => {
-    it('should add unselected prompt to multi-selection', () => {
-      useSelectionStore.getState().togglePromptSelection('prompt-1')
+  describe('toggleSkillSelection', () => {
+    it('should add unselected skill to multi-selection', () => {
+      useSelectionStore.getState().toggleSkillSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toContain('prompt-1')
+      expect(state.selectedSkillIds).toContain('skill-1')
     })
 
-    it('should remove selected prompt from multi-selection', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2'])
-      useSelectionStore.getState().togglePromptSelection('prompt-1')
+    it('should remove selected skill from multi-selection', () => {
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2'])
+      useSelectionStore.getState().toggleSkillSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).not.toContain('prompt-1')
-      expect(state.selectedPromptIds).toContain('prompt-2')
+      expect(state.selectedSkillIds).not.toContain('skill-1')
+      expect(state.selectedSkillIds).toContain('skill-2')
     })
 
     it('should set single selection when toggling to single item', () => {
-      useSelectionStore.getState().togglePromptSelection('prompt-1')
+      useSelectionStore.getState().toggleSkillSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
 
     it('should preserve single selection when adding more items', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.getState().togglePromptSelection('prompt-2')
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().toggleSkillSelection('skill-2')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
-      expect(state.selectedPromptIds).toContain('prompt-1')
-      expect(state.selectedPromptIds).toContain('prompt-2')
+      expect(state.selectedSkillId).toBe('skill-1')
+      expect(state.selectedSkillIds).toContain('skill-1')
+      expect(state.selectedSkillIds).toContain('skill-2')
     })
   })
 
   describe('addToSelection', () => {
-    it('should add prompt to multi-selection', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1'])
-      useSelectionStore.getState().addToSelection('prompt-2')
+    it('should add skill to multi-selection', () => {
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1'])
+      useSelectionStore.getState().addToSelection('skill-2')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual(['prompt-1', 'prompt-2'])
+      expect(state.selectedSkillIds).toEqual(['skill-1', 'skill-2'])
     })
 
-    it('should not duplicate already selected prompt', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1'])
-      useSelectionStore.getState().addToSelection('prompt-1')
+    it('should not duplicate already selected skill', () => {
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1'])
+      useSelectionStore.getState().addToSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual(['prompt-1'])
+      expect(state.selectedSkillIds).toEqual(['skill-1'])
     })
 
     it('should set single selection when adding first item', () => {
-      useSelectionStore.getState().addToSelection('prompt-1')
+      useSelectionStore.getState().addToSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
   })
 
   describe('removeFromSelection', () => {
-    it('should remove prompt from multi-selection', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2'])
-      useSelectionStore.getState().removeFromSelection('prompt-1')
+    it('should remove skill from multi-selection', () => {
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2'])
+      useSelectionStore.getState().removeFromSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual(['prompt-2'])
+      expect(state.selectedSkillIds).toEqual(['skill-2'])
     })
 
-    it('should clear single selection when removing that prompt', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.getState().removeFromSelection('prompt-1')
+    it('should clear single selection when removing that skill', () => {
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().removeFromSelection('skill-1')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBeNull()
+      expect(state.selectedSkillId).toBeNull()
     })
 
-    it('should preserve single selection when removing different prompt', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2'])
-      useSelectionStore.setState({ selectedPromptId: 'prompt-1' })
-      useSelectionStore.getState().removeFromSelection('prompt-2')
+    it('should preserve single selection when removing different skill', () => {
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2'])
+      useSelectionStore.setState({ selectedSkillId: 'skill-1' })
+      useSelectionStore.getState().removeFromSelection('skill-2')
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
   })
 
-  describe('setSelectedPromptIds', () => {
+  describe('setSelectedSkillIds', () => {
     it('should set multi-selection', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2'])
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2'])
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual(['prompt-1', 'prompt-2'])
+      expect(state.selectedSkillIds).toEqual(['skill-1', 'skill-2'])
     })
 
     it('should set single selection when array has one item', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1'])
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1'])
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
 
     it('should preserve single selection when array has multiple items', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2', 'prompt-3'])
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2', 'skill-3'])
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
   })
 
   describe('clearSelection', () => {
     it('should clear multi-selection', () => {
-      useSelectionStore.getState().setSelectedPromptIds(['prompt-1', 'prompt-2'])
+      useSelectionStore.getState().setSelectedSkillIds(['skill-1', 'skill-2'])
       useSelectionStore.getState().clearSelection()
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptIds).toEqual([])
+      expect(state.selectedSkillIds).toEqual([])
     })
 
     it('should not affect single selection', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.setState({ selectedPromptIds: ['prompt-1', 'prompt-2'] })
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.setState({ selectedSkillIds: ['skill-1', 'skill-2'] })
       useSelectionStore.getState().clearSelection()
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBe('prompt-1')
+      expect(state.selectedSkillId).toBe('skill-1')
     })
   })
 
   describe('clearAllSelection', () => {
     it('should clear both single and multi selection', () => {
-      useSelectionStore.getState().setSelectedPromptId('prompt-1')
-      useSelectionStore.setState({ selectedPromptIds: ['prompt-1', 'prompt-2'] })
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.setState({ selectedSkillIds: ['skill-1', 'skill-2'] })
       useSelectionStore.getState().clearAllSelection()
 
       const state = useSelectionStore.getState()
-      expect(state.selectedPromptId).toBeNull()
-      expect(state.selectedPromptIds).toEqual([])
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedSkillIds).toEqual([])
     })
   })
 })

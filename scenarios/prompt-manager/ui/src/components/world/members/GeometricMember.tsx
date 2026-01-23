@@ -1,5 +1,5 @@
 /**
- * GeometricAvatar - A 3D geometric avatar built with Three.js primitives.
+ * GeometricMember - A 3D geometric member built with Three.js primitives.
  * Features cursor tracking, idle animations, and reaction animations.
  */
 
@@ -8,9 +8,9 @@ import { useFrame } from '@react-three/fiber'
 import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
-import type { AvatarProps } from '@/types/world'
+import type { MemberProps } from '@/types/world'
 
-// Default avatar colors
+// Default member colors
 const DEFAULT_COLORS = {
   body: '#6366f1', // Indigo
   head: '#818cf8', // Light indigo
@@ -20,14 +20,14 @@ const DEFAULT_COLORS = {
   glow: '#c7d2fe',
 }
 
-export function GeometricAvatar({
+export function GeometricMember({
   position,
   cursorPosition,
   selectedNodes,
   isAnimating: _isAnimating,
-  onAvatarClick,
+  onMemberClick,
   colors,
-}: AvatarProps) {
+}: MemberProps) {
   void _isAnimating // Reserved for future animation triggers
   // Merge custom colors with defaults
   const COLORS = useMemo(
@@ -96,13 +96,13 @@ export function GeometricAvatar({
     [COLORS]
   )
 
-  // Handle click on avatar
+  // Handle click on member
   const handleClick = useCallback(
     (event: { stopPropagation: () => void }) => {
       event.stopPropagation()
-      onAvatarClick?.()
+      onMemberClick?.()
     },
-    [onAvatarClick]
+    [onMemberClick]
   )
 
   // Animation loop
@@ -240,7 +240,7 @@ export function GeometricAvatar({
         </mesh>
       </group>
 
-      {/* Floating orbs around avatar when selected */}
+      {/* Floating orbs around member when selected */}
       {selectedNodes.length > 0 && (
         <group>
           {selectedNodes.slice(0, 5).map((_, i) => (
@@ -257,7 +257,7 @@ export function GeometricAvatar({
 }
 
 /**
- * Floating orb particle that orbits the avatar.
+ * Floating orb particle that orbits the member.
  */
 function FloatingOrb({ index, total }: { index: number; total: number }) {
   const meshRef = useRef<Mesh>(null)

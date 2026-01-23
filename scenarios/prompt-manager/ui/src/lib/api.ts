@@ -1,35 +1,35 @@
 /**
  * API client for prompt-manager Go API.
  *
- * Endpoints aligned with api/prompts/handlers.go:
- * - GET /api/v1/prompts - list prompts (with optional filters)
- * - GET /api/v1/prompts/sync - sync prompts with content
- * - POST /api/v1/prompts - create prompt
- * - GET /api/v1/prompts/{id} - get single prompt
- * - PUT /api/v1/prompts/{id} - update prompt
- * - DELETE /api/v1/prompts/{id} - delete prompt
- * - POST /api/v1/prompts/{id}/use - record usage
- * - PUT /api/v1/prompts/{id}/rating - set rating
+ * Endpoints aligned with api/skills/handlers.go:
+ * - GET /api/v1/skills - list skills (with optional filters)
+ * - GET /api/v1/skills/sync - sync skills with content
+ * - POST /api/v1/skills - create skill
+ * - GET /api/v1/skills/{id} - get single skill
+ * - PUT /api/v1/skills/{id} - update skill
+ * - DELETE /api/v1/skills/{id} - delete skill
+ * - POST /api/v1/skills/{id}/use - record usage
+ * - PUT /api/v1/skills/{id}/rating - set rating
  * - GET /api/v1/tags - list tags
  * - POST /api/v1/tags - create tag
- * - POST /api/v1/prompts/{id}/test - test with Ollama
- * - GET /api/v1/prompts/{id}/test-history - get test history
+ * - POST /api/v1/skills/{id}/test - test with Ollama
+ * - GET /api/v1/skills/{id}/test-history - get test history
  */
 
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import type {
-  Prompt,
-  CreatePromptRequest,
-  UpdatePromptRequest,
+  Skill,
+  CreateSkillRequest,
+  UpdateSkillRequest,
   Tag,
-  PromptTestRequest,
-  PromptTestResult,
+  SkillTestRequest,
+  SkillTestResult,
   SearchFilters,
   HealthResponse,
   Folder,
   FolderType,
 } from '@/types'
-import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
+import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
 import type { CombineFormat, CombineResponse } from '@/types/world'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
@@ -40,31 +40,31 @@ console.log('[prompt-manager api] API_BASE resolved to:', API_BASE)
  * Static folder definitions.
  * The API uses folder-based organization.
  * Folders determine git behavior, not editability:
- * - core: Important prompts (git-tracked)
- * - local: Personal prompts (gitignored)
- * - drafts: Work in progress prompts
+ * - core: Important skills (git-tracked)
+ * - local: Personal skills (gitignored)
+ * - drafts: Work in progress skills
  */
 export const FOLDERS: Folder[] = [
   {
     id: 'core',
     name: 'Core',
-    description: 'Important prompts (git-tracked)',
+    description: 'Important skills (git-tracked)',
     icon: 'shield',
-    promptCount: 0,  // Updated dynamically
+    skillCount: 0,  // Updated dynamically
   },
   {
     id: 'local',
     name: 'Local',
-    description: 'Personal prompts (gitignored)',
+    description: 'Personal skills (gitignored)',
     icon: 'folder',
-    promptCount: 0,
+    skillCount: 0,
   },
   {
     id: 'drafts',
     name: 'Drafts',
-    description: 'Work in progress prompts',
+    description: 'Work in progress skills',
     icon: 'edit',
-    promptCount: 0,
+    skillCount: 0,
   },
 ]
 
@@ -124,26 +124,26 @@ class ApiClient {
     }
   }
 
-  // Folder methods (computed from prompts, not a separate API)
+  // Folder methods (computed from skills, not a separate API)
   async getFolders(): Promise<Folder[]> {
-    // Get all prompts and compute folder counts
-    const prompts = await this.getPrompts()
+    // Get all skills and compute folder counts
+    const skills = await this.getSkills()
     const counts: Record<FolderType, number> = { core: 0, local: 0, drafts: 0 }
 
-    for (const prompt of prompts) {
-      if (prompt.folder in counts) {
-        counts[prompt.folder]++
+    for (const skill of skills) {
+      if (skill.folder in counts) {
+        counts[skill.folder]++
       }
     }
 
     return FOLDERS.map(folder => ({
       ...folder,
-      promptCount: counts[folder.id],
+      skillCount: counts[folder.id],
     }))
   }
 
-  // Prompt methods - aligned with api/prompts/handlers.go
-  async getPrompts(filters?: SearchFilters): Promise<Prompt[]> {
+  // Skill methods - aligned with api/skills/handlers.go
+  async getSkills(filters?: SearchFilters): Promise<Skill[]> {
     const params = new URLSearchParams()
     if (filters?.tag) params.append('tag', filters.tag)
     if (filters?.folder) params.append('folder', filters.folder)
@@ -154,46 +154,46 @@ class ApiClient {
     }
 
     const queryString = params.toString()
-    return this.request<Prompt[]>(`/prompts${queryString ? `?${queryString}` : ''}`)
+    return this.request<Skill[]>(`/skills${queryString ? `?${queryString}` : ''}`)
   }
 
-  async getPromptsByFolder(folder: FolderType): Promise<Prompt[]> {
-    return this.getPrompts({ folder })
+  async getSkillsByFolder(folder: FolderType): Promise<Skill[]> {
+    return this.getSkills({ folder })
   }
 
-  async getPrompt(id: string): Promise<Prompt> {
-    return this.request<Prompt>(`/prompts/${encodeURIComponent(id)}`)
+  async getSkill(id: string): Promise<Skill> {
+    return this.request<Skill>(`/skills/${encodeURIComponent(id)}`)
   }
 
-  async createPrompt(prompt: CreatePromptRequest): Promise<Prompt> {
-    return this.request<Prompt>('/prompts', {
+  async createSkill(skill: CreateSkillRequest): Promise<Skill> {
+    return this.request<Skill>('/skills', {
       method: 'POST',
-      body: JSON.stringify(prompt),
+      body: JSON.stringify(skill),
     })
   }
 
-  async updatePrompt(id: string, updates: UpdatePromptRequest): Promise<Prompt> {
-    return this.request<Prompt>(`/prompts/${encodeURIComponent(id)}`, {
+  async updateSkill(id: string, updates: UpdateSkillRequest): Promise<Skill> {
+    return this.request<Skill>(`/skills/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
   }
 
-  async deletePrompt(id: string): Promise<void> {
-    await this.request<Record<string, never>>(`/prompts/${encodeURIComponent(id)}`, {
+  async deleteSkill(id: string): Promise<void> {
+    await this.request<Record<string, never>>(`/skills/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
   }
 
   // Usage tracking
   async recordUsage(id: string): Promise<UsageResponse> {
-    return this.request<UsageResponse>(`/prompts/${encodeURIComponent(id)}/use`, {
+    return this.request<UsageResponse>(`/skills/${encodeURIComponent(id)}/use`, {
       method: 'POST',
     })
   }
 
   async setRating(id: string, rating: number, notes?: string): Promise<RatingResponse> {
-    return this.request<RatingResponse>(`/prompts/${encodeURIComponent(id)}/rating`, {
+    return this.request<RatingResponse>(`/skills/${encodeURIComponent(id)}/rating`, {
       method: 'PUT',
       body: JSON.stringify({ rating, notes }),
     })
@@ -212,36 +212,36 @@ class ApiClient {
   }
 
   // Testing (requires Ollama)
-  async testPrompt(id: string, request: PromptTestRequest): Promise<PromptTestResult> {
-    return this.request<PromptTestResult>(`/prompts/${encodeURIComponent(id)}/test`, {
+  async testSkill(id: string, request: SkillTestRequest): Promise<SkillTestResult> {
+    return this.request<SkillTestResult>(`/skills/${encodeURIComponent(id)}/test`, {
       method: 'POST',
       body: JSON.stringify(request),
     })
   }
 
-  async getTestHistory(id: string, limit?: number): Promise<PromptTestResult[]> {
+  async getTestHistory(id: string, limit?: number): Promise<SkillTestResult[]> {
     const params = limit ? `?limit=${limit}` : ''
-    return this.request<PromptTestResult[]>(`/prompts/${encodeURIComponent(id)}/test-history${params}`)
+    return this.request<SkillTestResult[]>(`/skills/${encodeURIComponent(id)}/test-history${params}`)
   }
 
   // Search - client-side filtering since no dedicated search endpoint
-  async searchPrompts(query: string, filters?: SearchFilters): Promise<Prompt[]> {
-    const allPrompts = await this.getPrompts(filters)
+  async searchSkills(query: string, filters?: SearchFilters): Promise<Skill[]> {
+    const allSkills = await this.getSkills(filters)
     const lowerQuery = query.toLowerCase()
 
-    return allPrompts.filter(prompt =>
-      prompt.name.toLowerCase().includes(lowerQuery) ||
-      prompt.description.toLowerCase().includes(lowerQuery) ||
-      prompt.content.toLowerCase().includes(lowerQuery) ||
-      prompt.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
+    return allSkills.filter(skill =>
+      skill.name.toLowerCase().includes(lowerQuery) ||
+      skill.description.toLowerCase().includes(lowerQuery) ||
+      skill.content.toLowerCase().includes(lowerQuery) ||
+      skill.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
     )
   }
 
-  // Combine prompts
-  async combinePrompts(promptIds: string[], format: CombineFormat = 'xml'): Promise<CombineResponse> {
-    return this.request<CombineResponse>('/prompts/combine', {
+  // Combine skills
+  async combineSkills(skillIds: string[], format: CombineFormat = 'xml'): Promise<CombineResponse> {
+    return this.request<CombineResponse>('/skills/combine', {
       method: 'POST',
-      body: JSON.stringify({ promptIds, format }),
+      body: JSON.stringify({ skillIds, format }),
     })
   }
 
@@ -250,31 +250,31 @@ class ApiClient {
     return this.request<HealthResponse>('/health')
   }
 
-  // Avatar methods - aligned with api/avatars/handlers.go
-  async getAvatars(): Promise<Avatar[]> {
-    return this.request<Avatar[]>('/avatars')
+  // Member methods - aligned with api/members/handlers.go
+  async getMembers(): Promise<Member[]> {
+    return this.request<Member[]>('/members')
   }
 
-  async getAvatar(id: string): Promise<Avatar> {
-    return this.request<Avatar>(`/avatars/${encodeURIComponent(id)}`)
+  async getMember(id: string): Promise<Member> {
+    return this.request<Member>(`/members/${encodeURIComponent(id)}`)
   }
 
-  async createAvatar(avatar: CreateAvatarRequest): Promise<Avatar> {
-    return this.request<Avatar>('/avatars', {
+  async createMember(member: CreateMemberRequest): Promise<Member> {
+    return this.request<Member>('/members', {
       method: 'POST',
-      body: JSON.stringify(avatar),
+      body: JSON.stringify(member),
     })
   }
 
-  async updateAvatar(id: string, updates: UpdateAvatarRequest): Promise<Avatar> {
-    return this.request<Avatar>(`/avatars/${encodeURIComponent(id)}`, {
+  async updateMember(id: string, updates: UpdateMemberRequest): Promise<Member> {
+    return this.request<Member>(`/members/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
   }
 
-  async deleteAvatar(id: string): Promise<void> {
-    await this.request<Record<string, never>>(`/avatars/${encodeURIComponent(id)}`, {
+  async deleteMember(id: string): Promise<void> {
+    await this.request<Record<string, never>>(`/members/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
   }

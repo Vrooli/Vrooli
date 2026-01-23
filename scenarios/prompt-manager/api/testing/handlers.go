@@ -1,4 +1,4 @@
-// Package testing provides LLM-based prompt testing via Ollama.
+// Package testing provides LLM-based skill testing via Ollama.
 package testing
 
 import (
@@ -7,21 +7,21 @@ import (
 	"strings"
 	"time"
 
-	"prompt-manager/prompts"
+	"prompt-manager/skills"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
-// Handlers provides HTTP handlers for prompt testing operations.
+// Handlers provides HTTP handlers for skill testing operations.
 type Handlers struct {
 	repo         *Repository
 	ollamaClient *OllamaClient
-	store        *prompts.Store
+	store        *skills.Store
 }
 
 // NewHandlers creates a new testing handler.
-func NewHandlers(repo *Repository, ollamaClient *OllamaClient, store *prompts.Store) *Handlers {
+func NewHandlers(repo *Repository, ollamaClient *OllamaClient, store *skills.Store) *Handlers {
 	return &Handlers{
 		repo:         repo,
 		ollamaClient: ollamaClient,
@@ -29,25 +29,25 @@ func NewHandlers(repo *Repository, ollamaClient *OllamaClient, store *prompts.St
 	}
 }
 
-// Test handles POST /prompts/{id}/test - tests a prompt with Ollama.
+// Test handles POST /skills/{id}/test - tests a skill with Ollama.
 func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	if !h.ollamaClient.IsEnabled() {
-		http.Error(w, "Prompt testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
+		http.Error(w, "Skill testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
 		return
 	}
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	prompt, folder, err := h.store.FindByID(id)
+	skill, folder, err := h.store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Prompt not found", http.StatusNotFound)
+		http.Error(w, "Skill not found", http.StatusNotFound)
 		return
 	}
 
-	content, err := h.store.GetContent(folder, prompt.File)
+	content, err := h.store.GetContent(folder, skill.File)
 	if err != nil {
-		http.Error(w, "Failed to load prompt content", http.StatusInternalServerError)
+		http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 
 	result := &TestResult{
 		ID:           testID,
-		PromptID:     id,
+		SkillID:      id,
 		Model:        req.Model,
 		InputVars:    &varsStr,
 		Response:     &ollamaResp.Response,
@@ -113,7 +113,7 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetHistory handles GET /prompts/{id}/test-history - returns test history.
+// GetHistory handles GET /skills/{id}/test-history - returns test history.
 func (h *Handlers) GetHistory(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]

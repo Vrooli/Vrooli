@@ -1,5 +1,5 @@
 /**
- * PromptMetadataForm - Form fields for prompt metadata.
+ * SkillMetadataForm - Form fields for skill metadata.
  *
  * Includes:
  * - Name input
@@ -11,28 +11,28 @@
  */
 
 import { cn } from '@/lib/utils'
-import type { PromptFormState, ValidationResult } from '@/types/editor'
+import type { SkillFormState, ValidationResult } from '@/types/editor'
 import { IconSelector } from '../shared/IconSelector'
 import { CategoryPathEditor } from './CategoryPathEditor'
 
-interface PromptMetadataFormProps {
-  formState: PromptFormState
-  onFieldChange: <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => void
+interface SkillMetadataFormProps {
+  formState: SkillFormState
+  onFieldChange: <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => void
   onModesChange: (modes: string[]) => void
   getSuggestionsAtLevel: (level: number, parentPath: string[]) => string[]
   validation: ValidationResult
 }
 
 /**
- * Metadata form component for prompt editing.
+ * Metadata form component for skill editing.
  */
-export function PromptMetadataForm({
+export function SkillMetadataForm({
   formState,
   onFieldChange,
   onModesChange,
   getSuggestionsAtLevel,
   validation,
-}: PromptMetadataFormProps) {
+}: SkillMetadataFormProps) {
   return (
     <div className="space-y-4">
       {/* Name and Icon row */}
@@ -50,7 +50,7 @@ export function PromptMetadataForm({
             type="text"
             value={formState.name}
             onChange={(e) => onFieldChange('name', e.target.value)}
-            placeholder="Prompt name..."
+            placeholder="Skill name..."
             className={cn(
               'w-full px-3 py-2 bg-muted border rounded-lg text-foreground text-sm',
               'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary',
@@ -72,7 +72,7 @@ export function PromptMetadataForm({
           id="description"
           value={formState.description}
           onChange={(e) => onFieldChange('description', e.target.value)}
-          placeholder="Brief description of what this prompt does..."
+          placeholder="Brief description of what this skill does..."
           rows={2}
           className={cn(
             'w-full px-3 py-2 bg-muted border rounded-lg text-foreground text-sm resize-none',
@@ -149,7 +149,7 @@ export function PromptMetadataForm({
             <div className="flex-1">
               <div className="text-sm font-medium text-foreground">Local</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Personal prompts, gitignored. Only visible on this machine.
+                Personal skills, gitignored. Only visible on this machine.
               </div>
             </div>
           </label>
@@ -172,7 +172,7 @@ export function PromptMetadataForm({
             <div className="flex-1">
               <div className="text-sm font-medium text-foreground">Core</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Shared prompts, git-tracked. Available across all instances.
+                Shared skills, git-tracked. Available across all instances.
               </div>
             </div>
           </label>

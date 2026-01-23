@@ -1,32 +1,32 @@
 /**
- * Avatar Service - Avatar state machine, animations, and API functions.
+ * Member Service - Member state machine, animations, and API functions.
  *
  * Provides:
- * - Avatar state machine for behavior management
+ * - Member state machine for behavior management
  * - Animation calculations (look rotation, idle sway, wave, celebration)
  * - Easing functions
  * - API wrapper with caching
  */
 
 import { api } from '@/lib/api'
-import type { Avatar, CreateAvatarRequest, UpdateAvatarRequest } from '@/types/avatar'
-import type { AvatarState } from '@/types/world'
+import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
+import type { MemberState } from '@/types/world'
 
 // ============================================================================
 // State Machine
 // ============================================================================
 
 /**
- * State machine configuration for avatar behaviors.
+ * State machine configuration for member behaviors.
  */
 interface StateConfig {
-  name: AvatarState
+  name: MemberState
   duration: number
   canInterrupt: boolean
-  nextStates: AvatarState[]
+  nextStates: MemberState[]
 }
 
-const STATE_CONFIG: Record<AvatarState, StateConfig> = {
+const STATE_CONFIG: Record<MemberState, StateConfig> = {
   idle: {
     name: 'idle',
     duration: Infinity,
@@ -60,19 +60,19 @@ const STATE_CONFIG: Record<AvatarState, StateConfig> = {
 }
 
 /**
- * Avatar state machine class.
+ * Member state machine class.
  */
-export class AvatarStateMachine {
-  private currentState: AvatarState = 'idle'
+export class MemberStateMachine {
+  private currentState: MemberState = 'idle'
   private stateStartTime: number = Date.now()
-  private listeners: Set<(state: AvatarState) => void> = new Set()
+  private listeners: Set<(state: MemberState) => void> = new Set()
 
-  constructor(initialState: AvatarState = 'idle') {
+  constructor(initialState: MemberState = 'idle') {
     this.currentState = initialState
     this.stateStartTime = Date.now()
   }
 
-  getState(): AvatarState {
+  getState(): MemberState {
     return this.currentState
   }
 
@@ -85,7 +85,7 @@ export class AvatarStateMachine {
     return this.getStateTime() >= config.duration
   }
 
-  transition(newState: AvatarState): boolean {
+  transition(newState: MemberState): boolean {
     const currentConfig = STATE_CONFIG[this.currentState]
 
     if (!currentConfig.canInterrupt && !this.isStateComplete()) {
@@ -102,13 +102,13 @@ export class AvatarStateMachine {
     return true
   }
 
-  forceTransition(newState: AvatarState): void {
+  forceTransition(newState: MemberState): void {
     this.currentState = newState
     this.stateStartTime = Date.now()
     this.notifyListeners()
   }
 
-  subscribe(listener: (state: AvatarState) => void): () => void {
+  subscribe(listener: (state: MemberState) => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
@@ -285,7 +285,7 @@ interface CacheEntry<T> {
   timestamp: number
 }
 
-let avatarsCache: CacheEntry<Avatar[]> | null = null
+let membersCache: CacheEntry<Member[]> | null = null
 
 /**
  * Check if cache entry is still valid.
@@ -299,79 +299,79 @@ function isCacheValid<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
  * Invalidate all caches. Call after mutations.
  */
 export function invalidateCache(): void {
-  avatarsCache = null
+  membersCache = null
 }
 
 /**
- * Get all avatars with caching.
+ * Get all members with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all avatars
+ * @returns Array of all members
  */
-export async function getAvatars(forceRefresh = false): Promise<Avatar[]> {
-  if (!forceRefresh && isCacheValid(avatarsCache)) {
-    return avatarsCache.data
+export async function getMembers(forceRefresh = false): Promise<Member[]> {
+  if (!forceRefresh && isCacheValid(membersCache)) {
+    return membersCache.data
   }
 
-  const data = await api.getAvatars()
-  avatarsCache = { data, timestamp: Date.now() }
+  const data = await api.getMembers()
+  membersCache = { data, timestamp: Date.now() }
   return data
 }
 
 /**
- * Get a single avatar by ID.
+ * Get a single member by ID.
  * Uses cached data if available, otherwise fetches.
  *
- * @param id - Avatar ID
- * @returns The avatar, or undefined if not found
+ * @param id - Member ID
+ * @returns The member, or undefined if not found
  */
-export async function getAvatar(id: string): Promise<Avatar | undefined> {
+export async function getMember(id: string): Promise<Member | undefined> {
   // Try cache first
-  if (isCacheValid(avatarsCache)) {
-    const cached = avatarsCache.data.find((a) => a.id === id)
+  if (isCacheValid(membersCache)) {
+    const cached = membersCache.data.find((a) => a.id === id)
     if (cached) return cached
   }
 
   // Fetch from API
   try {
-    return await api.getAvatar(id)
+    return await api.getMember(id)
   } catch (error) {
-    console.error(`[avatarService] Failed to get avatar ${id}:`, error)
+    console.error(`[memberService] Failed to get member ${id}:`, error)
     return undefined
   }
 }
 
 /**
- * Create a new avatar.
+ * Create a new member.
  *
  * @param request - Create request data
- * @returns The created avatar
+ * @returns The created member
  */
-export async function createAvatar(request: CreateAvatarRequest): Promise<Avatar> {
-  const avatar = await api.createAvatar(request)
+export async function createMember(request: CreateMemberRequest): Promise<Member> {
+  const member = await api.createMember(request)
   invalidateCache()
-  return avatar
+  return member
 }
 
 /**
- * Update an avatar.
+ * Update a member.
  *
- * @param id - Avatar ID to update
+ * @param id - Member ID to update
  * @param updates - Fields to update
- * @returns The updated avatar
+ * @returns The updated member
  */
-export async function updateAvatar(id: string, updates: UpdateAvatarRequest): Promise<Avatar> {
-  const avatar = await api.updateAvatar(id, updates)
+export async function updateMember(id: string, updates: UpdateMemberRequest): Promise<Member> {
+  const member = await api.updateMember(id, updates)
   invalidateCache()
-  return avatar
+  return member
 }
 
 /**
- * Delete an avatar.
+ * Delete a member.
  *
- * @param id - Avatar ID to delete
+ * @param id - Member ID to delete
  */
-export async function deleteAvatar(id: string): Promise<void> {
-  await api.deleteAvatar(id)
+export async function deleteMember(id: string): Promise<void> {
+  await api.deleteMember(id)
   invalidateCache()
 }

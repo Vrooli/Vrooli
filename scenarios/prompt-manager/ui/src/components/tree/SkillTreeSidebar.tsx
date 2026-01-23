@@ -1,15 +1,15 @@
 /**
- * PromptTreeSidebar - Full tree sidebar for prompt navigation.
+ * SkillTreeSidebar - Full tree sidebar for skill navigation.
  *
  * Adapted from agent-inbox ItemTreeSidebar for full-page experience.
  * Features:
  * - Mode-based tree navigation
  * - Search filtering
  * - Tag filtering
- * - Skill selection mode for avatars
+ * - Skill selection mode for members
  * - Dirty indicators
  * - Collapse/expand controls
- * - New prompt button
+ * - New skill button
  */
 
 import { type ReactNode, type RefObject, useState, useRef, useCallback } from 'react'
@@ -17,25 +17,25 @@ import * as Tabs from '@radix-ui/react-tabs'
 import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
-import type { Prompt } from '@/types'
-import type { Avatar } from '@/types/avatar'
+import type { Skill } from '@/types'
+import type { Member } from '@/types/member'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
-import { AvatarListPanel } from '../avatar/AvatarListPanel'
+import { MemberListPanel } from '../member/MemberListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
-import { PromptContextMenu } from './PromptContextMenu'
+import { SkillContextMenu } from './SkillContextMenu'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 
-interface PromptTreeSidebarProps {
+interface SkillTreeSidebarProps {
   treeNodes: TreeNode[]
-  prompts: Prompt[]
+  skills: Skill[]
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
   expandedNodes: Set<string>
   onToggleNode: (nodeId: string) => void
-  renderItemIcon?: (prompt: Prompt) => ReactNode
+  renderItemIcon?: (skill: Skill) => ReactNode
   searchQuery: string
   onSearchChange: (query: string) => void
   isCollapsed: boolean
@@ -54,23 +54,23 @@ interface PromptTreeSidebarProps {
   // Skill selection mode props
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
-  currentAvatar: Avatar | null
+  currentMember: Member | null
   onSkillSelectionSave: () => void
   onSkillSelectionCancel: () => void
   getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
   onSkillCheckboxChange: (node: TreeNode) => void
   // Context menu callbacks
-  onDeleteFolder: (promptIds: string[], folderLabel: string) => void
-  onCopyPrompt: (promptId: string) => void
+  onDeleteFolder: (skillIds: string[], folderLabel: string) => void
+  onCopySkill: (skillId: string) => void
   className?: string
 }
 
 /**
  * Full tree sidebar component.
  */
-export function PromptTreeSidebar({
+export function SkillTreeSidebar({
   treeNodes,
-  prompts,
+  skills,
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
@@ -91,15 +91,15 @@ export function PromptTreeSidebar({
   availableTags,
   skillSelectionMode,
   skillSelectedIds,
-  currentAvatar,
+  currentMember,
   onSkillSelectionSave,
   onSkillSelectionCancel,
   getSkillSelectionState,
   onSkillCheckboxChange,
   onDeleteFolder,
-  onCopyPrompt,
+  onCopySkill,
   className = '',
-}: PromptTreeSidebarProps) {
+}: SkillTreeSidebarProps) {
   // Count total dirty items
   const dirtyCount = dirtyItemIds.size
 
@@ -107,12 +107,12 @@ export function PromptTreeSidebar({
   const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false)
   const tagFilterRef = useRef<HTMLDivElement>(null)
 
-  // Avatar state
-  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
+  // Member state
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
 
-  // Active tab state - locked to prompts when in skill selection mode
-  const [activeTab, setActiveTab] = useState('prompts')
-  const effectiveTab = skillSelectionMode ? 'prompts' : activeTab
+  // Active tab state - locked to skills when in skill selection mode
+  const [activeTab, setActiveTab] = useState('skills')
+  const effectiveTab = skillSelectionMode ? 'skills' : activeTab
 
   // Folder context menu state
   const [folderContextMenu, setFolderContextMenu] = useState<{
@@ -121,33 +121,33 @@ export function PromptTreeSidebar({
     y: number
   } | null>(null)
 
-  // Prompt context menu state
-  const [promptContextMenu, setPromptContextMenu] = useState<{
-    promptId: string
-    promptName: string
+  // Skill context menu state
+  const [skillContextMenu, setSkillContextMenu] = useState<{
+    skillId: string
+    skillName: string
     x: number
     y: number
   } | null>(null)
 
   const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
-    setPromptContextMenu(null) // Close any open prompt menu
+    setSkillContextMenu(null) // Close any open skill menu
     setFolderContextMenu({ node, x, y })
   }, [])
 
-  const handlePromptContextMenu = useCallback((promptId: string, promptName: string, x: number, y: number) => {
+  const handleSkillContextMenu = useCallback((skillId: string, skillName: string, x: number, y: number) => {
     setFolderContextMenu(null) // Close any open folder menu
-    setPromptContextMenu({ promptId, promptName, x, y })
+    setSkillContextMenu({ skillId, skillName, x, y })
   }, [])
 
   const handleCloseFolderContextMenu = useCallback(() => {
     setFolderContextMenu(null)
   }, [])
 
-  const handleClosePromptContextMenu = useCallback(() => {
-    setPromptContextMenu(null)
+  const handleCloseSkillContextMenu = useCallback(() => {
+    setSkillContextMenu(null)
   }, [])
 
-  const handleAddPromptInFolder = useCallback(() => {
+  const handleAddSkillInFolder = useCallback(() => {
     if (folderContextMenu) {
       const modes = getModesPathFromNode(folderContextMenu.node)
       onCreateNew(modes)
@@ -157,18 +157,18 @@ export function PromptTreeSidebar({
 
   const handleDeleteFolder = useCallback(() => {
     if (folderContextMenu) {
-      const promptIds = getAllItemIdsInSubtree(folderContextMenu.node)
-      onDeleteFolder(promptIds, folderContextMenu.node.label)
+      const skillIds = getAllItemIdsInSubtree(folderContextMenu.node)
+      onDeleteFolder(skillIds, folderContextMenu.node.label)
       setFolderContextMenu(null)
     }
   }, [folderContextMenu, onDeleteFolder])
 
-  const handleCopyPrompt = useCallback(() => {
-    if (promptContextMenu) {
-      onCopyPrompt(promptContextMenu.promptId)
-      setPromptContextMenu(null)
+  const handleCopySkill = useCallback(() => {
+    if (skillContextMenu) {
+      onCopySkill(skillContextMenu.skillId)
+      setSkillContextMenu(null)
     }
-  }, [promptContextMenu, onCopyPrompt])
+  }, [skillContextMenu, onCopySkill])
 
   // Collapsed state - show narrow strip with expand button
   if (isCollapsed) {
@@ -210,7 +210,7 @@ export function PromptTreeSidebar({
             type="button"
             onClick={() => onCreateNew()}
             className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="New prompt (Ctrl+N)"
+            title="New skill (Ctrl+N)"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -232,15 +232,15 @@ export function PromptTreeSidebar({
         {/* Top bar with settings and collapse */}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1">
-            {skillSelectionMode && currentAvatar ? (
+            {skillSelectionMode && currentMember ? (
               <div className="flex items-center gap-2">
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: currentAvatar.bodyColor }}
+                  style={{ backgroundColor: currentMember.bodyColor }}
                 >
                   <div
                     className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: currentAvatar.headColor }}
+                    style={{ backgroundColor: currentMember.headColor }}
                   />
                 </div>
                 <span className="text-xs font-medium text-foreground">
@@ -286,7 +286,7 @@ export function PromptTreeSidebar({
         {/* Tab triggers */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border">
           <Tabs.Trigger
-            value="prompts"
+            value="skills"
             disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
@@ -298,10 +298,10 @@ export function PromptTreeSidebar({
             )}
           >
             <Search className="h-3.5 w-3.5" />
-            Prompts
+            Skills
           </Tabs.Trigger>
           <Tabs.Trigger
-            value="avatars"
+            value="members"
             disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
@@ -313,12 +313,12 @@ export function PromptTreeSidebar({
             )}
           >
             <User className="h-3.5 w-3.5" />
-            Avatars
+            Members
           </Tabs.Trigger>
         </Tabs.List>
 
-        {/* Prompts Tab */}
-        <Tabs.Content value="prompts" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+        {/* Skills Tab */}
+        <Tabs.Content value="skills" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
           {/* Search */}
           <div className="flex-shrink-0 px-3 py-2">
             <div className="relative">
@@ -328,7 +328,7 @@ export function PromptTreeSidebar({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={skillSelectionMode ? 'Search skills...' : 'Search prompts... (Ctrl+K)'}
+                placeholder={skillSelectionMode ? 'Search skills...' : 'Search skills... (Ctrl+K)'}
                 className={cn(
                   'w-full pl-8 pr-3 py-1.5 text-xs',
                   'bg-muted border border-border rounded-md',
@@ -382,7 +382,7 @@ export function PromptTreeSidebar({
             {treeNodes.length === 0 ? (
               <div className="px-3 py-8 text-center">
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery || selectedTags.length > 0 ? 'No prompts match your filters' : 'No prompts yet'}
+                  {searchQuery || selectedTags.length > 0 ? 'No skills match your filters' : 'No skills yet'}
                 </p>
               </div>
             ) : (
@@ -390,7 +390,7 @@ export function PromptTreeSidebar({
                 <TreeNodeComponent
                   key={node.id}
                   node={node}
-                  prompts={prompts}
+                  skills={skills}
                   selectedItemId={selectedItemId}
                   onSelectItem={onSelectItem}
                   dirtyItemIds={dirtyItemIds}
@@ -401,7 +401,7 @@ export function PromptTreeSidebar({
                   onCheckboxChange={onSkillCheckboxChange}
                   getSelectionState={getSkillSelectionState}
                   onCategoryContextMenu={handleCategoryContextMenu}
-                  onPromptContextMenu={handlePromptContextMenu}
+                  onSkillContextMenu={handleSkillContextMenu}
                 />
               ))
             )}
@@ -412,21 +412,21 @@ export function PromptTreeSidebar({
                 x={folderContextMenu.x}
                 y={folderContextMenu.y}
                 folderLabel={folderContextMenu.node.label}
-                promptCount={getAllItemIdsInSubtree(folderContextMenu.node).length}
+                skillCount={getAllItemIdsInSubtree(folderContextMenu.node).length}
                 onClose={handleCloseFolderContextMenu}
-                onAddPrompt={handleAddPromptInFolder}
+                onAddSkill={handleAddSkillInFolder}
                 onDeleteFolder={handleDeleteFolder}
               />
             )}
 
-            {/* Prompt context menu */}
-            {promptContextMenu && (
-              <PromptContextMenu
-                x={promptContextMenu.x}
-                y={promptContextMenu.y}
-                promptName={promptContextMenu.promptName}
-                onClose={handleClosePromptContextMenu}
-                onCopyPrompt={handleCopyPrompt}
+            {/* Skill context menu */}
+            {skillContextMenu && (
+              <SkillContextMenu
+                x={skillContextMenu.x}
+                y={skillContextMenu.y}
+                skillName={skillContextMenu.skillName}
+                onClose={handleCloseSkillContextMenu}
+                onCopySkill={handleCopySkill}
               />
             )}
           </div>
@@ -462,26 +462,26 @@ export function PromptTreeSidebar({
               <button
                 type="button"
                 onClick={() => onCreateNew()}
-                title="Create new prompt (Ctrl+N)"
+                title="Create new skill (Ctrl+N)"
                 className={cn(
                   'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
                   'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
                 )}
               >
                 <Plus className="h-4 w-4" />
-                New Prompt
+                New Skill
               </button>
             )}
           </div>
         </Tabs.Content>
 
-        {/* Avatars Tab */}
-        <Tabs.Content value="avatars" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <AvatarListPanel
-            selectedAvatarId={selectedAvatarId}
-            onSelectAvatar={setSelectedAvatarId}
-            onCreateAvatar={() => {}}
-            onDeleteAvatar={() => {}}
+        {/* Members Tab */}
+        <Tabs.Content value="members" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <MemberListPanel
+            selectedMemberId={selectedMemberId}
+            onSelectMember={setSelectedMemberId}
+            onCreateMember={() => {}}
+            onDeleteMember={() => {}}
             className="flex-1"
           />
         </Tabs.Content>

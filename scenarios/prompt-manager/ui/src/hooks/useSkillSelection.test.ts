@@ -1,5 +1,5 @@
 /**
- * Tests for usePromptSelection hook.
+ * Tests for useSkillSelection hook.
  *
  * Tests cover:
  * - Single selection
@@ -13,12 +13,12 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { usePromptSelection } from './usePromptSelection'
+import { useSkillSelection } from './useSkillSelection'
 
-describe('usePromptSelection', () => {
+describe('useSkillSelection', () => {
   describe('initial state', () => {
     it('should start with empty selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       expect(result.current.selectedIds).toEqual([])
       expect(result.current.selectionCount).toBe(0)
@@ -26,177 +26,177 @@ describe('usePromptSelection', () => {
     })
 
     it('should report mode as single', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       expect(result.current.mode).toBe('single')
     })
   })
 
   describe('selectSingle', () => {
-    it('should select a single prompt', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should select a single skill', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1'])
+      expect(result.current.selectedIds).toEqual(['skill-1'])
       expect(result.current.hasSelection).toBe(true)
     })
 
     it('should replace previous selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
       act(() => {
-        result.current.selectSingle('prompt-2')
+        result.current.selectSingle('skill-2')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-2'])
+      expect(result.current.selectedIds).toEqual(['skill-2'])
     })
 
     it('should call onSelectionChange callback', () => {
       const onChange = vi.fn()
       const { result } = renderHook(() =>
-        usePromptSelection({ onSelectionChange: onChange })
+        useSkillSelection({ onSelectionChange: onChange })
       )
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
-      expect(onChange).toHaveBeenCalledWith(['prompt-1'])
+      expect(onChange).toHaveBeenCalledWith(['skill-1'])
     })
 
     it('should set anchor ID', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
-      expect(result.current.anchorId).toBe('prompt-1')
+      expect(result.current.anchorId).toBe('skill-1')
     })
   })
 
   describe('toggleSelection', () => {
-    it('should add unselected prompt to selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should add unselected skill to selection', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
       act(() => {
-        result.current.toggleSelection('prompt-2')
+        result.current.toggleSelection('skill-2')
       })
 
-      expect(result.current.selectedIds).toContain('prompt-1')
-      expect(result.current.selectedIds).toContain('prompt-2')
+      expect(result.current.selectedIds).toContain('skill-1')
+      expect(result.current.selectedIds).toContain('skill-2')
     })
 
-    it('should remove selected prompt from selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should remove selected skill from selection', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
       act(() => {
-        result.current.toggleSelection('prompt-1')
+        result.current.toggleSelection('skill-1')
       })
 
-      expect(result.current.selectedIds).not.toContain('prompt-1')
+      expect(result.current.selectedIds).not.toContain('skill-1')
     })
 
     it('should respect maxSelection limit', () => {
       const { result } = renderHook(() =>
-        usePromptSelection({ maxSelection: 2 })
+        useSkillSelection({ maxSelection: 2 })
       )
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.toggleSelection('prompt-2')
-        result.current.toggleSelection('prompt-3')
+        result.current.selectSingle('skill-1')
+        result.current.toggleSelection('skill-2')
+        result.current.toggleSelection('skill-3')
       })
 
       expect(result.current.selectedIds).toHaveLength(2)
-      expect(result.current.selectedIds).not.toContain('prompt-3')
+      expect(result.current.selectedIds).not.toContain('skill-3')
     })
   })
 
   describe('addToSelection', () => {
-    it('should add prompt to existing selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should add skill to existing selection', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.addToSelection('prompt-2')
+        result.current.selectSingle('skill-1')
+        result.current.addToSelection('skill-2')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1', 'prompt-2'])
+      expect(result.current.selectedIds).toEqual(['skill-1', 'skill-2'])
     })
 
-    it('should not duplicate already selected prompt', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should not duplicate already selected skill', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.addToSelection('prompt-1')
+        result.current.selectSingle('skill-1')
+        result.current.addToSelection('skill-1')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1'])
+      expect(result.current.selectedIds).toEqual(['skill-1'])
     })
 
     it('should respect maxSelection limit', () => {
       const { result } = renderHook(() =>
-        usePromptSelection({ maxSelection: 1 })
+        useSkillSelection({ maxSelection: 1 })
       )
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.addToSelection('prompt-2')
+        result.current.selectSingle('skill-1')
+        result.current.addToSelection('skill-2')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1'])
+      expect(result.current.selectedIds).toEqual(['skill-1'])
     })
   })
 
   describe('removeFromSelection', () => {
-    it('should remove prompt from selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should remove skill from selection', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.toggleSelection('prompt-2')
-        result.current.removeFromSelection('prompt-1')
+        result.current.selectSingle('skill-1')
+        result.current.toggleSelection('skill-2')
+        result.current.removeFromSelection('skill-1')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-2'])
+      expect(result.current.selectedIds).toEqual(['skill-2'])
     })
 
-    it('should handle removing non-selected prompt gracefully', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should handle removing non-selected skill gracefully', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.removeFromSelection('prompt-999')
+        result.current.selectSingle('skill-1')
+        result.current.removeFromSelection('skill-999')
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1'])
+      expect(result.current.selectedIds).toEqual(['skill-1'])
     })
   })
 
   describe('clearSelection', () => {
     it('should clear all selections', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.toggleSelection('prompt-2')
+        result.current.selectSingle('skill-1')
+        result.current.toggleSelection('skill-2')
         result.current.clearSelection()
       })
 
@@ -207,11 +207,11 @@ describe('usePromptSelection', () => {
     it('should call onSelectionChange with empty array', () => {
       const onChange = vi.fn()
       const { result } = renderHook(() =>
-        usePromptSelection({ onSelectionChange: onChange })
+        useSkillSelection({ onSelectionChange: onChange })
       )
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
       onChange.mockClear()
@@ -226,36 +226,36 @@ describe('usePromptSelection', () => {
 
   describe('selectAll', () => {
     it('should select all provided IDs', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectAll(['prompt-1', 'prompt-2', 'prompt-3'])
+        result.current.selectAll(['skill-1', 'skill-2', 'skill-3'])
       })
 
       expect(result.current.selectedIds).toEqual([
-        'prompt-1',
-        'prompt-2',
-        'prompt-3',
+        'skill-1',
+        'skill-2',
+        'skill-3',
       ])
     })
 
     it('should respect maxSelection limit', () => {
       const { result } = renderHook(() =>
-        usePromptSelection({ maxSelection: 2 })
+        useSkillSelection({ maxSelection: 2 })
       )
 
       act(() => {
-        result.current.selectAll(['prompt-1', 'prompt-2', 'prompt-3'])
+        result.current.selectAll(['skill-1', 'skill-2', 'skill-3'])
       })
 
       expect(result.current.selectedIds).toHaveLength(2)
     })
 
     it('should replace existing selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('old-prompt')
+        result.current.selectSingle('old-skill')
         result.current.selectAll(['new-1', 'new-2'])
       })
 
@@ -265,103 +265,103 @@ describe('usePromptSelection', () => {
 
   describe('handleClick', () => {
     it('should select single on plain click', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
       const event = { shiftKey: false, metaKey: false, ctrlKey: false }
 
       act(() => {
-        result.current.handleClick('prompt-1', event)
+        result.current.handleClick('skill-1', event)
       })
 
-      expect(result.current.selectedIds).toEqual(['prompt-1'])
+      expect(result.current.selectedIds).toEqual(['skill-1'])
     })
 
     it('should toggle on meta key click', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
       const plainEvent = { shiftKey: false, metaKey: false, ctrlKey: false }
       const metaEvent = { shiftKey: false, metaKey: true, ctrlKey: false }
 
       act(() => {
-        result.current.handleClick('prompt-1', plainEvent)
-        result.current.handleClick('prompt-2', metaEvent)
+        result.current.handleClick('skill-1', plainEvent)
+        result.current.handleClick('skill-2', metaEvent)
       })
 
-      expect(result.current.selectedIds).toContain('prompt-1')
-      expect(result.current.selectedIds).toContain('prompt-2')
+      expect(result.current.selectedIds).toContain('skill-1')
+      expect(result.current.selectedIds).toContain('skill-2')
     })
 
     it('should toggle on ctrl key click', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
       const plainEvent = { shiftKey: false, metaKey: false, ctrlKey: false }
       const ctrlEvent = { shiftKey: false, metaKey: false, ctrlKey: true }
 
       act(() => {
-        result.current.handleClick('prompt-1', plainEvent)
-        result.current.handleClick('prompt-2', ctrlEvent)
+        result.current.handleClick('skill-1', plainEvent)
+        result.current.handleClick('skill-2', ctrlEvent)
       })
 
-      expect(result.current.selectedIds).toContain('prompt-1')
-      expect(result.current.selectedIds).toContain('prompt-2')
+      expect(result.current.selectedIds).toContain('skill-1')
+      expect(result.current.selectedIds).toContain('skill-2')
     })
 
     it('should add to selection on shift click when anchor exists', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
       const plainEvent = { shiftKey: false, metaKey: false, ctrlKey: false }
       const shiftEvent = { shiftKey: true, metaKey: false, ctrlKey: false }
 
       // First establish an anchor with a plain click
       act(() => {
-        result.current.handleClick('prompt-1', plainEvent)
+        result.current.handleClick('skill-1', plainEvent)
       })
 
       // Then shift-click should add to selection
       act(() => {
-        result.current.handleClick('prompt-2', shiftEvent)
+        result.current.handleClick('skill-2', shiftEvent)
       })
 
-      expect(result.current.selectedIds).toContain('prompt-1')
-      expect(result.current.selectedIds).toContain('prompt-2')
+      expect(result.current.selectedIds).toContain('skill-1')
+      expect(result.current.selectedIds).toContain('skill-2')
     })
   })
 
   describe('isSelected', () => {
-    it('should return true for selected prompt', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should return true for selected skill', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
-      expect(result.current.isSelected('prompt-1')).toBe(true)
+      expect(result.current.isSelected('skill-1')).toBe(true)
     })
 
-    it('should return false for unselected prompt', () => {
-      const { result } = renderHook(() => usePromptSelection())
+    it('should return false for unselected skill', () => {
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
-      expect(result.current.isSelected('prompt-2')).toBe(false)
+      expect(result.current.isSelected('skill-2')).toBe(false)
     })
   })
 
   describe('hasMultipleSelected', () => {
     it('should return false for single selection', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
+        result.current.selectSingle('skill-1')
       })
 
       expect(result.current.hasMultipleSelected).toBe(false)
     })
 
     it('should return true for multiple selections', () => {
-      const { result } = renderHook(() => usePromptSelection())
+      const { result } = renderHook(() => useSkillSelection())
 
       act(() => {
-        result.current.selectSingle('prompt-1')
-        result.current.toggleSelection('prompt-2')
+        result.current.selectSingle('skill-1')
+        result.current.toggleSelection('skill-2')
       })
 
       expect(result.current.hasMultipleSelected).toBe(true)

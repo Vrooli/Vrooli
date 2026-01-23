@@ -1,5 +1,5 @@
-// Package avatars provides types and operations for avatar management.
-package avatars
+// Package members provides types and operations for member management.
+package members
 
 import (
 	"encoding/json"
@@ -11,49 +11,49 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Handlers provides HTTP handlers for avatar operations.
+// Handlers provides HTTP handlers for member operations.
 type Handlers struct {
 	store *Store
 }
 
-// NewHandlers creates a new avatars handler.
+// NewHandlers creates a new members handler.
 func NewHandlers(store *Store) *Handlers {
 	return &Handlers{store: store}
 }
 
-// List handles GET /avatars - returns all avatars.
+// List handles GET /members - returns all members.
 func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
-	avatars, err := h.store.GetAll()
+	members, err := h.store.GetAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	responses := make([]Response, 0, len(avatars))
-	for _, a := range avatars {
-		responses = append(responses, toResponse(a))
+	responses := make([]Response, 0, len(members))
+	for _, m := range members {
+		responses = append(responses, toResponse(m))
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(responses)
 }
 
-// Get handles GET /avatars/{id} - returns a single avatar.
+// Get handles GET /members/{id} - returns a single member.
 func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	avatar, err := h.store.FindByID(id)
+	member, err := h.store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Avatar not found", http.StatusNotFound)
+		http.Error(w, "Member not found", http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toResponse(*avatar))
+	json.NewEncoder(w).Encode(toResponse(*member))
 }
 
-// Create handles POST /avatars - creates a new avatar.
+// Create handles POST /members - creates a new member.
 func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -93,7 +93,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		skills = []string{}
 	}
 
-	avatar := Avatar{
+	member := Member{
 		ID:          id,
 		Name:        req.Name,
 		BodyColor:   req.BodyColor,
@@ -104,7 +104,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:   now,
 	}
 
-	if err := h.store.Create(avatar); err != nil {
+	if err := h.store.Create(member); err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
@@ -115,10 +115,10 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toResponse(avatar))
+	json.NewEncoder(w).Encode(toResponse(member))
 }
 
-// Update handles PUT /avatars/{id} - updates an existing avatar.
+// Update handles PUT /members/{id} - updates an existing member.
 func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -129,53 +129,53 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	avatar, err := h.store.FindByID(id)
+	member, err := h.store.FindByID(id)
 	if err != nil {
-		http.Error(w, "Avatar not found", http.StatusNotFound)
+		http.Error(w, "Member not found", http.StatusNotFound)
 		return
 	}
 
 	// Update fields
 	if req.Name != nil {
-		avatar.Name = *req.Name
+		member.Name = *req.Name
 	}
 	if req.BodyColor != nil {
 		if !isValidHexColor(*req.BodyColor) {
 			http.Error(w, "Invalid bodyColor format (expected hex color)", http.StatusBadRequest)
 			return
 		}
-		avatar.BodyColor = *req.BodyColor
+		member.BodyColor = *req.BodyColor
 	}
 	if req.HeadColor != nil {
 		if !isValidHexColor(*req.HeadColor) {
 			http.Error(w, "Invalid headColor format (expected hex color)", http.StatusBadRequest)
 			return
 		}
-		avatar.HeadColor = *req.HeadColor
+		member.HeadColor = *req.HeadColor
 	}
 	if req.AccentColor != nil {
 		if !isValidHexColor(*req.AccentColor) {
 			http.Error(w, "Invalid accentColor format (expected hex color)", http.StatusBadRequest)
 			return
 		}
-		avatar.AccentColor = *req.AccentColor
+		member.AccentColor = *req.AccentColor
 	}
 	if req.Skills != nil {
-		avatar.Skills = req.Skills
+		member.Skills = req.Skills
 	}
 
-	avatar.UpdatedAt = time.Now().Format(time.RFC3339)
+	member.UpdatedAt = time.Now().Format(time.RFC3339)
 
-	if err := h.store.Update(*avatar); err != nil {
+	if err := h.store.Update(*member); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toResponse(*avatar))
+	json.NewEncoder(w).Encode(toResponse(*member))
 }
 
-// Delete handles DELETE /avatars/{id} - deletes an avatar.
+// Delete handles DELETE /members/{id} - deletes a member.
 func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -194,20 +194,20 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 // Helper functions
 
-func toResponse(a Avatar) Response {
-	skills := a.Skills
+func toResponse(m Member) Response {
+	skills := m.Skills
 	if skills == nil {
 		skills = []string{}
 	}
 	return Response{
-		ID:          a.ID,
-		Name:        a.Name,
-		BodyColor:   a.BodyColor,
-		HeadColor:   a.HeadColor,
-		AccentColor: a.AccentColor,
+		ID:          m.ID,
+		Name:        m.Name,
+		BodyColor:   m.BodyColor,
+		HeadColor:   m.HeadColor,
+		AccentColor: m.AccentColor,
 		Skills:      skills,
-		CreatedAt:   a.CreatedAt,
-		UpdatedAt:   a.UpdatedAt,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 

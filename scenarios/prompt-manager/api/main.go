@@ -1,6 +1,6 @@
 // Package main is the entry point for the prompt-manager API server.
 // This file is intentionally thin - it only handles server bootstrap and wiring.
-// All business logic lives in domain packages: prompts/, metrics/, tags/, testing/.
+// All business logic lives in domain packages: skills/, metrics/, tags/, testing/.
 package main
 
 import (
@@ -9,10 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"prompt-manager/avatars"
+	"prompt-manager/members"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
-	"prompt-manager/prompts"
+	"prompt-manager/skills"
 	"prompt-manager/tags"
 	"prompt-manager/testing"
 
@@ -37,12 +37,12 @@ func main() {
 	// Configuration from environment
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Println("OLLAMA_URL not provided - prompt testing will be disabled")
+		log.Println("OLLAMA_URL not provided - skill testing will be disabled")
 	}
 
-	promptsDir := filepath.Join("..", "prompts")
-	if envDir := os.Getenv("PROMPTS_DIR"); envDir != "" {
-		promptsDir = envDir
+	skillsDir := filepath.Join("..", "skills")
+	if envDir := os.Getenv("SKILLS_DIR"); envDir != "" {
+		skillsDir = envDir
 	}
 
 	// Connect to database
@@ -59,22 +59,22 @@ func main() {
 	}
 
 	// Initialize domain components (seams for testing)
-	promptStore := prompts.NewStore(promptsDir)
+	skillStore := skills.NewStore(skillsDir)
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
 	testingRepo := testing.NewRepository(db)
 	ollamaClient := testing.NewOllamaClient(ollamaURL)
 
 	// Initialize handlers with interface adapters
-	metricsAdapter := prompts.NewMetricsAdapter(metricsRepo)
-	promptHandlers := prompts.NewHandlers(promptStore, metricsAdapter)
+	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
+	skillHandlers := skills.NewHandlers(skillStore, metricsAdapter)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
-	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, promptStore)
+	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStore)
 
-	// Avatar store and handlers
-	avatarDataDir := filepath.Join(promptsDir, "data")
-	avatarStore := avatars.NewStore(avatarDataDir)
-	avatarHandlers := avatars.NewHandlers(avatarStore)
+	// Member store and handlers
+	memberDataDir := filepath.Join(skillsDir, "data")
+	memberStore := members.NewStore(memberDataDir)
+	memberHandlers := members.NewHandlers(memberStore)
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
@@ -97,39 +97,39 @@ func main() {
 	v1 := router.PathPrefix("/api/v1").Subrouter()
 	v1.HandleFunc("/health", healthHandler).Methods("GET")
 
-	// Prompt routes
-	v1.HandleFunc("/prompts", promptHandlers.List).Methods("GET")
-	v1.HandleFunc("/prompts/sync", promptHandlers.Sync).Methods("GET")
-	v1.HandleFunc("/prompts/combine", promptHandlers.Combine).Methods("POST")
-	v1.HandleFunc("/prompts", promptHandlers.Create).Methods("POST")
-	v1.HandleFunc("/prompts/{id}", promptHandlers.Get).Methods("GET")
-	v1.HandleFunc("/prompts/{id}", promptHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/prompts/{id}", promptHandlers.Delete).Methods("DELETE")
+	// Skill routes
+	v1.HandleFunc("/skills", skillHandlers.List).Methods("GET")
+	v1.HandleFunc("/skills/sync", skillHandlers.Sync).Methods("GET")
+	v1.HandleFunc("/skills/combine", skillHandlers.Combine).Methods("POST")
+	v1.HandleFunc("/skills", skillHandlers.Create).Methods("POST")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Get).Methods("GET")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")
 
-	// Usage tracking routes (part of prompts domain)
-	v1.HandleFunc("/prompts/{id}/use", promptHandlers.RecordUsage).Methods("POST")
-	v1.HandleFunc("/prompts/{id}/rating", promptHandlers.SetRating).Methods("PUT")
+	// Usage tracking routes (part of skills domain)
+	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
+	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")
 	v1.HandleFunc("/tags", tagsHandlers.Create).Methods("POST")
 
 	// Testing routes
-	v1.HandleFunc("/prompts/{id}/test", testingHandlers.Test).Methods("POST")
-	v1.HandleFunc("/prompts/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
+	v1.HandleFunc("/skills/{id}/test", testingHandlers.Test).Methods("POST")
+	v1.HandleFunc("/skills/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
 
-	// Avatar routes
-	v1.HandleFunc("/avatars", avatarHandlers.List).Methods("GET")
-	v1.HandleFunc("/avatars", avatarHandlers.Create).Methods("POST")
-	v1.HandleFunc("/avatars/{id}", avatarHandlers.Get).Methods("GET")
-	v1.HandleFunc("/avatars/{id}", avatarHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/avatars/{id}", avatarHandlers.Delete).Methods("DELETE")
+	// Member routes
+	v1.HandleFunc("/members", memberHandlers.List).Methods("GET")
+	v1.HandleFunc("/members", memberHandlers.Create).Methods("POST")
+	v1.HandleFunc("/members/{id}", memberHandlers.Get).Methods("GET")
+	v1.HandleFunc("/members/{id}", memberHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/members/{id}", memberHandlers.Delete).Methods("DELETE")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
 
 	log.Printf("Prompt Manager API v2.0 starting")
-	log.Printf("Prompts directory: %s", promptsDir)
+	log.Printf("Skills directory: %s", skillsDir)
 	if ollamaURL != "" {
 		log.Printf("Ollama: %s", ollamaURL)
 	}

@@ -1,9 +1,9 @@
 /**
  * TreeNode - Recursive tree node component.
  *
- * Renders a single node in the prompt tree, handling:
+ * Renders a single node in the skill tree, handling:
  * - Category nodes (expandable)
- * - Leaf nodes (selectable prompts)
+ * - Leaf nodes (selectable skills)
  * - Dirty indicators
  * - Checkbox selection for skill selection mode
  */
@@ -12,20 +12,20 @@ import { type ReactNode } from 'react'
 import { ChevronRight, ChevronDown, FolderOpen, Check, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import { countDirtyInSubtree } from '@/services/treeService'
 
 type SelectionState = 'none' | 'partial' | 'all'
 
 interface TreeNodeProps {
   node: TreeNodeType
-  prompts: Prompt[]
+  skills: Skill[]
   selectedItemId: string | null
   onSelectItem: (id: string) => void
   dirtyItemIds: Set<string>
   expandedNodes: Set<string>
   onToggleNode: (nodeId: string) => void
-  renderItemIcon?: (prompt: Prompt) => ReactNode
+  renderItemIcon?: (skill: Skill) => ReactNode
   // Skill selection mode props
   showCheckbox?: boolean
   selectionState?: SelectionState
@@ -33,7 +33,7 @@ interface TreeNodeProps {
   getSelectionState?: (node: TreeNodeType) => SelectionState
   // Context menu props
   onCategoryContextMenu?: (node: TreeNodeType, x: number, y: number) => void
-  onPromptContextMenu?: (promptId: string, promptName: string, x: number, y: number) => void
+  onSkillContextMenu?: (skillId: string, skillName: string, x: number, y: number) => void
 }
 
 /**
@@ -73,7 +73,7 @@ function SelectionCheckbox({
  */
 export function TreeNodeComponent({
   node,
-  prompts,
+  skills,
   selectedItemId,
   onSelectItem,
   dirtyItemIds,
@@ -84,7 +84,7 @@ export function TreeNodeComponent({
   onCheckboxChange,
   getSelectionState,
   onCategoryContextMenu,
-  onPromptContextMenu,
+  onSkillContextMenu,
 }: TreeNodeProps) {
   const isExpanded = expandedNodes.has(node.id)
   const paddingLeft = `${node.depth * 12 + 8}px`
@@ -141,7 +141,7 @@ export function TreeNodeComponent({
               <TreeNodeComponent
                 key={child.id}
                 node={child}
-                prompts={prompts}
+                skills={skills}
                 selectedItemId={selectedItemId}
                 onSelectItem={onSelectItem}
                 dirtyItemIds={dirtyItemIds}
@@ -152,7 +152,7 @@ export function TreeNodeComponent({
                 onCheckboxChange={onCheckboxChange}
                 getSelectionState={getSelectionState}
                 onCategoryContextMenu={onCategoryContextMenu}
-                onPromptContextMenu={onPromptContextMenu}
+                onSkillContextMenu={onSkillContextMenu}
               />
             ))}
           </div>
@@ -161,8 +161,8 @@ export function TreeNodeComponent({
     )
   }
 
-  // Leaf node (prompt)
-  const prompt = prompts.find((p) => p.id === node.itemId)
+  // Leaf node (skill)
+  const skill = skills.find((p) => p.id === node.itemId)
   const isSelected = selectedItemId === node.itemId
   const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
 
@@ -175,10 +175,10 @@ export function TreeNodeComponent({
     }
   }
 
-  const handlePromptContextMenu = (e: React.MouseEvent) => {
-    if (onPromptContextMenu && !showCheckbox && node.itemId) {
+  const handleSkillContextMenu = (e: React.MouseEvent) => {
+    if (onSkillContextMenu && !showCheckbox && node.itemId) {
       e.preventDefault()
-      onPromptContextMenu(node.itemId, node.label, e.clientX, e.clientY)
+      onSkillContextMenu(node.itemId, node.label, e.clientX, e.clientY)
     }
   }
 
@@ -186,7 +186,7 @@ export function TreeNodeComponent({
     <button
       type="button"
       onClick={handleRowClick}
-      onContextMenu={handlePromptContextMenu}
+      onContextMenu={handleSkillContextMenu}
       className={cn(
         'w-full flex items-center gap-2 py-1.5 px-2 text-left transition-colors text-xs relative',
         showCheckbox
@@ -205,8 +205,8 @@ export function TreeNodeComponent({
           onClick={handleCheckboxClick}
         />
       )}
-      {!showCheckbox && renderItemIcon && prompt ? (
-        renderItemIcon(prompt)
+      {!showCheckbox && renderItemIcon && skill ? (
+        renderItemIcon(skill)
       ) : !showCheckbox ? (
         <div className="w-3.5 h-3.5 flex-shrink-0" /> // Spacer when no icon
       ) : null}

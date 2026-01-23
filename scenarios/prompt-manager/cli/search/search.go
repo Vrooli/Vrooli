@@ -1,4 +1,4 @@
-// Package search provides CLI commands for searching prompts.
+// Package search provides CLI commands for searching skills.
 package search
 
 import (
@@ -20,7 +20,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "search",
 				Aliases:     []string{"find"},
 				NeedsAPI:    true,
-				Description: "Search prompts by content or title",
+				Description: "Search skills by content or title",
 				Run: func(args []string) error {
 					return cmdSearch(ctx, args)
 				},
@@ -40,18 +40,18 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 	params := url.Values{}
 	params.Set("q", query)
 
-	var prompts []types.Prompt
-	if err := ctx.GetWithQuery("/search/prompts", params, &prompts); err != nil {
+	var skills []types.Skill
+	if err := ctx.GetWithQuery("/search/skills", params, &skills); err != nil {
 		return fmt.Errorf("search failed: %w", err)
 	}
 
-	if len(prompts) == 0 {
-		fmt.Printf("No prompts found matching: %s\n", query)
+	if len(skills) == 0 {
+		fmt.Printf("No skills found matching: %s\n", query)
 		return nil
 	}
 
-	fmt.Printf("Search Results (%d found):\n", len(prompts))
-	for _, p := range prompts {
+	fmt.Printf("Search Results (%d found):\n", len(skills))
+	for _, p := range skills {
 		campaign := "No Campaign"
 		if p.CampaignName != nil {
 			campaign = *p.CampaignName

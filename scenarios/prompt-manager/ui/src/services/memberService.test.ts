@@ -1,8 +1,8 @@
 /**
- * Tests for avatarService.ts
+ * Tests for memberService.ts
  *
  * Tests cover:
- * - Avatar state machine transitions
+ * - Member state machine transitions
  * - Look rotation calculations
  * - Animation calculations (idle sway, wave, celebration)
  * - Easing functions
@@ -11,7 +11,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  AvatarStateMachine,
+  MemberStateMachine,
   calculateLookRotation,
   calculateIdleSway,
   calculateWaveAnimation,
@@ -19,13 +19,13 @@ import {
   easing,
   lerp,
   lerpPosition,
-} from './avatarService'
+} from './memberService'
 
-describe('AvatarStateMachine', () => {
-  let machine: AvatarStateMachine
+describe('MemberStateMachine', () => {
+  let machine: MemberStateMachine
 
   beforeEach(() => {
-    machine = new AvatarStateMachine()
+    machine = new MemberStateMachine()
   })
 
   it('should start in idle state', () => {
@@ -33,7 +33,7 @@ describe('AvatarStateMachine', () => {
   })
 
   it('should start with custom initial state', () => {
-    const lookingMachine = new AvatarStateMachine('looking')
+    const lookingMachine = new MemberStateMachine('looking')
     expect(lookingMachine.getState()).toBe('looking')
   })
 

@@ -1,8 +1,8 @@
 /**
- * Tests for usePromptTree hook.
+ * Tests for useSkillTree hook.
  *
  * Tests cover:
- * - Tree building from prompts
+ * - Tree building from skills
  * - Selection state management
  * - Expansion/collapse operations
  * - Search filtering
@@ -12,14 +12,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { act } from 'react'
-import { usePromptTree } from './usePromptTree'
-import type { Prompt } from '@/types'
+import { useSkillTree } from './useSkillTree'
+import type { Skill } from '@/types'
 
-// Helper to create test prompts
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create test skills
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: [],
@@ -33,29 +33,29 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
   }
 }
 
-describe('usePromptTree', () => {
+describe('useSkillTree', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   describe('initialization', () => {
-    it('should initialize with empty tree for no prompts', () => {
+    it('should initialize with empty tree for no skills', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.treeNodes).toEqual([])
       expect(result.current.filteredTreeNodes).toEqual([])
     })
 
-    it('should build tree from prompts', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', name: 'Prompt 1', modes: ['development'] }),
-        createTestPrompt({ id: '2', name: 'Prompt 2', modes: ['development'] }),
+    it('should build tree from skills', () => {
+      const skills = [
+        createTestSkill({ id: '1', name: 'Skill 1', modes: ['development'] }),
+        createTestSkill({ id: '2', name: 'Skill 2', modes: ['development'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       expect(result.current.treeNodes).toHaveLength(1) // One category
@@ -65,17 +65,17 @@ describe('usePromptTree', () => {
 
     it('should initialize with null selection by default', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.selectedItemId).toBeNull()
     })
 
     it('should accept initial selection', () => {
-      const prompts = [createTestPrompt({ id: '1' })]
+      const skills = [createTestSkill({ id: '1' })]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts, initialSelectedId: '1' })
+        useSkillTree({ skills, initialSelectedId: '1' })
       )
 
       expect(result.current.selectedItemId).toBe('1')
@@ -83,7 +83,7 @@ describe('usePromptTree', () => {
 
     it('should initialize with empty expanded nodes', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.expandedNodes.size).toBe(0)
@@ -91,7 +91,7 @@ describe('usePromptTree', () => {
 
     it('should initialize with empty search query', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.searchQuery).toBe('')
@@ -99,7 +99,7 @@ describe('usePromptTree', () => {
 
     it('should initialize as not collapsed', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.isCollapsed).toBe(false)
@@ -108,13 +108,13 @@ describe('usePromptTree', () => {
 
   describe('selection', () => {
     it('should update selection when setSelectedItemId is called', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', name: 'Prompt 1' }),
-        createTestPrompt({ id: '2', name: 'Prompt 2' }),
+      const skills = [
+        createTestSkill({ id: '1', name: 'Skill 1' }),
+        createTestSkill({ id: '2', name: 'Skill 2' }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       act(() => {
@@ -125,10 +125,10 @@ describe('usePromptTree', () => {
     })
 
     it('should allow clearing selection', () => {
-      const prompts = [createTestPrompt({ id: '1' })]
+      const skills = [createTestSkill({ id: '1' })]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts, initialSelectedId: '1' })
+        useSkillTree({ skills, initialSelectedId: '1' })
       )
 
       act(() => {
@@ -141,12 +141,12 @@ describe('usePromptTree', () => {
 
   describe('expansion', () => {
     it('should toggle node expansion', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['development'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['development'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       // Initially not expanded
@@ -166,13 +166,13 @@ describe('usePromptTree', () => {
     })
 
     it('should expand all category nodes', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['development', 'react'] }),
-        createTestPrompt({ id: '2', modes: ['testing', 'unit'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['development', 'react'] }),
+        createTestSkill({ id: '2', modes: ['testing', 'unit'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       act(() => {
@@ -186,12 +186,12 @@ describe('usePromptTree', () => {
     })
 
     it('should collapse all nodes', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['development'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['development'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       // First expand
@@ -208,12 +208,12 @@ describe('usePromptTree', () => {
     })
 
     it('should expand to specific item', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['level1', 'level2', 'level3'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['level1', 'level2', 'level3'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       act(() => {
@@ -228,16 +228,16 @@ describe('usePromptTree', () => {
 
   describe('search', () => {
     it('should filter tree by search query', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', name: 'Alpha Prompt', modes: ['dev'] }),
-        createTestPrompt({ id: '2', name: 'Beta Prompt', modes: ['dev'] }),
+      const skills = [
+        createTestSkill({ id: '1', name: 'Alpha Skill', modes: ['dev'] }),
+        createTestSkill({ id: '2', name: 'Beta Skill', modes: ['dev'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
-      // Initially all prompts visible
+      // Initially all skills visible
       expect(result.current.filteredTreeNodes[0]?.children).toHaveLength(2)
 
       // Filter
@@ -250,12 +250,12 @@ describe('usePromptTree', () => {
     })
 
     it('should return original tree for empty search query', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['dev'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['dev'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       act(() => {
@@ -266,12 +266,12 @@ describe('usePromptTree', () => {
     })
 
     it('should auto-expand nodes when searching', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', name: 'Match', modes: ['development', 'react'] }),
+      const skills = [
+        createTestSkill({ id: '1', name: 'Match', modes: ['development', 'react'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       act(() => {
@@ -287,7 +287,7 @@ describe('usePromptTree', () => {
   describe('sidebar collapse', () => {
     it('should toggle sidebar collapse state', () => {
       const { result } = renderHook(() =>
-        usePromptTree({ prompts: [] })
+        useSkillTree({ skills: [] })
       )
 
       expect(result.current.isCollapsed).toBe(false)
@@ -306,12 +306,12 @@ describe('usePromptTree', () => {
 
   describe('auto-expand on selection', () => {
     it('should auto-expand path to selected item', () => {
-      const prompts = [
-        createTestPrompt({ id: '1', modes: ['category1', 'subcategory'] }),
+      const skills = [
+        createTestSkill({ id: '1', modes: ['category1', 'subcategory'] }),
       ]
 
       const { result } = renderHook(() =>
-        usePromptTree({ prompts })
+        useSkillTree({ skills })
       )
 
       // Select the item
@@ -326,21 +326,21 @@ describe('usePromptTree', () => {
   })
 
   describe('tree updates', () => {
-    it('should rebuild tree when prompts change', () => {
-      const prompts1 = [createTestPrompt({ id: '1', modes: ['dev'] })]
-      const prompts2 = [
-        createTestPrompt({ id: '1', modes: ['dev'] }),
-        createTestPrompt({ id: '2', modes: ['test'] }),
+    it('should rebuild tree when skills change', () => {
+      const skills1 = [createTestSkill({ id: '1', modes: ['dev'] })]
+      const skills2 = [
+        createTestSkill({ id: '1', modes: ['dev'] }),
+        createTestSkill({ id: '2', modes: ['test'] }),
       ]
 
       const { result, rerender } = renderHook(
-        ({ prompts }: { prompts: Prompt[] }) => usePromptTree({ prompts }),
-        { initialProps: { prompts: prompts1 } }
+        ({ skills }: { skills: Skill[] }) => useSkillTree({ skills }),
+        { initialProps: { skills: skills1 } }
       )
 
       expect(result.current.treeNodes).toHaveLength(1)
 
-      rerender({ prompts: prompts2 })
+      rerender({ skills: skills2 })
 
       expect(result.current.treeNodes).toHaveLength(2)
     })

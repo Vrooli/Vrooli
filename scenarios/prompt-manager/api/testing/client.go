@@ -1,4 +1,4 @@
-// Package testing provides LLM-based prompt testing via Ollama.
+// Package testing provides LLM-based skill testing via Ollama.
 package testing
 
 import (
@@ -33,7 +33,7 @@ func (c *OllamaClient) IsEnabled() bool {
 	return c.baseURL != ""
 }
 
-// Generate runs a prompt through Ollama and returns the response.
+// Generate runs a skill through Ollama and returns the response.
 func (c *OllamaClient) Generate(model, prompt string, maxTokens int, temperature float64) (*OllamaResponse, float64, error) {
 	if !c.IsEnabled() {
 		return nil, 0, fmt.Errorf("ollama not configured")

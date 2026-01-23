@@ -5,100 +5,100 @@ This document describes the testing seams (interfaces and dependency injection p
 ## Overview
 
 The API is organized into domain-driven packages:
-- `prompts/` - Core prompt management (primary domain)
+- `skills/` - Core skill management (primary domain)
 - `metrics/` - Usage tracking and ratings
 - `tags/` - Tag categorization
-- `testing/` - LLM-based prompt testing via Ollama
+- `testing/` - LLM-based skill testing via Ollama
 
 Each package follows the same pattern:
 1. **Models** - Type definitions
-2. **Interfaces** - Contracts for testing seams (in prompts/interfaces.go)
+2. **Interfaces** - Contracts for testing seams (in skills/interfaces.go)
 3. **Repository/Store** - Data access implementations
 4. **Query** - Domain logic for filtering and transformations
 5. **Handlers** - HTTP request handling (depends on interfaces, not concrete types)
 
 ## Testing Seams
 
-### 1. prompts.PromptStore (Interface)
+### 1. skills.SkillStore (Interface)
 
-**Location:** `api/prompts/interfaces.go`
+**Location:** `api/skills/interfaces.go`
 
-**Purpose:** Interface for prompt storage operations - the primary testing seam.
+**Purpose:** Interface for skill storage operations - the primary testing seam.
 
 **Interface:**
 ```go
-// PromptStore defines the interface for prompt storage operations.
+// SkillStore defines the interface for skill storage operations.
 // Implementations: Store (file-based, production), MockStore (testing).
-type PromptStore interface {
+type SkillStore interface {
     GetAll() ([]Metadata, error)
     FindByID(id string) (*Metadata, string, error)
     LoadMetadata(folder string) ([]Metadata, error)
-    SaveMetadata(folder string, prompts []Metadata) error
+    SaveMetadata(folder string, skills []Metadata) error
     GetContent(folder, filename string) (string, error)
     SaveContent(folder, filename, content string) error
     DeleteContent(folder, filename string) error
 }
 ```
 
-**Implementation:** `api/prompts/store.go` (production, file-based)
+**Implementation:** `api/skills/store.go` (production, file-based)
 
 **Testing Strategy:**
-- **Unit tests:** Create a mock implementing `PromptStore`
+- **Unit tests:** Create a mock implementing `SkillStore`
 - **Integration tests:** Create a temp directory with test fixtures, pass to `NewStore(tempDir)`
 
 **Example (Mock):**
 ```go
 type MockStore struct {
-    prompts map[string][]prompts.Metadata
+    skills map[string][]skills.Metadata
 }
 
-func (m *MockStore) GetAll() ([]prompts.Metadata, error) {
-    var all []prompts.Metadata
-    for _, p := range m.prompts {
+func (m *MockStore) GetAll() ([]skills.Metadata, error) {
+    var all []skills.Metadata
+    for _, p := range m.skills {
         all = append(all, p...)
     }
     return all, nil
 }
 // ... implement other methods
 
-func TestPromptHandlers(t *testing.T) {
-    mockStore := &MockStore{prompts: testData}
+func TestSkillHandlers(t *testing.T) {
+    mockStore := &MockStore{skills: testData}
     mockMetrics := &MockMetricsService{}
-    handlers := prompts.NewHandlers(mockStore, mockMetrics)
+    handlers := skills.NewHandlers(mockStore, mockMetrics)
     // Test handlers without filesystem
 }
 ```
 
 **Example (Integration):**
 ```go
-func TestPromptCreate(t *testing.T) {
+func TestSkillCreate(t *testing.T) {
     tempDir := t.TempDir()
-    store := prompts.NewStore(tempDir)
+    store := skills.NewStore(tempDir)
 
-    // Test prompt creation with real filesystem
+    // Test skill creation with real filesystem
     // ...
 }
 ```
 
-### 2. prompts.MetricsService (Interface)
+### 2. skills.MetricsService (Interface)
 
-**Location:** `api/prompts/interfaces.go`
+**Location:** `api/skills/interfaces.go`
 
-**Purpose:** Interface for metrics operations used by prompt handlers - enables testing without database.
+**Purpose:** Interface for metrics operations used by skill handlers - enables testing without database.
 
 **Interface:**
 ```go
-// MetricsService defines the interface for prompt metrics operations.
+// MetricsService defines the interface for skill metrics operations.
 // Implementations: MetricsAdapter (wraps metrics.Repository), MockMetricsService (testing).
 type MetricsService interface {
-    Get(promptID string) (*PromptMetrics, error)
-    RecordUsage(promptID string) (int, time.Time, error)
-    SetRating(promptID string, rating int, notes *string) error
-    Delete(promptID string) error
+    Get(skillID string) (*SkillMetrics, error)
+    RecordUsage(skillID string) (int, time.Time, error)
+    SetRating(skillID string, rating int, notes *string) error
+    Delete(skillID string) error
 }
 ```
 
-**Implementation:** `api/prompts/metrics_adapter.go` (production, wraps metrics.Repository)
+**Implementation:** `api/skills/metrics_adapter.go` (production, wraps metrics.Repository)
 
 **Testing Strategy:**
 - Create a mock implementing `MetricsService`
@@ -107,17 +107,17 @@ type MetricsService interface {
 **Example:**
 ```go
 type MockMetricsService struct {
-    metrics map[string]*prompts.PromptMetrics
+    metrics map[string]*skills.SkillMetrics
 }
 
-func (m *MockMetricsService) Get(promptID string) (*prompts.PromptMetrics, error) {
-    if pm, ok := m.metrics[promptID]; ok {
+func (m *MockMetricsService) Get(skillID string) (*skills.SkillMetrics, error) {
+    if pm, ok := m.metrics[skillID]; ok {
         return pm, nil
     }
     return nil, nil // Not found is not an error
 }
 
-func (m *MockMetricsService) RecordUsage(promptID string) (int, time.Time, error) {
+func (m *MockMetricsService) RecordUsage(skillID string) (int, time.Time, error) {
     // ... mock implementation
 }
 ```
@@ -134,10 +134,10 @@ type Repository struct {
     db *sql.DB
 }
 
-func (r *Repository) Get(promptID string) (*PromptMetrics, error)
-func (r *Repository) RecordUsage(promptID string) (int, time.Time, error)
-func (r *Repository) SetRating(promptID string, rating int, notes *string) error
-func (r *Repository) Delete(promptID string) error
+func (r *Repository) Get(skillID string) (*SkillMetrics, error)
+func (r *Repository) RecordUsage(skillID string) (int, time.Time, error)
+func (r *Repository) SetRating(skillID string, rating int, notes *string) error
+func (r *Repository) Delete(skillID string) error
 ```
 
 **Testing Strategy:**
@@ -151,13 +151,13 @@ func TestRecordUsage(t *testing.T) {
     db, mock, _ := sqlmock.New()
     defer db.Close()
 
-    mock.ExpectQuery("INSERT INTO prompt_metrics").
-        WithArgs("prompt-1").
+    mock.ExpectQuery("INSERT INTO skill_metrics").
+        WithArgs("skill-1").
         WillReturnRows(sqlmock.NewRows([]string{"usage_count", "last_used"}).
             AddRow(1, time.Now()))
 
     repo := metrics.NewRepository(db)
-    count, _, err := repo.RecordUsage("prompt-1")
+    count, _, err := repo.RecordUsage("skill-1")
 
     assert.NoError(t, err)
     assert.Equal(t, 1, count)
@@ -195,7 +195,7 @@ type Repository struct {
 }
 
 func (r *Repository) Save(result *TestResult) error
-func (r *Repository) GetHistory(promptID string, limit int) ([]TestResult, error)
+func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error)
 ```
 
 **Testing Strategy:** Same as metrics.Repository
@@ -224,7 +224,7 @@ func (c *OllamaClient) Generate(model, prompt string, maxTokens int, temperature
 
 **Example:**
 ```go
-func TestPromptTesting(t *testing.T) {
+func TestSkillTesting(t *testing.T) {
     // Mock Ollama server
     server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(testing.OllamaResponse{
@@ -235,7 +235,7 @@ func TestPromptTesting(t *testing.T) {
     defer server.Close()
 
     client := testing.NewOllamaClient(server.URL)
-    // Test prompt testing
+    // Test skill testing
 }
 ```
 
@@ -245,42 +245,42 @@ The main.go file is a thin bootstrap layer that wires dependencies using the ada
 
 ```go
 // Initialize domain components (seams for testing)
-promptStore := prompts.NewStore(promptsDir)
+skillStore := skills.NewStore(skillsDir)
 metricsRepo := metrics.NewRepository(db)
 tagsRepo := tags.NewRepository(db)
 testingRepo := testing.NewRepository(db)
 ollamaClient := testing.NewOllamaClient(ollamaURL)
 
-// Create adapter to bridge metrics.Repository -> prompts.MetricsService interface
-metricsAdapter := prompts.NewMetricsAdapter(metricsRepo)
+// Create adapter to bridge metrics.Repository -> skills.MetricsService interface
+metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
 
 // Initialize handlers with interface adapters
-promptHandlers := prompts.NewHandlers(promptStore, metricsAdapter)
+skillHandlers := skills.NewHandlers(skillStore, metricsAdapter)
 tagsHandlers := tags.NewHandlers(tagsRepo)
-testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, promptStore)
+testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStore)
 ```
 
-**Key Design Decision:** The `promptHandlers` depends on interfaces (`PromptStore`, `MetricsService`), not concrete types. This enables:
+**Key Design Decision:** The `skillHandlers` depends on interfaces (`SkillStore`, `MetricsService`), not concrete types. This enables:
 - Unit testing handlers without filesystem or database
 - Swapping implementations (e.g., in-memory store for testing)
 - Clear boundary between handlers and data access
 
 ## Domain Logic (query.go)
 
-**Location:** `api/prompts/query.go`
+**Location:** `api/skills/query.go`
 
 Filtering and transformation logic is separated from handlers into dedicated domain functions:
 
 ```go
-// FilterOptions defines criteria for filtering prompts.
+// FilterOptions defines criteria for filtering skills.
 type FilterOptions struct {
     Tag    string
     Folder string
     Modes  []string
 }
 
-// Filter applies all filter criteria to a list of prompts.
-func Filter(prompts []Metadata, opts FilterOptions) []Metadata
+// Filter applies all filter criteria to a list of skills.
+func Filter(skills []Metadata, opts FilterOptions) []Metadata
 
 // Slugify converts a string to a URL-safe slug.
 func Slugify(s string) string
@@ -294,12 +294,12 @@ func Slugify(s string) string
 **Example:**
 ```go
 func TestFilterByTag(t *testing.T) {
-    prompts := []prompts.Metadata{
+    allSkills := []skills.Metadata{
         {ID: "1", Tags: []string{"skill"}},
         {ID: "2", Tags: []string{"template"}},
     }
 
-    filtered := prompts.Filter(prompts, prompts.FilterOptions{Tag: "skill"})
+    filtered := skills.Filter(allSkills, skills.FilterOptions{Tag: "skill"})
 
     assert.Len(t, filtered, 1)
     assert.Equal(t, "1", filtered[0].ID)
@@ -312,14 +312,14 @@ Handlers receive dependencies via constructor injection:
 
 ```go
 // In tests, inject mocks
-func TestPromptHandlers(t *testing.T) {
-    store := NewMockStore()       // Mock prompt store
+func TestSkillHandlers(t *testing.T) {
+    store := NewMockStore()       // Mock skill store
     metricsRepo := NewMockRepo()  // Mock metrics repository
 
-    handlers := prompts.NewHandlers(store, metricsRepo)
+    handlers := skills.NewHandlers(store, metricsRepo)
 
     // Create test request
-    req := httptest.NewRequest("GET", "/api/v1/prompts", nil)
+    req := httptest.NewRequest("GET", "/api/v1/skills", nil)
     w := httptest.NewRecorder()
 
     // Call handler
@@ -351,14 +351,14 @@ The UI has clear testing seams at the data access layer:
 **Interface:**
 ```typescript
 class ApiClient {
-  async getPrompts(filters?: SearchFilters): Promise<Prompt[]>
-  async getPromptsByFolder(folder: FolderType): Promise<Prompt[]>
-  async getPrompt(id: string): Promise<Prompt>
-  async createPrompt(prompt: CreatePromptRequest): Promise<Prompt>
-  async updatePrompt(id: string, data: UpdatePromptRequest): Promise<Prompt>
-  async deletePrompt(id: string): Promise<void>
-  async testPrompt(id: string, request: PromptTestRequest): Promise<PromptTestResult>
-  async searchPrompts(query: string, filters?: SearchFilters): Promise<Prompt[]>
+  async getSkills(filters?: SearchFilters): Promise<Skill[]>
+  async getSkillsByFolder(folder: FolderType): Promise<Skill[]>
+  async getSkill(id: string): Promise<Skill>
+  async createSkill(skill: CreateSkillRequest): Promise<Skill>
+  async updateSkill(id: string, data: UpdateSkillRequest): Promise<Skill>
+  async deleteSkill(id: string): Promise<void>
+  async testSkill(id: string, request: SkillTestRequest): Promise<SkillTestResult>
+  async searchSkills(query: string, filters?: SearchFilters): Promise<Skill[]>
   async getFolders(): Promise<Folder[]>
   async healthCheck(): Promise<HealthResponse>
 }
@@ -375,7 +375,7 @@ import { setupServer } from 'msw/node'
 import { api } from '@/lib/api'
 
 const server = setupServer(
-  rest.get('/api/v1/prompts', (req, res, ctx) => {
+  rest.get('/api/v1/skills', (req, res, ctx) => {
     return res(ctx.json([{ id: '1', name: 'Test', folder: 'local', ... }]))
   })
 )
@@ -384,29 +384,29 @@ beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-test('fetches prompts', async () => {
-  const prompts = await api.getPrompts()
-  expect(prompts).toHaveLength(1)
+test('fetches skills', async () => {
+  const skills = await api.getSkills()
+  expect(skills).toHaveLength(1)
 })
 ```
 
-### 2. usePrompts Hook (State Management)
+### 2. useSkills Hook (State Management)
 
-**Location:** `ui/src/hooks/use-prompts.tsx`
+**Location:** `ui/src/hooks/useSkillsData.ts`
 
-**Purpose:** Encapsulates all prompt-related state management (selection, filtering, search)
+**Purpose:** Encapsulates all skill-related state management (selection, filtering, search)
 
 **Interface:**
 ```typescript
-interface UsePromptsReturn {
+interface UseSkillsReturn {
   // Data
   folders: Folder[]
-  filteredPrompts: Prompt[]
+  filteredSkills: Skill[]
   sidebarCounts: SidebarCounts
 
   // Selection state
   selectedFolder: Folder | null
-  selectedPrompt: Prompt | null
+  selectedSkill: Skill | null
 
   // Filter state
   viewFilter: ViewFilter
@@ -419,13 +419,13 @@ interface UsePromptsReturn {
 
   // Actions
   setSelectedFolder: (folder: Folder | null) => void
-  setSelectedPrompt: (prompt: Prompt | null) => void
+  setSelectedSkill: (skill: Skill | null) => void
   setViewFilter: (filter: ViewFilter) => void
   setSearchQuery: (query: string) => void
   handleFilterChange: (filter: ViewFilter) => void
 
   // Computed
-  showPromptList: boolean
+  showSkillList: boolean
 }
 ```
 
@@ -436,7 +436,7 @@ interface UsePromptsReturn {
 **Example:**
 ```typescript
 import { renderHook, waitFor } from '@testing-library/react'
-import { usePrompts } from '@/hooks/use-prompts'
+import { useSkillsData } from '@/hooks/useSkillsData'
 
 const wrapper = ({ children }) => (
   <QueryClientProvider client={testQueryClient}>
@@ -444,17 +444,17 @@ const wrapper = ({ children }) => (
   </QueryClientProvider>
 )
 
-test('filters prompts by favorites', async () => {
-  const favorites = new Set(['prompt-1'])
-  const { result } = renderHook(() => usePrompts({ favorites }), { wrapper })
+test('filters skills by favorites', async () => {
+  const favorites = new Set(['skill-1'])
+  const { result } = renderHook(() => useSkillsData({ favorites }), { wrapper })
 
   act(() => {
     result.current.handleFilterChange('favorites')
   })
 
   await waitFor(() => {
-    expect(result.current.filteredPrompts).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 'prompt-1' })])
+    expect(result.current.filteredSkills).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'skill-1' })])
     )
   })
 })
@@ -529,9 +529,9 @@ function renderWithClient(ui: React.ReactElement) {
   )
 }
 
-test('renders prompts', async () => {
+test('renders skills', async () => {
   const { getByText } = renderWithClient(<App />)
-  await waitFor(() => expect(getByText('Test Prompt')).toBeInTheDocument())
+  await waitFor(() => expect(getByText('Test Skill')).toBeInTheDocument())
 })
 ```
 
@@ -541,7 +541,7 @@ The UI and API have clear boundaries:
 
 | Concern | Owner | Storage |
 |---------|-------|---------|
-| Prompt content & metadata | API | File system (metadata.json + .md) |
+| Skill content & metadata | API | File system (metadata.json + .md) |
 | Usage metrics | API | PostgreSQL |
 | Tags | API | PostgreSQL |
 | Test results | API | PostgreSQL |
@@ -550,7 +550,7 @@ The UI and API have clear boundaries:
 | Theme | UI | localStorage |
 
 This separation means:
-- API handles all business data (prompts, metrics, tags)
+- API handles all business data (skills, metrics, tags)
 - UI handles all user preferences (favorites, theme, view mode)
 - No need to sync favorites to server (they're personal UI state)
 

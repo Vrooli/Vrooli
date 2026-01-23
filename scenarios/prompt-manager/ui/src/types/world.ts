@@ -1,5 +1,5 @@
 /**
- * Type definitions for the World visualization and avatar system.
+ * Type definitions for the World visualization and member system.
  *
  * Note: 3D skill tree types (SkillTreeNode, SkillTreeConnection, SkillTreeData)
  * have been removed. Skill selection now uses the 2D overlay with types defined
@@ -7,24 +7,24 @@
  */
 
 /**
- * Props for avatar components.
+ * Props for member components.
  */
-export interface AvatarProps {
-  /** Avatar position in 3D space */
+export interface MemberProps {
+  /** Member position in 3D space */
   position: [number, number, number]
   /** Current cursor/pointer position for look-at behavior */
   cursorPosition: { x: number; y: number } | null
   /** Currently selected node IDs */
   selectedNodes: string[]
-  /** Whether the avatar is in an animation state */
+  /** Whether the member is in an animation state */
   isAnimating: boolean
-  /** Callback when avatar animation completes */
+  /** Callback when member animation completes */
   onAnimationComplete?: () => void
-  /** Callback when avatar is clicked */
-  onAvatarClick?: () => void
-  /** Avatar ID for identification */
-  avatarId?: string
-  /** Custom colors for the avatar */
+  /** Callback when member is clicked */
+  onMemberClick?: () => void
+  /** Member ID for identification */
+  memberId?: string
+  /** Custom colors for the member */
   colors?: {
     body: string
     head: string
@@ -33,9 +33,9 @@ export interface AvatarProps {
 }
 
 /**
- * Avatar behavior states.
+ * Member behavior states.
  */
-export type AvatarState =
+export type MemberState =
   | 'idle'
   | 'looking'
   | 'waving'
@@ -43,23 +43,23 @@ export type AvatarState =
   | 'thinking'
 
 /**
- * Configuration for avatar dependency injection.
+ * Configuration for member dependency injection.
  */
-export interface AvatarConfig {
-  /** The avatar component to render */
-  Component: React.ComponentType<AvatarProps>
-  /** Optional function to preload avatar assets */
+export interface MemberConfig {
+  /** The member component to render */
+  Component: React.ComponentType<MemberProps>
+  /** Optional function to preload member assets */
   preloadAssets?: () => Promise<void>
-  /** Display name for the avatar */
+  /** Display name for the member */
   displayName: string
-  /** Description of the avatar */
+  /** Description of the member */
   description?: string
 }
 
 /**
- * Registry of available avatars.
+ * Registry of available members.
  */
-export type AvatarRegistry = Record<string, AvatarConfig>
+export type MemberRegistry = Record<string, MemberConfig>
 
 /**
  * Selection mode for multi-select behavior.
@@ -67,7 +67,7 @@ export type AvatarRegistry = Record<string, AvatarConfig>
 export type SelectionMode = 'single' | 'multi' | 'toggle'
 
 /**
- * Selection state for prompt combination.
+ * Selection state for skill combination.
  */
 export interface SelectionState {
   selectedIds: string[]
@@ -76,25 +76,24 @@ export interface SelectionState {
 }
 
 /**
- * Combined prompts output format.
+ * Combined skills output format.
  */
 export type CombineFormat = 'xml' | 'markdown' | 'json'
 
 /**
- * Request to combine multiple prompts.
+ * Request to combine multiple skills.
  */
 export interface CombineRequest {
-  promptIds: string[]
+  skillIds: string[]
   format: CombineFormat
 }
 
 /**
- * Response from combining prompts.
+ * Response from combining skills.
  */
 export interface CombineResponse {
   combined: string
-  promptCount: number
+  skillCount: number
   totalTokens: number
   format: CombineFormat
 }
-

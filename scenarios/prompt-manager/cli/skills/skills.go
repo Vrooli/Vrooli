@@ -1,5 +1,5 @@
-// Package prompts provides CLI commands for prompt management.
-package prompts
+// Package skills provides CLI commands for skill management.
+package skills
 
 import (
 	"bufio"
@@ -14,8 +14,8 @@ import (
 	"prompt-manager/cli/internal/clipboard"
 )
 
-// PromptResponse matches the API response for prompts
-type PromptResponse struct {
+// SkillResponse matches the API response for skills
+type SkillResponse struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
@@ -30,8 +30,8 @@ type PromptResponse struct {
 	UsageCount  int      `json:"usageCount"`
 }
 
-// CreatePromptRequest matches the API request for creating prompts
-type CreatePromptRequest struct {
+// CreateSkillRequest matches the API request for creating skills
+type CreateSkillRequest struct {
 	ID          string   `json:"id,omitempty"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
@@ -43,17 +43,17 @@ type CreatePromptRequest struct {
 	Folder      string   `json:"folder"`
 }
 
-// Commands returns the prompt command groups.
+// Commands returns the skill command groups.
 func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		{
-			Title: "Prompts",
+			Title: "Skills",
 			Commands: []cliapp.Command{
 				{
 					Name:        "add",
 					Aliases:     []string{"create"},
 					NeedsAPI:    true,
-					Description: "Add a new prompt",
+					Description: "Add a new skill",
 					Run: func(args []string) error {
 						return cmdAdd(ctx, args)
 					},
@@ -62,7 +62,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "list",
 					Aliases:     []string{"ls"},
 					NeedsAPI:    true,
-					Description: "List prompts (optionally filter by folder: core, local, drafts)",
+					Description: "List skills (optionally filter by folder: core, local, drafts)",
 					Run: func(args []string) error {
 						return cmdList(ctx, args)
 					},
@@ -71,7 +71,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "show",
 					Aliases:     []string{"get", "details"},
 					NeedsAPI:    true,
-					Description: "Show detailed prompt information",
+					Description: "Show detailed skill information",
 					Run: func(args []string) error {
 						return cmdShow(ctx, args)
 					},
@@ -80,7 +80,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "use",
 					Aliases:     []string{"copy"},
 					NeedsAPI:    true,
-					Description: "Record usage and display prompt content",
+					Description: "Record usage and display skill content",
 					Run: func(args []string) error {
 						return cmdUse(ctx, args)
 					},
@@ -107,7 +107,7 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	}
 
 	// Get content from stdin
-	fmt.Println("Enter prompt content (end with Ctrl+D on a new line):")
+	fmt.Println("Enter skill content (end with Ctrl+D on a new line):")
 	reader := bufio.NewReader(os.Stdin)
 	var lines []string
 	for {
@@ -121,10 +121,10 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	content = strings.TrimSpace(content)
 
 	if content == "" {
-		return fmt.Errorf("prompt content is required")
+		return fmt.Errorf("skill content is required")
 	}
 
-	req := CreatePromptRequest{
+	req := CreateSkillRequest{
 		Name:    name,
 		Content: content,
 		Folder:  folder,
@@ -132,12 +132,12 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 		Tags:    []string{},
 	}
 
-	var prompt PromptResponse
-	if err := ctx.Post("/prompts", req, &prompt); err != nil {
-		return fmt.Errorf("failed to create prompt: %w", err)
+	var skill SkillResponse
+	if err := ctx.Post("/skills", req, &skill); err != nil {
+		return fmt.Errorf("failed to create skill: %w", err)
 	}
 
-	fmt.Printf("Created prompt: %s [%s] in %s/\n", prompt.Name, prompt.ID, prompt.Folder)
+	fmt.Printf("Created skill: %s [%s] in %s/\n", skill.Name, skill.ID, skill.Folder)
 	return nil
 }
 
@@ -163,18 +163,18 @@ func cmdList(ctx appctx.Context, args []string) error {
 		query.Set("tag", tagFilter)
 	}
 
-	var prompts []PromptResponse
-	if err := ctx.GetWithQuery("/prompts", query, &prompts); err != nil {
-		return fmt.Errorf("failed to list prompts: %w", err)
+	var skills []SkillResponse
+	if err := ctx.GetWithQuery("/skills", query, &skills); err != nil {
+		return fmt.Errorf("failed to list skills: %w", err)
 	}
 
-	if len(prompts) == 0 {
-		fmt.Println("No prompts found")
+	if len(skills) == 0 {
+		fmt.Println("No skills found")
 		return nil
 	}
 
-	fmt.Println("Prompts:")
-	for _, p := range prompts {
+	fmt.Println("Skills:")
+	for _, p := range skills {
 		tags := ""
 		if len(p.Tags) > 0 {
 			tags = " [" + strings.Join(p.Tags, ", ") + "]"
@@ -186,63 +186,63 @@ func cmdList(ctx appctx.Context, args []string) error {
 
 func cmdShow(ctx appctx.Context, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: show <prompt-id>")
+		return fmt.Errorf("usage: show <skill-id>")
 	}
 
-	promptID := args[0]
+	skillID := args[0]
 
-	var prompt PromptResponse
-	if err := ctx.Get(fmt.Sprintf("/prompts/%s", promptID), &prompt); err != nil {
-		return fmt.Errorf("failed to get prompt: %w", err)
+	var skill SkillResponse
+	if err := ctx.Get(fmt.Sprintf("/skills/%s", skillID), &skill); err != nil {
+		return fmt.Errorf("failed to get skill: %w", err)
 	}
 
-	fmt.Printf("Name: %s\n", prompt.Name)
-	fmt.Printf("Folder: %s\n", prompt.Folder)
-	if prompt.Description != "" {
-		fmt.Printf("Description: %s\n", prompt.Description)
+	fmt.Printf("Name: %s\n", skill.Name)
+	fmt.Printf("Folder: %s\n", skill.Folder)
+	if skill.Description != "" {
+		fmt.Printf("Description: %s\n", skill.Description)
 	}
-	fmt.Printf("Usage Count: %d\n", prompt.UsageCount)
-	fmt.Printf("Draft: %v\n", prompt.Draft)
-	fmt.Printf("Created: %s\n", prompt.CreatedAt)
-	fmt.Printf("Updated: %s\n", prompt.UpdatedAt)
-	fmt.Printf("ID: %s\n", prompt.ID)
+	fmt.Printf("Usage Count: %d\n", skill.UsageCount)
+	fmt.Printf("Draft: %v\n", skill.Draft)
+	fmt.Printf("Created: %s\n", skill.CreatedAt)
+	fmt.Printf("Updated: %s\n", skill.UpdatedAt)
+	fmt.Printf("ID: %s\n", skill.ID)
 
-	if len(prompt.Modes) > 0 {
-		fmt.Printf("Modes: %s\n", strings.Join(prompt.Modes, ", "))
+	if len(skill.Modes) > 0 {
+		fmt.Printf("Modes: %s\n", strings.Join(skill.Modes, ", "))
 	}
-	if len(prompt.Tags) > 0 {
-		fmt.Printf("Tags: %s\n", strings.Join(prompt.Tags, ", "))
+	if len(skill.Tags) > 0 {
+		fmt.Printf("Tags: %s\n", strings.Join(skill.Tags, ", "))
 	}
 
-	fmt.Printf("\nContent:\n%s\n", prompt.Content)
+	fmt.Printf("\nContent:\n%s\n", skill.Content)
 
 	return nil
 }
 
 func cmdUse(ctx appctx.Context, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: use <prompt-id>")
+		return fmt.Errorf("usage: use <skill-id>")
 	}
 
-	promptID := args[0]
+	skillID := args[0]
 
 	// Record usage
-	if err := ctx.Post(fmt.Sprintf("/prompts/%s/use", promptID), struct{}{}, nil); err != nil {
+	if err := ctx.Post(fmt.Sprintf("/skills/%s/use", skillID), struct{}{}, nil); err != nil {
 		return fmt.Errorf("failed to record usage: %w", err)
 	}
 
-	// Get and display the prompt
-	var prompt PromptResponse
-	if err := ctx.Get(fmt.Sprintf("/prompts/%s", promptID), &prompt); err != nil {
-		return fmt.Errorf("failed to get prompt: %w", err)
+	// Get and display the skill
+	var skill SkillResponse
+	if err := ctx.Get(fmt.Sprintf("/skills/%s", skillID), &skill); err != nil {
+		return fmt.Errorf("failed to get skill: %w", err)
 	}
 
 	fmt.Println("Usage recorded!")
-	fmt.Printf("\nPrompt Content:\n%s\n", prompt.Content)
+	fmt.Printf("\nSkill Content:\n%s\n", skill.Content)
 
 	// Copy to clipboard if available
 	if clipboard.IsAvailable() {
-		if errMsg := clipboard.Copy(prompt.Content); errMsg == "" {
+		if errMsg := clipboard.Copy(skill.Content); errMsg == "" {
 			fmt.Printf("\n(Copied to clipboard via %s)\n", clipboard.ToolName())
 		} else {
 			fmt.Printf("\n(%s)\n", errMsg)

@@ -2,8 +2,8 @@
  * FolderContextMenu - Context menu for folder nodes in the tree.
  *
  * Appears on right-click of folder nodes, providing options like:
- * - Add prompt to this folder
- * - Delete folder (with all prompts in it)
+ * - Add skill to this folder
+ * - Delete folder (with all skills in it)
  */
 
 import { useEffect, useRef } from 'react'
@@ -14,9 +14,9 @@ interface FolderContextMenuProps {
   x: number
   y: number
   folderLabel: string
-  promptCount: number
+  skillCount: number
   onClose: () => void
-  onAddPrompt: () => void
+  onAddSkill: () => void
   onDeleteFolder: () => void
 }
 
@@ -27,9 +27,9 @@ export function FolderContextMenu({
   x,
   y,
   folderLabel,
-  promptCount,
+  skillCount,
   onClose,
-  onAddPrompt,
+  onAddSkill,
   onDeleteFolder,
 }: FolderContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
@@ -83,8 +83,8 @@ export function FolderContextMenu({
     }
   }, [x, y])
 
-  const handleAddPrompt = () => {
-    onAddPrompt()
+  const handleAddSkill = () => {
+    onAddSkill()
     onClose()
   }
 
@@ -106,7 +106,7 @@ export function FolderContextMenu({
       <div className="p-1">
         <button
           type="button"
-          onClick={handleAddPrompt}
+          onClick={handleAddSkill}
           className={cn(
             'w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm',
             'text-foreground hover:bg-muted transition-colors',
@@ -114,7 +114,7 @@ export function FolderContextMenu({
           )}
         >
           <Plus className="h-4 w-4" />
-          <span>Add prompt to "{folderLabel}"</span>
+          <span>Add skill to "{folderLabel}"</span>
         </button>
         <div className="my-1 h-px bg-border" />
         <button
@@ -127,7 +127,7 @@ export function FolderContextMenu({
           )}
         >
           <Trash2 className="h-4 w-4" />
-          <span>Delete folder ({promptCount} prompt{promptCount !== 1 ? 's' : ''})</span>
+          <span>Delete folder ({skillCount} skill{skillCount !== 1 ? 's' : ''})</span>
         </button>
       </div>
     </div>

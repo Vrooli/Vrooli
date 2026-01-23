@@ -1,5 +1,5 @@
 /**
- * Tests for usePromptsData hook.
+ * Tests for useSkillsData hook.
  *
  * Tests cover:
  * - Data fetching with React Query
@@ -12,24 +12,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { usePromptsData } from './usePromptsData'
-import * as promptService from '@/services/promptService'
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '@/types'
+import { useSkillsData } from './useSkillsData'
+import * as skillService from '@/services/skillService'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
-// Mock the prompt service
-vi.mock('@/services/promptService', () => ({
-  getPrompts: vi.fn(),
-  createPrompt: vi.fn(),
-  updatePrompt: vi.fn(),
-  updatePrompts: vi.fn(),
-  deletePrompt: vi.fn(),
+// Mock the skill service
+vi.mock('@/services/skillService', () => ({
+  getSkills: vi.fn(),
+  createSkill: vi.fn(),
+  updateSkill: vi.fn(),
+  updateSkills: vi.fn(),
+  deleteSkill: vi.fn(),
 }))
 
-// Helper to create a test prompt
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create a test skill
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: ['development', 'testing'],
@@ -68,7 +68,7 @@ function createWrapper() {
   }
 }
 
-describe('usePromptsData', () => {
+describe('useSkillsData', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -78,11 +78,11 @@ describe('usePromptsData', () => {
   })
 
   describe('data fetching', () => {
-    it('should fetch prompts on mount', async () => {
-      const mockPrompts = [createTestPrompt()]
-      vi.mocked(promptService.getPrompts).mockResolvedValue(mockPrompts)
+    it('should fetch skills on mount', async () => {
+      const mockSkills = [createTestSkill()]
+      vi.mocked(skillService.getSkills).mockResolvedValue(mockSkills)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -93,14 +93,14 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      expect(result.current.prompts).toEqual(mockPrompts)
-      expect(promptService.getPrompts).toHaveBeenCalledWith(true)
+      expect(result.current.skills).toEqual(mockSkills)
+      expect(skillService.getSkills).toHaveBeenCalledWith(true)
     })
 
-    it('should return empty array when no prompts', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([])
+    it('should return empty array when no skills', async () => {
+      vi.mocked(skillService.getSkills).mockResolvedValue([])
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -108,14 +108,14 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      expect(result.current.prompts).toEqual([])
+      expect(result.current.skills).toEqual([])
     })
 
     it('should set error state on fetch failure', async () => {
       const error = new Error('Failed to fetch')
-      vi.mocked(promptService.getPrompts).mockRejectedValue(error)
+      vi.mocked(skillService.getSkills).mockRejectedValue(error)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -127,10 +127,10 @@ describe('usePromptsData', () => {
     })
 
     it('should refetch data when refetch is called', async () => {
-      const mockPrompts = [createTestPrompt()]
-      vi.mocked(promptService.getPrompts).mockResolvedValue(mockPrompts)
+      const mockSkills = [createTestSkill()]
+      vi.mocked(skillService.getSkills).mockResolvedValue(mockSkills)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -142,18 +142,18 @@ describe('usePromptsData', () => {
       result.current.refetch()
 
       await waitFor(() => {
-        expect(promptService.getPrompts).toHaveBeenCalledTimes(2)
+        expect(skillService.getSkills).toHaveBeenCalledTimes(2)
       })
     })
   })
 
-  describe('createPrompt mutation', () => {
-    it('should create a new prompt', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([])
-      const newPrompt = createTestPrompt({ id: 'new-1', name: 'New Prompt' })
-      vi.mocked(promptService.createPrompt).mockResolvedValue(newPrompt)
+  describe('createSkill mutation', () => {
+    it('should create a new skill', async () => {
+      vi.mocked(skillService.getSkills).mockResolvedValue([])
+      const newSkill = createTestSkill({ id: 'new-1', name: 'New Skill' })
+      vi.mocked(skillService.createSkill).mockResolvedValue(newSkill)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -161,27 +161,27 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const request: CreatePromptRequest = {
-        name: 'New Prompt',
+      const request: CreateSkillRequest = {
+        name: 'New Skill',
         description: 'New description',
         content: 'New content',
         folder: 'local',
       }
 
-      const created = await result.current.createPrompt(request)
+      const created = await result.current.createSkill(request)
 
-      expect(created).toEqual(newPrompt)
-      expect(promptService.createPrompt).toHaveBeenCalledWith(request)
+      expect(created).toEqual(newSkill)
+      expect(skillService.createSkill).toHaveBeenCalledWith(request)
     })
 
     it('should set isCreating during creation', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([])
-      let resolveCreate: (value: Prompt) => void = () => {}
-      vi.mocked(promptService.createPrompt).mockImplementation(
+      vi.mocked(skillService.getSkills).mockResolvedValue([])
+      let resolveCreate: (value: Skill) => void = () => {}
+      vi.mocked(skillService.createSkill).mockImplementation(
         () => new Promise((resolve) => { resolveCreate = resolve })
       )
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -189,7 +189,7 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const createPromise = result.current.createPrompt({
+      const createPromise = result.current.createSkill({
         name: 'New',
         description: '',
         content: 'Content',
@@ -200,7 +200,7 @@ describe('usePromptsData', () => {
         expect(result.current.isCreating).toBe(true)
       })
 
-      resolveCreate(createTestPrompt())
+      resolveCreate(createTestSkill())
       await createPromise
 
       await waitFor(() => {
@@ -209,14 +209,14 @@ describe('usePromptsData', () => {
     })
   })
 
-  describe('updatePrompt mutation', () => {
-    it('should update a single prompt', async () => {
-      const original = createTestPrompt()
-      vi.mocked(promptService.getPrompts).mockResolvedValue([original])
+  describe('updateSkill mutation', () => {
+    it('should update a single skill', async () => {
+      const original = createTestSkill()
+      vi.mocked(skillService.getSkills).mockResolvedValue([original])
       const updated = { ...original, name: 'Updated Name' }
-      vi.mocked(promptService.updatePrompt).mockResolvedValue(updated)
+      vi.mocked(skillService.updateSkill).mockResolvedValue(updated)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -224,21 +224,21 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const updates: UpdatePromptRequest = { name: 'Updated Name' }
-      const updatedPrompt = await result.current.updatePrompt(original.id, updates)
+      const updates: UpdateSkillRequest = { name: 'Updated Name' }
+      const updatedSkill = await result.current.updateSkill(original.id, updates)
 
-      expect(updatedPrompt).toEqual(updated)
-      expect(promptService.updatePrompt).toHaveBeenCalledWith(original.id, updates)
+      expect(updatedSkill).toEqual(updated)
+      expect(skillService.updateSkill).toHaveBeenCalledWith(original.id, updates)
     })
 
     it('should set isUpdating during update', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([createTestPrompt()])
-      let resolveUpdate: (value: Prompt) => void = () => {}
-      vi.mocked(promptService.updatePrompt).mockImplementation(
+      vi.mocked(skillService.getSkills).mockResolvedValue([createTestSkill()])
+      let resolveUpdate: (value: Skill) => void = () => {}
+      vi.mocked(skillService.updateSkill).mockImplementation(
         () => new Promise((resolve) => { resolveUpdate = resolve })
       )
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -246,13 +246,13 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const updatePromise = result.current.updatePrompt('test-1', { name: 'New' })
+      const updatePromise = result.current.updateSkill('test-1', { name: 'New' })
 
       await waitFor(() => {
         expect(result.current.isUpdating).toBe(true)
       })
 
-      resolveUpdate(createTestPrompt({ name: 'New' }))
+      resolveUpdate(createTestSkill({ name: 'New' }))
       await updatePromise
 
       await waitFor(() => {
@@ -261,19 +261,19 @@ describe('usePromptsData', () => {
     })
   })
 
-  describe('updatePrompts batch mutation', () => {
-    it('should update multiple prompts', async () => {
-      const prompt1 = createTestPrompt({ id: 'p1', name: 'Prompt 1' })
-      const prompt2 = createTestPrompt({ id: 'p2', name: 'Prompt 2' })
-      vi.mocked(promptService.getPrompts).mockResolvedValue([prompt1, prompt2])
+  describe('updateSkills batch mutation', () => {
+    it('should update multiple skills', async () => {
+      const skill1 = createTestSkill({ id: 'p1', name: 'Skill 1' })
+      const skill2 = createTestSkill({ id: 'p2', name: 'Skill 2' })
+      vi.mocked(skillService.getSkills).mockResolvedValue([skill1, skill2])
 
-      const updatedResults = new Map<string, Prompt | Error>([
-        ['p1', { ...prompt1, name: 'Updated 1' }],
-        ['p2', { ...prompt2, name: 'Updated 2' }],
+      const updatedResults = new Map<string, Skill | Error>([
+        ['p1', { ...skill1, name: 'Updated 1' }],
+        ['p2', { ...skill2, name: 'Updated 2' }],
       ])
-      vi.mocked(promptService.updatePrompts).mockResolvedValue(updatedResults)
+      vi.mocked(skillService.updateSkills).mockResolvedValue(updatedResults)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -281,25 +281,25 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const updates = new Map<string, UpdatePromptRequest>([
+      const updates = new Map<string, UpdateSkillRequest>([
         ['p1', { name: 'Updated 1' }],
         ['p2', { name: 'Updated 2' }],
       ])
 
-      const results = await result.current.updatePrompts(updates)
+      const results = await result.current.updateSkills(updates)
 
       expect(results).toEqual(updatedResults)
-      expect(promptService.updatePrompts).toHaveBeenCalledWith(updates)
+      expect(skillService.updateSkills).toHaveBeenCalledWith(updates)
     })
 
     it('should set isUpdating during batch update', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([createTestPrompt()])
-      let resolveUpdate: (value: Map<string, Prompt | Error>) => void = () => {}
-      vi.mocked(promptService.updatePrompts).mockImplementation(
+      vi.mocked(skillService.getSkills).mockResolvedValue([createTestSkill()])
+      let resolveUpdate: (value: Map<string, Skill | Error>) => void = () => {}
+      vi.mocked(skillService.updateSkills).mockImplementation(
         () => new Promise((resolve) => { resolveUpdate = resolve })
       )
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -307,7 +307,7 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const updatePromise = result.current.updatePrompts(
+      const updatePromise = result.current.updateSkills(
         new Map([['test-1', { name: 'New' }]])
       )
 
@@ -324,13 +324,13 @@ describe('usePromptsData', () => {
     })
   })
 
-  describe('deletePrompt mutation', () => {
-    it('should delete a prompt', async () => {
-      const prompt = createTestPrompt()
-      vi.mocked(promptService.getPrompts).mockResolvedValue([prompt])
-      vi.mocked(promptService.deletePrompt).mockResolvedValue(undefined)
+  describe('deleteSkill mutation', () => {
+    it('should delete a skill', async () => {
+      const skill = createTestSkill()
+      vi.mocked(skillService.getSkills).mockResolvedValue([skill])
+      vi.mocked(skillService.deleteSkill).mockResolvedValue(undefined)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -338,19 +338,19 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      await result.current.deletePrompt(prompt.id)
+      await result.current.deleteSkill(skill.id)
 
-      expect(promptService.deletePrompt).toHaveBeenCalledWith(prompt.id)
+      expect(skillService.deleteSkill).toHaveBeenCalledWith(skill.id)
     })
 
     it('should set isDeleting during deletion', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([createTestPrompt()])
+      vi.mocked(skillService.getSkills).mockResolvedValue([createTestSkill()])
       let resolveDelete: () => void = () => {}
-      vi.mocked(promptService.deletePrompt).mockImplementation(
+      vi.mocked(skillService.deleteSkill).mockImplementation(
         () => new Promise((resolve) => { resolveDelete = resolve })
       )
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -358,7 +358,7 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const deletePromise = result.current.deletePrompt('test-1')
+      const deletePromise = result.current.deleteSkill('test-1')
 
       await waitFor(() => {
         expect(result.current.isDeleting).toBe(true)
@@ -375,11 +375,11 @@ describe('usePromptsData', () => {
 
   describe('error handling', () => {
     it('should handle create mutation error', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([])
+      vi.mocked(skillService.getSkills).mockResolvedValue([])
       const error = new Error('Create failed')
-      vi.mocked(promptService.createPrompt).mockRejectedValue(error)
+      vi.mocked(skillService.createSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -388,7 +388,7 @@ describe('usePromptsData', () => {
       })
 
       await expect(
-        result.current.createPrompt({
+        result.current.createSkill({
           name: 'Test',
           description: '',
           content: 'Content',
@@ -398,11 +398,11 @@ describe('usePromptsData', () => {
     })
 
     it('should handle update mutation error', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([createTestPrompt()])
+      vi.mocked(skillService.getSkills).mockResolvedValue([createTestSkill()])
       const error = new Error('Update failed')
-      vi.mocked(promptService.updatePrompt).mockRejectedValue(error)
+      vi.mocked(skillService.updateSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -411,16 +411,16 @@ describe('usePromptsData', () => {
       })
 
       await expect(
-        result.current.updatePrompt('test-1', { name: 'New' })
+        result.current.updateSkill('test-1', { name: 'New' })
       ).rejects.toThrow('Update failed')
     })
 
     it('should handle delete mutation error', async () => {
-      vi.mocked(promptService.getPrompts).mockResolvedValue([createTestPrompt()])
+      vi.mocked(skillService.getSkills).mockResolvedValue([createTestSkill()])
       const error = new Error('Delete failed')
-      vi.mocked(promptService.deletePrompt).mockRejectedValue(error)
+      vi.mocked(skillService.deleteSkill).mockRejectedValue(error)
 
-      const { result } = renderHook(() => usePromptsData(), {
+      const { result } = renderHook(() => useSkillsData(), {
         wrapper: createWrapper(),
       })
 
@@ -428,7 +428,7 @@ describe('usePromptsData', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      await expect(result.current.deletePrompt('test-1')).rejects.toThrow(
+      await expect(result.current.deleteSkill('test-1')).rejects.toThrow(
         'Delete failed'
       )
     })

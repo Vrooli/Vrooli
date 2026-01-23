@@ -1,5 +1,5 @@
 /**
- * AvatarCustomizeModal - Modal for customizing avatar appearance.
+ * MemberCustomizeModal - Modal for customizing member appearance.
  *
  * Features:
  * - Name editing
@@ -10,14 +10,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Palette } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Avatar, UpdateAvatarRequest } from '@/types/avatar'
-import { DEFAULT_AVATAR_COLORS } from '@/types/avatar'
+import type { Member, UpdateMemberRequest } from '@/types/member'
+import { DEFAULT_MEMBER_COLORS } from '@/types/member'
 
-interface AvatarCustomizeModalProps {
+interface MemberCustomizeModalProps {
   isOpen: boolean
   onClose: () => void
-  avatar: Avatar | null
-  onSave: (updates: UpdateAvatarRequest) => Promise<void>
+  member: Member | null
+  onSave: (updates: UpdateMemberRequest) => Promise<void>
   isLoading?: boolean
 }
 
@@ -38,33 +38,33 @@ const COLOR_PRESETS = [
 ]
 
 /**
- * Avatar customization modal component.
+ * Member customization modal component.
  */
-export function AvatarCustomizeModal({
+export function MemberCustomizeModal({
   isOpen,
   onClose,
-  avatar,
+  member,
   onSave,
   isLoading = false,
-}: AvatarCustomizeModalProps) {
+}: MemberCustomizeModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
   const [name, setName] = useState('')
-  const [bodyColor, setBodyColor] = useState<string>(DEFAULT_AVATAR_COLORS.bodyColor)
-  const [headColor, setHeadColor] = useState<string>(DEFAULT_AVATAR_COLORS.headColor)
-  const [accentColor, setAccentColor] = useState<string>(DEFAULT_AVATAR_COLORS.accentColor)
+  const [bodyColor, setBodyColor] = useState<string>(DEFAULT_MEMBER_COLORS.bodyColor)
+  const [headColor, setHeadColor] = useState<string>(DEFAULT_MEMBER_COLORS.headColor)
+  const [accentColor, setAccentColor] = useState<string>(DEFAULT_MEMBER_COLORS.accentColor)
 
-  // Initialize form when avatar changes
+  // Initialize form when member changes
   useEffect(() => {
-    if (avatar) {
-      setName(avatar.name)
-      setBodyColor(avatar.bodyColor)
-      setHeadColor(avatar.headColor)
-      setAccentColor(avatar.accentColor)
+    if (member) {
+      setName(member.name)
+      setBodyColor(member.bodyColor)
+      setHeadColor(member.headColor)
+      setAccentColor(member.accentColor)
     }
-  }, [avatar])
+  }, [member])
 
   // Focus name input when opened
   useEffect(() => {
@@ -123,7 +123,7 @@ export function AvatarCustomizeModal({
     onClose()
   }
 
-  if (!isOpen || !avatar) return null
+  if (!isOpen || !member) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -164,9 +164,9 @@ export function AvatarCustomizeModal({
           </div>
           <div>
             <h2 id="customize-dialog-title" className="text-lg font-semibold text-foreground">
-              Customize Avatar
+              Customize Member
             </h2>
-            <p className="text-sm text-muted-foreground">Personalize your avatar's appearance</p>
+            <p className="text-sm text-muted-foreground">Personalize your member's appearance</p>
           </div>
         </div>
 
@@ -204,12 +204,12 @@ export function AvatarCustomizeModal({
 
         {/* Name input */}
         <div className="mb-4">
-          <label htmlFor="avatar-name" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="member-name" className="block text-sm font-medium text-foreground mb-1">
             Name
           </label>
           <input
             ref={nameInputRef}
-            id="avatar-name"
+            id="member-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -219,7 +219,7 @@ export function AvatarCustomizeModal({
               'text-foreground placeholder:text-muted-foreground',
               'focus:outline-none focus:ring-2 focus:ring-primary'
             )}
-            placeholder="Enter avatar name"
+            placeholder="Enter member name"
           />
         </div>
 

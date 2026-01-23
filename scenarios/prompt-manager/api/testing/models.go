@@ -1,5 +1,5 @@
-// Package testing provides LLM-based prompt testing via Ollama.
-// This allows users to test prompts with local LLMs and track results.
+// Package testing provides LLM-based skill testing via Ollama.
+// This allows users to test skills with local LLMs and track results.
 package testing
 
 import "time"
@@ -7,7 +7,7 @@ import "time"
 // TestResult represents a test result stored in the database.
 type TestResult struct {
 	ID           string    `json:"id"`
-	PromptID     string    `json:"promptId"`
+	SkillID      string    `json:"skillId"`
 	Model        string    `json:"model"`
 	InputVars    *string   `json:"inputVariables,omitempty"`
 	Response     *string   `json:"response,omitempty"`
@@ -18,7 +18,7 @@ type TestResult struct {
 	TestedAt     time.Time `json:"testedAt"`
 }
 
-// TestRequest is the request body for testing a prompt.
+// TestRequest is the request body for testing a skill.
 type TestRequest struct {
 	Model       string            `json:"model"`
 	Variables   map[string]string `json:"variables"`
@@ -26,7 +26,7 @@ type TestRequest struct {
 	Temperature *float64          `json:"temperature"`
 }
 
-// TestResponse is returned after running a prompt test.
+// TestResponse is returned after running a skill test.
 type TestResponse struct {
 	TestID       string    `json:"testId"`
 	Model        string    `json:"model"`

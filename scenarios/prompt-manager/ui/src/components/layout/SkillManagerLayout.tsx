@@ -1,46 +1,48 @@
 /**
- * PromptManagerLayout - Main two-panel layout for the prompt manager.
+ * SkillManagerLayout - Main two-panel layout for the skill manager.
  *
  * Brings together all the components:
- * - PromptTreeSidebar (left, resizable)
- * - PromptEditorPanel (right)
+ * - SkillTreeSidebar (left, resizable)
+ * - SkillEditorPanel (right)
  * - Confirmation dialogs
- * - New prompt creation
+ * - New skill creation
  *
  * Also handles:
  * - Responsive behavior (drawer on mobile)
- * - Storing changes when switching prompts
+ * - Storing changes when switching skills
  * - Unsaved changes confirmation
  * - Resizable sidebar with localStorage persistence
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { Menu, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
-import { PromptTreeSidebar } from '../tree/PromptTreeSidebar'
-import { PromptEditorPanel } from '../editor/PromptEditorPanel'
-import { usePromptsData } from '@/hooks/usePromptsData'
-import { usePromptTree } from '@/hooks/usePromptTree'
-import { usePromptEditor } from '@/hooks/usePromptEditor'
+import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
+import { SkillEditorPanel } from '../editor/SkillEditorPanel'
+import { useSkillsData } from '@/hooks/useSkillsData'
+import { useSkillTree } from '@/hooks/useSkillTree'
+import { useSkillEditor } from '@/hooks/useSkillEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useUrlState } from '@/hooks/useUrlState'
+import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
-import { getPrompt } from '@/services/promptService'
+import { getSkill } from '@/services/skillService'
 import type { TreeNode } from '@/types/editor'
-import type { Prompt, CreatePromptRequest } from '@/types'
+import type { Skill, CreateSkillRequest } from '@/types'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
 
 /**
- * Main layout component for the prompt manager.
+ * Main layout component for the skill manager.
  */
-export function PromptManagerLayout() {
+export function SkillManagerLayout() {
   // Mobile state
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false
@@ -55,7 +57,7 @@ export function PromptManagerLayout() {
 
   // Delete folder dialog state
   const [deleteFolderDialog, setDeleteFolderDialog] = useState<{
-    promptIds: string[]
+    skillIds: string[]
     folderLabel: string
   } | null>(null)
 
@@ -64,16 +66,19 @@ export function PromptManagerLayout() {
 
   // Data fetching
   const {
-    prompts,
+    skills,
     isLoading,
-    createPrompt,
-    updatePrompts,
-    deletePrompt: deletePromptApi,
-  } = usePromptsData()
+    createSkill,
+    updateSkills,
+    deleteSkill: deleteSkillApi,
+  } = useSkillsData()
 
   // Centralized selection state from Zustand store
-  const selectedPromptId = useSelectionStore((state) => state.selectedPromptId)
-  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+  const selectedSkillId = useSelectionStore((state) => state.selectedSkillId)
+  const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
+
+  // Load initial sidebar state from localStorage (only once on mount)
+  const initialSidebarState = useMemo(() => loadSidebarState(), [])
 
   // Tree state (expansion, filtering, collapse - but NOT selection)
   const {
@@ -90,12 +95,24 @@ export function PromptManagerLayout() {
     selectedTags,
     setSelectedTags,
     availableTags,
-  } = usePromptTree({ prompts })
+  } = useSkillTree({
+    skills,
+    initialIsCollapsed: initialSidebarState.isCollapsed,
+    initialExpandedNodes: initialSidebarState.expandedNodes,
+    initialSelectedTags: initialSidebarState.selectedTags,
+  })
+
+  // Persist sidebar state to localStorage
+  useSidebarPersistence({
+    isCollapsed,
+    expandedNodes,
+    selectedTags,
+  })
 
   // Skill selection store
   const skillSelectionMode = useSkillSelectionStore((state) => state.isActive)
   const skillSelectedIds = useSkillSelectionStore((state) => state.selectedSkillIds)
-  const currentAvatar = useSkillSelectionStore((state) => state.currentAvatar)
+  const currentMember = useSkillSelectionStore((state) => state.currentMember)
   const exitSkillSelectionMode = useSkillSelectionStore((state) => state.exitSkillSelectionMode)
   const toggleSkillSelection = useSkillSelectionStore((state) => state.toggleSkillSelection)
   const toggleMultipleSkills = useSkillSelectionStore((state) => state.toggleMultipleSkills)
@@ -135,7 +152,7 @@ export function PromptManagerLayout() {
 
   // Editor state
   const {
-    currentPrompt,
+    currentSkill,
     formState,
     updateField,
     setModes,
@@ -144,28 +161,55 @@ export function PromptManagerLayout() {
     dirtyItemIds,
     dirtyCount,
     storeCurrentChanges,
-    saveCurrentPrompt,
+    saveCurrentSkill,
     saveAllChanges,
     discardCurrentChanges,
-    deleteCurrentPrompt,
+    deleteCurrentSkill,
     isSaving,
     isDeleting,
-  } = usePromptEditor({
-    prompts,
-    selectedItemId: selectedPromptId,
-    onSave: updatePrompts,
-    onDelete: deletePromptApi,
+  } = useSkillEditor({
+    skills,
+    selectedItemId: selectedSkillId,
+    onSave: updateSkills,
+    onDelete: deleteSkillApi,
   })
+
+  // URL state synchronization
+  const { updateUrl } = useUrlState({
+    onSkillIdChange: useCallback((id: string | null) => {
+      // If navigating via browser back/forward with dirty state,
+      // the discard dialog is not shown - changes are stored instead
+      if (isDirty && id !== selectedSkillId) {
+        storeCurrentChanges()
+      }
+      setSelectedSkillId(id)
+    }, [isDirty, selectedSkillId, storeCurrentChanges, setSelectedSkillId]),
+    onSettingsOpenChange: useCallback((open: boolean) => {
+      setShowSettingsDialog(open)
+    }, []),
+    isDirty,
+    storeCurrentChanges,
+  })
+
+  // Sync URL when selected skill changes
+  useEffect(() => {
+    updateUrl({ skillId: selectedSkillId })
+  }, [selectedSkillId, updateUrl])
+
+  // Sync URL when settings dialog state changes
+  useEffect(() => {
+    updateUrl({ settingsOpen: showSettingsDialog })
+  }, [showSettingsDialog, updateUrl])
 
   // Auto-expand tree to show selected item
   useEffect(() => {
-    if (selectedPromptId) {
-      expandToItem(selectedPromptId)
+    if (selectedSkillId) {
+      expandToItem(selectedSkillId)
     }
-  }, [selectedPromptId, expandToItem])
+  }, [selectedSkillId, expandToItem])
 
   // Mode suggestions
-  const { getSuggestionsAtLevel } = useModeSuggestions({ prompts })
+  const { getSuggestionsAtLevel } = useModeSuggestions({ skills })
 
   // Resizable sidebar
   const {
@@ -203,7 +247,7 @@ export function PromptManagerLayout() {
   const handleSelectItem = useCallback(
     (id: string) => {
       // If there are unsaved changes, ask for confirmation
-      if (isDirty && id !== selectedPromptId) {
+      if (isDirty && id !== selectedSkillId) {
         setPendingSelection(id)
         setShowDiscardDialog(true)
         return
@@ -211,21 +255,21 @@ export function PromptManagerLayout() {
 
       // Store any changes before switching
       storeCurrentChanges()
-      setSelectedPromptId(id)
+      setSelectedSkillId(id)
 
       // Close mobile sidebar after selection
       if (isMobile) {
         setIsMobileSidebarOpen(false)
       }
     },
-    [isDirty, selectedPromptId, storeCurrentChanges, setSelectedPromptId, isMobile]
+    [isDirty, selectedSkillId, storeCurrentChanges, setSelectedSkillId, isMobile]
   )
 
   // Handle discard confirmation
   const handleConfirmDiscard = useCallback(() => {
     discardCurrentChanges()
     if (pendingSelection) {
-      setSelectedPromptId(pendingSelection)
+      setSelectedSkillId(pendingSelection)
       setPendingSelection(null)
     }
     setShowDiscardDialog(false)
@@ -233,21 +277,21 @@ export function PromptManagerLayout() {
     if (isMobile) {
       setIsMobileSidebarOpen(false)
     }
-  }, [discardCurrentChanges, pendingSelection, setSelectedPromptId, isMobile])
+  }, [discardCurrentChanges, pendingSelection, setSelectedSkillId, isMobile])
 
   // Handle delete confirmation
   const handleConfirmDelete = useCallback(async () => {
-    await deleteCurrentPrompt()
+    await deleteCurrentSkill()
     setShowDeleteDialog(false)
-    setSelectedPromptId(null)
-  }, [deleteCurrentPrompt, setSelectedPromptId])
+    setSelectedSkillId(null)
+  }, [deleteCurrentSkill, setSelectedSkillId])
 
-  // Handle new prompt creation
+  // Handle new skill creation
   const handleCreateNew = useCallback(async (modes: string[] = []) => {
-    const newPrompt: CreatePromptRequest = {
-      name: 'New Prompt',
+    const newSkill: CreateSkillRequest = {
+      name: 'New Skill',
       description: '',
-      content: '# New Prompt\n\nEnter your prompt content here...',
+      content: '# New Skill\n\nEnter your skill content here...',
       modes,
       tags: [],
       folder: 'local',
@@ -255,20 +299,20 @@ export function PromptManagerLayout() {
     }
 
     try {
-      const created = await createPrompt(newPrompt)
-      setSelectedPromptId(created.id)
+      const created = await createSkill(newSkill)
+      setSelectedSkillId(created.id)
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
       }
     } catch (error) {
-      console.error('Failed to create prompt:', error)
+      console.error('Failed to create skill:', error)
     }
-  }, [createPrompt, setSelectedPromptId, isMobile])
+  }, [createSkill, setSelectedSkillId, isMobile])
 
   // Handle delete folder request (shows confirmation dialog)
-  const handleDeleteFolderRequest = useCallback((promptIds: string[], folderLabel: string) => {
-    setDeleteFolderDialog({ promptIds, folderLabel })
+  const handleDeleteFolderRequest = useCallback((skillIds: string[], folderLabel: string) => {
+    setDeleteFolderDialog({ skillIds, folderLabel })
   }, [])
 
   // Handle delete folder confirmation
@@ -276,56 +320,56 @@ export function PromptManagerLayout() {
     if (!deleteFolderDialog) return
 
     try {
-      // Delete all prompts in the folder
-      for (const promptId of deleteFolderDialog.promptIds) {
-        await deletePromptApi(promptId)
+      // Delete all skills in the folder
+      for (const skillId of deleteFolderDialog.skillIds) {
+        await deleteSkillApi(skillId)
       }
-      // Clear selection if the selected prompt was in the deleted folder
-      if (selectedPromptId && deleteFolderDialog.promptIds.includes(selectedPromptId)) {
-        setSelectedPromptId(null)
+      // Clear selection if the selected skill was in the deleted folder
+      if (selectedSkillId && deleteFolderDialog.skillIds.includes(selectedSkillId)) {
+        setSelectedSkillId(null)
       }
     } catch (error) {
       console.error('Failed to delete folder:', error)
     } finally {
       setDeleteFolderDialog(null)
     }
-  }, [deleteFolderDialog, deletePromptApi, selectedPromptId, setSelectedPromptId])
+  }, [deleteFolderDialog, deleteSkillApi, selectedSkillId, setSelectedSkillId])
 
-  // Handle copy prompt
-  const handleCopyPrompt = useCallback(async (promptId: string) => {
+  // Handle copy skill
+  const handleCopySkill = useCallback(async (skillId: string) => {
     try {
-      // Fetch full prompt data including content (list doesn't include content)
-      const prompt = await getPrompt(promptId)
-      if (!prompt) {
-        console.error('Failed to copy prompt: prompt not found')
+      // Fetch full skill data including content (list doesn't include content)
+      const skill = await getSkill(skillId)
+      if (!skill) {
+        console.error('Failed to copy skill: skill not found')
         return
       }
 
-      const newPrompt: CreatePromptRequest = {
-        name: `${prompt.name} (Copy)`,
-        description: prompt.description,
-        content: prompt.content,
-        modes: [...prompt.modes],
-        tags: [...prompt.tags],
-        icon: prompt.icon,
-        folder: prompt.folder,
+      const newSkill: CreateSkillRequest = {
+        name: `${skill.name} (Copy)`,
+        description: skill.description,
+        content: skill.content,
+        modes: [...skill.modes],
+        tags: [...skill.tags],
+        icon: skill.icon,
+        folder: skill.folder,
         draft: true,
       }
 
-      const created = await createPrompt(newPrompt)
-      setSelectedPromptId(created.id)
+      const created = await createSkill(newSkill)
+      setSelectedSkillId(created.id)
 
       if (isMobile) {
         setIsMobileSidebarOpen(false)
       }
     } catch (error) {
-      console.error('Failed to copy prompt:', error)
+      console.error('Failed to copy skill:', error)
     }
-  }, [createPrompt, setSelectedPromptId, isMobile])
+  }, [createSkill, setSelectedSkillId, isMobile])
 
   // Render item icon in tree
-  const renderItemIcon = useCallback((prompt: Prompt) => {
-    const Icon = getIcon(prompt.icon || '')
+  const renderItemIcon = useCallback((skill: Skill) => {
+    const Icon = getIcon(skill.icon || '')
     return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
   }, [])
 
@@ -333,7 +377,7 @@ export function PromptManagerLayout() {
   useKeyboardShortcuts({
     onSave: () => {
       if (isDirty && validation.valid) {
-        void saveCurrentPrompt()
+        void saveCurrentSkill()
       }
     },
     onSaveAll: () => {
@@ -369,9 +413,9 @@ export function PromptManagerLayout() {
         setIsMobileSidebarOpen(false)
         return
       }
-      // If editing a prompt and not dirty, close the editor and return to skill tree
-      if (selectedPromptId && !isDirty) {
-        setSelectedPromptId(null)
+      // If editing a skill and not dirty, close the editor and return to skill tree
+      if (selectedSkillId && !isDirty) {
+        setSelectedSkillId(null)
         return
       }
     },
@@ -382,11 +426,11 @@ export function PromptManagerLayout() {
 
   // Sidebar component (reused for desktop and mobile)
   const sidebar = (
-    <PanelErrorBoundary panelName="Prompt Tree" className="h-full">
-      <PromptTreeSidebar
+    <PanelErrorBoundary panelName="Skill Tree" className="h-full">
+      <SkillTreeSidebar
         treeNodes={filteredTreeNodes}
-        prompts={prompts}
-        selectedItemId={selectedPromptId}
+        skills={skills}
+        selectedItemId={selectedSkillId}
         onSelectItem={handleSelectItem}
         dirtyItemIds={dirtyItemIds}
         expandedNodes={expandedNodes}
@@ -406,13 +450,13 @@ export function PromptManagerLayout() {
         availableTags={availableTags}
         skillSelectionMode={skillSelectionMode}
         skillSelectedIds={skillSelectedIds}
-        currentAvatar={currentAvatar}
+        currentMember={currentMember}
         onSkillSelectionSave={() => void saveAndExitSkillSelection()}
         onSkillSelectionCancel={exitSkillSelectionMode}
         getSkillSelectionState={getSkillSelectionState}
         onSkillCheckboxChange={handleSkillCheckboxChange}
         onDeleteFolder={handleDeleteFolderRequest}
-        onCopyPrompt={(promptId) => void handleCopyPrompt(promptId)}
+        onCopySkill={(skillId) => void handleCopySkill(skillId)}
       />
     </PanelErrorBoundary>
   )
@@ -471,7 +515,7 @@ export function PromptManagerLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <h1 className="flex-1 text-lg font-semibold text-foreground">Prompt Manager</h1>
+            <h1 className="flex-1 text-lg font-semibold text-foreground">Skill Manager</h1>
             {dirtyCount > 0 && (
               <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400 rounded-full">
                 {dirtyCount} unsaved
@@ -491,21 +535,21 @@ export function PromptManagerLayout() {
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
-            <PromptEditorPanel
-              currentPrompt={currentPrompt}
+            <SkillEditorPanel
+              currentSkill={currentSkill}
               formState={formState}
               validation={validation}
-              allPrompts={prompts}
+              allSkills={skills}
               isDirty={isDirty}
               dirtyCount={dirtyCount}
               onFieldChange={updateField}
               onModesChange={setModes}
               getSuggestionsAtLevel={getSuggestionsAtLevel}
-              onSave={() => void saveCurrentPrompt()}
+              onSave={() => void saveCurrentSkill()}
               onSaveAll={() => void saveAllChanges()}
               onDiscard={discardCurrentChanges}
               onDelete={() => setShowDeleteDialog(true)}
-              onSelectPrompt={handleSelectItem}
+              onSelectSkill={handleSelectItem}
               isSaving={isSaving}
               isDeleting={isDeleting}
               className="h-full"
@@ -526,7 +570,7 @@ export function PromptManagerLayout() {
           {/* Sidebar drawer */}
           <div className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-card shadow-2xl animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold text-foreground">Prompts</h2>
+              <h2 className="text-sm font-semibold text-foreground">Skills</h2>
               <button
                 type="button"
                 onClick={() => setIsMobileSidebarOpen(false)}
@@ -537,10 +581,10 @@ export function PromptManagerLayout() {
               </button>
             </div>
             <div className="h-[calc(100%-53px)]">
-              <PromptTreeSidebar
+              <SkillTreeSidebar
                 treeNodes={filteredTreeNodes}
-                prompts={prompts}
-                selectedItemId={selectedPromptId}
+                skills={skills}
+                selectedItemId={selectedSkillId}
                 onSelectItem={handleSelectItem}
                 dirtyItemIds={dirtyItemIds}
                 expandedNodes={expandedNodes}
@@ -558,13 +602,13 @@ export function PromptManagerLayout() {
                 availableTags={availableTags}
                 skillSelectionMode={skillSelectionMode}
                 skillSelectedIds={skillSelectedIds}
-                currentAvatar={currentAvatar}
+                currentMember={currentMember}
                 onSkillSelectionSave={() => void saveAndExitSkillSelection()}
                 onSkillSelectionCancel={exitSkillSelectionMode}
                 getSkillSelectionState={getSkillSelectionState}
                 onSkillCheckboxChange={handleSkillCheckboxChange}
                 onDeleteFolder={handleDeleteFolderRequest}
-                onCopyPrompt={(promptId) => void handleCopyPrompt(promptId)}
+                onCopySkill={(skillId) => void handleCopySkill(skillId)}
                 className="border-r-0"
               />
             </div>
@@ -577,8 +621,8 @@ export function PromptManagerLayout() {
         isOpen={showDeleteDialog}
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={() => void handleConfirmDelete()}
-        title="Delete Prompt"
-        message={`Are you sure you want to delete "${currentPrompt?.name}"? This action cannot be undone.`}
+        title="Delete Skill"
+        message={`Are you sure you want to delete "${currentSkill?.name}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
         isLoading={isDeleting}
@@ -593,7 +637,7 @@ export function PromptManagerLayout() {
         }}
         onConfirm={handleConfirmDiscard}
         title="Discard Changes?"
-        message="You have unsaved changes. Do you want to discard them and switch to a different prompt?"
+        message="You have unsaved changes. Do you want to discard them and switch to a different skill?"
         confirmLabel="Discard"
         cancelLabel="Keep Editing"
         variant="warning"
@@ -606,7 +650,7 @@ export function PromptManagerLayout() {
         onConfirm={() => void handleConfirmDeleteFolder()}
         title="Delete Folder?"
         message={deleteFolderDialog
-          ? `Are you sure you want to delete the folder "${deleteFolderDialog.folderLabel}" and all ${deleteFolderDialog.promptIds.length} prompt${deleteFolderDialog.promptIds.length !== 1 ? 's' : ''} inside it? This action cannot be undone.`
+          ? `Are you sure you want to delete the folder "${deleteFolderDialog.folderLabel}" and all ${deleteFolderDialog.skillIds.length} skill${deleteFolderDialog.skillIds.length !== 1 ? 's' : ''} inside it? This action cannot be undone.`
           : ''
         }
         confirmLabel="Delete All"
@@ -619,7 +663,7 @@ export function PromptManagerLayout() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
           <div className="text-center">
             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">Loading prompts...</p>
+            <p className="text-sm text-muted-foreground">Loading skills...</p>
           </div>
         </div>
       )}

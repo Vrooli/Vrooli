@@ -1,28 +1,28 @@
 /**
- * Tests for promptCombineService.ts
+ * Tests for skillCombineService.ts
  *
  * Tests cover:
- * - Combining prompts to XML format
- * - Combining prompts to Markdown format
- * - Combining prompts to JSON format
+ * - Combining skills to XML format
+ * - Combining skills to Markdown format
+ * - Combining skills to JSON format
  * - Preview generation
  * - Validation
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  combinePrompts,
+  combineSkills,
   generatePreview,
   validateForCombine,
   copyToClipboard,
-} from './promptCombineService'
-import type { Prompt } from '@/types'
+} from './skillCombineService'
+import type { Skill } from '@/types'
 
-// Helper to create a minimal prompt for testing
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create a minimal skill for testing
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: [],
@@ -36,39 +36,39 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
   }
 }
 
-describe('combinePrompts', () => {
+describe('combineSkills', () => {
   it('should return empty result for empty array', () => {
-    const result = combinePrompts([], 'xml')
+    const result = combineSkills([], 'xml')
 
     expect(result.combined).toBe('')
-    expect(result.promptCount).toBe(0)
+    expect(result.skillCount).toBe(0)
     expect(result.totalTokens).toBe(0)
   })
 
   describe('XML format', () => {
     it('should generate valid XML structure', () => {
-      const prompts = [createTestPrompt({ id: '1', name: 'Test', content: 'Hello' })]
+      const skills = [createTestSkill({ id: '1', name: 'Test', content: 'Hello' })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('<?xml version="1.0"')
-      expect(result.combined).toContain('<combined-prompts')
-      expect(result.combined).toContain('</combined-prompts>')
+      expect(result.combined).toContain('<combined-skills')
+      expect(result.combined).toContain('</combined-skills>')
     })
 
-    it('should include prompt ID and name as attributes', () => {
-      const prompts = [createTestPrompt({ id: 'my-prompt', name: 'My Prompt' })]
+    it('should include skill ID and name as attributes', () => {
+      const skills = [createTestSkill({ id: 'my-skill', name: 'My Skill' })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
-      expect(result.combined).toContain('id="my-prompt"')
-      expect(result.combined).toContain('name="My Prompt"')
+      expect(result.combined).toContain('id="my-skill"')
+      expect(result.combined).toContain('name="My Skill"')
     })
 
     it('should include content in CDATA section', () => {
-      const prompts = [createTestPrompt({ content: 'Some <special> content' })]
+      const skills = [createTestSkill({ content: 'Some <special> content' })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('<![CDATA[')
       expect(result.combined).toContain('Some <special> content')
@@ -76,34 +76,34 @@ describe('combinePrompts', () => {
     })
 
     it('should escape XML special characters in attributes', () => {
-      const prompts = [createTestPrompt({ name: 'Test "Prompt" & More' })]
+      const skills = [createTestSkill({ name: 'Test "Skill" & More' })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('&quot;')
       expect(result.combined).toContain('&amp;')
     })
 
     it('should include modes when present', () => {
-      const prompts = [createTestPrompt({ modes: ['coding', 'review'] })]
+      const skills = [createTestSkill({ modes: ['coding', 'review'] })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('modes="coding/review"')
     })
 
     it('should include description when present', () => {
-      const prompts = [createTestPrompt({ description: 'My description' })]
+      const skills = [createTestSkill({ description: 'My description' })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('<description>My description</description>')
     })
 
     it('should include tags when present', () => {
-      const prompts = [createTestPrompt({ tags: ['tag1', 'tag2'] })]
+      const skills = [createTestSkill({ tags: ['tag1', 'tag2'] })]
 
-      const result = combinePrompts(prompts, 'xml')
+      const result = combineSkills(skills, 'xml')
 
       expect(result.combined).toContain('<tags>tag1, tag2</tags>')
     })
@@ -111,35 +111,35 @@ describe('combinePrompts', () => {
 
   describe('Markdown format', () => {
     it('should generate valid Markdown structure', () => {
-      const prompts = [createTestPrompt({ name: 'Test Prompt' })]
+      const skills = [createTestSkill({ name: 'Test Skill' })]
 
-      const result = combinePrompts(prompts, 'markdown')
+      const result = combineSkills(skills, 'markdown')
 
-      expect(result.combined).toContain('# Combined Prompts')
-      expect(result.combined).toContain('## 1. Test Prompt')
+      expect(result.combined).toContain('# Combined Skills')
+      expect(result.combined).toContain('## 1. Test Skill')
     })
 
     it('should include description as blockquote', () => {
-      const prompts = [createTestPrompt({ description: 'My description' })]
+      const skills = [createTestSkill({ description: 'My description' })]
 
-      const result = combinePrompts(prompts, 'markdown')
+      const result = combineSkills(skills, 'markdown')
 
       expect(result.combined).toContain('> My description')
     })
 
     it('should format modes with bold label', () => {
-      const prompts = [createTestPrompt({ modes: ['coding', 'review'] })]
+      const skills = [createTestSkill({ modes: ['coding', 'review'] })]
 
-      const result = combinePrompts(prompts, 'markdown')
+      const result = combineSkills(skills, 'markdown')
 
       expect(result.combined).toContain('**Modes:**')
       expect(result.combined).toContain('coding / review')
     })
 
     it('should format tags with code backticks', () => {
-      const prompts = [createTestPrompt({ tags: ['tag1', 'tag2'] })]
+      const skills = [createTestSkill({ tags: ['tag1', 'tag2'] })]
 
-      const result = combinePrompts(prompts, 'markdown')
+      const result = combineSkills(skills, 'markdown')
 
       expect(result.combined).toContain('**Tags:**')
       expect(result.combined).toContain('`tag1`')
@@ -147,9 +147,9 @@ describe('combinePrompts', () => {
     })
 
     it('should wrap content in code block', () => {
-      const prompts = [createTestPrompt({ content: 'function test() {}' })]
+      const skills = [createTestSkill({ content: 'function test() {}' })]
 
-      const result = combinePrompts(prompts, 'markdown')
+      const result = combineSkills(skills, 'markdown')
 
       expect(result.combined).toContain('```')
       expect(result.combined).toContain('function test() {}')
@@ -162,7 +162,7 @@ describe('combinePrompts', () => {
       combined: boolean
       count: number
       generated: string
-      prompts: Array<{
+      skills: Array<{
         id: string
         name: string
         description: string
@@ -173,26 +173,26 @@ describe('combinePrompts', () => {
     }
 
     it('should generate valid JSON', () => {
-      const prompts = [createTestPrompt({ id: '1', name: 'Test' })]
+      const skills = [createTestSkill({ id: '1', name: 'Test' })]
 
-      const result = combinePrompts(prompts, 'json')
+      const result = combineSkills(skills, 'json')
 
       expect(() => JSON.parse(result.combined) as unknown).not.toThrow()
     })
 
     it('should include combined flag and count', () => {
-      const prompts = [createTestPrompt(), createTestPrompt({ id: '2' })]
+      const skills = [createTestSkill(), createTestSkill({ id: '2' })]
 
-      const result = combinePrompts(prompts, 'json')
+      const result = combineSkills(skills, 'json')
       const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
 
       expect(parsed.combined).toBe(true)
       expect(parsed.count).toBe(2)
     })
 
-    it('should include all prompt fields', () => {
-      const prompts = [
-        createTestPrompt({
+    it('should include all skill fields', () => {
+      const skills = [
+        createTestSkill({
           id: 'test-id',
           name: 'Test Name',
           description: 'Test Desc',
@@ -202,73 +202,73 @@ describe('combinePrompts', () => {
         }),
       ]
 
-      const result = combinePrompts(prompts, 'json')
+      const result = combineSkills(skills, 'json')
       const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
-      const firstPrompt = parsed.prompts[0]
+      const firstSkill = parsed.skills[0]
 
-      expect(firstPrompt).toBeDefined()
-      expect(firstPrompt?.id).toBe('test-id')
-      expect(firstPrompt?.name).toBe('Test Name')
-      expect(firstPrompt?.description).toBe('Test Desc')
-      expect(firstPrompt?.modes).toEqual(['m1'])
-      expect(firstPrompt?.tags).toEqual(['t1'])
-      expect(firstPrompt?.content).toBe('Test Content')
+      expect(firstSkill).toBeDefined()
+      expect(firstSkill?.id).toBe('test-id')
+      expect(firstSkill?.name).toBe('Test Name')
+      expect(firstSkill?.description).toBe('Test Desc')
+      expect(firstSkill?.modes).toEqual(['m1'])
+      expect(firstSkill?.tags).toEqual(['t1'])
+      expect(firstSkill?.content).toBe('Test Content')
     })
   })
 
   it('should default to XML format', () => {
-    const prompts = [createTestPrompt()]
+    const skills = [createTestSkill()]
 
-    const result = combinePrompts(prompts)
+    const result = combineSkills(skills)
 
     expect(result.format).toBe('xml')
     expect(result.combined).toContain('<?xml')
   })
 
   it('should calculate token estimate', () => {
-    const prompts = [createTestPrompt({ content: 'A'.repeat(400) })]
+    const skills = [createTestSkill({ content: 'A'.repeat(400) })]
 
-    const result = combinePrompts(prompts, 'xml')
+    const result = combineSkills(skills, 'xml')
 
     // Roughly 4 chars per token
     expect(result.totalTokens).toBeGreaterThan(100)
   })
 
-  it('should report correct prompt count', () => {
-    const prompts = [
-      createTestPrompt({ id: '1' }),
-      createTestPrompt({ id: '2' }),
-      createTestPrompt({ id: '3' }),
+  it('should report correct skill count', () => {
+    const skills = [
+      createTestSkill({ id: '1' }),
+      createTestSkill({ id: '2' }),
+      createTestSkill({ id: '3' }),
     ]
 
-    const result = combinePrompts(prompts, 'xml')
+    const result = combineSkills(skills, 'xml')
 
-    expect(result.promptCount).toBe(3)
+    expect(result.skillCount).toBe(3)
   })
 })
 
 describe('generatePreview', () => {
   it('should return full content if under max length', () => {
-    const prompts = [createTestPrompt({ content: 'Short' })]
+    const skills = [createTestSkill({ content: 'Short' })]
 
-    const preview = generatePreview(prompts, 'xml', 10000)
+    const preview = generatePreview(skills, 'xml', 10000)
 
     expect(preview).not.toContain('truncated')
   })
 
   it('should truncate long content', () => {
-    const prompts = [createTestPrompt({ content: 'A'.repeat(1000) })]
+    const skills = [createTestSkill({ content: 'A'.repeat(1000) })]
 
-    const preview = generatePreview(prompts, 'xml', 100)
+    const preview = generatePreview(skills, 'xml', 100)
 
     expect(preview.length).toBeLessThan(200) // Truncated + indicator
     expect(preview).toContain('truncated')
   })
 
   it('should use default max length', () => {
-    const prompts = [createTestPrompt()]
+    const skills = [createTestSkill()]
 
-    const preview = generatePreview(prompts, 'xml')
+    const preview = generatePreview(skills, 'xml')
 
     expect(typeof preview).toBe('string')
   })
@@ -279,21 +279,21 @@ describe('validateForCombine', () => {
     const result = validateForCombine([])
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain('No prompts selected')
+    expect(result.errors).toContain('No skills selected')
   })
 
-  it('should warn on single prompt', () => {
-    const result = validateForCombine([createTestPrompt()])
+  it('should warn on single skill', () => {
+    const result = validateForCombine([createTestSkill()])
 
     expect(result.valid).toBe(true)
     expect(result.warnings.length).toBeGreaterThan(0)
-    expect(result.warnings.some((w) => w.includes('one prompt'))).toBe(true)
+    expect(result.warnings.some((w) => w.includes('one skill'))).toBe(true)
   })
 
-  it('should be valid for multiple prompts', () => {
+  it('should be valid for multiple skills', () => {
     const result = validateForCombine([
-      createTestPrompt({ id: '1' }),
-      createTestPrompt({ id: '2' }),
+      createTestSkill({ id: '1' }),
+      createTestSkill({ id: '2' }),
     ])
 
     expect(result.valid).toBe(true)
@@ -302,29 +302,29 @@ describe('validateForCombine', () => {
 
   it('should warn on empty content', () => {
     const result = validateForCombine([
-      createTestPrompt({ id: '1', content: '' }),
-      createTestPrompt({ id: '2', content: 'Has content' }),
+      createTestSkill({ id: '1', content: '' }),
+      createTestSkill({ id: '2', content: 'Has content' }),
     ])
 
     expect(result.warnings.some((w) => w.includes('no content'))).toBe(true)
   })
 
-  it('should warn on draft prompts', () => {
+  it('should warn on draft skills', () => {
     const result = validateForCombine([
-      createTestPrompt({ id: '1', draft: true, name: 'Draft Prompt' }),
-      createTestPrompt({ id: '2', draft: false }),
+      createTestSkill({ id: '1', draft: true, name: 'Draft Skill' }),
+      createTestSkill({ id: '2', draft: false }),
     ])
 
     expect(result.warnings.some((w) => w.includes('drafts'))).toBe(true)
-    expect(result.warnings.some((w) => w.includes('Draft Prompt'))).toBe(true)
+    expect(result.warnings.some((w) => w.includes('Draft Skill'))).toBe(true)
   })
 
   it('should warn on large combined size', () => {
-    const largePrompts = Array.from({ length: 10 }, (_, i) =>
-      createTestPrompt({ id: `${i}`, content: 'A'.repeat(10000) })
+    const largeSkills = Array.from({ length: 10 }, (_, i) =>
+      createTestSkill({ id: `${i}`, content: 'A'.repeat(10000) })
     )
 
-    const result = validateForCombine(largePrompts)
+    const result = validateForCombine(largeSkills)
 
     expect(result.warnings.some((w) => w.includes('large'))).toBe(true)
   })
@@ -342,9 +342,9 @@ describe('copyToClipboard', () => {
 
   it('should copy combined content to clipboard', async () => {
     mockClipboard.writeText.mockResolvedValue(undefined)
-    const prompts = [createTestPrompt()]
+    const skills = [createTestSkill()]
 
-    const result = await copyToClipboard(prompts, 'xml')
+    const result = await copyToClipboard(skills, 'xml')
 
     expect(result.success).toBe(true)
     expect(mockClipboard.writeText).toHaveBeenCalled()
@@ -352,9 +352,9 @@ describe('copyToClipboard', () => {
 
   it('should return error on clipboard failure', async () => {
     mockClipboard.writeText.mockRejectedValue(new Error('Permission denied'))
-    const prompts = [createTestPrompt()]
+    const skills = [createTestSkill()]
 
-    const result = await copyToClipboard(prompts, 'xml')
+    const result = await copyToClipboard(skills, 'xml')
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('Permission denied')

@@ -1,22 +1,22 @@
-// Package prompts provides the core domain types and operations for prompt management.
-package prompts
+// Package skills provides the core domain types and operations for skill management.
+package skills
 
 import (
 	"fmt"
 	"strings"
 )
 
-// FilterOptions defines criteria for filtering prompts.
+// FilterOptions defines criteria for filtering skills.
 type FilterOptions struct {
 	Tag    string   // Filter by tag (empty = no filter)
 	Folder string   // Filter by folder (empty = no filter)
 	Modes  []string // Filter by modes (empty = no filter)
 }
 
-// Filter applies all filter criteria to a list of prompts.
-// Domain logic: how prompts are filtered based on various criteria.
-func Filter(prompts []Metadata, opts FilterOptions) []Metadata {
-	result := prompts
+// Filter applies all filter criteria to a list of skills.
+// Domain logic: how skills are filtered based on various criteria.
+func Filter(skills []Metadata, opts FilterOptions) []Metadata {
+	result := skills
 
 	if opts.Tag != "" {
 		result = filterByTag(result, opts.Tag)
@@ -33,10 +33,10 @@ func Filter(prompts []Metadata, opts FilterOptions) []Metadata {
 	return result
 }
 
-// filterByTag filters prompts to only those containing the specified tag.
-func filterByTag(prompts []Metadata, tag string) []Metadata {
+// filterByTag filters skills to only those containing the specified tag.
+func filterByTag(skills []Metadata, tag string) []Metadata {
 	var filtered []Metadata
-	for _, p := range prompts {
+	for _, p := range skills {
 		for _, t := range p.Tags {
 			if t == tag {
 				filtered = append(filtered, p)
@@ -47,10 +47,10 @@ func filterByTag(prompts []Metadata, tag string) []Metadata {
 	return filtered
 }
 
-// filterByFolder filters prompts to only those in the specified folder.
-func filterByFolder(prompts []Metadata, folder string) []Metadata {
+// filterByFolder filters skills to only those in the specified folder.
+func filterByFolder(skills []Metadata, folder string) []Metadata {
 	var filtered []Metadata
-	for _, p := range prompts {
+	for _, p := range skills {
 		if strings.HasPrefix(p.File, folder+"/") {
 			filtered = append(filtered, p)
 		}
@@ -58,25 +58,25 @@ func filterByFolder(prompts []Metadata, folder string) []Metadata {
 	return filtered
 }
 
-// filterByModes filters prompts to only those matching any of the specified modes.
-func filterByModes(prompts []Metadata, modes []string) []Metadata {
+// filterByModes filters skills to only those matching any of the specified modes.
+func filterByModes(skills []Metadata, modes []string) []Metadata {
 	var filtered []Metadata
-	for _, p := range prompts {
+	for _, p := range skills {
 		for _, mode := range modes {
 			for _, pm := range p.Modes {
 				if pm == mode {
 					filtered = append(filtered, p)
-					goto nextPrompt
+					goto nextSkill
 				}
 			}
 		}
-	nextPrompt:
+	nextSkill:
 	}
 	return filtered
 }
 
 // Slugify converts a string to a URL-safe slug.
-// Used for generating prompt IDs from names.
+// Used for generating skill IDs from names.
 func Slugify(s string) string {
 	s = strings.ToLower(s)
 	s = strings.ReplaceAll(s, " ", "-")
@@ -104,7 +104,7 @@ func Slugify(s string) string {
 
 const (
 	MaxIDSuffixAttempts   = 100
-	DefaultFallbackPrefix = "prompt"
+	DefaultFallbackPrefix = "skill"
 )
 
 // GenerateUniqueID creates a unique ID by appending numeric suffixes if needed.

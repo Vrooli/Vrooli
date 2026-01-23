@@ -1,11 +1,11 @@
 /**
- * PromptEditorPanel - Container component for the editor sections.
+ * SkillEditorPanel - Container component for the editor sections.
  *
  * Brings together:
  * - EditorToolbar
- * - PromptMetadataForm
- * - PromptContentEditor
- * - WorldCanvas (when no prompt selected)
+ * - SkillMetadataForm
+ * - SkillContentEditor
+ * - WorldCanvas (when no skill selected)
  *
  * Also handles:
  * - Empty state with 3D world visualization
@@ -14,29 +14,29 @@
 import { X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
-import type { PromptFormState, ValidationResult } from '@/types/editor'
-import type { Prompt } from '@/types'
+import type { SkillFormState, ValidationResult } from '@/types/editor'
+import type { Skill } from '@/types'
 import type { CombineFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
-import { PromptMetadataForm } from './PromptMetadataForm'
-import { PromptContentEditor } from './PromptContentEditor'
+import { SkillMetadataForm } from './SkillMetadataForm'
+import { SkillContentEditor } from './SkillContentEditor'
 import { WorldCanvas } from '@/components/world'
 
-interface PromptEditorPanelProps {
+interface SkillEditorPanelProps {
   // Current state
-  currentPrompt: Prompt | null
-  formState: PromptFormState
+  currentSkill: Skill | null
+  formState: SkillFormState
   validation: ValidationResult
 
-  // All prompts for skill tree
-  allPrompts?: Prompt[]
+  // All skills for skill tree
+  allSkills?: Skill[]
 
   // Dirty tracking
   isDirty: boolean
   dirtyCount: number
 
   // Form operations
-  onFieldChange: <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => void
+  onFieldChange: <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => void
   onModesChange: (modes: string[]) => void
   getSuggestionsAtLevel: (level: number, parentPath: string[]) => string[]
 
@@ -45,8 +45,8 @@ interface PromptEditorPanelProps {
   onSaveAll: () => void
   onDiscard: () => void
   onDelete: () => void
-  onSelectPrompt?: (promptId: string) => void
-  onCombinePrompts?: (combined: string, format: CombineFormat) => void
+  onSelectSkill?: (skillId: string) => void
+  onCombineSkills?: (combined: string, format: CombineFormat) => void
 
   // Loading states
   isSaving: boolean
@@ -58,11 +58,11 @@ interface PromptEditorPanelProps {
 /**
  * Main editor panel component.
  */
-export function PromptEditorPanel({
-  currentPrompt,
+export function SkillEditorPanel({
+  currentSkill,
   formState,
   validation,
-  allPrompts = [],
+  allSkills = [],
   isDirty,
   dirtyCount,
   onFieldChange,
@@ -72,28 +72,28 @@ export function PromptEditorPanel({
   onSaveAll,
   onDiscard,
   onDelete,
-  onSelectPrompt,
-  onCombinePrompts,
+  onSelectSkill,
+  onCombineSkills,
   isSaving,
   isDeleting,
   className,
-}: PromptEditorPanelProps) {
+}: SkillEditorPanelProps) {
   // Access the selection store for closing the editor
-  const setSelectedPromptId = useSelectionStore((state) => state.setSelectedPromptId)
+  const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
 
   // Handle close - return to skill tree view
   const handleClose = () => {
-    setSelectedPromptId(null)
+    setSelectedSkillId(null)
   }
 
-  // Show 3D world when no prompt selected
-  if (!currentPrompt) {
+  // Show 3D world when no skill selected
+  if (!currentSkill) {
     return (
       <div className={cn('h-full', className)}>
         <WorldCanvas
-          prompts={allPrompts}
-          onSelectPrompt={onSelectPrompt}
-          onCombinePrompts={onCombinePrompts}
+          skills={allSkills}
+          onSelectSkill={onSelectSkill}
+          onCombineSkills={onCombineSkills}
         />
       </div>
     )
@@ -104,9 +104,9 @@ export function PromptEditorPanel({
       <div
         className="flex flex-col h-full bg-card/50"
       >
-      {/* Header with prompt name and navigation */}
+      {/* Header with skill name and navigation */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-border">
-        {/* Top row: Close button, prompt name, and status */}
+        {/* Top row: Close button, skill name, and status */}
         <div className="flex items-center gap-3 mb-3">
           {/* Close button */}
           <button
@@ -119,11 +119,11 @@ export function PromptEditorPanel({
             <X className="h-5 w-5" />
           </button>
 
-          {/* Prompt icon and name */}
+          {/* Skill icon and name */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <FileText className="h-5 w-5 text-primary flex-shrink-0" />
             <h2 className="text-lg font-semibold text-foreground truncate">
-              {formState.name || 'Untitled Prompt'}
+              {formState.name || 'Untitled Skill'}
             </h2>
           </div>
 
@@ -156,7 +156,7 @@ export function PromptEditorPanel({
         <div className="h-full flex flex-col xl:flex-row xl:gap-4">
           {/* Metadata form - 1/3 width on large screens */}
           <div className="flex-shrink-0 xl:w-1/3 xl:max-w-md xl:overflow-y-auto">
-            <PromptMetadataForm
+            <SkillMetadataForm
               formState={formState}
               onFieldChange={onFieldChange}
               onModesChange={onModesChange}
@@ -167,7 +167,7 @@ export function PromptEditorPanel({
 
           {/* Content editor - 2/3 width on large screens, takes remaining height */}
           <div className="flex-1 mt-4 xl:mt-0 min-h-[300px] xl:min-h-0">
-            <PromptContentEditor
+            <SkillContentEditor
               value={formState.content}
               onChange={(v) => onFieldChange('content', v)}
               error={validation.errors.content}

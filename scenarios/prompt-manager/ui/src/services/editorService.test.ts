@@ -2,7 +2,7 @@
  * Tests for editorService.ts
  *
  * Tests cover:
- * - Converting between Prompt and PromptFormState
+ * - Converting between Skill and SkillFormState
  * - Tag parsing and formatting
  * - Form validation
  * - Dirty state detection
@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  promptToFormState,
+  skillToFormState,
   formStateToUpdateRequest,
   parseTags,
   formatTags,
@@ -19,14 +19,14 @@ import {
   createEmptyFormState,
   getChangeSummary,
 } from './editorService'
-import type { Prompt } from '@/types'
-import type { PromptFormState } from '@/types/editor'
+import type { Skill } from '@/types'
+import type { SkillFormState } from '@/types/editor'
 
-// Helper to create a minimal prompt for testing
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create a minimal skill for testing
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: ['development', 'testing'],
@@ -43,12 +43,12 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
   }
 }
 
-describe('promptToFormState', () => {
-  it('should convert a prompt to form state with all fields', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+describe('skillToFormState', () => {
+  it('should convert a skill to form state with all fields', () => {
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
 
-    expect(formState.name).toBe('Test Prompt')
+    expect(formState.name).toBe('Test Skill')
     expect(formState.description).toBe('A test description')
     expect(formState.content).toBe('# Test content')
     expect(formState.modes).toEqual(['development', 'testing'])
@@ -59,27 +59,27 @@ describe('promptToFormState', () => {
   })
 
   it('should handle undefined icon', () => {
-    const prompt = createTestPrompt({ icon: undefined })
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill({ icon: undefined })
+    const formState = skillToFormState(skill)
 
     expect(formState.icon).toBe('')
   })
 
   it('should create a copy of modes array', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
 
     // Modify the form state modes
     formState.modes.push('new-mode')
 
-    // Original prompt should not be affected
-    expect(prompt.modes).toEqual(['development', 'testing'])
+    // Original skill should not be affected
+    expect(skill.modes).toEqual(['development', 'testing'])
   })
 })
 
 describe('formStateToUpdateRequest', () => {
   it('should convert form state to update request', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Updated Name',
       description: 'Updated description',
       content: 'Updated content',
@@ -103,7 +103,7 @@ describe('formStateToUpdateRequest', () => {
   })
 
   it('should convert empty icon to undefined', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Test',
       description: '',
       content: 'Content',
@@ -162,7 +162,7 @@ describe('formatTags', () => {
 
 describe('validateFormState', () => {
   it('should pass validation for valid form state', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Valid Name',
       description: 'Valid description',
       content: 'Valid content',
@@ -180,7 +180,7 @@ describe('validateFormState', () => {
   })
 
   it('should require name', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: '',
       description: '',
       content: 'Content',
@@ -198,7 +198,7 @@ describe('validateFormState', () => {
   })
 
   it('should reject whitespace-only name', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: '   ',
       description: '',
       content: 'Content',
@@ -216,7 +216,7 @@ describe('validateFormState', () => {
   })
 
   it('should reject name longer than 100 characters', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'a'.repeat(101),
       description: '',
       content: 'Content',
@@ -234,7 +234,7 @@ describe('validateFormState', () => {
   })
 
   it('should accept name with exactly 100 characters', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'a'.repeat(100),
       description: '',
       content: 'Content',
@@ -251,7 +251,7 @@ describe('validateFormState', () => {
   })
 
   it('should reject description longer than 500 characters', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Valid',
       description: 'a'.repeat(501),
       content: 'Content',
@@ -269,7 +269,7 @@ describe('validateFormState', () => {
   })
 
   it('should require content', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Valid',
       description: '',
       content: '',
@@ -287,7 +287,7 @@ describe('validateFormState', () => {
   })
 
   it('should reject whitespace-only content', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: 'Valid',
       description: '',
       content: '   \n\t  ',
@@ -305,7 +305,7 @@ describe('validateFormState', () => {
   })
 
   it('should return multiple errors when multiple fields are invalid', () => {
-    const formState: PromptFormState = {
+    const formState: SkillFormState = {
       name: '',
       description: 'a'.repeat(501),
       content: '',
@@ -327,107 +327,107 @@ describe('validateFormState', () => {
 })
 
 describe('isDirty', () => {
-  it('should return false when form state matches prompt', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+  it('should return false when form state matches skill', () => {
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
 
-    expect(isDirty(prompt, formState)).toBe(false)
+    expect(isDirty(skill, formState)).toBe(false)
   })
 
   it('should detect name change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.name = 'Changed Name'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect description change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.description = 'Changed description'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect content change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.content = 'Changed content'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect draft change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.draft = !formState.draft
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect icon change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.icon = 'new-icon'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect folder change', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.folder = 'core'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect tag addition', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.tags = 'tag1, tag2, tag3'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect tag removal', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.tags = 'tag1'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect tag reordering', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.tags = 'tag2, tag1'
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect mode addition', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.modes = [...formState.modes, 'new-mode']
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
   it('should detect mode removal', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.modes = ['development']
 
-    expect(isDirty(prompt, formState)).toBe(true)
+    expect(isDirty(skill, formState)).toBe(true)
   })
 
-  it('should handle undefined icon in prompt vs empty string in form', () => {
-    const prompt = createTestPrompt({ icon: undefined })
-    const formState = promptToFormState(prompt)
+  it('should handle undefined icon in skill vs empty string in form', () => {
+    const skill = createTestSkill({ icon: undefined })
+    const formState = skillToFormState(skill)
 
     // Form state should have empty string, and this should not be considered dirty
-    expect(isDirty(prompt, formState)).toBe(false)
+    expect(isDirty(skill, formState)).toBe(false)
   })
 })
 
@@ -448,20 +448,20 @@ describe('createEmptyFormState', () => {
 
 describe('getChangeSummary', () => {
   it('should return empty array when nothing changed', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
 
-    expect(getChangeSummary(prompt, formState)).toEqual([])
+    expect(getChangeSummary(skill, formState)).toEqual([])
   })
 
   it('should list changed fields', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.name = 'New Name'
     formState.content = 'New Content'
     formState.draft = true
 
-    const changes = getChangeSummary(prompt, formState)
+    const changes = getChangeSummary(skill, formState)
 
     expect(changes).toContain('name')
     expect(changes).toContain('content')
@@ -470,21 +470,21 @@ describe('getChangeSummary', () => {
   })
 
   it('should include tags when changed', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.tags = 'new-tag'
 
-    const changes = getChangeSummary(prompt, formState)
+    const changes = getChangeSummary(skill, formState)
 
     expect(changes).toContain('tags')
   })
 
   it('should include modes when changed', () => {
-    const prompt = createTestPrompt()
-    const formState = promptToFormState(prompt)
+    const skill = createTestSkill()
+    const formState = skillToFormState(skill)
     formState.modes = ['new-mode']
 
-    const changes = getChangeSummary(prompt, formState)
+    const changes = getChangeSummary(skill, formState)
 
     expect(changes).toContain('modes')
   })

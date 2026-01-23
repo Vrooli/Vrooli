@@ -1,17 +1,17 @@
 /**
- * usePromptTree - Tree navigation state management.
+ * useSkillTree - Tree navigation state management.
  *
  * Handles:
  * - Expanded/collapsed node state
  * - Selected item tracking
  * - Search/filter state
  * - Tag filtering
- * - Skill selection mode for avatars
+ * - Skill selection mode for members
  * - Auto-expand to selected item
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
 import {
   buildTree,
@@ -23,12 +23,18 @@ import {
   getAllItemIdsInSubtree,
 } from '@/services/treeService'
 
-interface UsePromptTreeProps {
-  prompts: Prompt[]
+interface UseSkillTreeProps {
+  skills: Skill[]
   initialSelectedId?: string | null
+  /** Initial collapsed state (for persistence) */
+  initialIsCollapsed?: boolean
+  /** Initial expanded nodes (for persistence) */
+  initialExpandedNodes?: string[]
+  /** Initial selected tags (for persistence) */
+  initialSelectedTags?: string[]
 }
 
-interface UsePromptTreeReturn {
+interface UseSkillTreeReturn {
   // Tree data
   treeNodes: TreeNode[]
   filteredTreeNodes: TreeNode[]
@@ -56,10 +62,10 @@ interface UsePromptTreeReturn {
   // Skill selection mode
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
-  currentAvatarId: string | null
-  enterSkillSelectionMode: (avatarId: string, currentSkills: string[]) => void
+  currentMemberId: string | null
+  enterSkillSelectionMode: (memberId: string, currentSkills: string[]) => void
   exitSkillSelectionMode: () => void
-  toggleSkillSelection: (promptId: string) => void
+  toggleSkillSelection: (skillId: string) => void
   toggleFolderSkillSelection: (node: TreeNode) => void
   getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
 
@@ -69,34 +75,42 @@ interface UsePromptTreeReturn {
 }
 
 /**
- * Hook for managing prompt tree navigation state.
+ * Hook for managing skill tree navigation state.
  */
-export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTreeProps): UsePromptTreeReturn {
-  // Build tree from prompts
-  const treeNodes = useMemo(() => buildTree(prompts), [prompts])
+export function useSkillTree({
+  skills,
+  initialSelectedId = null,
+  initialIsCollapsed = false,
+  initialExpandedNodes = [],
+  initialSelectedTags = [],
+}: UseSkillTreeProps): UseSkillTreeReturn {
+  // Build tree from skills
+  const treeNodes = useMemo(() => buildTree(skills), [skills])
 
   // Selection state
   const [selectedItemId, setSelectedItemId] = useState<string | null>(initialSelectedId)
 
-  // Expanded nodes state
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set())
+  // Expanded nodes state (initialized from persistence)
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(
+    () => new Set(initialExpandedNodes)
+  )
 
-  // Search state
+  // Search state (intentionally not persisted - transient)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Tag filter state
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  // Tag filter state (initialized from persistence)
+  const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags)
 
   // Skill selection mode state
   const [skillSelectionMode, setSkillSelectionMode] = useState(false)
   const [skillSelectedIds, setSkillSelectedIds] = useState<Set<string>>(new Set())
-  const [currentAvatarId, setCurrentAvatarId] = useState<string | null>(null)
+  const [currentMemberId, setCurrentMemberId] = useState<string | null>(null)
 
-  // Sidebar collapse state
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  // Sidebar collapse state (initialized from persistence)
+  const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
 
-  // Get all available tags from prompts
-  const availableTags = useMemo(() => getAllTags(prompts), [prompts])
+  // Get all available tags from skills
+  const availableTags = useMemo(() => getAllTags(skills), [skills])
 
   // Filter tree based on search query and tags
   const filteredTreeNodes = useMemo(() => {
@@ -104,16 +118,16 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
 
     // Apply tag filter
     if (selectedTags.length > 0) {
-      filtered = filterTreeByTags(filtered, selectedTags, prompts)
+      filtered = filterTreeByTags(filtered, selectedTags, skills)
     }
 
     // Apply search filter
     if (searchQuery.trim()) {
-      filtered = filterTree(filtered, searchQuery, prompts)
+      filtered = filterTree(filtered, searchQuery, skills)
     }
 
     return filtered
-  }, [treeNodes, searchQuery, selectedTags, prompts])
+  }, [treeNodes, searchQuery, selectedTags, skills])
 
   // Toggle a single node's expanded state
   const toggleNode = useCallback((nodeId: string) => {
@@ -153,7 +167,7 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
   // Expand nodes to reveal a specific item
   const expandToItem = useCallback(
     (itemId: string) => {
-      const paths = getPathsToItem(prompts, itemId)
+      const paths = getPathsToItem(skills, itemId)
       if (paths.length === 0) return
 
       setExpandedNodes((prev) => {
@@ -164,7 +178,7 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
         return next
       })
     },
-    [prompts]
+    [skills]
   )
 
   // Toggle sidebar collapse
@@ -173,25 +187,25 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
   }, [])
 
   // Skill selection mode functions
-  const enterSkillSelectionMode = useCallback((avatarId: string, currentSkills: string[]) => {
+  const enterSkillSelectionMode = useCallback((memberId: string, currentSkills: string[]) => {
     setSkillSelectionMode(true)
-    setCurrentAvatarId(avatarId)
+    setCurrentMemberId(memberId)
     setSkillSelectedIds(new Set(currentSkills))
   }, [])
 
   const exitSkillSelectionMode = useCallback(() => {
     setSkillSelectionMode(false)
-    setCurrentAvatarId(null)
+    setCurrentMemberId(null)
     setSkillSelectedIds(new Set())
   }, [])
 
-  const toggleSkillSelection = useCallback((promptId: string) => {
+  const toggleSkillSelection = useCallback((skillId: string) => {
     setSkillSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(promptId)) {
-        next.delete(promptId)
+      if (next.has(skillId)) {
+        next.delete(skillId)
       } else {
-        next.add(promptId)
+        next.add(skillId)
       }
       return next
     })
@@ -291,7 +305,7 @@ export function usePromptTree({ prompts, initialSelectedId = null }: UsePromptTr
     // Skill selection mode
     skillSelectionMode,
     skillSelectedIds,
-    currentAvatarId,
+    currentMemberId,
     enterSkillSelectionMode,
     exitSkillSelectionMode,
     toggleSkillSelection,

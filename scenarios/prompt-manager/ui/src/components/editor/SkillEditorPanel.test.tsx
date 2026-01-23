@@ -1,9 +1,9 @@
 /**
- * Tests for PromptEditorPanel component.
+ * Tests for SkillEditorPanel component.
  *
  * Tests cover:
  * - Empty state rendering
- * - Prompt display with form fields
+ * - Skill display with form fields
  * - Read-only mode indicator
  * - Dirty state indicator
  * - Toolbar visibility
@@ -11,9 +11,9 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { PromptEditorPanel } from './PromptEditorPanel'
-import type { Prompt } from '@/types'
-import type { PromptFormState, ValidationResult } from '@/types/editor'
+import { SkillEditorPanel } from './SkillEditorPanel'
+import type { Skill } from '@/types'
+import type { SkillFormState, ValidationResult } from '@/types/editor'
 
 // Mock Monaco editor since it requires browser environment
 vi.mock('@monaco-editor/react', () => ({
@@ -29,20 +29,20 @@ vi.mock('./TipTapEditor', () => ({
   ),
 }))
 
-// Mock WorldCanvas - it shows when no prompt is selected
+// Mock WorldCanvas - it shows when no skill is selected
 vi.mock('@/components/world', () => ({
-  WorldCanvas: ({ prompts }: { prompts: unknown[] }) => (
+  WorldCanvas: ({ skills }: { skills: unknown[] }) => (
     <div data-testid="world-canvas">
-      {prompts.length === 0 ? 'No Prompts Yet' : `${prompts.length} prompts in world`}
+      {skills.length === 0 ? 'No Skills Yet' : `${skills.length} skills in world`}
     </div>
   ),
 }))
 
-// Helper to create test prompt
-function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
+// Helper to create test skill
+function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   return {
     id: 'test-1',
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: ['development'],
@@ -57,9 +57,9 @@ function createTestPrompt(overrides: Partial<Prompt> = {}): Prompt {
 }
 
 // Helper to create default form state
-function createFormState(overrides: Partial<PromptFormState> = {}): PromptFormState {
+function createFormState(overrides: Partial<SkillFormState> = {}): SkillFormState {
   return {
-    name: 'Test Prompt',
+    name: 'Test Skill',
     description: 'A test description',
     content: '# Test content',
     modes: ['development'],
@@ -80,7 +80,7 @@ function createValidation(
 }
 
 const defaultProps = {
-  currentPrompt: null,
+  currentSkill: null,
   formState: createFormState(),
   validation: createValidation(),
   isDirty: false,
@@ -96,54 +96,54 @@ const defaultProps = {
   isDeleting: false,
 }
 
-describe('PromptEditorPanel', () => {
+describe('SkillEditorPanel', () => {
   describe('empty state (world)', () => {
-    it('should show world canvas when no prompt is selected', () => {
-      render(<PromptEditorPanel {...defaultProps} currentPrompt={null} />)
+    it('should show world canvas when no skill is selected', () => {
+      render(<SkillEditorPanel {...defaultProps} currentSkill={null} />)
 
       // Now shows world instead of empty message
       expect(screen.getByTestId('world-canvas')).toBeInTheDocument()
     })
 
-    it('should show empty tree message when no prompts available', () => {
-      render(<PromptEditorPanel {...defaultProps} currentPrompt={null} allPrompts={[]} />)
+    it('should show empty tree message when no skills available', () => {
+      render(<SkillEditorPanel {...defaultProps} currentSkill={null} allSkills={[]} />)
 
-      expect(screen.getByText('No Prompts Yet')).toBeInTheDocument()
+      expect(screen.getByText('No Skills Yet')).toBeInTheDocument()
     })
 
-    it('should show prompt count when prompts are available', () => {
-      const prompts = [createTestPrompt({ id: '1' }), createTestPrompt({ id: '2' })]
+    it('should show skill count when skills are available', () => {
+      const skills = [createTestSkill({ id: '1' }), createTestSkill({ id: '2' })]
 
       render(
-        <PromptEditorPanel
+        <SkillEditorPanel
           {...defaultProps}
-          currentPrompt={null}
-          allPrompts={prompts}
+          currentSkill={null}
+          allSkills={skills}
         />
       )
 
-      expect(screen.getByText('2 prompts in world')).toBeInTheDocument()
+      expect(screen.getByText('2 skills in world')).toBeInTheDocument()
     })
   })
 
-  describe('prompt display', () => {
-    it('should render editor when prompt is selected', () => {
-      const prompt = createTestPrompt()
+  describe('skill display', () => {
+    it('should render editor when skill is selected', () => {
+      const skill = createTestSkill()
 
-      render(<PromptEditorPanel {...defaultProps} currentPrompt={prompt} />)
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
 
       // Should not show empty state
-      expect(screen.queryByText('No Prompt Selected')).not.toBeInTheDocument()
+      expect(screen.queryByText('No Skill Selected')).not.toBeInTheDocument()
     })
 
     it('should display content in editor', () => {
-      const prompt = createTestPrompt({ content: 'Test content here' })
+      const skill = createTestSkill({ content: 'Test content here' })
       const formState = createFormState({ content: 'Test content here' })
 
       render(
-        <PromptEditorPanel
+        <SkillEditorPanel
           {...defaultProps}
-          currentPrompt={prompt}
+          currentSkill={skill}
           formState={formState}
         />
       )
@@ -155,12 +155,12 @@ describe('PromptEditorPanel', () => {
 
   describe('dirty state indicator', () => {
     it('should show unsaved changes indicator when dirty', () => {
-      const prompt = createTestPrompt()
+      const skill = createTestSkill()
 
       render(
-        <PromptEditorPanel
+        <SkillEditorPanel
           {...defaultProps}
-          currentPrompt={prompt}
+          currentSkill={skill}
           isDirty={true}
         />
       )
@@ -169,12 +169,12 @@ describe('PromptEditorPanel', () => {
     })
 
     it('should not show unsaved changes indicator when not dirty', () => {
-      const prompt = createTestPrompt()
+      const skill = createTestSkill()
 
       render(
-        <PromptEditorPanel
+        <SkillEditorPanel
           {...defaultProps}
-          currentPrompt={prompt}
+          currentSkill={skill}
           isDirty={false}
         />
       )
@@ -185,13 +185,13 @@ describe('PromptEditorPanel', () => {
 
   describe('validation errors', () => {
     it('should pass validation errors to form', () => {
-      const prompt = createTestPrompt()
+      const skill = createTestSkill()
       const validation = createValidation(false, { content: 'Content is required' })
 
       render(
-        <PromptEditorPanel
+        <SkillEditorPanel
           {...defaultProps}
-          currentPrompt={prompt}
+          currentSkill={skill}
           validation={validation}
         />
       )
@@ -204,7 +204,7 @@ describe('PromptEditorPanel', () => {
   describe('className prop', () => {
     it('should apply custom className', () => {
       const { container } = render(
-        <PromptEditorPanel {...defaultProps} currentPrompt={null} className="custom-class" />
+        <SkillEditorPanel {...defaultProps} currentSkill={null} className="custom-class" />
       )
 
       expect(container.firstChild).toHaveClass('custom-class')

@@ -1,76 +1,76 @@
 /**
- * Avatar Provider - Dependency injection for avatar components.
- * Allows easy swapping of avatar implementations.
+ * Member Provider - Dependency injection for member components.
+ * Allows easy swapping of member implementations.
  */
 
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from 'react'
-import type { AvatarConfig, AvatarRegistry, AvatarProps } from '@/types/world'
-import { GeometricAvatar } from './avatars/GeometricAvatar'
+import type { MemberConfig, MemberRegistry, MemberProps } from '@/types/world'
+import { GeometricMember } from './members/GeometricMember'
 
-// Avatar registry - add new avatars here
-const AVATAR_REGISTRY: AvatarRegistry = {
+// Member registry - add new members here
+const MEMBER_REGISTRY: MemberRegistry = {
   geometric: {
-    Component: GeometricAvatar,
-    displayName: 'Geometric Avatar',
-    description: 'Abstract geometric avatar built with Three.js primitives',
+    Component: GeometricMember,
+    displayName: 'Geometric Member',
+    description: 'Abstract geometric member built with Three.js primitives',
   },
-  // Future avatars can be added here:
-  // mixamo: { Component: MixamoAvatar, preloadAssets: () => loadModel(), displayName: 'Animated' },
-  // rive: { Component: RiveAvatar, displayName: '2.5D Character' },
+  // Future members can be added here:
+  // mixamo: { Component: MixamoMember, preloadAssets: () => loadModel(), displayName: 'Animated' },
+  // rive: { Component: RiveMember, displayName: '2.5D Character' },
 }
 
-// Default avatar
-const DEFAULT_AVATAR = 'geometric'
+// Default member
+const DEFAULT_MEMBER = 'geometric'
 
 // Context
-const AvatarContext = createContext<AvatarConfig | null>(null)
+const MemberContext = createContext<MemberConfig | null>(null)
 
-interface AvatarProviderProps {
-  avatar?: string
+interface MemberProviderProps {
+  member?: string
   children: React.ReactNode
 }
 
 /**
- * Provider component for avatar dependency injection.
+ * Provider component for member dependency injection.
  */
-export function AvatarProvider({ avatar = DEFAULT_AVATAR, children }: AvatarProviderProps) {
-  const config = useMemo((): AvatarConfig => {
-    const selectedConfig = AVATAR_REGISTRY[avatar]
+export function MemberProvider({ member = DEFAULT_MEMBER, children }: MemberProviderProps) {
+  const config = useMemo((): MemberConfig => {
+    const selectedConfig = MEMBER_REGISTRY[member]
     if (!selectedConfig) {
-      console.warn(`Avatar "${avatar}" not found, falling back to ${DEFAULT_AVATAR}`)
-      return AVATAR_REGISTRY[DEFAULT_AVATAR] as AvatarConfig
+      console.warn(`Member "${member}" not found, falling back to ${DEFAULT_MEMBER}`)
+      return MEMBER_REGISTRY[DEFAULT_MEMBER] as MemberConfig
     }
     return selectedConfig
-  }, [avatar])
+  }, [member])
 
-  return <AvatarContext.Provider value={config}>{children}</AvatarContext.Provider>
+  return <MemberContext.Provider value={config}>{children}</MemberContext.Provider>
 }
 
 /**
- * Hook to access the current avatar configuration.
+ * Hook to access the current member configuration.
  */
-export function useAvatar(): AvatarConfig {
-  const context = useContext(AvatarContext)
+export function useMember(): MemberConfig {
+  const context = useContext(MemberContext)
   if (!context) {
-    throw new Error('useAvatar must be used within an AvatarProvider')
+    throw new Error('useMember must be used within a MemberProvider')
   }
   return context
 }
 
 /**
- * Hook to get the avatar component.
+ * Hook to get the member component.
  */
-export function useAvatarComponent(): React.ComponentType<AvatarProps> {
-  const { Component } = useAvatar()
+export function useMemberComponent(): React.ComponentType<MemberProps> {
+  const { Component } = useMember()
   return Component
 }
 
 /**
- * Get list of available avatars.
+ * Get list of available members.
  */
-export function getAvailableAvatars(): Array<{ id: string; displayName: string; description?: string }> {
-  return Object.entries(AVATAR_REGISTRY).map(([id, config]) => ({
+export function getAvailableMembers(): Array<{ id: string; displayName: string; description?: string }> {
+  return Object.entries(MEMBER_REGISTRY).map(([id, config]) => ({
     id,
     displayName: config.displayName,
     description: config.description,
@@ -78,13 +78,13 @@ export function getAvailableAvatars(): Array<{ id: string; displayName: string; 
 }
 
 /**
- * Register a new avatar at runtime.
+ * Register a new member at runtime.
  */
-export function registerAvatar(id: string, config: AvatarConfig): void {
-  if (AVATAR_REGISTRY[id]) {
-    console.warn(`Avatar "${id}" already exists and will be overwritten`)
+export function registerMember(id: string, config: MemberConfig): void {
+  if (MEMBER_REGISTRY[id]) {
+    console.warn(`Member "${id}" already exists and will be overwritten`)
   }
-  AVATAR_REGISTRY[id] = config
+  MEMBER_REGISTRY[id] = config
 }
 
-export { AVATAR_REGISTRY }
+export { MEMBER_REGISTRY }

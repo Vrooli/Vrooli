@@ -11,43 +11,43 @@ const INITIAL_STATE: SelectionState = {
   anchorId: null,
 }
 
-interface UsePromptSelectionOptions {
+interface UseSkillSelectionOptions {
   maxSelection?: number
   onSelectionChange?: (selectedIds: string[]) => void
 }
 
-export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
+export function useSkillSelection(options: UseSkillSelectionOptions = {}) {
   const { maxSelection = Infinity, onSelectionChange } = options
   const [state, setState] = useState<SelectionState>(INITIAL_STATE)
 
   /**
-   * Select a single prompt, clearing previous selection.
+   * Select a single skill, clearing previous selection.
    */
   const selectSingle = useCallback(
-    (promptId: string) => {
+    (skillId: string) => {
       setState({
-        selectedIds: [promptId],
+        selectedIds: [skillId],
         mode: 'single',
-        anchorId: promptId,
+        anchorId: skillId,
       })
-      onSelectionChange?.([promptId])
+      onSelectionChange?.([skillId])
     },
     [onSelectionChange]
   )
 
   /**
-   * Toggle a prompt's selection (for Cmd/Ctrl+click).
+   * Toggle a skill's selection (for Cmd/Ctrl+click).
    */
   const toggleSelection = useCallback(
-    (promptId: string) => {
+    (skillId: string) => {
       setState((prev) => {
-        const isSelected = prev.selectedIds.includes(promptId)
+        const isSelected = prev.selectedIds.includes(skillId)
         let newSelectedIds: string[]
 
         if (isSelected) {
-          newSelectedIds = prev.selectedIds.filter((id) => id !== promptId)
+          newSelectedIds = prev.selectedIds.filter((id) => id !== skillId)
         } else if (prev.selectedIds.length < maxSelection) {
-          newSelectedIds = [...prev.selectedIds, promptId]
+          newSelectedIds = [...prev.selectedIds, skillId]
         } else {
           return prev
         }
@@ -56,7 +56,7 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
         return {
           selectedIds: newSelectedIds,
           mode: 'toggle' as SelectionMode,
-          anchorId: isSelected ? prev.anchorId : promptId,
+          anchorId: isSelected ? prev.anchorId : skillId,
         }
       })
     },
@@ -67,9 +67,9 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
    * Add to selection (for Shift+click range selection).
    */
   const addToSelection = useCallback(
-    (promptId: string) => {
+    (skillId: string) => {
       setState((prev) => {
-        if (prev.selectedIds.includes(promptId)) {
+        if (prev.selectedIds.includes(skillId)) {
           return prev
         }
 
@@ -77,7 +77,7 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
           return prev
         }
 
-        const newSelectedIds = [...prev.selectedIds, promptId]
+        const newSelectedIds = [...prev.selectedIds, skillId]
         onSelectionChange?.(newSelectedIds)
 
         return {
@@ -94,9 +94,9 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
    * Remove from selection.
    */
   const removeFromSelection = useCallback(
-    (promptId: string) => {
+    (skillId: string) => {
       setState((prev) => {
-        const newSelectedIds = prev.selectedIds.filter((id) => id !== promptId)
+        const newSelectedIds = prev.selectedIds.filter((id) => id !== skillId)
         onSelectionChange?.(newSelectedIds)
 
         return {
@@ -120,8 +120,8 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
    * Select all provided IDs.
    */
   const selectAll = useCallback(
-    (promptIds: string[]) => {
-      const limitedIds = promptIds.slice(0, maxSelection)
+    (skillIds: string[]) => {
+      const limitedIds = skillIds.slice(0, maxSelection)
       setState({
         selectedIds: limitedIds,
         mode: 'multi',
@@ -136,23 +136,23 @@ export function usePromptSelection(options: UsePromptSelectionOptions = {}) {
    * Handle click with modifiers.
    */
   const handleClick = useCallback(
-    (promptId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => {
+    (skillId: string, event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => {
       if (event.metaKey || event.ctrlKey) {
-        toggleSelection(promptId)
+        toggleSelection(skillId)
       } else if (event.shiftKey && state.anchorId) {
-        addToSelection(promptId)
+        addToSelection(skillId)
       } else {
-        selectSingle(promptId)
+        selectSingle(skillId)
       }
     },
     [toggleSelection, addToSelection, selectSingle, state.anchorId]
   )
 
   /**
-   * Check if a prompt is selected.
+   * Check if a skill is selected.
    */
   const isSelected = useCallback(
-    (promptId: string) => state.selectedIds.includes(promptId),
+    (skillId: string) => state.selectedIds.includes(skillId),
     [state.selectedIds]
   )
 

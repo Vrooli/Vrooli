@@ -1,15 +1,15 @@
 /**
  * useModeSuggestions - Mode autocomplete suggestions for CategoryPathEditor.
  *
- * Provides context-aware suggestions based on existing prompt modes.
+ * Provides context-aware suggestions based on existing skill modes.
  */
 
 import { useCallback, useMemo } from 'react'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import { getModesAtLevel } from '@/services/treeService'
 
 interface UseModeSuggestionsProps {
-  prompts: Prompt[]
+  skills: Skill[]
 }
 
 interface UseModeSuggestionsReturn {
@@ -28,7 +28,7 @@ interface UseModeSuggestionsReturn {
   topLevelModes: string[]
 
   /**
-   * Check if a mode path would be new (not existing in any prompt).
+   * Check if a mode path would be new (not existing in any skill).
    *
    * @param modes - The full mode path to check
    * @returns True if this would create a new category
@@ -37,18 +37,18 @@ interface UseModeSuggestionsReturn {
 }
 
 /**
- * Hook for getting mode suggestions based on existing prompts.
+ * Hook for getting mode suggestions based on existing skills.
  */
-export function useModeSuggestions({ prompts }: UseModeSuggestionsProps): UseModeSuggestionsReturn {
+export function useModeSuggestions({ skills }: UseModeSuggestionsProps): UseModeSuggestionsReturn {
   // Memoize top-level modes
-  const topLevelModes = useMemo(() => getModesAtLevel(prompts, 0, []), [prompts])
+  const topLevelModes = useMemo(() => getModesAtLevel(skills, 0, []), [skills])
 
   // Get suggestions for a specific level
   const getSuggestionsAtLevel = useCallback(
     (level: number, parentPath: string[]): string[] => {
-      return getModesAtLevel(prompts, level, parentPath)
+      return getModesAtLevel(skills, level, parentPath)
     },
-    [prompts]
+    [skills]
   )
 
   // Check if a mode path is new
@@ -56,13 +56,13 @@ export function useModeSuggestions({ prompts }: UseModeSuggestionsProps): UseMod
     (modes: string[]): boolean => {
       if (modes.length === 0) return false
 
-      // Check if any prompt has exactly this mode path
-      return !prompts.some((p) => {
+      // Check if any skill has exactly this mode path
+      return !skills.some((p) => {
         if (p.modes.length !== modes.length) return false
         return modes.every((m, i) => p.modes[i] === m)
       })
     },
-    [prompts]
+    [skills]
   )
 
   return {

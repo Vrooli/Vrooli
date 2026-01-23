@@ -1,5 +1,5 @@
 /**
- * CombinePanel - UI for combining selected prompts.
+ * CombinePanel - UI for combining selected skills.
  * Shows selection count, format options, and preview.
  */
 
@@ -8,12 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check, X, FileCode, FileText, Braces, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { CombineFormat } from '@/types/world'
-import { combinePrompts, generatePreview, validateForCombine } from '@/services/promptCombineService'
+import { combineSkills, generatePreview, validateForCombine } from '@/services/skillCombineService'
 
 interface CombinePanelProps {
-  selectedPrompts: Prompt[]
+  selectedSkills: Skill[]
   onClear: () => void
   onCombine?: (combined: string, format: CombineFormat) => void
 }
@@ -24,35 +24,35 @@ const FORMAT_OPTIONS: Array<{ value: CombineFormat; label: string; icon: React.R
   { value: 'json', label: 'JSON', icon: <Braces className="h-4 w-4" /> },
 ]
 
-export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePanelProps) {
+export function CombinePanel({ selectedSkills, onClear, onCombine }: CombinePanelProps) {
   const [format, setFormat] = useState<CombineFormat>('xml')
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
   // Validation
   const validation = useMemo(
-    () => validateForCombine(selectedPrompts),
-    [selectedPrompts]
+    () => validateForCombine(selectedSkills),
+    [selectedSkills]
   )
 
   // Combined output
   const combineResult = useMemo(
-    () => combinePrompts(selectedPrompts, format),
-    [selectedPrompts, format]
+    () => combineSkills(selectedSkills, format),
+    [selectedSkills, format]
   )
 
   // Preview
   const preview = useMemo(
-    () => generatePreview(selectedPrompts, format, 800),
-    [selectedPrompts, format]
+    () => generatePreview(selectedSkills, format, 800),
+    [selectedSkills, format]
   )
 
   // Handle copy - uses API for authoritative combining
   const handleCopy = async () => {
     try {
       // Get combined content from API
-      const promptIds = selectedPrompts.map((p) => p.id)
-      const response = await api.combinePrompts(promptIds, format)
+      const skillIds = selectedSkills.map((p) => p.id)
+      const response = await api.combineSkills(skillIds, format)
 
       // Copy to clipboard
       await navigator.clipboard.writeText(response.combined)
@@ -60,7 +60,7 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
       onCombine?.(response.combined, format)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('Failed to combine and copy prompts:', error)
+      console.error('Failed to combine and copy skills:', error)
       // Fallback to client-side combining if API fails
       try {
         await navigator.clipboard.writeText(combineResult.combined)
@@ -73,7 +73,7 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
     }
   }
 
-  if (selectedPrompts.length === 0) {
+  if (selectedSkills.length === 0) {
     return null
   }
 
@@ -89,7 +89,7 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-slate-200">
-              {selectedPrompts.length} prompt{selectedPrompts.length !== 1 ? 's' : ''} selected
+              {selectedSkills.length} skill{selectedSkills.length !== 1 ? 's' : ''} selected
             </span>
             <span className="text-xs text-slate-400">
               ~{combineResult.totalTokens.toLocaleString()} tokens
@@ -113,15 +113,15 @@ export function CombinePanel({ selectedPrompts, onClear, onCombine }: CombinePan
         </button>
       </div>
 
-      {/* Selected prompts list */}
+      {/* Selected skills list */}
       <div className="px-4 py-2 border-b border-slate-700/50">
         <div className="flex flex-wrap gap-2">
-          {selectedPrompts.map((prompt) => (
+          {selectedSkills.map((skill) => (
             <span
-              key={prompt.id}
+              key={skill.id}
               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-md"
             >
-              {prompt.name}
+              {skill.name}
             </span>
           ))}
         </div>

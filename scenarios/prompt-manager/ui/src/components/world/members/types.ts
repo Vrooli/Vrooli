@@ -1,5 +1,5 @@
 /**
- * Type definitions for avatar components.
+ * Type definitions for member components.
  */
 
-export type { AvatarProps, AvatarConfig, AvatarRegistry, AvatarState } from '@/types/world'
+export type { MemberProps, MemberConfig, MemberRegistry, MemberState } from '@/types/world'

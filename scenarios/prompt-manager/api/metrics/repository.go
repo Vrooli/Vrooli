@@ -1,4 +1,4 @@
-// Package metrics provides usage tracking and effectiveness ratings for prompts.
+// Package metrics provides usage tracking and effectiveness ratings for skills.
 package metrics
 
 import (
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Repository handles database operations for prompt metrics.
+// Repository handles database operations for skill metrics.
 // This is a testing seam: inject a mock Repository in tests to avoid database access.
 type Repository struct {
 	db *sql.DB
@@ -17,13 +17,13 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// Get retrieves metrics for a specific prompt.
-func (r *Repository) Get(promptID string) (*PromptMetrics, error) {
-	var metrics PromptMetrics
+// Get retrieves metrics for a specific skill.
+func (r *Repository) Get(skillID string) (*SkillMetrics, error) {
+	var metrics SkillMetrics
 	err := r.db.QueryRow(`
-		SELECT prompt_id, usage_count, last_used, effectiveness_rating, notes
-		FROM prompt_metrics WHERE prompt_id = $1
-	`, promptID).Scan(&metrics.PromptID, &metrics.UsageCount, &metrics.LastUsed, &metrics.EffectivenessRating, &metrics.Notes)
+		SELECT skill_id, usage_count, last_used, effectiveness_rating, notes
+		FROM skill_metrics WHERE skill_id = $1
+	`, skillID).Scan(&metrics.SkillID, &metrics.UsageCount, &metrics.LastUsed, &metrics.EffectivenessRating, &metrics.Notes)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -36,12 +36,12 @@ func (r *Repository) Get(promptID string) (*PromptMetrics, error) {
 
 // RecordUsage increments the usage count and updates last_used timestamp.
 // Uses upsert to create the record if it doesn't exist.
-func (r *Repository) RecordUsage(promptID string) (int, time.Time, error) {
+func (r *Repository) RecordUsage(skillID string) (int, time.Time, error) {
 	query := `
-		INSERT INTO prompt_metrics (prompt_id, usage_count, last_used)
+		INSERT INTO skill_metrics (skill_id, usage_count, last_used)
 		VALUES ($1, 1, CURRENT_TIMESTAMP)
-		ON CONFLICT (prompt_id) DO UPDATE
-		SET usage_count = prompt_metrics.usage_count + 1,
+		ON CONFLICT (skill_id) DO UPDATE
+		SET usage_count = skill_metrics.usage_count + 1,
 		    last_used = CURRENT_TIMESTAMP,
 		    updated_at = CURRENT_TIMESTAMP
 		RETURNING usage_count, last_used
@@ -49,30 +49,30 @@ func (r *Repository) RecordUsage(promptID string) (int, time.Time, error) {
 
 	var usageCount int
 	var lastUsed time.Time
-	err := r.db.QueryRow(query, promptID).Scan(&usageCount, &lastUsed)
+	err := r.db.QueryRow(query, skillID).Scan(&usageCount, &lastUsed)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
 	return usageCount, lastUsed, nil
 }
 
-// SetRating sets the effectiveness rating for a prompt.
+// SetRating sets the effectiveness rating for a skill.
 // Uses upsert to create the record if it doesn't exist.
-func (r *Repository) SetRating(promptID string, rating int, notes *string) error {
+func (r *Repository) SetRating(skillID string, rating int, notes *string) error {
 	query := `
-		INSERT INTO prompt_metrics (prompt_id, effectiveness_rating, notes)
+		INSERT INTO skill_metrics (skill_id, effectiveness_rating, notes)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (prompt_id) DO UPDATE
+		ON CONFLICT (skill_id) DO UPDATE
 		SET effectiveness_rating = $2,
-		    notes = COALESCE($3, prompt_metrics.notes),
+		    notes = COALESCE($3, skill_metrics.notes),
 		    updated_at = CURRENT_TIMESTAMP
 	`
-	_, err := r.db.Exec(query, promptID, rating, notes)
+	_, err := r.db.Exec(query, skillID, rating, notes)
 	return err
 }
 
-// Delete removes metrics for a prompt (used when deleting a prompt).
-func (r *Repository) Delete(promptID string) error {
-	_, err := r.db.Exec("DELETE FROM prompt_metrics WHERE prompt_id = $1", promptID)
+// Delete removes metrics for a skill (used when deleting a skill).
+func (r *Repository) Delete(skillID string) error {
+	_, err := r.db.Exec("DELETE FROM skill_metrics WHERE skill_id = $1", skillID)
 	return err
 }

@@ -1,24 +1,24 @@
 /**
- * usePromptsData - Data fetching hook for prompts.
+ * useSkillsData - Data fetching hook for skills.
  *
  * Handles:
- * - Fetching all prompts via react-query
+ * - Fetching all skills via react-query
  * - CRUD operations with cache invalidation
  * - Loading and error states
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import * as promptService from '@/services/promptService'
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '@/types'
+import * as skillService from '@/services/skillService'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
 // Query key constants
 const QUERY_KEYS = {
-  prompts: ['prompts'] as const,
+  skills: ['skills'] as const,
 }
 
-interface UsePromptsDataReturn {
+interface UseSkillsDataReturn {
   // Data
-  prompts: Prompt[]
+  skills: Skill[]
 
   // Loading/error states
   isLoading: boolean
@@ -26,10 +26,10 @@ interface UsePromptsDataReturn {
   error: Error | null
 
   // Mutations
-  createPrompt: (request: CreatePromptRequest) => Promise<Prompt>
-  updatePrompt: (id: string, updates: UpdatePromptRequest) => Promise<Prompt>
-  updatePrompts: (updates: Map<string, UpdatePromptRequest>) => Promise<Map<string, Prompt | Error>>
-  deletePrompt: (id: string) => Promise<void>
+  createSkill: (request: CreateSkillRequest) => Promise<Skill>
+  updateSkill: (id: string, updates: UpdateSkillRequest) => Promise<Skill>
+  updateSkills: (updates: Map<string, UpdateSkillRequest>) => Promise<Map<string, Skill | Error>>
+  deleteSkill: (id: string) => Promise<void>
 
   // Mutation states
   isCreating: boolean
@@ -41,60 +41,60 @@ interface UsePromptsDataReturn {
 }
 
 /**
- * Hook for fetching and mutating prompts data.
+ * Hook for fetching and mutating skills data.
  */
-export function usePromptsData(): UsePromptsDataReturn {
+export function useSkillsData(): UseSkillsDataReturn {
   const queryClient = useQueryClient()
 
-  // Query for all prompts
+  // Query for all skills
   const {
-    data: prompts = [],
+    data: skills = [],
     isLoading,
     isError,
     error,
     refetch,
   } = useQuery({
-    queryKey: QUERY_KEYS.prompts,
-    queryFn: () => promptService.getPrompts(true), // Force refresh on query
+    queryKey: QUERY_KEYS.skills,
+    queryFn: () => skillService.getSkills(true), // Force refresh on query
     staleTime: 5000, // Match service cache TTL
   })
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (request: CreatePromptRequest) => promptService.createPrompt(request),
+    mutationFn: (request: CreateSkillRequest) => skillService.createSkill(request),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
     },
   })
 
   // Update single mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: UpdatePromptRequest }) =>
-      promptService.updatePrompt(id, updates),
+    mutationFn: ({ id, updates }: { id: string; updates: UpdateSkillRequest }) =>
+      skillService.updateSkill(id, updates),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
     },
   })
 
   // Batch update mutation
   const batchUpdateMutation = useMutation({
-    mutationFn: (updates: Map<string, UpdatePromptRequest>) => promptService.updatePrompts(updates),
+    mutationFn: (updates: Map<string, UpdateSkillRequest>) => skillService.updateSkills(updates),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
     },
   })
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => promptService.deletePrompt(id),
+    mutationFn: (id: string) => skillService.deleteSkill(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.prompts })
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.skills })
     },
   })
 
   return {
     // Data
-    prompts,
+    skills,
 
     // Loading/error states
     isLoading,
@@ -102,11 +102,11 @@ export function usePromptsData(): UsePromptsDataReturn {
     error: error ?? null,
 
     // Mutations
-    createPrompt: createMutation.mutateAsync,
-    updatePrompt: (id: string, updates: UpdatePromptRequest) =>
+    createSkill: createMutation.mutateAsync,
+    updateSkill: (id: string, updates: UpdateSkillRequest) =>
       updateMutation.mutateAsync({ id, updates }),
-    updatePrompts: batchUpdateMutation.mutateAsync,
-    deletePrompt: deleteMutation.mutateAsync,
+    updateSkills: batchUpdateMutation.mutateAsync,
+    deleteSkill: deleteMutation.mutateAsync,
 
     // Mutation states
     isCreating: createMutation.isPending,

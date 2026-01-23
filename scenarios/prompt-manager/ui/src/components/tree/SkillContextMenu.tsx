@@ -1,32 +1,32 @@
 /**
- * PromptContextMenu - Context menu for prompt items in the tree.
+ * SkillContextMenu - Context menu for skill items in the tree.
  *
- * Appears on right-click of prompt items, providing options like:
- * - Copy prompt
+ * Appears on right-click of skill items, providing options like:
+ * - Copy skill
  */
 
 import { useEffect, useRef } from 'react'
 import { Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface PromptContextMenuProps {
+interface SkillContextMenuProps {
   x: number
   y: number
-  promptName: string
+  skillName: string
   onClose: () => void
-  onCopyPrompt: () => void
+  onCopySkill: () => void
 }
 
 /**
- * Context menu component for prompt right-click actions.
+ * Context menu component for skill right-click actions.
  */
-export function PromptContextMenu({
+export function SkillContextMenu({
   x,
   y,
-  promptName,
+  skillName,
   onClose,
-  onCopyPrompt,
-}: PromptContextMenuProps) {
+  onCopySkill,
+}: SkillContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Close on click outside or escape
@@ -78,8 +78,8 @@ export function PromptContextMenu({
     }
   }, [x, y])
 
-  const handleCopyPrompt = () => {
-    onCopyPrompt()
+  const handleCopySkill = () => {
+    onCopySkill()
     onClose()
   }
 
@@ -96,7 +96,7 @@ export function PromptContextMenu({
       <div className="p-1">
         <button
           type="button"
-          onClick={handleCopyPrompt}
+          onClick={handleCopySkill}
           className={cn(
             'w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-sm',
             'text-foreground hover:bg-muted transition-colors',
@@ -104,7 +104,7 @@ export function PromptContextMenu({
           )}
         >
           <Copy className="h-4 w-4" />
-          <span>Copy "{promptName}"</span>
+          <span>Copy "{skillName}"</span>
         </button>
       </div>
     </div>

@@ -1,39 +1,39 @@
 /**
- * usePromptEditor - Multi-item editing state management.
+ * useSkillEditor - Multi-item editing state management.
  *
  * Handles:
- * - Current prompt form state
- * - Pending changes for multiple prompts
- * - Dirty tracking across all edited prompts
+ * - Current skill form state
+ * - Pending changes for multiple skills
+ * - Dirty tracking across all edited skills
  * - Save/discard operations
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import type { Prompt, UpdatePromptRequest } from '@/types'
-import type { PromptFormState, PendingChange, ValidationResult } from '@/types/editor'
+import type { Skill, UpdateSkillRequest } from '@/types'
+import type { SkillFormState, PendingChange, ValidationResult } from '@/types/editor'
 import {
-  promptToFormState,
+  skillToFormState,
   formStateToUpdateRequest,
   isDirty,
   validateFormState,
   createEmptyFormState,
 } from '@/services/editorService'
-import * as promptService from '@/services/promptService'
+import * as skillService from '@/services/skillService'
 
-interface UsePromptEditorProps {
-  prompts: Prompt[]
+interface UseSkillEditorProps {
+  skills: Skill[]
   selectedItemId: string | null
-  onSave: (updates: Map<string, UpdatePromptRequest>) => Promise<Map<string, Prompt | Error>>
+  onSave: (updates: Map<string, UpdateSkillRequest>) => Promise<Map<string, Skill | Error>>
   onDelete: (id: string) => Promise<void>
 }
 
-interface UsePromptEditorReturn {
+interface UseSkillEditorReturn {
   // Current editor state
-  currentPrompt: Prompt | null
-  formState: PromptFormState
+  currentSkill: Skill | null
+  formState: SkillFormState
 
   // Form operations
-  updateField: <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => void
+  updateField: <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => void
   setModes: (modes: string[]) => void
   resetForm: () => void
 
@@ -46,18 +46,18 @@ interface UsePromptEditorReturn {
   dirtyItemIds: Set<string>
   dirtyCount: number
 
-  // Pending changes (for other prompts)
+  // Pending changes (for other skills)
   pendingChanges: Map<string, PendingChange>
   storeCurrentChanges: () => void
 
   // Save operations
-  saveCurrentPrompt: () => Promise<void>
+  saveCurrentSkill: () => Promise<void>
   saveAllChanges: () => Promise<void>
   discardCurrentChanges: () => void
   discardAllChanges: () => void
 
   // Delete
-  deleteCurrentPrompt: () => Promise<void>
+  deleteCurrentSkill: () => Promise<void>
 
   // Loading states
   isSaving: boolean
@@ -65,35 +65,35 @@ interface UsePromptEditorReturn {
 }
 
 /**
- * Hook for managing prompt editing with multi-item support.
+ * Hook for managing skill editing with multi-item support.
  */
-export function usePromptEditor({
-  prompts,
+export function useSkillEditor({
+  skills,
   selectedItemId,
   onSave,
   onDelete,
-}: UsePromptEditorProps): UsePromptEditorReturn {
-  // Pending changes for prompts other than the currently selected one
+}: UseSkillEditorProps): UseSkillEditorReturn {
+  // Pending changes for skills other than the currently selected one
   const [pendingChanges, setPendingChanges] = useState<Map<string, PendingChange>>(new Map())
 
-  // Current form state (for the selected prompt)
-  const [formState, setFormState] = useState<PromptFormState>(createEmptyFormState())
+  // Current form state (for the selected skill)
+  const [formState, setFormState] = useState<SkillFormState>(createEmptyFormState())
 
   // Loading states
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Get the current prompt object
-  const currentPrompt = useMemo(() => {
+  // Get the current skill object
+  const currentSkill = useMemo(() => {
     if (!selectedItemId) return null
-    return prompts.find((p) => p.id === selectedItemId) ?? null
-  }, [prompts, selectedItemId])
+    return skills.find((p) => p.id === selectedItemId) ?? null
+  }, [skills, selectedItemId])
 
   // Check if current form has changes
   const currentIsDirty = useMemo(() => {
-    if (!currentPrompt) return false
-    return isDirty(currentPrompt, formState)
-  }, [currentPrompt, formState])
+    if (!currentSkill) return false
+    return isDirty(currentSkill, formState)
+  }, [currentSkill, formState])
 
   // Validate current form
   const validation = useMemo(() => validateFormState(formState), [formState])
@@ -102,9 +102,9 @@ export function usePromptEditor({
   const dirtyItemIds = useMemo(() => {
     const ids = new Set<string>()
 
-    // Add current prompt if dirty
-    if (currentPrompt && currentIsDirty) {
-      ids.add(currentPrompt.id)
+    // Add current skill if dirty
+    if (currentSkill && currentIsDirty) {
+      ids.add(currentSkill.id)
     }
 
     // Add all pending changes that are dirty
@@ -115,22 +115,22 @@ export function usePromptEditor({
     }
 
     return ids
-  }, [currentPrompt, currentIsDirty, pendingChanges])
+  }, [currentSkill, currentIsDirty, pendingChanges])
 
-  // Store current changes before switching prompts
+  // Store current changes before switching skills
   const storeCurrentChanges = useCallback(() => {
-    if (!currentPrompt || !currentIsDirty) return
+    if (!currentSkill || !currentIsDirty) return
 
     setPendingChanges((prev) => {
       const next = new Map(prev)
-      next.set(currentPrompt.id, {
-        original: currentPrompt,
+      next.set(currentSkill.id, {
+        original: currentSkill,
         current: { ...formState },
         isDirty: true,
       })
       return next
     })
-  }, [currentPrompt, currentIsDirty, formState])
+  }, [currentSkill, currentIsDirty, formState])
 
   // Effect 1: Clear form when deselected
   useEffect(() => {
@@ -139,48 +139,48 @@ export function usePromptEditor({
     }
   }, [selectedItemId])
 
-  // Effect 2: Load form when selection or prompts change
-  // Fetches full prompt with content if the list prompt doesn't include content
+  // Effect 2: Load form when selection or skills change
+  // Fetches full skill with content if the list skill doesn't include content
   useEffect(() => {
     if (!selectedItemId) return
 
-    // Check if we have pending changes for this prompt
+    // Check if we have pending changes for this skill
     const pending = pendingChanges.get(selectedItemId)
     if (pending) {
       setFormState(pending.current)
       return
     }
 
-    // Find prompt directly instead of relying on memo to avoid race condition
-    const listPrompt = prompts.find((p) => p.id === selectedItemId)
-    if (!listPrompt) return
+    // Find skill directly instead of relying on memo to avoid race condition
+    const listSkill = skills.find((p) => p.id === selectedItemId)
+    if (!listSkill) return
 
-    // If list prompt has content, use it directly
-    if (listPrompt.content && listPrompt.content.trim()) {
-      setFormState(promptToFormState(listPrompt))
+    // If list skill has content, use it directly
+    if (listSkill.content && listSkill.content.trim()) {
+      setFormState(skillToFormState(listSkill))
       return
     }
 
-    // Fetch full prompt with content from API
-    promptService.getPrompt(selectedItemId)
-      .then((fullPrompt) => {
-        if (fullPrompt) {
-          setFormState(promptToFormState(fullPrompt))
+    // Fetch full skill with content from API
+    skillService.getSkill(selectedItemId)
+      .then((fullSkill) => {
+        if (fullSkill) {
+          setFormState(skillToFormState(fullSkill))
         } else {
-          // Fallback to list prompt if fetch fails
-          setFormState(promptToFormState(listPrompt))
+          // Fallback to list skill if fetch fails
+          setFormState(skillToFormState(listSkill))
         }
       })
       .catch(() => {
-        // Fallback to list prompt on error
-        setFormState(promptToFormState(listPrompt))
+        // Fallback to list skill on error
+        setFormState(skillToFormState(listSkill))
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingChanges intentionally excluded to prevent stale closure
-  }, [selectedItemId, prompts])
+  }, [selectedItemId, skills])
 
   // Update a single form field
   const updateField = useCallback(
-    <K extends keyof PromptFormState>(field: K, value: PromptFormState[K]) => {
+    <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => {
       setFormState((prev) => ({ ...prev, [field]: value }))
     },
     []
@@ -194,40 +194,40 @@ export function usePromptEditor({
     []
   )
 
-  // Reset form to original prompt state
+  // Reset form to original skill state
   const resetForm = useCallback(() => {
-    if (!currentPrompt) return
-    setFormState(promptToFormState(currentPrompt))
-  }, [currentPrompt])
+    if (!currentSkill) return
+    setFormState(skillToFormState(currentSkill))
+  }, [currentSkill])
 
-  // Save current prompt only
-  const saveCurrentPrompt = useCallback(async () => {
-    if (!currentPrompt || !currentIsDirty || !validation.valid) return
+  // Save current skill only
+  const saveCurrentSkill = useCallback(async () => {
+    if (!currentSkill || !currentIsDirty || !validation.valid) return
 
     setIsSaving(true)
     try {
-      const updates = new Map<string, UpdatePromptRequest>()
-      updates.set(currentPrompt.id, formStateToUpdateRequest(formState))
+      const updates = new Map<string, UpdateSkillRequest>()
+      updates.set(currentSkill.id, formStateToUpdateRequest(formState))
       await onSave(updates)
 
       // Clear from pending changes if it was there
       setPendingChanges((prev) => {
         const next = new Map(prev)
-        next.delete(currentPrompt.id)
+        next.delete(currentSkill.id)
         return next
       })
     } finally {
       setIsSaving(false)
     }
-  }, [currentPrompt, currentIsDirty, validation, formState, onSave])
+  }, [currentSkill, currentIsDirty, validation, formState, onSave])
 
   // Save all pending changes
   const saveAllChanges = useCallback(async () => {
-    const updates = new Map<string, UpdatePromptRequest>()
+    const updates = new Map<string, UpdateSkillRequest>()
 
-    // Add current prompt if dirty and valid
-    if (currentPrompt && currentIsDirty && validation.valid) {
-      updates.set(currentPrompt.id, formStateToUpdateRequest(formState))
+    // Add current skill if dirty and valid
+    if (currentSkill && currentIsDirty && validation.valid) {
+      updates.set(currentSkill.id, formStateToUpdateRequest(formState))
     }
 
     // Add all pending changes that are dirty
@@ -259,56 +259,56 @@ export function usePromptEditor({
     } finally {
       setIsSaving(false)
     }
-  }, [currentPrompt, currentIsDirty, validation, formState, pendingChanges, onSave])
+  }, [currentSkill, currentIsDirty, validation, formState, pendingChanges, onSave])
 
-  // Discard current prompt changes
+  // Discard current skill changes
   const discardCurrentChanges = useCallback(() => {
-    if (!currentPrompt) return
+    if (!currentSkill) return
 
     // Reset form to original
-    setFormState(promptToFormState(currentPrompt))
+    setFormState(skillToFormState(currentSkill))
 
     // Remove from pending changes
     setPendingChanges((prev) => {
       const next = new Map(prev)
-      next.delete(currentPrompt.id)
+      next.delete(currentSkill.id)
       return next
     })
-  }, [currentPrompt])
+  }, [currentSkill])
 
   // Discard all changes
   const discardAllChanges = useCallback(() => {
     // Reset current form
-    if (currentPrompt) {
-      setFormState(promptToFormState(currentPrompt))
+    if (currentSkill) {
+      setFormState(skillToFormState(currentSkill))
     }
 
     // Clear all pending changes
     setPendingChanges(new Map())
-  }, [currentPrompt])
+  }, [currentSkill])
 
-  // Delete current prompt
-  const deleteCurrentPrompt = useCallback(async () => {
-    if (!currentPrompt) return
+  // Delete current skill
+  const deleteCurrentSkill = useCallback(async () => {
+    if (!currentSkill) return
 
     setIsDeleting(true)
     try {
-      await onDelete(currentPrompt.id)
+      await onDelete(currentSkill.id)
 
       // Clear from pending changes
       setPendingChanges((prev) => {
         const next = new Map(prev)
-        next.delete(currentPrompt.id)
+        next.delete(currentSkill.id)
         return next
       })
     } finally {
       setIsDeleting(false)
     }
-  }, [currentPrompt, onDelete])
+  }, [currentSkill, onDelete])
 
   return {
     // Current editor state
-    currentPrompt,
+    currentSkill,
     formState,
 
     // Form operations
@@ -330,13 +330,13 @@ export function usePromptEditor({
     storeCurrentChanges,
 
     // Save operations
-    saveCurrentPrompt,
+    saveCurrentSkill,
     saveAllChanges,
     discardCurrentChanges,
     discardAllChanges,
 
     // Delete
-    deleteCurrentPrompt,
+    deleteCurrentSkill,
 
     // Loading states
     isSaving,

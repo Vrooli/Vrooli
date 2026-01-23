@@ -1,5 +1,5 @@
 /**
- * AvatarOverlay - Overlay UI that appears when camera is zoomed to an avatar.
+ * MemberOverlay - Overlay UI that appears when camera is zoomed to a member.
  *
  * Features:
  * - Close button to exit zoom
@@ -10,10 +10,10 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Palette, Zap, Copy, Trash2, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Avatar } from '@/types/avatar'
+import type { Member } from '@/types/member'
 
-interface AvatarOverlayProps {
-  avatar: Avatar | null
+interface MemberOverlayProps {
+  member: Member | null
   isVisible: boolean
   onClose: () => void
   onCustomize: () => void
@@ -23,17 +23,17 @@ interface AvatarOverlayProps {
 }
 
 /**
- * Avatar overlay component for quick actions.
+ * Member overlay component for quick actions.
  */
-export function AvatarOverlay({
-  avatar,
+export function MemberOverlay({
+  member,
   isVisible,
   onClose,
   onCustomize,
   onSetSkills,
   onDuplicate,
   onDelete,
-}: AvatarOverlayProps) {
+}: MemberOverlayProps) {
   // Drag state
   const [position, setPosition] = useState({ x: 20, y: 20 })
   const [isDragging, setIsDragging] = useState(false)
@@ -76,7 +76,7 @@ export function AvatarOverlay({
     window.addEventListener('mouseup', handleUp)
   }, [])
 
-  if (!isVisible || !avatar) return null
+  if (!isVisible || !member) return null
 
   return (
     <div
@@ -108,21 +108,21 @@ export function AvatarOverlay({
           <GripVertical className="h-4 w-4" />
         </button>
 
-        {/* Avatar info */}
+        {/* Member info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            {/* Mini avatar preview */}
+            {/* Mini member preview */}
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: avatar.bodyColor }}
+              style={{ backgroundColor: member.bodyColor }}
             >
               <div
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: avatar.headColor }}
+                style={{ backgroundColor: member.headColor }}
               />
             </div>
             <span className="text-sm font-medium text-foreground truncate">
-              {avatar.name}
+              {member.name}
             </span>
           </div>
         </div>
@@ -152,7 +152,7 @@ export function AvatarOverlay({
         <OverlayButton
           icon={<Zap className="h-4 w-4" />}
           label="Set Skills"
-          description={`${avatar.skills.length} skills assigned`}
+          description={`${member.skills.length} skills assigned`}
           onClick={onSetSkills}
         />
         <OverlayButton
@@ -164,18 +164,18 @@ export function AvatarOverlay({
         <OverlayButton
           icon={<Trash2 className="h-4 w-4" />}
           label="Delete"
-          description="Remove this avatar"
+          description="Remove this member"
           onClick={onDelete}
           variant="danger"
         />
       </div>
 
       {/* Skills preview */}
-      {avatar.skills.length > 0 && (
+      {member.skills.length > 0 && (
         <div className="px-3 pb-3">
           <p className="text-xs text-muted-foreground mb-1">Assigned Skills:</p>
           <div className="flex flex-wrap gap-1">
-            {avatar.skills.slice(0, 4).map((skillId) => (
+            {member.skills.slice(0, 4).map((skillId) => (
               <span
                 key={skillId}
                 className="px-1.5 py-0.5 text-[10px] bg-primary/20 text-primary rounded"
@@ -183,9 +183,9 @@ export function AvatarOverlay({
                 {skillId.substring(0, 8)}...
               </span>
             ))}
-            {avatar.skills.length > 4 && (
+            {member.skills.length > 4 && (
               <span className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                +{avatar.skills.length - 4} more
+                +{member.skills.length - 4} more
               </span>
             )}
           </div>

@@ -1,5 +1,5 @@
 /**
- * Tests for PromptContentEditor component.
+ * Tests for SkillContentEditor component.
  *
  * Tests cover:
  * - Editor type toggle (code vs WYSIWYG)
@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { PromptContentEditor } from './PromptContentEditor'
+import { SkillContentEditor } from './SkillContentEditor'
 
 // Mock Monaco Editor
 vi.mock('@monaco-editor/react', () => ({
@@ -51,7 +51,7 @@ vi.mock('./TipTapEditor', () => ({
   ),
 }))
 
-describe('PromptContentEditor', () => {
+describe('SkillContentEditor', () => {
   const defaultProps = {
     value: 'Initial content',
     onChange: vi.fn(),
@@ -65,7 +65,7 @@ describe('PromptContentEditor', () => {
 
   describe('editor rendering', () => {
     it('should render code editor by default', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
       expect(screen.queryByTestId('tiptap-editor')).not.toBeInTheDocument()
@@ -74,14 +74,14 @@ describe('PromptContentEditor', () => {
     it('should render WYSIWYG editor when stored preference is wysiwyg', () => {
       vi.mocked(localStorage.getItem).mockReturnValue('wysiwyg')
 
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByTestId('tiptap-editor')).toBeInTheDocument()
       expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
     })
 
     it('should render label with required indicator', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByText('Content')).toBeInTheDocument()
       expect(screen.getByText('*')).toBeInTheDocument()
@@ -90,14 +90,14 @@ describe('PromptContentEditor', () => {
 
   describe('editor toggle', () => {
     it('should render toggle buttons', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByTitle('Code Editor (Monaco)')).toBeInTheDocument()
       expect(screen.getByTitle('Rich Text Editor (WYSIWYG)')).toBeInTheDocument()
     })
 
     it('should switch to WYSIWYG when rich text button is clicked', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
 
@@ -110,7 +110,7 @@ describe('PromptContentEditor', () => {
     it('should switch to code editor when code button is clicked', () => {
       vi.mocked(localStorage.getItem).mockReturnValue('wysiwyg')
 
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       expect(screen.getByTestId('tiptap-editor')).toBeInTheDocument()
 
@@ -121,7 +121,7 @@ describe('PromptContentEditor', () => {
     })
 
     it('should persist editor type to localStorage', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
 
@@ -131,7 +131,7 @@ describe('PromptContentEditor', () => {
 
   describe('content handling', () => {
     it('should display current value in code editor', () => {
-      render(<PromptContentEditor {...defaultProps} value="Test content" />)
+      render(<SkillContentEditor {...defaultProps} value="Test content" />)
 
       const textarea = screen.getByTestId('monaco-textarea')
       expect((textarea as HTMLTextAreaElement).value).toBe('Test content')
@@ -140,7 +140,7 @@ describe('PromptContentEditor', () => {
     it('should display current value in WYSIWYG editor', () => {
       vi.mocked(localStorage.getItem).mockReturnValue('wysiwyg')
 
-      render(<PromptContentEditor {...defaultProps} value="Test content" />)
+      render(<SkillContentEditor {...defaultProps} value="Test content" />)
 
       const textarea = screen.getByTestId('tiptap-textarea')
       expect((textarea as HTMLTextAreaElement).value).toBe('Test content')
@@ -148,7 +148,7 @@ describe('PromptContentEditor', () => {
 
     it('should call onChange when code editor content changes', () => {
       const onChange = vi.fn()
-      render(<PromptContentEditor {...defaultProps} onChange={onChange} />)
+      render(<SkillContentEditor {...defaultProps} onChange={onChange} />)
 
       const textarea = screen.getByTestId('monaco-textarea')
       fireEvent.change(textarea, { target: { value: 'New content' } })
@@ -160,7 +160,7 @@ describe('PromptContentEditor', () => {
       vi.mocked(localStorage.getItem).mockReturnValue('wysiwyg')
       const onChange = vi.fn()
 
-      render(<PromptContentEditor {...defaultProps} onChange={onChange} />)
+      render(<SkillContentEditor {...defaultProps} onChange={onChange} />)
 
       const textarea = screen.getByTestId('tiptap-textarea')
       fireEvent.change(textarea, { target: { value: 'New content' } })
@@ -172,13 +172,13 @@ describe('PromptContentEditor', () => {
 
   describe('error display', () => {
     it('should display error message when error prop is provided', () => {
-      render(<PromptContentEditor {...defaultProps} error="Content is required" />)
+      render(<SkillContentEditor {...defaultProps} error="Content is required" />)
 
       expect(screen.getByText('Content is required')).toBeInTheDocument()
     })
 
     it('should not display error when no error prop', () => {
-      render(<PromptContentEditor {...defaultProps} />)
+      render(<SkillContentEditor {...defaultProps} />)
 
       const errorElement = screen.queryByText(/is required/)
       expect(errorElement).not.toBeInTheDocument()
@@ -188,7 +188,7 @@ describe('PromptContentEditor', () => {
   describe('className prop', () => {
     it('should apply custom className', () => {
       const { container } = render(
-        <PromptContentEditor {...defaultProps} className="custom-class" />
+        <SkillContentEditor {...defaultProps} className="custom-class" />
       )
 
       const wrapper = container.firstChild as HTMLElement

@@ -1,25 +1,25 @@
 /**
  * Tree Service - Pure functions for building and manipulating tree structures.
  *
- * Builds hierarchical trees from prompt modes[] arrays.
+ * Builds hierarchical trees from skill modes[] arrays.
  * Extracted from agent-inbox ItemTreeSidebar for reusability.
  */
 
-import type { Prompt } from '@/types'
+import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
 
 /**
- * Build a tree structure from prompts based on their modes[] arrays.
+ * Build a tree structure from skills based on their modes[] arrays.
  *
- * @param prompts - Array of prompts to build tree from
+ * @param skills - Array of skills to build tree from
  * @returns Root-level tree nodes
  */
-export function buildTree(prompts: Prompt[]): TreeNode[] {
+export function buildTree(skills: Skill[]): TreeNode[] {
   const root: TreeNode[] = []
   const nodeMap = new Map<string, TreeNode>()
 
-  for (const prompt of prompts) {
-    const modes = prompt.modes
+  for (const skill of skills) {
+    const modes = skill.modes
 
     if (modes.length === 0) {
       // Items without modes go to "Other" category
@@ -35,11 +35,11 @@ export function buildTree(prompts: Prompt[]): TreeNode[] {
         root.push(other)
       }
       other.children.push({
-        id: `item-${prompt.id}`,
-        label: prompt.name,
+        id: `item-${skill.id}`,
+        label: skill.name,
         isCategory: false,
         children: [],
-        itemId: prompt.id,
+        itemId: skill.id,
         depth: 1,
       })
       continue
@@ -69,13 +69,13 @@ export function buildTree(prompts: Prompt[]): TreeNode[] {
       currentChildren = node.children
     }
 
-    // Add prompt as leaf node
+    // Add skill as leaf node
     currentChildren.push({
-      id: `item-${prompt.id}`,
-      label: prompt.name,
+      id: `item-${skill.id}`,
+      label: skill.name,
       isCategory: false,
       children: [],
-      itemId: prompt.id,
+      itemId: skill.id,
       depth: modes.length,
     })
   }
@@ -100,7 +100,7 @@ function sortNodes(nodes: TreeNode[]): TreeNode[] {
  * Count dirty items in a subtree.
  *
  * @param node - Root node of subtree to count
- * @param dirtyItemIds - Set of dirty prompt IDs
+ * @param dirtyItemIds - Set of dirty skill IDs
  * @returns Number of dirty items in subtree
  */
 export function countDirtyInSubtree(node: TreeNode, dirtyItemIds: Set<string>): number {
@@ -114,19 +114,19 @@ export function countDirtyInSubtree(node: TreeNode, dirtyItemIds: Set<string>): 
  * Find all node IDs that contain a specific item.
  * Used for auto-expanding to a selected item.
  *
- * @param prompts - All prompts to search
- * @param itemId - The prompt ID to find paths for
+ * @param skills - All skills to search
+ * @param itemId - The skill ID to find paths for
  * @returns Array of category node IDs that contain this item
  */
-export function getPathsToItem(prompts: Prompt[], itemId: string): string[] {
-  const prompt = prompts.find((p) => p.id === itemId)
-  if (!prompt?.modes || prompt.modes.length === 0) {
+export function getPathsToItem(skills: Skill[], itemId: string): string[] {
+  const skill = skills.find((p) => p.id === itemId)
+  if (!skill?.modes || skill.modes.length === 0) {
     return []
   }
 
   const paths: string[] = []
   let currentPath = ''
-  for (const mode of prompt.modes) {
+  for (const mode of skill.modes) {
     currentPath = currentPath ? `${currentPath}/${mode}` : mode
     paths.push(currentPath)
   }
@@ -139,17 +139,17 @@ export function getPathsToItem(prompts: Prompt[], itemId: string): string[] {
  *
  * @param nodes - Tree nodes to filter
  * @param query - Search query (case-insensitive)
- * @param prompts - All prompts for content search
+ * @param skills - All skills for content search
  * @returns Filtered tree nodes
  */
-export function filterTree(nodes: TreeNode[], query: string, prompts: Prompt[]): TreeNode[] {
+export function filterTree(nodes: TreeNode[], query: string, skills: Skill[]): TreeNode[] {
   if (!query.trim()) return nodes
 
   const lowerQuery = query.toLowerCase()
 
-  // Find all matching prompt IDs
+  // Find all matching skill IDs
   const matchingIds = new Set(
-    prompts
+    skills
       .filter((p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.description.toLowerCase().includes(lowerQuery) ||
@@ -181,16 +181,16 @@ export function filterTree(nodes: TreeNode[], query: string, prompts: Prompt[]):
 }
 
 /**
- * Get all unique tags from prompts.
+ * Get all unique tags from skills.
  *
- * @param prompts - All prompts to extract tags from
+ * @param skills - All skills to extract tags from
  * @returns Sorted array of unique tag values
  */
-export function getAllTags(prompts: Prompt[]): string[] {
+export function getAllTags(skills: Skill[]): string[] {
   const tags = new Set<string>()
 
-  for (const prompt of prompts) {
-    for (const tag of prompt.tags) {
+  for (const skill of skills) {
+    for (const tag of skill.tags) {
       tags.add(tag)
     }
   }
@@ -204,21 +204,21 @@ export function getAllTags(prompts: Prompt[]): string[] {
  *
  * @param nodes - Tree nodes to filter
  * @param selectedTags - Tags to filter by (items must have at least one)
- * @param prompts - All prompts for tag lookup
+ * @param skills - All skills for tag lookup
  * @returns Filtered tree nodes
  */
 export function filterTreeByTags(
   nodes: TreeNode[],
   selectedTags: string[],
-  prompts: Prompt[]
+  skills: Skill[]
 ): TreeNode[] {
   if (selectedTags.length === 0) return nodes
 
   const tagSet = new Set(selectedTags)
 
-  // Find all matching prompt IDs
+  // Find all matching skill IDs
   const matchingIds = new Set(
-    prompts
+    skills
       .filter((p) => p.tags.some((tag) => tagSet.has(tag)))
       .map((p) => p.id)
   )
@@ -247,7 +247,7 @@ export function filterTreeByTags(
  * Get the count of selected items in a subtree.
  *
  * @param node - Root node of subtree to count
- * @param selectedIds - Set of selected prompt IDs
+ * @param selectedIds - Set of selected skill IDs
  * @returns Number of selected items in subtree
  */
 export function countSelectedInSubtree(node: TreeNode, selectedIds: Set<string>): number {
@@ -258,10 +258,10 @@ export function countSelectedInSubtree(node: TreeNode, selectedIds: Set<string>)
 }
 
 /**
- * Get all prompt IDs in a subtree.
+ * Get all skill IDs in a subtree.
  *
  * @param node - Root node of subtree
- * @returns Array of all prompt IDs in the subtree
+ * @returns Array of all skill IDs in the subtree
  */
 export function getAllItemIdsInSubtree(node: TreeNode): string[] {
   if (!node.isCategory && node.itemId) {
@@ -285,32 +285,32 @@ export function getModesPathFromNode(node: TreeNode): string[] {
 }
 
 /**
- * Get all unique modes from prompts at a specific level.
+ * Get all unique modes from skills at a specific level.
  * Used for mode suggestions in the category path editor.
  *
- * @param prompts - All prompts to extract modes from
+ * @param skills - All skills to extract modes from
  * @param level - Zero-based level in the mode hierarchy
  * @param parentPath - Parent path to filter by (modes that come before this level)
  * @returns Array of unique mode values at this level
  */
-export function getModesAtLevel(prompts: Prompt[], level: number, parentPath: string[]): string[] {
+export function getModesAtLevel(skills: Skill[], level: number, parentPath: string[]): string[] {
   const modes = new Set<string>()
 
-  for (const prompt of prompts) {
-    const promptModes = prompt.modes
+  for (const skill of skills) {
+    const skillModes = skill.modes
 
-    // Check if this prompt matches the parent path
+    // Check if this skill matches the parent path
     let matches = true
     for (let i = 0; i < parentPath.length; i++) {
-      if (promptModes[i] !== parentPath[i]) {
+      if (skillModes[i] !== parentPath[i]) {
         matches = false
         break
       }
     }
 
     // If matches and has a mode at the requested level, add it
-    if (matches && promptModes[level]) {
-      modes.add(promptModes[level])
+    if (matches && skillModes[level]) {
+      modes.add(skillModes[level])
     }
   }
 

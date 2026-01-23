@@ -1,15 +1,15 @@
 /**
- * WorldScene - Composes the 3D scene with avatars, lights, and controls.
+ * WorldScene - Composes the 3D scene with members, lights, and controls.
  *
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
- * This scene now focuses on avatar display with ambient environment.
+ * This scene now focuses on member display with ambient environment.
  */
 
 import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
-import { useAvatarComponent } from './AvatarProvider'
-import type { Avatar } from '@/types/avatar'
+import { useMemberComponent } from './MemberProvider'
+import type { Member } from '@/types/member'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
 type OrbitControlsRef = {
@@ -23,9 +23,9 @@ interface CameraState {
   zoom: number
 }
 
-/** Avatar with its computed position in the scene */
-export interface AvatarWithPosition {
-  avatar: Avatar
+/** Member with its computed position in the scene */
+export interface MemberWithPosition {
+  member: Member
   position: [number, number, number]
 }
 
@@ -33,10 +33,10 @@ interface WorldSceneProps {
   cameraState: CameraState
   selectedNodeIds: string[]
   cursorPosition: { x: number; y: number } | null
-  /** All avatars with their positions */
-  avatarsWithPositions: AvatarWithPosition[]
-  /** Called when an avatar is clicked, with avatar ID and position */
-  onAvatarClick?: (avatarId: string, position: [number, number, number]) => void
+  /** All members with their positions */
+  membersWithPositions: MemberWithPosition[]
+  /** Called when a member is clicked, with member ID and position */
+  onMemberClick?: (memberId: string, position: [number, number, number]) => void
   isDarkMode?: boolean
 }
 
@@ -44,15 +44,15 @@ export function WorldScene({
   cameraState,
   selectedNodeIds,
   cursorPosition,
-  avatarsWithPositions,
-  onAvatarClick,
+  membersWithPositions,
+  onMemberClick,
   isDarkMode = true,
 }: WorldSceneProps) {
   const controlsRef = useRef<OrbitControlsRef>(null)
   const { camera } = useThree()
 
-  // Get avatar component from DI
-  const AvatarComponent = useAvatarComponent()
+  // Get member component from DI
+  const MemberComponent = useMemberComponent()
 
   // Update camera position when state changes
   useEffect(() => {
@@ -97,20 +97,20 @@ export function WorldScene({
         position={[0, -2, 0]}
       />
 
-      {/* Render all avatars */}
-      {avatarsWithPositions.map(({ avatar, position }) => (
-        <AvatarComponent
-          key={avatar.id}
-          avatarId={avatar.id}
+      {/* Render all members */}
+      {membersWithPositions.map(({ member, position }) => (
+        <MemberComponent
+          key={member.id}
+          memberId={member.id}
           position={position}
           cursorPosition={cursorPosition}
           selectedNodes={selectedNodeIds}
           isAnimating={false}
-          onAvatarClick={() => onAvatarClick?.(avatar.id, position)}
+          onMemberClick={() => onMemberClick?.(member.id, position)}
           colors={{
-            body: avatar.bodyColor,
-            head: avatar.headColor,
-            accent: avatar.accentColor,
+            body: member.bodyColor,
+            head: member.headColor,
+            accent: member.accentColor,
           }}
         />
       ))}

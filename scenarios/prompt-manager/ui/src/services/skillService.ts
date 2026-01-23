@@ -1,5 +1,5 @@
 /**
- * Prompt Service - API wrapper with caching layer.
+ * Skill Service - API wrapper with caching layer.
  *
  * Wraps the existing api.ts client with:
  * - 5-second cache for list operations
@@ -8,7 +8,7 @@
  */
 
 import { api } from '@/lib/api'
-import type { Prompt, CreatePromptRequest, UpdatePromptRequest } from '@/types'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
 // Cache configuration
 const CACHE_TTL_MS = 5000 // 5 seconds
@@ -19,7 +19,7 @@ interface CacheEntry<T> {
   timestamp: number
 }
 
-let promptsCache: CacheEntry<Prompt[]> | null = null
+let skillsCache: CacheEntry<Skill[]> | null = null
 
 /**
  * Check if cache entry is still valid.
@@ -33,83 +33,83 @@ function isCacheValid<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
  * Invalidate all caches. Call after mutations.
  */
 export function invalidateCache(): void {
-  promptsCache = null
+  skillsCache = null
 }
 
 /**
- * Get all prompts with caching.
+ * Get all skills with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all prompts
+ * @returns Array of all skills
  */
-export async function getPrompts(forceRefresh = false): Promise<Prompt[]> {
-  if (!forceRefresh && isCacheValid(promptsCache)) {
-    return promptsCache.data
+export async function getSkills(forceRefresh = false): Promise<Skill[]> {
+  if (!forceRefresh && isCacheValid(skillsCache)) {
+    return skillsCache.data
   }
 
-  const data = await api.getPrompts()
-  promptsCache = { data, timestamp: Date.now() }
+  const data = await api.getSkills()
+  skillsCache = { data, timestamp: Date.now() }
   return data
 }
 
 /**
- * Get a single prompt by ID.
+ * Get a single skill by ID.
  * Always fetches from API since the list cache doesn't include content.
  *
- * @param id - Prompt ID
- * @returns The prompt, or undefined if not found
+ * @param id - Skill ID
+ * @returns The skill, or undefined if not found
  */
-export async function getPrompt(id: string): Promise<Prompt | undefined> {
+export async function getSkill(id: string): Promise<Skill | undefined> {
   // Always fetch from API - list cache doesn't include content
   try {
-    return await api.getPrompt(id)
+    return await api.getSkill(id)
   } catch (error) {
-    console.error(`[promptService] Failed to get prompt ${id}:`, error)
+    console.error(`[skillService] Failed to get skill ${id}:`, error)
     return undefined
   }
 }
 
 /**
- * Create a new prompt.
+ * Create a new skill.
  *
  * @param request - Create request data
- * @returns The created prompt
+ * @returns The created skill
  */
-export async function createPrompt(request: CreatePromptRequest): Promise<Prompt> {
-  const prompt = await api.createPrompt(request)
+export async function createSkill(request: CreateSkillRequest): Promise<Skill> {
+  const skill = await api.createSkill(request)
   invalidateCache()
-  return prompt
+  return skill
 }
 
 /**
- * Update a single prompt.
+ * Update a single skill.
  *
- * @param id - Prompt ID to update
+ * @param id - Skill ID to update
  * @param updates - Fields to update
- * @returns The updated prompt
+ * @returns The updated skill
  */
-export async function updatePrompt(id: string, updates: UpdatePromptRequest): Promise<Prompt> {
-  const prompt = await api.updatePrompt(id, updates)
+export async function updateSkill(id: string, updates: UpdateSkillRequest): Promise<Skill> {
+  const skill = await api.updateSkill(id, updates)
   invalidateCache()
-  return prompt
+  return skill
 }
 
 /**
- * Batch update multiple prompts.
+ * Batch update multiple skills.
  *
- * @param updates - Map of prompt ID to update request
- * @returns Map of prompt ID to updated prompt (or error)
+ * @param updates - Map of skill ID to update request
+ * @returns Map of skill ID to updated skill (or error)
  */
-export async function updatePrompts(
-  updates: Map<string, UpdatePromptRequest>
-): Promise<Map<string, Prompt | Error>> {
-  const results = new Map<string, Prompt | Error>()
+export async function updateSkills(
+  updates: Map<string, UpdateSkillRequest>
+): Promise<Map<string, Skill | Error>> {
+  const results = new Map<string, Skill | Error>()
 
   // Process updates in parallel
   const promises = Array.from(updates.entries()).map(async ([id, update]) => {
     try {
-      const prompt = await api.updatePrompt(id, update)
-      results.set(id, prompt)
+      const skill = await api.updateSkill(id, update)
+      results.set(id, skill)
     } catch (error) {
       results.set(id, error instanceof Error ? error : new Error(String(error)))
     }
@@ -122,27 +122,27 @@ export async function updatePrompts(
 }
 
 /**
- * Delete a prompt.
+ * Delete a skill.
  *
- * @param id - Prompt ID to delete
+ * @param id - Skill ID to delete
  */
-export async function deletePrompt(id: string): Promise<void> {
-  await api.deletePrompt(id)
+export async function deleteSkill(id: string): Promise<void> {
+  await api.deleteSkill(id)
   invalidateCache()
 }
 
 /**
- * Search prompts by query.
+ * Search skills by query.
  * Uses cached data when available for faster results.
  *
  * @param query - Search query
- * @returns Matching prompts
+ * @returns Matching skills
  */
-export async function searchPrompts(query: string): Promise<Prompt[]> {
+export async function searchSkills(query: string): Promise<Skill[]> {
   // Use cached data if available for instant search
-  if (isCacheValid(promptsCache)) {
+  if (isCacheValid(skillsCache)) {
     const lowerQuery = query.toLowerCase()
-    return promptsCache.data.filter(
+    return skillsCache.data.filter(
       (p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.description.toLowerCase().includes(lowerQuery) ||
@@ -153,19 +153,19 @@ export async function searchPrompts(query: string): Promise<Prompt[]> {
   }
 
   // Fallback to API search
-  return api.searchPrompts(query)
+  return api.searchSkills(query)
 }
 
 /**
- * Get all unique tags from prompts.
+ * Get all unique tags from skills.
  *
  * @returns Array of unique tags sorted alphabetically
  */
 export async function getAllTags(): Promise<string[]> {
-  const prompts = await getPrompts()
+  const skills = await getSkills()
   const tags = new Set<string>()
-  for (const prompt of prompts) {
-    for (const tag of prompt.tags) {
+  for (const skill of skills) {
+    for (const tag of skill.tags) {
       tags.add(tag)
     }
   }

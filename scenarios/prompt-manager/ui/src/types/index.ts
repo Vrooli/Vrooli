@@ -1,11 +1,11 @@
-// Types aligned with the Go API (api/prompts/models.go)
+// Types aligned with the Go API (api/skills/models.go)
 // These match the exact response shapes from the prompt-manager API
 
 /**
- * Folder represents the organizational structure for prompts.
- * - "core": Important prompts (git-tracked)
- * - "local": Personal prompts (gitignored)
- * - "drafts": Work-in-progress prompts
+ * Folder represents the organizational structure for skills.
+ * - "core": Important skills (git-tracked)
+ * - "local": Personal skills (gitignored)
+ * - "drafts": Work-in-progress skills
  */
 export type FolderType = 'core' | 'local' | 'drafts'
 
@@ -17,13 +17,13 @@ export interface Folder {
   name: string
   description: string
   icon: string
-  promptCount: number
+  skillCount: number
 }
 
 /**
- * Prompt matches the API's Response type from api/prompts/models.go
+ * Skill matches the API's Response type from api/skills/models.go
  */
-export interface Prompt {
+export interface Skill {
   id: string
   name: string
   description: string
@@ -42,9 +42,9 @@ export interface Prompt {
 }
 
 /**
- * CreatePromptRequest matches the API's CreateRequest type
+ * CreateSkillRequest matches the API's CreateRequest type
  */
-export interface CreatePromptRequest {
+export interface CreateSkillRequest {
   id?: string
   name: string
   description: string
@@ -58,9 +58,9 @@ export interface CreatePromptRequest {
 }
 
 /**
- * UpdatePromptRequest matches the API's UpdateRequest type
+ * UpdateSkillRequest matches the API's UpdateRequest type
  */
-export interface UpdatePromptRequest {
+export interface UpdateSkillRequest {
   name?: string
   description?: string
   content?: string
@@ -83,9 +83,9 @@ export interface Tag {
 }
 
 /**
- * PromptTestRequest for testing prompts with Ollama
+ * SkillTestRequest for testing skills with Ollama
  */
-export interface PromptTestRequest {
+export interface SkillTestRequest {
   model: string
   inputVariables?: Record<string, string>
   maxTokens?: number
@@ -93,11 +93,11 @@ export interface PromptTestRequest {
 }
 
 /**
- * PromptTestResult from the testing domain
+ * SkillTestResult from the testing domain
  */
-export interface PromptTestResult {
+export interface SkillTestResult {
   id: string
-  promptId: string
+  skillId: string
   model: string
   inputVariables?: Record<string, string>
   response: string
@@ -109,7 +109,7 @@ export interface PromptTestResult {
 }
 
 /**
- * SearchFilters for filtering prompts
+ * SearchFilters for filtering skills
  */
 export interface SearchFilters {
   tag?: string
@@ -121,7 +121,7 @@ export interface SearchFilters {
  * SyncResponse matches the API's SyncResponse type
  */
 export interface SyncResponse {
-  prompts: Prompt[]
+  skills: Skill[]
   lastUpdated: string
   hash: string
 }
@@ -153,6 +153,6 @@ export interface AppSettings {
 }
 
 // Local-only state (not in API)
-export interface LocalPromptState {
-  favorites: Set<string>  // Prompt IDs marked as favorite locally
+export interface LocalSkillState {
+  favorites: Set<string>  // Skill IDs marked as favorite locally
 }

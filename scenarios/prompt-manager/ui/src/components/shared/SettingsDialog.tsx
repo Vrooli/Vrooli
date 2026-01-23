@@ -100,9 +100,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-3">Keyboard Shortcuts</h4>
               <div className="space-y-2 text-sm">
-                <ShortcutRow label="Save current prompt" shortcut={getShortcutDisplay('save')} />
+                <ShortcutRow label="Save current skill" shortcut={getShortcutDisplay('save')} />
                 <ShortcutRow label="Save all changes" shortcut={getShortcutDisplay('saveAll')} />
-                <ShortcutRow label="New prompt" shortcut={getShortcutDisplay('new')} />
+                <ShortcutRow label="New skill" shortcut={getShortcutDisplay('new')} />
                 <ShortcutRow label="Focus search" shortcut={getShortcutDisplay('search')} />
                 <ShortcutRow label="Close / Cancel" shortcut={getShortcutDisplay('escape')} />
                 <ShortcutRow label="Open settings" shortcut={getShortcutDisplay('settings')} />

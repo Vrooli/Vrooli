@@ -1,4 +1,4 @@
-// Package versions provides CLI commands for prompt version history.
+// Package versions provides CLI commands for skill version history.
 package versions
 
 import (
@@ -19,7 +19,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "versions",
 				Aliases:     []string{"history"},
 				NeedsAPI:    true,
-				Description: "Show version history for a prompt",
+				Description: "Show version history for a skill",
 				Run: func(args []string) error {
 					return cmdVersions(ctx, args)
 				},
@@ -28,7 +28,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "revert",
 				Aliases:     []string{"restore"},
 				NeedsAPI:    true,
-				Description: "Revert a prompt to a previous version",
+				Description: "Revert a skill to a previous version",
 				Run: func(args []string) error {
 					return cmdRevert(ctx, args)
 				},
@@ -39,18 +39,18 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 
 func cmdVersions(ctx appctx.Context, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: versions <prompt-id>")
+		return fmt.Errorf("usage: versions <skill-id>")
 	}
 
-	promptID := args[0]
+	skillID := args[0]
 
-	var versions []types.PromptVersion
-	if err := ctx.Get(fmt.Sprintf("/prompts/%s/versions", promptID), &versions); err != nil {
+	var versions []types.SkillVersion
+	if err := ctx.Get(fmt.Sprintf("/skills/%s/versions", skillID), &versions); err != nil {
 		return fmt.Errorf("failed to get version history: %w", err)
 	}
 
 	if len(versions) == 0 {
-		fmt.Println("No version history found for this prompt")
+		fmt.Println("No version history found for this skill")
 		return nil
 	}
 
@@ -67,18 +67,18 @@ func cmdVersions(ctx appctx.Context, args []string) error {
 
 func cmdRevert(ctx appctx.Context, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: revert <prompt-id> <version-number>")
+		return fmt.Errorf("usage: revert <skill-id> <version-number>")
 	}
 
-	promptID := args[0]
+	skillID := args[0]
 	versionNum := args[1]
 
-	var prompt types.Prompt
-	if err := ctx.Post(fmt.Sprintf("/prompts/%s/revert/%s", promptID, versionNum), struct{}{}, &prompt); err != nil {
+	var skill types.Skill
+	if err := ctx.Post(fmt.Sprintf("/skills/%s/revert/%s", skillID, versionNum), struct{}{}, &skill); err != nil {
 		return fmt.Errorf("failed to revert: %w", err)
 	}
 
 	fmt.Printf("Successfully reverted to version %s\n", versionNum)
-	fmt.Printf("Current version: %d\n", prompt.Version)
+	fmt.Printf("Current version: %d\n", skill.Version)
 	return nil
 }

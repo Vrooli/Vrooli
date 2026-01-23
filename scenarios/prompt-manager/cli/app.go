@@ -10,8 +10,8 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/cli/prompts"
 	"prompt-manager/cli/search"
+	"prompt-manager/cli/skills"
 	"prompt-manager/cli/versions"
 )
 
@@ -44,7 +44,7 @@ func NewApp() (*App, error) {
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
 		Version:           appVersion,
-		Description:       "Personal Prompt Manager CLI - manage prompts organized by folders",
+		Description:       "Personal Prompt Manager CLI - manage skills organized by folders",
 		DefaultAPIBase:    defaultAPIBase,
 		APIEnvVars:        env.APIEnvVars,
 		APIPortEnvVars:    env.APIPortEnvVars,
@@ -89,7 +89,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	groups := []cliapp.CommandGroup{
 		health,
 	}
-	groups = append(groups, prompts.Commands(a)...)
+	groups = append(groups, skills.Commands(a)...)
 	groups = append(groups, search.Commands(a))
 	groups = append(groups, versions.Commands(a))
 	groups = append(groups, config)

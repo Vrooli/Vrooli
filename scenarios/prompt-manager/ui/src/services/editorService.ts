@@ -2,30 +2,30 @@
  * Editor Service - Pure functions for form state management and validation.
  *
  * Handles:
- * - Converting between Prompt and PromptFormState
+ * - Converting between Skill and SkillFormState
  * - Validating form fields
  * - Detecting dirty state
  */
 
-import type { Prompt, UpdatePromptRequest } from '@/types'
-import type { PromptFormState, ValidationResult } from '@/types/editor'
+import type { Skill, UpdateSkillRequest } from '@/types'
+import type { SkillFormState, ValidationResult } from '@/types/editor'
 
 /**
- * Convert a Prompt to editable form state.
+ * Convert a Skill to editable form state.
  *
- * @param prompt - The prompt to convert
+ * @param skill - The skill to convert
  * @returns Form state ready for editing
  */
-export function promptToFormState(prompt: Prompt): PromptFormState {
+export function skillToFormState(skill: Skill): SkillFormState {
   return {
-    name: prompt.name,
-    description: prompt.description,
-    content: prompt.content,
-    modes: [...prompt.modes],
-    tags: prompt.tags.join(', '),
-    icon: prompt.icon ?? '',
-    draft: prompt.draft,
-    folder: prompt.folder,
+    name: skill.name,
+    description: skill.description,
+    content: skill.content,
+    modes: [...skill.modes],
+    tags: skill.tags.join(', '),
+    icon: skill.icon ?? '',
+    draft: skill.draft,
+    folder: skill.folder,
   }
 }
 
@@ -35,7 +35,7 @@ export function promptToFormState(prompt: Prompt): PromptFormState {
  * @param formState - The form state to convert
  * @returns Update request for the API
  */
-export function formStateToUpdateRequest(formState: PromptFormState): UpdatePromptRequest {
+export function formStateToUpdateRequest(formState: SkillFormState): UpdateSkillRequest {
   return {
     name: formState.name,
     description: formState.description,
@@ -77,7 +77,7 @@ export function formatTags(tags: string[]): string {
  * @param formState - The form state to validate
  * @returns Validation result with errors by field
  */
-export function validateFormState(formState: PromptFormState): ValidationResult {
+export function validateFormState(formState: SkillFormState): ValidationResult {
   const errors: Record<string, string> = {}
 
   // Name is required
@@ -98,7 +98,7 @@ export function validateFormState(formState: PromptFormState): ValidationResult 
   }
 
   // At least one mode is recommended (warning, not error)
-  // We don't enforce this as an error since prompts can exist without modes
+  // We don't enforce this as an error since skills can exist without modes
 
   return {
     valid: Object.keys(errors).length === 0,
@@ -107,13 +107,13 @@ export function validateFormState(formState: PromptFormState): ValidationResult 
 }
 
 /**
- * Check if form state differs from original prompt.
+ * Check if form state differs from original skill.
  *
- * @param original - Original prompt
+ * @param original - Original skill
  * @param current - Current form state
  * @returns True if there are unsaved changes
  */
-export function isDirty(original: Prompt, current: PromptFormState): boolean {
+export function isDirty(original: Skill, current: SkillFormState): boolean {
   // Compare each field
   if (original.name !== current.name) return true
   if (original.description !== current.description) return true
@@ -144,11 +144,11 @@ function arraysEqual(a: string[], b: string[]): boolean {
 }
 
 /**
- * Create an empty form state for a new prompt.
+ * Create an empty form state for a new skill.
  *
- * @returns Default form state for creating a new prompt
+ * @returns Default form state for creating a new skill
  */
-export function createEmptyFormState(): PromptFormState {
+export function createEmptyFormState(): SkillFormState {
   return {
     name: '',
     description: '',
@@ -164,11 +164,11 @@ export function createEmptyFormState(): PromptFormState {
 /**
  * Get a summary of changes for display.
  *
- * @param original - Original prompt
+ * @param original - Original skill
  * @param current - Current form state
  * @returns Human-readable list of changed fields
  */
-export function getChangeSummary(original: Prompt, current: PromptFormState): string[] {
+export function getChangeSummary(original: Skill, current: SkillFormState): string[] {
   const changes: string[] = []
 
   if (original.name !== current.name) changes.push('name')

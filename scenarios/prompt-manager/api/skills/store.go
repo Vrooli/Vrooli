@@ -1,5 +1,5 @@
-// Package prompts provides the core domain types and operations for prompt management.
-package prompts
+// Package skills provides the core domain types and operations for skill management.
+package skills
 
 import (
 	"encoding/json"
@@ -9,18 +9,18 @@ import (
 	"sync"
 )
 
-// Store handles file-based prompt storage.
-// Prompts are stored as markdown files organized into folders (core, local, drafts).
-// Each folder has a metadata.json tracking prompt metadata.
+// Store handles file-based skill storage.
+// Skills are stored as markdown files organized into folders (core, local, drafts).
+// Each folder has a metadata.json tracking skill metadata.
 //
 // This is a testing seam: inject a mock Store in tests to avoid filesystem access.
 type Store struct {
 	baseDir string
 	mu      sync.RWMutex
-	cache   map[string][]Metadata // folder -> prompts
+	cache   map[string][]Metadata // folder -> skills
 }
 
-// NewStore creates a new prompt store.
+// NewStore creates a new skill store.
 func NewStore(baseDir string) *Store {
 	return &Store{
 		baseDir: baseDir,
@@ -28,7 +28,7 @@ func NewStore(baseDir string) *Store {
 	}
 }
 
-// LoadMetadata loads prompt metadata from a folder's metadata.json.
+// LoadMetadata loads skill metadata from a folder's metadata.json.
 func (s *Store) LoadMetadata(folder string) ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -47,17 +47,17 @@ func (s *Store) LoadMetadata(folder string) ([]Metadata, error) {
 		return nil, err
 	}
 
-	s.cache[folder] = metadata.Prompts
-	return metadata.Prompts, nil
+	s.cache[folder] = metadata.Skills
+	return metadata.Skills, nil
 }
 
-// SaveMetadata saves prompt metadata to a folder's metadata.json.
-func (s *Store) SaveMetadata(folder string, prompts []Metadata) error {
+// SaveMetadata saves skill metadata to a folder's metadata.json.
+func (s *Store) SaveMetadata(folder string, skills []Metadata) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	metadataPath := filepath.Join(s.baseDir, folder, "metadata.json")
-	metadata := MetadataFile{Prompts: prompts}
+	metadata := MetadataFile{Skills: skills}
 
 	data, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
@@ -68,11 +68,11 @@ func (s *Store) SaveMetadata(folder string, prompts []Metadata) error {
 		return err
 	}
 
-	s.cache[folder] = prompts
+	s.cache[folder] = skills
 	return os.WriteFile(metadataPath, data, 0o644)
 }
 
-// GetContent reads a prompt's markdown content from disk.
+// GetContent reads a skill's markdown content from disk.
 func (s *Store) GetContent(folder, filename string) (string, error) {
 	contentPath := filepath.Join(s.baseDir, folder, filename)
 	data, err := os.ReadFile(contentPath)
@@ -82,7 +82,7 @@ func (s *Store) GetContent(folder, filename string) (string, error) {
 	return string(data), nil
 }
 
-// SaveContent writes a prompt's markdown content to disk.
+// SaveContent writes a skill's markdown content to disk.
 func (s *Store) SaveContent(folder, filename, content string) error {
 	contentPath := filepath.Join(s.baseDir, folder, filename)
 	if err := os.MkdirAll(filepath.Dir(contentPath), 0o755); err != nil {
@@ -91,45 +91,45 @@ func (s *Store) SaveContent(folder, filename, content string) error {
 	return os.WriteFile(contentPath, []byte(content), 0o644)
 }
 
-// DeleteContent removes a prompt's markdown file from disk.
+// DeleteContent removes a skill's markdown file from disk.
 func (s *Store) DeleteContent(folder, filename string) error {
 	contentPath := filepath.Join(s.baseDir, folder, filename)
 	return os.Remove(contentPath)
 }
 
-// GetAll returns all prompts from all folders.
+// GetAll returns all skills from all folders.
 func (s *Store) GetAll() ([]Metadata, error) {
-	var allPrompts []Metadata
+	var allSkills []Metadata
 
 	for _, folder := range Folders {
-		prompts, err := s.LoadMetadata(folder)
+		skills, err := s.LoadMetadata(folder)
 		if err != nil {
 			// Log warning but continue - don't fail if one folder is missing
 			continue
 		}
-		for i := range prompts {
+		for i := range skills {
 			// Prefix file path with folder for disambiguation
-			prompts[i].File = folder + "/" + prompts[i].File
+			skills[i].File = folder + "/" + skills[i].File
 		}
-		allPrompts = append(allPrompts, prompts...)
+		allSkills = append(allSkills, skills...)
 	}
 
-	return allPrompts, nil
+	return allSkills, nil
 }
 
-// FindByID searches all folders for a prompt with the given ID.
-// Returns the prompt metadata and the folder it was found in.
+// FindByID searches all folders for a skill with the given ID.
+// Returns the skill metadata and the folder it was found in.
 func (s *Store) FindByID(id string) (*Metadata, string, error) {
 	for _, folder := range Folders {
-		prompts, err := s.LoadMetadata(folder)
+		skills, err := s.LoadMetadata(folder)
 		if err != nil {
 			continue
 		}
-		for _, p := range prompts {
+		for _, p := range skills {
 			if p.ID == id {
 				return &p, folder, nil
 			}
 		}
 	}
-	return nil, "", fmt.Errorf("prompt not found: %s", id)
+	return nil, "", fmt.Errorf("skill not found: %s", id)
 }

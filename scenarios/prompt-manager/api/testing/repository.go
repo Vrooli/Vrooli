@@ -1,4 +1,4 @@
-// Package testing provides LLM-based prompt testing via Ollama.
+// Package testing provides LLM-based skill testing via Ollama.
 package testing
 
 import (
@@ -28,28 +28,28 @@ func (r *Repository) Save(result *TestResult) error {
 	varsJSON, _ := json.Marshal(result.InputVars)
 
 	_, err := r.db.Exec(`
-		INSERT INTO test_results (id, prompt_id, model, input_variables, response, response_time, token_count, tested_at)
+		INSERT INTO test_results (id, skill_id, model, input_variables, response, response_time, token_count, tested_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-	`, result.ID, result.PromptID, result.Model, string(varsJSON), result.Response, result.ResponseTime, result.TokenCount)
+	`, result.ID, result.SkillID, result.Model, string(varsJSON), result.Response, result.ResponseTime, result.TokenCount)
 
 	return err
 }
 
-// GetHistory retrieves test history for a prompt, newest first.
-func (r *Repository) GetHistory(promptID string, limit int) ([]TestResult, error) {
+// GetHistory retrieves test history for a skill, newest first.
+func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 
 	query := `
-		SELECT id, prompt_id, model, input_variables, response, response_time, token_count, rating, notes, tested_at
+		SELECT id, skill_id, model, input_variables, response, response_time, token_count, rating, notes, tested_at
 		FROM test_results
-		WHERE prompt_id = $1
+		WHERE skill_id = $1
 		ORDER BY tested_at DESC
 		LIMIT $2
 	`
 
-	rows, err := r.db.Query(query, promptID, limit)
+	rows, err := r.db.Query(query, skillID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (r *Repository) GetHistory(promptID string, limit int) ([]TestResult, error
 	var results []TestResult
 	for rows.Next() {
 		var tr TestResult
-		if err := rows.Scan(&tr.ID, &tr.PromptID, &tr.Model, &tr.InputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &tr.TestedAt); err != nil {
+		if err := rows.Scan(&tr.ID, &tr.SkillID, &tr.Model, &tr.InputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &tr.TestedAt); err != nil {
 			continue
 		}
 		results = append(results, tr)
