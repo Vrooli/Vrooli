@@ -153,15 +153,25 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate ID if not provided
+	// Generate unique ID if not provided
 	if req.ID == "" {
-		req.ID = Slugify(req.Name)
-	}
+		idExists := func(id string) bool {
+			_, _, err := h.store.FindByID(id)
+			return err == nil
+		}
 
-	// Check if ID already exists
-	if _, _, err := h.store.FindByID(req.ID); err == nil {
-		http.Error(w, "Prompt with this ID already exists", http.StatusConflict)
-		return
+		uniqueID, err := GenerateUniqueID(req.Name, idExists)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		req.ID = uniqueID
+	} else {
+		// User provided explicit ID - check for conflict
+		if _, _, err := h.store.FindByID(req.ID); err == nil {
+			http.Error(w, "Prompt with this ID already exists", http.StatusConflict)
+			return
+		}
 	}
 
 	now := time.Now().Format(time.RFC3339)

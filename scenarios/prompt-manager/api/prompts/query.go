@@ -1,7 +1,10 @@
 // Package prompts provides the core domain types and operations for prompt management.
 package prompts
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // FilterOptions defines criteria for filtering prompts.
 type FilterOptions struct {
@@ -97,4 +100,34 @@ func Slugify(s string) string {
 	slug = strings.Trim(slug, "-")
 
 	return slug
+}
+
+const (
+	MaxIDSuffixAttempts   = 100
+	DefaultFallbackPrefix = "prompt"
+)
+
+// GenerateUniqueID creates a unique ID by appending numeric suffixes if needed.
+func GenerateUniqueID(name string, idExists func(id string) bool) (string, error) {
+	baseID := Slugify(name)
+
+	// Handle empty slug (e.g., name was "!!!")
+	if baseID == "" {
+		baseID = DefaultFallbackPrefix
+	}
+
+	// Try base ID first
+	if !idExists(baseID) {
+		return baseID, nil
+	}
+
+	// Try suffixed versions
+	for i := 1; i <= MaxIDSuffixAttempts; i++ {
+		candidateID := fmt.Sprintf("%s-%d", baseID, i)
+		if !idExists(candidateID) {
+			return candidateID, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to generate unique ID after %d attempts", MaxIDSuffixAttempts)
 }

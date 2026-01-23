@@ -64,12 +64,12 @@ func (s *Store) SaveMetadata(folder string, prompts []Metadata) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(metadataPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(metadataPath), 0o755); err != nil {
 		return err
 	}
 
 	s.cache[folder] = prompts
-	return os.WriteFile(metadataPath, data, 0644)
+	return os.WriteFile(metadataPath, data, 0o644)
 }
 
 // GetContent reads a prompt's markdown content from disk.
@@ -85,10 +85,10 @@ func (s *Store) GetContent(folder, filename string) (string, error) {
 // SaveContent writes a prompt's markdown content to disk.
 func (s *Store) SaveContent(folder, filename, content string) error {
 	contentPath := filepath.Join(s.baseDir, folder, filename)
-	if err := os.MkdirAll(filepath.Dir(contentPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(contentPath), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(contentPath, []byte(content), 0644)
+	return os.WriteFile(contentPath, []byte(content), 0o644)
 }
 
 // DeleteContent removes a prompt's markdown file from disk.

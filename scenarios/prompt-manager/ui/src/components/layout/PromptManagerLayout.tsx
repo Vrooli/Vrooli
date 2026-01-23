@@ -31,6 +31,7 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
+import { getPrompt } from '@/services/promptService'
 import type { TreeNode } from '@/types/editor'
 import type { Prompt, CreatePromptRequest } from '@/types'
 
@@ -292,21 +293,25 @@ export function PromptManagerLayout() {
 
   // Handle copy prompt
   const handleCopyPrompt = useCallback(async (promptId: string) => {
-    const prompt = prompts.find(p => p.id === promptId)
-    if (!prompt) return
-
-    const newPrompt: CreatePromptRequest = {
-      name: `${prompt.name} (Copy)`,
-      description: prompt.description,
-      content: prompt.content,
-      modes: [...prompt.modes],
-      tags: [...prompt.tags],
-      icon: prompt.icon,
-      folder: prompt.folder,
-      draft: true,
-    }
-
     try {
+      // Fetch full prompt data including content (list doesn't include content)
+      const prompt = await getPrompt(promptId)
+      if (!prompt) {
+        console.error('Failed to copy prompt: prompt not found')
+        return
+      }
+
+      const newPrompt: CreatePromptRequest = {
+        name: `${prompt.name} (Copy)`,
+        description: prompt.description,
+        content: prompt.content,
+        modes: [...prompt.modes],
+        tags: [...prompt.tags],
+        icon: prompt.icon,
+        folder: prompt.folder,
+        draft: true,
+      }
+
       const created = await createPrompt(newPrompt)
       setSelectedPromptId(created.id)
 
@@ -316,7 +321,7 @@ export function PromptManagerLayout() {
     } catch (error) {
       console.error('Failed to copy prompt:', error)
     }
-  }, [prompts, createPrompt, setSelectedPromptId, isMobile])
+  }, [createPrompt, setSelectedPromptId, isMobile])
 
   // Render item icon in tree
   const renderItemIcon = useCallback((prompt: Prompt) => {
