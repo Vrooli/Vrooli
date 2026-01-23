@@ -1,14 +1,15 @@
 /**
- * SkillTreeScene - Composes the 3D scene with avatar, lights, and controls.
+ * SkillTreeScene - Composes the 3D scene with avatars, lights, and controls.
  *
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
- * This scene now focuses on the avatar display with ambient environment.
+ * This scene now focuses on avatar display with ambient environment.
  */
 
 import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useAvatarComponent } from './AvatarProvider'
+import type { Avatar } from '@/types/avatar'
 
 interface CameraState {
   position: [number, number, number]
@@ -16,16 +17,20 @@ interface CameraState {
   zoom: number
 }
 
+/** Avatar with its computed position in the scene */
+export interface AvatarWithPosition {
+  avatar: Avatar
+  position: [number, number, number]
+}
+
 interface SkillTreeSceneProps {
   cameraState: CameraState
   selectedNodeIds: string[]
   cursorPosition: { x: number; y: number } | null
-  onAvatarClick?: () => void
-  avatarColors?: {
-    body: string
-    head: string
-    accent: string
-  }
+  /** All avatars with their positions */
+  avatarsWithPositions: AvatarWithPosition[]
+  /** Called when an avatar is clicked, with avatar ID and position */
+  onAvatarClick?: (avatarId: string, position: [number, number, number]) => void
   isDarkMode?: boolean
 }
 
@@ -33,8 +38,8 @@ export function SkillTreeScene({
   cameraState,
   selectedNodeIds,
   cursorPosition,
+  avatarsWithPositions,
   onAvatarClick,
-  avatarColors,
   isDarkMode = true,
 }: SkillTreeSceneProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,15 +92,23 @@ export function SkillTreeScene({
         position={[0, -2, 0]}
       />
 
-      {/* Avatar */}
-      <AvatarComponent
-        position={[0, 0, 0]}
-        cursorPosition={cursorPosition}
-        selectedNodes={selectedNodeIds}
-        isAnimating={false}
-        onAvatarClick={onAvatarClick}
-        colors={avatarColors}
-      />
+      {/* Render all avatars */}
+      {avatarsWithPositions.map(({ avatar, position }) => (
+        <AvatarComponent
+          key={avatar.id}
+          avatarId={avatar.id}
+          position={position}
+          cursorPosition={cursorPosition}
+          selectedNodes={selectedNodeIds}
+          isAnimating={false}
+          onAvatarClick={() => onAvatarClick?.(avatar.id, position)}
+          colors={{
+            body: avatar.bodyColor,
+            head: avatar.headColor,
+            accent: avatar.accentColor,
+          }}
+        />
+      ))}
     </>
   )
 }

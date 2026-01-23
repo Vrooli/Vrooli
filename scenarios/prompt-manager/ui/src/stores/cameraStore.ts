@@ -43,6 +43,7 @@ interface CameraStore {
   exitZoom: () => void
   setTopDown: () => void
   setFreeform: () => void
+  cycleCameraMode: (avatarId?: string, avatarPosition?: [number, number, number]) => void
 
   // History management
   pushHistory: () => void
@@ -167,6 +168,28 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     setTimeout(() => {
       set({ isAnimating: false })
     }, 1000)
+  },
+
+  cycleCameraMode: (avatarId?: string, avatarPosition?: [number, number, number]) => {
+    const state = get()
+    const currentMode = state.mode
+
+    // Cycle: zoomed-avatar -> freeform -> top-down -> zoomed-avatar
+    if (currentMode === 'zoomed-avatar') {
+      // Go to freeform
+      state.setFreeform()
+    } else if (currentMode === 'freeform') {
+      // Go to top-down
+      state.setTopDown()
+    } else {
+      // top-down -> zoomed-avatar (if we have an avatar to zoom to)
+      if (avatarId && avatarPosition) {
+        state.zoomToAvatar(avatarId, avatarPosition)
+      } else {
+        // No avatar available, go back to freeform
+        state.setFreeform()
+      }
+    }
   },
 
   pushHistory: () => {

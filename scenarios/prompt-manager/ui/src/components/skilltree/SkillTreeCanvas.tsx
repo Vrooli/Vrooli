@@ -6,7 +6,7 @@
  * enter skill selection mode with checkboxes.
  */
 
-import { Suspense, useCallback, useState } from 'react'
+import { Suspense, useCallback, useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Prompt } from '@/types'
@@ -17,7 +17,7 @@ import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
 import { useAvatarData } from '@/hooks/useAvatarData'
 import { AvatarProvider } from './AvatarProvider'
-import { SkillTreeScene } from './SkillTreeScene'
+import { SkillTreeScene, type AvatarWithPosition } from './SkillTreeScene'
 import { SkillTreeControls } from './SkillTreeControls'
 import { CombinePanel } from './CombinePanel'
 import { AvatarOverlay } from './AvatarOverlay'
@@ -28,13 +28,42 @@ import { ConfirmDialog } from '../shared/ConfirmDialog'
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 
+/**
+ * Generate a deterministic position for an avatar based on its ID.
+ * Uses a simple hash to ensure the same avatar always gets the same position.
+ */
+function generateAvatarPosition(avatarId: string, index: number, total: number): [number, number, number] {
+  // Simple hash from avatar ID for deterministic randomness
+  let hash = 0
+  for (let i = 0; i < avatarId.length; i++) {
+    hash = ((hash << 5) - hash) + avatarId.charCodeAt(i)
+    hash = hash & hash // Convert to 32-bit integer
+  }
+
+  // If only one avatar, place at origin
+  if (total === 1) {
+    return [0, 0, 0]
+  }
+
+  // Distribute avatars in a circular pattern with some randomness
+  const radius = 4 + (total > 5 ? 2 : 0) // Larger radius for more avatars
+  const angleOffset = (hash % 1000) / 1000 * Math.PI * 2
+  const baseAngle = (index / total) * Math.PI * 2 + angleOffset
+
+  // Add some radial variation based on hash
+  const radialVariation = ((hash % 100) / 100 - 0.5) * 1.5
+
+  const x = Math.cos(baseAngle) * (radius + radialVariation)
+  const z = Math.sin(baseAngle) * (radius + radialVariation)
+
+  return [x, 0, z]
+}
+
 interface SkillTreeCanvasProps {
   prompts: Prompt[]
   onSelectPrompt?: (promptId: string) => void
   onCombinePrompts?: (combined: string, format: CombineFormat) => void
   avatarType?: string
-  /** ID of the avatar to display in the scene (uses first avatar if not specified) */
-  activeAvatarId?: string
   className?: string
 }
 
@@ -43,7 +72,6 @@ export function SkillTreeCanvas({
   onSelectPrompt: _onSelectPrompt,
   onCombinePrompts,
   avatarType = 'geometric',
-  activeAvatarId,
   className,
 }: SkillTreeCanvasProps) {
   // Note: onSelectPrompt is kept for API compatibility but not used since
@@ -68,57 +96,72 @@ export function SkillTreeCanvas({
   const focusedAvatarId = useCameraStore((state) => state.focusedAvatarId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
   const zoomToAvatar = useCameraStore((state) => state.zoomToAvatar)
+  const cycleCameraMode = useCameraStore((state) => state.cycleCameraMode)
 
   // Avatar data
   const { avatars, updateAvatar, deleteAvatar, createAvatar, isUpdating, isDeleting } = useAvatarData()
   const focusedAvatar = avatars.find((a) => a.id === focusedAvatarId) ?? null
 
-  // Get the active avatar for display (default to first if not specified)
-  const activeAvatar = avatars.find((a) => a.id === activeAvatarId) ?? avatars[0] ?? null
-  const activeAvatarColors = activeAvatar
-    ? { body: activeAvatar.bodyColor, head: activeAvatar.headColor, accent: activeAvatar.accentColor }
-    : undefined
+  // Generate positions for all avatars (memoized for stability)
+  const avatarsWithPositions = useMemo<AvatarWithPosition[]>(() => {
+    return avatars.map((avatar, index) => ({
+      avatar,
+      position: generateAvatarPosition(avatar.id, index, avatars.length),
+    }))
+  }, [avatars])
 
-  // Handle avatar click in 3D scene
-  const handleAvatarClick = useCallback(() => {
-    if (activeAvatar) {
-      zoomToAvatar(activeAvatar.id, [0, 0, 0]) // Avatar is at origin
-    }
-  }, [activeAvatar, zoomToAvatar])
+  // Get position of focused avatar (for camera targeting)
+  const focusedAvatarPosition = useMemo(() => {
+    const found = avatarsWithPositions.find((a) => a.avatar.id === focusedAvatarId)
+    return found?.position ?? null
+  }, [avatarsWithPositions, focusedAvatarId])
+
+  // Handle avatar click in 3D scene - opens the avatar menu
+  const handleAvatarClick = useCallback((avatarId: string, position: [number, number, number]) => {
+    zoomToAvatar(avatarId, position)
+  }, [zoomToAvatar])
+
+  // Handle camera mode cycling
+  const handleCycleCameraMode = useCallback(() => {
+    // Get the first avatar for zoom target (or focused if available)
+    const targetAvatar = focusedAvatarId
+      ? avatarsWithPositions.find((a) => a.avatar.id === focusedAvatarId)
+      : avatarsWithPositions[0]
+
+    cycleCameraMode(targetAvatar?.avatar.id, targetAvatar?.position)
+  }, [cycleCameraMode, focusedAvatarId, avatarsWithPositions])
 
   // Modal state
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  // Camera state for 3D scene
-  const [cameraState, setCameraState] = useState({
-    position: DEFAULT_CAMERA_POSITION,
-    target: DEFAULT_CAMERA_TARGET,
-    zoom: 1,
-  })
-
-  // Camera controls
-  const resetCamera = useCallback(() => {
-    setCameraState({
+  // Camera state for 3D scene - use focused avatar position when zoomed
+  const cameraState = useMemo(() => {
+    if (cameraMode === 'zoomed-avatar' && focusedAvatarPosition) {
+      return {
+        position: [
+          focusedAvatarPosition[0],
+          focusedAvatarPosition[1] + 2,
+          focusedAvatarPosition[2] + 5,
+        ] as [number, number, number],
+        target: focusedAvatarPosition,
+        zoom: 2,
+      }
+    }
+    if (cameraMode === 'top-down') {
+      return {
+        position: [0, 20, 0.1] as [number, number, number],
+        target: [0, 0, 0] as [number, number, number],
+        zoom: 1,
+      }
+    }
+    // Default freeform view
+    return {
       position: DEFAULT_CAMERA_POSITION,
       target: DEFAULT_CAMERA_TARGET,
       zoom: 1,
-    })
-  }, [])
-
-  const zoomIn = useCallback(() => {
-    setCameraState((prev) => ({
-      ...prev,
-      zoom: Math.min(prev.zoom * 1.2, 3),
-    }))
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    setCameraState((prev) => ({
-      ...prev,
-      zoom: Math.max(prev.zoom / 1.2, 0.5),
-    }))
-  }, [])
+    }
+  }, [cameraMode, focusedAvatarPosition])
 
   // Handle mouse move for cursor tracking
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -217,8 +260,8 @@ export function SkillTreeCanvas({
               cameraState={cameraState}
               selectedNodeIds={selectedPromptIds}
               cursorPosition={cursorPosition}
+              avatarsWithPositions={avatarsWithPositions}
               onAvatarClick={handleAvatarClick}
-              avatarColors={activeAvatarColors}
               isDarkMode={isDarkMode}
             />
           </Suspense>
@@ -241,11 +284,11 @@ export function SkillTreeCanvas({
 
       {/* UI Overlays */}
       <SkillTreeControls
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={resetCamera}
+        cameraMode={cameraMode}
+        onCycleCameraMode={handleCycleCameraMode}
         nodeCount={prompts.length}
         selectionCount={selectedPromptIds.length}
+        avatarCount={avatars.length}
       />
 
       {/* Combine panel */}

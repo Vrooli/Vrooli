@@ -1,63 +1,71 @@
 /**
  * SkillTreeControls - UI overlay for skill tree controls.
- * Includes zoom controls, reset, and help text.
+ * Includes camera mode toggle and help button.
  */
 
-import { ZoomIn, ZoomOut, Maximize2, HelpCircle } from 'lucide-react'
+import { useState } from 'react'
+import { Camera, HelpCircle, Eye, Map, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { CameraMode } from '@/stores/cameraStore'
+import { HelpModal } from './HelpModal'
 
 interface SkillTreeControlsProps {
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onReset: () => void
+  cameraMode: CameraMode
+  onCycleCameraMode: () => void
   nodeCount: number
   selectionCount: number
+  avatarCount: number
+}
+
+const CAMERA_MODE_ICONS: Record<CameraMode, React.ReactNode> = {
+  'zoomed-avatar': <User className="h-4 w-4" />,
+  freeform: <Eye className="h-4 w-4" />,
+  'top-down': <Map className="h-4 w-4" />,
+}
+
+const CAMERA_MODE_LABELS: Record<CameraMode, string> = {
+  'zoomed-avatar': 'Focus on Avatar',
+  freeform: 'Default View',
+  'top-down': 'Aerial View',
 }
 
 export function SkillTreeControls({
-  onZoomIn,
-  onZoomOut,
-  onReset,
+  cameraMode,
+  onCycleCameraMode,
   nodeCount,
   selectionCount,
+  avatarCount,
 }: SkillTreeControlsProps) {
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+
   return (
     <>
-      {/* Zoom controls - top right */}
+      {/* Camera controls - top right */}
       <div className="absolute top-4 right-4 flex flex-col gap-1">
         <Button
           variant="outline"
           size="icon"
-          onClick={onZoomIn}
+          onClick={onCycleCameraMode}
           className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
-          title="Zoom in"
+          title={`Camera: ${CAMERA_MODE_LABELS[cameraMode]} (click to cycle)`}
         >
-          <ZoomIn className="h-4 w-4" />
+          {CAMERA_MODE_ICONS[cameraMode]}
         </Button>
         <Button
           variant="outline"
           size="icon"
-          onClick={onZoomOut}
+          onClick={() => setIsHelpOpen(true)}
           className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
-          title="Zoom out"
+          title="Help"
         >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onReset}
-          className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
-          title="Reset view"
-        >
-          <Maximize2 className="h-4 w-4" />
+          <HelpCircle className="h-4 w-4" />
         </Button>
       </div>
 
       {/* Info - top left */}
       <div className="absolute top-4 left-4 flex items-center gap-3">
         <div className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300">
-          {nodeCount} prompts
+          {avatarCount} avatar{avatarCount !== 1 ? 's' : ''} • {nodeCount} prompts
         </div>
         {selectionCount > 0 && (
           <div className="px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-md text-xs text-amber-300">
@@ -66,13 +74,16 @@ export function SkillTreeControls({
         )}
       </div>
 
-      {/* Help text - bottom right */}
+      {/* Camera mode indicator - bottom right */}
       <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-md">
-        <HelpCircle className="h-3.5 w-3.5 text-slate-500" />
+        <Camera className="h-3.5 w-3.5 text-slate-500" />
         <span className="text-xs text-slate-400">
-          Click to select • Cmd/Ctrl+Click for multi-select • Drag to orbit
+          {CAMERA_MODE_LABELS[cameraMode]}
         </span>
       </div>
+
+      {/* Help Modal */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </>
   )
 }
