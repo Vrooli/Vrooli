@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Loader2,
@@ -21,6 +21,7 @@ import { Button } from "../ui/button";
 import { Alert } from "../ui/alert";
 import { SelectableCard, CompactSelectableCard, type SelectableCardConfig } from "../ui/selectable-card";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+import { useDeploymentUrl } from "../../hooks/useDeploymentUrl";
 import { createTask } from "../../lib/api";
 import type { CreateTaskRequest } from "../../types/investigation";
 
@@ -170,8 +171,23 @@ export function SpawnAgentButton({
   disabled,
   onTaskStarted,
 }: SpawnAgentButtonProps) {
-  const [showOptions, setShowOptions] = useState(false);
-  const [taskType, setTaskType] = useState<TaskType>("investigate");
+  const { state: urlState, openModal, closeModal } = useDeploymentUrl();
+
+  // Derive modal visibility from URL state
+  const showOptions = urlState.modal === "spawn-agent";
+
+  // Get initial task type from URL params or default to investigate
+  const urlTaskType = urlState.modalParams.taskType;
+  const initialTaskType: TaskType = (urlTaskType === "fix" || urlTaskType === "investigate") ? urlTaskType : "investigate";
+
+  const [taskType, setTaskType] = useState<TaskType>(initialTaskType);
+
+  // Sync taskType when URL params change (e.g., navigating via URL)
+  useEffect(() => {
+    if (showOptions && (urlTaskType === "fix" || urlTaskType === "investigate")) {
+      setTaskType(urlTaskType);
+    }
+  }, [showOptions, urlTaskType]);
   const [effortLevel, setEffortLevel] = useState<EffortLevel>("logs");
   const [permissions, setPermissions] = useState<Set<PermissionType>>(
     () => new Set(["immediate"])
@@ -214,7 +230,7 @@ export function SpawnAgentButton({
       }
       return;
     }
-    setShowOptions(true);
+    openModal("spawn-agent");
   };
 
   const handleTrigger = async () => {
@@ -257,7 +273,7 @@ export function SpawnAgentButton({
   };
 
   const handleReset = () => {
-    setShowOptions(false);
+    closeModal();
     setTaskType("investigate");
     setEffortLevel("logs");
     setPermissions(new Set(["immediate"]));

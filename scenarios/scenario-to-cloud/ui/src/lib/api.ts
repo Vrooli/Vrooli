@@ -1299,7 +1299,16 @@ export async function getLiveState(deploymentId: string): Promise<LiveStateRespo
     const text = await res.text();
     throw new Error(`Failed to get live state: ${res.status} ${text}`);
   }
-  return res.json() as Promise<LiveStateResponse>;
+  // Handle empty response body gracefully
+  const text = await res.text();
+  if (!text) {
+    throw new Error("Live state endpoint returned empty response");
+  }
+  try {
+    return JSON.parse(text) as LiveStateResponse;
+  } catch {
+    throw new Error(`Failed to parse live state response: ${text.slice(0, 100)}`);
+  }
 }
 
 /**

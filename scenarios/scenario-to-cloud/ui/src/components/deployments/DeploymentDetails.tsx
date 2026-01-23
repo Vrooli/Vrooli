@@ -34,9 +34,11 @@ import {
 } from "../../hooks/useDeployments";
 import { useDeploymentProgress } from "../../hooks/useDeploymentProgress";
 import { useDeploymentInvestigation } from "../../hooks/useInvestigation";
+import { useDeploymentUrl } from "../../hooks/useDeploymentUrl";
 import { cn } from "../../lib/utils";
 import { runPreflight as runPreflightApi, type Deployment, type PreflightCheck, type PreflightResponse } from "../../lib/api";
 import type { StepStatus } from "../../types/progress";
+import type { DeploymentTab } from "../../types/url";
 import { LiveStateTab, FilesTab, DriftTab, SecretsTab, HistoryTab, InvestigationsTab, TerminalTab } from "./tabs";
 import { CodeBlock } from "../ui/code-block";
 import { Alert } from "../ui/alert";
@@ -68,13 +70,16 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
   const startMutation = useStartDeployment();
   const executeMutation = useExecuteDeployment();
 
+  // URL state for tabs and modals
+  const { state: urlState, setTab, openModal, closeModal } = useDeploymentUrl();
+  const activeTab = urlState.tab;
+  const showRedeployDialog = urlState.modal === "redeploy";
+  const showInvestigationReport = urlState.modal === "investigation-report";
+
   const [showManifest, setShowManifest] = useState(false);
   const [showSetupResult, setShowSetupResult] = useState(false);
   const [showDeployResult, setShowDeployResult] = useState(false);
   const [showLogs, setShowLogs] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "live-state" | "files" | "drift" | "secrets" | "history" | "investigations" | "terminal">("overview");
-  const [showInvestigationReport, setShowInvestigationReport] = useState(false);
-  const [showRedeployDialog, setShowRedeployDialog] = useState(false);
   const [buildNewBundle, setBuildNewBundle] = useState(false);
   const [runPreflight, setRunPreflight] = useState(false);
   const [redeployActive, setRedeployActive] = useState(false);
@@ -366,7 +371,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     );
   }
 
-  const openRedeployDialog = () => {
+  const openRedeployDialogHandler = () => {
     setBuildNewBundle(!hasExistingBundle);
     setRunPreflight(false);
     setRedeployActive(false);
@@ -374,13 +379,13 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
     setRedeployOptionsSnapshot(null);
     setRedeployViewStep(null);
     resetRedeployProgress();
-    setShowRedeployDialog(true);
+    openModal("redeploy");
   };
 
   const openRedeployProgress = () => {
     hydrateRedeployOptions();
     setRedeployActive(true);
-    setShowRedeployDialog(true);
+    openModal("redeploy");
   };
 
   const startRedeploy = () => {
@@ -505,7 +510,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
             {canRedeploy && (
               <button
-                onClick={openRedeployDialog}
+                onClick={openRedeployDialogHandler}
                 disabled={executeMutation.isPending}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500",
@@ -556,7 +561,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
               </div>
               <button
                 type="button"
-                onClick={() => setShowRedeployDialog(false)}
+                onClick={closeModal}
                 className="text-slate-400 hover:text-white transition-colors"
                 aria-label="Close redeploy dialog"
               >
@@ -627,7 +632,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
 
                 <div className="flex justify-end gap-3">
                   <button
-                    onClick={() => setShowRedeployDialog(false)}
+                    onClick={closeModal}
                     className="px-4 py-2 rounded-lg font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
                   >
                     Close
@@ -785,7 +790,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
           onViewReport={(invId) => {
             investigation.viewReport(invId);
-            setShowInvestigationReport(true);
+            openModal("investigation-report", { invId });
           }}
         />
       )}
@@ -794,11 +799,11 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {showInvestigationReport && investigation.activeInvestigation && (
         <InvestigationReport
           investigation={investigation.activeInvestigation}
-          onClose={() => setShowInvestigationReport(false)}
+          onClose={closeModal}
           isOutdated={isInvestigationOutdated(investigation.activeInvestigation)}
           onApplyFixes={async (invId, options) => {
             await investigation.applyFixes(invId, options);
-            setShowInvestigationReport(false);
+            closeModal();
           }}
           isApplyingFixes={investigation.isApplyingFixes}
         />
@@ -822,7 +827,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-white/10 pb-px overflow-x-auto">
         <button
-          onClick={() => setActiveTab("overview")}
+          onClick={() => setTab("overview")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "overview"
@@ -834,7 +839,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Overview
         </button>
         <button
-          onClick={() => setActiveTab("live-state")}
+          onClick={() => setTab("live-state")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "live-state"
@@ -846,7 +851,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Live State
         </button>
         <button
-          onClick={() => setActiveTab("files")}
+          onClick={() => setTab("files")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "files"
@@ -858,7 +863,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Files
         </button>
         <button
-          onClick={() => setActiveTab("drift")}
+          onClick={() => setTab("drift")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "drift"
@@ -870,7 +875,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Drift
         </button>
         <button
-          onClick={() => setActiveTab("secrets")}
+          onClick={() => setTab("secrets")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "secrets"
@@ -882,7 +887,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Secrets
         </button>
         <button
-          onClick={() => setActiveTab("history")}
+          onClick={() => setTab("history")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "history"
@@ -894,7 +899,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           History
         </button>
         <button
-          onClick={() => setActiveTab("investigations")}
+          onClick={() => setTab("investigations")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "investigations"
@@ -906,7 +911,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           Investigations
         </button>
         <button
-          onClick={() => setActiveTab("terminal")}
+          onClick={() => setTab("terminal")}
           className={cn(
             "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-t-lg whitespace-nowrap",
             activeTab === "terminal"
@@ -942,7 +947,7 @@ export function DeploymentDetails({ deploymentId, onBack }: DeploymentDetailsPro
           lastDeployedAt={deployment.last_deployed_at}
           onViewReport={(inv) => {
             investigation.viewReport(inv.id);
-            setShowInvestigationReport(true);
+            openModal("investigation-report", { invId: inv.id });
           }}
         />
       )}
