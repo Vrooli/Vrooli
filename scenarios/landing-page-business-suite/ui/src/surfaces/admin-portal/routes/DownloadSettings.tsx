@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { FormField, inputClassName } from '../components/FormField';
+import { StatusBadge, StatusBadgeGrid } from '../components/StatusBadge';
+import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
+import { LAYOUT } from '../config/layout.constants';
 import {
   applyDownloadArtifactAdmin,
   commitDownloadArtifactAdmin,
@@ -240,7 +245,7 @@ export function DownloadSettings() {
 
   return (
     <AdminLayout>
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.sectionSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Configure apps and installers for your landing page"
@@ -288,46 +293,32 @@ export function DownloadSettings() {
 
         {/* Setup Overview Stats */}
         {!loading && activeTab === 'apps' && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="downloads-health">
-            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-              <Package className="h-5 w-5 text-blue-300" />
-              <div>
-                <p className="text-sm font-semibold text-white">{downloadHealth.appCount} app{downloadHealth.appCount !== 1 ? 's' : ''}</p>
-                <p className="text-xs text-slate-400">{downloadHealth.appCount === 0 ? 'Add your first app' : 'Configured'}</p>
-              </div>
-            </div>
-            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-              downloadHealth.platformsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
-            }`}>
-              <Monitor className="h-5 w-5 text-emerald-300" />
-              <div>
-                <p className="text-sm font-semibold text-white">{downloadHealth.platformsConfigured} platform{downloadHealth.platformsConfigured !== 1 ? 's' : ''}</p>
-                <p className="text-xs text-slate-400">{downloadHealth.platformsMissing > 0 ? `${downloadHealth.platformsMissing} missing` : 'All set'}</p>
-              </div>
-            </div>
-            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-              downloadHealth.storefrontsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'
-            }`}>
-              <Smartphone className="h-5 w-5 text-purple-300" />
-              <div>
-                <p className="text-sm font-semibold text-white">{downloadHealth.storefrontsConfigured} store link{downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}</p>
-                <p className="text-xs text-slate-400">{downloadHealth.storefrontsConfigured === 0 ? 'Optional' : 'App Store / Play Store'}</p>
-              </div>
-            </div>
-            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-              dirtyCount === 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
-            }`}>
-              {dirtyCount === 0 ? (
-                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-amber-300" />
-              )}
-              <div>
-                <p className="text-sm font-semibold text-white">{dirtyCount === 0 ? 'All saved' : `${dirtyCount} unsaved`}</p>
-                <p className="text-xs text-slate-400">{dirtyCount === 0 ? 'Up to date' : 'Save changes below'}</p>
-              </div>
-            </div>
-          </div>
+          <StatusBadgeGrid
+            testId="downloads-health"
+            columns={4}
+            badges={[
+              {
+                label: `${downloadHealth.appCount} app${downloadHealth.appCount !== 1 ? 's' : ''}`,
+                status: 'info',
+                description: downloadHealth.appCount === 0 ? 'Add your first app' : 'Configured',
+              },
+              {
+                label: `${downloadHealth.platformsConfigured} platform${downloadHealth.platformsConfigured !== 1 ? 's' : ''}`,
+                status: downloadHealth.platformsConfigured > 0 ? 'success' : 'warning',
+                description: downloadHealth.platformsMissing > 0 ? `${downloadHealth.platformsMissing} missing` : 'All set',
+              },
+              {
+                label: `${downloadHealth.storefrontsConfigured} store link${downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}`,
+                status: downloadHealth.storefrontsConfigured > 0 ? 'success' : 'info',
+                description: downloadHealth.storefrontsConfigured === 0 ? 'Optional' : 'App Store / Play Store',
+              },
+              {
+                label: dirtyCount === 0 ? 'All saved' : `${dirtyCount} unsaved`,
+                status: dirtyCount === 0 ? 'success' : 'warning',
+                description: dirtyCount === 0 ? 'Up to date' : 'Save changes below',
+              },
+            ]}
+          />
         )}
 
         <div className="flex flex-wrap gap-2" data-testid="downloads-tabs">
@@ -352,16 +343,14 @@ export function DownloadSettings() {
         </div>
 
         {activeTab === 'apps' && dirtyCount > 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" data-testid="download-settings-dirty-banner">
-            {dirtyCount} app{dirtyCount === 1 ? '' : 's'} have unsaved changes. Save each card to update the runtime payload.
-          </div>
+          <Callout
+            type="warning"
+            message={`${dirtyCount} app${dirtyCount === 1 ? '' : 's'} have unsaved changes. Save each card to update the runtime payload.`}
+          />
         )}
 
         {error && (
-          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            <span>{error}</span>
-          </div>
+          <Callout type="error" message={error} />
         )}
 
         {activeTab === 'apps' ? (loading ? (
@@ -409,10 +398,11 @@ export function DownloadSettings() {
         ) : (
           <div className="space-y-6">
             {forms.length > 1 && (
-              <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-900/30 rounded-lg px-4 py-2 border border-white/5">
-                <GripVertical className="h-4 w-4" />
-                <span>Drag apps to reorder. Use "Save All" to persist the new order.</span>
-              </div>
+              <Callout
+                type="tip"
+                icon={GripVertical}
+                message='Drag apps to reorder. Use "Save All" to persist the new order.'
+              />
             )}
             {forms.map((form, index) => (
               <AppCard
@@ -436,23 +426,19 @@ export function DownloadSettings() {
           </div>
         )) : (
           <div className="space-y-6" data-testid="downloads-hosting">
-            <Card className="border-white/10 bg-white/5">
-              <CardHeader>
-                <CardTitle className="text-white">Connect download storage (S3-compatible)</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Configure where installer artifacts are stored. Credentials can be provided here or inherited from the runtime environment.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <FormSection
+              title="Connect download storage (S3-compatible)"
+              description="Configure where installer artifacts are stored. Credentials can be provided here or inherited from the runtime environment."
+              icon={Package}
+              iconColorClass="text-blue-300"
+              testId="downloads-storage-section"
+            >
+              <div className="space-y-4">
                 {storageError && (
-                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-                    {storageError}
-                  </div>
+                  <Callout type="error" message={storageError} />
                 )}
                 {storageSuccess && (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-                    {storageSuccess}
-                  </div>
+                  <Callout type="success" message={storageSuccess} />
                 )}
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -612,15 +598,17 @@ export function DownloadSettings() {
                     Test connection
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
 
-            <Card className="border-white/10 bg-white/5">
-              <CardHeader>
-                <CardTitle className="text-white">Artifacts</CardTitle>
-                <CardDescription className="text-slate-400">Upload, browse, and apply managed download artifacts.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <FormSection
+              title="Artifacts"
+              description="Upload, browse, and apply managed download artifacts."
+              icon={Download}
+              iconColorClass="text-green-300"
+              testId="downloads-artifacts-section"
+            >
+              <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <input
                     value={artifactsQuery}
@@ -656,9 +644,10 @@ export function DownloadSettings() {
                 </div>
 
                 {(uploadState.error || uploadState.message) && (
-                  <div className={`rounded-xl border px-4 py-3 text-sm ${uploadState.error ? 'border-rose-500/30 bg-rose-500/10 text-rose-100' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'}`}>
-                    {uploadState.error || uploadState.message}
-                  </div>
+                  <Callout
+                    type={uploadState.error ? 'error' : 'success'}
+                    message={uploadState.error || uploadState.message}
+                  />
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -705,9 +694,7 @@ export function DownloadSettings() {
                 </div>
 
                 {artifactsError && (
-                  <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-                    {artifactsError}
-                  </div>
+                  <Callout type="error" message={artifactsError} />
                 )}
 
                 <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -855,8 +842,8 @@ export function DownloadSettings() {
                     </Button>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </FormSection>
           </div>
         )}
       </div>

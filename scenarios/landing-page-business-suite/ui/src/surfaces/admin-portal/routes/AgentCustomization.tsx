@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowLeft } from 'lucide-react';
+import { Sparkles, ArrowLeft, Info } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { FormField, textareaClassName } from '../components/FormField';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
@@ -36,7 +39,7 @@ export function AgentCustomization() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className={`${LAYOUT.maxWidth.narrow} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Agent Customization"
@@ -76,14 +79,14 @@ export function AgentCustomization() {
         )}
 
         {result ? (
-          <Card className="bg-white/5 border-white/10">
+          <Card className={LAYOUT.card.base}>
             <CardHeader>
               <CardTitle className="text-green-400">Agent Customization Triggered</CardTitle>
               <CardDescription className="text-slate-400">
                 Your customization request has been queued
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={LAYOUT.contentSpacing}>
               <div className="bg-slate-900 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Job ID:</span>
@@ -110,51 +113,43 @@ export function AgentCustomization() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle>Customization Brief</CardTitle>
-              <CardDescription className="text-slate-400">
-                Provide structured input for the AI agent to customize your landing page
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Brief */}
-              <div>
-                <label htmlFor="brief" className="block text-sm font-medium text-slate-300 mb-2">
-                  Brief <span className="text-red-400">*</span>
-                </label>
-                <textarea
-                  id="brief"
-                  value={form.brief}
-                  onChange={(e) => setBrief(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
-                  rows={8}
-                  placeholder="Describe what you want the agent to customize. Examples:&#10;• Make the hero section more compelling for B2B SaaS&#10;• Add social proof with customer logos&#10;• Improve CTA button copy for higher conversions&#10;• Optimize pricing section for enterprise customers"
-                  data-testid="agent-brief-input"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  Be specific about your goals, target audience, and desired changes
-                </p>
-              </div>
+          <FormSection
+            title="Customization Brief"
+            description="Provide structured input for the AI agent to customize your landing page"
+            icon={Sparkles}
+            iconColorClass="text-violet-300"
+          >
+            <FormField
+              label="Brief *"
+              htmlFor="brief"
+              helpText="Be specific about your goals, target audience, and desired changes"
+            >
+              <textarea
+                id="brief"
+                value={form.brief}
+                onChange={(e) => setBrief(e.target.value)}
+                className={textareaClassName}
+                rows={8}
+                placeholder="Describe what you want the agent to customize. Examples:&#10;• Make the hero section more compelling for B2B SaaS&#10;• Add social proof with customer logos&#10;• Improve CTA button copy for higher conversions&#10;• Optimize pricing section for enterprise customers"
+                data-testid="agent-brief-input"
+              />
+            </FormField>
 
-              {/* Assets */}
-              <div>
-                <label htmlFor="assets" className="block text-sm font-medium text-slate-300 mb-2">
-                  Assets (optional)
-                </label>
-                <textarea
-                  id="assets"
-                  value={form.assets}
-                  onChange={(e) => setAssets(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
-                  rows={4}
-                  placeholder="Asset URLs (one per line):&#10;https://example.com/logo.png&#10;https://example.com/hero-image.jpg"
-                  data-testid="agent-assets-input"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  URLs to images, logos, or other assets the agent should use
-                </p>
-              </div>
+            <FormField
+              label="Assets (optional)"
+              htmlFor="assets"
+              helpText="URLs to images, logos, or other assets the agent should use"
+            >
+              <textarea
+                id="assets"
+                value={form.assets}
+                onChange={(e) => setAssets(e.target.value)}
+                className={textareaClassName}
+                rows={4}
+                placeholder="Asset URLs (one per line):&#10;https://example.com/logo.png&#10;https://example.com/hero-image.jpg"
+                data-testid="agent-assets-input"
+              />
+            </FormField>
 
               {/* Preview Mode */}
               <div className="flex items-center gap-3">
@@ -173,48 +168,47 @@ export function AgentCustomization() {
                 </span>
               </div>
 
-              {/* Submit */}
-              <div className="flex gap-3 pt-4 border-t border-white/10">
-                <Button
-                  onClick={() => navigate('/admin/customization')}
-                  variant="outline"
-                  className="flex-1"
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={onSubmit}
-                  className="flex-1 gap-2"
-                  disabled={submitting}
-                  data-testid="agent-submit"
-                >
-                  {submitting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      Trigger Agent Customization
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Submit */}
+            <div className="flex gap-3 pt-4 border-t border-white/10">
+              <Button
+                onClick={() => navigate('/admin/customization')}
+                variant="outline"
+                className="flex-1"
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onSubmit}
+                className="flex-1 gap-2"
+                disabled={submitting}
+                data-testid="agent-submit"
+              >
+                {submitting ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Trigger Agent Customization
+                  </>
+                )}
+              </Button>
+            </div>
+          </FormSection>
         )}
 
-        {/* Info Card */}
-        <Card className="bg-blue-500/10 border-blue-500/20 mt-6">
-          <CardContent className="py-4">
-            <p className="text-sm text-blue-200">
-              <strong>How it works:</strong> The agent will analyze your brief, apply customizations
-              to the selected variant, and provide a preview. You can review changes before they go live.
-            </p>
-          </CardContent>
-        </Card>
+        <FormSection
+          title="How it works"
+          description="The agent will analyze your brief, apply customizations to the selected variant, and provide a preview. You can review changes before they go live."
+          icon={Info}
+          iconColorClass="text-blue-300"
+          className="bg-blue-500/10 border-blue-500/20"
+        >
+          <div className="hidden" />
+        </FormSection>
       </div>
     </AdminLayout>
   );

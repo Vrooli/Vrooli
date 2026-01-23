@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
 import { PageHeader } from "../components/PageHeader";
+import { StatusBadgeGrid } from "../components/StatusBadge";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Home, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Home, Package, Palette, RefreshCw, Settings2, Type } from "lucide-react";
+import { LAYOUT } from "../config/layout.constants";
 import type { Variant, StripeSettingsResponse } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import {
@@ -100,7 +102,7 @@ export function AdminHome() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.sectionSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Landing Manager Admin"
@@ -503,24 +505,27 @@ function MonetizationStatusCard({ loading, error, settings, onRetry, onNavigateB
           </Button>
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {[
-            { label: "Publishable key", ok: Boolean(settings?.publishable_key_set) },
-            { label: "Secret key", ok: Boolean(settings?.secret_key_set) },
-            { label: "Webhook secret", ok: Boolean(settings?.webhook_secret_set) },
-          ].map((badge) => (
-            <div
-              key={badge.label}
-              className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${badge.ok ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10"}`}
-            >
-              <ShieldCheck className={`h-5 w-5 ${badge.ok ? "text-emerald-300" : "text-amber-300"}`} />
-              <div>
-                <p className="text-sm font-semibold text-white">{badge.label}</p>
-                <p className="text-xs text-slate-400">{badge.ok ? "Configured" : "Missing"}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StatusBadgeGrid
+          className="mt-6"
+          columns={3}
+          badges={[
+            {
+              label: "Publishable key",
+              status: settings?.publishable_key_set ? "success" : "warning",
+              description: settings?.publishable_key_set ? "Configured" : "Missing",
+            },
+            {
+              label: "Secret key",
+              status: settings?.secret_key_set ? "success" : "warning",
+              description: settings?.secret_key_set ? "Configured" : "Missing",
+            },
+            {
+              label: "Webhook secret",
+              status: settings?.webhook_secret_set ? "success" : "warning",
+              description: settings?.webhook_secret_set ? "Configured" : "Missing",
+            },
+          ]}
+        />
       )}
       {!loading && !error && (
         <div className="mt-4 text-xs text-slate-500 flex flex-wrap gap-4">

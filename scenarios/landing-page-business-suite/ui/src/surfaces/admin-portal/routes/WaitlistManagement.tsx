@@ -1,10 +1,11 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { FormSection } from '../components/FormSection';
 import { Button } from '../../../shared/ui/button';
 import { RefreshCw, Trash2, Download, Mail, Users, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { useWaitlistForm } from '../hooks/useWaitlistForm';
 import { formatDateTime } from '../../../shared/lib/dateFormatters';
+import { LAYOUT } from '../config/layout.constants';
 
 export function WaitlistManagement() {
   const {
@@ -23,7 +24,7 @@ export function WaitlistManagement() {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Manage Waitlist Signups"
@@ -69,17 +70,14 @@ export function WaitlistManagement() {
         )}
 
         {/* Coming Soon Mode Toggle */}
-        <Card className="border-white/10 bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-300" /> Coming Soon Mode
-            </CardTitle>
-            <CardDescription>
-              Control whether visitors see a "coming soon" page with email signup
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
+        <FormSection
+          title="Coming Soon Mode"
+          description="Control whether visitors see a coming soon page with email signup"
+          icon={Clock}
+          iconColorClass="text-amber-300"
+          testId="waitlist-coming-soon-section"
+        >
+          <div className="flex items-center justify-between">
               <div className="flex-1">
                 <p className="text-sm text-white">
                   {comingSoonEnabled ? (
@@ -130,8 +128,7 @@ export function WaitlistManagement() {
                 </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+        </FormSection>
 
         {/* Error */}
         {error && (
@@ -142,16 +139,13 @@ export function WaitlistManagement() {
         )}
 
         {/* Email List */}
-        <Card className="border-white/10 bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-blue-300" /> Collected Emails
-            </CardTitle>
-            <CardDescription>
-              Emails collected from visitors who signed up for updates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <FormSection
+          title="Collected Emails"
+          description="Emails collected from visitors who signed up for updates"
+          icon={Mail}
+          iconColorClass="text-blue-300"
+          testId="waitlist-emails-section"
+        >
             {loading ? (
               <div className="text-slate-400 py-8 text-center">Loading...</div>
             ) : emails.length === 0 ? (
@@ -214,8 +208,7 @@ export function WaitlistManagement() {
                 </table>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </FormSection>
       </div>
     </AdminLayout>
   );

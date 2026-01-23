@@ -1,5 +1,9 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { FormField, inputClassName } from '../components/FormField';
+import { Callout } from '../components/Callout';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
@@ -64,7 +68,7 @@ export function BillingSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-10">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Billing & Subscription"
@@ -75,27 +79,22 @@ export function BillingSettings() {
           testId="billing-header"
         />
 
-        {/* Stripe Configuration Card */}
-        <Card className="border-white/10 bg-slate-900/60">
-          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-blue-300" /> Stripe Configuration
-              </CardTitle>
-              <CardDescription>Store publishable/restricted keys and link directly to the Stripe dashboard.</CardDescription>
-            </div>
-            {currentDashboardUrl && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-                onClick={() => window.open(currentDashboardUrl, '_blank', 'noopener,noreferrer')}
-              >
-                Open Stripe Dashboard
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-6">
+        <FormSection
+          title="Stripe Configuration"
+          description="Store publishable/restricted keys and link directly to the Stripe dashboard."
+          icon={CreditCard}
+          iconColorClass="text-blue-300"
+          actions={currentDashboardUrl ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2"
+              onClick={() => window.open(currentDashboardUrl, '_blank', 'noopener,noreferrer')}
+            >
+              Open Stripe Dashboard
+            </Button>
+          ) : undefined}
+        >
             {loadingStripe ? (
               <p className="text-slate-400">Loading Stripe settings...</p>
             ) : (
@@ -124,55 +123,51 @@ export function BillingSettings() {
                 )}
                 {stripeError && <p className="text-sm text-rose-300">{stripeError}</p>}
                 <form onSubmit={handleStripeSave} className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Publishable Key</label>
+                  <FormField
+                    label="Publishable Key"
+                    helpText={publishablePreview ? `Saved (preview): ${publishablePreview}` : undefined}
+                  >
                     <input
                       type="text"
                       value={stripeForm.publishableKey}
                       onChange={handleStripeInput('publishableKey')}
                       placeholder={publishablePreview ? `${publishablePreview} (saved)` : 'pk_live_...'}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                    {publishablePreview && (
-                      <p className="mt-1 text-xs text-slate-400">Saved (preview): {publishablePreview}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Restricted Key (secret)</label>
+                  </FormField>
+                  <FormField
+                    label="Restricted Key (secret)"
+                    helpText={stripeSettings?.secret_key_set ? 'Restricted key is saved. Enter a new value to rotate.' : undefined}
+                  >
                     <input
                       type="text"
                       value={stripeForm.secretKey}
                       onChange={handleStripeInput('secretKey')}
                       placeholder={stripeSettings?.secret_key_set ? 'Saved restricted key (not shown)' : 'rk_live_...'}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                    {stripeSettings?.secret_key_set && (
-                      <p className="mt-1 text-xs text-slate-400">Restricted key is saved. Enter a new value to rotate.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Webhook Secret</label>
+                  </FormField>
+                  <FormField
+                    label="Webhook Secret"
+                    helpText={stripeSettings?.webhook_secret_set ? 'Webhook secret is saved. Enter a new value to rotate.' : undefined}
+                  >
                     <input
                       type="text"
                       value={stripeForm.webhookSecret}
                       onChange={handleStripeInput('webhookSecret')}
                       placeholder={stripeSettings?.webhook_secret_set ? 'Saved webhook secret (not shown)' : 'whsec_...'}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                    {stripeSettings?.webhook_secret_set && (
-                      <p className="mt-1 text-xs text-slate-400">Webhook secret is saved. Enter a new value to rotate.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Dashboard URL</label>
+                  </FormField>
+                  <FormField label="Dashboard URL">
                     <input
                       type="url"
                       value={stripeForm.dashboardUrl}
                       onChange={handleStripeInput('dashboardUrl')}
                       placeholder="https://dashboard.stripe.com/..."
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+                      className={inputClassName}
                     />
-                  </div>
+                  </FormField>
                   <div className="md:col-span-2 flex items-center gap-3">
                     <Button type="submit" className="gap-2" disabled={savingStripe}>
                       {savingStripe && <RefreshCw className="h-4 w-4 animate-spin" />}
@@ -186,8 +181,7 @@ export function BillingSettings() {
                 </form>
               </>
             )}
-          </CardContent>
-        </Card>
+        </FormSection>
 
         {/* Plan Display Manager */}
         <div>
@@ -226,9 +220,7 @@ export function BillingSettings() {
           <div className="space-y-6">
             {loadingBundles && <p className="text-slate-400">Loading bundle catalog...</p>}
             {bundleError && (
-              <div className="rounded-xl border border-rose-500/40 bg-rose-500/5 p-4 text-rose-200">
-                {bundleError}
-              </div>
+              <Callout type="error" message={bundleError} />
             )}
             {!loadingBundles && !bundleError && bundles.map((entry) => (
               <BundleCard
@@ -280,7 +272,7 @@ function BundleCard({
   const previewData = buildPricingPreviewData(entry, priceForms, includeDemoPlaceholders);
 
   return (
-    <Card className="border-white/10 bg-slate-900/40">
+    <Card className={LAYOUT.card.base}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{entry.bundle.name}</span>
@@ -290,11 +282,12 @@ function BundleCard({
           Control which Stripe prices are surfaced on the landing page and customize their marketing copy.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className={LAYOUT.contentSpacing}>
         {demoHidden && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200">
-            Demo placeholders hidden. Turn them back on to see filler tiers until you add real Stripe prices.
-          </div>
+          <Callout
+            type="warning"
+            message="Demo placeholders hidden. Turn them back on to see filler tiers until you add real Stripe prices."
+          />
         )}
         <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <div className="space-y-6">
@@ -396,34 +389,31 @@ function PriceFormCard({
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Plan Name</label>
+        <FormField label="Plan Name" className="md:col-span-2">
           <input
             type="text"
             value={formState.values.planName}
             onChange={onPriceChange(bundleKey, priceIdentifier, 'planName')}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+            className={inputClassName}
           />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Display Weight</label>
+        </FormField>
+        <FormField label="Display Weight">
           <input
             type="number"
             value={formState.values.displayWeight}
             onChange={onPriceChange(bundleKey, priceIdentifier, 'displayWeight')}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+            className={inputClassName}
           />
-        </div>
+        </FormField>
       </div>
 
-      <div className="mt-4">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Stripe Price ID</label>
+      <FormField label="Stripe Price ID" className="mt-4">
         <input
           type="text"
           value={formState.values.stripePriceId}
           onChange={onPriceChange(bundleKey, priceIdentifier, 'stripePriceId')}
           placeholder="price_abc123 or lookup key if using Stripe aliases"
-          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+          className={inputClassName}
         />
         <div className="mt-2 flex items-center gap-2 text-xs">
           <Button
@@ -440,39 +430,36 @@ function PriceFormCard({
           {priceCheck?.status === 'error' && <span className="text-amber-200">{priceCheck.message || 'Verification failed'}</span>}
         </div>
         <p className="mt-1 text-xs text-slate-400">Paste the actual Stripe price ID or leave blank for free/CTA-only tiers.</p>
-      </div>
+      </FormField>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Subtitle</label>
+        <FormField label="Subtitle">
           <input
             type="text"
             value={formState.values.subtitle}
             onChange={onPriceChange(bundleKey, priceIdentifier, 'subtitle')}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+            className={inputClassName}
           />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Badge</label>
+        </FormField>
+        <FormField label="Badge">
           <input
             type="text"
             value={formState.values.badge}
             onChange={onPriceChange(bundleKey, priceIdentifier, 'badge')}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+            className={inputClassName}
           />
-        </div>
+        </FormField>
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">CTA Label</label>
+        <FormField label="CTA Label">
           <input
             type="text"
             value={formState.values.ctaLabel}
             onChange={onPriceChange(bundleKey, priceIdentifier, 'ctaLabel')}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+            className={inputClassName}
           />
-        </div>
+        </FormField>
         <label className="mt-6 flex items-center gap-2 text-sm text-slate-200">
           <input
             type="checkbox"
@@ -484,16 +471,15 @@ function PriceFormCard({
         </label>
       </div>
 
-      <div className="mt-4">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Feature Bullets</label>
+      <FormField label="Feature Bullets" className="mt-4">
         <textarea
           value={formState.values.featuresText}
           onChange={onPriceChange(bundleKey, priceIdentifier, 'featuresText')}
           rows={4}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
+          className={inputClassName}
           placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
         />
-      </div>
+      </FormField>
 
       {formState.error && (
         <p className="mt-3 text-sm text-rose-300">{formState.error}</p>

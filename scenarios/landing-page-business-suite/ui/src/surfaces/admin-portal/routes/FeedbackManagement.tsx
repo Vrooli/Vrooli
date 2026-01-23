@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select';
@@ -109,8 +110,7 @@ export function FeedbackManagement() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Feedback Management"
@@ -128,7 +128,7 @@ export function FeedbackManagement() {
         />
 
         {/* Filters and Bulk Actions */}
-        <Card className="bg-white/5 border-white/10 mb-6">
+        <Card className={`${LAYOUT.card.base} mb-6`}>
           <CardContent className="py-4">
             <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
               <div className="flex items-center gap-3">
@@ -181,7 +181,7 @@ export function FeedbackManagement() {
 
         {/* Feedback List */}
         {filteredFeedback.length === 0 ? (
-          <Card className="bg-white/5 border-white/10">
+          <Card className={LAYOUT.card.base}>
             <CardContent className="py-12 text-center">
               <MessageSquare className="h-12 w-12 mx-auto text-slate-500 mb-4" />
               <p className="text-slate-400">No feedback found</p>
@@ -226,7 +226,7 @@ export function FeedbackManagement() {
               return (
                 <Card
                   key={feedback.id}
-                  className={`bg-white/5 border-white/10 transition-all ${isSelected ? 'ring-1 ring-blue-500/50' : ''}`}
+                  className={`${LAYOUT.card.base} transition-all ${isSelected ? 'ring-1 ring-blue-500/50' : ''}`}
                 >
                   <CardContent className="p-0">
                     {/* Main Row */}

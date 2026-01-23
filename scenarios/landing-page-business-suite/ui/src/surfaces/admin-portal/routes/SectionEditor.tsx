@@ -4,6 +4,9 @@ import { Save, ArrowLeft, Eye, FileEdit } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
+import { FormField, inputClassName, textareaClassName } from '../components/FormField';
+import { Callout } from '../components/Callout';
+import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
@@ -134,7 +137,7 @@ export function SectionEditor() {
 
   return (
     <AdminLayout>
-      <div className="max-w-[2000px] mx-auto">
+      <div className={`${LAYOUT.maxWidth.extraWide} mx-auto ${LAYOUT.pageSpacing}`}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
@@ -182,9 +185,7 @@ export function SectionEditor() {
         />
 
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-          </div>
+          <Callout type="error" message={error} className="mb-6" />
         )}
 
         {/* Split Layout: Form + Live Preview (OT-P0-012) */}
@@ -214,7 +215,7 @@ export function SectionEditor() {
             <StylingGuardrailsCard variantSlug={variantContext?.variant?.slug ?? variantSlug} />
 
             {/* Section Settings */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="${LAYOUT.card.base} rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Section Settings</h2>
 
               <div className="space-y-4">
@@ -272,7 +273,7 @@ export function SectionEditor() {
             </div>
 
             {/* Content Fields */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+            <div className="${LAYOUT.card.base} rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Content</h2>
 
               <div className="space-y-4">
@@ -361,7 +362,7 @@ export function SectionEditor() {
 
           {/* Right Column: Live Preview (OT-P0-013: updates within 300ms) */}
           <div className="lg:sticky lg:top-6 lg:self-start">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4">
+            <div className="${LAYOUT.card.base} rounded-xl p-6 space-y-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">

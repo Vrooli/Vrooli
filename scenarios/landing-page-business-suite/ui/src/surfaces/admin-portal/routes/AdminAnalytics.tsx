@@ -2,6 +2,7 @@ import { BarChart3, TrendingUp, Users, MousePointerClick, DownloadCloud, ArrowUp
 import { AdminLayout } from "../components/AdminLayout";
 import { PageHeader } from "../components/PageHeader";
 import { RuntimeSignalStrip } from "../components/RuntimeSignalStrip";
+import { LAYOUT } from "../config/layout.constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
@@ -75,7 +76,7 @@ export function AdminAnalytics() {
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
@@ -88,7 +89,7 @@ export function AdminAnalytics() {
           actions={
             <div className="flex gap-3" data-testid="analytics-filters">
               <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-                <SelectTrigger className="w-[140px] bg-white/5 border-white/10" data-testid="analytics-time-range">
+                <SelectTrigger className="w-[140px] ${LAYOUT.card.base}" data-testid="analytics-time-range">
                   <SelectValue placeholder="Time range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -100,7 +101,7 @@ export function AdminAnalytics() {
               </Select>
 
               <Select value={selectedVariant} onValueChange={handleVariantChange}>
-                <SelectTrigger className="w-[160px] bg-white/5 border-white/10" data-testid="analytics-variant-filter">
+                <SelectTrigger className="w-[160px] ${LAYOUT.card.base}" data-testid="analytics-variant-filter">
                   <SelectValue placeholder="All variants" />
                 </SelectTrigger>
                 <SelectContent>
@@ -151,7 +152,7 @@ export function AdminAnalytics() {
 
         {/* Summary cards - OT-P0-023 */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white/5 border-white/10" data-testid="analytics-total-visitors">
+          <Card className="${LAYOUT.card.base}" data-testid="analytics-total-visitors">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Total Visitors</CardTitle>
               <Users className="h-4 w-4 text-slate-400" />
@@ -162,7 +163,7 @@ export function AdminAnalytics() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10" data-testid="analytics-total-downloads">
+          <Card className="${LAYOUT.card.base}" data-testid="analytics-total-downloads">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Downloads</CardTitle>
               <DownloadCloud className="h-4 w-4 text-slate-400" />
@@ -175,7 +176,7 @@ export function AdminAnalytics() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10" data-testid="analytics-conversion-rate">
+          <Card className="${LAYOUT.card.base}" data-testid="analytics-conversion-rate">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Avg Conversion Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-slate-400" />
@@ -193,7 +194,7 @@ export function AdminAnalytics() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/5 border-white/10" data-testid="analytics-top-cta">
+          <Card className="${LAYOUT.card.base}" data-testid="analytics-top-cta">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-slate-300">Top CTA</CardTitle>
               <MousePointerClick className="h-4 w-4 text-slate-400" />
@@ -211,7 +212,7 @@ export function AdminAnalytics() {
 
         {/* Variant performance table - OT-P0-024 */}
         <ErrorBoundary level="section" name="VariantPerformanceTable">
-          <Card className="bg-white/5 border-white/10" data-testid="analytics-variant-performance">
+          <Card className="${LAYOUT.card.base}" data-testid="analytics-variant-performance">
             <CardHeader>
               <CardTitle>Variant Performance</CardTitle>
               <CardDescription className="text-slate-400">
@@ -312,7 +313,7 @@ export function AdminAnalytics() {
         {/* Variant detail view - OT-P0-024 */}
         {selectedVariant !== "all" && variantDetails.length > 0 && (
           <ErrorBoundary level="section" name="VariantDetailView">
-            <Card className="mt-6 bg-white/5 border-white/10" data-testid="analytics-variant-detail">
+            <Card className="mt-6 ${LAYOUT.card.base}" data-testid="analytics-variant-detail">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -470,7 +471,7 @@ function AnalyticsFocusBanner({
   }
 
   return (
-    <Card className="mb-6 bg-white/5 border-white/10" data-testid="analytics-focus-banner">
+    <Card className="mb-6 ${LAYOUT.card.base}" data-testid="analytics-focus-banner">
       <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Current view</p>
@@ -518,7 +519,7 @@ function AnalyticsShortcutsCard({
   const showNeedsAttention = weakestVariant && !bestIsWeakest;
 
   return (
-    <Card className="mb-8 bg-white/5 border-white/10" data-testid="analytics-shortcuts">
+    <Card className="mb-8 ${LAYOUT.card.base}" data-testid="analytics-shortcuts">
       <CardHeader>
         <CardTitle>Experience Shortcuts</CardTitle>
         <CardDescription className="text-slate-400">

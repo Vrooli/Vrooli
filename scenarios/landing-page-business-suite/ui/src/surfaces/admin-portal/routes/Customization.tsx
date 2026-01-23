@@ -2,6 +2,7 @@ import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { ErrorBoundary } from '../../../shared/ui/ErrorBoundary';
@@ -107,7 +108,7 @@ export function Customization() {
 
   return (
     <AdminLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
@@ -191,7 +192,7 @@ export function Customization() {
           </div>
         )}
 
-        <Card className="mb-8 bg-white/5 border-white/10">
+        <Card className="mb-8 ${LAYOUT.card.base}">
           <CardHeader>
             <CardTitle>Live Traffic Split</CardTitle>
             <CardDescription className="text-slate-400">
@@ -261,7 +262,7 @@ export function Customization() {
             )}
           </div>
           {activeVariants.length === 0 ? (
-            <Card className="bg-white/5 border-white/10">
+            <Card className="${LAYOUT.card.base}">
               <CardContent className="text-center py-12">
                 <p className="text-slate-400 mb-4">No active variants yet</p>
                 <Button onClick={navigateToNewVariant}>
@@ -270,7 +271,7 @@ export function Customization() {
               </CardContent>
             </Card>
           ) : filteredActiveVariants.length === 0 ? (
-            <Card className="bg-white/5 border-white/10">
+            <Card className="${LAYOUT.card.base}">
               <CardContent className="text-center py-12 space-y-3">
                 <p className="text-slate-400">No variants match your filters.</p>
                 <Button variant="outline" size="sm" onClick={clearVariantFilters} data-testid="clear-variant-filters">
@@ -286,7 +287,7 @@ export function Customization() {
                 return (
                   <Card
                     key={variant.id}
-                    className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors"
+                    className="${LAYOUT.card.base} hover:bg-white/10 transition-colors"
                     data-testid={`variant-card-${variant.slug}`}
                   >
                     <CardHeader>
@@ -377,7 +378,7 @@ export function Customization() {
               {archivedVariants.map((variant) => (
                 <Card
                   key={variant.id}
-                  className="bg-white/5 border-white/10 opacity-60"
+                  className="${LAYOUT.card.base} opacity-60"
                   data-testid={`variant-card-archived-${variant.slug}`}
                 >
                   <CardHeader>
@@ -560,7 +561,7 @@ function ExperienceOpsPanel({
   const underperformingName = underperforming?.variant?.name ?? underperformingSlug;
 
   return (
-    <Card className="mb-8 bg-white/5 border-white/10" data-testid="experience-ops-panel">
+    <Card className="mb-8 ${LAYOUT.card.base}" data-testid="experience-ops-panel">
       <CardHeader>
         <CardTitle>Experiment Ops Snapshot</CardTitle>
         <CardDescription className="text-slate-400">

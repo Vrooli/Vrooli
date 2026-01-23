@@ -1,11 +1,15 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { FormField, inputClassName } from '../components/FormField';
+import { Callout } from '../components/Callout';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
-import { AppWindow, Save, AlertCircle, Infinity, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { AppWindow, Save, Infinity, DollarSign, Plus, Trash2 } from 'lucide-react';
 import { formatDollars, TIER_OPTIONS } from '../../../shared/api';
 import {
   getEditKey,
@@ -59,7 +63,7 @@ export function AppLimitsSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="App Limits"
@@ -70,49 +74,37 @@ export function AppLimitsSettings() {
           testId="applimits-header"
         />
 
-        {/* App Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Select Application</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 flex-wrap">
-              {APP_OPTIONS.map((app) => (
-                <Button
-                  key={app.value}
-                  variant={selectedApp === app.value ? 'default' : 'outline'}
-                  onClick={() => setSelectedApp(app.value)}
-                  className="gap-2"
-                >
-                  <AppWindow className="h-4 w-4" />
-                  {app.label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <FormSection
+          title="Select Application"
+          description="Choose an application to configure its limits"
+          icon={AppWindow}
+          iconColorClass="text-red-300"
+        >
+          <div className="flex gap-2 flex-wrap">
+            {APP_OPTIONS.map((app) => (
+              <Button
+                key={app.value}
+                variant={selectedApp === app.value ? 'default' : 'outline'}
+                onClick={() => setSelectedApp(app.value)}
+                className="gap-2"
+              >
+                <AppWindow className="h-4 w-4" />
+                {app.label}
+              </Button>
+            ))}
+          </div>
+        </FormSection>
 
-        {/* Info Card */}
-        <Card className="bg-blue-500/10 border-blue-500/20">
-          <CardContent className="pt-4">
-            <div className="flex gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-slate-300">
-                <p className="font-medium text-blue-400 mb-1">Understanding App Limits</p>
-                <p>
-                  App limits allow you to set specific restrictions for individual applications
-                  beyond the global AI credit limits. These are app-specific quotas like
-                  workflow exports, API calls, or feature usage counts.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Callout
+          type="info"
+          title="Understanding App Limits"
+          message="App limits allow you to set specific restrictions for individual applications beyond the global AI credit limits. These are app-specific quotas like workflow exports, API calls, or feature usage counts."
+        />
 
         {loading ? (
           <div className="text-center py-8 text-slate-400">Loading app limits...</div>
         ) : limitKeys.size === 0 ? (
-          <Card className="border-dashed">
+          <Card className={`${LAYOUT.card.base} border-dashed`}>
             <CardContent className="pt-6 text-center">
               <AppWindow className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-400 mb-4">
@@ -125,24 +117,17 @@ export function AppLimitsSettings() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className={LAYOUT.sectionSpacing}>
             {/* Limits by Key */}
             {Array.from(limitKeys).map((limitKey) => (
-              <Card key={limitKey}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-purple-500/20">
-                        <DollarSign className="h-5 w-5 text-purple-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="capitalize">{limitKey.replace(/_/g, ' ')}</CardTitle>
-                        <CardDescription>Per-tier limits for {limitKey}</CardDescription>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
+              <FormSection
+                key={limitKey}
+                title={limitKey.replace(/_/g, ' ')}
+                description={`Per-tier limits for ${limitKey}`}
+                icon={DollarSign}
+                iconColorClass="text-purple-300"
+                className="capitalize"
+              >
                   <div className="grid gap-4">
                     {TIER_OPTIONS.map((tierOption) => {
                       const tierID = tierOption.value;
@@ -217,8 +202,7 @@ export function AppLimitsSettings() {
                       );
                     })}
                   </div>
-                </CardContent>
-              </Card>
+              </FormSection>
             ))}
 
             {/* Add New Limit Button */}
@@ -232,21 +216,20 @@ export function AppLimitsSettings() {
         {/* Add Limit Modal */}
         {showAddLimit && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4">
+            <Card className={`${LAYOUT.card.base} w-full max-w-md mx-4`}>
               <CardHeader>
                 <CardTitle>Add New Limit</CardTitle>
                 <CardDescription>
                   Create a new app-specific limit for {getSelectedAppLabel(selectedApp)}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="new-tier">Tier</Label>
+              <CardContent className={LAYOUT.contentSpacing}>
+                <FormField label="Tier" htmlFor="new-tier">
                   <select
                     id="new-tier"
                     value={newLimit.tier_id}
                     onChange={(e) => setNewLimit({ tier_id: e.target.value })}
-                    className="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-md text-white"
+                    className={inputClassName}
                   >
                     {TIER_OPTIONS.map((tier) => (
                       <option key={tier.value} value={tier.value}>
@@ -254,37 +237,37 @@ export function AppLimitsSettings() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <Label htmlFor="new-limit-key">Limit Key</Label>
-                  <Input
+                </FormField>
+                <FormField
+                  label="Limit Key"
+                  htmlFor="new-limit-key"
+                  helpText="Use snake_case for limit keys (e.g., workflow_exports, api_calls)"
+                >
+                  <input
                     id="new-limit-key"
                     value={newLimit.limit_key}
                     onChange={(e) => setNewLimit({ limit_key: e.target.value })}
                     placeholder="e.g., workflow_exports"
-                    className="mt-1"
+                    className={inputClassName}
                   />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Use snake_case for limit keys (e.g., workflow_exports, api_calls)
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="new-display-dollars">Dollar Value</Label>
-                  <div className="relative mt-1">
+                </FormField>
+                <FormField
+                  label="Dollar Value"
+                  htmlFor="new-display-dollars"
+                  helpText='Enter "unlimited" or -1 for no limit'
+                >
+                  <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
+                    <input
                       id="new-display-dollars"
                       type="text"
                       value={newLimit.display_dollars}
                       onChange={(e) => setNewLimit({ display_dollars: e.target.value })}
                       placeholder="0.00"
-                      className="pl-8"
+                      className={`${inputClassName} pl-8`}
                     />
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Enter "unlimited" or -1 for no limit
-                  </p>
-                </div>
+                </FormField>
                 <div className="flex gap-2 justify-end pt-4">
                   <Button
                     variant="outline"

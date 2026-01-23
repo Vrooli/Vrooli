@@ -1,7 +1,9 @@
+import { LAYOUT } from '../config/layout.constants';
+
 export default function FactoryHome() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto px-6 py-16 space-y-12`}>
         <header className="space-y-4">
           <p className="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/30">
             Landing Manager · Factory

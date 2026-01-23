@@ -1,5 +1,6 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import type { DocEntry } from '../../../shared/api';
@@ -318,7 +319,7 @@ export function DocsViewer() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Template Documentation"
@@ -340,7 +341,7 @@ export function DocsViewer() {
         ) : error ? (
           <div className="text-rose-400" data-testid="docs-error">{error}</div>
         ) : tree.length === 0 ? (
-          <Card className="border-white/10 bg-slate-900/60" data-testid="docs-empty">
+          <Card className="${LAYOUT.card.base}" data-testid="docs-empty">
             <CardContent className="py-12 text-center">
               <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">No Documentation Found</h3>
@@ -352,7 +353,7 @@ export function DocsViewer() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" data-testid="docs-content">
             {/* Sidebar - File Tree */}
-            <Card className="border-white/10 bg-slate-900/60 lg:col-span-1">
+            <Card className="${LAYOUT.card.base} lg:col-span-1">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Folder className="h-4 w-4 text-amber-400" />
@@ -377,7 +378,7 @@ export function DocsViewer() {
             </Card>
 
             {/* Main Content */}
-            <Card className="border-white/10 bg-slate-900/60 lg:col-span-3">
+            <Card className="${LAYOUT.card.base} lg:col-span-3">
               <CardHeader className="border-b border-white/10">
                 <div className="flex items-center justify-between">
                   <div>

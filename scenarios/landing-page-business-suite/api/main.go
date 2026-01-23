@@ -361,6 +361,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(handleAIChat(s.aiGatewayDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(handleAIStream(s.aiGatewayDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(handleAIUsage(s.aiGatewayDeps))).Methods("GET")
+
+	// User Management endpoints (Admin)
+	s.router.HandleFunc("/api/v1/admin/users", s.requireAdmin(handleAdminListUsers(s.db))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}", s.requireAdmin(handleAdminGetUser(s.db))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(handleAdminGetUserSessions(s.db))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(handleAdminRevokeUserSession(s.db))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(handleAdminRevokeAllUserSessions(s.db))).Methods("POST")
 }
 
 func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {

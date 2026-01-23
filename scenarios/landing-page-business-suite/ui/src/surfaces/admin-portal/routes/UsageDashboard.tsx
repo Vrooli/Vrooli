@@ -1,5 +1,7 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormSection } from '../components/FormSection';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Activity, Users, Server, Calendar, RefreshCw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,7 +25,7 @@ export function UsageDashboard() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className={`${LAYOUT.maxWidth.wide} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Usage Dashboard"
@@ -41,7 +43,7 @@ export function UsageDashboard() {
         />
 
         {/* Period Selector */}
-        <Card>
+        <Card className={LAYOUT.card.base}>
           <CardContent className="py-4">
             <div className="flex items-center justify-center gap-4">
               <Button variant="ghost" size="sm" onClick={() => navigateMonth(-1)}>
@@ -66,7 +68,7 @@ export function UsageDashboard() {
         {loading ? (
           <div className="text-center py-8 text-slate-400">Loading usage data...</div>
         ) : !summary ? (
-          <Card className="border-dashed">
+          <Card className={`${LAYOUT.card.base} border-dashed`}>
             <CardContent className="pt-6 text-center">
               <Activity className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-400">No usage data available</p>
@@ -76,7 +78,7 @@ export function UsageDashboard() {
           <>
             {/* Overview Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card>
+              <Card className={LAYOUT.card.base}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-lg bg-blue-500/20">
@@ -90,7 +92,7 @@ export function UsageDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={LAYOUT.card.base}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-lg bg-purple-500/20">
@@ -104,7 +106,7 @@ export function UsageDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={LAYOUT.card.base}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-lg bg-emerald-500/20">
@@ -121,17 +123,12 @@ export function UsageDashboard() {
 
             {/* Usage by App */}
             {sortedAppTotals.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <Server className="h-5 w-5 text-slate-400" />
-                    <div>
-                      <CardTitle>Usage by App</CardTitle>
-                      <CardDescription>Credit consumption per application</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
+              <FormSection
+                title="Usage by App"
+                description="Credit consumption per application"
+                icon={Server}
+                iconColorClass="text-slate-300"
+              >
                   <div className="space-y-3">
                     {sortedAppTotals.map(({ app, usage, percentage }) => (
                       <div key={app} className="space-y-1">
@@ -150,87 +147,74 @@ export function UsageDashboard() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+              </FormSection>
             )}
 
             {/* Top Users */}
             {topUsers.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <Users className="h-5 w-5 text-slate-400" />
-                    <div>
-                      <CardTitle>Top Users</CardTitle>
-                      <CardDescription>Highest credit consumers this period</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y divide-slate-700">
-                    {topUsers.map(({ user, usage }, index) => (
-                      <div key={user} className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-slate-500 w-6">{index + 1}.</span>
-                          <span className="font-medium">{user}</span>
-                        </div>
-                        <span className="text-slate-400">{formatCredits(usage)} credits</span>
+              <FormSection
+                title="Top Users"
+                description="Highest credit consumers this period"
+                icon={Users}
+                iconColorClass="text-slate-300"
+              >
+                <div className="divide-y divide-slate-700">
+                  {topUsers.map(({ user, usage }, index) => (
+                    <div key={user} className="flex items-center justify-between py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-slate-500 w-6">{index + 1}.</span>
+                        <span className="font-medium">{user}</span>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <span className="text-slate-400">{formatCredits(usage)} credits</span>
+                    </div>
+                  ))}
+                </div>
+              </FormSection>
             )}
 
             {/* Recent Records */}
             {recentRecords.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <Activity className="h-5 w-5 text-slate-400" />
-                    <div>
-                      <CardTitle>Recent Activity</CardTitle>
-                      <CardDescription>Latest usage records</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="text-left text-slate-400 border-b border-slate-700">
-                          <th className="pb-3 pr-4">User</th>
-                          <th className="pb-3 pr-4">Type</th>
-                          <th className="pb-3 pr-4">App</th>
-                          <th className="pb-3 pr-4 text-right">Credits</th>
-                          <th className="pb-3 text-right">Last Activity</th>
+              <FormSection
+                title="Recent Activity"
+                description="Latest usage records"
+                icon={Activity}
+                iconColorClass="text-slate-300"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-400 border-b border-slate-700">
+                        <th className="pb-3 pr-4">User</th>
+                        <th className="pb-3 pr-4">Type</th>
+                        <th className="pb-3 pr-4">App</th>
+                        <th className="pb-3 pr-4 text-right">Credits</th>
+                        <th className="pb-3 text-right">Last Activity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                      {recentRecords.map((record) => (
+                        <tr key={record.id}>
+                          <td className="py-3 pr-4">{record.user_identity}</td>
+                          <td className="py-3 pr-4">
+                            <code className="text-xs bg-slate-800 px-2 py-0.5 rounded">
+                              {record.limit_key}
+                            </code>
+                          </td>
+                          <td className="py-3 pr-4 text-slate-400">
+                            {record.app_bundle_key || '-'}
+                          </td>
+                          <td className="py-3 pr-4 text-right">
+                            {formatCredits(record.usage_amount)}
+                          </td>
+                          <td className="py-3 text-right text-slate-400">
+                            {formatDateTime(record.last_operation_at, 'full')}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-700/50">
-                        {recentRecords.map((record) => (
-                          <tr key={record.id}>
-                            <td className="py-3 pr-4">{record.user_identity}</td>
-                            <td className="py-3 pr-4">
-                              <code className="text-xs bg-slate-800 px-2 py-0.5 rounded">
-                                {record.limit_key}
-                              </code>
-                            </td>
-                            <td className="py-3 pr-4 text-slate-400">
-                              {record.app_bundle_key || '-'}
-                            </td>
-                            <td className="py-3 pr-4 text-right">
-                              {formatCredits(record.usage_amount)}
-                            </td>
-                            <td className="py-3 text-right text-slate-400">
-                              {formatDateTime(record.last_operation_at, 'full')}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </FormSection>
             )}
           </>
         )}

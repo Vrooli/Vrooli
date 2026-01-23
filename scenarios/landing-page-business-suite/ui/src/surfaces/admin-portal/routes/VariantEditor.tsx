@@ -4,6 +4,9 @@ import Editor from '@monaco-editor/react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
+import { FormSection } from '../components/FormSection';
+import { FormField, inputClassName, textareaClassName } from '../components/FormField';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
@@ -122,7 +125,7 @@ export function VariantEditor() {
 
   return (
     <AdminLayout>
-      <div className="max-w-5xl mx-auto">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
         <RuntimeSignalStrip mode="compact" />
 
         <PageHeader
@@ -196,7 +199,7 @@ export function VariantEditor() {
         )}
 
         {isJsonTab ? (
-          <Card className="bg-white/5 border-white/10">
+          <Card className="${LAYOUT.card.base}">
             <CardHeader>
               <CardTitle>Variant JSON</CardTitle>
               <CardDescription className="text-slate-400">
@@ -272,7 +275,7 @@ export function VariantEditor() {
         ) : (
           <>
             {/* Variant Settings */}
-            <Card className="bg-white/5 border-white/10 mb-6">
+            <Card className="${LAYOUT.card.base} mb-6">
               <CardHeader>
                 <CardTitle>Variant Settings</CardTitle>
                 <CardDescription className="text-slate-400">
@@ -397,7 +400,7 @@ export function VariantEditor() {
 
             {/* Content Sections */}
             {!isNew && variant && (
-              <Card className="bg-white/5 border-white/10">
+              <Card className="${LAYOUT.card.base}">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>

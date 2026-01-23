@@ -1,9 +1,10 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
+import { FormField, inputClassName } from '../components/FormField';
+import { Callout } from '../components/Callout';
+import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { Input } from '../../../shared/ui/input';
-import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
 import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X, AlertCircle } from 'lucide-react';
 import { formatDateOnly } from '../../../shared/lib/dateFormatters';
@@ -69,7 +70,7 @@ export function APIKeysSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="API Keys"
@@ -90,28 +91,17 @@ export function APIKeysSettings() {
           }
         />
 
-        {/* Info Card */}
-        <Card className="bg-blue-500/10 border-blue-500/20">
-          <CardContent className="pt-4">
-            <div className="flex gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-slate-300">
-                <p className="font-medium text-blue-400 mb-1">How API Keys Work</p>
-                <p>
-                  These API keys are used when customers don't provide their own keys (BYOK).
-                  When a user performs an AI operation, the system uses these keys and charges
-                  the user's credit balance. Keys are encrypted at rest.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Callout
+          type="info"
+          title="How API Keys Work"
+          message="These API keys are used when customers don't provide their own keys (BYOK). When a user performs an AI operation, the system uses these keys and charges the user's credit balance. Keys are encrypted at rest."
+        />
 
         {/* Keys List */}
         {loading ? (
           <div className="text-center py-8 text-slate-400">Loading API keys...</div>
         ) : keys.length === 0 ? (
-          <Card className="border-dashed">
+          <Card className={`${LAYOUT.card.base} border-dashed`}>
             <CardContent className="pt-6 text-center">
               <Key className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-400 mb-4">No API keys configured yet</p>
@@ -122,9 +112,9 @@ export function APIKeysSettings() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className={LAYOUT.sectionSpacing}>
             {keys.map((key) => (
-              <Card key={key.id} className={!key.is_active ? 'opacity-60' : ''}>
+              <Card key={key.id} className={`${LAYOUT.card.base} ${!key.is_active ? 'opacity-60' : ''}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -223,21 +213,20 @@ export function APIKeysSettings() {
         {/* Add Key Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4">
+            <Card className={`${LAYOUT.card.base} w-full max-w-md mx-4`}>
               <CardHeader>
                 <CardTitle>Add API Key</CardTitle>
                 <CardDescription>
                   Configure an AI provider API key for Vrooli-hosted services
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider">Provider</Label>
+              <CardContent className={LAYOUT.contentSpacing}>
+                <FormField label="Provider" htmlFor="provider">
                   <select
                     id="provider"
                     value={newKeyProvider}
                     onChange={(e) => setNewKeyProvider(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-white"
+                    className={inputClassName}
                   >
                     <option value="">Select a provider...</option>
                     {availableProviders.map((p) => (
@@ -246,21 +235,17 @@ export function APIKeysSettings() {
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="key">API Key</Label>
-                  <Input
+                </FormField>
+                <FormField label="API Key" htmlFor="key" helpText="The key will be encrypted before storage">
+                  <input
                     id="key"
                     type="password"
                     value={newKeyValue}
                     onChange={(e) => setNewKeyValue(e.target.value)}
                     placeholder="sk-..."
-                    className="font-mono"
+                    className={`${inputClassName} font-mono`}
                   />
-                  <p className="text-xs text-slate-400">
-                    The key will be encrypted before storage
-                  </p>
-                </div>
+                </FormField>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="outline" onClick={clearAddForm}>
                     Cancel

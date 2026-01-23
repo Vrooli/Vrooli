@@ -1,8 +1,10 @@
 import { AlertTriangle, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { FormSection } from '../components/FormSection';
+import { FormField, inputClassName } from '../components/FormField';
 import { Button } from '../../../shared/ui/button';
+import { LAYOUT } from '../config/layout.constants';
 import { useProfileForm } from '../hooks/useProfileForm';
 
 export function ProfileSettings() {
@@ -24,7 +26,7 @@ export function ProfileSettings() {
 
   return (
     <AdminLayout>
-      <div className="space-y-8">
+      <div className={`${LAYOUT.maxWidth.default} mx-auto ${LAYOUT.pageSpacing}`}>
         <PageHeader
           variant="icon-title"
           title="Harden the default admin identity"
@@ -75,138 +77,127 @@ export function ProfileSettings() {
           <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-red-200">Failed to load profile: {loadError}</div>
         ) : (
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-emerald-300" />
-                  Update email
-                </CardTitle>
-                <CardDescription>Replace the seeded admin email with a new owner address.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handleEmailSubmit} data-testid="profile-email-form">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">New email</label>
-                    <input
-                      type="email"
-                      value={emailForm.newEmail}
-                      onChange={(event) => updateEmailForm('newEmail', event.target.value)}
-                      placeholder="you@company.com"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      data-testid="profile-email-new"
-                    />
+            <FormSection
+              title="Update email"
+              description="Replace the seeded admin email with a new owner address."
+              icon={ShieldCheck}
+              iconColorClass="text-emerald-300"
+              testId="profile-email-section"
+            >
+              <form className="space-y-4" onSubmit={handleEmailSubmit} data-testid="profile-email-form">
+                <FormField label="New email">
+                  <input
+                    type="email"
+                    value={emailForm.newEmail}
+                    onChange={(event) => updateEmailForm('newEmail', event.target.value)}
+                    placeholder="you@company.com"
+                    className={inputClassName}
+                    data-testid="profile-email-new"
+                  />
+                </FormField>
+                <FormField label="Current password">
+                  <input
+                    type="password"
+                    value={emailForm.currentPassword}
+                    onChange={(event) => updateEmailForm('currentPassword', event.target.value)}
+                    placeholder="Confirm with current password"
+                    className={inputClassName}
+                    data-testid="profile-email-current-password"
+                    autoComplete="current-password"
+                  />
+                </FormField>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Session stays active after changing your email.</span>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="gap-2"
+                    disabled={emailStatus.saving}
+                    data-testid="profile-email-submit"
+                  >
+                    {emailStatus.saving ? 'Saving...' : 'Update email'}
+                  </Button>
+                </div>
+                {emailStatus.error && (
+                  <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100" data-testid="profile-email-error">
+                    {emailStatus.error}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Current password</label>
-                    <input
-                      type="password"
-                      value={emailForm.currentPassword}
-                      onChange={(event) => updateEmailForm('currentPassword', event.target.value)}
-                      placeholder="Confirm with current password"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      data-testid="profile-email-current-password"
-                      autoComplete="current-password"
-                    />
+                )}
+                {emailStatus.message && (
+                  <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100" data-testid="profile-email-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    {emailStatus.message}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Session stays active after changing your email.</span>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="gap-2"
-                      disabled={emailStatus.saving}
-                      data-testid="profile-email-submit"
-                    >
-                      {emailStatus.saving ? 'Saving...' : 'Update email'}
-                    </Button>
-                  </div>
-                  {emailStatus.error && (
-                    <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100" data-testid="profile-email-error">
-                      {emailStatus.error}
-                    </div>
-                  )}
-                  {emailStatus.message && (
-                    <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100" data-testid="profile-email-success">
-                      <CheckCircle2 className="h-4 w-4" />
-                      {emailStatus.message}
-                    </div>
-                  )}
-                </form>
-              </CardContent>
-            </Card>
+                )}
+              </form>
+            </FormSection>
 
-            <Card className="border-white/10 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <KeyRound className="h-5 w-5 text-blue-200" />
-                  Rotate password
-                </CardTitle>
-                <CardDescription>Require a strong password and retire the seeded default.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4" onSubmit={handlePasswordSubmit} data-testid="profile-password-form">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">New password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(event) => updatePasswordForm('newPassword', event.target.value)}
-                      placeholder="At least 12 characters, letters + numbers"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      data-testid="profile-password-new"
-                      autoComplete="new-password"
-                    />
+            <FormSection
+              title="Rotate password"
+              description="Require a strong password and retire the seeded default."
+              icon={KeyRound}
+              iconColorClass="text-blue-200"
+              testId="profile-password-section"
+            >
+              <form className="space-y-4" onSubmit={handlePasswordSubmit} data-testid="profile-password-form">
+                <FormField label="New password">
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(event) => updatePasswordForm('newPassword', event.target.value)}
+                    placeholder="At least 12 characters, letters + numbers"
+                    className={inputClassName}
+                    data-testid="profile-password-new"
+                    autoComplete="new-password"
+                  />
+                </FormField>
+                <FormField label="Confirm new password">
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(event) => updatePasswordForm('confirmPassword', event.target.value)}
+                    placeholder="Re-enter new password"
+                    className={inputClassName}
+                    data-testid="profile-password-confirm"
+                    autoComplete="new-password"
+                  />
+                </FormField>
+                <FormField label="Current password">
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(event) => updatePasswordForm('currentPassword', event.target.value)}
+                    placeholder="Confirm with current password"
+                    className={inputClassName}
+                    data-testid="profile-password-current"
+                    autoComplete="current-password"
+                  />
+                </FormField>
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Min {MIN_PASSWORD_LENGTH} chars, include letters and numbers.</span>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="gap-2"
+                    disabled={passwordStatus.saving}
+                    data-testid="profile-password-submit"
+                  >
+                    {passwordStatus.saving ? 'Updating...' : 'Update password'}
+                  </Button>
+                </div>
+                {passwordStatus.error && (
+                  <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100" data-testid="profile-password-error">
+                    {passwordStatus.error}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Confirm new password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(event) => updatePasswordForm('confirmPassword', event.target.value)}
-                      placeholder="Re-enter new password"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      data-testid="profile-password-confirm"
-                      autoComplete="new-password"
-                    />
+                )}
+                {passwordStatus.message && (
+                  <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100" data-testid="profile-password-success">
+                    <CheckCircle2 className="h-4 w-4" />
+                    {passwordStatus.message}
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">Current password</label>
-                    <input
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(event) => updatePasswordForm('currentPassword', event.target.value)}
-                      placeholder="Confirm with current password"
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-white"
-                      data-testid="profile-password-current"
-                      autoComplete="current-password"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Min {MIN_PASSWORD_LENGTH} chars, include letters and numbers.</span>
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="gap-2"
-                      disabled={passwordStatus.saving}
-                      data-testid="profile-password-submit"
-                    >
-                      {passwordStatus.saving ? 'Updating...' : 'Update password'}
-                    </Button>
-                  </div>
-                  {passwordStatus.error && (
-                    <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100" data-testid="profile-password-error">
-                      {passwordStatus.error}
-                    </div>
-                  )}
-                  {passwordStatus.message && (
-                    <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100" data-testid="profile-password-success">
-                      <CheckCircle2 className="h-4 w-4" />
-                      {passwordStatus.message}
-                    </div>
-                  )}
-                </form>
-              </CardContent>
-            </Card>
+                )}
+              </form>
+            </FormSection>
           </div>
         )}
       </div>
