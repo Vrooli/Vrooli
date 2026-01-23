@@ -12,11 +12,21 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// LimitsServicer provides limit lookup for dependent services.
+// This interface enables testing UsageService without the real LimitsService.
+type LimitsServicer interface {
+	GetLimit(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error)
+	GetTierLimits(ctx context.Context, tierID string) ([]TierLimit, error)
+}
+
 // LimitsService manages subscription tier limits for the credit system.
 type LimitsService struct {
 	db       *sql.DB
 	dialects *DialectHelper
 }
+
+// Compile-time check that LimitsService implements LimitsServicer
+var _ LimitsServicer = (*LimitsService)(nil)
 
 // TierLimit represents a single limit configuration.
 type TierLimit struct {

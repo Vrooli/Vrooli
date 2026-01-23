@@ -546,3 +546,333 @@ func TestInternalUnitsToDollars(t *testing.T) {
 		}
 	}
 }
+
+// ============================================================================
+// Additional Edge Case Tests
+// ============================================================================
+
+func TestLimitsService_GetLimit_WithAppBundleKey_FiltersCorrectly(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Seed general and app-specific limits
+	appKey := "test-app"
+	_, err := db.Exec(`
+		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, cost_multiplier, app_bundle_key)
+		VALUES ('solo', 'cost_based', 'ai_credits', 500000000, 1000000, NULL),
+		       ('solo', 'app_specific', 'ai_credits', 100000000, 1000000, ?)
+	`, appKey)
+	if err != nil {
+		t.Fatalf("Failed to seed limits: %v", err)
+	}
+
+	// Get app-specific limit
+	limit, err := svc.GetLimit(ctx, "solo", "ai_credits", &appKey)
+	if err != nil {
+		t.Fatalf("GetLimit() returned error: %v", err)
+	}
+
+	if limit == nil {
+		t.Fatal("Expected limit, got nil")
+	}
+	if limit.LimitValue != 100000000 {
+		t.Errorf("Expected app-specific limit 100000000, got %d", limit.LimitValue)
+	}
+}
+
+func TestLimitsService_UpdateLimit_EmptyUpdate_ReturnsValidationError(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	// Empty update (no fields set)
+	update := TierLimitUpdate{}
+
+	_, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
+	if err == nil {
+		t.Error("Expected validation error for empty update, got nil")
+	}
+}
+
+func TestLimitsService_CreateLimit_EmptyTierID_ReturnsValidationError(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	newLimit := TierLimit{
+		TierID:    "", // Empty
+		LimitType: "cost_based",
+		LimitKey:  "ai_credits",
+	}
+
+	_, err := svc.CreateLimit(ctx, newLimit)
+	if err == nil {
+		t.Error("Expected validation error for empty tier_id, got nil")
+	}
+}
+
+func TestLimitsService_CreateLimit_EmptyLimitKey_ReturnsValidationError(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	newLimit := TierLimit{
+		TierID:    "test",
+		LimitType: "cost_based",
+		LimitKey:  "", // Empty
+	}
+
+	_, err := svc.CreateLimit(ctx, newLimit)
+	if err == nil {
+		t.Error("Expected validation error for empty limit_key, got nil")
+	}
+}
+
+func TestLimitsService_CreateLimit_WithAllFields(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create limit with all fields specified
+	appKey := "test-bundle"
+	newLimit := TierLimit{
+		TierID:         "enterprise",
+		LimitType:      "cost_based",
+		LimitKey:       "api_calls",
+		LimitValue:     999999999,
+		CostMultiplier: 500000, // Custom multiplier
+		ResetPeriod:    "weekly",
+		AppBundleKey:   &appKey,
+	}
+
+	limit, err := svc.CreateLimit(ctx, newLimit)
+	if err != nil {
+		t.Fatalf("CreateLimit() returned error: %v", err)
+	}
+
+	if limit.TierID != "enterprise" {
+		t.Errorf("Expected tier_id 'enterprise', got '%s'", limit.TierID)
+	}
+	if limit.LimitKey != "api_calls" {
+		t.Errorf("Expected limit_key 'api_calls', got '%s'", limit.LimitKey)
+	}
+}
+
+func TestLimitsService_DeleteLimit_WithAppBundleKey_FiltersCorrectly(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Seed both general and app-specific limits
+	appKey := "test-app"
+	_, err := db.Exec(`
+		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, cost_multiplier, app_bundle_key)
+		VALUES ('solo', 'cost_based', 'ai_credits', 500000000, 1000000, NULL),
+		       ('solo', 'app_specific', 'ai_credits', 100000000, 1000000, ?)
+	`, appKey)
+	if err != nil {
+		t.Fatalf("Failed to seed limits: %v", err)
+	}
+
+	// Delete only the app-specific limit
+	err = svc.DeleteLimit(ctx, "solo", "ai_credits", &appKey)
+	if err != nil {
+		t.Fatalf("DeleteLimit() returned error: %v", err)
+	}
+
+	// General limit should still exist
+	var count int
+	err = db.QueryRow(`SELECT COUNT(*) FROM subscription_tier_limits WHERE tier_id = 'solo' AND app_bundle_key IS NULL`).Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected general limit to still exist, got count %d", count)
+	}
+}
+
+func TestLimitsService_GetAppLimits_EmptyResult_ReturnsEmptyMap(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Query for non-existent app
+	limits, err := svc.GetAppLimits(ctx, "nonexistent-app")
+	if err != nil {
+		t.Fatalf("GetAppLimits() returned error: %v", err)
+	}
+
+	if limits == nil {
+		t.Error("Expected non-nil map, got nil")
+	}
+	if len(limits) != 0 {
+		t.Errorf("Expected empty map, got %d entries", len(limits))
+	}
+}
+
+func TestLimitsService_DisplayDollars_NegativeLimit_ReturnsNil(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	// Get unlimited tier (limit_value = -1)
+	limits, err := svc.GetTierLimits(ctx, "business")
+	if err != nil {
+		t.Fatalf("GetTierLimits() returned error: %v", err)
+	}
+
+	if len(limits) != 1 {
+		t.Fatalf("Expected 1 limit, got %d", len(limits))
+	}
+
+	// DisplayDollars should be nil for unlimited (-1)
+	if limits[0].DisplayDollars != nil {
+		t.Errorf("Expected DisplayDollars to be nil for unlimited tier, got %f", *limits[0].DisplayDollars)
+	}
+}
+
+func TestLimitsService_DisplayDollars_ZeroLimit_ReturnsNil(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	// Get free tier (limit_value = 0)
+	limits, err := svc.GetTierLimits(ctx, "free")
+	if err != nil {
+		t.Fatalf("GetTierLimits() returned error: %v", err)
+	}
+
+	if len(limits) != 1 {
+		t.Fatalf("Expected 1 limit, got %d", len(limits))
+	}
+
+	// DisplayDollars should be nil for zero limit
+	if limits[0].DisplayDollars != nil {
+		t.Errorf("Expected DisplayDollars to be nil for free tier (0 limit), got %f", *limits[0].DisplayDollars)
+	}
+}
+
+func TestLimitsService_GetTierLimits_UnlimitedTier_ReturnsCorrectValues(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	limits, err := svc.GetTierLimits(ctx, "business")
+	if err != nil {
+		t.Fatalf("GetTierLimits() returned error: %v", err)
+	}
+
+	if len(limits) != 1 {
+		t.Fatalf("Expected 1 limit, got %d", len(limits))
+	}
+
+	if limits[0].LimitValue != -1 {
+		t.Errorf("Expected limit_value -1 for unlimited, got %d", limits[0].LimitValue)
+	}
+}
+
+func TestLimitsService_CreateLimit_AppSpecificType(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	appKey := "my-app"
+	newLimit := TierLimit{
+		TierID:       "test",
+		LimitType:    "app_specific",
+		LimitKey:     "custom_feature",
+		LimitValue:   100,
+		AppBundleKey: &appKey,
+	}
+
+	limit, err := svc.CreateLimit(ctx, newLimit)
+	if err != nil {
+		t.Fatalf("CreateLimit() returned error: %v", err)
+	}
+
+	if limit.LimitType != "app_specific" {
+		t.Errorf("Expected limit_type 'app_specific', got '%s'", limit.LimitType)
+	}
+}
+
+func TestLimitsService_GetAllTierLimits_IncludesAllFields(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	allLimits, err := svc.GetAllTierLimits(ctx)
+	if err != nil {
+		t.Fatalf("GetAllTierLimits() returned error: %v", err)
+	}
+
+	// Check that pro tier has all expected fields
+	proLimits, ok := allLimits["pro"]
+	if !ok {
+		t.Fatal("Expected 'pro' tier in results")
+	}
+
+	if len(proLimits) != 1 {
+		t.Fatalf("Expected 1 limit for pro tier, got %d", len(proLimits))
+	}
+
+	limit := proLimits[0]
+	if limit.TierID != "pro" {
+		t.Errorf("Expected tier_id 'pro', got '%s'", limit.TierID)
+	}
+	if limit.LimitType != "cost_based" {
+		t.Errorf("Expected limit_type 'cost_based', got '%s'", limit.LimitType)
+	}
+	if limit.CostMultiplier != 1000000 {
+		t.Errorf("Expected cost_multiplier 1000000, got %d", limit.CostMultiplier)
+	}
+}
+
+func TestLimitsService_UpdateLimit_PriorityIsUnlimitedOverDollars(t *testing.T) {
+	svc, db := createTestLimitsService(t)
+	defer db.Close()
+
+	seedTestTierLimits(t, db)
+
+	ctx := context.Background()
+
+	// Set both is_unlimited and display_dollars - unlimited should take priority
+	isUnlimited := true
+	dollars := 50.0
+	update := TierLimitUpdate{
+		IsUnlimited:    &isUnlimited,
+		DisplayDollars: &dollars,
+	}
+
+	limit, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
+	if err != nil {
+		t.Fatalf("UpdateLimit() returned error: %v", err)
+	}
+
+	// IsUnlimited should take priority
+	if limit.LimitValue != -1 {
+		t.Errorf("Expected limit_value -1 (unlimited takes priority), got %d", limit.LimitValue)
+	}
+}

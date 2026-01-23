@@ -351,8 +351,8 @@ func TestHandleAIUsage_Success(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	limitsService := NewLimitsService(db, "postgres")
-	usageService := NewUsageService(db, limitsService)
+	limitsService := NewLimitsService(db, "sqlite")
+	usageService := NewUsageService(db, limitsService, "sqlite")
 
 	mockSvc := &MockAIGateway{}
 	deps := &AIGatewayDeps{
@@ -560,5 +560,269 @@ func TestValidateAIRequest_MaxTokensExceedsLimit(t *testing.T) {
 
 	if err := validateAIRequest(req); err == nil {
 		t.Error("Expected error for max_tokens exceeding limit")
+	}
+}
+
+// ============================================================================
+// handleAIChat Error Mapping Tests
+// ============================================================================
+
+func TestHandleAIChat_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+			return nil, ErrNoAPIKeyConfigured
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIChat(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d for ErrNoAPIKeyConfigured, got %d", http.StatusServiceUnavailable, w.Code)
+	}
+}
+
+func TestHandleAIChat_ErrModelNotAllowed_Returns400(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+			return nil, ErrModelNotAllowed
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIChat(deps)
+
+	reqBody := AIRequest{
+		Model:    "forbidden-model",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for ErrModelNotAllowed, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleAIChat_ErrOpenRouterError_Returns502(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+			return nil, ErrOpenRouterError
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIChat(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadGateway {
+		t.Errorf("Expected status %d for ErrOpenRouterError, got %d", http.StatusBadGateway, w.Code)
+	}
+}
+
+func TestHandleAIChat_UnknownError_Returns500(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+			return nil, errors.New("unexpected internal error")
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIChat(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for unknown error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+// ============================================================================
+// handleAIStream Error Mapping Tests
+// ============================================================================
+
+func TestHandleAIStream_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+			return ErrNoAPIKeyConfigured
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIStream(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/stream", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d for ErrNoAPIKeyConfigured, got %d", http.StatusServiceUnavailable, w.Code)
+	}
+}
+
+func TestHandleAIStream_ErrModelNotAllowed_Returns400(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+			return ErrModelNotAllowed
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIStream(deps)
+
+	reqBody := AIRequest{
+		Model:    "forbidden-model",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/stream", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for ErrModelNotAllowed, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleAIStream_ErrStreamingNotSupported_Returns501(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+			return ErrStreamingNotSupported
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIStream(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/stream", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("Expected status %d for ErrStreamingNotSupported, got %d", http.StatusNotImplemented, w.Code)
+	}
+}
+
+func TestHandleAIStream_ErrOpenRouterError_Returns502(t *testing.T) {
+	mockSvc := &MockAIGateway{
+		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+			return ErrOpenRouterError
+		},
+	}
+	deps := newTestAIGatewayDeps(mockSvc)
+
+	handler := handleAIStream(deps)
+
+	reqBody := AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}
+	body, _ := json.Marshal(reqBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/stream", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadGateway {
+		t.Errorf("Expected status %d for ErrOpenRouterError, got %d", http.StatusBadGateway, w.Code)
+	}
+}
+
+// ============================================================================
+// handleAIError Tests
+// ============================================================================
+
+func TestHandleAIError_ErrNoAPIKeyConfigured_Returns503(t *testing.T) {
+	w := httptest.NewRecorder()
+	handleAIError(w, ErrNoAPIKeyConfigured)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status %d, got %d", http.StatusServiceUnavailable, w.Code)
+	}
+}
+
+func TestHandleAIError_ErrModelNotAllowed_Returns400(t *testing.T) {
+	w := httptest.NewRecorder()
+	handleAIError(w, ErrModelNotAllowed)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleAIError_ErrOpenRouterError_Returns502(t *testing.T) {
+	w := httptest.NewRecorder()
+	handleAIError(w, ErrOpenRouterError)
+
+	if w.Code != http.StatusBadGateway {
+		t.Errorf("Expected status %d, got %d", http.StatusBadGateway, w.Code)
+	}
+}
+
+func TestHandleAIError_ErrStreamingNotSupported_Returns501(t *testing.T) {
+	w := httptest.NewRecorder()
+	handleAIError(w, ErrStreamingNotSupported)
+
+	if w.Code != http.StatusNotImplemented {
+		t.Errorf("Expected status %d, got %d", http.StatusNotImplemented, w.Code)
 	}
 }

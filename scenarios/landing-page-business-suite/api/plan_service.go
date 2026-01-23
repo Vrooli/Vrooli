@@ -45,6 +45,26 @@ func NewPlanService(db *sql.DB) *PlanService {
 	return &PlanService{db: db, defaultBundle: bundle, displayEnv: env}
 }
 
+// PlanServiceOptions allows explicit configuration for testing.
+type PlanServiceOptions struct {
+	DB            *sql.DB
+	DefaultBundle string
+	DisplayEnv    string
+}
+
+// NewPlanServiceWithOptions creates a plan service with explicit configuration.
+func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
+	bundle := opts.DefaultBundle
+	if bundle == "" {
+		bundle = stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
+	}
+	env := opts.DisplayEnv
+	if env == "" {
+		env = stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+	}
+	return &PlanService{db: opts.DB, defaultBundle: bundle, displayEnv: env}
+}
+
 func stringsTrimOrDefault(value string, fallback string) string {
 	if trimmed := strings.TrimSpace(value); trimmed != "" {
 		return trimmed

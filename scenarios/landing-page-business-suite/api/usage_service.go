@@ -15,9 +15,9 @@ import (
 // UsageService tracks credit usage per user and billing period.
 type UsageService struct {
 	db           *sql.DB
-	limitsSvc    *LimitsService
-	serviceToken string // Token for service-to-service auth
-	dialect      string // "postgres" or "sqlite"
+	limitsSvc    LimitsServicer // Interface for testing
+	serviceToken string         // Token for service-to-service auth
+	dialect      string         // "postgres" or "sqlite"
 }
 
 // UsageRecord represents a single usage record.
@@ -59,20 +59,40 @@ type UsageSummary struct {
 }
 
 // NewUsageService creates a new usage service.
-func NewUsageService(db *sql.DB, limitsSvc *LimitsService) *UsageService {
-	// Get service token from environment
-	token := resolveSecret("LPBS_SERVICE_SECRET")
+func NewUsageService(db *sql.DB, limitsSvc LimitsServicer, dialect string) *UsageService {
+	return NewUsageServiceWithOptions(UsageServiceOptions{
+		DB:            db,
+		LimitsService: limitsSvc,
+		Dialect:       dialect,
+	})
+}
+
+// UsageServiceOptions provides full configurability for testing.
+type UsageServiceOptions struct {
+	DB            *sql.DB
+	LimitsService LimitsServicer
+	Dialect       string
+	ServiceToken  string // If empty, resolves from environment
+}
+
+// NewUsageServiceWithOptions creates a usage service with explicit configuration.
+func NewUsageServiceWithOptions(opts UsageServiceOptions) *UsageService {
+	token := opts.ServiceToken
 	if token == "" {
-		logStructured("usage_service_no_token", map[string]interface{}{
-			"level":   "warn",
-			"message": "LPBS_SERVICE_SECRET not set; service-to-service auth disabled",
-		})
+		token = resolveSecret("LPBS_SERVICE_SECRET")
+		if token == "" {
+			logStructured("usage_service_no_token", map[string]interface{}{
+				"level":   "warn",
+				"message": "LPBS_SERVICE_SECRET not set; service-to-service auth disabled",
+			})
+		}
 	}
 
 	return &UsageService{
-		db:           db,
-		limitsSvc:    limitsSvc,
+		db:           opts.DB,
+		limitsSvc:    opts.LimitsService,
 		serviceToken: token,
+		dialect:      opts.Dialect,
 	}
 }
 

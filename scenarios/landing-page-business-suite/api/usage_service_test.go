@@ -53,6 +53,19 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 		);
 
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
+
+		CREATE TABLE IF NOT EXISTS credit_reservations (
+			id TEXT PRIMARY KEY,
+			user_identity TEXT NOT NULL,
+			billing_period TEXT NOT NULL,
+			limit_key TEXT NOT NULL,
+			reserved_amount INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'finalized', 'released', 'expired')),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			finalized_at TIMESTAMP,
+			expires_at TIMESTAMP NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);
 	`
 
 	_, err = db.Exec(schema)
@@ -128,6 +141,56 @@ func seedTestUsageTierLimits(t *testing.T, db *sql.DB) {
 // getCurrentBillingPeriodTest returns the current billing period for tests.
 func getCurrentBillingPeriodTest() string {
 	return time.Now().Format("2006-01")
+}
+
+// MockLimitsService implements LimitsServicer for testing.
+type MockLimitsService struct {
+	GetLimitFn      func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error)
+	GetTierLimitsFn func(ctx context.Context, tierID string) ([]TierLimit, error)
+	GetLimitCalls   []struct {
+		TierID       string
+		LimitKey     string
+		AppBundleKey *string
+	}
+}
+
+func (m *MockLimitsService) GetLimit(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+	m.GetLimitCalls = append(m.GetLimitCalls, struct {
+		TierID       string
+		LimitKey     string
+		AppBundleKey *string
+	}{tierID, limitKey, appBundleKey})
+	if m.GetLimitFn != nil {
+		return m.GetLimitFn(ctx, tierID, limitKey, appBundleKey)
+	}
+	// Default: unlimited
+	return &TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+}
+
+func (m *MockLimitsService) GetTierLimits(ctx context.Context, tierID string) ([]TierLimit, error) {
+	if m.GetTierLimitsFn != nil {
+		return m.GetTierLimitsFn(ctx, tierID)
+	}
+	return []TierLimit{}, nil
+}
+
+// Compile-time check
+var _ LimitsServicer = (*MockLimitsService)(nil)
+
+// createTestUsageServiceWithMock creates a usage service with a mock limits service.
+func createTestUsageServiceWithMock(t *testing.T, mock *MockLimitsService) (*UsageService, *sql.DB) {
+	t.Helper()
+
+	db := createTestUsageDB(t)
+
+	usageSvc := &UsageService{
+		db:           db,
+		limitsSvc:    mock,
+		serviceToken: "",
+		dialect:      "sqlite",
+	}
+
+	return usageSvc, db
 }
 
 // ============================================================================
@@ -977,5 +1040,738 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 	// Should be 150000 (100000 + 50000)
 	if usageAmount != 150000 {
 		t.Errorf("Expected usage_amount 150000, got %d", usageAmount)
+	}
+}
+
+// ============================================================================
+// ReserveAndCharge Tests
+// ============================================================================
+
+func TestUsageService_ReserveAndCharge_Success_WithSufficientCredits(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: 500000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 100000000, UsageReportRequest{
+		AppBundleKey: "test-app",
+	})
+	if err != nil {
+		t.Fatalf("ReserveAndCharge() returned error: %v", err)
+	}
+
+	// Verify usage was recorded
+	var usageAmount int64
+	err = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ?`, "user@example.com").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage: %v", err)
+	}
+	if usageAmount != 100000000 {
+		t.Errorf("Expected usage 100000000, got %d", usageAmount)
+	}
+}
+
+func TestUsageService_ReserveAndCharge_InsufficientCredits_ReturnsError(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: 100000000, LimitType: "cost_based", CostMultiplier: 1000000}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Try to charge more than limit
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 200000000, UsageReportRequest{})
+	if err == nil {
+		t.Error("Expected ErrInsufficientCredits, got nil")
+	}
+}
+
+func TestUsageService_ReserveAndCharge_EmptyUserIdentity_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReserveAndCharge(ctx, "", "solo", "ai_credits", 100000, UsageReportRequest{})
+	if err == nil {
+		t.Error("Expected error for empty user_identity, got nil")
+	}
+}
+
+func TestUsageService_ReserveAndCharge_EmptyLimitKey_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "", 100000, UsageReportRequest{})
+	if err == nil {
+		t.Error("Expected error for empty limit_key, got nil")
+	}
+}
+
+func TestUsageService_ReserveAndCharge_ZeroAmount_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", 0, UsageReportRequest{})
+	if err == nil {
+		t.Error("Expected error for zero amount, got nil")
+	}
+}
+
+func TestUsageService_ReserveAndCharge_NegativeAmount_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "solo", "ai_credits", -100000, UsageReportRequest{})
+	if err == nil {
+		t.Error("Expected error for negative amount, got nil")
+	}
+}
+
+func TestUsageService_ReserveAndCharge_UnlimitedTier_AllowsAnyAmount(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based", CostMultiplier: 1000000}, nil // unlimited
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Should allow very large amount for unlimited tier
+	err := svc.ReserveAndCharge(ctx, "user@example.com", "business", "ai_credits", 9999999999, UsageReportRequest{})
+	if err != nil {
+		t.Fatalf("ReserveAndCharge() returned error for unlimited tier: %v", err)
+	}
+}
+
+// ============================================================================
+// ReserveCredits Tests
+// ============================================================================
+
+func TestUsageService_ReserveCredits_Success_ReturnsReservationID(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: 500000000, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	reservationID, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000000)
+	if err != nil {
+		t.Fatalf("ReserveCredits() returned error: %v", err)
+	}
+	if reservationID == "" {
+		t.Error("Expected non-empty reservation ID")
+	}
+
+	// Verify reservation was created
+	var status string
+	err = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query reservation: %v", err)
+	}
+	if status != "pending" {
+		t.Errorf("Expected status 'pending', got %q", status)
+	}
+}
+
+func TestUsageService_ReserveCredits_PendingReservationsCountedAgainstLimit(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: 100000000, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// First reservation takes most of the limit
+	_, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 80000000)
+	if err != nil {
+		t.Fatalf("First ReserveCredits() returned error: %v", err)
+	}
+
+	// Second reservation should fail (would exceed limit)
+	_, err = svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 30000000)
+	if err == nil {
+		t.Error("Expected error for second reservation exceeding limit, got nil")
+	}
+}
+
+func TestUsageService_ReserveCredits_InsufficientCredits_ReturnsError(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: 50000000, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	_, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000000)
+	if err == nil {
+		t.Error("Expected ErrInsufficientCredits, got nil")
+	}
+}
+
+func TestUsageService_ReserveCredits_EmptyUserIdentity_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	_, err := svc.ReserveCredits(ctx, "", "solo", "ai_credits", 100000)
+	if err == nil {
+		t.Error("Expected error for empty user_identity, got nil")
+	}
+}
+
+func TestUsageService_ReserveCredits_ReservationExpiresAtSetCorrectly(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil // unlimited
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	before := time.Now()
+	reservationID, err := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+	if err != nil {
+		t.Fatalf("ReserveCredits() returned error: %v", err)
+	}
+	after := time.Now()
+
+	// Verify expires_at is set to ~10 minutes from now
+	var expiresAt time.Time
+	err = db.QueryRow(`SELECT expires_at FROM credit_reservations WHERE id = ?`, reservationID).Scan(&expiresAt)
+	if err != nil {
+		t.Fatalf("Failed to query reservation: %v", err)
+	}
+
+	expectedMin := before.Add(9 * time.Minute)
+	expectedMax := after.Add(11 * time.Minute)
+	if expiresAt.Before(expectedMin) || expiresAt.After(expectedMax) {
+		t.Errorf("Expected expires_at around 10 minutes from now, got %v", expiresAt)
+	}
+}
+
+// ============================================================================
+// FinalizeReservation Tests
+// ============================================================================
+
+func TestUsageService_FinalizeReservation_Success_RecordsUsage(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create a reservation
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+
+	// Finalize with actual amount
+	err := svc.FinalizeReservation(ctx, reservationID, 80000)
+	if err != nil {
+		t.Fatalf("FinalizeReservation() returned error: %v", err)
+	}
+
+	// Verify reservation status
+	var status string
+	err = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query reservation: %v", err)
+	}
+	if status != "finalized" {
+		t.Errorf("Expected status 'finalized', got %q", status)
+	}
+
+	// Verify usage was recorded
+	var usageAmount int64
+	err = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ?`, "user@example.com").Scan(&usageAmount)
+	if err != nil {
+		t.Fatalf("Failed to query usage: %v", err)
+	}
+	if usageAmount != 80000 {
+		t.Errorf("Expected usage 80000, got %d", usageAmount)
+	}
+}
+
+func TestUsageService_FinalizeReservation_EmptyReservationID_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.FinalizeReservation(ctx, "", 100000)
+	if err == nil {
+		t.Error("Expected error for empty reservation_id, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservation_NotFound_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.FinalizeReservation(ctx, "non-existent-id", 100000)
+	if err == nil {
+		t.Error("Expected error for non-existent reservation, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservation_AlreadyFinalized_ReturnsError(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create and finalize a reservation
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+	_ = svc.FinalizeReservation(ctx, reservationID, 80000)
+
+	// Try to finalize again
+	err := svc.FinalizeReservation(ctx, reservationID, 50000)
+	if err == nil {
+		t.Error("Expected error for already finalized reservation, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservation_AlreadyReleased_ReturnsError(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create and release a reservation
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+	_ = svc.ReleaseReservation(ctx, reservationID)
+
+	// Try to finalize
+	err := svc.FinalizeReservation(ctx, reservationID, 50000)
+	if err == nil {
+		t.Error("Expected error for already released reservation, got nil")
+	}
+}
+
+func TestUsageService_FinalizeReservation_NegativeAmount_ReturnsError(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+
+	err := svc.FinalizeReservation(ctx, reservationID, -50000)
+	if err == nil {
+		t.Error("Expected error for negative amount, got nil")
+	}
+}
+
+// ============================================================================
+// ReleaseReservation Tests
+// ============================================================================
+
+func TestUsageService_ReleaseReservation_Success_NoUsageRecorded(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create a reservation
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+
+	// Release it
+	err := svc.ReleaseReservation(ctx, reservationID)
+	if err != nil {
+		t.Fatalf("ReleaseReservation() returned error: %v", err)
+	}
+
+	// Verify reservation status
+	var status string
+	err = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status)
+	if err != nil {
+		t.Fatalf("Failed to query reservation: %v", err)
+	}
+	if status != "released" {
+		t.Errorf("Expected status 'released', got %q", status)
+	}
+
+	// Verify no usage was recorded
+	var count int
+	err = db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity = ?`, "user@example.com").Scan(&count)
+	if err != nil {
+		t.Fatalf("Failed to query usage: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected no usage records, got %d", count)
+	}
+}
+
+func TestUsageService_ReleaseReservation_EmptyID_ReturnsError(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.ReleaseReservation(ctx, "")
+	if err == nil {
+		t.Error("Expected error for empty reservation_id, got nil")
+	}
+}
+
+func TestUsageService_ReleaseReservation_AlreadyFinalized_LogsNoop(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Create and finalize a reservation
+	reservationID, _ := svc.ReserveCredits(ctx, "user@example.com", "solo", "ai_credits", 100000)
+	_ = svc.FinalizeReservation(ctx, reservationID, 80000)
+
+	// Release should succeed but be a no-op
+	err := svc.ReleaseReservation(ctx, reservationID)
+	if err != nil {
+		t.Fatalf("ReleaseReservation() returned error: %v", err)
+	}
+
+	// Status should still be finalized
+	var status string
+	_ = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, reservationID).Scan(&status)
+	if status != "finalized" {
+		t.Errorf("Expected status to remain 'finalized', got %q", status)
+	}
+}
+
+func TestUsageService_ReleaseReservation_NotFound_LogsNoop(t *testing.T) {
+	svc, db := createTestUsageServiceWithMock(t, &MockLimitsService{})
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Should not return error for non-existent reservation
+	err := svc.ReleaseReservation(ctx, "non-existent-id")
+	if err != nil {
+		t.Fatalf("ReleaseReservation() returned error for non-existent ID: %v", err)
+	}
+}
+
+// ============================================================================
+// CleanupExpiredReservations Tests
+// ============================================================================
+
+func TestUsageService_CleanupExpiredReservations_ExpiresOldPending(t *testing.T) {
+	mock := &MockLimitsService{
+		GetLimitFn: func(ctx context.Context, tierID, limitKey string, appBundleKey *string) (*TierLimit, error) {
+			return &TierLimit{LimitValue: -1, LimitType: "cost_based"}, nil
+		},
+	}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Insert an expired pending reservation directly
+	_, err := db.Exec(`
+		INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at)
+		VALUES (?, ?, ?, ?, ?, 'pending', datetime('now', '-1 hour'))
+	`, "expired-res-1", "user@example.com", getCurrentBillingPeriodTest(), "ai_credits", 100000)
+	if err != nil {
+		t.Fatalf("Failed to insert expired reservation: %v", err)
+	}
+
+	// Run cleanup
+	count, err := svc.CleanupExpiredReservations(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpiredReservations() returned error: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 expired reservation, got %d", count)
+	}
+
+	// Verify status changed
+	var status string
+	_ = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, "expired-res-1").Scan(&status)
+	if status != "expired" {
+		t.Errorf("Expected status 'expired', got %q", status)
+	}
+}
+
+func TestUsageService_CleanupExpiredReservations_ReturnsCorrectCount(t *testing.T) {
+	mock := &MockLimitsService{}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+	period := getCurrentBillingPeriodTest()
+
+	// Insert multiple expired reservations
+	for i := 1; i <= 3; i++ {
+		_, _ = db.Exec(`
+			INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at)
+			VALUES (?, ?, ?, ?, ?, 'pending', datetime('now', '-1 hour'))
+		`, "expired-res-"+string(rune('0'+i)), "user@example.com", period, "ai_credits", 100000)
+	}
+
+	count, err := svc.CleanupExpiredReservations(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpiredReservations() returned error: %v", err)
+	}
+	if count != 3 {
+		t.Errorf("Expected 3 expired reservations, got %d", count)
+	}
+}
+
+func TestUsageService_CleanupExpiredReservations_NoExpired_ReturnsZero(t *testing.T) {
+	mock := &MockLimitsService{}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Insert a non-expired reservation with a future expiry using SQLite datetime format
+	_, err := db.Exec(`
+		INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at)
+		VALUES (?, ?, ?, ?, ?, 'pending', datetime('now', '+1 hour'))
+	`, "non-expired-res", "user@example.com", getCurrentBillingPeriodTest(), "ai_credits", 100000)
+	if err != nil {
+		t.Fatalf("Failed to insert non-expired reservation: %v", err)
+	}
+
+	// Run cleanup
+	count, err := svc.CleanupExpiredReservations(ctx)
+	if err != nil {
+		t.Fatalf("CleanupExpiredReservations() returned error: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected 0 expired reservations, got %d", count)
+	}
+}
+
+// ============================================================================
+// AdjustUsage Tests
+// ============================================================================
+
+func TestUsageService_AdjustUsage_PositiveAdjustment_IncreasesUsage(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	period := getCurrentBillingPeriodTest()
+
+	// Seed initial usage
+	_, err := db.Exec(`
+		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount)
+		VALUES (?, ?, ?, ?)
+	`, "user@example.com", period, "ai_credits", 100000)
+	if err != nil {
+		t.Fatalf("Failed to seed usage: %v", err)
+	}
+
+	// Apply positive adjustment
+	err = svc.AdjustUsage(ctx, "user@example.com", "ai_credits", 50000, "test adjustment")
+	if err != nil {
+		t.Fatalf("AdjustUsage() returned error: %v", err)
+	}
+
+	// Verify usage increased
+	var usageAmount int64
+	_ = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ? AND limit_key = ?`,
+		"user@example.com", "ai_credits").Scan(&usageAmount)
+	if usageAmount != 150000 {
+		t.Errorf("Expected usage 150000, got %d", usageAmount)
+	}
+}
+
+func TestUsageService_AdjustUsage_NegativeAdjustment_DecreasesUsage(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	period := getCurrentBillingPeriodTest()
+
+	// Seed initial usage
+	_, _ = db.Exec(`
+		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount)
+		VALUES (?, ?, ?, ?)
+	`, "user@example.com", period, "ai_credits", 100000)
+
+	// Apply negative adjustment (refund)
+	err := svc.AdjustUsage(ctx, "user@example.com", "ai_credits", -30000, "refund")
+	if err != nil {
+		t.Fatalf("AdjustUsage() returned error: %v", err)
+	}
+
+	// Verify usage decreased
+	var usageAmount int64
+	_ = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ? AND limit_key = ?`,
+		"user@example.com", "ai_credits").Scan(&usageAmount)
+	if usageAmount != 70000 {
+		t.Errorf("Expected usage 70000, got %d", usageAmount)
+	}
+}
+
+func TestUsageService_AdjustUsage_FloorAtZero_PreventsNegative(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+	period := getCurrentBillingPeriodTest()
+
+	// Seed initial usage
+	_, _ = db.Exec(`
+		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount)
+		VALUES (?, ?, ?, ?)
+	`, "user@example.com", period, "ai_credits", 50000)
+
+	// Apply a large negative adjustment that would go negative
+	err := svc.AdjustUsage(ctx, "user@example.com", "ai_credits", -100000, "large refund")
+	if err != nil {
+		t.Fatalf("AdjustUsage() returned error: %v", err)
+	}
+
+	// Verify usage floored at 0
+	var usageAmount int64
+	_ = db.QueryRow(`SELECT usage_amount FROM usage_records WHERE user_identity = ? AND limit_key = ?`,
+		"user@example.com", "ai_credits").Scan(&usageAmount)
+	if usageAmount != 0 {
+		t.Errorf("Expected usage 0 (floored), got %d", usageAmount)
+	}
+}
+
+func TestUsageService_AdjustUsage_EmptyUserIdentity_ReturnsError(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	err := svc.AdjustUsage(ctx, "", "ai_credits", 50000, "test")
+	if err == nil {
+		t.Error("Expected error for empty user_identity, got nil")
+	}
+}
+
+func TestUsageService_AdjustUsage_ZeroAdjustment_IsNoOp(t *testing.T) {
+	svc, _, db := createTestUsageService(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Zero adjustment should return nil immediately
+	err := svc.AdjustUsage(ctx, "user@example.com", "ai_credits", 0, "no-op")
+	if err != nil {
+		t.Fatalf("AdjustUsage(0) returned error: %v", err)
+	}
+}
+
+// ============================================================================
+// StartReservationCleanup Tests
+// ============================================================================
+
+func TestUsageService_StartReservationCleanup_GoroutineStartsAndRuns(t *testing.T) {
+	mock := &MockLimitsService{}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	// Insert an expired reservation
+	_, _ = db.Exec(`
+		INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at)
+		VALUES (?, ?, ?, ?, ?, 'pending', datetime('now', '-1 hour'))
+	`, "expired-cleanup-test", "user@example.com", getCurrentBillingPeriodTest(), "ai_credits", 100000)
+
+	// Start cleanup with short interval
+	cancel := svc.StartReservationCleanup(100 * time.Millisecond)
+	defer cancel()
+
+	// Wait for cleanup to run
+	time.Sleep(250 * time.Millisecond)
+
+	// Verify the expired reservation was cleaned up
+	var status string
+	_ = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, "expired-cleanup-test").Scan(&status)
+	if status != "expired" {
+		t.Errorf("Expected status 'expired' after cleanup, got %q", status)
+	}
+}
+
+func TestUsageService_StartReservationCleanup_CancelStopsGoroutine(t *testing.T) {
+	mock := &MockLimitsService{}
+	svc, db := createTestUsageServiceWithMock(t, mock)
+	defer db.Close()
+
+	// Start cleanup
+	cancel := svc.StartReservationCleanup(50 * time.Millisecond)
+
+	// Cancel immediately
+	cancel()
+
+	// Insert an expired reservation after cancel
+	_, _ = db.Exec(`
+		INSERT INTO credit_reservations (id, user_identity, billing_period, limit_key, reserved_amount, status, expires_at)
+		VALUES (?, ?, ?, ?, ?, 'pending', datetime('now', '-1 hour'))
+	`, "expired-after-cancel", "user@example.com", getCurrentBillingPeriodTest(), "ai_credits", 100000)
+
+	// Wait a bit
+	time.Sleep(150 * time.Millisecond)
+
+	// Verify the reservation was NOT cleaned up (goroutine stopped)
+	var status string
+	_ = db.QueryRow(`SELECT status FROM credit_reservations WHERE id = ?`, "expired-after-cancel").Scan(&status)
+	if status != "pending" {
+		t.Errorf("Expected status 'pending' (cleanup stopped), got %q", status)
 	}
 }
