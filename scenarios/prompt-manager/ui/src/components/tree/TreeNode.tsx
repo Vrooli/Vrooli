@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
 import { countDirtyInSubtree } from '@/services/treeService'
+import { useEditorStore } from '@/stores/editorStore'
 
 type SelectionState = 'none' | 'partial' | 'all'
 
@@ -166,6 +167,12 @@ export function TreeNodeComponent({
   const isSelected = selectedItemId === node.itemId
   const isDirty = node.itemId ? dirtyItemIds.has(node.itemId) : false
 
+  // Get live form state for display name override
+  const formState = useEditorStore((state) =>
+    node.itemId ? state.getFormState(node.itemId) : null
+  )
+  const displayLabel = formState?.name || node.label
+
   // In checkbox mode, clicking the row toggles the checkbox
   const handleRowClick = () => {
     if (showCheckbox) {
@@ -210,7 +217,7 @@ export function TreeNodeComponent({
       ) : !showCheckbox ? (
         <div className="w-3.5 h-3.5 flex-shrink-0" /> // Spacer when no icon
       ) : null}
-      <span className="truncate flex-1">{node.label}</span>
+      <span className="truncate flex-1">{displayLabel}</span>
       {isDirty && !showCheckbox && (
         <span
           className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0"

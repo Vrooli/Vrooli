@@ -5,8 +5,13 @@
       "file": "progress.md",
       "name": "Progress",
       "description": "Focus on advancing operational targets in a stable, test-driven manner",
-      "modes": ["Steer", "Progress"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Progress"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Rocket",
       "targetToolId": null,
       "draft": false,
@@ -16,10 +21,15 @@
     {
       "id": "explore",
       "file": "explore.md",
-      "name": "Exploration & Discovery",
+      "name": "Exploration \u0026 Discovery",
       "description": "Creative exploration, experimentation, and discovery within architectural boundaries",
-      "modes": ["Steer", "Explore"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Explore"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Compass",
       "targetToolId": null,
       "draft": false,
@@ -31,8 +41,13 @@
       "file": "ux.md",
       "name": "UX Improvement",
       "description": "User experience quality across all interfaces",
-      "modes": ["Steer", "UX"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "UX"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Users",
       "targetToolId": null,
       "draft": false,
@@ -44,8 +59,13 @@
       "file": "refactor.md",
       "name": "Refactor",
       "description": "Code quality and structure improvements",
-      "modes": ["Steer", "Refactor"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Refactor"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "RefreshCw",
       "targetToolId": null,
       "draft": false,
@@ -57,8 +77,13 @@
       "file": "test.md",
       "name": "Test",
       "description": "Test suite strengthening - coverage, reliability, signal strength",
-      "modes": ["Steer", "Test"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Test"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "TestTube",
       "targetToolId": null,
       "draft": false,
@@ -70,8 +95,13 @@
       "file": "polish.md",
       "name": "Polish",
       "description": "Final touches - consistency, edge cases, error messages",
-      "modes": ["Steer", "Polish"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Polish"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Sparkles",
       "targetToolId": null,
       "draft": false,
@@ -83,8 +113,13 @@
       "file": "performance.md",
       "name": "Performance",
       "description": "Profiling and optimization - bundle size, load times, caching",
-      "modes": ["Steer", "Performance"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Performance"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Zap",
       "targetToolId": null,
       "draft": false,
@@ -96,8 +131,13 @@
       "file": "security.md",
       "name": "Security",
       "description": "Vulnerability scanning - input validation, authentication, secrets",
-      "modes": ["Steer", "Security"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Security"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Shield",
       "targetToolId": null,
       "draft": false,
@@ -109,8 +149,14 @@
       "file": "screaming-architecture-audit.md",
       "name": "Screaming Architecture",
       "description": "Architecture alignment and refactoring - make the codebase express its purpose",
-      "modes": ["Steer", "Architecture", "Audits"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Architecture",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Building2",
       "targetToolId": "run-agent",
       "draft": false,
@@ -122,8 +168,13 @@
       "file": "code-cleanup.md",
       "name": "Code Cleanup",
       "description": "Remove dead code, unused imports, and obsolete patterns",
-      "modes": ["Steer", "Cleanup"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Cleanup"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Trash2",
       "targetToolId": null,
       "draft": false,
@@ -135,8 +186,13 @@
       "file": "react-stability.md",
       "name": "React Stability",
       "description": "React best practices, performance, and stability patterns",
-      "modes": ["Steer", "React"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "React"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Atom",
       "targetToolId": null,
       "draft": false,
@@ -146,10 +202,15 @@
     {
       "id": "assumption-mapping-and-hardening",
       "file": "assumption-mapping-and-hardening.md",
-      "name": "Assumption Mapping & Hardening",
+      "name": "Assumption Mapping \u0026 Hardening",
       "description": "Identify and validate implicit assumptions in the codebase",
-      "modes": ["Steer", "Analysis"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Map",
       "targetToolId": null,
       "draft": false,
@@ -161,8 +222,13 @@
       "file": "boundary-of-responsibility-enforcement.md",
       "name": "Boundary of Responsibility Enforcement",
       "description": "Clarify and enforce module boundaries and responsibilities",
-      "modes": ["Steer", "Architecture"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Box",
       "targetToolId": null,
       "draft": false,
@@ -172,10 +238,15 @@
     {
       "id": "change-axis-and-evolution-resilience-audit",
       "file": "change-axis-and-evolution-resilience-audit.md",
-      "name": "Change Axis & Evolution Resilience",
+      "name": "Change Axis \u0026 Evolution Resilience",
       "description": "Audit how well the codebase handles change and evolution",
-      "modes": ["Steer", "Audits"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "GitBranch",
       "targetToolId": null,
       "draft": false,
@@ -187,8 +258,13 @@
       "file": "cognitive-load-reduction.md",
       "name": "Cognitive Load Reduction",
       "description": "Simplify code to reduce mental overhead for developers",
-      "modes": ["Steer", "Simplification"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Simplification"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Brain",
       "targetToolId": null,
       "draft": false,
@@ -200,8 +276,13 @@
       "file": "concept-vocabulary-unification.md",
       "name": "Concept Vocabulary Unification",
       "description": "Standardize naming and terminology across the codebase",
-      "modes": ["Steer", "Naming"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Naming"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "BookOpen",
       "targetToolId": null,
       "draft": false,
@@ -211,10 +292,15 @@
     {
       "id": "control-surface-tunable-levers-design",
       "file": "control-surface-tunable-levers-design.md",
-      "name": "Control Surface & Tunable Levers",
+      "name": "Control Surface \u0026 Tunable Levers",
       "description": "Design configuration and control points for flexibility",
-      "modes": ["Steer", "Configuration"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Configuration"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Sliders",
       "targetToolId": null,
       "draft": false,
@@ -226,21 +312,31 @@
       "file": "decision-boundary-extraction.md",
       "name": "Decision Boundary Extraction",
       "description": "Extract and clarify decision logic from implementation details",
-      "modes": ["Steer", "Analysis"],
-      "tags": ["skill"],
-      "icon": "Split",
+      "modes": [
+        "Steer",
+        "Analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "file-text",
       "targetToolId": null,
       "draft": false,
       "createdAt": "2025-01-15T00:00:00Z",
-      "updatedAt": "2025-01-21T00:00:00Z"
+      "updatedAt": "2026-01-23T15:53:47-05:00"
     },
     {
       "id": "domain-compression",
       "file": "domain-compression.md",
       "name": "Domain Compression",
       "description": "Compress domain concepts into minimal, powerful abstractions",
-      "modes": ["Steer", "Abstraction"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Abstraction"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Minimize2",
       "targetToolId": null,
       "draft": false,
@@ -250,10 +346,15 @@
     {
       "id": "error-semantics-recovery-path-design",
       "file": "error-semantics-recovery-path-design.md",
-      "name": "Error Semantics & Recovery Path",
+      "name": "Error Semantics \u0026 Recovery Path",
       "description": "Design meaningful error types and recovery strategies",
-      "modes": ["Steer", "ErrorHandling"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "ErrorHandling"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "AlertTriangle",
       "targetToolId": null,
       "draft": false,
@@ -265,8 +366,14 @@
       "file": "experience-architecture-audit.md",
       "name": "Experience Architecture Audit",
       "description": "Audit the overall user and developer experience architecture",
-      "modes": ["Steer", "UX", "Audits"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "UX",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Layout",
       "targetToolId": null,
       "draft": false,
@@ -276,10 +383,15 @@
     {
       "id": "failure-topography-and-graceful-degradation",
       "file": "failure-topography-and-graceful-degradation.md",
-      "name": "Failure Topography & Graceful Degradation",
+      "name": "Failure Topography \u0026 Graceful Degradation",
       "description": "Map failure modes and implement graceful degradation",
-      "modes": ["Steer", "Reliability"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Activity",
       "targetToolId": null,
       "draft": false,
@@ -289,10 +401,15 @@
     {
       "id": "idempotency-replay-safety-hardening",
       "file": "idempotency-replay-safety-hardening.md",
-      "name": "Idempotency & Replay Safety",
+      "name": "Idempotency \u0026 Replay Safety",
       "description": "Ensure operations are safe to retry and replay",
-      "modes": ["Steer", "Reliability"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Repeat",
       "targetToolId": null,
       "draft": false,
@@ -304,8 +421,13 @@
       "file": "intent-clarification.md",
       "name": "Intent Clarification",
       "description": "Make code intent explicit and self-documenting",
-      "modes": ["Steer", "Documentation"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Documentation"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "MessageSquare",
       "targetToolId": null,
       "draft": false,
@@ -315,10 +437,15 @@
     {
       "id": "invariant-discovery-and-enforcement",
       "file": "invariant-discovery-and-enforcement.md",
-      "name": "Invariant Discovery & Enforcement",
+      "name": "Invariant Discovery \u0026 Enforcement",
       "description": "Discover and enforce system invariants and constraints",
-      "modes": ["Steer", "Analysis"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Lock",
       "targetToolId": null,
       "draft": false,
@@ -330,8 +457,14 @@
       "file": "navigation-integrity-audit.md",
       "name": "Navigation Integrity Audit",
       "description": "Audit navigation flows and routing consistency",
-      "modes": ["Steer", "UX", "Audits"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "UX",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Navigation",
       "targetToolId": null,
       "draft": false,
@@ -341,10 +474,15 @@
     {
       "id": "progress-continuity-interruption-resilience",
       "file": "progress-continuity-interruption-resilience.md",
-      "name": "Progress Continuity & Interruption Resilience",
+      "name": "Progress Continuity \u0026 Interruption Resilience",
       "description": "Ensure work can resume after interruptions",
-      "modes": ["Steer", "Reliability"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "PlayCircle",
       "targetToolId": null,
       "draft": false,
@@ -354,10 +492,15 @@
     {
       "id": "seam-discovery-and-enforcement",
       "file": "seam-discovery-and-enforcement.md",
-      "name": "Seam Discovery & Enforcement",
+      "name": "Seam Discovery \u0026 Enforcement",
       "description": "Find and strengthen module boundaries and integration points",
-      "modes": ["Steer", "Architecture"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Scissors",
       "targetToolId": null,
       "draft": false,
@@ -367,10 +510,15 @@
     {
       "id": "signal-and-feedback-surface-design",
       "file": "signal-and-feedback-surface-design.md",
-      "name": "Signal & Feedback Surface Design",
+      "name": "Signal \u0026 Feedback Surface Design",
       "description": "Design observability and feedback mechanisms",
-      "modes": ["Steer", "Observability"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Observability"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Radio",
       "targetToolId": null,
       "draft": false,
@@ -382,8 +530,13 @@
       "file": "temporal-flow-audit.md",
       "name": "Temporal Flow Audit",
       "description": "Audit time-dependent logic and async flows",
-      "modes": ["Steer", "Audits"],
-      "tags": ["skill"],
+      "modes": [
+        "Steer",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
       "icon": "Clock",
       "targetToolId": null,
       "draft": false,

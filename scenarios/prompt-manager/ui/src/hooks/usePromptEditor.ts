@@ -24,6 +24,14 @@ import {
 import { normalizedStateToUpdateRequest } from '@/services/editorService'
 import * as skillService from '@/services/skillService'
 
+/** Result returned from save operations */
+export interface SaveResult {
+  success: boolean
+  savedCount: number
+  failedCount: number
+  errors: Array<{ id: string; name: string; message: string }>
+}
+
 interface UsePromptEditorProps {
   skills: Skill[]
   selectedItemId: string | null
@@ -61,8 +69,8 @@ interface UsePromptEditorReturn {
   storeCurrentChanges: () => void
 
   // Save operations
-  saveCurrentSkill: () => Promise<void>
-  saveAllChanges: () => Promise<void>
+  saveCurrentSkill: () => Promise<SaveResult>
+  saveAllChanges: () => Promise<SaveResult>
   discardCurrentChanges: () => void
   discardAllChanges: () => void
 
@@ -262,8 +270,10 @@ export function usePromptEditor({
   }, [])
 
   // Save current skill only
-  const saveCurrentSkill = useCallback(async () => {
-    if (!currentSkill || !isDirty || !validation.valid || !formState) return
+  const saveCurrentSkill = useCallback(async (): Promise<SaveResult> => {
+    if (!currentSkill || !isDirty || !validation.valid || !formState) {
+      return { success: true, savedCount: 0, failedCount: 0, errors: [] }
+    }
 
     setIsSaving(true)
     try {
@@ -275,6 +285,23 @@ export function usePromptEditor({
       const result = results.get(currentSkill.id)
       if (result && !(result instanceof Error)) {
         markAsSaved(currentSkill.id, result)
+        return { success: true, savedCount: 1, failedCount: 0, errors: [] }
+      } else if (result instanceof Error) {
+        return {
+          success: false,
+          savedCount: 0,
+          failedCount: 1,
+          errors: [{ id: currentSkill.id, name: currentSkill.name, message: result.message }],
+        }
+      }
+      return { success: true, savedCount: 1, failedCount: 0, errors: [] }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return {
+        success: false,
+        savedCount: 0,
+        failedCount: 1,
+        errors: [{ id: currentSkill.id, name: currentSkill.name, message }],
       }
     } finally {
       setIsSaving(false)
@@ -282,12 +309,18 @@ export function usePromptEditor({
   }, [currentSkill, isDirty, validation.valid, formState, onSave, markAsSaved])
 
   // Save all pending changes
-  const saveAllChanges = useCallback(async () => {
+  const saveAllChanges = useCallback(async (): Promise<SaveResult> => {
     const updates = new Map<string, UpdateSkillRequest>()
 
     // Get all dirty prompts from the store
     const store = useEditorStore.getState()
     const dirtyIds = store.getDirtyPromptIds()
+
+    // Build a map of id to name for error reporting
+    const idToName = new Map<string, string>()
+    for (const skill of skills) {
+      idToName.set(skill.id, skill.name)
+    }
 
     for (const id of dirtyIds) {
       const state = store.getFormState(id)
@@ -297,22 +330,50 @@ export function usePromptEditor({
       }
     }
 
-    if (updates.size === 0) return
+    if (updates.size === 0) {
+      return { success: true, savedCount: 0, failedCount: 0, errors: [] }
+    }
 
     setIsSaving(true)
     try {
       const results = await onSave(updates)
 
+      // Track successes and failures
+      let savedCount = 0
+      const errors: Array<{ id: string; name: string; message: string }> = []
+
       // Mark successfully saved items
       for (const [id, result] of results) {
         if (!(result instanceof Error)) {
           markAsSaved(id, result)
+          savedCount++
+        } else {
+          errors.push({
+            id,
+            name: idToName.get(id) || 'Unknown skill',
+            message: result.message,
+          })
         }
+      }
+
+      return {
+        success: errors.length === 0,
+        savedCount,
+        failedCount: errors.length,
+        errors,
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return {
+        success: false,
+        savedCount: 0,
+        failedCount: updates.size,
+        errors: [{ id: '', name: 'All skills', message }],
       }
     } finally {
       setIsSaving(false)
     }
-  }, [onSave, markAsSaved])
+  }, [skills, onSave, markAsSaved])
 
   // Discard current skill changes
   const discardCurrentChanges = useCallback(() => {

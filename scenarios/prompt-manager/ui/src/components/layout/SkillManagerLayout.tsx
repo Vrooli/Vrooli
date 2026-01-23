@@ -15,6 +15,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { toast } from '@/hooks/use-toast'
 import { Menu, X, GripVertical, Settings } from 'lucide-react'
 import { getIcon } from '@/lib/icons'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
@@ -23,13 +24,14 @@ import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useSkillTree } from '@/hooks/useSkillTree'
-import { usePromptEditor } from '@/hooks/usePromptEditor'
+import { usePromptEditor, type SaveResult } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useUrlState } from '@/hooks/useUrlState'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useSelectionStore } from '@/stores/selectionStore'
+import { useEditorStore } from '@/stores/editorStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
@@ -175,6 +177,40 @@ export function SkillManagerLayout() {
     onSave: updateSkills,
     onDelete: deleteSkillApi,
   })
+
+  // Toast helper for save results
+  const showSaveResultToast = useCallback((result: SaveResult, isSaveAll: boolean) => {
+    if (result.success && result.savedCount > 0) {
+      toast({
+        title: isSaveAll ? 'All changes saved' : 'Skill saved',
+        description: result.savedCount === 1
+          ? 'Your changes have been saved.'
+          : `${result.savedCount} skills saved successfully.`,
+      })
+    } else if (!result.success) {
+      const errorMessage = result.errors.length > 0
+        ? result.errors.map((e) => e.message).join('; ')
+        : 'An unknown error occurred'
+      toast({
+        title: result.savedCount > 0
+          ? `Partial save: ${result.savedCount} saved, ${result.failedCount} failed`
+          : 'Save failed',
+        description: errorMessage,
+        variant: 'destructive',
+      })
+    }
+  }, [])
+
+  // Wrapped save functions with toast notifications
+  const handleSaveCurrentSkill = useCallback(async () => {
+    const result = await saveCurrentSkill()
+    showSaveResultToast(result, false)
+  }, [saveCurrentSkill, showSaveResultToast])
+
+  const handleSaveAllChanges = useCallback(async () => {
+    const result = await saveAllChanges()
+    showSaveResultToast(result, true)
+  }, [saveAllChanges, showSaveResultToast])
 
   // URL state synchronization
   const { updateUrl } = useUrlState({
@@ -393,9 +429,11 @@ export function SkillManagerLayout() {
     }
   }, [newFolderDialog, updateSkills])
 
-  // Render item icon in tree
+  // Render item icon in tree (uses live icon from editorStore if available)
   const renderItemIcon = useCallback((skill: Skill) => {
-    const Icon = getIcon(skill.icon || '')
+    const formState = useEditorStore.getState().getFormState(skill.id)
+    const iconName = formState?.icon ?? skill.icon ?? ''
+    const Icon = getIcon(iconName)
     return <Icon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
   }, [])
 
@@ -403,12 +441,12 @@ export function SkillManagerLayout() {
   useKeyboardShortcuts({
     onSave: () => {
       if (isDirty && validation.valid) {
-        void saveCurrentSkill()
+        void handleSaveCurrentSkill()
       }
     },
     onSaveAll: () => {
       if (dirtyCount > 0) {
-        void saveAllChanges()
+        void handleSaveAllChanges()
       }
     },
     onUndo: () => {
@@ -586,8 +624,8 @@ export function SkillManagerLayout() {
               onRedo={redo}
               canUndo={canUndo}
               canRedo={canRedo}
-              onSave={() => void saveCurrentSkill()}
-              onSaveAll={() => void saveAllChanges()}
+              onSave={() => void handleSaveCurrentSkill()}
+              onSaveAll={() => void handleSaveAllChanges()}
               onDiscard={discardCurrentChanges}
               onDelete={() => setShowDeleteDialog(true)}
               onSelectSkill={handleSelectItem}

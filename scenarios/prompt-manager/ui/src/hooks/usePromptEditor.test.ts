@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { usePromptEditor } from './usePromptEditor'
+import { usePromptEditor, type SaveResult } from './usePromptEditor'
 import { useEditorStore } from '@/stores/editorStore'
 import type { Skill, UpdateSkillRequest } from '@/types'
 
@@ -651,7 +651,7 @@ describe('usePromptEditor', () => {
         result.current.updateField('name', 'Updated')
       })
 
-      let savePromise: Promise<void>
+      let savePromise: Promise<SaveResult>
       act(() => {
         savePromise = result.current.saveCurrentSkill()
       })

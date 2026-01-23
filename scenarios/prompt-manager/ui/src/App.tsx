@@ -12,12 +12,14 @@
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ThemeProvider } from './hooks/use-theme'
 import { SkillManagerLayout } from './components/layout/SkillManagerLayout'
+import { Toaster } from './components/ui/toaster'
 
 export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <SkillManagerLayout />
+        <Toaster />
       </ThemeProvider>
     </ErrorBoundary>
   )

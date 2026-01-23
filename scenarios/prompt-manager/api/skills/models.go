@@ -93,7 +93,7 @@ type CombineResponse struct {
 var Folders = []string{"core", "local", "drafts"}
 
 // WritableFolders defines folders where skills can be created/updated/deleted.
-var WritableFolders = []string{"local", "drafts"}
+var WritableFolders = []string{"core", "local", "drafts"}
 
 // IsWritableFolder checks if a folder allows modifications.
 func IsWritableFolder(folder string) bool {
