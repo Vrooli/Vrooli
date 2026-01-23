@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -749,5 +752,514 @@ func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.
 	}
 	if svc == nil {
 		t.Error("Expected non-nil service")
+	}
+}
+
+// ============================================================================
+// Handler Tests
+// ============================================================================
+
+func TestHandleListAPIKeys_Empty(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleListAPIKeys(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	keys, ok := resp["keys"].([]interface{})
+	if !ok {
+		t.Fatal("Expected 'keys' to be an array")
+	}
+	if len(keys) != 0 {
+		t.Errorf("Expected 0 keys, got %d", len(keys))
+	}
+}
+
+func TestHandleListAPIKeys_MultipleKeys(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	ctx := context.Background()
+	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
+	_, _ = svc.Store(ctx, "openai", "sk-openai-test")
+	_, _ = svc.Store(ctx, "anthropic", "sk-ant-test")
+
+	handler := handleListAPIKeys(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	keys, ok := resp["keys"].([]interface{})
+	if !ok {
+		t.Fatal("Expected 'keys' to be an array")
+	}
+	if len(keys) != 3 {
+		t.Errorf("Expected 3 keys, got %d", len(keys))
+	}
+}
+
+func TestHandleCreateAPIKey_Success(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleCreateAPIKey(svc)
+
+	body := `{"provider": "openrouter", "key": "sk-or-test-12345678"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+
+	var resp APIKey
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.Provider != "openrouter" {
+		t.Errorf("Expected provider 'openrouter', got '%s'", resp.Provider)
+	}
+	if resp.KeyHint != "****5678" {
+		t.Errorf("Expected key hint '****5678', got '%s'", resp.KeyHint)
+	}
+}
+
+func TestHandleCreateAPIKey_InvalidProvider(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleCreateAPIKey(svc)
+
+	body := `{"provider": "invalid-provider", "key": "some-key"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid provider, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleCreateAPIKey_EmptyKey(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleCreateAPIKey(svc)
+
+	body := `{"provider": "openrouter", "key": ""}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for empty key, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleCreateAPIKey_InvalidJSON(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleCreateAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleDeleteAPIKey_Success(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	ctx := context.Background()
+	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
+
+	handler := handleDeleteAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=openrouter", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+
+	// Verify key is deleted
+	key, _ := svc.Get(ctx, "openrouter")
+	if key != "" {
+		t.Error("Expected key to be deleted")
+	}
+}
+
+func TestHandleDeleteAPIKey_MissingProvider(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleDeleteAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for missing provider, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleDeleteAPIKey_NotFound(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleDeleteAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=nonexistent", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d for not found, got %d", http.StatusNotFound, w.Code)
+	}
+}
+
+func TestHandleTestAPIKey_ValidKey(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 200}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
+
+	handler := handleTestAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp["success"] != true {
+		t.Errorf("Expected success=true, got %v", resp["success"])
+	}
+	if resp["provider"] != "openrouter" {
+		t.Errorf("Expected provider 'openrouter', got %v", resp["provider"])
+	}
+}
+
+func TestHandleTestAPIKey_InvalidKey(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 401}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	_, _ = svc.Store(ctx, "openrouter", "invalid-key")
+
+	handler := handleTestAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp["success"] != false {
+		t.Errorf("Expected success=false for invalid key, got %v", resp["success"])
+	}
+}
+
+func TestHandleTestAPIKey_MissingProvider(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleTestAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for missing provider, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleTestAPIKey_NoKeyConfigured(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleTestAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp["success"] != false {
+		t.Errorf("Expected success=false when no key configured, got %v", resp["success"])
+	}
+	message, ok := resp["message"].(string)
+	if !ok || !strings.Contains(message, "No API key") {
+		t.Errorf("Expected message about no key configured, got %v", resp["message"])
+	}
+}
+
+func TestHandleToggleAPIKey_Success(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	ctx := context.Background()
+	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
+
+	handler := handleToggleAPIKey(svc)
+
+	// Toggle off
+	body := `{"provider": "openrouter", "active": false}`
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/api-keys/toggle", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusNoContent, w.Code, w.Body.String())
+	}
+
+	// Verify key is inactive (Get returns empty for inactive keys)
+	key, _ := svc.Get(ctx, "openrouter")
+	if key != "" {
+		t.Error("Expected inactive key to return empty from Get")
+	}
+}
+
+func TestHandleToggleAPIKey_InvalidJSON(t *testing.T) {
+	svc, db := createTestAPIKeyService(t, nil)
+	defer db.Close()
+
+	handler := handleToggleAPIKey(svc)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/api-keys/toggle", strings.NewReader("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+// ============================================================================
+// Provider Test Function Tests
+// ============================================================================
+
+func TestTestOpenAI_Success(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 200}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testOpenAI(ctx, "sk-openai-test")
+
+	if !success {
+		t.Errorf("Expected success=true, got false with message: %s", message)
+	}
+	if !strings.Contains(message, "valid") {
+		t.Errorf("Expected message to contain 'valid', got: %s", message)
+	}
+
+	// Verify request was made correctly
+	if len(mockHTTP.requests) != 1 {
+		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
+	}
+	req := mockHTTP.requests[0]
+	if req.URL.String() != "https://api.openai.com/v1/models" {
+		t.Errorf("Expected URL 'https://api.openai.com/v1/models', got '%s'", req.URL.String())
+	}
+	if req.Header.Get("Authorization") != "Bearer sk-openai-test" {
+		t.Errorf("Expected Authorization header 'Bearer sk-openai-test', got '%s'", req.Header.Get("Authorization"))
+	}
+}
+
+func TestTestOpenAI_InvalidKey(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 401}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testOpenAI(ctx, "invalid-key")
+
+	if success {
+		t.Error("Expected success=false for 401 response")
+	}
+	if !strings.Contains(message, "Invalid") {
+		t.Errorf("Expected message to contain 'Invalid', got: %s", message)
+	}
+}
+
+func TestTestOpenAI_ConnectionError(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{err: fmt.Errorf("connection refused")}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testOpenAI(ctx, "sk-test")
+
+	if success {
+		t.Error("Expected success=false for connection error")
+	}
+	if !strings.Contains(message, "Connection error") {
+		t.Errorf("Expected message to contain 'Connection error', got: %s", message)
+	}
+}
+
+func TestTestAnthropic_Success(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 200}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+
+	if !success {
+		t.Errorf("Expected success=true, got false with message: %s", message)
+	}
+
+	// Verify request was made correctly
+	if len(mockHTTP.requests) != 1 {
+		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
+	}
+	req := mockHTTP.requests[0]
+	if req.URL.String() != "https://api.anthropic.com/v1/messages" {
+		t.Errorf("Expected URL 'https://api.anthropic.com/v1/messages', got '%s'", req.URL.String())
+	}
+	if req.Header.Get("x-api-key") != "sk-ant-test" {
+		t.Errorf("Expected x-api-key header 'sk-ant-test', got '%s'", req.Header.Get("x-api-key"))
+	}
+	if req.Header.Get("anthropic-version") != "2023-06-01" {
+		t.Errorf("Expected anthropic-version header '2023-06-01', got '%s'", req.Header.Get("anthropic-version"))
+	}
+}
+
+func TestTestAnthropic_RateLimited(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 429}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+
+	// 429 should still indicate the key is valid (just rate limited)
+	if !success {
+		t.Errorf("Expected success=true for 429 (rate limited), got false with message: %s", message)
+	}
+}
+
+func TestTestAnthropic_BadRequest(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: 400}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+
+	ctx := context.Background()
+	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+
+	// 400 should still indicate the key is valid (just validation error)
+	if !success {
+		t.Errorf("Expected success=true for 400 (validation error), got false with message: %s", message)
+	}
+	if !strings.Contains(message, "valid") {
+		t.Errorf("Expected message to contain 'valid', got: %s", message)
+	}
+}
+
+// ============================================================================
+// GenerateEncryptionKey Tests
+// ============================================================================
+
+func TestGenerateEncryptionKey_Unique(t *testing.T) {
+	key1 := GenerateEncryptionKey()
+	key2 := GenerateEncryptionKey()
+
+	if key1 == key2 {
+		t.Error("Expected different keys on each call, got identical keys")
+	}
+}
+
+func TestGenerateEncryptionKey_ValidBase64(t *testing.T) {
+	key := GenerateEncryptionKey()
+
+	// Should be valid base64
+	decoded, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		t.Fatalf("Generated key is not valid base64: %v", err)
+	}
+
+	// Should decode to exactly 32 bytes
+	if len(decoded) != 32 {
+		t.Errorf("Expected decoded key to be 32 bytes, got %d", len(decoded))
 	}
 }

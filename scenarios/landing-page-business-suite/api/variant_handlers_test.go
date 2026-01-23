@@ -640,14 +640,26 @@ func TestGetVariantWeight_WithWeight(t *testing.T) {
 	}
 }
 
-func TestGetVariantWeight_DefaultWeight(t *testing.T) {
+func TestGetVariantWeight_ZeroWeight(t *testing.T) {
 	snapshot := &VariantSnapshot{
 		Variant: VariantSnapshotMeta{Weight: 0},
 	}
 
 	weight := getVariantWeight(snapshot)
 
-	if weight != 50 {
-		t.Errorf("Expected default 50, got %d", weight)
+	if weight != 0 {
+		t.Errorf("Expected 0 (disabled), got %d", weight)
+	}
+}
+
+func TestGetVariantWeight_NegativeWeight(t *testing.T) {
+	snapshot := &VariantSnapshot{
+		Variant: VariantSnapshotMeta{Weight: -5},
+	}
+
+	weight := getVariantWeight(snapshot)
+
+	if weight != 0 {
+		t.Errorf("Expected 0 (disabled), got %d", weight)
 	}
 }

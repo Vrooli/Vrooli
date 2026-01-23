@@ -608,3 +608,6 @@ func init() {
 		os.Exit(0)
 	}
 }
+
+// Compile-time interface check for APIKeyServicer
+var _ APIKeyServicer = (*APIKeyService)(nil)

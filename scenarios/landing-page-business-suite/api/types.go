@@ -17,7 +17,7 @@ type VariantSnapshotMeta struct {
 	Slug         string              `json:"slug"`
 	Name         string              `json:"name"`
 	Description  string              `json:"description,omitempty"`
-	Weight       int                 `json:"weight,omitempty"` // Traffic weight (0 = disabled, default 50)
+	Weight       int                 `json:"weight,omitempty"` // Traffic weight (>0 participates, <=0 disabled)
 	Axes         map[string]string   `json:"axes"`
 	HeaderConfig LandingHeaderConfig `json:"header_config,omitempty"`
 	SEOConfig    json.RawMessage     `json:"seo_config,omitempty"`

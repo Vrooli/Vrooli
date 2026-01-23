@@ -365,3 +365,6 @@ func legacyStateLabel(state landing_page_react_vite_v1.SubscriptionState) string
 		return "inactive"
 	}
 }
+
+// Compile-time interface check for AccountServicer
+var _ AccountServicer = (*AccountService)(nil)

@@ -35,12 +35,14 @@ func snapshotToVariantResponse(snapshot *VariantSnapshot) VariantResponse {
 	}
 }
 
-// getVariantWeight returns the weight for a variant (default 50 if not set)
+// getVariantWeight returns the weight for a variant.
+// Weight > 0: returns the weight (variant participates in selection)
+// Weight <= 0: returns 0 (variant is disabled)
 func getVariantWeight(snapshot *VariantSnapshot) int {
 	if snapshot.Variant.Weight > 0 {
 		return snapshot.Variant.Weight
 	}
-	return 50 // Default weight
+	return 0 // Disabled
 }
 
 // selectWeightedRandomVariant picks a random variant based on weights

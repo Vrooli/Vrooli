@@ -8,7 +8,33 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
+
+// UsageServicer provides credit management for AI gateway.
+// This interface enables testing without the real UsageService.
+type UsageServicer interface {
+	ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error
+	ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
+	FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error
+	ReleaseReservation(ctx context.Context, reservationID string) error
+	AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
+	RecordUsage(ctx context.Context, req UsageReportRequest) error
+	GetUsageSummary(ctx context.Context, userIdentity, tier string) (*UsageSummary, error)
+}
+
+// AccountServicer provides tier lookup for AI gateway.
+// This interface enables testing without the real AccountService.
+type AccountServicer interface {
+	GetSubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error)
+}
+
+// APIKeyServicer provides API key retrieval for AI gateway.
+// This interface enables testing without the real APIKeyService.
+type APIKeyServicer interface {
+	Get(ctx context.Context, provider string) (string, error)
+}
 
 // AIGatewayService handles AI requests through the LPBS gateway.
 // It provides centralized AI access with credit management for all Vrooli applications.
@@ -72,9 +98,9 @@ import (
 // from multiple sessions exceeding the credit limit.
 type AIGatewayService struct {
 	db             *sql.DB
-	apiKeyService  *APIKeyService
-	usageService   *UsageService
-	accountService *AccountService
+	apiKeyService  APIKeyServicer  // Interface for testing
+	usageService   UsageServicer   // Interface for testing
+	accountService AccountServicer // Interface for testing
 	limitsService  *LimitsService
 	log            func(event string, fields map[string]interface{})
 

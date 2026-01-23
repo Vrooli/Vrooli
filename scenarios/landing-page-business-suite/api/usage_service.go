@@ -1230,3 +1230,6 @@ func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey s
 }
 
 // Note: ErrInsufficientCredits is defined in ai_gateway_errors.go (centralized AI gateway errors)
+
+// Compile-time interface check for UsageServicer
+var _ UsageServicer = (*UsageService)(nil)
