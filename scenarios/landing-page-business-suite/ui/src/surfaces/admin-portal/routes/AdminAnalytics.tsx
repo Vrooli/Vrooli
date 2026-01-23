@@ -1,5 +1,7 @@
 import { BarChart3, TrendingUp, Users, MousePointerClick, DownloadCloud, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 import { AdminLayout } from "../components/AdminLayout";
+import { PageHeader } from "../components/PageHeader";
+import { RuntimeSignalStrip } from "../components/RuntimeSignalStrip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../shared/ui/card";
 import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
@@ -7,19 +9,12 @@ import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
 import type { VariantStats } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import { useAdminAnalytics, DEFAULT_TIME_RANGE } from "../hooks/useAdminAnalytics";
+import { RESOLUTION_LABELS } from "../config/variant.constants";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
   if (trend === 'up') return <ArrowUpRight className="h-4 w-4 text-green-400" />;
   if (trend === 'down') return <ArrowDownRight className="h-4 w-4 text-red-400" />;
   return <Minus className="h-4 w-4 text-slate-400" />;
-};
-
-const RESOLUTION_LABELS: Record<VariantResolution, string> = {
-  url_param: 'URL parameter',
-  local_storage: 'Stored visitor assignment',
-  api_select: 'Weighted API selection',
-  fallback: 'Fallback payload',
-  unknown: 'Unknown strategy',
 };
 
 /**
@@ -81,38 +76,45 @@ export function AdminAnalytics() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
-        {/* Header with filters */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-          <h1 className="text-3xl font-semibold">Analytics Dashboard</h1>
+        <RuntimeSignalStrip mode="compact" />
 
-          <div className="flex gap-3" data-testid="analytics-filters">
-            <Select value={timeRange} onValueChange={handleTimeRangeChange}>
-              <SelectTrigger className="w-[140px] bg-white/5 border-white/10" data-testid="analytics-time-range">
-                <SelectValue placeholder="Time range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Last 24 hours</SelectItem>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
+        <PageHeader
+          variant="icon-title"
+          title="Analytics Dashboard"
+          icon={TrendingUp}
+          iconBgClass="bg-blue-500/10"
+          iconColorClass="text-blue-400"
+          testId="analytics-header"
+          actions={
+            <div className="flex gap-3" data-testid="analytics-filters">
+              <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+                <SelectTrigger className="w-[140px] bg-white/5 border-white/10" data-testid="analytics-time-range">
+                  <SelectValue placeholder="Time range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Last 24 hours</SelectItem>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <Select value={selectedVariant} onValueChange={handleVariantChange}>
-              <SelectTrigger className="w-[160px] bg-white/5 border-white/10" data-testid="analytics-variant-filter">
-                <SelectValue placeholder="All variants" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All variants</SelectItem>
-                {summary?.variant_stats.map((v) => (
-                  <SelectItem key={v.variant_id} value={v.variant_slug}>
-                    {v.variant_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+              <Select value={selectedVariant} onValueChange={handleVariantChange}>
+                <SelectTrigger className="w-[160px] bg-white/5 border-white/10" data-testid="analytics-variant-filter">
+                  <SelectValue placeholder="All variants" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All variants</SelectItem>
+                  {summary?.variant_stats.map((v) => (
+                    <SelectItem key={v.variant_id} value={v.variant_slug}>
+                      {v.variant_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          }
+        />
 
         <ErrorBoundary level="section" name="AnalyticsFocusBanner">
           <AnalyticsFocusBanner

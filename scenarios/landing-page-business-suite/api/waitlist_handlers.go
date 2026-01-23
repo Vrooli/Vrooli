@@ -8,7 +8,7 @@ import (
 )
 
 // handleWaitlistCreate handles public email submission to the waitlist
-func handleWaitlistCreate(svc *WaitlistService) http.HandlerFunc {
+func handleWaitlistCreate(svc WaitlistServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Email  string `json:"email"`
@@ -45,7 +45,7 @@ func handleWaitlistCreate(svc *WaitlistService) http.HandlerFunc {
 }
 
 // handleWaitlistList returns all waitlist emails (admin only)
-func handleWaitlistList(svc *WaitlistService) http.HandlerFunc {
+func handleWaitlistList(svc WaitlistServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		emails, err := svc.List(r.Context())
 		if err != nil {
@@ -65,7 +65,7 @@ func handleWaitlistList(svc *WaitlistService) http.HandlerFunc {
 }
 
 // handleWaitlistDelete removes an email from the waitlist (admin only)
-func handleWaitlistDelete(svc *WaitlistService) http.HandlerFunc {
+func handleWaitlistDelete(svc WaitlistServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
@@ -86,7 +86,7 @@ func handleWaitlistDelete(svc *WaitlistService) http.HandlerFunc {
 }
 
 // handleWaitlistExport exports all waitlist emails as CSV (admin only)
-func handleWaitlistExport(svc *WaitlistService) http.HandlerFunc {
+func handleWaitlistExport(svc WaitlistServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		emails, err := svc.List(r.Context())
 		if err != nil {

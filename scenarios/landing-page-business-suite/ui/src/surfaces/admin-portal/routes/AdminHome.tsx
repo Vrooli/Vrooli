@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "../components/AdminLayout";
+import { PageHeader } from "../components/PageHeader";
 import { Button } from "../../../shared/ui/button";
-import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Compass, CreditCard, Download, ExternalLink, Gauge, History, Home, Package, Palette, RefreshCw, Settings2, ShieldCheck, Type } from "lucide-react";
 import type { Variant, StripeSettingsResponse } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
 import {
@@ -12,14 +13,7 @@ import {
   type DownloadsHealthStatus,
 } from "../services/adminHome.service";
 import { useAdminHome } from "../hooks/useAdminHome";
-
-const RESOLUTION_LABELS: Record<VariantResolution, string> = {
-  url_param: "URL parameter",
-  local_storage: "Stored visitor assignment",
-  api_select: "Weighted API",
-  fallback: "Fallback payload",
-  unknown: "Unknown source",
-};
+import { RESOLUTION_LABELS } from "../config/variant.constants";
 
 /**
  * Admin home page - implements ADMIN-MODES requirement (OT-P0-009)
@@ -106,8 +100,15 @@ export function AdminHome() {
 
   return (
     <AdminLayout>
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-semibold mb-4">Landing Manager Admin</h1>
+      <div className="max-w-6xl mx-auto space-y-6">
+        <PageHeader
+          variant="icon-title"
+          title="Landing Manager Admin"
+          icon={Home}
+          iconBgClass="bg-slate-500/10"
+          iconColorClass="text-slate-400"
+          testId="admin-home-header"
+        />
 
         <ExperienceGuidePanel
           onNavigateAnalytics={() => navigate('/admin/analytics')}

@@ -1,7 +1,9 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Plus, Clipboard } from 'lucide-react';
+import { Save, ArrowLeft, Plus, Clipboard, Edit } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
+import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
@@ -121,33 +123,39 @@ export function VariantEditor() {
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/admin/customization')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-semibold">{isNew ? 'New Variant' : 'Edit Variant'}</h1>
-            <p className="text-slate-400 mt-1">
-              {isNew ? 'Create a new A/B test variant' : `Editing ${variant?.name ?? slug}`}
-            </p>
-          </div>
-          <Button
-            onClick={handleSaveClick}
-            disabled={currentSaving || (isJsonTab && (snapshotLoading || isNew))}
-            className="gap-2"
-            data-testid="save-variant"
-          >
-            <Save className="h-4 w-4" />
-            {savingLabel}
-          </Button>
-        </div>
+        <RuntimeSignalStrip mode="compact" />
+
+        <PageHeader
+          variant="icon-title"
+          title={isNew ? 'New Variant' : 'Edit Variant'}
+          description={isNew ? 'Create a new A/B test variant' : `Editing ${variant?.name ?? slug}`}
+          icon={Edit}
+          iconBgClass="bg-indigo-500/10"
+          iconColorClass="text-indigo-400"
+          testId="variant-editor-header"
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/admin/customization')}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button
+                onClick={handleSaveClick}
+                disabled={currentSaving || (isJsonTab && (snapshotLoading || isNew))}
+                className="gap-2"
+                data-testid="save-variant"
+              >
+                <Save className="h-4 w-4" />
+                {savingLabel}
+              </Button>
+            </>
+          }
+        />
 
         {/* Tab Switcher */}
         <div className="flex items-center gap-3 mb-4">

@@ -88,7 +88,7 @@ func selectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
 // handleVariantSelect handles GET /api/v1/variants/select (OT-P0-016: AB-API)
 // Returns a randomly selected variant based on weights for A/B testing
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
-func handleVariantSelect(cs *ConfigStore) http.HandlerFunc {
+func handleVariantSelect(cs ConfigStoreReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
@@ -123,7 +123,7 @@ func handleVariantSelect(cs *ConfigStore) http.HandlerFunc {
 // handlePublicVariantBySlug handles GET /api/v1/public/variants/{slug} (no auth required)
 // Used by the public landing page for URL-based variant selection
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
-func handlePublicVariantBySlug(cs *ConfigStore) http.HandlerFunc {
+func handlePublicVariantBySlug(cs ConfigStoreReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
@@ -158,7 +158,7 @@ func handlePublicVariantBySlug(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantBySlug handles GET /api/v1/variants/{slug} (OT-P0-014: AB-URL)
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
-func handleVariantBySlug(cs *ConfigStore) http.HandlerFunc {
+func handleVariantBySlug(cs ConfigStoreReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
@@ -194,7 +194,7 @@ func handleVariantBySlug(cs *ConfigStore) http.HandlerFunc {
 // handleVariantsList handles GET /api/v1/variants (OT-P0-017: AB-CRUD)
 // Returns all variants from ConfigStore (loaded from JSON files)
 // Transforms VariantSnapshot to flat VariantResponse format for UI compatibility
-func handleVariantsList(cs *ConfigStore) http.HandlerFunc {
+func handleVariantsList(cs ConfigStoreReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed", "")
@@ -220,7 +220,7 @@ func handleVariantsList(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantUpdate handles PATCH /api/v1/variants/{slug} (OT-P0-017: AB-CRUD)
 // Updates variant in ConfigStore and writes to JSON file
-func handleVariantUpdate(cs *ConfigStore) http.HandlerFunc {
+func handleVariantUpdate(cs ConfigStorer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed", "")
@@ -301,7 +301,7 @@ func handleVariantUpdate(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantDelete handles DELETE /api/v1/variants/{slug} (OT-P0-017: AB-CRUD)
 // Deletes variant JSON file and removes from ConfigStore
-func handleVariantDelete(cs *ConfigStore) http.HandlerFunc {
+func handleVariantDelete(cs ConfigStorer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed", "")
@@ -339,7 +339,7 @@ func handleVariantDelete(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantExport handles GET /api/v1/admin/variants/{slug}/export
 // Returns the variant snapshot from ConfigStore
-func handleVariantExport(cs *ConfigStore) http.HandlerFunc {
+func handleVariantExport(cs ConfigStoreReader) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
@@ -372,7 +372,7 @@ func handleVariantExport(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantImport handles PUT /api/v1/admin/variants/{slug}/import
 // Saves a full variant snapshot to its JSON file
-func handleVariantImport(cs *ConfigStore) http.HandlerFunc {
+func handleVariantImport(cs ConfigStorer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")
@@ -454,7 +454,7 @@ func handleVariantImport(cs *ConfigStore) http.HandlerFunc {
 
 // handleVariantSnapshotSync handles POST /api/v1/admin/variants/sync
 // Reloads all variants from JSON files into memory
-func handleVariantSnapshotSync(cs *ConfigStore) http.HandlerFunc {
+func handleVariantSnapshotSync(cs ConfigStorer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeJSONError(w, http.StatusMethodNotAllowed, "Method not allowed.", "")

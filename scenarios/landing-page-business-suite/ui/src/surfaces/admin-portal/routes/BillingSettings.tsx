@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
@@ -64,6 +65,16 @@ export function BillingSettings() {
   return (
     <AdminLayout>
       <div className="space-y-10">
+        <PageHeader
+          variant="icon-title"
+          title="Billing & Subscription"
+          description="Configure Stripe integration, manage pricing plans, and control how your landing page displays subscription options."
+          icon={CreditCard}
+          iconBgClass="bg-emerald-500/10"
+          iconColorClass="text-emerald-400"
+          testId="billing-header"
+        />
+
         {/* Stripe Configuration Card */}
         <Card className="border-white/10 bg-slate-900/60">
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

@@ -3,7 +3,6 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { LogOut, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { adminLogout } from '../../../shared/api';
-import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 import { NAVIGATION_CONFIG } from '../config/navigation';
 import { buildBreadcrumbs, isGroupActive } from '../config/navigation.utils';
 import type { NavGroup } from '../config/navigation.types';
@@ -165,7 +164,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-8">
-        <RuntimeSignalStrip />
         {children}
       </main>
     </div>

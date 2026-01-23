@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Activity, Users, Server, Calendar, RefreshCw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,16 +24,21 @@ export function UsageDashboard() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Usage Dashboard</h1>
-            <p className="text-slate-400 mt-1">Monitor AI credit usage across all users</p>
-          </div>
-          <Button onClick={fetchSummary} disabled={loading} className="gap-2" variant="outline">
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Usage Dashboard"
+          description="Monitor AI credit usage across all users"
+          icon={Activity}
+          iconBgClass="bg-orange-500/10"
+          iconColorClass="text-orange-400"
+          testId="usage-header"
+          actions={
+            <Button onClick={fetchSummary} disabled={loading} className="gap-2" variant="outline">
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          }
+        />
 
         {/* Period Selector */}
         <Card>

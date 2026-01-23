@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
@@ -35,28 +36,27 @@ export function AgentCustomization() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/admin/customization')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-3xl font-semibold flex items-center gap-3">
-              <Sparkles className="h-8 w-8 text-blue-400" />
-              Agent Customization
-            </h1>
-            <p className="text-slate-400 mt-1">
-              Trigger AI-powered customization of your landing page
-            </p>
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <PageHeader
+          variant="icon-title"
+          title="Agent Customization"
+          description="Trigger AI-powered customization of your landing page"
+          icon={Sparkles}
+          iconBgClass="bg-violet-500/10"
+          iconColorClass="text-violet-400"
+          testId="agent-header"
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/admin/customization')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+          }
+        />
 
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">

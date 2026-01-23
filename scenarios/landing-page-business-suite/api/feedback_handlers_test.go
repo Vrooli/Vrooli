@@ -569,3 +569,208 @@ func TestHandleFeedbackDeleteBulk_InvalidJSON(t *testing.T) {
 		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
 	}
 }
+
+// --- Error Injection Tests Using Mock ---
+
+func TestHandleFeedbackList_ServiceError(t *testing.T) {
+	mock := newMockFeedbackService()
+	mock.listErr = errors.New("database unavailable")
+
+	handler := handleFeedbackList(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleFeedbackList_VerifyResponseBody(t *testing.T) {
+	mock := newMockFeedbackService()
+	// Add test feedback
+	mock.Create(&CreateFeedbackInput{
+		Type:    "bug",
+		Email:   "test@example.com",
+		Subject: "Bug Report",
+		Message: "Found a bug",
+	})
+
+	handler := handleFeedbackList(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	var feedbacks []FeedbackRequest
+	if err := json.NewDecoder(w.Body).Decode(&feedbacks); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(feedbacks) != 1 {
+		t.Errorf("Expected 1 feedback, got %d", len(feedbacks))
+	}
+
+	if feedbacks[0].Email != "test@example.com" {
+		t.Errorf("Expected email 'test@example.com', got %s", feedbacks[0].Email)
+	}
+}
+
+func TestHandleFeedbackGet_ServiceError(t *testing.T) {
+	mock := newMockFeedbackService()
+	mock.getByIDErr = errors.New("record not found")
+
+	handler := handleFeedbackGet(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/feedback/{id}", handler).Methods("GET")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback/1", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusNotFound, w.Code)
+	}
+}
+
+func TestHandleFeedbackUpdateStatus_ServiceError(t *testing.T) {
+	mock := newMockFeedbackService()
+	// Create a feedback entry first
+	mock.Create(&CreateFeedbackInput{
+		Type:    "general",
+		Email:   "test@example.com",
+		Subject: "Test",
+		Message: "Test",
+	})
+	// Now inject the error
+	mock.updateStatusErr = errors.New("update failed")
+
+	handler := handleFeedbackUpdateStatus(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/feedback/{id}/status", handler).Methods("PATCH")
+
+	body := `{"status": "resolved"}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/1/status", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleFeedbackUpdateStatus_InvalidJSON(t *testing.T) {
+	mock := newMockFeedbackService()
+	handler := handleFeedbackUpdateStatus(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/feedback/{id}/status", handler).Methods("PATCH")
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/1/status", strings.NewReader("{invalid"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleFeedbackUpdateStatus_AllValidStatuses(t *testing.T) {
+	validStatuses := []string{"pending", "in_progress", "resolved", "rejected"}
+
+	for _, status := range validStatuses {
+		t.Run(status, func(t *testing.T) {
+			mock := newMockFeedbackService()
+			// Create a feedback entry
+			mock.Create(&CreateFeedbackInput{
+				Type:    "general",
+				Email:   "test@example.com",
+				Subject: "Test",
+				Message: "Test",
+			})
+
+			handler := handleFeedbackUpdateStatus(mock)
+
+			router := mux.NewRouter()
+			router.HandleFunc("/api/v1/admin/feedback/{id}/status", handler).Methods("PATCH")
+
+			body := `{"status": "` + status + `"}`
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/1/status", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusOK {
+				t.Errorf("Status '%s': Expected status %d, got %d: %s", status, http.StatusOK, w.Code, w.Body.String())
+			}
+
+			var resp FeedbackRequest
+			if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+				t.Fatalf("Failed to decode response: %v", err)
+			}
+
+			if resp.Status != status {
+				t.Errorf("Expected status '%s', got '%s'", status, resp.Status)
+			}
+		})
+	}
+}
+
+func TestHandleFeedbackDelete_ServiceError(t *testing.T) {
+	mock := newMockFeedbackService()
+	// Create a feedback entry
+	mock.Create(&CreateFeedbackInput{
+		Type:    "general",
+		Email:   "test@example.com",
+		Subject: "Test",
+		Message: "Test",
+	})
+	mock.deleteErr = errors.New("deletion blocked")
+
+	handler := handleFeedbackDelete(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/feedback/{id}", handler).Methods("DELETE")
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/feedback/1", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleFeedbackDeleteBulk_ServiceError(t *testing.T) {
+	mock := newMockFeedbackService()
+	mock.deleteBulkErr = errors.New("bulk delete failed")
+
+	handler := handleFeedbackDeleteBulk(mock)
+
+	body := `{"ids": [1, 2, 3]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/feedback/bulk-delete", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}

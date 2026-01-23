@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { RefreshCw, Trash2, Download, Mail, Users, AlertCircle, Clock, ExternalLink } from 'lucide-react';
@@ -23,17 +24,16 @@ export function WaitlistManagement() {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        {/* Header */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Waitlist</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Manage Waitlist Signups</h1>
-              <p className="text-slate-400 text-sm mt-2">
-                View and manage email addresses collected from the coming soon page.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <PageHeader
+          variant="icon-title"
+          title="Manage Waitlist Signups"
+          description="View and manage email addresses collected from the coming soon page."
+          icon={Mail}
+          iconBgClass="bg-cyan-500/10"
+          iconColorClass="text-cyan-400"
+          testId="waitlist-header"
+          actions={
+            <>
               {emails.length > 0 && (
                 <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
                   <Download className="h-4 w-4" />
@@ -44,29 +44,29 @@ export function WaitlistManagement() {
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
+            </>
+          }
+        />
+
+        {/* Stats */}
+        {!loading && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
+              <Users className="h-5 w-5 text-blue-400" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.totalSignups}</p>
+                <p className="text-xs text-slate-400">Total signups</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
+              <Mail className="h-5 w-5 text-emerald-400" />
+              <div>
+                <p className="text-2xl font-bold text-white">{stats.comingSoonCount}</p>
+                <p className="text-xs text-slate-400">From coming soon page</p>
+              </div>
             </div>
           </div>
-
-          {/* Stats */}
-          {!loading && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
-                <Users className="h-5 w-5 text-blue-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{stats.totalSignups}</p>
-                  <p className="text-xs text-slate-400">Total signups</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/50 px-4 py-3">
-                <Mail className="h-5 w-5 text-emerald-400" />
-                <div>
-                  <p className="text-2xl font-bold text-white">{stats.comingSoonCount}</p>
-                  <p className="text-xs text-slate-400">From coming soon page</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Coming Soon Mode Toggle */}
         <Card className="border-white/10 bg-slate-900/60">

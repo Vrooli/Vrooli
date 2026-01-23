@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
@@ -240,17 +241,16 @@ export function DownloadSettings() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Enhanced Header with Purpose Statement */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="downloads-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Downloads</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Configure apps and installers for your landing page</h1>
-              <p className="text-sm text-slate-400 mt-2">
-                Set up bundled apps with desktop installers and mobile store links. These appear in your landing page's download section for verified distribution.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <PageHeader
+          variant="icon-title"
+          title="Configure apps and installers for your landing page"
+          description="Set up bundled apps with desktop installers and mobile store links. These appear in your landing page's download section for verified distribution."
+          icon={Download}
+          iconBgClass="bg-green-500/10"
+          iconColorClass="text-green-400"
+          testId="downloads-header"
+          actions={
+            <>
               <Button variant="outline" size="sm" onClick={previewPublicLanding} className="gap-2" data-testid="downloads-preview">
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
@@ -282,73 +282,73 @@ export function DownloadSettings() {
                   Add App
                 </Button>
               )}
-            </div>
-          </div>
+            </>
+          }
+        />
 
-          {/* Setup Overview Stats */}
-          {!loading && activeTab === 'apps' && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="downloads-health">
-              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                <Package className="h-5 w-5 text-blue-300" />
-                <div>
-                  <p className="text-sm font-semibold text-white">{downloadHealth.appCount} app{downloadHealth.appCount !== 1 ? 's' : ''}</p>
-                  <p className="text-xs text-slate-400">{downloadHealth.appCount === 0 ? 'Add your first app' : 'Configured'}</p>
-                </div>
-              </div>
-              <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-                downloadHealth.platformsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
-              }`}>
-                <Monitor className="h-5 w-5 text-emerald-300" />
-                <div>
-                  <p className="text-sm font-semibold text-white">{downloadHealth.platformsConfigured} platform{downloadHealth.platformsConfigured !== 1 ? 's' : ''}</p>
-                  <p className="text-xs text-slate-400">{downloadHealth.platformsMissing > 0 ? `${downloadHealth.platformsMissing} missing` : 'All set'}</p>
-                </div>
-              </div>
-              <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-                downloadHealth.storefrontsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'
-              }`}>
-                <Smartphone className="h-5 w-5 text-purple-300" />
-                <div>
-                  <p className="text-sm font-semibold text-white">{downloadHealth.storefrontsConfigured} store link{downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}</p>
-                  <p className="text-xs text-slate-400">{downloadHealth.storefrontsConfigured === 0 ? 'Optional' : 'App Store / Play Store'}</p>
-                </div>
-              </div>
-              <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-                dirtyCount === 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
-              }`}>
-                {dirtyCount === 0 ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-300" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-amber-300" />
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-white">{dirtyCount === 0 ? 'All saved' : `${dirtyCount} unsaved`}</p>
-                  <p className="text-xs text-slate-400">{dirtyCount === 0 ? 'Up to date' : 'Save changes below'}</p>
-                </div>
+        {/* Setup Overview Stats */}
+        {!loading && activeTab === 'apps' && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="downloads-health">
+            <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+              <Package className="h-5 w-5 text-blue-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">{downloadHealth.appCount} app{downloadHealth.appCount !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-slate-400">{downloadHealth.appCount === 0 ? 'Add your first app' : 'Configured'}</p>
               </div>
             </div>
-          )}
-
-          <div className="mt-6 flex flex-wrap gap-2" data-testid="downloads-tabs">
-            <Button
-              size="sm"
-              variant={activeTab === 'apps' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('apps')}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Apps
-            </Button>
-            <Button
-              size="sm"
-              variant={activeTab === 'hosting' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('hosting')}
-              className="gap-2"
-            >
-              <Package className="h-4 w-4" />
-              Hosting
-            </Button>
+            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+              downloadHealth.platformsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
+            }`}>
+              <Monitor className="h-5 w-5 text-emerald-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">{downloadHealth.platformsConfigured} platform{downloadHealth.platformsConfigured !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-slate-400">{downloadHealth.platformsMissing > 0 ? `${downloadHealth.platformsMissing} missing` : 'All set'}</p>
+              </div>
+            </div>
+            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+              downloadHealth.storefrontsConfigured > 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'
+            }`}>
+              <Smartphone className="h-5 w-5 text-purple-300" />
+              <div>
+                <p className="text-sm font-semibold text-white">{downloadHealth.storefrontsConfigured} store link{downloadHealth.storefrontsConfigured !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-slate-400">{downloadHealth.storefrontsConfigured === 0 ? 'Optional' : 'App Store / Play Store'}</p>
+              </div>
+            </div>
+            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
+              dirtyCount === 0 ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'
+            }`}>
+              {dirtyCount === 0 ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-300" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-amber-300" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-white">{dirtyCount === 0 ? 'All saved' : `${dirtyCount} unsaved`}</p>
+                <p className="text-xs text-slate-400">{dirtyCount === 0 ? 'Up to date' : 'Save changes below'}</p>
+              </div>
+            </div>
           </div>
+        )}
+
+        <div className="flex flex-wrap gap-2" data-testid="downloads-tabs">
+          <Button
+            size="sm"
+            variant={activeTab === 'apps' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('apps')}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Apps
+          </Button>
+          <Button
+            size="sm"
+            variant={activeTab === 'hosting' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('hosting')}
+            className="gap-2"
+          >
+            <Package className="h-4 w-4" />
+            Hosting
+          </Button>
         </div>
 
         {activeTab === 'apps' && dirtyCount > 0 && (

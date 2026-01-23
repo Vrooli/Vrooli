@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -617,6 +618,315 @@ func TestMagicLinkVerifyHandler_MissingToken(t *testing.T) {
 	handler := handleMagicLinkVerify(authService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for missing token, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+// --- formatNullableTime Tests ---
+
+func TestFormatNullableTime_Nil(t *testing.T) {
+	result := formatNullableTime(nil)
+	if result != nil {
+		t.Errorf("Expected nil for nil input, got %v", result)
+	}
+}
+
+func TestFormatNullableTime_ValidTime(t *testing.T) {
+	testTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	result := formatNullableTime(&testTime)
+
+	expected := "2024-01-15T10:30:00Z"
+	if result != expected {
+		t.Errorf("Expected '%s', got '%v'", expected, result)
+	}
+}
+
+// --- isSecureContext Tests ---
+
+func TestIsSecureContext_HTTPS(t *testing.T) {
+	// Set env variable for HTTPS base URL
+	os.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://example.com/auth/verify")
+	defer os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
+
+	result := isSecureContext()
+	if !result {
+		t.Error("Expected isSecureContext to return true for HTTPS URL")
+	}
+}
+
+func TestIsSecureContext_HTTP(t *testing.T) {
+	// Set env variable for HTTP base URL
+	os.Setenv("AUTH_MAGIC_LINK_BASE_URL", "http://localhost:3000/auth/verify")
+	defer os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
+
+	result := isSecureContext()
+	if result {
+		t.Error("Expected isSecureContext to return false for HTTP URL")
+	}
+}
+
+func TestIsSecureContext_Empty(t *testing.T) {
+	// Clear env variable
+	os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
+
+	result := isSecureContext()
+	// Empty string doesn't start with "https://"
+	if result {
+		t.Error("Expected isSecureContext to return false for empty URL")
+	}
+}
+
+// --- setAuthCookies Tests ---
+
+func TestSetAuthCookies_Attributes(t *testing.T) {
+	// Ensure we're in non-secure context for predictable testing
+	os.Setenv("AUTH_MAGIC_LINK_BASE_URL", "http://localhost:3000")
+	defer os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
+
+	w := httptest.NewRecorder()
+	tokenPair := &TokenPair{
+		AccessToken:  "test-access-token",
+		RefreshToken: "test-refresh-token",
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+		TokenType:    "Bearer",
+	}
+
+	setAuthCookies(w, tokenPair)
+
+	cookies := w.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Errorf("Expected 2 cookies, got %d", len(cookies))
+	}
+
+	// Find access token cookie
+	var accessCookie, refreshCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "access_token" {
+			accessCookie = c
+		}
+		if c.Name == "refresh_token" {
+			refreshCookie = c
+		}
+	}
+
+	if accessCookie == nil {
+		t.Fatal("access_token cookie not found")
+	}
+	if refreshCookie == nil {
+		t.Fatal("refresh_token cookie not found")
+	}
+
+	// Verify access token attributes
+	if !accessCookie.HttpOnly {
+		t.Error("access_token should be HttpOnly")
+	}
+	if accessCookie.Path != "/" {
+		t.Errorf("access_token path should be '/', got '%s'", accessCookie.Path)
+	}
+	if accessCookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("access_token SameSite should be Lax, got %v", accessCookie.SameSite)
+	}
+
+	// Verify refresh token attributes
+	if !refreshCookie.HttpOnly {
+		t.Error("refresh_token should be HttpOnly")
+	}
+	if refreshCookie.Path != "/api/v1/auth" {
+		t.Errorf("refresh_token path should be '/api/v1/auth', got '%s'", refreshCookie.Path)
+	}
+}
+
+// --- clearAuthCookies Tests ---
+
+func TestClearAuthCookies(t *testing.T) {
+	os.Setenv("AUTH_MAGIC_LINK_BASE_URL", "http://localhost:3000")
+	defer os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
+
+	w := httptest.NewRecorder()
+
+	clearAuthCookies(w)
+
+	cookies := w.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Errorf("Expected 2 cookies to be cleared, got %d", len(cookies))
+	}
+
+	for _, c := range cookies {
+		if c.MaxAge != -1 {
+			t.Errorf("Cookie %s should have MaxAge -1 (deleted), got %d", c.Name, c.MaxAge)
+		}
+		if c.Value != "" {
+			t.Errorf("Cookie %s should have empty value, got '%s'", c.Name, c.Value)
+		}
+	}
+}
+
+// --- redirectWithTokens Tests ---
+
+func TestRedirectWithTokens_ValidURL(t *testing.T) {
+	tokenPair := &TokenPair{
+		AccessToken:  "test-access",
+		RefreshToken: "test-refresh",
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+		TokenType:    "Bearer",
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify?token=xxx", nil)
+
+	redirectWithTokens(w, req, "https://example.com/dashboard", tokenPair)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("Expected redirect status %d, got %d", http.StatusFound, w.Code)
+	}
+
+	location := w.Header().Get("Location")
+	if location == "" {
+		t.Error("Expected Location header to be set")
+	}
+
+	// Verify fragment contains tokens
+	if !strings.Contains(location, "#") {
+		t.Error("Expected URL to contain fragment (#)")
+	}
+	if !strings.Contains(location, "access_token=test-access") {
+		t.Error("Expected fragment to contain access_token")
+	}
+	if !strings.Contains(location, "refresh_token=test-refresh") {
+		t.Error("Expected fragment to contain refresh_token")
+	}
+}
+
+func TestRedirectWithTokens_InvalidURL(t *testing.T) {
+	tokenPair := &TokenPair{
+		AccessToken:  "test-access",
+		RefreshToken: "test-refresh",
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+		TokenType:    "Bearer",
+	}
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/verify", nil)
+
+	// Use an invalid URL that will fail to parse
+	redirectWithTokens(w, req, "://invalid-url", tokenPair)
+
+	// Should fall back to JSON response
+	if w.Code == http.StatusFound {
+		t.Error("Should not redirect for invalid URL")
+	}
+
+	// Should return JSON with tokens
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Should return JSON response: %v", err)
+	}
+
+	if resp["access_token"] != "test-access" {
+		t.Error("Expected access_token in JSON fallback response")
+	}
+}
+
+// --- Token Refresh Cookie Tests ---
+
+func TestTokenRefresh_FromCookie(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	emailService := NewEmailService()
+	authService := NewUserAuthService(db, emailService)
+
+	testEmail := "test-refresh-cookie@example.com"
+	defer cleanupUserTestData(t, db, testEmail)
+
+	ctx := context.Background()
+
+	// Create user and session
+	user, err := authService.GetOrCreateUser(ctx, testEmail)
+	if err != nil {
+		t.Fatalf("GetOrCreateUser failed: %v", err)
+	}
+
+	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	if err != nil {
+		t.Fatalf("createSession failed: %v", err)
+	}
+
+	handler := handleTokenRefresh(authService)
+
+	// Send empty body but with cookie
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", strings.NewReader("{}"))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{
+		Name:  "refresh_token",
+		Value: tokenPair.RefreshToken,
+	})
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+}
+
+func TestTokenRefresh_EmptyBodyWithCookie(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	emailService := NewEmailService()
+	authService := NewUserAuthService(db, emailService)
+
+	testEmail := "test-refresh-empty-body@example.com"
+	defer cleanupUserTestData(t, db, testEmail)
+
+	ctx := context.Background()
+
+	// Create user and session
+	user, err := authService.GetOrCreateUser(ctx, testEmail)
+	if err != nil {
+		t.Fatalf("GetOrCreateUser failed: %v", err)
+	}
+
+	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	if err != nil {
+		t.Fatalf("createSession failed: %v", err)
+	}
+
+	handler := handleTokenRefresh(authService)
+
+	// Send completely empty body but with cookie
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  "refresh_token",
+		Value: tokenPair.RefreshToken,
+	})
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+}
+
+func TestTokenRefresh_MissingToken(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	emailService := NewEmailService()
+	authService := NewUserAuthService(db, emailService)
+
+	handler := handleTokenRefresh(authService)
+
+	// Send empty request - no body, no cookie
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", strings.NewReader("{}"))
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	handler(w, req)

@@ -1,5 +1,6 @@
 import { Layers, Settings, Wrench } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 
 /**
@@ -14,17 +15,15 @@ export function TiersManagement() {
   return (
     <AdminLayout>
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-purple-500/10 rounded-xl">
-            <Layers className="h-8 w-8 text-purple-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold">Subscription Tiers</h1>
-            <p className="text-slate-400 mt-1">
-              Configure subscription plans and tier features
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Subscription Tiers"
+          description="Configure subscription plans and tier features"
+          icon={Layers}
+          iconBgClass="bg-purple-500/10"
+          iconColorClass="text-purple-400"
+          testId="tiers-management-header"
+        />
 
         <Card className="bg-white/5 border-white/10">
           <CardHeader>

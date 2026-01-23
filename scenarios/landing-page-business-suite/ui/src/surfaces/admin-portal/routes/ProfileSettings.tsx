@@ -1,5 +1,6 @@
 import { AlertTriangle, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { useProfileForm } from '../hooks/useProfileForm';
@@ -24,16 +25,16 @@ export function ProfileSettings() {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/50 to-slate-950 p-6 shadow-xl">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Profile & Security</p>
-              <h1 className="mt-1 text-2xl font-bold text-white">Harden the default admin identity</h1>
-              <p className="mt-2 text-sm text-slate-400">
-                Update the seeded admin email and password so deployments do not rely on defaults. Changes apply immediately to the current session.
-              </p>
-            </div>
-            {profile?.email && (
+        <PageHeader
+          variant="icon-title"
+          title="Harden the default admin identity"
+          description="Update the seeded admin email and password so deployments do not rely on defaults. Changes apply immediately to the current session."
+          icon={Mail}
+          iconBgClass="bg-sky-500/10"
+          iconColorClass="text-sky-400"
+          testId="profile-header"
+          actions={
+            profile?.email ? (
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200" data-testid="profile-current-email">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-blue-200" />
@@ -41,32 +42,32 @@ export function ProfileSettings() {
                 </div>
                 <p className="mt-1 text-xs text-slate-400">Current admin username</p>
               </div>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          {defaultCredentialRisk && (
-            <div
-              className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-50"
-              data-testid="profile-default-warning"
-            >
-              <div className="flex items-center gap-2 font-semibold">
-                <AlertTriangle className="h-4 w-4" />
-                Default credentials detected
-              </div>
-              <p className="text-sm text-amber-100/90">
-                The seeded admin account should be replaced. Update the email and set a strong password (12+ chars, mix of letters and numbers).
-              </p>
-              <div className="flex flex-wrap gap-2 text-xs">
-                {profile?.is_default_email && (
-                  <span className="rounded-full border border-amber-400/50 px-3 py-1">Email still {profile.email}</span>
-                )}
-                {profile?.is_default_password && (
-                  <span className="rounded-full border border-amber-400/50 px-3 py-1">Default password hash still active</span>
-                )}
-              </div>
+        {defaultCredentialRisk && (
+          <div
+            className="flex flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-50"
+            data-testid="profile-default-warning"
+          >
+            <div className="flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" />
+              Default credentials detected
             </div>
-          )}
-        </div>
+            <p className="text-sm text-amber-100/90">
+              The seeded admin account should be replaced. Update the email and set a strong password (12+ chars, mix of letters and numbers).
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {profile?.is_default_email && (
+                <span className="rounded-full border border-amber-400/50 px-3 py-1">Email still {profile.email}</span>
+              )}
+              {profile?.is_default_password && (
+                <span className="rounded-full border border-amber-400/50 px-3 py-1">Default password hash still active</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-slate-400">Loading profile...</div>

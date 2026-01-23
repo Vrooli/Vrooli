@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
@@ -59,12 +60,15 @@ export function AppLimitsSettings() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">App Limits</h1>
-          <p className="text-slate-400 mt-1">
-            Configure per-app limits for each subscription tier
-          </p>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="App Limits"
+          description="Configure per-app limits for each subscription tier"
+          icon={AppWindow}
+          iconBgClass="bg-red-500/10"
+          iconColorClass="text-red-400"
+          testId="applimits-header"
+        />
 
         {/* App Selector */}
         <Card>

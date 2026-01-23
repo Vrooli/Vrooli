@@ -1,5 +1,6 @@
 import { AppWindow, Settings, Wrench } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 
 /**
@@ -14,17 +15,15 @@ export function AppsManagement() {
   return (
     <AdminLayout>
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-blue-500/10 rounded-xl">
-            <AppWindow className="h-8 w-8 text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold">Apps Management</h1>
-            <p className="text-slate-400 mt-1">
-              Manage applications and their configurations
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Apps Management"
+          description="Manage applications and their configurations"
+          icon={AppWindow}
+          iconBgClass="bg-blue-500/10"
+          iconColorClass="text-blue-400"
+          testId="apps-management-header"
+        />
 
         <Card className="bg-white/5 border-white/10">
           <CardHeader>

@@ -86,7 +86,7 @@ func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, 
 }
 
 // handleFeedbackList handles GET /api/v1/admin/feedback (admin only)
-func handleFeedbackList(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackList(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := r.URL.Query().Get("status")
 
@@ -109,7 +109,7 @@ func handleFeedbackList(svc *FeedbackService) http.HandlerFunc {
 }
 
 // handleFeedbackGet handles GET /api/v1/admin/feedback/{id} (admin only)
-func handleFeedbackGet(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackGet(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
@@ -133,7 +133,7 @@ func handleFeedbackGet(svc *FeedbackService) http.HandlerFunc {
 }
 
 // handleFeedbackUpdateStatus handles PATCH /api/v1/admin/feedback/{id}/status (admin only)
-func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackUpdateStatus(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
@@ -185,7 +185,7 @@ func handleFeedbackUpdateStatus(svc *FeedbackService) http.HandlerFunc {
 }
 
 // handleFeedbackDelete handles DELETE /api/v1/admin/feedback/{id} (admin only)
-func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackDelete(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id, err := strconv.Atoi(vars["id"])
@@ -218,7 +218,7 @@ func handleFeedbackDelete(svc *FeedbackService) http.HandlerFunc {
 }
 
 // handleFeedbackDeleteBulk handles POST /api/v1/admin/feedback/bulk-delete (admin only)
-func handleFeedbackDeleteBulk(svc *FeedbackService) http.HandlerFunc {
+func handleFeedbackDeleteBulk(svc FeedbackServicer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
 			IDs []int `json:"ids"`

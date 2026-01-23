@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select';
@@ -110,27 +111,21 @@ export function FeedbackManagement() {
     <AdminLayout>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold flex items-center gap-3">
-              <MessageSquare className="h-8 w-8" />
-              Feedback Management
-            </h1>
-            <p className="text-slate-400 mt-1">
-              {feedbackList.length} total items
-              {pendingCount > 0 && (
-                <span className="text-amber-400 ml-2">({pendingCount} pending)</span>
-              )}
-              {inProgressCount > 0 && (
-                <span className="text-blue-400 ml-2">({inProgressCount} in progress)</span>
-              )}
-            </p>
-          </div>
-          <Button onClick={loadFeedback} variant="outline" className="gap-2">
-            <RefreshCcw className="h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Feedback Management"
+          description={`${feedbackList.length} total items${pendingCount > 0 ? ` (${pendingCount} pending)` : ''}${inProgressCount > 0 ? ` (${inProgressCount} in progress)` : ''}`}
+          icon={MessageSquare}
+          iconBgClass="bg-blue-500/10"
+          iconColorClass="text-blue-400"
+          actions={
+            <Button onClick={loadFeedback} variant="outline" className="gap-2">
+              <RefreshCcw className="h-4 w-4" />
+              Refresh
+            </Button>
+          }
+          testId="feedback-management-header"
+        />
 
         {/* Filters and Bulk Actions */}
         <Card className="bg-white/5 border-white/10 mb-6">

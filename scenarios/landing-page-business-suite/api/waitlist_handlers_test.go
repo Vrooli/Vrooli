@@ -425,3 +425,181 @@ func TestMockWaitlistService_ErrorInjection(t *testing.T) {
 		t.Error("Expected error from mock")
 	}
 }
+
+// --- Error Injection Tests Using Mock ---
+
+func TestHandleWaitlistCreate_ServiceError(t *testing.T) {
+	mock := newMockWaitlistService()
+	mock.createErr = errors.New("database connection failed")
+
+	handler := handleWaitlistCreate(mock)
+
+	body := `{"email": "test@example.com", "source": "landing_page"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleWaitlistCreate_InvalidJSON(t *testing.T) {
+	mock := newMockWaitlistService()
+	handler := handleWaitlistCreate(mock)
+
+	body := `{invalid json`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleWaitlistList_ServiceError(t *testing.T) {
+	mock := newMockWaitlistService()
+	mock.listErr = errors.New("query failed")
+
+	handler := handleWaitlistList(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleWaitlistList_NilToEmptyArray(t *testing.T) {
+	mock := newMockWaitlistService()
+	// Empty mock returns empty array (not nil)
+
+	handler := handleWaitlistList(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Verify we get an array, not null
+	body := w.Body.String()
+	if body == "null" || body == "null\n" {
+		t.Error("Expected empty array, got null")
+	}
+
+	var emails []WaitlistEmail
+	if err := json.NewDecoder(strings.NewReader(body)).Decode(&emails); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if emails == nil {
+		t.Error("Expected non-nil empty array")
+	}
+}
+
+func TestHandleWaitlistDelete_InvalidID(t *testing.T) {
+	mock := newMockWaitlistService()
+	handler := handleWaitlistDelete(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/waitlist/not-a-number", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid ID, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
+func TestHandleWaitlistDelete_ServiceError(t *testing.T) {
+	mock := newMockWaitlistService()
+	mock.deleteErr = errors.New("cannot delete")
+
+	// Add an email so it exists
+	mock.Create(context.Background(), "test@example.com", "test")
+
+	handler := handleWaitlistDelete(mock)
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/waitlist/1", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleWaitlistExport_ServiceError(t *testing.T) {
+	mock := newMockWaitlistService()
+	mock.listErr = errors.New("export query failed")
+
+	handler := handleWaitlistExport(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d for service error, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandleWaitlistExport_VerifyCSVFormat(t *testing.T) {
+	mock := newMockWaitlistService()
+	// Add test data
+	mock.Create(context.Background(), "user1@example.com", "landing")
+	mock.Create(context.Background(), "user2@example.com", "beta")
+
+	handler := handleWaitlistExport(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Verify CSV structure
+	body := w.Body.String()
+	lines := strings.Split(strings.TrimSpace(body), "\n")
+
+	if len(lines) < 1 {
+		t.Fatal("Expected at least header row")
+	}
+
+	// Check header
+	header := lines[0]
+	expectedHeaders := []string{"ID", "Email", "Source", "Created At"}
+	for _, h := range expectedHeaders {
+		if !strings.Contains(header, h) {
+			t.Errorf("Expected header to contain '%s', got: %s", h, header)
+		}
+	}
+
+	// Check we have data rows (header + 2 data rows)
+	if len(lines) < 3 {
+		t.Errorf("Expected 3 lines (header + 2 data), got %d", len(lines))
+	}
+}

@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import type { DocEntry } from '../../../shared/api';
@@ -318,24 +319,21 @@ export function DocsViewer() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="docs-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Documentation</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Template Documentation</h1>
-              <p className="text-slate-400 text-sm mt-2">
-                Browse the documentation files for this landing page template. Learn about configuration, customization, and deployment.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={loadTree} className="gap-2" data-testid="docs-refresh">
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Template Documentation"
+          description="Browse the documentation files for this landing page template. Learn about configuration, customization, and deployment."
+          icon={Book}
+          iconBgClass="bg-amber-500/10"
+          iconColorClass="text-amber-400"
+          testId="docs-header"
+          actions={
+            <Button variant="ghost" size="sm" onClick={loadTree} className="gap-2" data-testid="docs-refresh">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+          }
+        />
 
         {loading ? (
           <div className="text-slate-400" data-testid="docs-loading">Loading documentation...</div>

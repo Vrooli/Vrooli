@@ -1,5 +1,7 @@
-import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Search } from 'lucide-react';
+import { Plus, Edit, Archive, Trash2, Sparkles, Eye, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus, Search, Palette } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
+import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { ErrorBoundary } from '../../../shared/ui/ErrorBoundary';
@@ -106,34 +108,38 @@ export function Customization() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-semibold mb-2">Customization</h1>
-            <p className="text-slate-400">
-              Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split).
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              onClick={navigateToAgentCustomization}
-              variant="outline"
-              className="gap-2"
-              data-testid="trigger-agent-customization"
-            >
-              <Sparkles className="h-4 w-4" />
-              Agent Customization
-            </Button>
-            <Button
-              onClick={navigateToNewVariant}
-              className="gap-2"
-              data-testid="create-variant"
-            >
-              <Plus className="h-4 w-4" />
-              New Variant
-            </Button>
-          </div>
-        </div>
+        <RuntimeSignalStrip mode="compact" />
+
+        <PageHeader
+          variant="icon-title"
+          title="Customization"
+          description="Manage A/B test variants and customize landing page content. Weights are relative (0 disables; all-zero = even split)."
+          icon={Palette}
+          iconBgClass="bg-cyan-500/10"
+          iconColorClass="text-cyan-400"
+          testId="customization-header"
+          actions={
+            <div className="flex gap-3">
+              <Button
+                onClick={navigateToAgentCustomization}
+                variant="outline"
+                className="gap-2"
+                data-testid="trigger-agent-customization"
+              >
+                <Sparkles className="h-4 w-4" />
+                Agent Customization
+              </Button>
+              <Button
+                onClick={navigateToNewVariant}
+                className="gap-2"
+                data-testid="create-variant"
+              >
+                <Plus className="h-4 w-4" />
+                New Variant
+              </Button>
+            </div>
+          }
+        />
 
         <VariantFilterBar
           query={variantQuery}

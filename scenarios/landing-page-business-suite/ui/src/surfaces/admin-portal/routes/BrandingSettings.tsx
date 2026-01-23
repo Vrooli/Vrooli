@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
@@ -44,17 +45,16 @@ export function BrandingSettings() {
   return (
     <AdminLayout>
       <div className="space-y-8">
-        {/* Enhanced Header with Purpose Statement */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-900/80 via-slate-900/40 to-slate-900/90 p-6" data-testid="branding-header">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Branding</p>
-              <h1 className="text-2xl font-bold text-white mt-1">Configure how your landing page looks and ranks</h1>
-              <p className="text-slate-400 text-sm mt-2">
-                Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <PageHeader
+          variant="icon-title"
+          title="Configure how your landing page looks and ranks"
+          description="Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections."
+          icon={Palette}
+          iconBgClass="bg-pink-500/10"
+          iconColorClass="text-pink-400"
+          testId="branding-header"
+          actions={
+            <>
               <Button variant="outline" size="sm" onClick={previewPublicLanding} className="gap-2" data-testid="branding-preview">
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
@@ -63,35 +63,35 @@ export function BrandingSettings() {
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
-            </div>
-          </div>
+            </>
+          }
+        />
 
-          {/* Setup Completeness Indicator */}
-          {!loading && (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="branding-health">
-              <BrandingHealthBadge
-                label="Site identity"
-                configured={brandingHealth.checks.identity}
-                description={brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo'}
-              />
-              <BrandingHealthBadge
-                label="Favicon"
-                configured={brandingHealth.checks.favicon}
-                description={brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon'}
-              />
-              <BrandingHealthBadge
-                label="SEO defaults"
-                configured={brandingHealth.checks.seo}
-                description={brandingHealth.checks.seo ? 'Title and description set' : 'Add page title and description'}
-              />
-              <BrandingHealthBadge
-                label="Social preview"
-                configured={brandingHealth.checks.ogImage}
-                description={brandingHealth.checks.ogImage ? 'OG image uploaded' : 'Upload social share image'}
-              />
-            </div>
-          )}
-        </div>
+        {/* Setup Completeness Indicator */}
+        {!loading && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="branding-health">
+            <BrandingHealthBadge
+              label="Site identity"
+              configured={brandingHealth.checks.identity}
+              description={brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo'}
+            />
+            <BrandingHealthBadge
+              label="Favicon"
+              configured={brandingHealth.checks.favicon}
+              description={brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon'}
+            />
+            <BrandingHealthBadge
+              label="SEO defaults"
+              configured={brandingHealth.checks.seo}
+              description={brandingHealth.checks.seo ? 'Title and description set' : 'Add page title and description'}
+            />
+            <BrandingHealthBadge
+              label="Social preview"
+              configured={brandingHealth.checks.ogImage}
+              description={brandingHealth.checks.ogImage ? 'OG image uploaded' : 'Upload social share image'}
+            />
+          </div>
+        )}
 
         {loading ? (
           <div className="text-slate-400">Loading branding settings...</div>

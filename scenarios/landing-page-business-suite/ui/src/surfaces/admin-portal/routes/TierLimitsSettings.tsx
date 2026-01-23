@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
@@ -44,12 +45,15 @@ export function TierLimitsSettings() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Tier Limits</h1>
-          <p className="text-slate-400 mt-1">
-            Configure AI credit limits for each subscription tier
-          </p>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="Tier Limits"
+          description="Configure AI credit limits for each subscription tier"
+          icon={Gauge}
+          iconBgClass="bg-purple-500/10"
+          iconColorClass="text-purple-400"
+          testId="tierlimits-header"
+        />
 
         {/* Info Card */}
         <Card className="bg-blue-500/10 border-blue-500/20">

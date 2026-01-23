@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, ArrowLeft, Eye } from 'lucide-react';
+import { Save, ArrowLeft, Eye, FileEdit } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
+import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
@@ -133,45 +135,51 @@ export function SectionEditor() {
   return (
     <AdminLayout>
       <div className="max-w-[2000px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(`/admin/customization/variants/${variantSlug}`)}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold">
-              {isNew ? 'New Section' : `Edit ${sectionType} Section`}
-            </h1>
-          </div>
-          {variantSlug && (
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="gap-2 hidden sm:inline-flex"
-            >
-              <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
-                <Eye className="h-4 w-4" />
-                View Variant
-              </a>
-            </Button>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="gap-2"
-            data-testid="save-section"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
+        <RuntimeSignalStrip mode="compact" />
+
+        <PageHeader
+          variant="icon-title"
+          title={isNew ? 'New Section' : `Edit ${sectionType} Section`}
+          icon={FileEdit}
+          iconBgClass="bg-teal-500/10"
+          iconColorClass="text-teal-400"
+          testId="section-editor-header"
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/admin/customization/variants/${variantSlug}`)}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+              {variantSlug && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 hidden sm:inline-flex"
+                >
+                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                    <Eye className="h-4 w-4" />
+                    View Variant
+                  </a>
+                </Button>
+              )}
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="gap-2"
+                data-testid="save-section"
+              >
+                <Save className="h-4 w-4" />
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+            </>
+          }
+        />
 
         {error && (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 mb-6">

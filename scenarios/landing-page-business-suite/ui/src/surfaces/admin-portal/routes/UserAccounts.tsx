@@ -1,5 +1,6 @@
 import { Users, Settings, Wrench } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 
 /**
@@ -14,17 +15,15 @@ export function UserAccounts() {
   return (
     <AdminLayout>
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-emerald-500/10 rounded-xl">
-            <Users className="h-8 w-8 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold">User Accounts</h1>
-            <p className="text-slate-400 mt-1">
-              View and manage user accounts
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="User Accounts"
+          description="View and manage user accounts"
+          icon={Users}
+          iconBgClass="bg-emerald-500/10"
+          iconColorClass="text-emerald-400"
+          testId="user-accounts-header"
+        />
 
         <Card className="bg-white/5 border-white/10">
           <CardHeader>

@@ -1,4 +1,5 @@
 import { AdminLayout } from '../components/AdminLayout';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
@@ -69,22 +70,25 @@ export function APIKeysSettings() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">API Keys</h1>
-            <p className="text-slate-400 mt-1">
-              Manage AI provider API keys for Vrooli-hosted AI services
-            </p>
-          </div>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            disabled={availableProviders.length === 0}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add API Key
-          </Button>
-        </div>
+        <PageHeader
+          variant="icon-title"
+          title="API Keys"
+          description="Manage AI provider API keys for Vrooli-hosted AI services"
+          icon={Key}
+          iconBgClass="bg-yellow-500/10"
+          iconColorClass="text-yellow-400"
+          testId="apikeys-header"
+          actions={
+            <Button
+              onClick={() => setShowAddModal(true)}
+              disabled={availableProviders.length === 0}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add API Key
+            </Button>
+          }
+        />
 
         {/* Info Card */}
         <Card className="bg-blue-500/10 border-blue-500/20">

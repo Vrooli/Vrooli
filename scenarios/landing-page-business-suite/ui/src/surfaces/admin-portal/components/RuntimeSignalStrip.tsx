@@ -1,24 +1,28 @@
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import { RESOLUTION_LABELS, getResolutionLabel } from '../config/variant.constants';
 
-const resolutionLabels: Record<VariantResolution, string> = {
-  url_param: 'URL parameter',
-  local_storage: 'Stored visitor assignment',
-  api_select: 'Weighted API selection',
-  fallback: 'Fallback payload',
-  unknown: 'Unknown strategy',
-};
+interface RuntimeSignalStripProps {
+  /** Display mode: 'full' shows all details, 'compact' shows single-line expandable badge */
+  mode?: 'full' | 'compact';
+}
 
 /**
  * RuntimeSignalStrip exposes landing runtime status (active variant, fallback, refresh affordance)
  * to make admin workflows observable. Future agents can see landing health without leaving the portal.
+ *
+ * Two modes:
+ * - `full`: Original full-width card (~120px height)
+ * - `compact`: Single-line expandable badge (~40px collapsed, expands on click)
  */
-export function RuntimeSignalStrip() {
+export function RuntimeSignalStrip({ mode = 'full' }: RuntimeSignalStripProps) {
+  const [expanded, setExpanded] = useState(false);
   const { variant, config, loading, error, resolution, statusNote, lastUpdated, refresh } = useLandingVariant();
 
   const variantLabel = variant ? `${variant.name ?? variant.slug} (${variant.slug})` : 'Variant not resolved yet';
-  const resolutionLabel = resolutionLabels[resolution] ?? resolutionLabels.unknown;
+  const resolutionLabel = getResolutionLabel(resolution);
 
   const fallbackActive = Boolean(config?.fallback);
   const configLabel = fallbackActive ? 'Fallback copy active' : 'Live API config';
@@ -27,6 +31,7 @@ export function RuntimeSignalStrip() {
     ? 'Serving baked config until landing-config API responds.'
     : 'Connected to landing-config API.';
 
+  // Error state - same for both modes
   if (error) {
     return (
       <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-6 py-4" data-testid="runtime-signal-error">
@@ -47,6 +52,67 @@ export function RuntimeSignalStrip() {
     );
   }
 
+  // Compact mode - single-line expandable badge
+  if (mode === 'compact') {
+    return (
+      <div className="mb-6" data-testid="runtime-signal-compact">
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium hover:bg-white/10 transition-colors"
+          data-testid="runtime-signal-toggle"
+        >
+          <span className={`rounded-full border px-2 py-0.5 ${configClass}`}>{configLabel}</span>
+          <span className="text-slate-200">{variant?.name ?? variant?.slug ?? 'No variant'}</span>
+          {expanded ? (
+            <ChevronUp className="h-3 w-3 text-slate-400" />
+          ) : (
+            <ChevronDown className="h-3 w-3 text-slate-400" />
+          )}
+        </button>
+
+        {expanded && (
+          <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-4" data-testid="runtime-signal-expanded">
+            <div className="flex flex-wrap gap-2 text-xs font-medium">
+              <span className={`rounded-full border px-3 py-1 ${configClass}`}>{configLabel}</span>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-slate-200">
+                {variantLabel}
+              </span>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-slate-300">
+                Source: {resolutionLabel}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span>
+                {statusNote ?? configDescription}
+                {lastUpdated && (
+                  <span className="ml-2 text-slate-300/80">
+                    Last sync {new Date(lastUpdated).toLocaleTimeString()}
+                  </span>
+                )}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void refresh();
+                }}
+                disabled={loading}
+                className="gap-1 h-6 px-2"
+                data-testid="runtime-refresh"
+              >
+                <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Syncing' : 'Refresh'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Full mode (default)
   return (
     <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-4" data-testid="runtime-signal-strip">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

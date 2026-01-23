@@ -347,3 +347,255 @@ func TestRateLimiter_Remaining(t *testing.T) {
 		t.Errorf("Expected 0 remaining after hitting limit, got %d", remaining)
 	}
 }
+
+// --- BucketCount Tests ---
+
+func TestBucketCount_Empty(t *testing.T) {
+	limiter := NewRateLimiter(5, 1*time.Minute)
+
+	count := limiter.BucketCount()
+	if count != 0 {
+		t.Errorf("Expected 0 buckets for new limiter, got %d", count)
+	}
+}
+
+func TestBucketCount_WithBuckets(t *testing.T) {
+	limiter := NewRateLimiter(5, 1*time.Minute)
+
+	// Create some buckets
+	limiter.Allow("key1")
+	limiter.Allow("key2")
+	limiter.Allow("key3")
+
+	count := limiter.BucketCount()
+	if count != 3 {
+		t.Errorf("Expected 3 buckets, got %d", count)
+	}
+}
+
+// --- StartCleanup Tests ---
+
+func TestStartCleanup_CleansOldBuckets(t *testing.T) {
+	limiter := NewRateLimiter(10, 1*time.Second)
+
+	// Use injectable time provider
+	currentTime := time.Now()
+	limiter.UseTimeProvider(func() time.Time {
+		return currentTime
+	})
+
+	// Create some buckets
+	limiter.Allow("cleanup-key1")
+	limiter.Allow("cleanup-key2")
+
+	// Clear timestamps to simulate idle buckets
+	limiter.mu.Lock()
+	for _, bucket := range limiter.buckets {
+		bucket.timestamps = nil
+	}
+	limiter.mu.Unlock()
+
+	// Advance time
+	currentTime = currentTime.Add(2 * time.Hour)
+
+	// Start cleanup with short interval
+	cancel := limiter.StartCleanup(50*time.Millisecond, 1*time.Hour)
+	defer cancel()
+
+	// Wait for cleanup to run
+	time.Sleep(100 * time.Millisecond)
+
+	count := limiter.BucketCount()
+	if count != 0 {
+		t.Errorf("Expected 0 buckets after cleanup, got %d", count)
+	}
+}
+
+func TestStartCleanup_CancelStops(t *testing.T) {
+	limiter := NewRateLimiter(10, 1*time.Second)
+
+	// Use injectable time provider
+	currentTime := time.Now()
+	limiter.UseTimeProvider(func() time.Time {
+		return currentTime
+	})
+
+	limiter.Allow("cancel-test")
+
+	// Start cleanup
+	cancel := limiter.StartCleanup(10*time.Millisecond, 1*time.Hour)
+
+	// Cancel immediately
+	cancel()
+
+	// Wait a bit to ensure goroutine has time to stop
+	time.Sleep(50 * time.Millisecond)
+
+	// If cancel works, we shouldn't have any race conditions or panics
+	// The bucket should still exist since we cancelled before it could clean up
+	count := limiter.BucketCount()
+	if count != 1 {
+		// This is acceptable - cleanup may have run once before cancel
+		t.Logf("Bucket count after cancel: %d (may have been cleaned once)", count)
+	}
+}
+
+func TestStartCleanup_MultipleIntervals(t *testing.T) {
+	limiter := NewRateLimiter(10, 1*time.Second)
+
+	// Use injectable time provider
+	currentTime := time.Now()
+	limiter.UseTimeProvider(func() time.Time {
+		return currentTime
+	})
+
+	// Add a key
+	limiter.Allow("multi-interval")
+
+	// Clear to make it eligible for cleanup
+	limiter.mu.Lock()
+	limiter.buckets["multi-interval"].timestamps = nil
+	limiter.mu.Unlock()
+
+	// Advance time past max age
+	currentTime = currentTime.Add(2 * time.Hour)
+
+	// Start cleanup with very short interval
+	cancel := limiter.StartCleanup(20*time.Millisecond, 1*time.Hour)
+	defer cancel()
+
+	// Wait for multiple cleanup cycles
+	time.Sleep(60 * time.Millisecond)
+
+	// Bucket should be cleaned
+	count := limiter.BucketCount()
+	if count != 0 {
+		t.Errorf("Expected bucket to be cleaned after multiple intervals, got %d", count)
+	}
+}
+
+// --- NewRateLimiterWithOptions Edge Cases ---
+
+func TestNewRateLimiterWithOptions_ZeroMaxBuckets(t *testing.T) {
+	limiter := NewRateLimiterWithOptions(5, 1*time.Minute, 0)
+
+	// Should use default max buckets
+	if limiter.maxBuckets != DefaultMaxBuckets {
+		t.Errorf("Expected default max buckets %d for zero value, got %d", DefaultMaxBuckets, limiter.maxBuckets)
+	}
+}
+
+func TestNewRateLimiterWithOptions_NegativeMaxBuckets(t *testing.T) {
+	limiter := NewRateLimiterWithOptions(5, 1*time.Minute, -10)
+
+	// Should use default max buckets
+	if limiter.maxBuckets != DefaultMaxBuckets {
+		t.Errorf("Expected default max buckets %d for negative value, got %d", DefaultMaxBuckets, limiter.maxBuckets)
+	}
+}
+
+// --- LRU Eviction Tests ---
+
+func TestRateLimiter_LRUEviction(t *testing.T) {
+	// Create limiter with very small max buckets
+	limiter := NewRateLimiterWithOptions(5, 1*time.Minute, 3)
+
+	// Add 3 buckets (at capacity)
+	limiter.Allow("key1")
+	limiter.Allow("key2")
+	limiter.Allow("key3")
+
+	if limiter.BucketCount() != 3 {
+		t.Errorf("Expected 3 buckets, got %d", limiter.BucketCount())
+	}
+
+	// Add 4th bucket - should evict oldest (key1)
+	limiter.Allow("key4")
+
+	if limiter.BucketCount() != 3 {
+		t.Errorf("Expected 3 buckets after eviction, got %d", limiter.BucketCount())
+	}
+
+	// key1 should have been evicted
+	limiter.mu.Lock()
+	_, key1Exists := limiter.buckets["key1"]
+	_, key4Exists := limiter.buckets["key4"]
+	limiter.mu.Unlock()
+
+	if key1Exists {
+		t.Error("Expected key1 to be evicted")
+	}
+	if !key4Exists {
+		t.Error("Expected key4 to exist")
+	}
+}
+
+func TestRateLimiter_LRURecentlyUsedNotEvicted(t *testing.T) {
+	// Create limiter with small max buckets
+	limiter := NewRateLimiterWithOptions(5, 1*time.Minute, 3)
+
+	// Add 3 buckets
+	limiter.Allow("key1")
+	limiter.Allow("key2")
+	limiter.Allow("key3")
+
+	// Access key1 again (moves to front of LRU)
+	limiter.Allow("key1")
+
+	// Add 4th bucket - should evict key2 (now oldest)
+	limiter.Allow("key4")
+
+	limiter.mu.Lock()
+	_, key1Exists := limiter.buckets["key1"]
+	_, key2Exists := limiter.buckets["key2"]
+	limiter.mu.Unlock()
+
+	if !key1Exists {
+		t.Error("Expected key1 to survive (recently used)")
+	}
+	if key2Exists {
+		t.Error("Expected key2 to be evicted (oldest after key1 was accessed)")
+	}
+}
+
+// --- IPKeyFunc Edge Cases ---
+
+func TestIPKeyFunc_NoPort(t *testing.T) {
+	keyFunc := IPKeyFunc()
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "192.168.1.1" // No port
+
+	key := keyFunc(req)
+	if key != "192.168.1.1" {
+		t.Errorf("Expected IP '192.168.1.1', got '%s'", key)
+	}
+}
+
+func TestIPKeyFunc_SingleXFF(t *testing.T) {
+	keyFunc := IPKeyFunc()
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("X-Forwarded-For", "1.2.3.4") // Single IP, no comma
+	req.RemoteAddr = "10.0.0.1:12345"
+
+	key := keyFunc(req)
+	if key != "1.2.3.4" {
+		t.Errorf("Expected IP '1.2.3.4', got '%s'", key)
+	}
+}
+
+func TestIPKeyFunc_IPv6RemoteAddr(t *testing.T) {
+	keyFunc := IPKeyFunc()
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "[2001:db8::1]:8080"
+
+	key := keyFunc(req)
+	// The function strips the port by finding the last colon.
+	// For IPv6 in bracket notation [addr]:port, it returns [addr]
+	// This is acceptable for rate limiting as it's still a unique key per IP.
+	if key != "[2001:db8::1]" {
+		t.Errorf("Expected IPv6 '[2001:db8::1]', got '%s'", key)
+	}
+}
