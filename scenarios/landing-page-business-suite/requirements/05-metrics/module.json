@@ -78,7 +78,7 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Frontend useMetrics hook tracks all required event types",
-          "ref": "ui/src/hooks/useMetrics.ts",
+          "ref": "ui/src/shared/hooks/useMetrics.tsx",
           "test_duration_ms": 0,
           "last_test_run": "2025-11-21",
           "phase_result": ""

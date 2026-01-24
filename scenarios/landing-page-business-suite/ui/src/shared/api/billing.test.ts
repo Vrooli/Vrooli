@@ -328,7 +328,7 @@ describe('billing API', () => {
   describe('createCheckoutSession', () => {
     it('sends POST request with required fields', async () => {
       const session = {
-        id: 'cs_123',
+        session_id: 'cs_123',
         url: 'https://checkout.stripe.com/session/123',
       };
       fetchMock.mockResolvedValue(mockResponses.success({ session }));
@@ -344,7 +344,7 @@ describe('billing API', () => {
     });
 
     it('includes optional customer_email', async () => {
-      const session = { id: 'cs_123', url: 'https://checkout.stripe.com/123' };
+      const session = { session_id: 'cs_123', url: 'https://checkout.stripe.com/123' };
       fetchMock.mockResolvedValue(mockResponses.success({ session }));
 
       await createCheckoutSession({
@@ -358,7 +358,7 @@ describe('billing API', () => {
     });
 
     it('includes success and cancel URLs', async () => {
-      const session = { id: 'cs_123', url: 'https://checkout.stripe.com/123' };
+      const session = { session_id: 'cs_123', url: 'https://checkout.stripe.com/123' };
       fetchMock.mockResolvedValue(mockResponses.success({ session }));
 
       await createCheckoutSession({
@@ -375,7 +375,7 @@ describe('billing API', () => {
 
     it('returns session object directly', async () => {
       const session = {
-        id: 'cs_123',
+        session_id: 'cs_123',
         url: 'https://checkout.stripe.com/session/123',
       };
       fetchMock.mockResolvedValue(mockResponses.success({ session }));
@@ -388,7 +388,7 @@ describe('billing API', () => {
 
   describe('createCreditsCheckoutSession', () => {
     it('sends POST request with required fields', async () => {
-      const session = { id: 'cs_credits_123', url: 'https://checkout.stripe.com/123' };
+      const session = { session_id: 'cs_credits_123', url: 'https://checkout.stripe.com/123' };
       fetchMock.mockResolvedValue(mockResponses.success({ session }));
 
       await createCreditsCheckoutSession({

@@ -5,6 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        accent: "rgb(var(--color-accent) / <alpha-value>)",
+        "accent-secondary": "rgb(var(--color-accent-secondary) / <alpha-value>)",
+        "accent-tertiary": "rgb(var(--color-accent-tertiary) / <alpha-value>)",
+        "accent-cool": "rgb(var(--color-accent-cool) / <alpha-value>)",
+        success: "rgb(var(--color-success) / <alpha-value>)",
+        warning: "rgb(var(--color-warning) / <alpha-value>)",
+        "bg-base": "rgb(var(--color-bg-base) / <alpha-value>)",
+        "surface-primary": "rgb(var(--color-surface-primary) / <alpha-value>)",
+        "surface-muted": "rgb(var(--color-surface-muted) / <alpha-value>)",
+        "surface-alt": "rgb(var(--color-surface-alt) / <alpha-value>)",
+        "surface-deep": "rgb(var(--color-surface-deep) / <alpha-value>)",
+        "surface-darker": "rgb(var(--color-surface-darker) / <alpha-value>)",
+        "text-primary": "rgb(var(--color-text-primary) / <alpha-value>)",
+        "text-secondary": "rgb(var(--color-text-secondary) / <alpha-value>)",
+        "text-muted": "rgb(var(--color-text-muted) / <alpha-value>)",
         "flow-bg": "rgb(var(--flow-bg) / <alpha-value>)",
         "flow-bg-secondary": "rgb(var(--flow-bg-secondary) / <alpha-value>)",
         "flow-node": "rgb(var(--flow-node) / <alpha-value>)",

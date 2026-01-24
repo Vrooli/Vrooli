@@ -332,7 +332,7 @@ export function PreviewPanel({
           </div>
         )}
         <MetricsModeProvider mode="preview">
-          <div className="relative rounded-[28px] border border-white/10 bg-[#07090F] shadow-[0_10px_50px_rgba(7,9,15,0.8)]">
+          <div className="relative rounded-[28px] border border-white/10 bg-bg-base shadow-[0_10px_50px_rgba(7,9,15,0.8)]">
             <div className="max-h-[720px] overflow-y-auto rounded-[28px]">
               {renderer ? (
                 renderer({

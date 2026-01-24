@@ -138,7 +138,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
   const activeFeatures = categories.find((category) => category.id === activeTab)?.features ?? [];
 
   return (
-    <section className="border-y border-white/5 bg-[#0F172A] py-24 text-white">
+    <section className="border-y border-white/5 bg-surface-primary py-24 text-white">
       <div className="container mx-auto px-6">
         <div className="max-w-5xl space-y-4">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System features</p>
@@ -161,9 +161,9 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
                   key={category.id}
                   type="button"
                   onClick={() => setActiveTab(category.id)}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[#F97316] ${
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent ${
                     activeTab === category.id
-                      ? 'bg-[#F97316] text-white shadow-lg'
+                      ? 'bg-accent text-white shadow-lg'
                       : 'bg-transparent text-slate-200 hover:bg-white/10'
                   }`}
                 >
@@ -179,24 +179,24 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
                 return (
                   <article
                     key={feature.title + index}
-                    className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-[#161b2b] to-[#0e1324] p-6 text-left transition duration-300 hover:-translate-y-1 hover:border-[#7C3AED] hover:shadow-[0_0_0_1px_rgba(124,58,237,0.4),0_25px_60px_-30px_rgba(0,0,0,0.75)] ${
+                    className={`group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 via-surface-muted to-surface-deep p-6 text-left transition duration-300 hover:-translate-y-1 hover:border-accent-tertiary hover:shadow-[0_0_0_1px_rgba(var(--color-accent-tertiary),0.4),0_25px_60px_-30px_rgba(0,0,0,0.75)] ${
                       animateCards ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
                     }`}
                     style={{ transitionDelay: `${index * 60}ms` }}
                     data-testid={`feature-${index}`}
                   >
                     <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(124,58,237,0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(14,165,233,0.12),transparent_35%)]" />
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(var(--color-accent-tertiary),0.15),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(var(--color-accent-cool),0.12),transparent_35%)]" />
                     </div>
                     <div className="relative">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-[#F97316] shadow-inner shadow-black/30">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-accent shadow-inner shadow-black/30">
                         <IconComponent className="h-5 w-5" />
                       </div>
                       <h3 className="mt-6 text-xl font-semibold text-white">{feature.title}</h3>
                       <ul className="mt-3 space-y-2 text-sm text-slate-300">
                         {bullets.map((item, bulletIndex) => (
                           <li key={`${feature.title}-bullet-${bulletIndex}`} className="flex items-start gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#F97316] opacity-80" />
+                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-accent opacity-80" />
                             <span>{item}</span>
                           </li>
                         ))}
@@ -218,7 +218,7 @@ export function FeaturesSection({ content }: FeaturesSectionProps) {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-[#0C1224] px-4 py-3 text-sm text-slate-200 shadow-[0_20px_40px_-28px_rgba(0,0,0,0.7)]"
+                  className="rounded-2xl border border-white/10 bg-surface-deep px-4 py-3 text-sm text-slate-200 shadow-[0_20px_40px_-28px_rgba(0,0,0,0.7)]"
                 >
                   <p className="text-base font-semibold text-white">{stat.label}</p>
                   <p className="text-xs text-slate-400">{stat.desc}</p>

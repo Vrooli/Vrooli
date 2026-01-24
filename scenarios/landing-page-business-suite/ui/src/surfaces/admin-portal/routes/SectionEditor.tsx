@@ -4,10 +4,10 @@ import { Save, ArrowLeft, Eye, FileEdit } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
-import { FormField, inputClassName, textareaClassName } from '../components/FormField';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
+import { Textarea } from '../../../shared/ui/input';
 import { useToast } from '../../../shared/ui/Toast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
 import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
@@ -315,7 +315,7 @@ export function SectionEditor() {
                     type="text"
                     value={(content.title as string) || ''}
                     onChange={(e) => updateContentField('title', e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-0"
                     placeholder="Enter title"
                     data-testid="content-title-input"
                   />
@@ -325,7 +325,7 @@ export function SectionEditor() {
                   <label htmlFor="subtitle" className="block text-sm font-medium text-slate-300 mb-2">
                     Subtitle
                   </label>
-                  <textarea
+                  <Textarea
                     id="subtitle"
                     value={(content.subtitle as string) || ''}
                     onChange={(e) => updateContentField('subtitle', e.target.value)}

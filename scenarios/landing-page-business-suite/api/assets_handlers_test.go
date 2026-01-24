@@ -88,8 +88,12 @@ func TestHandleAssetUpload_NoFile(t *testing.T) {
 	// Create multipart request without file
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("category", "general")
-	writer.Close()
+	if err := writer.WriteField("category", "general"); err != nil {
+		t.Fatalf("Failed to write category field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close multipart writer: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/assets/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())

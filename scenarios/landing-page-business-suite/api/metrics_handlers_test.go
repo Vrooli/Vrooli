@@ -283,7 +283,7 @@ func TestHandleMetricsVariantStats_CustomDates(t *testing.T) {
 func cleanupMetricsEvents(t *testing.T, db *sql.DB) {
 	t.Helper()
 	if _, err := db.Exec("DELETE FROM metrics_events"); err != nil {
-		// Ignore error if table doesn't exist
+		t.Logf("cleanupMetricsEvents skipped: %v", err)
 	}
 }
 

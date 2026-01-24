@@ -216,10 +216,12 @@ describe('useDocsViewer', () => {
       const { result } = renderHook(() => useDocsViewer());
 
       await waitFor(() => {
-        expect(result.current.loadingDoc).toBe(false);
+        expect(fetchDocContentMock).toHaveBeenCalled();
       });
 
-      expect(result.current.error).toBe('Failed to load document');
+      await waitFor(() => {
+        expect(result.current.error).toBe('Failed to load document');
+      });
     });
 
     it('can load a different document', async () => {

@@ -10,6 +10,9 @@ import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
+import { Textarea } from '../../../shared/ui/input';
+import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock } from 'lucide-react';
 import { useBrandingForm } from '../hooks/useBrandingForm';
 import { LAYOUT } from '../config/layout.constants';
@@ -214,29 +217,18 @@ export function BrandingSettings() {
                       When enabled, visitors see a "coming soon" page with email signup
                     </p>
                   </div>
-                  <button
+                  <ToggleSwitch
                     id="coming-soon-toggle"
-                    type="button"
-                    role="switch"
-                    aria-checked={form.coming_soon_enabled}
-                    onClick={toggleComingSoon}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      form.coming_soon_enabled ? 'bg-amber-500' : 'bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        form.coming_soon_enabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
+                    checked={form.coming_soon_enabled}
+                    onToggle={toggleComingSoon}
+                  />
                 </div>
 
                 {/* Custom Message (only shown when enabled) */}
                 {form.coming_soon_enabled && (
                   <>
                     <FormField label="Custom Message (Optional)" helpText="Leave empty to use the default message">
-                      <textarea
+                      <Textarea
                         value={form.coming_soon_message}
                         onChange={handleInput('coming_soon_message')}
                         placeholder="We are working hard to bring you something amazing. Stay tuned!"
@@ -351,7 +343,7 @@ export function BrandingSettings() {
                   </FormField>
 
                   <FormField label="Default Description" charCount={{ current: form.default_description.length, max: 160 }}>
-                    <textarea
+                    <Textarea
                       value={form.default_description}
                       onChange={handleInput('default_description')}
                       placeholder="A compelling description of your product or service..."
@@ -427,7 +419,7 @@ export function BrandingSettings() {
                 </div>
 
                 <FormField label="robots.txt Content">
-                  <textarea
+                  <Textarea
                     value={form.robots_txt}
                     onChange={handleInput('robots_txt')}
                     placeholder={'User-agent: *\nAllow: /'}
@@ -576,19 +568,35 @@ export function BrandingSettings() {
             </FormSection>
 
             {/* Save Button */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <Button type="submit" disabled={!isDirty || saving} className="gap-2">
                 {saving && <RefreshCw className="h-4 w-4 animate-spin" />}
                 {isDirty ? 'Save Changes' : 'No Changes'}
               </Button>
-              {error && <p className="text-sm text-rose-300">{error}</p>}
-              {successMessage && <p className="text-sm text-emerald-300">{successMessage}</p>}
               {branding?.updated_at && (
                 <p className="text-xs text-slate-500">
                   Last updated: {new Date(branding.updated_at).toLocaleString()}
                 </p>
               )}
             </div>
+            {error && (
+              <InlineAlert
+                severity="error"
+                message={error}
+                dismissible={false}
+                className="mt-4"
+                data-testid="branding-error"
+              />
+            )}
+            {successMessage && (
+              <InlineAlert
+                severity="success"
+                message={successMessage}
+                dismissible={false}
+                className="mt-4"
+                data-testid="branding-success"
+              />
+            )}
           </form>
         )}
       </div>

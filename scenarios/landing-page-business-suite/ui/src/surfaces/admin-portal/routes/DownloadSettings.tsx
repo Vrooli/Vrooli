@@ -2,11 +2,13 @@ import { useState, useCallback } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
+import { inputBaseClassName } from '../components/FormField';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
+import { Textarea } from '../../../shared/ui/input';
 import { LAYOUT } from '../config/layout.constants';
 import { presignDownloadArtifactGetAdmin } from '../../../shared/api';
 import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical, ImageIcon } from 'lucide-react';
@@ -19,6 +21,11 @@ import {
   type AppFormValues,
   type PlatformFormValues,
 } from '../services/downloads.service';
+
+const inputLargeClassName = `${inputBaseClassName} rounded-xl px-4 py-3`;
+const inputLargeDisabledClassName = `${inputLargeClassName} disabled:opacity-60`;
+const textareaLargeClassName = 'rounded-xl px-4 py-3';
+const surfacePanelClassName = 'rounded-2xl border border-white/10 bg-surface-darker p-4';
 
 export function DownloadSettings() {
   const {
@@ -288,7 +295,7 @@ export function DownloadSettings() {
                     <input
                       value={storageForm.bucket}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, bucket: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="my-download-bucket"
                     />
                   </div>
@@ -297,7 +304,7 @@ export function DownloadSettings() {
                     <input
                       value={storageForm.region}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, region: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="us-east-1"
                     />
                   </div>
@@ -306,7 +313,7 @@ export function DownloadSettings() {
                     <input
                       value={storageForm.endpoint}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, endpoint: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="https://<accountid>.r2.cloudflarestorage.com"
                     />
                   </div>
@@ -315,7 +322,7 @@ export function DownloadSettings() {
                     <input
                       value={storageForm.defaultPrefix}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, defaultPrefix: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="business-suite/"
                     />
                   </div>
@@ -325,7 +332,7 @@ export function DownloadSettings() {
                       type="number"
                       value={storageForm.signedUrlTtlSeconds}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, signedUrlTtlSeconds: Number(e.target.value) }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       min={60}
                       max={86400}
                     />
@@ -335,7 +342,7 @@ export function DownloadSettings() {
                     <input
                       value={storageForm.publicBaseUrl}
                       onChange={(e) => setStorageForm((prev) => ({ ...prev, publicBaseUrl: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="https://downloads.example.com"
                     />
                   </div>
@@ -349,7 +356,7 @@ export function DownloadSettings() {
                     <input
                       value={credentialsForm.accessKeyId}
                       onChange={(e) => setCredentialsForm((prev) => ({ ...prev, accessKeyId: e.target.value, clearAccessKeyId: false }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="AKIA..."
                     />
                     <label className="flex items-center gap-2 text-xs text-slate-400">
@@ -370,7 +377,7 @@ export function DownloadSettings() {
                       type="password"
                       value={credentialsForm.secretAccessKey}
                       onChange={(e) => setCredentialsForm((prev) => ({ ...prev, secretAccessKey: e.target.value, clearSecretAccessKey: false }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="********"
                     />
                     <label className="flex items-center gap-2 text-xs text-slate-400">
@@ -391,7 +398,7 @@ export function DownloadSettings() {
                       type="password"
                       value={credentialsForm.sessionToken}
                       onChange={(e) => setCredentialsForm((prev) => ({ ...prev, sessionToken: e.target.value, clearSessionToken: false }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                       placeholder="Optional (STS session token)"
                     />
                     <label className="flex items-center gap-2 text-xs text-slate-400">
@@ -455,13 +462,13 @@ export function DownloadSettings() {
                   <input
                     value={artifactsQuery}
                     onChange={(e) => setArtifactsQuery(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white md:col-span-2"
+                    className={`${inputBaseClassName} md:col-span-2`}
                     placeholder="Search filename, key, version…"
                   />
                   <select
                     value={artifactsPlatform}
                     onChange={(e) => setArtifactsPlatform(e.target.value as any)}
-                    className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                    className={inputBaseClassName}
                   >
                     <option value="">All platforms</option>
                     <option value="windows">Windows</option>
@@ -501,7 +508,7 @@ export function DownloadSettings() {
                         const file = e.target.files?.[0] ?? null;
                         setUploadState((prev) => ({ ...prev, file, error: '', message: '' }));
                       }}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                     />
                   </div>
                   <div className="space-y-2">
@@ -509,7 +516,7 @@ export function DownloadSettings() {
                     <input
                       value={uploadState.appKey}
                       onChange={(e) => setUploadState((prev) => ({ ...prev, appKey: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                     />
                   </div>
                   <div className="space-y-2">
@@ -517,7 +524,7 @@ export function DownloadSettings() {
                     <select
                       value={uploadState.platform}
                       onChange={(e) => setUploadState((prev) => ({ ...prev, platform: e.target.value as any }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                     >
                       <option value="">Unspecified</option>
                       <option value="windows">Windows</option>
@@ -530,7 +537,7 @@ export function DownloadSettings() {
                     <input
                       value={uploadState.releaseVersion}
                       onChange={(e) => setUploadState((prev) => ({ ...prev, releaseVersion: e.target.value }))}
-                      className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                      className={inputBaseClassName}
                     />
                   </div>
                 </div>
@@ -626,7 +633,7 @@ export function DownloadSettings() {
                         <select
                           value={applyTarget.appKey}
                           onChange={(e) => setApplyTarget((prev) => ({ ...prev, appKey: e.target.value }))}
-                          className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                          className={inputBaseClassName}
                         >
                           {forms.map((form) => (
                             <option key={form.values.appKey} value={form.values.appKey}>
@@ -640,7 +647,7 @@ export function DownloadSettings() {
                         <select
                           value={applyTarget.platform}
                           onChange={(e) => setApplyTarget((prev) => ({ ...prev, platform: e.target.value as PlatformKey }))}
-                          className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                          className={inputBaseClassName}
                         >
                           <option value="windows">Windows</option>
                           <option value="mac">macOS</option>
@@ -652,7 +659,7 @@ export function DownloadSettings() {
                         <input
                           value={applyTarget.releaseVersion}
                           onChange={(e) => setApplyTarget((prev) => ({ ...prev, releaseVersion: e.target.value }))}
-                          className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                          className={inputBaseClassName}
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
@@ -660,7 +667,7 @@ export function DownloadSettings() {
                         <input
                           value={applyTarget.releaseNotes}
                           onChange={(e) => setApplyTarget((prev) => ({ ...prev, releaseNotes: e.target.value }))}
-                          className="w-full rounded-lg border border-white/10 bg-[#05070E] px-3 py-2 text-sm text-white"
+                          className={inputBaseClassName}
                         />
                       </div>
                       <div className="space-y-2">
@@ -784,7 +791,7 @@ function AppCard({
             value={form.values.appKey}
             onChange={(event) => onFieldChange(form.key, 'appKey', event.target.value)}
             disabled={!form.isNew}
-            className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white disabled:opacity-60"
+            className={inputLargeDisabledClassName}
             placeholder="automation_suite"
           />
           <p className="text-xs text-slate-500">
@@ -799,7 +806,7 @@ function AppCard({
               type="text"
               value={form.values.name}
               onChange={(event) => onFieldChange(form.key, 'name', event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
+              className={inputLargeClassName}
             />
           </div>
           <div className="space-y-2">
@@ -808,21 +815,21 @@ function AppCard({
               type="text"
               value={form.values.tagline}
               onChange={(event) => onFieldChange(form.key, 'tagline', event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
+              className={inputLargeClassName}
             />
           </div>
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Description</label>
-            <textarea
+            <Textarea
               value={form.values.description}
               onChange={(event) => onFieldChange(form.key, 'description', event.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
+              className={textareaLargeClassName}
             />
           </div>
 
           {/* App Images Section */}
-          <div className="space-y-4 rounded-2xl border border-white/10 bg-[#05070E] p-4">
+          <div className={`space-y-4 ${surfacePanelClassName}`}>
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
               <ImageIcon className="h-4 w-4 text-blue-300" />
               App Images
@@ -861,20 +868,20 @@ function AppCard({
 
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Install overview</label>
-            <textarea
+            <Textarea
               value={form.values.installOverview}
               onChange={(event) => onFieldChange(form.key, 'installOverview', event.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
+              className={textareaLargeClassName}
             />
           </div>
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-[0.3em] text-slate-500">Install steps (one per line)</label>
-            <textarea
+            <Textarea
               value={form.values.installSteps}
               onChange={(event) => onFieldChange(form.key, 'installSteps', event.target.value)}
               rows={4}
-              className="w-full rounded-xl border border-white/10 bg-[#05070E] px-4 py-3 text-sm text-white"
+              className={textareaLargeClassName}
             />
           </div>
         </div>
@@ -918,8 +925,8 @@ function AppCard({
                   key={`${form.key}-${platformKey}`}
                   className={`space-y-3 rounded-2xl border p-4 transition-opacity ${
                     platform.enabled
-                      ? 'border-white/10 bg-[#05070E]'
-                      : 'border-white/5 bg-[#05070E]/50 opacity-60'
+                      ? 'border-white/10 bg-surface-darker'
+                      : 'border-white/5 bg-surface-darker/50 opacity-60'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -994,14 +1001,14 @@ function AppCard({
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs text-slate-500">Release notes</label>
-                    <textarea
+                    <Textarea
                       value={platform.releaseNotes}
                       disabled={isDisabled}
                       onChange={(event) =>
                         onPlatformChange(form.key, platformKey, 'releaseNotes', event.target.value)
                       }
                       rows={2}
-                      className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
+                      className="w-full bg-transparent text-sm disabled:opacity-50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1107,7 +1114,7 @@ function StorefrontFields({
   return (
     <div
       className={`space-y-3 rounded-2xl border p-4 transition-opacity ${
-        enabled ? 'border-white/10 bg-[#05070E]' : 'border-white/5 bg-[#05070E]/50 opacity-60'
+        enabled ? 'border-white/10 bg-surface-darker' : 'border-white/5 bg-surface-darker/50 opacity-60'
       }`}
     >
       <div className="flex items-center justify-between">

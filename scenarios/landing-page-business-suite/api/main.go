@@ -474,6 +474,14 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to get admin defaults: %w", err)
 	}
 
+	if _, err := db.Exec(
+		`DELETE FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`,
+		adminEmail,
+		seededAdminID,
+	); err != nil {
+		return fmt.Errorf("failed to cleanup admin duplicates: %w", err)
+	}
+
 	// Upsert the seeded admin at reserved ID. This ensures credential changes work correctly:
 	// - Default → Custom: updates email and password at id=1
 	// - Custom → Different Custom: updates email and password at id=1
@@ -893,6 +901,7 @@ func ensureSchema(db *sql.DB) error {
 			visitor_id VARCHAR(255),
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,
+		`ALTER TABLE metrics_events ADD COLUMN IF NOT EXISTS variant_slug VARCHAR(100);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_slug);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);`,
 		`CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);`,
@@ -1194,6 +1203,15 @@ func ensureSchema(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
 		);`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS user_identity VARCHAR(255);`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS billing_period VARCHAR(20);`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS limit_key VARCHAR(100);`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS usage_amount BIGINT DEFAULT 0;`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS app_bundle_key VARCHAR(100);`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS last_operation_at TIMESTAMP;`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();`,
+		`ALTER TABLE usage_records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_identity_period_key_app ON usage_records(user_identity, billing_period, limit_key, app_bundle_key);`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_identity, billing_period);`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_limit_key ON usage_records(limit_key);`,
 		`CREATE INDEX IF NOT EXISTS idx_usage_records_app ON usage_records(app_bundle_key);`,
@@ -1267,6 +1285,7 @@ func ensureSchema(db *sql.DB) error {
 			finalized_at TIMESTAMP,
 			expires_at TIMESTAMP NOT NULL
 		);`,
+		`ALTER TABLE credit_reservations ADD COLUMN IF NOT EXISTS user_identity VARCHAR(255);`,
 		`CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);`,
 		`CREATE INDEX IF NOT EXISTS idx_credit_reservations_expires ON credit_reservations(expires_at) WHERE status = 'pending';`,
 	}

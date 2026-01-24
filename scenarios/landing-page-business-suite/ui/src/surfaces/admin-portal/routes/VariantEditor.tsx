@@ -5,10 +5,10 @@ import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { FormSection } from '../components/FormSection';
-import { FormField, inputClassName, textareaClassName } from '../components/FormField';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { Textarea } from '../../../shared/ui/input';
 import { useToast } from '../../../shared/ui/Toast';
 import { HeaderConfigurator } from '../components/HeaderConfigurator';
 import { useVariantForm } from '../hooks/useVariantForm';
@@ -292,7 +292,7 @@ export function VariantEditor() {
                     type="text"
                     value={form.name}
                     onChange={(e) => updateFormField('name', e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-slate-900 border border-white/10 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-0"
                     placeholder="e.g., Variant A"
                     data-testid="variant-name-input"
                   />
@@ -321,7 +321,7 @@ export function VariantEditor() {
                   <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-2">
                     Description (optional)
                   </label>
-                  <textarea
+                  <Textarea
                     id="description"
                     value={form.description}
                     onChange={(e) => updateFormField('description', e.target.value)}

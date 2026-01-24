@@ -26,13 +26,13 @@ export function CTASection({ content }: CTASectionProps) {
   };
 
   return (
-    <section className="relative overflow-hidden bg-[#0B1020] py-20 text-white">
+    <section className="relative overflow-hidden bg-surface-deep py-20 text-white">
       <div className="pointer-events-none absolute inset-0 opacity-70">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(124,58,237,0.12),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,0.12),transparent_32%),radial-gradient(circle_at_50%_80%,rgba(249,115,22,0.12),transparent_32%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(var(--color-accent-tertiary),0.12),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(var(--color-accent-cool),0.12),transparent_32%),radial-gradient(circle_at_50%_80%,rgba(var(--color-accent),0.12),transparent_32%)]" />
       </div>
       <div className="container relative mx-auto px-6">
-        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-[#0E1428] via-[#0C1224] to-[#0B1120] p-10 shadow-[0_40px_120px_-50px_rgba(0,0,0,0.7)] lg:p-14">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#F97316] via-[#7C3AED] to-[#0EA5E9]" />
+        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-br from-surface-primary via-surface-deep to-surface-darker p-10 shadow-[0_40px_120px_-50px_rgba(0,0,0,0.7)] lg:p-14">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-accent-tertiary to-accent-cool" />
           <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div className="space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-300">

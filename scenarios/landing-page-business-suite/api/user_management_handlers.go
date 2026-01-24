@@ -170,7 +170,9 @@ func handleAdminListUsers(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -224,7 +226,9 @@ func handleAdminGetUser(db *sql.DB) http.HandlerFunc {
 		user.SessionCount = getUserSessionCount(r.Context(), db, user.ID)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(user)
+		if err := json.NewEncoder(w).Encode(user); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -284,7 +288,9 @@ func handleAdminGetUserSessions(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(sessions)
+		if err := json.NewEncoder(w).Encode(sessions); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -324,10 +330,12 @@ func handleAdminRevokeUserSession(db *sql.DB) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": "Session revoked",
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -362,11 +370,13 @@ func handleAdminRevokeAllUserSessions(db *sql.DB) http.HandlerFunc {
 		})
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":          true,
 			"message":          "All sessions revoked",
 			"sessions_revoked": rowsAffected,
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -412,10 +422,12 @@ func getUserCredits(ctx context.Context, db *sql.DB, email string) *CreditInfo {
 
 func getUserSessionCount(ctx context.Context, db *sql.DB, userID string) int {
 	var count int
-	db.QueryRowContext(ctx, `
+	if err := db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM user_sessions
 		WHERE user_id = $1 AND revoked = FALSE AND expires_at > NOW()
-	`, userID).Scan(&count)
+	`, userID).Scan(&count); err != nil {
+		return 0
+	}
 	return count
 }

@@ -265,7 +265,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
   return (
     <section
-      className="relative overflow-hidden border-t border-white/5 bg-[#0B1020] py-20 text-white"
+      className="relative overflow-hidden border-t border-white/5 bg-surface-deep py-20 text-white"
       data-testid="downloads-section"
     >
       {/* Subtle gradient background */}
@@ -424,7 +424,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => refresh()}
                   placeholder="you@example.com"
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-[#0B1020] px-3 py-2 text-white placeholder:text-slate-500 focus:border-[#F97316] focus:outline-none"
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-surface-deep px-3 py-2 text-white placeholder:text-slate-500 focus:border-accent focus:outline-none"
                 />
               </label>
               <div className="mt-3 flex flex-wrap items-center gap-2">

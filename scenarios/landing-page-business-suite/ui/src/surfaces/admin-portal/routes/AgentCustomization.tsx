@@ -7,6 +7,7 @@ import { FormField, textareaClassName } from '../components/FormField';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { Textarea } from '../../../shared/ui/input';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { useAgentForm } from '../hooks/useAgentForm';
 
@@ -124,7 +125,7 @@ export function AgentCustomization() {
               htmlFor="brief"
               helpText="Be specific about your goals, target audience, and desired changes"
             >
-              <textarea
+              <Textarea
                 id="brief"
                 value={form.brief}
                 onChange={(e) => setBrief(e.target.value)}
@@ -140,7 +141,7 @@ export function AgentCustomization() {
               htmlFor="assets"
               helpText="URLs to images, logos, or other assets the agent should use"
             >
-              <textarea
+              <Textarea
                 id="assets"
                 value={form.assets}
                 onChange={(e) => setAssets(e.target.value)}

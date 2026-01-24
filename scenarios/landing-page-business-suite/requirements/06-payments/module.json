@@ -20,7 +20,7 @@
           "type": "code",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/stripe_service.go (env var enforcement)"
+          "ref": "api/stripe_service.go"
         }
       ],
       "status": "complete",
@@ -92,7 +92,7 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_handlers.go & api/stripe_service.go"
+          "ref": "api/stripe_handlers.go"
         }
       ],
       "status": "complete",
@@ -114,7 +114,7 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_service.go (cache age check)"
+          "ref": "api/stripe_service.go"
         }
       ],
       "status": "complete",
@@ -139,7 +139,7 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "api/stripe_service.go & api/stripe_handlers.go"
+          "ref": "api/stripe_handlers.go"
         }
       ],
       "status": "complete",

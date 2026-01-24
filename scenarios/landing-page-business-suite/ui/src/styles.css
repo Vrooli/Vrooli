@@ -11,7 +11,11 @@
   /* Clause-style palette */
   --color-accent: 249 115 22;         /* #F97316 */
   --color-accent-secondary: 56 189 248; /* #38BDF8 */
+  --color-accent-tertiary: 124 58 237; /* #7C3AED */
+  --color-accent-cool: 14 165 233;     /* #0EA5E9 */
+  --color-primary-default: 59 130 246; /* #3B82F6 */
   --color-success: 16 185 129;        /* #10B981 */
+  --color-warning: 251 191 36;        /* #FBBF24 */
 
   /* Flow theme palette for imported workflow showcase */
   --flow-bg: 7 9 15;
@@ -32,6 +36,8 @@
   --color-bg-base: 7 9 15;            /* #07090F */
   --color-surface-primary: 15 23 42;  /* #0F172A */
   --color-surface-muted: 30 36 51;    /* #1E2433 */
+  --color-surface-deep: 11 16 32;     /* #0B1020 */
+  --color-surface-darker: 5 7 14;     /* #05070E */
   --color-surface-alt: 246 245 242;   /* #F6F5F2 */
 
   --color-text-primary: 243 244 246;  /* #F3F4F6 */

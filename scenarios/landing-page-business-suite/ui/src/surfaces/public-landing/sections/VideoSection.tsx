@@ -91,13 +91,13 @@ export function VideoSection(props: VideoSectionProps) {
   }
 
   return (
-    <section className="bg-[#07090F] py-20 px-6">
+    <section className="bg-bg-base py-20 px-6">
       <div className="mx-auto max-w-5xl">
         {title && (
           <h2 className="mb-8 text-center text-3xl font-semibold text-white md:text-4xl">{title}</h2>
         )}
 
-        <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-[#0F172A] shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
+        <div className="relative aspect-video overflow-hidden rounded-[32px] border border-white/10 bg-surface-primary shadow-[0_25px_50px_rgba(0,0,0,0.45)]">
           {!isPlaying && posterUrl ? (
             <button
               onClick={() => setIsPlaying(true)}

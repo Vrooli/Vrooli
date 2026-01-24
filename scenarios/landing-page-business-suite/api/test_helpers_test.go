@@ -305,6 +305,8 @@ func setupMinimalAuthServer(t *testing.T, authService *UserAuthService) *Server 
 }
 
 // MinIO testcontainer support for S3-compatible storage testing
+//
+//nolint:unused // used by integration-tagged tests
 var (
 	minioOnce      sync.Once
 	minioContainer tc.Container
@@ -315,6 +317,8 @@ var (
 // setupMinIOContainer starts a MinIO container for S3 integration tests.
 // Returns endpoint URL, access key, and secret key.
 // The container is shared across all tests in the test run.
+//
+//nolint:unused // used by integration-tagged tests
 func setupMinIOContainer(t *testing.T) (endpoint, accessKey, secretKey string) {
 	t.Helper()
 

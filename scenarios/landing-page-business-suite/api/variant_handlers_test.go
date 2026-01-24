@@ -772,9 +772,11 @@ func TestHandleVariantUpdate_NormalizesHeaderConfig(t *testing.T) {
 	// Check that the saved variant has normalized header config
 	saved, _ := mock.GetVariant("header-test")
 	// When branding mode is "none" with empty label, normalization should set it to the variant name
-	if saved.Variant.HeaderConfig.Branding.Mode == "none" && saved.Variant.HeaderConfig.Branding.Label == "" {
-		// This is valid - when mode is "none", label can be empty
-		// The test passes - normalization doesn't force a label when mode is "none"
+	if saved.Variant.HeaderConfig.Branding.Mode != "none" {
+		t.Fatalf("Expected branding mode 'none', got '%s'", saved.Variant.HeaderConfig.Branding.Mode)
+	}
+	if saved.Variant.HeaderConfig.Branding.Label != "" {
+		t.Errorf("Expected branding label to remain empty for mode 'none', got '%s'", saved.Variant.HeaderConfig.Branding.Label)
 	}
 }
 

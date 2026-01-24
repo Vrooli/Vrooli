@@ -164,12 +164,6 @@ func initSessionManager() SessionManager {
 	return NewCookieSessionManager(secret)
 }
 
-// initSessionStore is deprecated, use initSessionManager instead.
-// Kept for compatibility with any external code.
-func initSessionStore() {
-	_ = initSessionManager()
-}
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

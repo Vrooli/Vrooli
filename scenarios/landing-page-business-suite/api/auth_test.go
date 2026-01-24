@@ -168,7 +168,9 @@ func TestHandleAdminLogout_Success(t *testing.T) {
 
 	// Verify session was deleted from database
 	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM admin_sessions WHERE id = 'test_session_id'`).Scan(&count)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM admin_sessions WHERE id = 'test_session_id'`).Scan(&count); err != nil {
+		t.Fatalf("Failed to count admin sessions: %v", err)
+	}
 	if count != 0 {
 		t.Error("Expected session to be deleted from database")
 	}
@@ -656,14 +658,18 @@ func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 
 	// Verify other sessions were invalidated
 	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM admin_sessions WHERE admin_email = 'update@test.com'`).Scan(&count)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM admin_sessions WHERE admin_email = 'update@test.com'`).Scan(&count); err != nil {
+		t.Fatalf("Failed to count admin sessions: %v", err)
+	}
 	if count != 1 {
 		t.Errorf("Expected 1 session remaining (current), got %d", count)
 	}
 
 	// Verify current session still exists
 	var exists bool
-	db.QueryRow(`SELECT EXISTS(SELECT 1 FROM admin_sessions WHERE id = 'current_session')`).Scan(&exists)
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM admin_sessions WHERE id = 'current_session')`).Scan(&exists); err != nil {
+		t.Fatalf("Failed to check current session: %v", err)
+	}
 	if !exists {
 		t.Error("Current session should not have been invalidated")
 	}

@@ -14,7 +14,7 @@
           "type": "automation",
           "phase": "business",
           "status": "planned",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "ref": "api/main.go"
         }
       ],
       "status": "in_progress",
@@ -30,7 +30,7 @@
           "type": "automation",
           "phase": "business",
           "status": "planned",
-          "ref": "test/playbooks/capabilities/admin-portal/ui/admin-portal.json"
+          "ref": "ui/src/surfaces/admin-portal/routes/AgentCustomization.tsx"
         }
       ],
       "status": "in_progress",
@@ -49,7 +49,13 @@
           "type": "code",
           "phase": "integration",
           "status": "implemented",
-          "ref": "ui/src/pages/PublicHome.tsx (no admin links) & ui/src/App.tsx (admin routes protected)"
+          "ref": "ui/src/surfaces/public-landing/routes/PublicLanding.tsx"
+        },
+        {
+          "type": "code",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "ui/src/App.tsx"
         }
       ],
       "status": "complete",
@@ -65,11 +71,11 @@
           "type": "test",
           "phase": "unit",
           "status": "implemented",
-          "ref": "ui/src/contexts/AuthContext.test.tsx"
+          "ref": "api/auth_test.go"
         }
       ],
       "status": "complete",
-      "notes": "bcrypt auth implemented in api/auth.go with session cookies; validated via AuthContext tests."
+      "notes": "bcrypt auth implemented in api/auth.go with session cookies; validated via api/auth_test.go."
     },
     {
       "id": "ADMIN-MODES",
@@ -81,7 +87,7 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/pages/AdminHome.tsx (two mode cards only)"
+          "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx"
         }
       ],
       "status": "complete",
@@ -100,7 +106,13 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/pages/AdminHome.tsx + ui/src/components/AdminLayout.tsx"
+          "ref": "ui/src/surfaces/admin-portal/routes/AdminHome.tsx"
+        },
+        {
+          "type": "code",
+          "phase": "business",
+          "status": "implemented",
+          "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx"
         }
       ],
       "status": "complete",
@@ -119,7 +131,7 @@
           "type": "code",
           "phase": "business",
           "status": "implemented",
-          "ref": "ui/src/components/AdminLayout.tsx"
+          "ref": "ui/src/surfaces/admin-portal/components/AdminLayout.tsx"
         }
       ],
       "status": "complete",

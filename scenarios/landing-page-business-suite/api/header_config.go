@@ -108,6 +108,8 @@ func normalizeLandingHeaderConfig(input *LandingHeaderConfig, variantName string
 	}
 	if label := strings.TrimSpace(input.Branding.Label); label != "" {
 		cfg.Branding.Label = label
+	} else if cfg.Branding.Mode == "none" {
+		cfg.Branding.Label = ""
 	} else {
 		cfg.Branding.Label = def.Branding.Label
 	}

@@ -267,7 +267,7 @@ export function PublicLanding() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090F] text-slate-50">
+    <div className="min-h-screen bg-bg-base text-slate-50">
       {/* Client-side SEO meta tag updates based on branding */}
       <SEOHead branding={config?.branding} />
 
@@ -280,13 +280,13 @@ export function PublicLanding() {
         showMeta={isDebugMode}
       />
       {variantPinnedViaParam && (
-        <div className="border border-[#38BDF8]/30 bg-[#38BDF8]/10 py-3 px-4 text-center text-sm text-[#d3f2ff]" data-testid="variant-source-banner">
+        <div className="border border-accent-secondary/30 bg-accent-secondary/10 py-3 px-4 text-center text-sm text-accent-secondary/80" data-testid="variant-source-banner">
           Variant <strong>{variant?.name ?? variant?.slug}</strong> is pinned via URL parameter. Remove the <code>?variant=</code> query to resume weighted traffic allocation.
         </div>
       )}
 
       {fallbackActive && (
-        <div className="border border-[#F97316]/30 bg-[#F97316]/10 py-3 px-4 text-center text-sm text-[#ffd3b5]" data-testid="fallback-signal-banner">
+        <div className="border border-accent/30 bg-accent/10 py-3 px-4 text-center text-sm text-accent/80" data-testid="fallback-signal-banner">
           Offline-safe fallback variant is active. {statusNote && <span>{statusNote}. </span>}
           Live analytics, pricing, and downloads may be outdated until the API recovers.
           {lastUpdated && (
@@ -364,7 +364,7 @@ function LandingExperienceHeader({
   const hasMobileNav = navLinks.some((link) => link.mobile);
   const containerClasses = [
     sticky ? 'sticky top-0' : 'relative',
-    'z-30 border-b border-white/10 bg-[#07090F]/95 backdrop-blur transition-transform duration-300',
+    'z-30 border-b border-white/10 bg-bg-base/95 backdrop-blur transition-transform duration-300',
     isHidden ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100',
   ].join(' ');
 
@@ -398,7 +398,7 @@ function LandingExperienceHeader({
                         <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </button>
-                    <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-[#0B1020] py-2 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
+                    <div className="invisible absolute left-0 top-full z-40 mt-2 min-w-[180px] rounded-lg border border-white/10 bg-surface-deep py-2 opacity-0 shadow-xl transition-all duration-150 group-hover:visible group-hover:opacity-100">
                       {link.children
                         .filter((child) => child.desktop ?? true)
                         .map((child) => (
@@ -569,7 +569,7 @@ function RuntimeMeta({ runtime }: { runtime: HeaderRuntimeMeta }) {
   return (
     <div className="flex flex-wrap gap-2 text-xs text-slate-500">
       <span
-        className={`rounded-full border px-2 py-0.5 ${runtime.fallbackActive ? 'border-[#F97316]/40 bg-[#F97316]/10 text-[#ffd3b5]' : 'border-[#10B981]/40 bg-[#10B981]/10 text-[#c5f4df]'}`}
+        className={`rounded-full border px-2 py-0.5 ${runtime.fallbackActive ? 'border-accent/40 bg-accent/10 text-accent/80' : 'border-success/40 bg-success/10 text-success/80'}`}
       >
         {runtime.fallbackActive ? 'Fallback copy active' : runtime.resolutionLabel}
       </span>

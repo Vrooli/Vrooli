@@ -591,7 +591,7 @@ func TestNewEmailService_DefaultConfiguration(t *testing.T) {
 	// Just verify it doesn't panic
 	svc := NewEmailService()
 	if svc == nil {
-		t.Error("expected non-nil service")
+		t.Fatal("expected non-nil service")
 	}
 	if svc.httpClient == nil {
 		t.Error("expected httpClient to be set")

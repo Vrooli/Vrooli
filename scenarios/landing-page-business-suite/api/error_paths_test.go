@@ -255,6 +255,16 @@ func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 		AppBundleKey:   &appKey,
 	}
 
+	if _, err := db.Exec(
+		`DELETE FROM subscription_tier_limits WHERE tier_id = $1 AND limit_type = $2 AND limit_key = $3 AND app_bundle_key = $4`,
+		limit.TierID,
+		limit.LimitType,
+		limit.LimitKey,
+		appKey,
+	); err != nil {
+		t.Fatalf("Failed to cleanup existing limit: %v", err)
+	}
+
 	_, err := svc.CreateLimit(ctx, limit)
 	if err != nil {
 		t.Fatalf("Failed to create initial limit: %v", err)

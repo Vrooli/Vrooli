@@ -1,11 +1,12 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
-import { FormField, inputClassName } from '../components/FormField';
+import { FormField, inputClassName, textareaClassName } from '../components/FormField';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { Textarea } from '../../../shared/ui/input';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
 import { PricingSection } from '../../public-landing/sections/PricingSection';
 import { AlertTriangle, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
@@ -472,11 +473,11 @@ function PriceFormCard({
       </div>
 
       <FormField label="Feature Bullets" className="mt-4">
-        <textarea
+        <Textarea
           value={formState.values.featuresText}
           onChange={onPriceChange(bundleKey, priceIdentifier, 'featuresText')}
           rows={4}
-          className={inputClassName}
+          className={textareaClassName}
           placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
         />
       </FormField>
@@ -527,7 +528,7 @@ function PlanPreview({ data }: { data: PricingPreviewData }) {
       </div>
       <MetricsModeProvider mode="preview">
         <div className="relative mt-4">
-          <div className="max-h-[640px] overflow-y-auto rounded-[28px] border border-white/10 bg-[#030712] p-1" onClickCapture={(event) => {
+          <div className="max-h-[640px] overflow-y-auto rounded-[28px] border border-white/10 bg-surface-darker p-1" onClickCapture={(event) => {
             event.preventDefault();
             event.stopPropagation();
           }} onKeyDownCapture={(event) => {

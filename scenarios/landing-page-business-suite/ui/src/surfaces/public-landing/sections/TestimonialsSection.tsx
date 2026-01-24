@@ -43,7 +43,7 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
   ];
 
   return (
-    <section className="border-y border-white/5 bg-[#07090F] py-24">
+    <section className="border-y border-white/5 bg-bg-base py-24">
       <div className="container mx-auto px-6">
         <div className="max-w-4xl text-left">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Operators on record</p>
@@ -56,14 +56,14 @@ export function TestimonialsSection({ content }: TestimonialsSectionProps) {
           {testimonials.map((testimonial, index) => (
             <article
               key={index}
-              className="relative rounded-[28px] border border-white/8 bg-[#0F172A] p-8 shadow-[0_25px_50px_rgba(0,0,0,0.35)]"
+              className="relative rounded-[28px] border border-white/8 bg-surface-primary p-8 shadow-[0_25px_50px_rgba(0,0,0,0.35)]"
               data-testid={`testimonial-${index}`}
             >
-              <Quote className="absolute right-6 top-6 h-8 w-8 text-[#F97316]/30" />
+              <Quote className="absolute right-6 top-6 h-8 w-8 text-accent/30" />
               {testimonial.rating && (
                 <div className="mb-4 flex gap-1">
                   {Array.from({ length: testimonial.rating }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-[#FBBF24] text-[#FBBF24]" />
+                    <Star key={i} className="h-4 w-4 fill-warning text-warning" />
                   ))}
                 </div>
               )}

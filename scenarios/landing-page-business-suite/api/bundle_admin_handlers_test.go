@@ -262,7 +262,9 @@ func TestHandleAdminVerifyStripePrice_Success(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	stripeService.RefreshConfig(context.Background())
+	if err := stripeService.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	handler := handleAdminVerifyStripePrice(stripeService)
 
@@ -351,7 +353,9 @@ func TestHandleAdminVerifyStripePrice_InvalidKey(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	stripeService.RefreshConfig(context.Background())
+	if err := stripeService.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	handler := handleAdminVerifyStripePrice(stripeService)
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -352,7 +353,7 @@ func TestHandleFeedbackGet_Success(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/feedback/{id}", handler).Methods("GET")
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback/"+string(rune('0'+feedback.ID)), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback/"+strconv.Itoa(feedback.ID), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -424,7 +425,7 @@ func TestHandleFeedbackUpdateStatus_Success(t *testing.T) {
 	router.HandleFunc("/api/v1/admin/feedback/{id}/status", handler).Methods("PATCH")
 
 	body := `{"status": "resolved"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/"+string(rune('0'+feedback.ID))+"/status", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/"+strconv.Itoa(feedback.ID)+"/status", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -455,7 +456,7 @@ func TestHandleFeedbackUpdateStatus_InvalidStatus(t *testing.T) {
 	router.HandleFunc("/api/v1/admin/feedback/{id}/status", handler).Methods("PATCH")
 
 	body := `{"status": "invalid_status"}`
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/"+string(rune('0'+feedback.ID))+"/status", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/admin/feedback/"+strconv.Itoa(feedback.ID)+"/status", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -487,7 +488,7 @@ func TestHandleFeedbackDelete_Success(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/feedback/{id}", handler).Methods("DELETE")
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/feedback/"+string(rune('0'+feedback.ID)), nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/feedback/"+strconv.Itoa(feedback.ID), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -591,12 +592,14 @@ func TestHandleFeedbackList_ServiceError(t *testing.T) {
 func TestHandleFeedbackList_VerifyResponseBody(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Add test feedback
-	mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(&CreateFeedbackInput{
 		Type:    "bug",
 		Email:   "test@example.com",
 		Subject: "Bug Report",
 		Message: "Found a bug",
-	})
+	}); err != nil {
+		t.Fatalf("Failed to create feedback: %v", err)
+	}
 
 	handler := handleFeedbackList(mock)
 
@@ -645,12 +648,14 @@ func TestHandleFeedbackGet_ServiceError(t *testing.T) {
 func TestHandleFeedbackUpdateStatus_ServiceError(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Create a feedback entry first
-	mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(&CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
 		Message: "Test",
-	})
+	}); err != nil {
+		t.Fatalf("Failed to create feedback: %v", err)
+	}
 	// Now inject the error
 	mock.updateStatusErr = errors.New("update failed")
 
@@ -696,12 +701,14 @@ func TestHandleFeedbackUpdateStatus_AllValidStatuses(t *testing.T) {
 		t.Run(status, func(t *testing.T) {
 			mock := newMockFeedbackService()
 			// Create a feedback entry
-			mock.Create(&CreateFeedbackInput{
+			if _, err := mock.Create(&CreateFeedbackInput{
 				Type:    "general",
 				Email:   "test@example.com",
 				Subject: "Test",
 				Message: "Test",
-			})
+			}); err != nil {
+				t.Fatalf("Failed to create feedback: %v", err)
+			}
 
 			handler := handleFeedbackUpdateStatus(mock)
 
@@ -734,12 +741,14 @@ func TestHandleFeedbackUpdateStatus_AllValidStatuses(t *testing.T) {
 func TestHandleFeedbackDelete_ServiceError(t *testing.T) {
 	mock := newMockFeedbackService()
 	// Create a feedback entry
-	mock.Create(&CreateFeedbackInput{
+	if _, err := mock.Create(&CreateFeedbackInput{
 		Type:    "general",
 		Email:   "test@example.com",
 		Subject: "Test",
 		Message: "Test",
-	})
+	}); err != nil {
+		t.Fatalf("Failed to create feedback: %v", err)
+	}
 	mock.deleteErr = errors.New("deletion blocked")
 
 	handler := handleFeedbackDelete(mock)

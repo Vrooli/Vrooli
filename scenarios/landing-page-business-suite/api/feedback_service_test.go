@@ -269,8 +269,8 @@ func TestFeedbackService_UpdateStatus_Success(t *testing.T) {
 	if updated.Status != "resolved" {
 		t.Errorf("Expected status 'resolved', got '%s'", updated.Status)
 	}
-	if !updated.UpdatedAt.After(created.CreatedAt) || updated.UpdatedAt.Equal(created.CreatedAt) {
-		// UpdatedAt should be >= CreatedAt
+	if !updated.UpdatedAt.After(created.CreatedAt) {
+		t.Errorf("Expected UpdatedAt to be after CreatedAt")
 	}
 }
 

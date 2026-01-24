@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { submitWaitlistEmail, type PublicBranding } from '../../../shared/api';
+import { Button } from '../../../shared/ui/button';
+import { Input } from '../../../shared/ui/input';
 import { CheckCircle, AlertCircle, Loader2, Mail } from 'lucide-react';
 
 interface ComingSoonPageProps {
@@ -11,8 +13,12 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const primaryColor = branding.theme_primary_color || '#3B82F6';
-  const backgroundColor = branding.theme_background_color || '#07090F';
+  const primaryColor = branding.theme_primary_color;
+  const primaryFallback = 'rgb(var(--color-primary-default))';
+  const primarySolid = primaryColor || primaryFallback;
+  const primaryGlow = primaryColor ? `${primaryColor}20` : 'rgba(var(--color-primary-default),0.12)';
+  const backgroundColor = branding.theme_background_color || 'rgb(var(--color-bg-base))';
+  const successColor = 'rgb(var(--color-success))';
   const message = branding.coming_soon_message || 'We are working hard to bring you something amazing. Stay tuned!';
 
   const handleSubmit = async (e: FormEvent) => {
@@ -46,7 +52,7 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
       <div
         className="absolute inset-0 opacity-30 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse at center, ${primaryColor}20 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse at center, ${primaryGlow} 0%, transparent 70%)`,
         }}
       />
 
@@ -95,10 +101,11 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-5 w-5 text-slate-500" />
                 </div>
-                <input
+                <Input
                   type="email"
                   id="email"
                   name="email"
+                  size="md"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -106,17 +113,17 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
                   }}
                   placeholder="Enter your email"
                   disabled={status === 'loading' || status === 'success'}
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-white/10 bg-slate-900/70 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="pl-10 pr-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                 />
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
               disabled={status === 'loading' || status === 'success'}
-              className="w-full py-3 px-4 rounded-lg font-medium text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full rounded-lg gap-2"
               style={{
-                backgroundColor: status === 'success' ? '#10B981' : primaryColor,
+                backgroundColor: status === 'success' ? successColor : primarySolid,
               }}
             >
               {status === 'loading' && (
@@ -134,7 +141,7 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
               {(status === 'idle' || status === 'error') && (
                 'Notify me when ready'
               )}
-            </button>
+            </Button>
 
             {/* Error Message */}
             {status === 'error' && errorMessage && (

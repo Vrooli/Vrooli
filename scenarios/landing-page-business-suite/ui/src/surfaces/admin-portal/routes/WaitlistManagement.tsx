@@ -2,7 +2,9 @@ import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
 import { Button } from '../../../shared/ui/button';
-import { RefreshCw, Trash2, Download, Mail, Users, AlertCircle, Clock, ExternalLink } from 'lucide-react';
+import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import { RefreshCw, Trash2, Download, Mail, Users, Clock, ExternalLink } from 'lucide-react';
 import { useWaitlistForm } from '../hooks/useWaitlistForm';
 import { formatDateTime } from '../../../shared/lib/dateFormatters';
 import { LAYOUT } from '../config/layout.constants';
@@ -106,36 +108,26 @@ export function WaitlistManagement() {
                   Customize message
                   <ExternalLink className="h-3 w-3" />
                 </a>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={comingSoonEnabled}
+                <ToggleSwitch
+                  checked={comingSoonEnabled}
+                  onToggle={handleToggleComingSoon}
+                  loading={togglingComingSoon}
                   disabled={togglingComingSoon}
-                  onClick={handleToggleComingSoon}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-                    comingSoonEnabled ? 'bg-amber-500' : 'bg-slate-700'
-                  }`}
-                >
-                  {togglingComingSoon ? (
-                    <RefreshCw className="h-4 w-4 text-white absolute left-1/2 -translate-x-1/2 animate-spin" />
-                  ) : (
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        comingSoonEnabled ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  )}
-                </button>
+                  aria-label="Toggle coming soon mode"
+                />
               </div>
             </div>
         </FormSection>
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4">
-            <AlertCircle className="h-5 w-5 text-rose-400" />
-            <p className="text-sm text-rose-300">{error}</p>
-          </div>
+          <InlineAlert
+            severity="error"
+            message={error}
+            dismissible={false}
+            className="mt-4"
+            data-testid="waitlist-error"
+          />
         )}
 
         {/* Email List */}

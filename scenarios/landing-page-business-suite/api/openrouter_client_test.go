@@ -36,7 +36,7 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":    "chatcmpl-123",
 			"model": "gpt-4",
 			"choices": []map[string]interface{}{
@@ -53,7 +53,9 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 				"completion_tokens": 6,
 				"total_tokens":      16,
 			},
-		})
+		}); err != nil {
+			t.Fatalf("encode response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -76,7 +78,9 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 func TestOpenRouterClient_Chat_Non200Status_ReturnsErrOpenRouterError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error": "server error"}`))
+		if _, err := w.Write([]byte(`{"error": "server error"}`)); err != nil {
+			t.Fatalf("write error response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -93,7 +97,9 @@ func TestOpenRouterClient_Chat_Non200Status_ReturnsErrOpenRouterError(t *testing
 func TestOpenRouterClient_Chat_401Unauthorized_ReturnsError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": {"message": "Invalid API key"}}`))
+		if _, err := w.Write([]byte(`{"error": {"message": "Invalid API key"}}`)); err != nil {
+			t.Fatalf("write error response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -110,7 +116,9 @@ func TestOpenRouterClient_Chat_401Unauthorized_ReturnsError(t *testing.T) {
 func TestOpenRouterClient_Chat_429RateLimited_ReturnsError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
-		w.Write([]byte(`{"error": {"message": "Rate limit exceeded"}}`))
+		if _, err := w.Write([]byte(`{"error": {"message": "Rate limit exceeded"}}`)); err != nil {
+			t.Fatalf("write error response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -127,7 +135,9 @@ func TestOpenRouterClient_Chat_429RateLimited_ReturnsError(t *testing.T) {
 func TestOpenRouterClient_Chat_InvalidJSONResponse_ReturnsDecodeError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{invalid json`))
+		if _, err := w.Write([]byte(`{invalid json`)); err != nil {
+			t.Fatalf("write invalid json: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -144,7 +154,7 @@ func TestOpenRouterClient_Chat_InvalidJSONResponse_ReturnsDecodeError(t *testing
 func TestOpenRouterClient_Chat_EmptyChoices_ReturnsEmptyContent(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":      "chatcmpl-123",
 			"model":   "gpt-4",
 			"choices": []map[string]interface{}{},
@@ -153,7 +163,9 @@ func TestOpenRouterClient_Chat_EmptyChoices_ReturnsEmptyContent(t *testing.T) {
 				"completion_tokens": 0,
 				"total_tokens":      10,
 			},
-		})
+		}); err != nil {
+			t.Fatalf("encode response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -188,7 +200,9 @@ func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 		}
 
 		for _, chunk := range chunks {
-			w.Write([]byte(chunk + "\n\n"))
+			if _, err := w.Write([]byte(chunk + "\n\n")); err != nil {
+				t.Fatalf("write stream chunk: %v", err)
+			}
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
@@ -220,7 +234,9 @@ func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 func TestOpenRouterClient_ChatStream_Non200Status_ReturnsError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte("Upstream error"))
+		if _, err := w.Write([]byte("Upstream error")); err != nil {
+			t.Fatalf("write upstream error: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -246,7 +262,9 @@ func TestOpenRouterClient_ChatStream_SSEParseError_LogsAndContinues(t *testing.T
 		}
 
 		for _, chunk := range chunks {
-			w.Write([]byte(chunk + "\n\n"))
+			if _, err := w.Write([]byte(chunk + "\n\n")); err != nil {
+				t.Fatalf("write stream chunk: %v", err)
+			}
 		}
 	})
 
@@ -280,7 +298,9 @@ func TestOpenRouterClient_ChatStream_DoneHandling_EndsStream(t *testing.T) {
 		}
 
 		for _, chunk := range chunks {
-			w.Write([]byte(chunk + "\n\n"))
+			if _, err := w.Write([]byte(chunk + "\n\n")); err != nil {
+				t.Fatalf("write stream chunk: %v", err)
+			}
 		}
 	})
 
@@ -305,7 +325,9 @@ func TestOpenRouterClient_ChatStream_DoneHandling_EndsStream(t *testing.T) {
 func TestOpenRouterClient_ChatStream_EmptyStream_ReturnsZeroUsage(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		w.Write([]byte("data: [DONE]\n\n"))
+		if _, err := w.Write([]byte("data: [DONE]\n\n")); err != nil {
+			t.Fatalf("write stream done: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -336,7 +358,9 @@ func TestOpenRouterClient_ChatStream_TokenEstimation_WhenNotProvided(t *testing.
 		}
 
 		for _, chunk := range chunks {
-			w.Write([]byte(chunk + "\n\n"))
+			if _, err := w.Write([]byte(chunk + "\n\n")); err != nil {
+				t.Fatalf("write stream chunk: %v", err)
+			}
 		}
 	})
 
@@ -372,7 +396,9 @@ func TestOpenRouterClient_VerifyAPIKey_Success(t *testing.T) {
 			t.Errorf("missing or incorrect authorization header")
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "valid"}`))
+		if _, err := w.Write([]byte(`{"status": "valid"}`)); err != nil {
+			t.Fatalf("write status response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -385,7 +411,9 @@ func TestOpenRouterClient_VerifyAPIKey_Success(t *testing.T) {
 func TestOpenRouterClient_VerifyAPIKey_InvalidKey_ReturnsError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "Invalid API key"}`))
+		if _, err := w.Write([]byte(`{"error": "Invalid API key"}`)); err != nil {
+			t.Fatalf("write error response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
@@ -456,19 +484,23 @@ func TestOpenRouterClient_SetHeaders_AllHeadersSet(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		capturedReq = r
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"id":      "1",
 			"model":   "gpt-4",
 			"choices": []map[string]interface{}{},
 			"usage":   map[string]int{},
-		})
+		}); err != nil {
+			t.Fatalf("encode response: %v", err)
+		}
 	})
 
 	ctx := context.Background()
-	client.Chat(ctx, OpenRouterChatRequest{
+	if _, err := client.Chat(ctx, OpenRouterChatRequest{
 		Model:    "gpt-4",
 		Messages: []OpenRouterMessage{{Role: "user", Content: "Hi"}},
-	})
+	}); err != nil {
+		t.Fatalf("Chat() returned error: %v", err)
+	}
 
 	if capturedReq.Header.Get("Content-Type") != "application/json" {
 		t.Error("expected Content-Type header")

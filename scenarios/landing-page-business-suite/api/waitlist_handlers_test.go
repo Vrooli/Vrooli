@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -275,7 +276,7 @@ func TestHandleWaitlistDelete_Success(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/waitlist/"+string(rune('0'+entry.ID)), nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/waitlist/"+strconv.FormatInt(entry.ID, 10), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -531,7 +532,9 @@ func TestHandleWaitlistDelete_ServiceError(t *testing.T) {
 	mock.deleteErr = errors.New("cannot delete")
 
 	// Add an email so it exists
-	mock.Create(context.Background(), "test@example.com", "test")
+	if _, err := mock.Create(context.Background(), "test@example.com", "test"); err != nil {
+		t.Fatalf("Failed to create waitlist entry: %v", err)
+	}
 
 	handler := handleWaitlistDelete(mock)
 
@@ -567,8 +570,12 @@ func TestHandleWaitlistExport_ServiceError(t *testing.T) {
 func TestHandleWaitlistExport_VerifyCSVFormat(t *testing.T) {
 	mock := newMockWaitlistService()
 	// Add test data
-	mock.Create(context.Background(), "user1@example.com", "landing")
-	mock.Create(context.Background(), "user2@example.com", "beta")
+	if _, err := mock.Create(context.Background(), "user1@example.com", "landing"); err != nil {
+		t.Fatalf("Failed to create waitlist entry: %v", err)
+	}
+	if _, err := mock.Create(context.Background(), "user2@example.com", "beta"); err != nil {
+		t.Fatalf("Failed to create waitlist entry: %v", err)
+	}
 
 	handler := handleWaitlistExport(mock)
 

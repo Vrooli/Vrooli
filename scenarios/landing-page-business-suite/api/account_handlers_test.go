@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -580,16 +579,5 @@ func TestIsRetryableErrorType(t *testing.T) {
 				t.Errorf("Expected %v, got %v", tt.retryable, result)
 			}
 		})
-	}
-}
-
-// cleanupDownloadTables removes all entries from download-related tables
-func cleanupDownloadTables(t *testing.T, db *sql.DB) {
-	t.Helper()
-	tables := []string{"download_assets", "download_apps"}
-	for _, table := range tables {
-		if _, err := db.Exec("DELETE FROM " + table); err != nil {
-			t.Fatalf("Failed to cleanup %s table: %v", table, err)
-		}
 	}
 }

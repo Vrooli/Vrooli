@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
     last_login TIMESTAMP
 );
 
-CREATE INDEX idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
 
 -- Metrics Events Table (OT-P0-019 through OT-P0-022)
 -- Stores analytics events (variant_slug is stored as text, not FK)
@@ -28,10 +28,10 @@ CREATE TABLE IF NOT EXISTS metrics_events (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_metrics_events_variant ON metrics_events(variant_slug);
-CREATE INDEX idx_metrics_events_type ON metrics_events(event_type);
-CREATE INDEX idx_metrics_events_created ON metrics_events(created_at);
-CREATE INDEX idx_metrics_events_session ON metrics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_variant ON metrics_events(variant_slug);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_type ON metrics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_created ON metrics_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_metrics_events_session ON metrics_events(session_id);
 
 -- Checkout Sessions Table (OT-P0-025, OT-P0-026: STRIPE-CONFIG, STRIPE-ROUTES)
 -- Stores Stripe checkout session metadata
@@ -50,9 +50,9 @@ CREATE TABLE IF NOT EXISTS checkout_sessions (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_checkout_sessions_session_id ON checkout_sessions(session_id);
-CREATE INDEX idx_checkout_sessions_status ON checkout_sessions(status);
-CREATE INDEX idx_checkout_sessions_type ON checkout_sessions(session_type);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_session_id ON checkout_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_status ON checkout_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_checkout_sessions_type ON checkout_sessions(session_type);
 
 -- Subscriptions Table (OT-P0-028, OT-P0-029, OT-P0-030: SUB-VERIFY, SUB-CACHE, SUB-CANCEL)
 -- Stores Stripe subscription status for verification and caching
@@ -67,10 +67,10 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscriptions_subscription_id ON subscriptions(subscription_id);
-CREATE INDEX idx_subscriptions_customer_email ON subscriptions(customer_email);
-CREATE INDEX idx_subscriptions_customer_id ON subscriptions(customer_id);
-CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscription_id ON subscriptions(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_email ON subscriptions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer_id ON subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);
 ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS bundle_key VARCHAR(100);
@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS subscription_schedules (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
-CREATE INDEX idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
 
 -- NOTE: Content sections are now stored in JSON files (.vrooli/variants/*.json)
 -- and loaded into memory at startup via ConfigStore.
@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS bundle_products (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_bundle_products_env ON bundle_products(environment);
+CREATE INDEX IF NOT EXISTS idx_bundle_products_env ON bundle_products(environment);
 
 -- Bundle prices (Stripe price metadata)
 CREATE TABLE IF NOT EXISTS bundle_prices (
@@ -144,8 +144,8 @@ CREATE TABLE IF NOT EXISTS bundle_prices (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_bundle_prices_tier ON bundle_prices(plan_tier);
-CREATE INDEX idx_bundle_prices_interval ON bundle_prices(billing_interval);
+CREATE INDEX IF NOT EXISTS idx_bundle_prices_tier ON bundle_prices(plan_tier);
+CREATE INDEX IF NOT EXISTS idx_bundle_prices_interval ON bundle_prices(billing_interval);
 
 CREATE TABLE IF NOT EXISTS download_apps (
     id SERIAL PRIMARY KEY,
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS payment_settings (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_download_assets_bundle_app_platform_variant ON download_assets(bundle_key, app_key, platform, variant_key);
 
 -- Credit wallets and transactions
 CREATE TABLE IF NOT EXISTS credit_wallets (
@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS credit_transactions (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_credit_transactions_customer ON credit_transactions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_credit_transactions_customer ON credit_transactions(customer_email);
 -- Unique index for idempotency - only index non-null stripe_event_ids
 CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event
     ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
@@ -243,8 +243,8 @@ CREATE TABLE IF NOT EXISTS assets (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_assets_category ON assets(category);
-CREATE INDEX idx_assets_created ON assets(created_at);
+CREATE INDEX IF NOT EXISTS idx_assets_category ON assets(category);
+CREATE INDEX IF NOT EXISTS idx_assets_created ON assets(created_at);
 
 -- Feedback Requests Table
 -- Stores user feedback, bug reports, feature requests, and refund requests
@@ -260,10 +260,10 @@ CREATE TABLE IF NOT EXISTS feedback_requests (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_feedback_requests_type ON feedback_requests(type);
-CREATE INDEX idx_feedback_requests_status ON feedback_requests(status);
-CREATE INDEX idx_feedback_requests_email ON feedback_requests(email);
-CREATE INDEX idx_feedback_requests_created ON feedback_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_type ON feedback_requests(type);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_status ON feedback_requests(status);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_email ON feedback_requests(email);
+CREATE INDEX IF NOT EXISTS idx_feedback_requests_created ON feedback_requests(created_at);
 
 -- Subscription Tier Limits Table
 -- Defines credit limits per subscription tier (cost-based or app-specific)
@@ -281,9 +281,9 @@ CREATE TABLE IF NOT EXISTS subscription_tier_limits (
     UNIQUE(tier_id, limit_type, limit_key, app_bundle_key)
 );
 
-CREATE INDEX idx_subscription_tier_limits_tier ON subscription_tier_limits(tier_id);
-CREATE INDEX idx_subscription_tier_limits_type ON subscription_tier_limits(limit_type);
-CREATE INDEX idx_subscription_tier_limits_app ON subscription_tier_limits(app_bundle_key);
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_tier ON subscription_tier_limits(tier_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_type ON subscription_tier_limits(limit_type);
+CREATE INDEX IF NOT EXISTS idx_subscription_tier_limits_app ON subscription_tier_limits(app_bundle_key);
 
 -- Usage Records Table
 -- Tracks credit usage per user per billing period
@@ -301,11 +301,11 @@ CREATE TABLE IF NOT EXISTS usage_records (
     UNIQUE(user_identity, billing_period, limit_key, app_bundle_key)
 );
 
-CREATE INDEX idx_usage_records_user_period ON usage_records(user_identity, billing_period);
-CREATE INDEX idx_usage_records_limit_key ON usage_records(limit_key);
-CREATE INDEX idx_usage_records_app ON usage_records(app_bundle_key);
+CREATE INDEX IF NOT EXISTS idx_usage_records_user_period ON usage_records(user_identity, billing_period);
+CREATE INDEX IF NOT EXISTS idx_usage_records_limit_key ON usage_records(limit_key);
+CREATE INDEX IF NOT EXISTS idx_usage_records_app ON usage_records(app_bundle_key);
 -- Partial unique index for idempotency - only index non-null operation_ids
-CREATE UNIQUE INDEX idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_usage_records_operation_id ON usage_records(operation_id) WHERE operation_id IS NOT NULL;
 
 -- API Keys Table
 -- Stores encrypted AI provider API keys (admin-managed)
@@ -320,8 +320,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_api_keys_provider ON api_keys(provider);
-CREATE INDEX idx_api_keys_active ON api_keys(is_active);
+CREATE INDEX IF NOT EXISTS idx_api_keys_provider ON api_keys(provider);
+CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active);
 
 -- User Authentication Tables (User Auth Implementation)
 -- User accounts (linked to Stripe customers)
@@ -335,8 +335,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_login_at TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_stripe_customer ON users(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
 
 -- Magic link tokens (short-lived, one-time use)
 CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -351,8 +351,8 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     user_agent TEXT
 );
 
-CREATE INDEX idx_auth_tokens_hash ON auth_tokens(token_hash);
-CREATE INDEX idx_auth_tokens_user_expires ON auth_tokens(user_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_expires ON auth_tokens(user_id, expires_at);
 
 -- Active user sessions (supports "view all sessions" feature)
 CREATE TABLE IF NOT EXISTS user_sessions (
@@ -368,9 +368,9 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     revoked BOOLEAN DEFAULT FALSE
 );
 
-CREATE INDEX idx_user_sessions_user ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_hash ON user_sessions(refresh_token_hash);
-CREATE INDEX idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_hash ON user_sessions(refresh_token_hash);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(user_id, revoked, expires_at);
 
 -- Email Normalization Migration (idempotent)
 -- Normalizes existing email data to lowercase/trimmed format

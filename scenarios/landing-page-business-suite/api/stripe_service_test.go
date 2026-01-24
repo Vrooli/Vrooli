@@ -827,7 +827,9 @@ func TestVerifyStripePrice_ValidPriceID(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	service.RefreshConfig(context.Background())
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	result, err := service.VerifyStripePrice("price_valid")
 	if err != nil {
@@ -888,7 +890,9 @@ func TestVerifyStripePrice_ValidLookupKey(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	service.RefreshConfig(context.Background())
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	result, err := service.VerifyStripePrice("pro_monthly")
 	if err != nil {
@@ -939,7 +943,9 @@ func TestVerifyStripePrice_PriceNotFound(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	service.RefreshConfig(context.Background())
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	_, err := service.VerifyStripePrice("nonexistent_key")
 	if err == nil {
@@ -962,7 +968,9 @@ func TestVerifyStripePrice_NetworkError(t *testing.T) {
 			apiBase:        "http://localhost:99999", // Invalid port
 		}, nil
 	})
-	service.RefreshConfig(context.Background())
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	_, err := service.VerifyStripePrice("price_test")
 	if err == nil {
@@ -1004,7 +1012,9 @@ func TestVerifyStripePriceTyped_Success(t *testing.T) {
 			apiBase:        stripeServer.URL,
 		}, nil
 	})
-	service.RefreshConfig(context.Background())
+	if err := service.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("Failed to refresh stripe config: %v", err)
+	}
 
 	info, err := service.VerifyStripePriceTyped("price_typed")
 	if err != nil {

@@ -25,8 +25,8 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
     expect(screen.getByTestId('nav-home')).toBeInTheDocument();
     expect(screen.getByTestId('nav-logout')).toBeInTheDocument();
 
-    // Dropdown groups visible (Landing Page group contains analytics/customization)
-    expect(screen.getByTestId('nav-group-landing-page')).toBeInTheDocument();
+    // Dropdown groups visible (Landing group contains analytics/customization)
+    expect(screen.getByTestId('nav-group-landing')).toBeInTheDocument();
   });
 
   it('[REQ:ADMIN-NAV] should reveal dropdown items when group clicked', async () => {
@@ -34,7 +34,7 @@ describe('AdminLayout [REQ:ADMIN-NAV,ADMIN-BREADCRUMB]', () => {
     renderWithRouter(<AdminLayout><div>Content</div></AdminLayout>);
 
     // Click the Landing Page dropdown
-    const landingPageDropdown = screen.getByTestId('nav-group-landing-page');
+    const landingPageDropdown = screen.getByTestId('nav-group-landing');
     await user.click(landingPageDropdown);
 
     // Nested items should now be visible

@@ -46,7 +46,7 @@ function PublicRouteGuard({ children }: { children: ReactNode }) {
   if (loading) {
     // Show a minimal loading state while config loads
     return (
-      <div className="min-h-screen bg-[#07090F] flex items-center justify-center">
+      <div className="min-h-screen bg-bg-base flex items-center justify-center">
         <div className="animate-pulse text-slate-400">Loading...</div>
       </div>
     );
@@ -60,6 +60,37 @@ function PublicRouteGuard({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+interface RouteShellProps {
+  name: string;
+  children: ReactNode;
+}
+
+function PublicRoute({ name, children }: RouteShellProps) {
+  return (
+    <ErrorBoundary level="route" name={name}>
+      <PublicRouteGuard>{children}</PublicRouteGuard>
+    </ErrorBoundary>
+  );
+}
+
+function AdminRoute({ name, children }: RouteShellProps) {
+  return (
+    <ProtectedRoute>
+      <ErrorBoundary level="route" name={name}>
+        {children}
+      </ErrorBoundary>
+    </ProtectedRoute>
+  );
+}
+
+function AppRoute({ name, children }: RouteShellProps) {
+  return (
+    <ErrorBoundary level="route" name={name}>
+      {children}
+    </ErrorBoundary>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary level="app" name="App">
@@ -68,329 +99,273 @@ export default function App() {
           <AdminAuthProvider>
             <UserAuthProvider>
               <LandingVariantProvider>
-              <Routes>
-              {/* Public routes - guarded by coming soon mode */}
-              <Route
-                path="/"
-                element={
-                  <ErrorBoundary level="route" name="PublicLanding">
-                    <PublicRouteGuard>
-                      <PublicLanding />
-                    </PublicRouteGuard>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/health"
-                element={
-                  <ErrorBoundary level="route" name="Health">
-                    <PublicRouteGuard>
-                      <PublicLanding />
-                    </PublicRouteGuard>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/checkout"
-                element={
-                  <ErrorBoundary level="route" name="Checkout">
-                    <PublicRouteGuard>
-                      <CheckoutPage />
-                    </PublicRouteGuard>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/feedback"
-                element={
-                  <ErrorBoundary level="route" name="Feedback">
-                    <PublicRouteGuard>
-                      <FeedbackPage />
-                    </PublicRouteGuard>
-                  </ErrorBoundary>
-                }
-              />
+                <Routes>
+                  {/* Public routes - guarded by coming soon mode */}
+                  <Route
+                    path="/"
+                    element={(
+                      <PublicRoute name="PublicLanding">
+                        <PublicLanding />
+                      </PublicRoute>
+                    )}
+                  />
+                  <Route
+                    path="/health"
+                    element={(
+                      <PublicRoute name="Health">
+                        <PublicLanding />
+                      </PublicRoute>
+                    )}
+                  />
+                  <Route
+                    path="/checkout"
+                    element={(
+                      <PublicRoute name="Checkout">
+                        <CheckoutPage />
+                      </PublicRoute>
+                    )}
+                  />
+                  <Route
+                    path="/feedback"
+                    element={(
+                      <PublicRoute name="Feedback">
+                        <FeedbackPage />
+                      </PublicRoute>
+                    )}
+                  />
 
-              {/* Admin login (unprotected) */}
-              <Route
-                path="/admin/login"
-                element={
-                  <ErrorBoundary level="route" name="AdminLogin">
-                    <AdminLogin />
-                  </ErrorBoundary>
-                }
-              />
+                  {/* Admin login (unprotected) */}
+                  <Route
+                    path="/admin/login"
+                    element={(
+                      <AppRoute name="AdminLogin">
+                        <AdminLogin />
+                      </AppRoute>
+                    )}
+                  />
 
-              {/* User auth routes (unprotected, not gated by coming soon) */}
-              <Route
-                path="/auth/login"
-                element={
-                  <ErrorBoundary level="route" name="UserLogin">
-                    <UserLogin />
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/auth/verify"
-                element={
-                  <ErrorBoundary level="route" name="VerifyMagicLink">
-                    <VerifyMagicLink />
-                  </ErrorBoundary>
-                }
-              />
+                  {/* User auth routes (unprotected, not gated by coming soon) */}
+                  <Route
+                    path="/auth/login"
+                    element={(
+                      <AppRoute name="UserLogin">
+                        <UserLogin />
+                      </AppRoute>
+                    )}
+                  />
+                  <Route
+                    path="/auth/verify"
+                    element={(
+                      <AppRoute name="VerifyMagicLink">
+                        <VerifyMagicLink />
+                      </AppRoute>
+                    )}
+                  />
 
-              {/* Protected admin routes */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AdminHome">
-                      <AdminHome />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Protected admin routes */}
+                  <Route
+                    path="/admin"
+                    element={(
+                      <AdminRoute name="AdminHome">
+                        <AdminHome />
+                      </AdminRoute>
+                    )}
+                  />
 
-              {/* Section Dashboard Pages */}
-              <Route
-                path="/admin/landing"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="LandingDashboard">
-                      <LandingDashboard />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/billing-home"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="BillingDashboard">
-                      <BillingDashboard />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="UsersDashboard">
-                      <UsersDashboard />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Section Dashboard Pages */}
+                  <Route
+                    path="/admin/landing"
+                    element={(
+                      <AdminRoute name="LandingDashboard">
+                        <LandingDashboard />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/billing-home"
+                    element={(
+                      <AdminRoute name="BillingDashboard">
+                        <BillingDashboard />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/users"
+                    element={(
+                      <AdminRoute name="UsersDashboard">
+                        <UsersDashboard />
+                      </AdminRoute>
+                    )}
+                  />
 
-              <Route
-                path="/admin/analytics"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AdminAnalytics">
-                      <AdminAnalytics />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/analytics/:variantSlug"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AdminAnalyticsVariant">
-                      <AdminAnalytics />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/admin/analytics"
+                    element={(
+                      <AdminRoute name="AdminAnalytics">
+                        <AdminAnalytics />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/analytics/:variantSlug"
+                    element={(
+                      <AdminRoute name="AdminAnalyticsVariant">
+                        <AdminAnalytics />
+                      </AdminRoute>
+                    )}
+                  />
 
-              <Route
-                path="/admin/customization"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="Customization">
-                      <Customization />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/billing"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="BillingSettings">
-                      <BillingSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/downloads"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="DownloadSettings">
-                      <DownloadSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/branding"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="BrandingSettings">
-                      <BrandingSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/profile"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="ProfileSettings">
-                      <ProfileSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/docs"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="DocsViewer">
-                      <DocsViewer />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/feedback"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="FeedbackManagement">
-                      <FeedbackManagement />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/waitlist"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="WaitlistManagement">
-                      <WaitlistManagement />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/customization/agent"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AgentCustomization">
-                      <AgentCustomization />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/customization/variants/:slug"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="VariantEditor">
-                      <VariantEditor />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/customization/variants/:variantSlug/sections/:sectionId"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="SectionEditor">
-                      <SectionEditor />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  <Route
+                    path="/admin/customization"
+                    element={(
+                      <AdminRoute name="Customization">
+                        <Customization />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/billing"
+                    element={(
+                      <AdminRoute name="BillingSettings">
+                        <BillingSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/downloads"
+                    element={(
+                      <AdminRoute name="DownloadSettings">
+                        <DownloadSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/branding"
+                    element={(
+                      <AdminRoute name="BrandingSettings">
+                        <BrandingSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/profile"
+                    element={(
+                      <AdminRoute name="ProfileSettings">
+                        <ProfileSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/docs"
+                    element={(
+                      <AdminRoute name="DocsViewer">
+                        <DocsViewer />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/feedback"
+                    element={(
+                      <AdminRoute name="FeedbackManagement">
+                        <FeedbackManagement />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/waitlist"
+                    element={(
+                      <AdminRoute name="WaitlistManagement">
+                        <WaitlistManagement />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/customization/agent"
+                    element={(
+                      <AdminRoute name="AgentCustomization">
+                        <AgentCustomization />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/customization/variants/:slug"
+                    element={(
+                      <AdminRoute name="VariantEditor">
+                        <VariantEditor />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/customization/variants/:variantSlug/sections/:sectionId"
+                    element={(
+                      <AdminRoute name="SectionEditor">
+                        <SectionEditor />
+                      </AdminRoute>
+                    )}
+                  />
 
-              {/* Credit System Routes */}
-              <Route
-                path="/admin/api-keys"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="APIKeysSettings">
-                      <APIKeysSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/tier-limits"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="TierLimitsSettings">
-                      <TierLimitsSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/app-limits"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AppLimitsSettings">
-                      <AppLimitsSettings />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/usage"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="UsageDashboard">
-                      <UsageDashboard />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Credit System Routes */}
+                  <Route
+                    path="/admin/api-keys"
+                    element={(
+                      <AdminRoute name="APIKeysSettings">
+                        <APIKeysSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/tier-limits"
+                    element={(
+                      <AdminRoute name="TierLimitsSettings">
+                        <TierLimitsSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/app-limits"
+                    element={(
+                      <AdminRoute name="AppLimitsSettings">
+                        <AppLimitsSettings />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/usage"
+                    element={(
+                      <AdminRoute name="UsageDashboard">
+                        <UsageDashboard />
+                      </AdminRoute>
+                    )}
+                  />
 
-              {/* Stub Pages */}
-              <Route
-                path="/admin/apps"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="AppsManagement">
-                      <AppsManagement />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/tiers"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="TiersManagement">
-                      <TiersManagement />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/accounts"
-                element={
-                  <ProtectedRoute>
-                    <ErrorBoundary level="route" name="UserAccounts">
-                      <UserAccounts />
-                    </ErrorBoundary>
-                  </ProtectedRoute>
-                }
-              />
+                  {/* Stub Pages */}
+                  <Route
+                    path="/admin/apps"
+                    element={(
+                      <AdminRoute name="AppsManagement">
+                        <AppsManagement />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/tiers"
+                    element={(
+                      <AdminRoute name="TiersManagement">
+                        <TiersManagement />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/accounts"
+                    element={(
+                      <AdminRoute name="UserAccounts">
+                        <UserAccounts />
+                      </AdminRoute>
+                    )}
+                  />
 
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
               </LandingVariantProvider>
             </UserAuthProvider>
           </AdminAuthProvider>

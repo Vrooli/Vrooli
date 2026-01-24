@@ -208,18 +208,18 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       <div
         className={`relative h-full overflow-visible rounded-3xl border p-8 pt-10 transition-all duration-300 ${
           highlight
-            ? 'border-[#F97316]/50 bg-gradient-to-b from-[#0F172A] via-[#0D162C] to-[#0B1326] text-white shadow-[0_30px_80px_-40px_rgba(249,115,22,0.45)]'
+            ? 'border-accent/50 bg-gradient-to-b from-surface-primary via-surface-deep to-surface-darker text-white shadow-[0_30px_80px_-40px_rgba(var(--color-accent),0.45)]'
             : 'border-slate-200 bg-white text-slate-900 hover:-translate-y-1 shadow-[0_20px_60px_-48px_rgba(0,0,0,0.4)]'
         }`}
         data-testid={`pricing-tier-${index}`}
       >
-        {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(249,115,22,0.12),transparent_32%)]" />}
+        {highlight && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(var(--color-accent),0.12),transparent_32%)]" />}
         {tier.badge && (
           <div
             className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full px-4 py-1 text-sm font-semibold ${
               highlight
-                ? 'bg-[#0F172A] text-white ring-2 ring-[#F97316]/40'
-                : 'bg-[#0F172A] text-white'
+                ? 'bg-surface-primary text-white ring-2 ring-accent/40'
+                : 'bg-surface-primary text-white'
             }`}
             style={{ zIndex: 5 }}
           >
@@ -231,7 +231,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <div className="space-y-2">
             <h3 className={`text-2xl font-bold ${highlight ? 'text-white' : 'text-slate-900'}`}>{tier.name}</h3>
             {tier.subtitle && (
-              <p className={`text-xs uppercase tracking-[0.3em] ${highlight ? 'text-[#F97316]' : 'text-slate-500'}`}>
+              <p className={`text-xs uppercase tracking-[0.3em] ${highlight ? 'text-accent' : 'text-slate-500'}`}>
                 {tier.subtitle}
               </p>
             )}
@@ -255,7 +255,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
           <ul className="space-y-3">
             {getTierFeatures(tier).map((feature, featureIndex) => (
               <li key={`${feature}-${featureIndex}`} className="flex items-start gap-3">
-                <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-[#10B981]' : 'text-[#F97316]'}`} />
+                <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${highlight ? 'text-success' : 'text-accent'}`} />
                 <span className={highlight ? 'text-slate-200' : 'text-slate-600'}>{feature}</span>
               </li>
             ))}
@@ -429,7 +429,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
   const featuredTier = paddedTiers.find((tier) => tier.highlighted) || paddedTiers[0];
 
   return (
-    <section className="bg-[#F6F5F2] py-24 text-slate-900">
+    <section className="bg-surface-alt py-24 text-slate-900">
       <div className="container mx-auto px-6">
         <div className="max-w-4xl space-y-4 text-left">
           <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Pricing</p>

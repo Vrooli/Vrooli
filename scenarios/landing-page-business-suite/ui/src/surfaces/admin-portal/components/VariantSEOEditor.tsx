@@ -1,6 +1,7 @@
 import { Save, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
+import { Textarea } from '../../../shared/ui/input';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import type { SiteBranding } from '../../../shared/api';
 import { useVariantSEOEditor } from '../hooks/useVariantSEOEditor';
@@ -97,7 +98,7 @@ export function VariantSEOEditor({
             <label className="block text-sm font-medium text-slate-300">
               Meta Description
             </label>
-            <textarea
+            <Textarea
               value={seoConfig.description || ''}
               onChange={(e) => updateField('description', e.target.value || undefined)}
               placeholder={siteBranding?.default_description || 'Use site default'}
@@ -128,7 +129,7 @@ export function VariantSEOEditor({
             <label className="block text-sm font-medium text-slate-300">
               Social Share Description
             </label>
-            <textarea
+            <Textarea
               value={seoConfig.og_description || ''}
               onChange={(e) => updateField('og_description', e.target.value || undefined)}
               placeholder="Same as meta description"

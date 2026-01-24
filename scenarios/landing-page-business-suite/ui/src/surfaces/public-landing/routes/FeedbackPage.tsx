@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft, WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
+import { Input, Textarea } from '../../../shared/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { InlineAlert } from '../../../shared/ui/InlineAlert';
 
 type FeedbackType = 'refund' | 'bug' | 'feature' | 'general';
 
@@ -146,6 +148,20 @@ export function FeedbackPage() {
   };
 
   const selectedType = feedbackTypes.find((t) => t.value === form.type);
+  const errorMeta = error
+    ? (() => {
+        switch (error.type) {
+          case 'network':
+            return { severity: 'warning' as const, title: 'Connection Issue' };
+          case 'server':
+            return { severity: 'error' as const, title: 'Server Error' };
+          case 'validation':
+            return { severity: 'error' as const, title: 'Submission Failed' };
+          default:
+            return { severity: 'error' as const, title: 'Submission Failed' };
+        }
+      })()
+    : null;
 
   if (submitted) {
     return (
@@ -179,14 +195,16 @@ export function FeedbackPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
       <div className="mx-auto max-w-3xl px-6 py-16 space-y-8">
         <div className="flex flex-col gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => navigate('/')}
-            className="self-start rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
+            className="self-start rounded-full border-white/10 text-xs uppercase tracking-[0.25em] text-slate-300 hover:border-white/30"
           >
-            <ArrowLeft className="mr-1 inline h-3 w-3" />
+            <ArrowLeft className="mr-1 h-3 w-3" />
             Back to home
-          </button>
+          </Button>
           <h1 className="text-4xl font-semibold leading-tight">Feedback & Support</h1>
           <p className="text-lg text-slate-300">
             We're always looking to improve. Let us know how we can help.
@@ -234,13 +252,14 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Email address <span className="text-rose-400">*</span>
                 </label>
-                <input
+                <Input
                   type="email"
+                  size="md"
                   required
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="you@example.com"
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
@@ -250,12 +269,13 @@ export function FeedbackPage() {
                   <label className="block text-sm font-medium text-slate-300">
                     Order or Subscription ID <span className="text-slate-500">(optional)</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
+                    size="md"
                     value={form.orderId}
                     onChange={(e) => setForm((f) => ({ ...f, orderId: e.target.value }))}
                     placeholder="sub_xxxxx or cs_xxxxx"
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     You can find this in your Stripe receipt email or billing portal.
@@ -268,8 +288,9 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Subject <span className="text-rose-400">*</span>
                 </label>
-                <input
+                <Input
                   type="text"
+                  size="md"
                   required
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
@@ -282,7 +303,7 @@ export function FeedbackPage() {
                           ? 'Feature idea: Your suggestion'
                           : 'How can we help?'
                   }
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
@@ -291,8 +312,9 @@ export function FeedbackPage() {
                 <label className="block text-sm font-medium text-slate-300">
                   Message <span className="text-rose-400">*</span>
                 </label>
-                <textarea
+                <Textarea
                   required
+                  size="md"
                   rows={5}
                   value={form.message}
                   onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
@@ -305,68 +327,19 @@ export function FeedbackPage() {
                           ? 'Describe your feature idea and how it would help you.'
                           : 'Share your thoughts, questions, or suggestions.'
                   }
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-slate-900/70 px-4 py-3 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 resize-none"
+                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
-              {error && (
-                <div className={`rounded-lg border p-4 ${
-                  error.type === 'network'
-                    ? 'border-amber-500/30 bg-amber-500/10'
-                    : error.type === 'server'
-                      ? 'border-orange-500/30 bg-orange-500/10'
-                      : 'border-rose-500/30 bg-rose-500/10'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    {error.type === 'network' ? (
-                      <WifiOff className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                        error.type === 'server' ? 'text-orange-400' : 'text-rose-400'
-                      }`} />
-                    )}
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        error.type === 'network'
-                          ? 'text-amber-300'
-                          : error.type === 'server'
-                            ? 'text-orange-300'
-                            : 'text-rose-300'
-                      }`}>
-                        {error.type === 'network'
-                          ? 'Connection Issue'
-                          : error.type === 'server'
-                            ? 'Server Error'
-                            : 'Submission Failed'}
-                      </p>
-                      <p className={`text-sm mt-1 ${
-                        error.type === 'network'
-                          ? 'text-amber-200/80'
-                          : error.type === 'server'
-                            ? 'text-orange-200/80'
-                            : 'text-rose-200/80'
-                      }`}>
-                        {error.message}
-                      </p>
-                      {error.retryable && (
-                        <button
-                          type="button"
-                          onClick={handleRetry}
-                          className={`mt-2 inline-flex items-center gap-1 text-xs underline underline-offset-2 ${
-                            error.type === 'network'
-                              ? 'text-amber-300 hover:text-amber-200'
-                              : error.type === 'server'
-                                ? 'text-orange-300 hover:text-orange-200'
-                                : 'text-rose-300 hover:text-rose-200'
-                          }`}
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                          Retry
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              {error && errorMeta && (
+                <InlineAlert
+                  severity={errorMeta.severity}
+                  title={errorMeta.title}
+                  message={error.message}
+                  retryable={error.retryable}
+                  onRetry={error.retryable ? handleRetry : undefined}
+                  dismissible={false}
+                />
               )}
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
