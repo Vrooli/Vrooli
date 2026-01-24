@@ -542,6 +542,24 @@
       "draft": false,
       "createdAt": "2025-01-15T00:00:00Z",
       "updatedAt": "2025-01-21T00:00:00Z"
+    },
+    {
+      "id": "skill-authoring",
+      "file": "skill-authoring.md",
+      "name": "Skill Authoring",
+      "description": "Guide for creating and updating skills that steer AI agents effectively",
+      "modes": [
+        "Steer",
+        "Meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "FileEdit",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-23T00:00:00Z",
+      "updatedAt": "2026-01-23T00:00:00Z"
     }
   ]
 }

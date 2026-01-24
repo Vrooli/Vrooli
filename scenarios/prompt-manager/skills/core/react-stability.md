@@ -187,7 +187,42 @@ The following rules exist because **UI crashes are the #1 production issue**. Th
 
 ---
 
-### **1. Error Boundaries: Strategic Placement**
+### **1. Layered Architecture (Strongly Recommended)**
+
+Structure React applications with clear layers to create **natural testing seams** and ensure **validation happens at the right boundary**:
+
+```
+Components (Pure rendering - receives validated data, no logic)
+    ↓
+Hooks (React state management - calls controllers, handles UI state)
+    ↓
+Controllers (Page-specific orchestration - coordinates services)
+    ↓
+Services (Pure functions & API calls - handles validation, returns typed data)
+```
+
+**Why this pattern:**
+- **Testing seams**: Each layer can be tested in isolation. Components test rendering, hooks test state transitions, controllers test orchestration, services test data transformation.
+- **Validation boundary**: Runtime validation (Zod) happens in the Service layer at the API boundary - once validated, data flows up as trusted types.
+- **Separation of concerns**: UI rendering is decoupled from data fetching and business logic.
+- **Customization without degradation**: You can swap out or customize any layer without breaking others.
+
+**Layer responsibilities:**
+
+| Layer | Responsibility | Tests |
+|-------|---------------|-------|
+| **Components** | Pure rendering, props → JSX | Snapshot/visual tests |
+| **Hooks** | UI state, context, call controllers | Hook unit tests |
+| **Controllers** | Orchestrate services, page-level logic | Integration tests |
+| **Services** | API calls, data transform, **runtime validation** | Unit tests, contract tests |
+
+**Key principle:** Components should never see invalid data. Validation failures are caught in the Service layer and surfaced as typed error states that the UI can handle gracefully.
+
+This pattern is **strongly recommended** for all React scenarios in Vrooli. The exact directory structure may vary (e.g., `src/services/`, `src/hooks/`, etc.), but the layer separation should be maintained.
+
+---
+
+### **2. Error Boundaries: Strategic Placement**
 
 * Verify that **Error Boundaries** wrap major UI sections so that failures are isolated rather than cascading:
   * route-level views or pages
@@ -207,7 +242,7 @@ The following rules exist because **UI crashes are the #1 production issue**. Th
 
 ---
 
-### **2. Defensive Data Access**
+### **3. Defensive Data Access**
 
 Audit components for **unsafe assumptions about data shape**:
 
@@ -232,11 +267,11 @@ Audit components for **unsafe assumptions about data shape**:
 
 ---
 
-### **3. Hook Discipline (Critical)**
+### **4. Hook Discipline (Critical)**
 
 React hooks have strict rules that, when violated, cause runtime crashes. **This section covers bugs that ESLint catches automatically (Section 0) plus manual detection for edge cases.**
 
-#### **3.1 Rules of Hooks Violations (React Error #310)**
+#### **4.1 Rules of Hooks Violations (React Error #310)**
 
 React Error #310 ("Rendered fewer hooks than expected") occurs when the **number of hooks changes between renders**. This is a **guaranteed crash** - no error boundary can catch it.
 
@@ -299,7 +334,7 @@ function MessageList({ messages }) {
 3. **Verify NO hooks appear after ANY early return**
 4. If hooks appear after early returns → MOVE the early return after all hooks
 
-#### **3.2 useMemo / useCallback Hygiene**
+#### **4.2 useMemo / useCallback Hygiene**
 
 * `useMemo` must be pure; no side effects, no state updates inside
 * Return stable references; avoid returning new objects/arrays if inputs haven't changed
@@ -317,19 +352,19 @@ function MessageList({ messages }) {
   ```
 * Avoid complex logic that could throw; wrap in try/catch if necessary
 
-#### **3.3 useEffect Correctness**
+#### **4.3 useEffect Correctness**
 
 * Always provide proper cleanup functions for subscriptions, timers, event listeners
 * Avoid stale closure bugs by ensuring dependency arrays are complete
 * Never omit dependencies to "make it work"; fix the underlying issue instead
 
-#### **3.4 Dependency Stability**
+#### **4.4 Dependency Stability**
 
 * Avoid creating objects, arrays, or functions inline in render if they're used as hook dependencies
 * Extract stable references using `useMemo`, `useCallback`, or move definitions outside the component
 * The `exhaustive-deps` ESLint rule catches most of these issues automatically
 
-#### **3.5 State Updates During Render**
+#### **4.5 State Updates During Render**
 
 * Never call `setState` directly in the render body (causes infinite loops)
 * Side effects belong in `useEffect`, not in render
@@ -337,7 +372,7 @@ function MessageList({ messages }) {
 
 ---
 
-### **4. TypeScript Strictness**
+### **5. TypeScript Strictness**
 
 Verify TypeScript configuration provides adequate safety:
 
@@ -350,7 +385,7 @@ Do not force `noUncheckedIndexedAccess` if it causes excessive churn; document i
 
 ---
 
-### **5. Component State Management**
+### **6. Component State Management**
 
 Ensure components explicitly handle all states of async data:
 
@@ -366,25 +401,82 @@ Ensure components explicitly handle all states of async data:
 
 ---
 
-### **6. Optional: Zod Validation at High-Risk Boundaries**
+### **7. Runtime Validation with Protobuf + Zod (Recommended)**
 
-Where runtime crashes are frequent due to unexpected data shapes, consider adding **Zod schemas** at critical boundaries:
+TypeScript types are erased at runtime - they cannot catch API shape mismatches, null values in unexpected places, or data corruption. For production reliability, use **runtime validation at system boundaries**.
 
-* **When to use Zod:**
-  * API responses that have caused crashes in the past
-  * Data from untrusted sources (user input, external integrations)
-  * Complex transformation pipelines where shape assumptions are fragile
+#### **7.1 The Type Safety Chain**
 
-* **When NOT to use:**
-  * Every API call (overhead without benefit)
-  * Internal data flows with strong TypeScript coverage
-  * Simple, well-typed data structures
+```
+Proto Definitions (packages/proto/schemas/)
+    ↓ code generation
+Generated TS Types (@vrooli/proto-types)
+    ↓ derive validation schemas
+Zod Schemas (ui/src/shared/api/schemas/)
+    ↓ runtime validation in services
+Validated Data → Components
+```
 
-This is **optional and targeted**; do not introduce Zod everywhere.
+**Why this chain:**
+- **Proto definitions** are the source of truth for API contracts (see `packages/proto/README.md`)
+- **Generated types** provide compile-time safety
+- **Zod schemas** provide runtime validation at the service layer
+- Once data passes Zod validation, it flows up as trusted typed data
+
+#### **7.2 When to Validate**
+
+| Boundary | Validate? | Why |
+|----------|-----------|-----|
+| API responses | **YES** | External data, contract may drift |
+| WebSocket messages | **YES** | External data, parsing may fail |
+| User input | **YES** | Never trust user input |
+| Internal service calls | No | Already validated at entry |
+| Component props | No | Data validated before reaching components |
+
+**Key principle:** Validate once at the system boundary (in Services), then trust the data as it flows through the application.
+
+#### **7.3 Validation Pattern**
+
+Services should return a discriminated union that makes validation failures explicit:
+
+```typescript
+// In your service layer
+import { z } from 'zod';
+
+const PlanSchema = z.object({
+  plan_name: z.string(),
+  plan_tier: z.string(),
+  billing_interval: z.enum(['month', 'year', 'one_time']),
+  // ... derived from proto types
+});
+
+type ParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+export function fetchPlan(id: string): Promise<ParseResult<Plan>> {
+  // Fetch, validate, return typed result or error
+}
+```
+
+This pattern:
+- Makes validation failures **explicit** rather than crashing
+- Lets components handle errors gracefully with error UI
+- Keeps validation logic **centralized** in services
+
+#### **7.4 Proto Integration**
+
+When creating or modifying API contracts:
+1. Define the schema in `packages/proto/schemas/` (see `packages/proto/README.md` for guidance)
+2. Run `cd packages/proto && make generate` to regenerate types
+3. Create corresponding Zod schemas that mirror the proto structure
+4. Use the generated TS types for compile-time safety, Zod for runtime validation
+
+**Note:** Zod schemas should mirror proto types closely. If the proto has `optional string field`, the Zod schema should use `z.string().optional()`. This keeps the validation contract aligned with the API contract.
 
 ---
 
-### **7. Memory Management with Visited Tracker**
+### **8. Memory Management with Visited Tracker**
 
 To ensure **systematic coverage without repetition**, use `visited-tracker`:
 
@@ -433,7 +525,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **8. Maintain Scenario Constraints**
+### **9. Maintain Scenario Constraints**
 
 * Do **not** change the scenario's core workflows, APIs, or business logic
 * Do **not** introduce new features unrelated to React stability
@@ -442,7 +534,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **9. Output Expectations**
+### **10. Output Expectations**
 
 You may update:
 * Error boundary placement and fallback UIs
