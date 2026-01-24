@@ -17,6 +17,7 @@ import {
   Plus,
   ChevronLeft,
   Construction,
+  RefreshCw,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -44,6 +45,8 @@ interface SkillSelectorProps {
   selectedSkillIds: string[];
   onToggle: (skillId: string) => void;
   onSkillCreated?: () => void; // Callback when a new skill is created
+  onSyncSkills?: () => Promise<unknown>; // Callback to sync skills from prompt-manager
+  isSyncing?: boolean; // Whether skills are currently being synced
 }
 
 export function SkillSelector({
@@ -53,6 +56,8 @@ export function SkillSelector({
   selectedSkillIds,
   onToggle,
   onSkillCreated,
+  onSyncSkills,
+  isSyncing = false,
 }: SkillSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(-1); // -1 = search focused
@@ -333,13 +338,25 @@ export function SkillSelector({
               </span>
             )}
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            title="Create new skill"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onSyncSkills && (
+              <button
+                onClick={onSyncSkills}
+                disabled={isSyncing}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+                title="Sync skills from prompt-manager"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              title="Create new skill"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </DialogHeader>
 
         <DialogBody className="space-y-4" onKeyDown={handleKeyDown}>
@@ -399,7 +416,25 @@ export function SkillSelector({
           <div className="space-y-4 max-h-[400px] overflow-y-auto" role="listbox" aria-multiselectable="true">
             {displaySkills.length === 0 && submodes.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
-                {searchQuery.trim() ? "No skills found" : "No skills at this level"}
+                {searchQuery.trim() ? (
+                  "No skills found"
+                ) : skills.length === 0 ? (
+                  <div className="space-y-2">
+                    <p>No skills available</p>
+                    {onSyncSkills && (
+                      <button
+                        onClick={onSyncSkills}
+                        disabled={isSyncing}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                        {isSyncing ? "Syncing..." : "Sync from prompt-manager"}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  "No skills at this level"
+                )}
               </div>
             ) : (
               Array.from(skillsByCategory.entries()).map(([category, categorySkills]) => (

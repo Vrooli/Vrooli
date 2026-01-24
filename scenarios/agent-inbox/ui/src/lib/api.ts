@@ -2144,3 +2144,33 @@ export async function exportSkills(): Promise<Skill[]> {
 
   return res.json();
 }
+
+/**
+ * Sync status response from the server.
+ */
+export interface SyncStatus {
+  success: boolean;
+  skillCount: number;
+  localCount: number;
+  hash: string;
+  error?: string;
+}
+
+/**
+ * Trigger an immediate sync of skills from prompt-manager.
+ * This fetches the latest skills and updates the local cache.
+ */
+export async function syncSkills(): Promise<SyncStatus> {
+  const url = buildApiUrl("/skills/sync", { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to sync skills: ${res.status}`);
+  }
+
+  return res.json();
+}

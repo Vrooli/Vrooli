@@ -151,6 +151,7 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/skills", h.CreateSkill).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/import", h.ImportSkills).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/export", h.ExportSkills).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/skills/sync", h.SyncSkills).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.GetSkill).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.UpdateSkill).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.DeleteSkill).Methods("DELETE", "OPTIONS")

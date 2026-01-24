@@ -31,6 +31,8 @@ interface SkillsSettingsTabProps {
   onDeleteSkill: (skillId: string) => Promise<void>;
   onResetSkill: (skillId: string) => Promise<void>;
   isLoading?: boolean;
+  onSyncSkills?: () => Promise<unknown>; // Callback to sync skills from prompt-manager
+  isSyncing?: boolean; // Whether skills are currently being synced
 }
 
 function getSourceBadge(source: SkillWithSource["source"]) {
@@ -62,6 +64,8 @@ export function SkillsSettingsTab({
   onDeleteSkill,
   onResetSkill,
   isLoading,
+  onSyncSkills,
+  isSyncing = false,
 }: SkillsSettingsTabProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -189,17 +193,32 @@ export function SkillsSettingsTab({
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium text-slate-300">
             Skills ({skills.length})
-            {isLoading && (
-              <span className="ml-2 text-xs text-slate-500">Loading...</span>
+            {(isLoading || isSyncing) && (
+              <span className="ml-2 text-xs text-slate-500">
+                {isSyncing ? "Syncing..." : "Loading..."}
+              </span>
             )}
           </h3>
-          <button
-            onClick={() => onEditSkill(null)}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
-          >
-            <Plus className="h-3 w-3" />
-            New Skill
-          </button>
+          <div className="flex items-center gap-2">
+            {onSyncSkills && (
+              <button
+                onClick={onSyncSkills}
+                disabled={isSyncing}
+                className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-white rounded transition-colors disabled:opacity-50"
+                title="Sync skills from prompt-manager"
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncing ? "animate-spin" : ""}`} />
+                Sync
+              </button>
+            )}
+            <button
+              onClick={() => onEditSkill(null)}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors"
+            >
+              <Plus className="h-3 w-3" />
+              New Skill
+            </button>
+          </div>
         </div>
 
         {/* Search */}
@@ -267,9 +286,27 @@ export function SkillsSettingsTab({
           )}
 
           {filteredSkills.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-4">
-              {isLoading ? "Loading skills..." : "No skills found"}
-            </p>
+            <div className="text-sm text-slate-500 text-center py-4">
+              {isLoading || isSyncing ? (
+                isSyncing ? "Syncing skills..." : "Loading skills..."
+              ) : searchQuery ? (
+                "No skills found"
+              ) : (
+                <div className="space-y-2">
+                  <p>No skills available</p>
+                  {onSyncSkills && (
+                    <button
+                      onClick={onSyncSkills}
+                      disabled={isSyncing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                      Sync from prompt-manager
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </section>

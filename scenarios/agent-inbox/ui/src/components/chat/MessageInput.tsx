@@ -157,6 +157,8 @@ export function MessageInput({
   const {
     templates,
     skills,
+    skillsLoading,
+    syncSkills,
     activeTemplate,
     setActiveTemplate,
     updateTemplateVariables,
@@ -903,6 +905,8 @@ export function MessageInput({
         skills={skills}
         selectedSkillIds={selectedSkillIds}
         onToggle={toggleSkill}
+        onSyncSkills={syncSkills}
+        isSyncing={skillsLoading}
       />
 
       {/* Tool Selector Modal */}

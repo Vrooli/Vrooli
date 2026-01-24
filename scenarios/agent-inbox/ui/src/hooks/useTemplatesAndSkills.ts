@@ -23,7 +23,7 @@ import {
   migrateLegacyTemplates,
   hasLegacyData,
 } from "@/data/templates";
-import { getAllSkills, invalidateSkillsCache } from "@/data/skills";
+import { getAllSkills, invalidateSkillsCache, syncSkills as dataSyncSkills } from "@/data/skills";
 import type {
   ActiveTemplate,
   Skill,
@@ -43,8 +43,9 @@ export interface UseTemplatesAndSkillsReturn {
   skillsLoading: boolean;
   error: string | null;
 
-  // Skills refresh
+  // Skills sync and refresh
   refreshSkills: () => Promise<void>;
+  syncSkills: () => Promise<{ success: boolean; skillCount: number; error?: string }>;
 
   // Template state
   activeTemplate: ActiveTemplate | null;
@@ -206,6 +207,32 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
       setSkills(loaded);
     } catch (err) {
       console.error("Failed to refresh skills:", err);
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, []);
+
+  // Sync skills from prompt-manager
+  const syncSkills = useCallback(async () => {
+    setSkillsLoading(true);
+
+    try {
+      const result = await dataSyncSkills();
+      // After sync, refresh the skills list
+      const loaded = await getAllSkills();
+      setSkills(loaded);
+      return {
+        success: result.success,
+        skillCount: result.skillCount,
+        error: result.error,
+      };
+    } catch (err) {
+      console.error("Failed to sync skills:", err);
+      return {
+        success: false,
+        skillCount: 0,
+        error: err instanceof Error ? err.message : "Unknown error",
+      };
     } finally {
       setSkillsLoading(false);
     }
@@ -601,8 +628,9 @@ export function useTemplatesAndSkills(): UseTemplatesAndSkillsReturn {
     skillsLoading,
     error,
 
-    // Skills refresh
+    // Skills sync and refresh
     refreshSkills,
+    syncSkills,
 
     // Template state
     activeTemplate,

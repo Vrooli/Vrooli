@@ -40,32 +40,65 @@ func (h *Handlers) GetSkill(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, result, http.StatusOK)
 }
 
-// CreateSkill creates a new user skill.
+// CreateSkill creates a new skill in prompt-manager.
 // POST /api/v1/skills
 func (h *Handlers) CreateSkill(w http.ResponseWriter, r *http.Request) {
-	var sk services.Skill
-	if err := json.NewDecoder(r.Body).Decode(&sk); err != nil {
+	var req services.CreateSkillRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.JSONError(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
-	if sk.Name == "" {
+	if req.Name == "" {
 		h.JSONError(w, "name is required", http.StatusBadRequest)
 		return
 	}
-	if sk.Content == "" {
+	if req.Content == "" {
 		h.JSONError(w, "content is required", http.StatusBadRequest)
 		return
 	}
 
-	result, err := h.Skills.CreateSkill(&sk)
+	// Default to local folder if not specified
+	if req.Folder == "" {
+		req.Folder = "local"
+	}
+
+	// Try to create in prompt-manager first
+	result, err := h.Skills.CreateSkillInPromptManager(&req)
 	if err != nil {
-		h.JSONError(w, err.Error(), http.StatusBadRequest)
-		return
+		// Fall back to local creation if prompt-manager is unavailable
+		sk := &services.Skill{
+			Name:         req.Name,
+			Description:  req.Description,
+			Content:      req.Content,
+			Modes:        req.Modes,
+			Tags:         req.Tags,
+			Icon:         req.Icon,
+			Draft:        req.Draft,
+			TargetToolID: req.TargetToolID,
+		}
+		result, err = h.Skills.CreateSkill(sk)
+		if err != nil {
+			h.JSONError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	h.JSONResponse(w, result, http.StatusCreated)
+}
+
+// SyncSkills triggers an immediate sync from prompt-manager.
+// POST /api/v1/skills/sync
+func (h *Handlers) SyncSkills(w http.ResponseWriter, r *http.Request) {
+	status, err := h.Skills.TriggerSync()
+	if err != nil {
+		// Return the status even on error - it contains useful info
+		h.JSONResponse(w, status, http.StatusOK)
+		return
+	}
+
+	h.JSONResponse(w, status, http.StatusOK)
 }
 
 // UpdateSkill updates an existing skill.

@@ -44,6 +44,7 @@ import {
   createSkill as createSkillFromAPI,
   updateSkill as updateSkillFromAPI,
   invalidateSkillsCache,
+  syncSkills as syncSkillsFromAPI,
 } from "../../data/skills";
 import {
   updateDefaultSkill as updateDefaultSkillFromAPI,
@@ -178,6 +179,7 @@ export function Settings({
   // Skills state - refresh when tab changes to skills
   const [skills, setSkills] = useState<SkillWithSource[]>([]);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+  const [isSyncingSkills, setIsSyncingSkills] = useState(false);
   const [editingSkill, setEditingSkill] = useState<SkillWithSource | null>(null);
   const [isCreatingSkill, setIsCreatingSkill] = useState(false);
 
@@ -229,6 +231,17 @@ export function Settings({
     await resetSkillFromAPI(skillId);
     const updated = await getAllSkills();
     setSkills(updated);
+  }, []);
+
+  const handleSyncSkills = useCallback(async () => {
+    setIsSyncingSkills(true);
+    try {
+      await syncSkillsFromAPI();
+      const updated = await getAllSkills();
+      setSkills(updated);
+    } finally {
+      setIsSyncingSkills(false);
+    }
   }, []);
 
   const handleEditSkill = useCallback((skill: SkillWithSource | null) => {
@@ -557,6 +570,8 @@ export function Settings({
               onDeleteSkill={handleDeleteSkill}
               onResetSkill={handleResetSkill}
               isLoading={isLoadingSkills}
+              onSyncSkills={handleSyncSkills}
+              isSyncing={isSyncingSkills}
             />
           </TabsContent>
 
