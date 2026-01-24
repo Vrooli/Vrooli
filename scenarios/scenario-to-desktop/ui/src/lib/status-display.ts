@@ -89,8 +89,9 @@ export function getStageStatusDisplay(
 ): StatusDisplayConfig {
   const s = (status as StageStatus) || "pending";
   const base = STAGE_STATUS_CONFIG[s] ?? STAGE_STATUS_CONFIG.pending;
-  if (labels?.[s]) {
-    return { ...base, label: labels[s]! };
+  const customLabel = labels?.[s];
+  if (customLabel) {
+    return { ...base, label: customLabel };
   }
   return base;
 }

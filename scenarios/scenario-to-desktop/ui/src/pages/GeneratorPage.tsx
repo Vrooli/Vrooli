@@ -50,10 +50,6 @@ export function GeneratorPage({
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
   const setPipelineScenario = usePipelineStore((s) => s.setScenario);
   const [wrapperReady, setWrapperReady] = useState(false);
-  const [generateState, setGenerateState] = useState<{ pending: boolean; error: string | null }>({
-    pending: false,
-    error: null,
-  });
   // State shared between ConfigurationSection and PreflightSection
   const [formState, setFormState] = useState<ExposedFormState>({
     bundleManifestPath: "",
@@ -110,12 +106,14 @@ export function GeneratorPage({
       ];
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const ref = sectionRefs[sectionIds[i]];
+        const sectionId = sectionIds[i];
+        if (!sectionId) continue;
+        const ref = sectionRefs[sectionId];
         if (ref.current) {
           const rect = ref.current.getBoundingClientRect();
           const offsetTop = rect.top + window.scrollY;
           if (scrollPosition >= offsetTop) {
-            setActiveSection(sectionIds[i]);
+            setActiveSection(sectionId);
             break;
           }
         }
@@ -146,7 +144,6 @@ export function GeneratorPage({
           onOpenSigningTab={onOpenSigningTab}
           formId="generator-form"
           showSubmit={true}
-          onGenerateStateChange={setGenerateState}
           onFormStateChange={handleFormStateChange}
         />
 

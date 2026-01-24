@@ -6,7 +6,7 @@ import { ScenarioInventory } from "./components/scenario-inventory";
 import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
 import { DistributionPage } from "./components/distribution";
-import { SpawnAgentButton } from "./components/SpawnAgentButton";
+import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
 import { getPipelineStatus } from "./lib/api";
 import type { FormState, SmokeTestStageDetails } from "./lib/api";
@@ -15,7 +15,7 @@ import { mapPipelineToUiStatus, type UiBuildStatus } from "./domain/build";
 import { useUrlState, type ViewMode } from "./hooks/useUrlState";
 import { loadGeneratorAppState, saveGeneratorAppState } from "./lib/draftStorage";
 import { cn } from "./lib/utils";
-import { RecordsManager } from "./components/RecordsManager";
+import { RecordsManager } from "./components/scenario-inventory/RecordsManager";
 import { useScenarioState } from "./hooks";
 
 const queryClient = new QueryClient({

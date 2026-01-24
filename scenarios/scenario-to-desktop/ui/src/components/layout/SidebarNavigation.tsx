@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   XCircle,
   Circle,
-  Settings,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {

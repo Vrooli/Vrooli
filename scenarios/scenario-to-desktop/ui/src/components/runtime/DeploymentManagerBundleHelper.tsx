@@ -1,10 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { usePipelineStore, selectIsRunning } from "../store";
-import type { BundleStageDetails } from "../lib/api";
-import { Button } from "./ui/button";
-import { Label } from "./ui/label";
-import { Progress } from "./ui/progress";
-import { Select } from "./ui/select";
+import { usePipelineStore, selectIsRunning } from "../../store";
+import type { BundleStageDetails } from "../../lib/api";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
+import { Progress } from "../ui/progress";
+import { Select } from "../ui/select";
 import { AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 
 export type DeploymentManagerBundleHelperHandle = {

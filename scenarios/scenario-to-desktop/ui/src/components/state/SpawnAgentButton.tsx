@@ -18,12 +18,12 @@ import {
   Package,
   ChevronDown,
 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Alert } from "./ui/alert";
-import { SelectableCard, CompactSelectableCard, type SelectableCardConfig } from "./ui/selectable-card";
-import { usePipelineInvestigation } from "../hooks/useInvestigation";
-import { createTask } from "../lib/api";
-import type { CreateTaskRequest } from "../types/investigation";
+import { Button } from "../ui/button";
+import { Alert } from "../ui/alert";
+import { SelectableCard, CompactSelectableCard, type SelectableCardConfig } from "../ui/selectable-card";
+import { usePipelineInvestigation } from "../../hooks/useInvestigation";
+import { createTask } from "../../lib/api";
+import type { CreateTaskRequest } from "../../types/investigation";
 
 // Task type configurations
 const TASK_TYPES: SelectableCardConfig[] = [

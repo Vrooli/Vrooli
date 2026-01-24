@@ -78,7 +78,7 @@ export function PendingChangesAlert({
           </h4>
           <p className="mt-1 text-xs text-yellow-300/80">
             The following changes may invalidate cached results from{" "}
-            <span className="font-medium">{stageLabels[earliestStage] || earliestStage}</span>{" "}
+            <span className="font-medium">{(earliestStage && stageLabels[earliestStage]) || earliestStage || "this stage"}</span>{" "}
             onward:
           </p>
 

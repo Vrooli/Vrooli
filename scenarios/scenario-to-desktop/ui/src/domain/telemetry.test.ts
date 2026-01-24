@@ -201,7 +201,7 @@ describe("telemetry domain", () => {
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings!.some((w) => w.includes("Non-standard"))).toBe(true);
+      expect(result.warnings?.some((w) => w.includes("Non-standard"))).toBe(true);
     });
   });
 

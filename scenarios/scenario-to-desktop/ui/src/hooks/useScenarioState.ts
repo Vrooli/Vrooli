@@ -235,7 +235,7 @@ export function useScenarioState({
         // Update local form state with any updates
         if (variables.formStateUpdates) {
           setLocalFormState((prev) =>
-            prev ? { ...prev, ...variables.formStateUpdates } : variables.formStateUpdates!
+            prev ? { ...prev, ...variables.formStateUpdates } : variables.formStateUpdates ?? null
           );
         }
         setLocalHash(response.hash || null);

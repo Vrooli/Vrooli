@@ -28,7 +28,6 @@ export function BuildDesktopButton({ scenarioName }: BuildDesktopButtonProps) {
 
   // Wine check for Windows builds on Linux
   const {
-    wineCheck,
     showWineDialog,
     setShowWineDialog,
     pendingPlatforms,

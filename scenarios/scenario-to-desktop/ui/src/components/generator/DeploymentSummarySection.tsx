@@ -1,5 +1,5 @@
-import { Button } from "./ui/button";
-import { findDeploymentOption, findServerTypeOption, type DeploymentMode, type ServerType } from "../domain/deployment";
+import { Button } from "../ui/button";
+import { findDeploymentOption, findServerTypeOption, type DeploymentMode, type ServerType } from "../../domain/deployment";
 
 interface DeploymentSummarySectionProps {
   deploymentMode: DeploymentMode;

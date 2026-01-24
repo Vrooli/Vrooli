@@ -3,15 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getPipelineStatus,
   type BuildStatus as BuildStatusType,
-} from "../lib/api";
+} from "../../lib/api";
 import {
-  BUILD_STAGES,
   calculateBuildProgress,
   getBuildStageStatuses,
   pipelineStatusToBuildStatus,
-} from "../domain/build";
-import { Badge } from "./ui/badge";
-import { Progress } from "./ui/progress";
+} from "../../domain/build";
+import { Badge } from "../ui/badge";
+import { Progress } from "../ui/progress";
 import { CheckCircle, Loader2 } from "lucide-react";
 
 interface BuildStatusProps {

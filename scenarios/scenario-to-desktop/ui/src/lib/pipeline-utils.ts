@@ -56,7 +56,7 @@ const STRUCTURED_LOG_PATTERN = /^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)
  */
 export function parseLogEntry(raw: string): ParsedLogEntry {
   const match = raw.match(STRUCTURED_LOG_PATTERN);
-  if (match) {
+  if (match && match[1] && match[2] && match[3]) {
     return {
       timestamp: match[1],
       level: match[2] as LogLevel,
@@ -143,14 +143,14 @@ export function getLatestSignificantLog(logs: ParsedLogEntry[]): ParsedLogEntry 
 
   // Look for errors first
   const errors = logs.filter((l) => l.level === "ERROR");
-  if (errors.length > 0) return errors[errors.length - 1];
+  if (errors.length > 0) return errors[errors.length - 1] ?? null;
 
   // Then warnings
   const warnings = logs.filter((l) => l.level === "WARN");
-  if (warnings.length > 0) return warnings[warnings.length - 1];
+  if (warnings.length > 0) return warnings[warnings.length - 1] ?? null;
 
   // Otherwise return the most recent entry
-  return logs[logs.length - 1];
+  return logs[logs.length - 1] ?? null;
 }
 
 // ============================================================================

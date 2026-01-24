@@ -26,10 +26,36 @@ export {
 } from "./usePipelineButton";
 export { useGeneratorModals, type ModalStates, type UseGeneratorModalsReturn } from "./useGeneratorModals";
 export {
-  useGeneratorFormState,
-  type AppMetadata,
-  type DeploymentState,
-  type OutputState,
-  type ConnectionState,
-  type UseGeneratorFormStateReturn,
-} from "./useGeneratorFormState";
+  useGeneratorPage,
+  type UseGeneratorPageProps,
+  type UseGeneratorPageReturn,
+} from "./useGeneratorPage";
+export {
+  usePreflightSection,
+  type UsePreflightSectionProps,
+  type UsePreflightSectionReturn,
+  type PreflightStepStatuses,
+} from "./usePreflightSection";
+export {
+  useSigningPage,
+  type UseSigningPageProps,
+  type UseSigningPageReturn,
+} from "./useSigningPage";
+
+// New micro-hooks for decomposed architecture
+export {
+  useFormState,
+  type UseFormStateProps,
+  type UseFormStateReturn,
+} from "./useFormState";
+export {
+  usePipelineActions,
+  type UsePipelineActionsProps,
+  type UsePipelineActionsReturn,
+} from "./usePipelineActions";
+export {
+  useScenarioSync,
+  type UseScenarioSyncProps,
+  type UseScenarioSyncReturn,
+  type PreflightSeed,
+} from "./useScenarioSync";

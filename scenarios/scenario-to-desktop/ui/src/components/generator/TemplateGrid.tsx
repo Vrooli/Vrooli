@@ -1,9 +1,9 @@
 import { useMemo, useState, type ComponentType } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Aperture, LayoutTemplate, PanelsTopLeft, ShieldCheck, Sparkles } from "lucide-react";
-import { fetchTemplates, type TemplateInfo } from "../lib/api";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { fetchTemplates, type TemplateInfo } from "../../lib/api";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 
 interface TemplateGridProps {
   selectedTemplate: string;
@@ -204,8 +204,11 @@ interface TemplateCardProps {
 }
 
 function TemplateCard({ template, selected, onSelect }: TemplateCardProps) {
-  const visual = visuals[template.type] || visuals.basic;
-  const tagline = visual.tagline || template.use_cases?.[0];
+  const visual = visuals[template.type] ?? visuals.basic;
+  if (!visual) {
+    return null; // Should never happen, but makes TypeScript happy
+  }
+  const tagline = visual.tagline ?? template.use_cases?.[0];
 
   return (
     <button

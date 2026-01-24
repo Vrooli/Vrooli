@@ -8,6 +8,8 @@ import type { LucideIcon } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { cn } from "../../../lib/utils";
 import type { StatusDisplayConfig } from "../../../lib/status-display";
+import { PipelineErrorRecovery } from "../../pipeline/PipelineErrorDisplay";
+import type { PipelineErrorInfo } from "../../../store/pipelineTypes";
 
 interface StageStatusOverviewProps {
   icon: LucideIcon;
@@ -73,12 +75,31 @@ export function StagePlaceholder({
 interface StageErrorProps {
   stageName: string;
   children?: ReactNode;
+  /** Structured error info with recovery suggestions */
+  errorInfo?: PipelineErrorInfo | null;
+  /** Callback when retry button is clicked */
+  onRetry?: () => void;
+  /** Callback when dismiss button is clicked */
+  onDismiss?: () => void;
 }
 
 /**
  * Error state shown when stage has failed.
+ * Supports both simple error messages and structured error recovery.
  */
-export function StageError({ stageName, children }: StageErrorProps) {
+export function StageError({ stageName, children, errorInfo, onRetry, onDismiss }: StageErrorProps) {
+  // Use enhanced error recovery component when error info is available
+  if (errorInfo) {
+    return (
+      <PipelineErrorRecovery
+        errorInfo={errorInfo}
+        onRetry={onRetry}
+        onDismiss={onDismiss}
+      />
+    );
+  }
+
+  // Fallback to simple error display
   return (
     <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4">
       <p className="text-sm text-red-300">

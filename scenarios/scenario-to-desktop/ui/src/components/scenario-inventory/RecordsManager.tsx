@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { Folder, RefreshCw, MoveRight, AlertCircle, CheckCircle2, Trash2, MoreVertical } from "lucide-react";
-import type { DesktopRecordResponse, SigningReadinessResponse, TestArtifactSummary } from "../lib/api";
-import { checkSigningReadiness, cleanupTestArtifacts, deleteDesktopBuild, fetchDesktopRecords, fetchTestArtifacts, moveDesktopRecord } from "../lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
+import type { DesktopRecordResponse, SigningReadinessResponse, TestArtifactSummary } from "../../lib/api";
+import { checkSigningReadiness, cleanupTestArtifacts, deleteDesktopBuild, fetchDesktopRecords, fetchTestArtifacts, moveDesktopRecord } from "../../lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 interface RecordsManagerProps {
   onSwitchTemplate?: (scenarioName: string, templateType?: string) => void;

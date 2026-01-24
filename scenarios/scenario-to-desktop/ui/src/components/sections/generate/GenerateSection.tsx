@@ -13,16 +13,20 @@ import {
   StagePlaceholder,
   StageError,
 } from "../shared";
-import { usePipelineStore, selectStageStatus } from "../../../store";
+import { usePipelineStore, selectStageStatus, selectErrorInfo } from "../../../store";
 
 interface GenerateSectionProps {
   scenarioName: string;
+  onRetry?: () => void;
 }
 
 export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
-  ({ scenarioName }, ref) => {
+  ({ scenarioName, onRetry }, ref) => {
     const generateResult = usePipelineStore((s) => s.generateResult);
     const stageStatus = usePipelineStore(selectStageStatus("generate"));
+    const errorInfo = usePipelineStore(selectErrorInfo);
+    const clearError = usePipelineStore((s) => s.clearError);
+    const resetForRetry = usePipelineStore((s) => s.resetForRetry);
 
     const hasResult = Boolean(generateResult);
     const desktopPath = generateResult?.desktop_path;
@@ -66,7 +70,17 @@ export const GenerateSection = forwardRef<HTMLDivElement, GenerateSectionProps>(
           />
         )}
 
-        {stageStatus === "failed" && <StageError stageName="Generate" />}
+        {stageStatus === "failed" && (
+          <StageError
+            stageName="Generate"
+            errorInfo={errorInfo}
+            onRetry={() => {
+              resetForRetry();
+              onRetry?.();
+            }}
+            onDismiss={clearError}
+          />
+        )}
       </SectionCard>
     );
   }

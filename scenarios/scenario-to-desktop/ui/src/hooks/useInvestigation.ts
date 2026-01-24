@@ -178,7 +178,10 @@ export function usePipelineInvestigation(pipelineId: string | null) {
       : false;
     if (!activeTaskId || !hasActive) {
       // Tasks are sorted by created_at desc, so first is most recent
-      setActiveTaskId(tasks[0].id);
+      const firstTask = tasks[0];
+      if (firstTask) {
+        setActiveTaskId(firstTask.id);
+      }
     }
   }, [tasksQuery.data, activeTaskId]);
 

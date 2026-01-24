@@ -206,7 +206,7 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
                 {PLATFORM_LABELS[platform] || platform}
               </h4>
               <div className="space-y-2">
-                {toolsByPlatform[platform].map(tool => (
+                {toolsByPlatform[platform]?.map(tool => (
                   <ToolStatus key={`${platform}-${tool.tool}`} tool={tool} />
                 ))}
               </div>

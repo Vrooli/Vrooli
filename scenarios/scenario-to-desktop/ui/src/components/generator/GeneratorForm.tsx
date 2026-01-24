@@ -3,7 +3,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchProxyHints,
   fetchScenarioDesktopStatus,
-  getIconPreviewUrl,
   runPipeline,
   fetchBundleManifest,
   probeEndpoints,
@@ -12,16 +11,16 @@ import {
   type ProbeResponse,
   type ProxyHintsResponse,
   type PipelineConfig,
-} from "../lib/api";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Button } from "./ui/button";
-import { TemplateModal, ScenarioModal, FrameworkModal, DeploymentModal } from "./modals";
-import type { DeploymentManagerBundleHelperHandle, BundleResult } from "./DeploymentManagerBundleHelper";
-import { BundledRuntimeSection, ExternalServerSection, EmbeddedServerSection } from "./runtime";
+} from "../../lib/api";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Button } from "../ui/button";
+import { TemplateModal, ScenarioModal, FrameworkModal, DeploymentModal } from "../modals";
+import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
+import { BundledRuntimeSection, ExternalServerSection, EmbeddedServerSection } from "../runtime";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";
-import type { DesktopConnectionConfig, ScenariosResponse } from "./scenario-inventory/types";
+import type { DesktopConnectionConfig, ScenariosResponse } from "../scenario-inventory/types";
 import {
   ScenarioSelector,
   FrameworkTemplateSection,
@@ -30,38 +29,30 @@ import {
   OutputPathField,
   ValidationErrors,
   validateFormInputs,
-  type ValidationError,
-} from "./generator";
+} from ".";
 import {
   DEFAULT_DEPLOYMENT_MODE,
   DEFAULT_SERVER_TYPE,
   SERVER_TYPE_OPTIONS,
-  decideConnection,
   type DeploymentMode,
   type ServerType
-} from "../domain/deployment";
-import {
-  computeStandardOutputPath,
-  computeStagingPreviewPath,
-  getSelectedPlatforms,
-  type OutputLocation,
-  type PlatformSelection
-} from "../domain/generator";
+} from "../../domain/deployment";
+import { type OutputLocation } from "../../domain/generator";
 import {
   useScenarioState,
   useSigningConfig,
   useGeneratorModals,
-  useGeneratorFormState,
-} from "../hooks";
+  useFormState,
+} from "../../hooks";
 import {
   usePipelineStore,
   selectIsRunning,
   selectPreflightOk,
   selectMissingSecrets,
-} from "../store";
-import { PipelineStatusSummary } from "./state/PipelineStatusOverview";
-import { PendingChangesAlert } from "./state/PendingChangesAlert";
-import type { FormState } from "../lib/api";
+} from "../../store";
+import { PipelineStatusSummary } from "../state/PipelineStatusOverview";
+import { PendingChangesAlert } from "../state/PendingChangesAlert";
+import type { FormState } from "../../lib/api";
 
 /** Exposed form state for sharing with other sections */
 interface ExposedFormState {
@@ -98,10 +89,10 @@ export function GeneratorForm({
   onGenerateStateChange,
   onFormStateChange
 }: GeneratorFormProps) {
-  const [scenarioLocked, setScenarioLocked] = useState(selectionSource === "inventory");
   const { modals, openModal, closeModal } = useGeneratorModals();
 
   // Form state hook - manages all form fields that get persisted to server
+  const formState = useFormState({ scenarioName, selectionSource });
   const {
     appMetadata,
     setAppDisplayName,
@@ -116,7 +107,6 @@ export function GeneratorForm({
     setLocationMode,
     setOutputPath,
     platforms,
-    setPlatforms,
     handlePlatformChange,
     connection,
     setProxyUrl,
@@ -130,7 +120,25 @@ export function GeneratorForm({
     setConnectionError,
     resetFormState: resetHookState,
     hydrateFromServer,
-  } = useGeneratorFormState();
+    // Derived values from useFormState
+    connectionDecision,
+    isBundled,
+    requiresRemoteConfig,
+    standardOutputPath,
+    stagingPreviewPath,
+    selectedPlatformsList,
+    allowedServerTypes,
+    isCustomLocation,
+    isUpdateMode,
+    iconPreviewUrl,
+    // Scenario lock state
+    scenarioLocked,
+    setScenarioLocked,
+    // Validation
+    validationErrors,
+    setValidationErrors,
+    clearValidationErrors,
+  } = formState;
 
   // Destructure for easier access
   const { displayName: appDisplayName, description: appDescription, iconPath, iconPreviewError } = appMetadata;
@@ -147,28 +155,7 @@ export function GeneratorForm({
   // Bundle result seed from server state - similar pattern to preflightSeed
   const [bundleResultSeed, setBundleResultSeed] = useState<BundleResult | null>(null);
   const [lastLoadedScenario, setLastLoadedScenario] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const isUpdateMode = selectionSource === "inventory";
   const bundleHelperRef = useRef<DeploymentManagerBundleHelperHandle>(null);
-
-  const connectionDecision = useMemo(
-    () => decideConnection(deploymentMode, serverType),
-    [deploymentMode, serverType]
-  );
-  const isBundled = connectionDecision.kind === "bundled-runtime";
-  const requiresRemoteConfig = connectionDecision.requiresProxyUrl;
-  const standardOutputPath = useMemo(
-    () => computeStandardOutputPath(scenarioName),
-    [scenarioName]
-  );
-  const stagingPreviewPath = useMemo(
-    () => computeStagingPreviewPath(scenarioName),
-    [scenarioName]
-  );
-  const selectedPlatformsList = useMemo(
-    () => getSelectedPlatforms(platforms),
-    [platforms]
-  );
   // Note: resolveEndpoints is available via the domain layer if needed
   // for server_path and api_endpoint in buildDesktopConfig
   // Pipeline store for preflight
@@ -251,35 +238,13 @@ export function GeneratorForm({
     refreshAll: refreshSigning
   } = useSigningConfig({ scenarioName });
 
-
-  const isCustomLocation = locationMode === "custom";
-  const allowedServerTypes = useMemo<ServerType[]>(() => {
-    if (deploymentMode === "bundled") {
-      return ["external"];
-    }
-    if (deploymentMode === "cloud-api") {
-      return ["external"];
-    }
-    return SERVER_TYPE_OPTIONS.map((option) => option.value);
-  }, [deploymentMode]);
-
-  useEffect(() => {
-    if (!allowedServerTypes.includes(serverType)) {
-      setServerType(allowedServerTypes[0] ?? DEFAULT_SERVER_TYPE);
-    }
-  }, [allowedServerTypes, serverType]);
-
-  useEffect(() => {
-    setScenarioLocked(selectionSource === "inventory");
-  }, [selectionSource]);
-
   const resetFormState = useCallback((resetTemplate: boolean) => {
     // Reset all hook-managed form state
     resetHookState();
     // Reset remaining non-hook state
     setSigningEnabledForBuild(false);
     setLastLoadedScenario(null);
-    setValidationErrors([]);
+    clearValidationErrors();
     setPreflightSeed({
       result: null,
       error: null,
@@ -290,7 +255,7 @@ export function GeneratorForm({
     if (resetTemplate) {
       onTemplateChange("basic");
     }
-  }, [resetHookState, onTemplateChange, resetPreflight, setSigningEnabledForBuild]);
+  }, [resetHookState, onTemplateChange, resetPreflight, setSigningEnabledForBuild, clearValidationErrors]);
 
   // Server-side state persistence via useScenarioState
   const {
@@ -525,15 +490,6 @@ export function GeneratorForm({
     [scenariosData?.scenarios, scenarioName]
   );
 
-  const iconPreviewUrl = useMemo(
-    () => (iconPath ? getIconPreviewUrl(iconPath) : ""),
-    [iconPath]
-  );
-
-  useEffect(() => {
-    setIconPreviewError(false);
-  }, [iconPreviewUrl]);
-
   // Apply scenario defaults ONLY when selecting a new scenario (not when loading from server)
   useEffect(() => {
     if (!scenarioName) {
@@ -681,7 +637,7 @@ export function GeneratorForm({
     e.preventDefault();
 
     // Clear previous validation errors
-    setValidationErrors([]);
+    clearValidationErrors();
 
     const outputPathForRequest = locationMode === "custom" ? outputPath : "";
 
@@ -985,7 +941,7 @@ export function GeneratorForm({
           {/* Validation errors - shown above submit button */}
           <ValidationErrors
             errors={validationErrors}
-            onDismiss={() => setValidationErrors([])}
+            onDismiss={clearValidationErrors}
           />
 
           {showSubmit && (

@@ -142,6 +142,7 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (line === undefined) continue;
     const lineNumber = i + 1;
 
     try {
@@ -206,6 +207,7 @@ export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryVali
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
+    if (!event) continue;
     const eventNum = i + 1;
 
     // Check for event type

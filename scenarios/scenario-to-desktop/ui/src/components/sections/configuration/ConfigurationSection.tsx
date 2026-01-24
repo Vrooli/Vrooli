@@ -6,7 +6,7 @@
 
 import { forwardRef } from "react";
 import { SectionCard } from "../shared";
-import { GeneratorForm } from "../../GeneratorForm";
+import { GeneratorForm } from "../../generator/GeneratorForm";
 
 /** Exposed form state for sharing with other sections */
 export interface ExposedFormState {

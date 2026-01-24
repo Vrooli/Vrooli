@@ -2,6 +2,9 @@
  * Unified Zustand store for pipeline state management.
  * Centralizes all pipeline-related state, providing automatic polling,
  * stage-specific results, and actions to run individual stages.
+ *
+ * Types are defined in ./pipelineTypes.ts
+ * Selectors are defined in ./pipelineSelectors.ts
  */
 
 import { create } from "zustand";
@@ -10,146 +13,55 @@ import {
   getPipelineStatus,
   cancelPipeline as cancelPipelineApi,
   resumePipeline as resumePipelineApi,
-  type PipelineConfig,
   type VerbosePipelineStatus,
   type PipelineRunResponse,
-  type BundleStageDetails,
-  type BundlePreflightResponse,
-  type BundlePreflightSecret,
-  type GenerateStageDetails,
-  type BuildStageDetails,
-  type SmokeTestStageDetails,
-  type DistributionStageDetails,
 } from "../lib/api";
 import { extractStageResults } from "../domain/build";
-import { createErrorInfo, type ErrorInfo, logError } from "../lib/error-utils";
+import { createErrorInfo, logError } from "../lib/error-utils";
 import { generateUniqueIdempotencyKey, resetSessionId } from "../lib/pipeline-utils";
+import { isTerminalState } from "../services/pipeline.service";
+import {
+  type PipelineStore,
+  type PipelineStage,
+  type PipelineRunStatus,
+  type PipelineErrorInfo,
+  type StatusSubscriber,
+  initialPipelineState,
+} from "./pipelineTypes";
 
-// ============================================================================
-// Types
-// ============================================================================
+// Re-export types for convenience
+export type { PipelineStage, PipelineRunStatus, PipelineErrorInfo, StatusSubscriber };
 
-/** Pipeline stages available for stop_after_stage */
-export type PipelineStage = "bundle" | "preflight" | "generate" | "build" | "smoketest" | "distribution";
-
-/** Pipeline run status (simplified for UI consumption) */
-export type PipelineRunStatus = "idle" | "starting" | "running" | "completed" | "failed" | "cancelled";
-
-/** Structured error information for UI consumption - re-exported from error-utils */
-export type PipelineErrorInfo = ErrorInfo;
-
-interface PipelineStoreState {
-  // Current scenario context
-  scenarioName: string | null;
-
-  // Active pipeline tracking
-  pipelineId: string | null;
-  pipelineStatus: VerbosePipelineStatus | null;
-  runStatus: PipelineRunStatus;
-  /** @deprecated Use errorInfo for richer error context */
-  error: string | null;
-  /** Structured error information with recovery guidance */
-  errorInfo: PipelineErrorInfo | null;
-
-  // Polling configuration
-  isPolling: boolean;
-  pollIntervalMs: number;
-
-  // Stage-specific results (extracted from verbose pipeline status)
-  bundleResult: BundleStageDetails | null;
-  preflightResult: BundlePreflightResponse | null;
-  generateResult: GenerateStageDetails | null;
-  buildResult: BuildStageDetails | null;
-  smokeTestResult: SmokeTestStageDetails | null;
-  distributionResult: DistributionStageDetails | null;
-
-  // Stage logs (from verbose pipeline status)
-  stageLogs: Record<string, string[]>;
-
-  // Historical pipeline IDs for this scenario (for resume functionality)
-  pipelineHistory: string[];
-
-  // Preflight-specific state (for GeneratorForm integration)
-  preflightSecrets: Record<string, string>;
-  preflightOverride: boolean;
-
-  // Request deduplication: tracks whether a request is currently in-flight
-  // This prevents double-submissions from rapid clicks
-  isSubmitting: boolean;
-  /** The idempotency key for the current/most recent request */
-  currentIdempotencyKey: string | null;
-}
-
-interface PipelineStoreActions {
-  // Scenario context
-  setScenario: (name: string | null) => void;
-
-  // Pipeline execution
-  runStage: (stage: PipelineStage, config?: Partial<PipelineConfig>) => Promise<string>;
-  runFullPipeline: (config?: Partial<PipelineConfig>) => Promise<string>;
-  cancelPipeline: () => Promise<void>;
-  resumePipeline: (pipelineId: string) => Promise<string>;
-
-  // Convenience actions for specific stages
-  runBundleStage: (config?: Partial<PipelineConfig>) => Promise<string>;
-  runPreflightStage: (config?: Partial<PipelineConfig>) => Promise<string>;
-  runSmokeTestStage: (config?: Partial<PipelineConfig>) => Promise<string>;
-
-  // Status management
-  loadPipelineStatus: (pipelineId: string) => Promise<void>;
-  startPolling: () => void;
-  stopPolling: () => void;
-
-  // State management
-  reset: () => void;
-  clearError: () => void;
-  /**
-   * Forces fresh idempotency keys for future requests.
-   * Call this when the user explicitly wants to retry a failed operation,
-   * ensuring the retry is treated as a new request rather than deduplicated.
-   */
-  resetForRetry: () => void;
-
-  // Preflight-specific actions
-  setPreflightSecrets: (secrets: Record<string, string>) => void;
-  setPreflightSecret: (id: string, value: string) => void;
-  setPreflightOverride: (override: boolean) => void;
-  resetPreflight: () => void;
-
-  // Internal helpers (prefixed with _ to indicate private)
-  _setPipelineStatus: (status: VerbosePipelineStatus | null) => void;
-  _extractStageResults: (status: VerbosePipelineStatus) => void;
-}
-
-type PipelineStore = PipelineStoreState & PipelineStoreActions;
-
-// ============================================================================
-// Initial State
-// ============================================================================
-
-const initialState: PipelineStoreState = {
-  scenarioName: null,
-  pipelineId: null,
-  pipelineStatus: null,
-  runStatus: "idle",
-  error: null,
-  errorInfo: null,
-  isPolling: false,
-  pollIntervalMs: 2000,
-  bundleResult: null,
-  preflightResult: null,
-  generateResult: null,
-  buildResult: null,
-  smokeTestResult: null,
-  distributionResult: null,
-  stageLogs: {},
-  pipelineHistory: [],
-  preflightSecrets: {},
-  preflightOverride: false,
-  // Idempotency and deduplication
-  isSubmitting: false,
-  currentIdempotencyKey: null,
-};
+// Re-export selectors for convenience
+export {
+  selectIsRunning,
+  selectCurrentStage,
+  selectProgress,
+  selectStageStatus,
+  selectCanResume,
+  selectStoppedAfterStage,
+  selectIsSubmitting,
+  selectIsBusy,
+  selectPreflightValidationOk,
+  selectPreflightReadinessOk,
+  selectPreflightSecretsOk,
+  selectPreflightOk,
+  selectMissingSecrets,
+  selectBundleResult,
+  selectPreflightResult,
+  selectGenerateResult,
+  selectBuildResult,
+  selectSmokeTestResult,
+  selectDistributionResult,
+  selectStageLogs,
+  selectError,
+  selectErrorInfo,
+  selectHasError,
+  selectPipelineHistory,
+  selectLatestPipelineId,
+  selectPreflightSecrets,
+  selectPreflightOverride,
+} from "./pipelineSelectors";
 
 // ============================================================================
 // Store Implementation
@@ -159,6 +71,9 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
   // Track polling timeout to allow cleanup
   let pollingTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  // Status subscribers for component notifications
+  const statusSubscribers = new Set<(status: VerbosePipelineStatus | null) => void>();
+
   const clearPollingTimeout = () => {
     if (pollingTimeoutId) {
       clearTimeout(pollingTimeoutId);
@@ -166,9 +81,21 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
     }
   };
 
+  // Notify all subscribers when status changes
+  const notifySubscribers = () => {
+    const status = get().pipelineStatus;
+    statusSubscribers.forEach((callback) => {
+      try {
+        callback(status);
+      } catch (err) {
+        console.error("Error in status subscriber:", err);
+      }
+    });
+  };
+
   return {
     // Initial state
-    ...initialState,
+    ...initialPipelineState,
 
     // ========== Scenario Context ==========
 
@@ -180,7 +107,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
         // Reset state when scenario changes
         set({
-          ...initialState,
+          ...initialPipelineState,
           scenarioName: name,
         });
       }
@@ -208,7 +135,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       clearPollingTimeout();
 
       // Generate idempotency key for this request
-      // This ensures the backend deduplicates rapid retries
       const idempotencyKey = generateUniqueIdempotencyKey(scenarioName, stage);
 
       set({
@@ -405,8 +331,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
           get()._setPipelineStatus(status);
 
           // Continue polling if not in terminal state
-          const terminalStates = ["completed", "failed", "cancelled"];
-          if (!terminalStates.includes(status.status)) {
+          if (!isTerminalState(status.status)) {
             pollingTimeoutId = setTimeout(poll, get().pollIntervalMs);
           } else {
             set({ isPolling: false });
@@ -430,13 +355,23 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       set({ isPolling: false });
     },
 
+    subscribeToStatus: (callback) => {
+      statusSubscribers.add(callback);
+      // Immediately call with current status
+      callback(get().pipelineStatus);
+      // Return unsubscribe function
+      return () => {
+        statusSubscribers.delete(callback);
+      };
+    },
+
     // ========== State Management ==========
 
     reset: () => {
       clearPollingTimeout();
       const { scenarioName } = get();
       set({
-        ...initialState,
+        ...initialPipelineState,
         scenarioName, // Keep scenario name when resetting
       });
     },
@@ -478,6 +413,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
     _setPipelineStatus: (status) => {
       if (!status) {
         set({ pipelineStatus: null });
+        get()._notifySubscribers();
         return;
       }
 
@@ -508,6 +444,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       });
 
       get()._extractStageResults(status);
+      get()._notifySubscribers();
     },
 
     _extractStageResults: (status) => {
@@ -515,111 +452,9 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       const results = extractStageResults(status);
       set(results);
     },
+
+    _notifySubscribers: () => {
+      notifySubscribers();
+    },
   };
 });
-
-// ============================================================================
-// Selectors
-// ============================================================================
-
-/** Check if pipeline is currently running or starting */
-export const selectIsRunning = (state: PipelineStore) =>
-  state.runStatus === "running" || state.runStatus === "starting";
-
-/** Get the current active stage name */
-export const selectCurrentStage = (state: PipelineStore) =>
-  state.pipelineStatus?.current_stage ?? null;
-
-/** Calculate overall progress (0-1) based on completed stages */
-export const selectProgress = (state: PipelineStore) => {
-  if (!state.pipelineStatus) return 0;
-  const { stage_order, stages } = state.pipelineStatus;
-  if (!stage_order?.length) return 0;
-  const completed = stage_order.filter(
-    (s) => stages?.[s]?.status === "completed" || stages?.[s]?.status === "skipped"
-  ).length;
-  return completed / stage_order.length;
-};
-
-/** Get status of a specific stage */
-export const selectStageStatus =
-  (stage: PipelineStage) =>
-  (state: PipelineStore): string =>
-    state.pipelineStatus?.stages?.[stage]?.status ?? "pending";
-
-/** Check if pipeline can be resumed (stopped after a stage) */
-export const selectCanResume = (state: PipelineStore) =>
-  state.pipelineStatus?.status === "completed" && Boolean(state.pipelineStatus?.stopped_after_stage);
-
-/** Get the stage where pipeline stopped (for resume) */
-export const selectStoppedAfterStage = (state: PipelineStore) =>
-  state.pipelineStatus?.stopped_after_stage ?? null;
-
-/**
- * Check if a pipeline request is currently being submitted.
- * Use this to disable submit buttons and prevent double-clicks.
- */
-export const selectIsSubmitting = (state: PipelineStore) => state.isSubmitting;
-
-/**
- * Check if any pipeline operation is in progress (either submitting or running).
- * This is a combined guard for UI that should block all interactions.
- */
-export const selectIsBusy = (state: PipelineStore) =>
-  state.isSubmitting || state.runStatus === "running" || state.runStatus === "starting";
-
-// ============================================================================
-// Preflight Selectors
-// ============================================================================
-
-/** Check if preflight validation passed */
-export const selectPreflightValidationOk = (state: PipelineStore) =>
-  state.preflightResult?.validation?.valid ?? false;
-
-/** Check if preflight readiness check passed */
-export const selectPreflightReadinessOk = (state: PipelineStore) =>
-  state.preflightResult?.ready?.ready ?? false;
-
-/**
- * Stable empty array reference to avoid creating new arrays on every selector call.
- * This prevents infinite re-renders when Zustand compares selector results with Object.is.
- */
-const EMPTY_SECRETS_ARRAY: BundlePreflightSecret[] = [];
-
-/**
- * Cache for missing secrets to avoid creating new arrays on every call
- * when the underlying data hasn't changed.
- */
-let _cachedMissingSecrets: BundlePreflightSecret[] = EMPTY_SECRETS_ARRAY;
-let _cachedPreflightSecretsRef: unknown = null;
-
-/** Get missing required secrets from preflight result */
-export const selectMissingSecrets = (state: PipelineStore) => {
-  const pf = state.preflightResult;
-  if (!pf?.secrets) return EMPTY_SECRETS_ARRAY;
-
-  // Return cached result if the secrets array reference hasn't changed
-  if (pf.secrets === _cachedPreflightSecretsRef) {
-    return _cachedMissingSecrets;
-  }
-
-  // Filter and cache the result
-  const missing = pf.secrets.filter((s) => s.required && !s.has_value);
-  _cachedPreflightSecretsRef = pf.secrets;
-  _cachedMissingSecrets = missing.length === 0 ? EMPTY_SECRETS_ARRAY : missing;
-  return _cachedMissingSecrets;
-};
-
-/** Check if all required secrets are provided */
-export const selectPreflightSecretsOk = (state: PipelineStore) =>
-  selectMissingSecrets(state).length === 0;
-
-/** Check if preflight is fully OK (validation + readiness + secrets) */
-export const selectPreflightOk = (state: PipelineStore) => {
-  if (!state.preflightResult) return false;
-  return (
-    selectPreflightValidationOk(state) &&
-    selectPreflightReadinessOk(state) &&
-    selectPreflightSecretsOk(state)
-  );
-};

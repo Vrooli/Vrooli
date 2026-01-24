@@ -6,7 +6,7 @@ import { Braces, Copy, Download, LayoutList } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { DeploymentManagerBundleHelper, type DeploymentManagerBundleHelperHandle, type BundleResult } from "../DeploymentManagerBundleHelper";
+import { DeploymentManagerBundleHelper, type DeploymentManagerBundleHelperHandle, type BundleResult } from "./DeploymentManagerBundleHelper";
 import { writeToClipboard, triggerBlobDownload } from "../../lib/browser";
 
 interface BundledRuntimeSectionProps {
