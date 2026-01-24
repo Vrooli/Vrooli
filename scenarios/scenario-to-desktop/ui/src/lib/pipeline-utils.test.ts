@@ -15,8 +15,6 @@ import {
   getSessionId,
   resetSessionId,
   generateUniqueIdempotencyKey,
-  type MappedBuildStatus,
-  type LogLevel,
   type ParsedLogEntry,
 } from "./pipeline-utils";
 

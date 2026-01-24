@@ -234,7 +234,8 @@ export function PrerequisitesPanel({ tools, onRefresh, refreshing }: Prerequisit
 }
 
 function ToolStatus({ tool }: { tool: ToolDetectionResult }) {
-  const description = TOOL_DESCRIPTIONS[tool.tool] || tool.tool;
+  const toolKey = tool.tool ?? "";
+  const description = TOOL_DESCRIPTIONS[toolKey] ?? toolKey;
 
   return (
     <div

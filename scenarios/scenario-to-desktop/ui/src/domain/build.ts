@@ -230,7 +230,7 @@ export function pipelineStatusToBuildStatus(
   return {
     status: mapPipelineStatus(pipelineStatus.status),
     build_id: pipelineStatus.pipeline_id,
-    scenario_name: pipelineStatus.scenario_name,
+    scenario_name: pipelineStatus.scenario_name ?? "",
     template_type: buildDetails?.template_type || generateDetails?.detected_metadata?.name || "basic",
     framework: buildDetails?.framework || "electron",
     platforms: buildDetails?.platforms || pipelineStatus.config?.platforms || [],
@@ -288,6 +288,6 @@ export function mapPipelineToUiStatus(pipeline: PipelineStatus): UiBuildStatus {
     status,
     output_path: outputPath,
     pipeline_id: pipeline.pipeline_id,
-    scenario_name: pipeline.scenario_name,
+    scenario_name: pipeline.scenario_name ?? "",
   };
 }

@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 import { act } from "@testing-library/react";
 import { SmokeTestSection } from "./SmokeTestSection";
 import { usePipelineStore } from "../../../store";
-import type { VerbosePipelineStatus } from "../../../lib/api";
+import { createPipelineStatus } from "../../../test-utils/mocks";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -52,14 +52,14 @@ describe("SmokeTestSection", () => {
           platforms: ["win"],
           artifacts: { win: "/path/app.exe" },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "running",
           current_stage: "smoketest",
           stages: {
-            smoketest: { status: "running" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "running", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -78,13 +78,13 @@ describe("SmokeTestSection", () => {
           logs: ["Test started", "Test passed"],
           telemetry_uploaded: true,
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -106,13 +106,13 @@ describe("SmokeTestSection", () => {
           logs: [],
           telemetry_uploaded: true,
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -132,13 +132,13 @@ describe("SmokeTestSection", () => {
           logs: [],
           telemetry_uploaded: false,
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -157,13 +157,13 @@ describe("SmokeTestSection", () => {
           logs: [],
           telemetry_uploaded: true,
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -183,13 +183,13 @@ describe("SmokeTestSection", () => {
           logs: ["Starting test...", "Test completed successfully"],
           telemetry_uploaded: true,
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -210,13 +210,13 @@ describe("SmokeTestSection", () => {
           logs: ["Starting test...", "Test failed!"],
           error: "Application crashed during startup",
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            smoketest: { status: "completed" },
+            ...createPipelineStatus().stages,
+            smoketest: { stage: "smoketest", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 

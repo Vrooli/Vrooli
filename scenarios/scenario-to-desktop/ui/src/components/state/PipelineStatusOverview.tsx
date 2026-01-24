@@ -5,7 +5,7 @@
 
 import { ChevronRight, Package, Shield, Cog, Hammer, TestTube } from "lucide-react";
 import { StageStatusBadge, type StageStatusType } from "./StageStatusBadge";
-import type { ValidationStatus, StageStatus } from "../../lib/api";
+import type { ValidationStatus, ScenarioStageStatus } from "../../lib/api";
 import { cn } from "../../lib/utils";
 import {
   Tooltip,
@@ -35,7 +35,7 @@ const stageConfig: Record<
 
 interface StageNodeProps {
   stageName: (typeof STAGE_ORDER)[number];
-  stageStatus: StageStatus | undefined;
+  stageStatus: ScenarioStageStatus | undefined;
   compact?: boolean;
 }
 

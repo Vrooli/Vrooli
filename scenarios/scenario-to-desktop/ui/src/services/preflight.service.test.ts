@@ -13,8 +13,10 @@ import {
   isValidationOk,
   isReadinessOk,
   isPreflightComplete,
+  resolveJobStepStatus,
+  buildPreflightDisplayState,
 } from "./preflight.service";
-import type { BundlePreflightResponse, BundlePreflightSecret } from "../lib/api";
+import type { BundlePreflightResponse, BundlePreflightSecret, BundlePreflightStep } from "../lib/api";
 
 describe("preflight.service", () => {
   describe("getValidationStatus", () => {
@@ -218,7 +220,7 @@ describe("preflight.service", () => {
       ];
       const missing = getMissingSecrets(secrets);
       expect(missing).toHaveLength(1);
-      expect(missing[0].id).toBe("1");
+      expect(missing?.[0]?.id).toBe("1");
     });
   });
 
@@ -260,8 +262,8 @@ describe("preflight.service", () => {
     });
 
     it("returns readiness.ready value", () => {
-      expect(isReadinessOk({ ready: true })).toBe(true);
-      expect(isReadinessOk({ ready: false })).toBe(false);
+      expect(isReadinessOk({ ready: true, details: {} })).toBe(true);
+      expect(isReadinessOk({ ready: false, details: {} })).toBe(false);
     });
   });
 
@@ -272,8 +274,9 @@ describe("preflight.service", () => {
 
     it("returns true when all checks pass", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
-        ready: { ready: true },
+        ready: { ready: true, details: {} },
         secrets: [{ id: "1", name: "Secret", required: true, has_value: true }],
       } as BundlePreflightResponse;
       expect(isPreflightComplete(result)).toBe(true);
@@ -281,8 +284,9 @@ describe("preflight.service", () => {
 
     it("returns false when validation fails", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: false },
-        ready: { ready: true },
+        ready: { ready: true, details: {} },
         secrets: [],
       } as BundlePreflightResponse;
       expect(isPreflightComplete(result)).toBe(false);
@@ -290,8 +294,9 @@ describe("preflight.service", () => {
 
     it("returns false when readiness fails", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
-        ready: { ready: false },
+        ready: { ready: false, details: {} },
         secrets: [],
       } as BundlePreflightResponse;
       expect(isPreflightComplete(result)).toBe(false);
@@ -299,11 +304,121 @@ describe("preflight.service", () => {
 
     it("returns false when missing secrets", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
-        ready: { ready: true },
+        ready: { ready: true, details: {} },
         secrets: [{ id: "1", name: "Secret", required: true, has_value: false }],
       } as BundlePreflightResponse;
       expect(isPreflightComplete(result)).toBe(false);
+    });
+  });
+
+  describe("resolveJobStepStatus", () => {
+    it("returns null for missing step", () => {
+      const jobMap = new Map<string, BundlePreflightStep>();
+      expect(resolveJobStepStatus(jobMap, "nonexistent")).toBe(null);
+    });
+
+    it("resolves pass state", () => {
+      const jobMap = new Map<string, BundlePreflightStep>();
+      jobMap.set("validation", { id: "validation", name: "Validation", state: "pass" });
+      const status = resolveJobStepStatus(jobMap, "validation");
+      expect(status).toEqual({ state: "pass", label: "Pass" });
+    });
+
+    it("converts running to testing", () => {
+      const jobMap = new Map<string, BundlePreflightStep>();
+      jobMap.set("secrets", { id: "secrets", name: "Secrets", state: "running" });
+      const status = resolveJobStepStatus(jobMap, "secrets");
+      expect(status?.state).toBe("testing");
+      expect(status?.label).toBe("Testing");
+    });
+
+    it("resolves fail state", () => {
+      const jobMap = new Map<string, BundlePreflightStep>();
+      jobMap.set("runtime", { id: "runtime", name: "Runtime", state: "fail" });
+      const status = resolveJobStepStatus(jobMap, "runtime");
+      expect(status).toEqual({ state: "fail", label: "Fail" });
+    });
+
+    it("resolves warning state", () => {
+      const jobMap = new Map<string, BundlePreflightStep>();
+      jobMap.set("diag", { id: "diag", name: "Diagnostics", state: "warning" });
+      const status = resolveJobStepStatus(jobMap, "diag");
+      expect(status).toEqual({ state: "warning", label: "Review" });
+    });
+  });
+
+  describe("buildPreflightDisplayState", () => {
+    it("returns initial state when nothing has run", () => {
+      const state = buildPreflightDisplayState(null, null, null, false, 0);
+      expect(state.hasRun).toBe(false);
+      expect(state.isRunning).toBe(false);
+      expect(state.isComplete).toBe(false);
+      expect(state.hasError).toBe(false);
+    });
+
+    it("marks hasRun true when result exists", () => {
+      const result = {
+        status: "completed",
+        validation: { valid: true },
+        ready: { ready: true, details: {} },
+        secrets: [],
+      } as BundlePreflightResponse;
+      const state = buildPreflightDisplayState(null, result, null, false, 0);
+      expect(state.hasRun).toBe(true);
+      expect(state.isComplete).toBe(true);
+    });
+
+    it("detects error state", () => {
+      const state = buildPreflightDisplayState(null, null, "Connection failed", false, 0);
+      expect(state.hasRun).toBe(true);
+      expect(state.hasError).toBe(true);
+    });
+
+    it("computes validation status correctly", () => {
+      const result = {
+        status: "completed",
+        validation: { valid: true },
+        ready: { ready: false, details: {} },
+        secrets: [],
+      } as BundlePreflightResponse;
+      const state = buildPreflightDisplayState(null, result, null, false, 0);
+      expect(state.validationOk).toBe(true);
+      expect(state.readinessOk).toBe(false);
+      expect(state.overallOk).toBe(false);
+    });
+
+    it("computes secrets status correctly", () => {
+      const result = {
+        status: "completed",
+        validation: { valid: true },
+        ready: { ready: true, details: {} },
+        secrets: [],
+      } as BundlePreflightResponse;
+      const state = buildPreflightDisplayState(null, result, null, false, 2);
+      expect(state.secretsOk).toBe(false);
+      expect(state.overallOk).toBe(false);
+    });
+
+    it("returns overallOk true when all checks pass", () => {
+      const result = {
+        status: "completed",
+        validation: { valid: true },
+        ready: { ready: true, details: {} },
+        secrets: [],
+      } as BundlePreflightResponse;
+      const state = buildPreflightDisplayState(null, result, null, false, 0);
+      expect(state.validationOk).toBe(true);
+      expect(state.secretsOk).toBe(true);
+      expect(state.readinessOk).toBe(true);
+      expect(state.overallOk).toBe(true);
+    });
+
+    it("marks isRunning when in progress", () => {
+      const state = buildPreflightDisplayState(null, null, null, true, 0);
+      expect(state.isRunning).toBe(true);
+      expect(state.isComplete).toBe(false);
     });
   });
 });

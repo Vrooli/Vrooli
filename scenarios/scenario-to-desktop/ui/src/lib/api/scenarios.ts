@@ -130,18 +130,26 @@ export interface StateChange {
   new_value?: string;
 }
 
-export interface StageStatus {
-  stage: string;
+/**
+ * Stage validation status for scenario state management.
+ * NOTE: This is distinct from the StageStatus enum in common.ts which represents
+ * pipeline execution status values (pending, running, completed, etc.)
+ */
+export interface ScenarioStageStatus {
+  stage?: string;
   status: "valid" | "stale" | "invalid" | "none";
   last_run?: string;
   staleness_reason?: string;
-  can_reuse: boolean;
+  can_reuse?: boolean;
 }
+
+/** @deprecated Use ScenarioStageStatus instead */
+export type StageStatus = ScenarioStageStatus;
 
 export interface ValidationStatus {
   scenario_name: string;
   overall_status: "valid" | "partial" | "stale" | "none";
-  stages: Record<string, StageStatus>;
+  stages: Record<string, ScenarioStageStatus>;
   pending_changes?: StateChange[];
   last_validated?: string;
 }

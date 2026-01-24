@@ -44,14 +44,17 @@ function createMockSigningConfig(overrides: Partial<SigningConfig> = {}): Signin
   return {
     enabled: true,
     windows: {
-      enabled: true,
-      certificate_path: "/path/to/cert.pfx",
+      certificate_source: "file",
+      certificate_file: "/path/to/cert.pfx",
     },
     macos: {
-      enabled: false,
+      identity: "",
+      team_id: "",
+      hardened_runtime: false,
+      notarize: false,
     },
     linux: {
-      enabled: false,
+      gpg_key_id: "",
     },
     ...overrides,
   };
@@ -62,8 +65,8 @@ function createMockConfigResponse(
   config: SigningConfig | null = null
 ): SigningConfigResponse {
   return {
+    scenario: "test-scenario",
     config,
-    exists: config !== null,
   };
 }
 
@@ -76,9 +79,9 @@ function createMockReadinessResponse(
     ready,
     issues,
     platforms: {
-      windows: { ready, issues: [] },
-      macos: { ready: false, issues: ["Not configured"] },
-      linux: { ready: false, issues: ["Not configured"] },
+      windows: { ready, reason: ready ? undefined : "Not configured" },
+      macos: { ready: false, reason: "Not configured" },
+      linux: { ready: false, reason: "Not configured" },
     },
   };
 }

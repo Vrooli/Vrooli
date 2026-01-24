@@ -301,8 +301,8 @@ export async function generateLinuxKey(
   try {
     const response = await generateLinuxSigningKey(scenarioName, payload);
     return {
-      fingerprint: response.fingerprint,
-      homedir: response.homedir,
+      fingerprint: response.fingerprint ?? null,
+      homedir: response.homedir ?? null,
       error: null,
     };
   } catch (error) {

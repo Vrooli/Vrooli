@@ -23,7 +23,7 @@ export function SidebarHeader() {
   const currentStage = usePipelineStore(selectCurrentStage);
 
   const status = pipelineStatus?.status ?? (runStatus !== "idle" ? runStatus : null);
-  const { label, icon: StatusIcon, className } = getPipelineStatusDisplay(status);
+  const { label, icon: StatusIcon, className } = getPipelineStatusDisplay(status as import("../../lib/status-display").PipelineStatus);
 
   const isRunning = status === "running" || status === "starting";
   const progressPercent = Math.round(progress * 100);

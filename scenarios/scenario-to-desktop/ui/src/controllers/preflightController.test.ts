@@ -262,8 +262,9 @@ describe("preflightController", () => {
   describe("buildPreflightSectionState", () => {
     it("builds state with missing secrets", () => {
       const preflightResult: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
-        ready: { ready: false },
+        ready: { ready: false, details: {} },
         secrets: [
           { id: "API_KEY", name: "API Key", required: true, has_value: false },
           { id: "OPTIONAL", name: "Optional", required: false, has_value: false },
@@ -279,7 +280,7 @@ describe("preflightController", () => {
       );
 
       expect(state.missingSecrets).toHaveLength(1);
-      expect(state.missingSecrets[0].id).toBe("API_KEY");
+      expect(state.missingSecrets?.[0]?.id).toBe("API_KEY");
     });
 
     it("extracts bundle root from manifest path", () => {
@@ -296,6 +297,7 @@ describe("preflightController", () => {
 
     it("includes export payload", () => {
       const preflightResult: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
       } as BundlePreflightResponse;
 
@@ -315,6 +317,7 @@ describe("preflightController", () => {
   describe("exportPreflightAsJson", () => {
     it("exports valid JSON string", () => {
       const preflightResult: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
       } as BundlePreflightResponse;
 
@@ -375,8 +378,9 @@ describe("preflightController", () => {
 
     it("returns true when preflight complete", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
-        ready: { ready: true },
+        ready: { ready: true, details: {} },
         secrets: [{ id: "KEY", name: "Key", required: true, has_value: true }],
       } as BundlePreflightResponse;
 
@@ -385,6 +389,7 @@ describe("preflightController", () => {
 
     it("returns false when preflight incomplete", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: false },
       } as BundlePreflightResponse;
 
@@ -404,6 +409,7 @@ describe("preflightController", () => {
 
     it("returns reason for failed validation", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: false },
       } as BundlePreflightResponse;
 
@@ -413,6 +419,7 @@ describe("preflightController", () => {
 
     it("returns reason for missing secrets", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
         secrets: [
           { id: "KEY1", name: "Key 1", required: true, has_value: false },
@@ -426,9 +433,10 @@ describe("preflightController", () => {
 
     it("returns reason for not ready services", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
         secrets: [],
-        ready: { ready: false },
+        ready: { ready: false, details: {} },
       } as BundlePreflightResponse;
 
       const reason = getPreflightBlockingReason(result);
@@ -437,9 +445,10 @@ describe("preflightController", () => {
 
     it("returns null when ready", () => {
       const result: BundlePreflightResponse = {
+        status: "completed",
         validation: { valid: true },
         secrets: [],
-        ready: { ready: true },
+        ready: { ready: true, details: {} },
       } as BundlePreflightResponse;
 
       const reason = getPreflightBlockingReason(result);

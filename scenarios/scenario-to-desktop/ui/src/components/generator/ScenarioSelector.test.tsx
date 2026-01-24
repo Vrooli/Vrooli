@@ -73,8 +73,10 @@ describe("ScenarioSelector", () => {
     const buttons = screen.getAllByRole("button");
     // The Browse scenarios button is the one with that text
     const browseButton = buttons.find(btn => btn.textContent === "Browse scenarios");
-    expect(browseButton).toBeDefined();
-    fireEvent.click(browseButton as HTMLElement);
+    if (!browseButton) {
+      throw new Error("Browse scenarios button not found");
+    }
+    fireEvent.click(browseButton);
 
     expect(onOpenScenarioModal).toHaveBeenCalled();
   });
@@ -90,7 +92,11 @@ describe("ScenarioSelector", () => {
 
     // Click the text link (styled as button but is actually a button element)
     const browseLinks = screen.getAllByText("Browse scenarios");
-    fireEvent.click(browseLinks[0]); // The link text
+    const browseLink = browseLinks[0];
+    if (!browseLink) {
+      throw new Error("Browse scenarios link not found");
+    }
+    fireEvent.click(browseLink);
 
     expect(onOpenScenarioModal).toHaveBeenCalled();
   });

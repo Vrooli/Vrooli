@@ -3,6 +3,7 @@ import {
   mapPipelineToRunStatus,
   isTerminalState,
   shouldContinuePolling,
+  generateRequestIdempotencyKey,
   categorizeError,
   getRecoverySuggestions,
   createPipelineErrorInfo,
@@ -280,6 +281,32 @@ describe("pipeline.service", () => {
     it("returns stopped_after_stage from status", () => {
       const status = { stopped_after_stage: "generate" } as VerbosePipelineStatus;
       expect(getStoppedAfterStage(status)).toBe("generate");
+    });
+  });
+
+  describe("generateRequestIdempotencyKey", () => {
+    it("generates key with scenario, stage, and session", () => {
+      const key = generateRequestIdempotencyKey("my-scenario", "generate", "session-123");
+      expect(key).toMatch(/^my-scenario:generate:session-123:\d+$/);
+    });
+
+    it("includes timestamp component", () => {
+      const key = generateRequestIdempotencyKey("test", "build", "abc");
+      const parts = key.split(":");
+      expect(parts.length).toBe(4);
+      const timestamp = parseInt(parts[3] ?? "", 10);
+      expect(timestamp).toBeGreaterThan(Date.now() - 1000);
+      expect(timestamp).toBeLessThanOrEqual(Date.now());
+    });
+
+    it("handles empty strings", () => {
+      const key = generateRequestIdempotencyKey("", "", "");
+      expect(key).toMatch(/^:::\d+$/);
+    });
+
+    it("handles special characters in scenario name", () => {
+      const key = generateRequestIdempotencyKey("my-test:scenario", "generate", "session");
+      expect(key).toContain("my-test:scenario");
     });
   });
 });

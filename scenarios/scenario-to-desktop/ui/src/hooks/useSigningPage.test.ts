@@ -50,7 +50,7 @@ const mockCheckSigningReadiness = checkSigningReadiness as ReturnType<typeof vi.
 const mockFetchSigningPrerequisites = fetchSigningPrerequisites as ReturnType<typeof vi.fn>;
 const mockDeleteSigningConfig = deleteSigningConfig as ReturnType<typeof vi.fn>;
 const mockDiscoverCertificates = discoverCertificates as ReturnType<typeof vi.fn>;
-const mockGenerateLinuxSigningKey = generateLinuxSigningKey as ReturnType<typeof vi.fn>;
+const _mockGenerateLinuxSigningKey = generateLinuxSigningKey as ReturnType<typeof vi.fn>;
 const mockFetchScenarioDesktopStatus = fetchScenarioDesktopStatus as ReturnType<typeof vi.fn>;
 
 // Create a wrapper with QueryClientProvider
@@ -71,11 +71,18 @@ function createMockSigningConfig(overrides: Partial<SigningConfig> = {}): Signin
   return {
     enabled: true,
     windows: {
-      enabled: true,
-      certificate_path: "/path/to/cert.pfx",
+      certificate_source: "file",
+      certificate_file: "/path/to/cert.pfx",
     },
-    macos: { enabled: false },
-    linux: { enabled: false },
+    macos: {
+      identity: "",
+      team_id: "",
+      hardened_runtime: false,
+      notarize: false,
+    },
+    linux: {
+      gpg_key_id: "",
+    },
     ...overrides,
   };
 }
@@ -83,8 +90,8 @@ function createMockSigningConfig(overrides: Partial<SigningConfig> = {}): Signin
 // Helper to create mock config response
 function createMockConfigResponse(config: SigningConfig | null = null): SigningConfigResponse {
   return {
+    scenario: "test-scenario",
     config,
-    exists: config !== null,
   };
 }
 
@@ -94,9 +101,9 @@ function createMockReadinessResponse(ready: boolean, issues: string[] = []): Sig
     ready,
     issues,
     platforms: {
-      windows: { ready, issues: [] },
-      macos: { ready: false, issues: ["Not configured"] },
-      linux: { ready: false, issues: ["Not configured"] },
+      windows: { ready, reason: ready ? undefined : "Not configured" },
+      macos: { ready: false, reason: "Not configured" },
+      linux: { ready: false, reason: "Not configured" },
     },
   };
 }
@@ -105,9 +112,10 @@ function createMockReadinessResponse(ready: boolean, issues: string[] = []): Sig
 function createMockScenariosResponse(): ScenariosResponse {
   return {
     scenarios: [
-      { name: "test-scenario", path: "/path/to/scenario", status: "ready" },
-      { name: "other-scenario", path: "/path/to/other", status: "ready" },
+      { name: "test-scenario", has_desktop: true, desktop_path: "/path/to/scenario" },
+      { name: "other-scenario", has_desktop: true, desktop_path: "/path/to/other" },
     ],
+    stats: { total: 2, with_desktop: 2, built: 0, web_only: 0 },
   };
 }
 
@@ -154,7 +162,7 @@ describe("useSigningPage", () => {
 
       await waitFor(() => {
         expect(result.current.scenarios).toHaveLength(2);
-        expect(result.current.scenarios[0].name).toBe("test-scenario");
+        expect(result.current.scenarios?.[0]?.name).toBe("test-scenario");
       });
     });
   });
@@ -341,13 +349,13 @@ describe("useSigningPage", () => {
     it("calls discoverCertificates when onDiscover is called", async () => {
       const mockCerts: DiscoveredCertificate[] = [
         {
-          fingerprint: "ABC123",
+          id: "ABC123",
           subject: "Test Cert",
           issuer: "Test CA",
           is_expired: false,
         },
       ];
-      mockDiscoverCertificates.mockResolvedValue({ certificates: mockCerts });
+      mockDiscoverCertificates.mockResolvedValue({ platform: "windows", certificates: mockCerts });
 
       const { result } = renderHook(() => useSigningPage({}), {
         wrapper: createWrapper(),
@@ -377,7 +385,7 @@ describe("useSigningPage", () => {
 
       await waitFor(() => {
         expect(result.current.prerequisitesData).toHaveLength(1);
-        expect(result.current.prerequisitesData[0].tool).toBe("signtool");
+        expect(result.current.prerequisitesData?.[0]?.tool).toBe("signtool");
       });
     });
 
@@ -459,7 +467,7 @@ describe("useSigningPage", () => {
       });
 
       const cert: DiscoveredCertificate = {
-        fingerprint: "ABC123",
+        id: "ABC123",
         subject: "CN=Test Cert",
         issuer: "CN=Test CA",
         is_expired: false,

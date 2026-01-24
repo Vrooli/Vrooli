@@ -13,7 +13,7 @@ import {
 
 // Store original values
 const originalLocation = window.location;
-const originalHistory = window.history;
+const _originalHistory = window.history;
 
 // Create a mock URL that behaves like window.location
 function createMockLocation(url: string) {

@@ -109,13 +109,14 @@ describe("generatorController", () => {
       const { fetchScenarioDesktopStatus } = await import("../lib/api");
       vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
         scenarios: [{ name: "test" } as ScenarioDesktopStatus],
+        stats: { total: 1, with_desktop: 1, built: 0, web_only: 0 },
       });
 
       const { loadGeneratorPageData } = await import("./generatorController");
       const result = await loadGeneratorPageData(null, null);
 
       expect(result.scenarios).toHaveLength(1);
-      expect(result.scenarios[0].name).toBe("test");
+      expect(result.scenarios?.[0]?.name).toBe("test");
       expect(result.error).toBeNull();
     });
 
@@ -132,20 +133,29 @@ describe("generatorController", () => {
 
     it("fetches proxy hints when scenario provided", async () => {
       const { fetchScenarioDesktopStatus, fetchProxyHints } = await import("../lib/api");
-      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({ scenarios: [] });
-      vi.mocked(fetchProxyHints).mockResolvedValue({ proxy_url: "https://api.example.com" });
+      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
+        scenarios: [],
+        stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
+      });
+      vi.mocked(fetchProxyHints).mockResolvedValue({
+        scenario: "test-scenario",
+        hints: [{ url: "https://api.example.com", source: "config", confidence: "high", message: "" }],
+      });
 
       const { loadGeneratorPageData } = await import("./generatorController");
       const result = await loadGeneratorPageData("test-scenario", null);
 
       expect(fetchProxyHints).toHaveBeenCalledWith("test-scenario");
-      expect(result.proxyHints).toEqual({ proxy_url: "https://api.example.com" });
+      expect(result.proxyHints?.scenario).toBe("test-scenario");
     });
 
     it("fetches bundle manifest when path provided", async () => {
       const { fetchScenarioDesktopStatus, fetchBundleManifest } = await import("../lib/api");
-      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({ scenarios: [] });
-      vi.mocked(fetchBundleManifest).mockResolvedValue({ manifest: {} });
+      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
+        scenarios: [],
+        stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
+      });
+      vi.mocked(fetchBundleManifest).mockResolvedValue({ path: "/path/to/manifest.json", manifest: {} });
 
       const { loadGeneratorPageData } = await import("./generatorController");
       const result = await loadGeneratorPageData(null, "/path/to/manifest.json");
@@ -156,7 +166,10 @@ describe("generatorController", () => {
 
     it("handles proxy hints error gracefully", async () => {
       const { fetchScenarioDesktopStatus, fetchProxyHints } = await import("../lib/api");
-      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({ scenarios: [] });
+      vi.mocked(fetchScenarioDesktopStatus).mockResolvedValue({
+        scenarios: [],
+        stats: { total: 0, with_desktop: 0, built: 0, web_only: 0 },
+      });
       vi.mocked(fetchProxyHints).mockRejectedValue(new Error("Proxy error"));
 
       const { loadGeneratorPageData } = await import("./generatorController");
@@ -179,6 +192,7 @@ describe("generatorController", () => {
           { name: "scenario-1" } as ScenarioDesktopStatus,
           { name: "scenario-2" } as ScenarioDesktopStatus,
         ],
+        stats: { total: 2, with_desktop: 2, built: 0, web_only: 0 },
       });
 
       const { loadScenarios } = await import("./generatorController");
@@ -216,14 +230,14 @@ describe("generatorController", () => {
     it("fetches hints for valid scenario", async () => {
       const { fetchProxyHints } = await import("../lib/api");
       vi.mocked(fetchProxyHints).mockResolvedValue({
-        proxy_url: "https://api.example.com",
-        healthcheck_path: "/health",
+        scenario: "my-scenario",
+        hints: [{ url: "https://api.example.com", source: "config", confidence: "high", message: "" }],
       });
 
       const { loadProxyHints } = await import("./generatorController");
       const result = await loadProxyHints("my-scenario");
 
-      expect(result.hints?.proxy_url).toBe("https://api.example.com");
+      expect(result.hints?.hints?.[0]?.url).toBe("https://api.example.com");
       expect(result.error).toBeNull();
     });
 
@@ -263,8 +277,8 @@ describe("generatorController", () => {
     it("fetches manifest for valid path", async () => {
       const { fetchBundleManifest } = await import("../lib/api");
       vi.mocked(fetchBundleManifest).mockResolvedValue({
-        bundle_root: "/app",
-        version: "1.0.0",
+        path: "/path/to/manifest.json",
+        manifest: { bundle_root: "/app", version: "1.0.0" },
       });
 
       const { loadBundleManifest } = await import("./generatorController");
@@ -276,7 +290,7 @@ describe("generatorController", () => {
 
     it("trims whitespace from path", async () => {
       const { fetchBundleManifest } = await import("../lib/api");
-      vi.mocked(fetchBundleManifest).mockResolvedValue({ bundle_root: "/app" });
+      vi.mocked(fetchBundleManifest).mockResolvedValue({ path: "/path/to/manifest.json", manifest: { bundle_root: "/app" } });
 
       const { loadBundleManifest } = await import("./generatorController");
       await loadBundleManifest("  /path/to/manifest.json  ");
@@ -303,15 +317,15 @@ describe("generatorController", () => {
     it("tests connection for valid URL", async () => {
       const { probeEndpoints } = await import("../lib/api");
       vi.mocked(probeEndpoints).mockResolvedValue({
-        connected: true,
-        version: "1.0.0",
+        server: { status: "ok", status_code: 200 },
+        api: { status: "ok", status_code: 200 },
       });
 
       const { testProxyConnection } = await import("./generatorController");
       const result = await testProxyConnection("https://api.example.com");
 
       expect(probeEndpoints).toHaveBeenCalledWith({ proxy_url: "https://api.example.com" });
-      expect(result.result?.connected).toBe(true);
+      expect(result.result?.server?.status).toBe("ok");
       expect(result.error).toBeNull();
     });
 

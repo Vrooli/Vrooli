@@ -7,6 +7,7 @@ import { DocsPanel } from "./components/docs/DocsPanel";
 import { SigningPage } from "./components/signing";
 import { DistributionPage } from "./components/distribution";
 import { SpawnAgentButton } from "./components/state/SpawnAgentButton";
+import { ErrorBoundary, SectionErrorBoundary } from "./components/ui/ErrorBoundary";
 import type { ScenarioDesktopStatus } from "./components/scenario-inventory/types";
 import { getPipelineStatus } from "./lib/api";
 import type { FormState, SmokeTestStageDetails } from "./lib/api";
@@ -380,53 +381,65 @@ function AppContent() {
           </div>
         </div>
 
-        {/* Conditional Content */}
+        {/* Conditional Content - Each section wrapped with Error Boundary for graceful degradation */}
         {viewMode === "inventory" ? (
-          <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
+          <SectionErrorBoundary name="Scenario Inventory">
+            <ScenarioInventory onScenarioLaunch={handleInventorySelect} />
+          </SectionErrorBoundary>
         ) : viewMode === "docs" ? (
-          <DocsPanel
-            initialPath={docPath}
-            onPathChange={(path) => {
-              if (viewMode === "docs") {
-                setDocPath(path || null);
-              }
-            }}
-          />
+          <SectionErrorBoundary name="Documentation">
+            <DocsPanel
+              initialPath={docPath}
+              onPathChange={(path) => {
+                if (viewMode === "docs") {
+                  setDocPath(path || null);
+                }
+              }}
+            />
+          </SectionErrorBoundary>
         ) : viewMode === "signing" ? (
-          <SigningPage
-            initialScenario={selectedScenarioName}
-            onScenarioChange={(name) => {
-              setSelectedScenarioName(name);
-              setSelectionSource("manual");
-            }}
-          />
+          <SectionErrorBoundary name="Code Signing">
+            <SigningPage
+              initialScenario={selectedScenarioName}
+              onScenarioChange={(name) => {
+                setSelectedScenarioName(name);
+                setSelectionSource("manual");
+              }}
+            />
+          </SectionErrorBoundary>
         ) : viewMode === "distribution" ? (
-          <DistributionPage />
+          <SectionErrorBoundary name="Distribution">
+            <DistributionPage />
+          </SectionErrorBoundary>
         ) : viewMode === "records" ? (
-          <RecordsManager
-            onSwitchTemplate={(scenarioName, templateType) => {
-              openGeneratorForScenario(scenarioName);
-              setSelectedTemplate(templateType || "basic");
-            }}
-            onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
-            onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
-          />
+          <SectionErrorBoundary name="Generated Apps">
+            <RecordsManager
+              onSwitchTemplate={(scenarioName, templateType) => {
+                openGeneratorForScenario(scenarioName);
+                setSelectedTemplate(templateType || "basic");
+              }}
+              onEditSigning={(scenarioName) => openSigningTab(scenarioName)}
+              onRebuildWithSigning={(scenarioName) => openGeneratorForScenario(scenarioName)}
+            />
+          </SectionErrorBoundary>
         ) : (
-          <GeneratorPage
-            scenarioName={selectedScenarioName}
-            onScenarioNameChange={(name) => {
-              setSelectedScenarioName(name);
-              setSelectionSource("manual");
-            }}
-            selectedTemplate={selectedTemplate}
-            onTemplateChange={setSelectedTemplate}
-            selectionSource={selectionSource}
-            onOpenSigningTab={openSigningTab}
-            buildId={wrapperBuildId}
-            onBuildStart={(buildId) => {
-              setWrapperBuildId(buildId);
-            }}
-          />
+          <SectionErrorBoundary name="Desktop App Generator">
+            <GeneratorPage
+              scenarioName={selectedScenarioName}
+              onScenarioNameChange={(name) => {
+                setSelectedScenarioName(name);
+                setSelectionSource("manual");
+              }}
+              selectedTemplate={selectedTemplate}
+              onTemplateChange={setSelectedTemplate}
+              selectionSource={selectionSource}
+              onOpenSigningTab={openSigningTab}
+              buildId={wrapperBuildId}
+              onBuildStart={(buildId) => {
+                setWrapperBuildId(buildId);
+              }}
+            />
+          </SectionErrorBoundary>
         )}
 
         {/* Footer */}
@@ -509,8 +522,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
+    <ErrorBoundary sectionName="Application" showHomeButton>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

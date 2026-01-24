@@ -499,7 +499,7 @@ function ReadinessCard({ readiness }: { readiness?: SigningReadinessResponse }) 
     >
         <div className="grid grid-cols-3 gap-4">
           {platformOrder.map(platform => {
-            const status = readiness.platforms[platform];
+            const status = readiness.platforms?.[platform];
             return (
               <div
                 key={platform}
@@ -579,7 +579,7 @@ function CertificateDiscovery({
         <p className="text-sm text-slate-400">
           Finds certificates or identities already on this machine so you can apply them without copy/paste.
         </p>
-        {certificates.some((c) => c.days_to_expiry <= 30 && !c.is_expired) && (
+        {certificates.some((c) => (c.days_to_expiry ?? Infinity) <= 30 && !c.is_expired) && (
           <div className="rounded border border-amber-800 bg-amber-950/30 p-2 text-xs text-amber-200 flex items-center gap-2">
             <AlertCircle className="h-4 w-4" />
             <span>One or more certificates expire within 30 days. Apply a newer one before publishing.</span>
@@ -604,13 +604,13 @@ function CertificateDiscovery({
                   {cert.issuer && <p className="truncate" title={cert.issuer}>Issuer: {cert.issuer}</p>}
                   {cert.expires_at && (
                     <p className={cn(
-                      cert.is_expired || cert.days_to_expiry <= 7
+                      cert.is_expired || (cert.days_to_expiry ?? Infinity) <= 7
                         ? "text-red-300"
-                        : cert.days_to_expiry <= 30
+                        : (cert.days_to_expiry ?? Infinity) <= 30
                         ? "text-amber-300"
                         : "text-slate-400"
                     )}>
-                      Expires: {cert.expires_at} ({cert.days_to_expiry} days)
+                      Expires: {cert.expires_at} ({cert.days_to_expiry ?? "?"} days)
                     </p>
                   )}
                   {cert.usage_hint && <p>{cert.usage_hint}</p>}
@@ -642,11 +642,11 @@ function ValidationResultsCard({ result }: { result: SigningValidationResult }) 
       className={result.valid ? "border-green-800/50 bg-green-950/20" : "border-red-800/50 bg-red-950/20"}
       contentClassName="space-y-3"
     >
-        {result.errors.length > 0 && (
+        {(result.errors?.length ?? 0) > 0 && (
           <div>
             <p className="text-sm font-medium text-red-300 mb-2">Errors:</p>
             <ul className="space-y-2">
-              {result.errors.map((error, i) => (
+              {result.errors?.map((error, i) => (
                 <li key={i} className="text-sm p-2 rounded bg-red-950/50 border border-red-800/50">
                   <div className="flex items-start gap-2">
                     <XCircle className="h-4 w-4 mt-0.5 text-red-400 flex-shrink-0" />
@@ -663,11 +663,11 @@ function ValidationResultsCard({ result }: { result: SigningValidationResult }) 
           </div>
         )}
 
-        {result.warnings.length > 0 && (
+        {(result.warnings?.length ?? 0) > 0 && (
           <div>
             <p className="text-sm font-medium text-amber-300 mb-2">Warnings:</p>
             <ul className="space-y-2">
-              {result.warnings.map((warning, i) => (
+              {result.warnings?.map((warning, i) => (
                 <li key={i} className="text-sm p-2 rounded bg-amber-950/50 border border-amber-800/50">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 mt-0.5 text-amber-400 flex-shrink-0" />
@@ -679,7 +679,7 @@ function ValidationResultsCard({ result }: { result: SigningValidationResult }) 
           </div>
         )}
 
-      {result.valid && result.errors.length === 0 && result.warnings.length === 0 && (
+      {result.valid && (result.errors?.length ?? 0) === 0 && (result.warnings?.length ?? 0) === 0 && (
         <p className="text-sm text-green-300">All checks passed successfully.</p>
       )}
     </SectionCard>

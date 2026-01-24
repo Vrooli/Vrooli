@@ -19,7 +19,7 @@ const mockSaveNow = vi.fn().mockResolvedValue(undefined);
 vi.mock("./useScenarioState", () => ({
   useScenarioState: vi.fn(({ onStateLoaded, onStateCleared }) => {
     // Store callbacks for testing
-    (global as unknown as { __testCallbacks: { onStateLoaded?: unknown; onStateCleared?: unknown } }).__testCallbacks = {
+    (globalThis as unknown as { __testCallbacks: { onStateLoaded?: unknown; onStateCleared?: unknown } }).__testCallbacks = {
       onStateLoaded,
       onStateCleared,
     };
@@ -236,7 +236,7 @@ describe("useScenarioSync", () => {
       );
 
       // Simulate state loaded callback
-      const callbacks = (global as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { selected_template?: string } }) => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { selected_template?: string } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
         callbacks.onStateLoaded({
           form_state: {
@@ -256,7 +256,7 @@ describe("useScenarioSync", () => {
       );
 
       // Simulate state loaded callback
-      const callbacks = (global as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { preflight_result?: unknown; preflight_error?: string; preflight_override?: boolean; preflight_secrets?: Record<string, string> } }) => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { preflight_result?: unknown; preflight_error?: string; preflight_override?: boolean; preflight_secrets?: Record<string, string> } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
         callbacks.onStateLoaded({
           form_state: {
@@ -289,7 +289,7 @@ describe("useScenarioSync", () => {
       };
 
       // Simulate state loaded callback
-      const callbacks = (global as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { bundle_result?: unknown } }) => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: { bundle_result?: unknown } }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
         callbacks.onStateLoaded({
           form_state: {
@@ -309,7 +309,7 @@ describe("useScenarioSync", () => {
       );
 
       // Simulate state cleared callback
-      const callbacks = (global as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
       if (callbacks.onStateCleared) {
         callbacks.onStateCleared();
       }
@@ -325,7 +325,7 @@ describe("useScenarioSync", () => {
       });
 
       // Simulate state loaded callback with form state
-      const callbacks = (global as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: unknown }) => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateLoaded?: (state: { form_state?: unknown }) => void } }).__testCallbacks;
       if (callbacks.onStateLoaded) {
         callbacks.onStateLoaded({
           form_state: {
@@ -361,7 +361,7 @@ describe("useScenarioSync", () => {
       });
 
       // Simulate state cleared callback
-      const callbacks = (global as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
+      const callbacks = (globalThis as unknown as { __testCallbacks: { onStateCleared?: () => void } }).__testCallbacks;
       if (callbacks.onStateCleared) {
         callbacks.onStateCleared();
       }

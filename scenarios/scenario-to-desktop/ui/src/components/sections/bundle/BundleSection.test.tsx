@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 import { act } from "@testing-library/react";
 import { BundleSection } from "./BundleSection";
 import { usePipelineStore } from "../../../store";
-import type { VerbosePipelineStatus } from "../../../lib/api";
+import { createPipelineStatus } from "../../../test-utils/mocks";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -31,14 +31,14 @@ describe("BundleSection", () => {
   it("renders running state with status badge", () => {
     act(() => {
       usePipelineStore.setState({
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "running",
           current_stage: "bundle",
           stages: {
-            bundle: { status: "running" },
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "running", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -58,13 +58,13 @@ describe("BundleSection", () => {
           copied_artifacts: ["app.js", "index.html", "styles.css"],
           runtime_binaries: { linux: "/path/to/binary" },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            bundle: { status: "completed" },
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -93,13 +93,13 @@ describe("BundleSection", () => {
             message: "Bundle size exceeds 1 GB. Consider optimizing.",
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            bundle: { status: "completed" },
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -112,13 +112,13 @@ describe("BundleSection", () => {
   it("renders failed state with error", () => {
     act(() => {
       usePipelineStore.setState({
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            bundle: { status: "failed", error: "Bundle failed" },
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "failed", started_at: Date.now(), error: "Bundle failed" },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -149,11 +149,13 @@ describe("BundleSection", () => {
           copied_artifacts: ["app.js"],
           runtime_binaries: {},
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
-          stages: { bundle: { status: "completed" } },
-        } as VerbosePipelineStatus,
+          stages: {
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+          },
+        }),
       });
     });
 
@@ -176,11 +178,13 @@ describe("BundleSection", () => {
             mac: "/path/mac",
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
-          stages: { bundle: { status: "completed" } },
-        } as VerbosePipelineStatus,
+          stages: {
+            ...createPipelineStatus().stages,
+            bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+          },
+        }),
       });
     });
 

@@ -121,7 +121,9 @@ describe("GeneratorFormFooter", () => {
       (btn) => !btn.textContent?.includes("Desktop Application")
     );
     expect(dismissButton).toBeDefined();
-    fireEvent.click(dismissButton!);
+    if (dismissButton) {
+      fireEvent.click(dismissButton);
+    }
 
     expect(onDismissErrors).toHaveBeenCalledTimes(1);
   });

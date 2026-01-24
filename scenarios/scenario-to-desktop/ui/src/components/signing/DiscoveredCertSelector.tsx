@@ -16,7 +16,7 @@ export function DiscoveredCertSelector({
 }: DiscoveredCertSelectorProps) {
   if (discovered.length === 0) return null;
 
-  const hasExpiringSoon = discovered.some((c) => c.days_to_expiry <= 30 && !c.is_expired);
+  const hasExpiringSoon = discovered.some((c) => (c.days_to_expiry ?? Infinity) <= 30 && !c.is_expired);
 
   return (
     <div className="rounded border border-slate-800 bg-slate-950/50 p-2 text-xs text-slate-200 space-y-2">

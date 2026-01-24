@@ -50,7 +50,9 @@ describe("PlatformSelector", () => {
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[0]!); // Windows
+    const winCheckbox = checkboxes[0];
+    expect(winCheckbox).toBeDefined();
+    if (winCheckbox) fireEvent.click(winCheckbox); // Windows
 
     expect(onPlatformChange).toHaveBeenCalledWith("win", true);
   });
@@ -65,7 +67,9 @@ describe("PlatformSelector", () => {
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[1]!); // macOS
+    const macCheckbox = checkboxes[1];
+    expect(macCheckbox).toBeDefined();
+    if (macCheckbox) fireEvent.click(macCheckbox); // macOS
 
     expect(onPlatformChange).toHaveBeenCalledWith("mac", true);
   });
@@ -80,7 +84,9 @@ describe("PlatformSelector", () => {
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[2]!); // Linux
+    const linuxCheckbox = checkboxes[2];
+    expect(linuxCheckbox).toBeDefined();
+    if (linuxCheckbox) fireEvent.click(linuxCheckbox); // Linux
 
     expect(onPlatformChange).toHaveBeenCalledWith("linux", true);
   });
@@ -95,7 +101,9 @@ describe("PlatformSelector", () => {
     );
 
     const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[0]!); // Windows
+    const winCheckbox = checkboxes[0];
+    expect(winCheckbox).toBeDefined();
+    if (winCheckbox) fireEvent.click(winCheckbox); // Windows
 
     expect(onPlatformChange).toHaveBeenCalledWith("win", false);
   });

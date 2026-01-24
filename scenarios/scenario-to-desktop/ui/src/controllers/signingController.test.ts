@@ -155,7 +155,7 @@ describe("signingController", () => {
         platforms: { windows: { ready: true }, macos: { ready: false }, linux: { ready: false } },
       });
       vi.mocked(fetchSigningPrerequisites).mockResolvedValue({
-        tools: [{ name: "signtool", found: true }],
+        tools: [{ tool: "signtool", installed: true }],
       });
 
       const { loadSigningPageData } = await import("./signingController");
@@ -245,7 +245,7 @@ describe("signingController", () => {
 
     it("saves and validates config", async () => {
       const { saveSigningConfig, validateSigningConfig } = await import("../lib/api");
-      vi.mocked(saveSigningConfig).mockResolvedValue(undefined);
+      vi.mocked(saveSigningConfig).mockResolvedValue({ scenario: "test-scenario", config: { enabled: true } });
       vi.mocked(validateSigningConfig).mockResolvedValue({
         valid: true,
         errors: [],
@@ -262,7 +262,7 @@ describe("signingController", () => {
 
     it("succeeds even if validation fails", async () => {
       const { saveSigningConfig, validateSigningConfig } = await import("../lib/api");
-      vi.mocked(saveSigningConfig).mockResolvedValue(undefined);
+      vi.mocked(saveSigningConfig).mockResolvedValue({ scenario: "test-scenario", config: { enabled: true } });
       vi.mocked(validateSigningConfig).mockRejectedValue(new Error("Validation error"));
 
       const { saveSigningConfigWithValidation } = await import("./signingController");
@@ -300,7 +300,7 @@ describe("signingController", () => {
 
     it("deletes config successfully", async () => {
       const { deleteSigningConfig } = await import("../lib/api");
-      vi.mocked(deleteSigningConfig).mockResolvedValue(undefined);
+      vi.mocked(deleteSigningConfig).mockResolvedValue({ status: "deleted", scenario: "test-scenario" });
 
       const { deleteSigningConfigForScenario } = await import("./signingController");
       const result = await deleteSigningConfigForScenario("test-scenario");
@@ -329,6 +329,7 @@ describe("signingController", () => {
     it("discovers certificates and detects warnings", async () => {
       const { discoverCertificates } = await import("../lib/api");
       vi.mocked(discoverCertificates).mockResolvedValue({
+        platform: "windows",
         certificates: [
           { name: "Valid Cert", is_expired: false, days_to_expiry: 100 },
           { name: "Expiring Cert", is_expired: false, days_to_expiry: 15 },
@@ -340,7 +341,7 @@ describe("signingController", () => {
 
       expect(result.certificates).toHaveLength(2);
       expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0].daysToExpiry).toBe(15);
+      expect(result.warnings?.[0]?.daysToExpiry).toBe(15);
       expect(result.error).toBeNull();
     });
 
@@ -398,12 +399,12 @@ describe("signingController", () => {
   });
 
   describe("expiry warning storage", () => {
-    const originalWindow = global.window;
+    const originalWindow = globalThis.window;
 
     beforeEach(() => {
       // Mock localStorage
       const storage: Record<string, string> = {};
-      global.window = {
+      (globalThis as { window?: unknown }).window = {
         localStorage: {
           getItem: vi.fn((key: string) => storage[key] ?? null),
           setItem: vi.fn((key: string, value: string) => {
@@ -417,7 +418,7 @@ describe("signingController", () => {
     });
 
     afterEach(() => {
-      global.window = originalWindow;
+      (globalThis as { window?: unknown }).window = originalWindow;
     });
 
     it("stores expiry warning", () => {

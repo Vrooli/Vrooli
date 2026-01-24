@@ -6,7 +6,7 @@
 import { Badge } from "../ui/badge";
 import { CheckCircle, AlertTriangle, XCircle, Circle } from "lucide-react";
 import { cn } from "../../lib/utils";
-import type { StageStatus } from "../../lib/api";
+import type { ScenarioStageStatus } from "../../lib/api";
 
 export type StageStatusType = "valid" | "stale" | "invalid" | "none";
 
@@ -73,7 +73,7 @@ export function StageStatusBadge({
 }
 
 interface StageStatusFromApiProps {
-  stageStatus: StageStatus | undefined;
+  stageStatus: ScenarioStageStatus | undefined;
   stageName?: string;
   showLabel?: boolean;
   size?: "sm" | "md";

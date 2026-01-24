@@ -9,7 +9,8 @@ import type { ValidationStatus } from "../../lib/api";
 
 describe("GeneratorFormHeader", () => {
   const mockValidationStatus: ValidationStatus = {
-    overall: "valid",
+    scenario_name: "test-scenario",
+    overall_status: "valid",
     stages: {
       bundle: { status: "valid" },
       preflight: { status: "valid" },

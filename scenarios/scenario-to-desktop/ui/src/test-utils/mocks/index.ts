@@ -217,6 +217,52 @@ export function createPreflightWithValidationErrors(
 }
 
 // ============================================================================
+// Verbose Stage Result Mocks
+// ============================================================================
+
+/**
+ * Creates a mock VerboseStageResult for use in VerbosePipelineStatus.
+ * This provides all required fields for type-safe test mocks.
+ *
+ * @example
+ * ```ts
+ * const stages = {
+ *   build: createVerboseStageResult("running"),
+ *   bundle: createVerboseStageResult("completed"),
+ * };
+ * ```
+ */
+export function createVerboseStageResult(
+  status: string = "pending",
+  overrides?: {
+    stage?: string;
+    started_at?: number;
+    completed_at?: number;
+    error?: string;
+    details?: unknown;
+    logs?: string[];
+  }
+): {
+  stage: string;
+  status: string;
+  started_at: number;
+  completed_at?: number;
+  error?: string;
+  details?: unknown;
+  logs?: string[];
+} {
+  return {
+    stage: overrides?.stage ?? "unknown",
+    status,
+    started_at: overrides?.started_at ?? (status === "pending" ? 0 : Date.now()),
+    ...(overrides?.completed_at !== undefined && { completed_at: overrides.completed_at }),
+    ...(overrides?.error !== undefined && { error: overrides.error }),
+    ...(overrides?.details !== undefined && { details: overrides.details }),
+    ...(overrides?.logs !== undefined && { logs: overrides.logs }),
+  };
+}
+
+// ============================================================================
 // Stage Result Mocks
 // ============================================================================
 

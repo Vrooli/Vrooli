@@ -19,7 +19,6 @@ import {
   getPipelineStatusDisplay,
   formatStageName,
   type StageStatus,
-  type PipelineStatus,
 } from "./status-display";
 
 // ============================================================================

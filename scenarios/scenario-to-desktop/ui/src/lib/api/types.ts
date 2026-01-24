@@ -127,8 +127,8 @@ export interface BundleMissingAsset {
 export interface BundleInvalidChecksum {
   service_id: string;
   path: string;
-  expected: string;
-  actual: string;
+  expected?: string;
+  actual?: string;
 }
 
 export interface BundleValidationResult {
@@ -158,12 +158,14 @@ export interface BundlePreflightRequest {
 
 export interface BundlePreflightSecret {
   id: string;
-  class: string;
-  required: boolean;
-  has_value: boolean;
+  class?: string;
+  required?: boolean;
+  has_value?: boolean;
   description?: string;
   format?: string;
   prompt?: Record<string, string>;
+  /** @deprecated Use `class` instead */
+  name?: string;
 }
 
 export interface BundlePreflightReady {
@@ -390,8 +392,8 @@ export interface WineInstallMethod {
 export interface WineCheckResponse {
   installed: boolean;
   version?: string;
-  platform: string;
-  required_for: string[];
+  platform?: string;
+  required_for?: string[];
   install_methods?: WineInstallMethod[];
   recommended_method?: string;
 }
@@ -462,9 +464,9 @@ export interface LinuxSigningConfig {
 }
 
 export interface SigningConfigResponse {
-  scenario: string;
-  config: SigningConfig | null;
-  config_path: string;
+  scenario?: string;
+  config?: SigningConfig | null;
+  config_path?: string;
 }
 
 /** Validation error for signing configuration validation. */
@@ -493,9 +495,9 @@ export interface PlatformValidation {
 
 export interface SigningValidationResult {
   valid: boolean;
-  platforms: Record<string, PlatformValidation>;
-  errors: SigningValidationError[];
-  warnings: ValidationWarning[];
+  platforms?: Record<string, PlatformValidation>;
+  errors?: SigningValidationError[];
+  warnings?: ValidationWarning[];
 }
 
 export interface PlatformStatus {
@@ -505,40 +507,42 @@ export interface PlatformStatus {
 
 export interface SigningReadinessResponse {
   ready: boolean;
-  scenario: string;
+  scenario?: string;
   issues?: string[];
-  platforms: Record<string, PlatformStatus>;
+  platforms?: Record<string, PlatformStatus>;
 }
 
 export interface ToolDetectionResult {
-  platform: string;
-  tool: string;
-  installed: boolean;
+  platform?: string;
+  tool?: string;
+  installed?: boolean;
   path?: string;
   version?: string;
   error?: string;
   remediation?: string;
+  /** @deprecated Legacy field, use tool instead */
+  name?: string;
 }
 
 export interface DiscoveredCertificate {
-  id: string;
-  name: string;
+  id?: string;
+  name?: string;
   subject?: string;
   issuer?: string;
   expires_at?: string;
-  days_to_expiry: number;
-  is_expired: boolean;
-  is_code_sign: boolean;
+  days_to_expiry?: number;
+  is_expired?: boolean;
+  is_code_sign?: boolean;
   type?: string;
-  platform: string;
+  platform?: string;
   usage_hint?: string;
 }
 
 export interface GenerateKeyResponse {
-  status: string;
-  key_id: string;
-  fingerprint: string;
-  homedir: string;
+  status?: string;
+  key_id?: string;
+  fingerprint?: string;
+  homedir?: string;
   public_key?: string;
   config_path?: string;
   public_key_path?: string;

@@ -8,7 +8,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { act } from "@testing-library/react";
 import { GenerateSection } from "./GenerateSection";
 import { usePipelineStore } from "../../../store";
-import type { VerbosePipelineStatus } from "../../../lib/api";
+import { createPipelineStatus } from "../../../test-utils/mocks";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -38,14 +38,14 @@ describe("GenerateSection", () => {
   it("renders running state with status badge", () => {
     act(() => {
       usePipelineStore.setState({
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "running",
           current_stage: "generate",
           stages: {
-            generate: { status: "running" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "running", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -61,13 +61,13 @@ describe("GenerateSection", () => {
           desktop_path: "/path/to/desktop/app",
           build_id: "build-abc123def456",
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            generate: { status: "completed" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -86,13 +86,13 @@ describe("GenerateSection", () => {
           desktop_path: "/path/to/desktop",
           build_id: "build-abc123",
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            generate: { status: "completed" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -109,13 +109,13 @@ describe("GenerateSection", () => {
           category: "validation",
           suggestions: ["Check your template configuration"],
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            generate: { status: "failed", error: "Generation failed" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "failed", started_at: Date.now(), error: "Generation failed" },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -132,13 +132,13 @@ describe("GenerateSection", () => {
     act(() => {
       usePipelineStore.setState({
         errorInfo: { message: "Failed", category: "unknown" },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            generate: { status: "failed" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "failed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -169,13 +169,13 @@ describe("GenerateSection", () => {
     act(() => {
       usePipelineStore.setState({
         errorInfo: { message: "Failed", category: "unknown" },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            generate: { status: "failed" },
+            ...createPipelineStatus().stages,
+            generate: { stage: "generate", status: "failed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 

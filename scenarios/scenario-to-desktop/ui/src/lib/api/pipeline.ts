@@ -38,17 +38,17 @@ export interface PipelineStageResult {
 
 export interface PipelineStatus {
   pipeline_id: string;
-  scenario_name: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  scenario_name?: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
   current_stage?: string;
-  /** Completion percentage (0-100), always present */
-  progress_percent: number;
+  /** Completion percentage (0-100) */
+  progress_percent?: number;
   /** Human-readable progress message (e.g., "Running bundle stage (1/6)") */
   progress_message?: string;
-  stages: Record<string, PipelineStageResult>;
-  stage_order: string[];
-  config: PipelineConfig;
-  started_at: number;
+  stages?: Record<string, PipelineStageResult>;
+  stage_order?: string[];
+  config?: PipelineConfig;
+  started_at?: number;
   completed_at?: number;
   error?: string;
   final_artifacts?: Record<string, string>;
@@ -57,7 +57,7 @@ export interface PipelineStatus {
 
 export interface PipelineRunResponse {
   pipeline_id: string;
-  status_url: string;
+  status_url?: string;
   message?: string;
 }
 
@@ -73,17 +73,17 @@ export interface PipelineResumeResponse {
 
 /** Bundle stage details (from bundle/types.go PackageResult) */
 export interface BundleStageDetails {
-  bundle_dir: string;
-  manifest_path: string;
+  bundle_dir?: string;
+  manifest_path?: string;
   manifest_content?: Record<string, unknown>;
   runtime_binaries?: Record<string, string>;
   copied_artifacts?: string[];
   total_size_bytes?: number;
   total_size_human?: string;
   size_warning?: {
-    level: string;
-    message: string;
-    total_bytes: number;
+    level?: string;
+    message?: string;
+    total_bytes?: number;
     total_human?: string;
     large_files?: { path: string; size_bytes: number; size_human?: string }[];
   };
@@ -93,9 +93,9 @@ export interface BundleStageDetails {
 export interface GenerateStageDetails {
   build_id?: string;
   pipeline_id?: string;
-  status: string;
-  scenario_name: string;
-  desktop_path: string;
+  status?: string;
+  scenario_name?: string;
+  desktop_path?: string;
   install_instructions?: string;
   test_command?: string;
   status_url?: string;
@@ -131,15 +131,15 @@ export interface BuildPlatformResult {
 
 /** Build stage details (from build/types.go Status) */
 export interface BuildStageDetails {
-  build_id: string;
-  scenario_name: string;
-  status: string;
-  framework: string;
-  template_type: string;
-  platforms: string[];
+  build_id?: string;
+  scenario_name?: string;
+  status?: string;
+  framework?: string;
+  template_type?: string;
+  platforms?: string[];
   requested_platforms?: string[];
   platform_results?: Record<string, BuildPlatformResult>;
-  output_path: string;
+  output_path?: string;
   created_at?: string;
   completed_at?: string;
   build_log?: string[];
@@ -150,10 +150,10 @@ export interface BuildStageDetails {
 
 /** SmokeTest stage details (from smoketest/types.go Status) */
 export interface SmokeTestStageDetails {
-  smoke_test_id: string;
-  scenario_name: string;
-  platform: string;
-  status: string;
+  smoke_test_id?: string;
+  scenario_name?: string;
+  platform?: string;
+  status?: string;
   artifact_path?: string;
   started_at?: string;
   completed_at?: string;
@@ -165,8 +165,8 @@ export interface SmokeTestStageDetails {
 
 /** Distribution platform upload (from distribution/types.go PlatformUpload) */
 export interface DistributionPlatformUpload {
-  platform: string;
-  status: string;
+  platform?: string;
+  status?: string;
   local_path?: string;
   remote_key?: string;
   url?: string;
@@ -177,8 +177,8 @@ export interface DistributionPlatformUpload {
 
 /** Distribution target status (from distribution/types.go TargetDistribution) */
 export interface DistributionTargetStatus {
-  target_name: string;
-  status: string;
+  target_name?: string;
+  status?: string;
   started_at?: number;
   completed_at?: number;
   uploads?: Record<string, DistributionPlatformUpload>;
@@ -187,10 +187,10 @@ export interface DistributionTargetStatus {
 
 /** Distribution stage details (from distribution/types.go DistributionStatus) */
 export interface DistributionStageDetails {
-  distribution_id: string;
-  scenario_name: string;
-  version: string;
-  status: string;
+  distribution_id?: string;
+  scenario_name?: string;
+  version?: string;
+  status?: string;
   started_at?: number;
   completed_at?: number;
   targets?: Record<string, DistributionTargetStatus>;

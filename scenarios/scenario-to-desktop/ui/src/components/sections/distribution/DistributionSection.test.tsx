@@ -9,7 +9,7 @@ import { act } from "@testing-library/react";
 import { DistributionSection } from "./DistributionSection";
 import { usePipelineStore } from "../../../store";
 import { renderWithProviders } from "../../../test-utils";
-import type { VerbosePipelineStatus } from "../../../lib/api";
+import { createPipelineStatus } from "../../../test-utils/mocks";
 
 // Reset store state before each test
 beforeEach(() => {
@@ -67,14 +67,14 @@ describe("DistributionSection", () => {
           platforms: ["win"],
           artifacts: { win: "/path/app.exe" },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "running",
           current_stage: "distribution",
           stages: {
-            distribution: { status: "running" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "running", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -99,13 +99,13 @@ describe("DistributionSection", () => {
             },
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -129,13 +129,13 @@ describe("DistributionSection", () => {
             },
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -166,13 +166,13 @@ describe("DistributionSection", () => {
             },
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -197,13 +197,13 @@ describe("DistributionSection", () => {
             },
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -220,13 +220,13 @@ describe("DistributionSection", () => {
           targets: {},
           error: "No distribution targets configured",
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -238,13 +238,13 @@ describe("DistributionSection", () => {
   it("renders failed state from stage status", () => {
     act(() => {
       usePipelineStore.setState({
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
-            distribution: { status: "failed", error: "Distribution failed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "failed", started_at: Date.now(), error: "Distribution failed" },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
@@ -281,13 +281,13 @@ describe("DistributionSection", () => {
             },
           },
         },
-        pipelineStatus: {
-          pipeline_id: "test",
+        pipelineStatus: createPipelineStatus({
           status: "completed",
           stages: {
-            distribution: { status: "completed" },
+            ...createPipelineStatus().stages,
+            distribution: { stage: "distribution", status: "completed", started_at: Date.now() },
           },
-        } as VerbosePipelineStatus,
+        }),
       });
     });
 
