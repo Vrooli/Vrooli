@@ -64,9 +64,9 @@ describe('getFallbackLandingConfig', () => {
     const config = module.getFallbackLandingConfig();
 
     expect(config.sections).toHaveLength(2);
-    expect(config.sections[0].order).toBe(1);
-    expect(config.sections[0].enabled).toBe(true);
-    expect(config.sections[1].order).toBe(10);
-    expect(config.sections[1].enabled).toBe(false);
+    expect(config.sections[0]?.order).toBe(1);
+    expect(config.sections[0]?.enabled).toBe(true);
+    expect(config.sections[1]?.order).toBe(10);
+    expect(config.sections[1]?.enabled).toBe(false);
   });
 });

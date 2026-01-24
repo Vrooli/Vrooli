@@ -249,7 +249,8 @@ export function createObjectURLMock(): {
 } {
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
-  const mock = vi.fn(() => 'blob:test-url');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mock = vi.fn((_obj: Blob | MediaSource) => 'blob:test-url') as any;
   const revokeMock = vi.fn();
   URL.createObjectURL = mock;
   URL.revokeObjectURL = revokeMock;
@@ -261,6 +262,60 @@ export function createObjectURLMock(): {
       URL.revokeObjectURL = originalRevokeObjectURL;
     },
   };
+}
+
+/**
+ * Helper to assert a value is defined in tests.
+ * Throws if undefined, causing the test to fail with a clear message.
+ */
+export function assertDefined<T>(value: T | undefined, name: string): asserts value is T {
+  if (value === undefined) {
+    throw new Error(`Expected ${name} to be defined`);
+  }
+}
+
+/**
+ * Helper to safely get the first call arguments from a mock.
+ * Throws if no calls were made, ensuring the test fails if mock wasn't called.
+ */
+export function getFirstCall<T extends ReturnType<typeof vi.fn>>(
+  mock: T
+): NonNullable<T['mock']['calls'][0]> {
+  const call = mock.mock.calls[0];
+  if (!call) {
+    throw new Error('Expected mock to have been called at least once');
+  }
+  return call;
+}
+
+/**
+ * Helper to safely get a specific call from a mock by index.
+ * Throws if the call at that index doesn't exist.
+ */
+export function getCall<T extends ReturnType<typeof vi.fn>>(
+  mock: T,
+  index: number
+): NonNullable<T['mock']['calls'][number]> {
+  const call = mock.mock.calls[index];
+  if (!call) {
+    throw new Error(`Expected mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+  }
+  return call;
+}
+
+/**
+ * Helper to get fetch mock call arguments with proper typing.
+ * Returns [url, options] tuple with proper types.
+ */
+export function getFetchCall(
+  mock: ReturnType<typeof createFetchMock>,
+  index = 0
+): [string, RequestInit] {
+  const call = mock.mock.calls[index];
+  if (!call) {
+    throw new Error(`Expected fetch mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
+  }
+  return [call[0] as string, call[1] as RequestInit];
 }
 
 /**

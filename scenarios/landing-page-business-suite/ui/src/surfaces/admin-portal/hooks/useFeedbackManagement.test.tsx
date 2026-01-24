@@ -174,7 +174,7 @@ describe('useFeedbackManagement', () => {
       });
 
       expect(result.current.filteredFeedback).toHaveLength(1);
-      expect(result.current.filteredFeedback[0].id).toBe(1);
+      expect(result.current.filteredFeedback[0]?.id).toBe(1);
     });
   });
 
@@ -318,7 +318,7 @@ describe('useFeedbackManagement', () => {
       });
 
       expect(updateResult!.success).toBe(true);
-      expect(result.current.feedbackList[0].status).toBe('resolved');
+      expect(result.current.feedbackList[0]?.status).toBe('resolved');
       expect(mockUpdateFeedbackStatus).toHaveBeenCalledWith(1, 'resolved');
     });
 
@@ -480,7 +480,7 @@ describe('useFeedbackManagement', () => {
 
       expect(deleteResult!.success).toBe(true);
       expect(result.current.feedbackList).toHaveLength(1);
-      expect(result.current.feedbackList[0].id).toBe(3);
+      expect(result.current.feedbackList[0]?.id).toBe(3);
       expect(result.current.selectedIds.size).toBe(0);
       expect(mockDeleteFeedbackBulk).toHaveBeenCalledWith([1, 2]);
     });

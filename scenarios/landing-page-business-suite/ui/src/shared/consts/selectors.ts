@@ -110,14 +110,18 @@ const normalizeParams = (
     }
     const definitionEntry = schema[key];
     const value = raw[key];
-    if (definitionEntry.type === "number") {
+    // value is guaranteed to exist since we checked `key in raw` above
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' is undefined`);
+    }
+    if (definitionEntry?.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
       }
       normalized[key] = value;
       continue;
     }
-    if (definitionEntry.type === "enum") {
+    if (definitionEntry?.type === "enum") {
       if (!definitionEntry.values.includes(value)) {
         throw new Error(
           `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,

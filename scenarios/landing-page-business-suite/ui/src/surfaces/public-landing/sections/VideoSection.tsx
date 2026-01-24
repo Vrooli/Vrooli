@@ -38,7 +38,7 @@ const YOUTUBE_ID_REGEX = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a
 
 function getYouTubeId(url: string): string | null {
   const match = url.match(YOUTUBE_ID_REGEX);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 function getVideoEmbedUrl(url: string): string | null {

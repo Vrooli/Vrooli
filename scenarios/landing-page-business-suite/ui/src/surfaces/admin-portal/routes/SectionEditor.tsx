@@ -10,6 +10,7 @@ import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
+import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
 import { useSectionForm } from '../hooks/useSectionForm';
 import {
   VariantSectionTimeline,
@@ -31,20 +32,48 @@ import { DownloadSection } from '../../public-landing/sections/DownloadSection';
 
 type PreviewRenderer = (params: {
   content: Record<string, unknown>;
+  sectionType: ContentSection['section_type'];
   config: LandingConfigResponse | null;
 }) => JSX.Element | null;
 
+/**
+ * Safely parse content for preview, returning the parsed content or the original
+ * if parsing succeeds (which is expected since schemas are lenient).
+ */
+function getPreviewContent<T>(sectionType: string, content: Record<string, unknown>): T {
+  const result = parseDynamicSectionContent(sectionType, content);
+  // Parsing should almost always succeed since schemas have optional fields
+  // If it fails, we still return content cast to T for preview purposes
+  return (result.success ? result.data : content) as T;
+}
+
 const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewRenderer> = {
-  hero: ({ content }) => <HeroSection content={content as any} />,
-  features: ({ content }) => <FeaturesSection content={content as any} />,
-  pricing: ({ content, config }) => <PricingSection content={content as any} pricingOverview={config?.pricing} />,
-  cta: ({ content }) => <CTASection content={content as any} />,
-  testimonials: ({ content }) => <TestimonialsSection content={content as any} />,
-  faq: ({ content }) => <FAQSection content={content as any} />,
-  footer: ({ content }) => <FooterSection content={content as any} />,
-  video: ({ content }) => <VideoSection content={content as any} />,
-  downloads: ({ content, config }) => (
-    <DownloadSection content={content as any} downloads={config?.downloads} />
+  hero: ({ content, sectionType }) => (
+    <HeroSection content={getPreviewContent(sectionType, content)} />
+  ),
+  features: ({ content, sectionType }) => (
+    <FeaturesSection content={getPreviewContent(sectionType, content)} />
+  ),
+  pricing: ({ content, sectionType, config }) => (
+    <PricingSection content={getPreviewContent(sectionType, content)} pricingOverview={config?.pricing} />
+  ),
+  cta: ({ content, sectionType }) => (
+    <CTASection content={getPreviewContent(sectionType, content)} />
+  ),
+  testimonials: ({ content, sectionType }) => (
+    <TestimonialsSection content={getPreviewContent(sectionType, content)} />
+  ),
+  faq: ({ content, sectionType }) => (
+    <FAQSection content={getPreviewContent(sectionType, content)} />
+  ),
+  footer: ({ content, sectionType }) => (
+    <FooterSection content={getPreviewContent(sectionType, content)} />
+  ),
+  video: ({ content, sectionType }) => (
+    <VideoSection content={getPreviewContent(sectionType, content)} />
+  ),
+  downloads: ({ content, sectionType, config }) => (
+    <DownloadSection content={getPreviewContent(sectionType, content)} downloads={config?.downloads} />
   ),
 };
 
@@ -415,6 +444,7 @@ export function SectionEditor() {
                   variantLabel={previewVariantLabel}
                   renderer={previewRenderer}
                   content={debouncedContent}
+                  sectionType={sectionType}
                   config={previewConfig}
                   sectionEnabled={enabled}
                   missingSectionMessage={`No ${sectionType} preview available yet.`}
@@ -425,6 +455,7 @@ export function SectionEditor() {
                     variantLabel={comparisonVariantLabel || compareVariantSlug}
                     renderer={comparisonSection ? previewRenderer : undefined}
                     content={comparisonContent}
+                    sectionType={sectionType}
                     config={compareConfig}
                     sectionEnabled={comparisonSection ? comparisonEnabled : true}
                     missingSectionMessage={

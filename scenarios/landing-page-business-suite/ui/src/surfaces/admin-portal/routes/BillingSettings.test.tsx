@@ -66,7 +66,7 @@ const demoBundle: BundleCatalogEntry = {
     {
       plan_name: 'Solo Monthly',
       plan_tier: 'solo',
-      billing_interval: 'month',
+      billing_interval: 'month' as const,
       amount_cents: 4900,
       currency: 'usd',
       intro_enabled: false,
@@ -78,7 +78,7 @@ const demoBundle: BundleCatalogEntry = {
       one_time_bonus_credits: 0,
       plan_rank: 1,
       bonus_type: 'none',
-      kind: 'subscription',
+      kind: 'subscription' as const,
       is_variable_amount: false,
       display_enabled: true,
       stripe_price_id: 'price_solo',
@@ -100,7 +100,8 @@ describe('BillingSettings', () => {
       secret_key_set: true,
       source: 'database',
     });
-    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] });
+    // Use type assertion because the mock return type is stricter than BundleCatalogEntry
+    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] } as Awaited<ReturnType<typeof getBundleCatalog>>);
   });
 
   it('renders Stripe status and bundle catalog entries', async () => {

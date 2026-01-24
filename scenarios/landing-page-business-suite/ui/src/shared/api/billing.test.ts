@@ -13,7 +13,7 @@ import {
   type BundleCatalogResponse,
 } from './billing';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 vi.mock('@bufbuild/protobuf', () => ({
   fromJson: vi.fn((schema, data) => data),
@@ -191,9 +191,9 @@ describe('billing API', () => {
 
       await updateStripeSettings(payload);
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('PUT');
-      expect(JSON.parse(callArgs[1].body as string)).toEqual(payload);
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('PUT');
+      expect(JSON.parse(options.body as string)).toEqual(payload);
     });
 
     it('returns updated settings', async () => {
@@ -255,8 +255,8 @@ describe('billing API', () => {
       const result = await getBundleCatalog();
 
       expect(result.bundles).toHaveLength(1);
-      expect(result.bundles[0].bundle.bundle_key).toBe('main');
-      expect(result.bundles[0].prices[0].plan_name).toBe('Pro');
+      expect(result.bundles[0]?.bundle.bundle_key).toBe('main');
+      expect(result.bundles[0]?.prices[0]?.plan_name).toBe('Pro');
     });
   });
 
@@ -269,10 +269,10 @@ describe('billing API', () => {
         display_weight: 75,
       });
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('PATCH');
-      expect(callArgs[0]).toContain('/admin/bundles/main/prices/price_123');
-      expect(JSON.parse(callArgs[1].body as string)).toEqual({
+      const [url, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('PATCH');
+      expect(url).toContain('/admin/bundles/main/prices/price_123');
+      expect(JSON.parse(options.body as string)).toEqual({
         plan_name: 'Pro Plus',
         display_weight: 75,
       });
@@ -283,9 +283,9 @@ describe('billing API', () => {
 
       await updateBundlePrice('bundle/with/slashes', 'price+special', {});
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain(encodeURIComponent('bundle/with/slashes'));
-      expect(callArgs[0]).toContain(encodeURIComponent('price+special'));
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain(encodeURIComponent('bundle/with/slashes'));
+      expect(url).toContain(encodeURIComponent('price+special'));
     });
   });
 
@@ -314,8 +314,8 @@ describe('billing API', () => {
 
       await verifyStripePrice('pro_monthly');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('key=pro_monthly');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('key=pro_monthly');
     });
 
     it('throws on invalid price', async () => {
@@ -337,9 +337,9 @@ describe('billing API', () => {
         price_id: 'price_123',
       });
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('POST');
-      const body = JSON.parse(callArgs[1].body as string);
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('POST');
+      const body = JSON.parse(options.body as string);
       expect(body.price_id).toBe('price_123');
     });
 
@@ -352,8 +352,8 @@ describe('billing API', () => {
         customer_email: 'user@example.com',
       });
 
-      const callArgs = fetchMock.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body as string);
+      const [, options] = getFetchCall(fetchMock);
+      const body = JSON.parse(options.body as string);
       expect(body.customer_email).toBe('user@example.com');
     });
 
@@ -367,8 +367,8 @@ describe('billing API', () => {
         cancel_url: 'https://example.com/cancel',
       });
 
-      const callArgs = fetchMock.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body as string);
+      const [, options] = getFetchCall(fetchMock);
+      const body = JSON.parse(options.body as string);
       expect(body.success_url).toBe('https://example.com/success');
       expect(body.cancel_url).toBe('https://example.com/cancel');
     });
@@ -396,10 +396,10 @@ describe('billing API', () => {
         customer_email: 'user@example.com',
       });
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('POST');
-      expect(callArgs[0]).toContain('/billing/create-credits-checkout-session');
-      const body = JSON.parse(callArgs[1].body as string);
+      const [url, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('POST');
+      expect(url).toContain('/billing/create-credits-checkout-session');
+      const body = JSON.parse(options.body as string);
       expect(body.price_id).toBe('price_credits_100');
       expect(body.customer_email).toBe('user@example.com');
     });
@@ -412,9 +412,9 @@ describe('billing API', () => {
 
       const result = await createBillingPortalSession();
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('/billing/portal-url');
-      expect(callArgs[0]).not.toContain('?');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('/billing/portal-url');
+      expect(url).not.toContain('?');
       expect(result.url).toBe('https://billing.stripe.com/portal/123');
     });
 
@@ -424,9 +424,9 @@ describe('billing API', () => {
 
       await createBillingPortalSession('https://example.com/return');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('return_url=');
-      expect(callArgs[0]).toContain(encodeURIComponent('https://example.com/return'));
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('return_url=');
+      expect(url).toContain(encodeURIComponent('https://example.com/return'));
     });
 
     it('includes user param when provided', async () => {
@@ -435,8 +435,8 @@ describe('billing API', () => {
 
       await createBillingPortalSession(undefined, 'user@example.com');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('user=user%40example.com');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('user=user%40example.com');
     });
 
     it('includes both params when provided', async () => {
@@ -445,9 +445,9 @@ describe('billing API', () => {
 
       await createBillingPortalSession('https://example.com', 'user@example.com');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('return_url=');
-      expect(callArgs[0]).toContain('user=');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('return_url=');
+      expect(url).toContain('user=');
     });
   });
 });

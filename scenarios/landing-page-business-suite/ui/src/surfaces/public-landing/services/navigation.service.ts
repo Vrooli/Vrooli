@@ -109,6 +109,7 @@ export function getDownloadButtonLabel(downloadApps: DownloadApp[]): string {
 
   if (downloadApps.length === 1) {
     const single = downloadApps[0];
+    if (!single) return 'View downloads';
     const singleInstaller = single.platforms?.[0];
 
     if ((single.platforms?.length ?? 0) === 1 && singleInstaller) {

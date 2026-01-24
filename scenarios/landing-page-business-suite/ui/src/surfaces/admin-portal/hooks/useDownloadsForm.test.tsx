@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { DownloadApp } from '../../../shared/api';
 import { useDownloadsForm } from './useDownloadsForm';
+import { assertDefined } from '../../../shared/test-utils/api-mocks';
 
 // Mock API functions
 const listDownloadAppsAdminMock = vi.fn();
@@ -83,7 +84,9 @@ describe('useDownloadsForm', () => {
 
       expect(listDownloadAppsAdminMock).toHaveBeenCalled();
       expect(result.current.forms).toHaveLength(1);
-      expect(result.current.forms[0].values.appKey).toBe('test-app');
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.appKey).toBe('test-app');
     });
 
     it('handles load error', async () => {
@@ -110,8 +113,12 @@ describe('useDownloadsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.forms[0].values.appKey).toBe('test-app'); // display_order: 0
-      expect(result.current.forms[1].values.appKey).toBe('test-app-2'); // display_order: 1
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.appKey).toBe('test-app'); // display_order: 0
+      const form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form1.values.appKey).toBe('test-app-2'); // display_order: 1
     });
   });
 
@@ -127,7 +134,9 @@ describe('useDownloadsForm', () => {
         result.current.handleFieldChange('test-app', 'name', 'Updated Name');
       });
 
-      expect(result.current.forms[0].values.name).toBe('Updated Name');
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.name).toBe('Updated Name');
     });
 
     it('converts displayOrder to number', async () => {
@@ -141,7 +150,9 @@ describe('useDownloadsForm', () => {
         result.current.handleFieldChange('test-app', 'displayOrder', '5');
       });
 
-      expect(result.current.forms[0].values.displayOrder).toBe(5);
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.displayOrder).toBe(5);
     });
   });
 
@@ -157,7 +168,9 @@ describe('useDownloadsForm', () => {
         result.current.handlePlatformChange('test-app', 'windows', 'releaseVersion', '2.0.0');
       });
 
-      expect(result.current.forms[0].values.platforms.windows.releaseVersion).toBe('2.0.0');
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.platforms.windows.releaseVersion).toBe('2.0.0');
     });
 
     it('updates platform enabled state', async () => {
@@ -171,7 +184,9 @@ describe('useDownloadsForm', () => {
         result.current.handlePlatformChange('test-app', 'mac', 'enabled', true);
       });
 
-      expect(result.current.forms[0].values.platforms.mac.enabled).toBe(true);
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.platforms.mac.enabled).toBe(true);
     });
   });
 
@@ -189,6 +204,7 @@ describe('useDownloadsForm', () => {
 
       expect(result.current.forms).toHaveLength(2);
       const newForm = result.current.forms[1];
+      assertDefined(newForm, 'forms[1]');
       expect(newForm.isNew).toBe(true);
       expect(newForm.values.name).toBe('New Bundle App');
       expect(newForm.key).toMatch(/^app-\d+$/);
@@ -209,15 +225,19 @@ describe('useDownloadsForm', () => {
         result.current.handleFieldChange('test-app', 'tagline', 'Changed Tagline');
       });
 
-      expect(result.current.forms[0].values.name).toBe('Changed Name');
+      let form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.name).toBe('Changed Name');
 
       // Reset
       act(() => {
         result.current.handleReset('test-app');
       });
 
-      expect(result.current.forms[0].values.name).toBe('Test App');
-      expect(result.current.forms[0].values.tagline).toBe('A great app');
+      form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.name).toBe('Test App');
+      expect(form0.values.tagline).toBe('A great app');
     });
 
     it('clears error on reset', async () => {
@@ -234,13 +254,17 @@ describe('useDownloadsForm', () => {
         await result.current.handleSave('test-app');
       });
 
-      expect(result.current.forms[0].error).toBe('Save failed');
+      let form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.error).toBe('Save failed');
 
       act(() => {
         result.current.handleReset('test-app');
       });
 
-      expect(result.current.forms[0].error).toBeUndefined();
+      form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.error).toBeUndefined();
     });
   });
 
@@ -256,7 +280,9 @@ describe('useDownloadsForm', () => {
         result.current.handleAddApp();
       });
 
-      const newKey = result.current.forms[1].key;
+      const form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      const newKey = form1.key;
 
       await act(async () => {
         await result.current.handleDelete(newKey);
@@ -311,7 +337,9 @@ describe('useDownloadsForm', () => {
         await result.current.handleDelete('test-app');
       });
 
-      expect(result.current.forms[0].error).toBe('Delete failed');
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.error).toBe('Delete failed');
       expect(result.current.forms).toHaveLength(1);
     });
   });
@@ -333,7 +361,9 @@ describe('useDownloadsForm', () => {
       });
 
       expect(saveDownloadAppAdminMock).toHaveBeenCalled();
-      expect(result.current.forms[0].lastSavedAt).toBeDefined();
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.lastSavedAt).toBeDefined();
     });
 
     it('creates new app', async () => {
@@ -347,7 +377,9 @@ describe('useDownloadsForm', () => {
         result.current.handleAddApp();
       });
 
-      const newKey = result.current.forms[1].key;
+      let form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      const newKey = form1.key;
 
       act(() => {
         result.current.handleFieldChange(newKey, 'appKey', 'new-app');
@@ -358,7 +390,9 @@ describe('useDownloadsForm', () => {
       });
 
       expect(createDownloadAppAdminMock).toHaveBeenCalled();
-      expect(result.current.forms[1].isNew).toBe(false);
+      form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form1.isNew).toBe(false);
     });
 
     it('validates required appKey', async () => {
@@ -372,7 +406,9 @@ describe('useDownloadsForm', () => {
         result.current.handleAddApp();
       });
 
-      const newKey = result.current.forms[1].key;
+      let form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      const newKey = form1.key;
 
       // Don't set appKey, leave it as temp key
       act(() => {
@@ -384,7 +420,9 @@ describe('useDownloadsForm', () => {
       });
 
       expect(createDownloadAppAdminMock).not.toHaveBeenCalled();
-      expect(result.current.forms[1].error).toBe('App key is required before saving.');
+      form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form1.error).toBe('App key is required before saving.');
     });
 
     it('handles save error', async () => {
@@ -400,8 +438,10 @@ describe('useDownloadsForm', () => {
         await result.current.handleSave('test-app');
       });
 
-      expect(result.current.forms[0].error).toBe('Save failed');
-      expect(result.current.forms[0].saving).toBe(false);
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.error).toBe('Save failed');
+      expect(form0.saving).toBe(false);
     });
   });
 
@@ -467,9 +507,13 @@ describe('useDownloadsForm', () => {
       });
 
       // First form saved successfully
-      expect(result.current.forms[0].lastSavedAt).toBeDefined();
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.lastSavedAt).toBeDefined();
       // Second form has error
-      expect(result.current.forms[1].error).toBe('Second save failed');
+      const form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form1.error).toBe('Second save failed');
     });
   });
 
@@ -525,8 +569,12 @@ describe('useDownloadsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.forms[0].values.appKey).toBe('test-app');
-      expect(result.current.forms[1].values.appKey).toBe('test-app-2');
+      let form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.appKey).toBe('test-app');
+      let form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form1.values.appKey).toBe('test-app-2');
 
       // Simulate drag and drop
       const mockDragEvent = {
@@ -550,10 +598,14 @@ describe('useDownloadsForm', () => {
       });
 
       // Order should be swapped
-      expect(result.current.forms[0].values.appKey).toBe('test-app-2');
-      expect(result.current.forms[1].values.appKey).toBe('test-app');
-      expect(result.current.forms[0].values.displayOrder).toBe(0);
-      expect(result.current.forms[1].values.displayOrder).toBe(1);
+      form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      form1 = result.current.forms[1];
+      assertDefined(form1, 'forms[1]');
+      expect(form0.values.appKey).toBe('test-app-2');
+      expect(form1.values.appKey).toBe('test-app');
+      expect(form0.values.displayOrder).toBe(0);
+      expect(form1.values.displayOrder).toBe(1);
     });
 
     it('clears drag state on drag end', async () => {
@@ -602,7 +654,9 @@ describe('useDownloadsForm', () => {
 
       expect(listDownloadAppsAdminMock).toHaveBeenCalledTimes(2);
       expect(result.current.forms).toHaveLength(1);
-      expect(result.current.forms[0].values.appKey).toBe('test-app-2');
+      const form0 = result.current.forms[0];
+      assertDefined(form0, 'forms[0]');
+      expect(form0.values.appKey).toBe('test-app-2');
     });
   });
 });

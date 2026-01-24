@@ -127,8 +127,8 @@ describe('Downloads and App Configuration Workflow', () => {
       const staleVariants = findStaleVariants(active);
 
       expect(staleVariants).toHaveLength(1);
-      expect(staleVariants[0].variant.slug).toBe('stale');
-      expect(staleVariants[0].daysSinceUpdate).toBeGreaterThanOrEqual(45);
+      expect(staleVariants[0]?.variant.slug).toBe('stale');
+      expect(staleVariants[0]?.daysSinceUpdate).toBeGreaterThanOrEqual(45);
 
       // Collect attention candidates
       const neverUpdated = active.filter((v) => !v.updated_at);
@@ -154,7 +154,7 @@ describe('Downloads and App Configuration Workflow', () => {
 
       // Should only match hero-test (matches query AND is attention)
       expect(results).toHaveLength(1);
-      expect(results[0].slug).toBe('hero-test');
+      expect(results[0]?.slug).toBe('hero-test');
     });
 
     it('shows all attention variants when no query', () => {

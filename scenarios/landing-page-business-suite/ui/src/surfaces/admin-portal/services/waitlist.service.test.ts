@@ -119,7 +119,7 @@ describe('waitlist.service', () => {
     });
 
     it('deletes email via API', async () => {
-      vi.mocked(waitlistApi.deleteWaitlistEmail).mockResolvedValue(undefined);
+      vi.mocked(waitlistApi.deleteWaitlistEmail).mockResolvedValue({ success: true });
 
       await deleteWaitlistEmail(1);
 

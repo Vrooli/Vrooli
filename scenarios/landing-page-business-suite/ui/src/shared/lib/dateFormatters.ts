@@ -112,8 +112,10 @@ export function formatMonthYear(period: string): string {
     return period; // Return as-is if empty or invalid format
   }
 
-  const [year, month] = period.split('-').map(Number);
-  if (Number.isNaN(year) || Number.isNaN(month)) {
+  const parts = period.split('-').map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  if (year === undefined || month === undefined || Number.isNaN(year) || Number.isNaN(month)) {
     return period; // Return as-is if parsing fails
   }
 
@@ -248,7 +250,9 @@ export function getCurrentPeriod(): string {
  * navigatePeriod('2024-01', -1) // "2023-12"
  */
 export function navigatePeriod(currentPeriod: string, delta: number): string {
-  const [year, month] = currentPeriod.split('-').map(Number);
+  const parts = currentPeriod.split('-').map(Number);
+  const year = parts[0] ?? 0;
+  const month = parts[1] ?? 1;
   const date = new Date(year, month - 1 + delta, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }

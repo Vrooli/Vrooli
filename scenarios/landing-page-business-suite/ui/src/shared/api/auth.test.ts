@@ -18,7 +18,7 @@ import {
   type UserAuthMeResponse,
 } from './auth';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 describe('auth API', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -44,9 +44,9 @@ describe('auth API', () => {
 
         await adminLogin('admin@example.com', 'password123');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(JSON.parse(options.body as string)).toEqual({
           email: 'admin@example.com',
           password: 'password123',
         });
@@ -78,9 +78,9 @@ describe('auth API', () => {
 
         await adminLogout();
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(callArgs[0]).toContain('/admin/logout');
+        const [url, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(url).toContain('/admin/logout');
       });
 
       it('returns success response', async () => {
@@ -102,8 +102,8 @@ describe('auth API', () => {
 
         await checkAdminSession();
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain('/admin/session');
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain('/admin/session');
       });
 
       it('returns authenticated session', async () => {
@@ -174,9 +174,9 @@ describe('auth API', () => {
           new_email: 'new@example.com',
         });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('PUT');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('PUT');
+        expect(JSON.parse(options.body as string)).toEqual({
           current_password: 'oldpassword',
           new_email: 'new@example.com',
         });
@@ -195,8 +195,8 @@ describe('auth API', () => {
           new_password: 'newpassword',
         });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(JSON.parse(options.body as string)).toEqual({
           current_password: 'oldpassword',
           new_password: 'newpassword',
         });
@@ -225,9 +225,9 @@ describe('auth API', () => {
 
         await requestMagicLink('user@example.com');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(JSON.parse(options.body as string)).toEqual({
           email: 'user@example.com',
         });
       });
@@ -273,9 +273,9 @@ describe('auth API', () => {
 
         await verifyMagicLink('valid_token_123');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain('/auth/verify');
-        expect(callArgs[0]).toContain('token=valid_token_123');
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain('/auth/verify');
+        expect(url).toContain('token=valid_token_123');
       });
 
       it('URL encodes the token', async () => {
@@ -294,8 +294,8 @@ describe('auth API', () => {
 
         await verifyMagicLink('token+with=special&chars');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain(encodeURIComponent('token+with=special&chars'));
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain(encodeURIComponent('token+with=special&chars'));
       });
 
       it('returns user and tokens on success', async () => {
@@ -340,9 +340,9 @@ describe('auth API', () => {
 
         await refreshUserTokens('old_refresh_token');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(JSON.parse(options.body as string)).toEqual({
           refresh_token: 'old_refresh_token',
         });
       });
@@ -375,9 +375,9 @@ describe('auth API', () => {
 
         await userLogout();
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(callArgs[0]).toContain('/auth/logout');
+        const [url, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(url).toContain('/auth/logout');
       });
     });
 

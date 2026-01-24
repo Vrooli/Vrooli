@@ -234,9 +234,9 @@ describe('useUsageDashboard', () => {
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
 
-      expect(result.current.sortedAppTotals[0].app).toBe('high-app');
-      expect(result.current.sortedAppTotals[1].app).toBe('mid-app');
-      expect(result.current.sortedAppTotals[2].app).toBe('low-app');
+      expect(result.current.sortedAppTotals[0]?.app).toBe('high-app');
+      expect(result.current.sortedAppTotals[1]?.app).toBe('mid-app');
+      expect(result.current.sortedAppTotals[2]?.app).toBe('low-app');
     });
 
     it('calculates app usage percentages', async () => {
@@ -252,8 +252,8 @@ describe('useUsageDashboard', () => {
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
 
-      expect(result.current.sortedAppTotals[0].percentage).toBe(50);
-      expect(result.current.sortedAppTotals[1].percentage).toBe(25);
+      expect(result.current.sortedAppTotals[0]?.percentage).toBe(50);
+      expect(result.current.sortedAppTotals[1]?.percentage).toBe(25);
     });
 
     it('gets top users sorted by usage', async () => {
@@ -269,8 +269,8 @@ describe('useUsageDashboard', () => {
       const { result } = renderHook(() => useUsageDashboard());
       await waitFor(() => expect(result.current.loading).toBe(false));
 
-      expect(result.current.topUsers[0].user).toBe('high@example.com');
-      expect(result.current.topUsers[0].usage).toBe(500);
+      expect(result.current.topUsers[0]?.user).toBe('high@example.com');
+      expect(result.current.topUsers[0]?.usage).toBe(500);
     });
 
     it('limits recent records', async () => {

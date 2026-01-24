@@ -294,6 +294,7 @@ export function StylingGuardrailsCard({ variantSlug }: StylingGuardrailsCardProp
  */
 type PreviewRenderer = (params: {
   content: Record<string, unknown>;
+  sectionType: ContentSection['section_type'];
   config: LandingConfigResponse | null;
 }) => JSX.Element | null;
 
@@ -302,6 +303,7 @@ interface PreviewPanelProps {
   variantLabel: string;
   renderer?: PreviewRenderer;
   content: Record<string, unknown>;
+  sectionType: ContentSection['section_type'];
   config: LandingConfigResponse | null;
   sectionEnabled: boolean;
   missingSectionMessage: string;
@@ -312,6 +314,7 @@ export function PreviewPanel({
   variantLabel,
   renderer,
   content,
+  sectionType,
   config,
   sectionEnabled,
   missingSectionMessage,
@@ -334,6 +337,7 @@ export function PreviewPanel({
               {renderer ? (
                 renderer({
                   content,
+                  sectionType,
                   config,
                 })
               ) : (

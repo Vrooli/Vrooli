@@ -96,7 +96,9 @@ describe('section.service', () => {
     it('saves preference to localStorage', () => {
       saveComparePreference('test-variant', 'compare-variant');
 
-      const stored = JSON.parse(mockStorage[COMPARE_STORAGE_KEY]);
+      const storedStr = mockStorage[COMPARE_STORAGE_KEY];
+      expect(storedStr).toBeDefined();
+      const stored = JSON.parse(storedStr!);
       expect(stored['test-variant']).toBe('compare-variant');
     });
 
@@ -138,9 +140,9 @@ describe('section.service', () => {
 
       const result = sortSectionsByOrder(sections);
 
-      expect(result[0].section_type).toBe('hero');
-      expect(result[1].section_type).toBe('features');
-      expect(result[2].section_type).toBe('cta');
+      expect(result[0]?.section_type).toBe('hero');
+      expect(result[1]?.section_type).toBe('features');
+      expect(result[2]?.section_type).toBe('cta');
     });
 
     it('handles undefined order values (treats as 0)', () => {
@@ -152,9 +154,9 @@ describe('section.service', () => {
 
       const result = sortSectionsByOrder(sections);
 
-      expect(result[0].section_type).toBe('hero');
-      expect(result[1].section_type).toBe('cta');
-      expect(result[2].section_type).toBe('features');
+      expect(result[0]?.section_type).toBe('hero');
+      expect(result[1]?.section_type).toBe('cta');
+      expect(result[2]?.section_type).toBe('features');
     });
 
     it('does not mutate the original array', () => {
@@ -180,7 +182,7 @@ describe('section.service', () => {
       const result = sortSectionsByOrder(sections);
 
       expect(result).toHaveLength(1);
-      expect(result[0].section_type).toBe('hero');
+      expect(result[0]?.section_type).toBe('hero');
     });
   });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 vi.mock('@bufbuild/protobuf', () => ({
   fromJson: vi.fn((schema, data) => data),
@@ -39,9 +39,9 @@ describe('landing API', () => {
 
       await getLandingConfig();
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('/landing-config');
-      expect(callArgs[0]).not.toContain('variant=');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('/landing-config');
+      expect(url).not.toContain('variant=');
     });
 
     it('includes variant param when provided', async () => {
@@ -49,8 +49,8 @@ describe('landing API', () => {
 
       await getLandingConfig('dark-theme');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('variant=dark-theme');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('variant=dark-theme');
     });
 
     it('URL encodes variant slug', async () => {
@@ -58,8 +58,8 @@ describe('landing API', () => {
 
       await getLandingConfig('special/variant');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain(encodeURIComponent('special/variant'));
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain(encodeURIComponent('special/variant'));
     });
 
     it('throws on server error', async () => {
@@ -120,9 +120,9 @@ describe('landing API', () => {
       expect(result.bundle.bundle_key).toBe('main');
       expect(result.bundle.name).toBe('Main Bundle');
       expect(result.monthly).toHaveLength(1);
-      expect(result.monthly[0].plan_name).toBe('Pro');
+      expect(result.monthly[0]?.plan_name).toBe('Pro');
       expect(result.yearly).toHaveLength(1);
-      expect(result.yearly[0].plan_name).toBe('Pro Annual');
+      expect(result.yearly[0]?.plan_name).toBe('Pro Annual');
     });
 
     it('returns plans in monthly and yearly arrays', async () => {
@@ -146,8 +146,8 @@ describe('landing API', () => {
 
       expect(result.monthly).toHaveLength(1);
       expect(result.yearly).toHaveLength(1);
-      expect(result.monthly[0].plan_name).toBe('Monthly');
-      expect(result.yearly[0].plan_name).toBe('Yearly');
+      expect(result.monthly[0]?.plan_name).toBe('Monthly');
+      expect(result.yearly[0]?.plan_name).toBe('Yearly');
     });
 
     it('handles timestamp with toJsonString method', async () => {
@@ -239,9 +239,9 @@ describe('landing API', () => {
       const result = await getPlans();
 
       expect(result.monthly).toHaveLength(3);
-      expect(result.monthly[0].plan_name).toBe('Plan1');
-      expect(result.monthly[1].plan_name).toBe('Plan2');
-      expect(result.monthly[2].plan_name).toBe('Plan3');
+      expect(result.monthly[0]?.plan_name).toBe('Plan1');
+      expect(result.monthly[1]?.plan_name).toBe('Plan2');
+      expect(result.monthly[2]?.plan_name).toBe('Plan3');
     });
 
     it('handles intro pricing data', async () => {
@@ -264,10 +264,10 @@ describe('landing API', () => {
 
       const result = await getPlans();
 
-      expect(result.monthly[0].intro_enabled).toBe(true);
-      expect(result.monthly[0].intro_amount_cents).toBe(4900);
-      expect(result.monthly[0].intro_periods).toBe(3);
-      expect(result.monthly[0].intro_price_lookup_key).toBe('pro_intro');
+      expect(result.monthly[0]?.intro_enabled).toBe(true);
+      expect(result.monthly[0]?.intro_amount_cents).toBe(4900);
+      expect(result.monthly[0]?.intro_periods).toBe(3);
+      expect(result.monthly[0]?.intro_price_lookup_key).toBe('pro_intro');
     });
 
     it('defaults numeric fields to 0 when missing', async () => {
@@ -282,10 +282,10 @@ describe('landing API', () => {
 
       const result = await getPlans();
 
-      expect(result.monthly[0].amount_cents).toBe(0);
-      expect(result.monthly[0].monthly_included_credits).toBe(0);
-      expect(result.monthly[0].one_time_bonus_credits).toBe(0);
-      expect(result.monthly[0].display_weight).toBe(0);
+      expect(result.monthly[0]?.amount_cents).toBe(0);
+      expect(result.monthly[0]?.monthly_included_credits).toBe(0);
+      expect(result.monthly[0]?.one_time_bonus_credits).toBe(0);
+      expect(result.monthly[0]?.display_weight).toBe(0);
     });
   });
 });

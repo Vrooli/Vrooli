@@ -86,6 +86,11 @@ function MarkdownRenderer({ content }: { content: string }) {
 
   while (i < lines.length) {
     const line = lines[i];
+    // Skip undefined lines (shouldn't happen, but TypeScript's noUncheckedIndexedAccess requires this)
+    if (line === undefined) {
+      i++;
+      continue;
+    }
 
     // Code blocks
     if (line.startsWith('```')) {
@@ -144,9 +149,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Unordered lists
     else if (line.match(/^[-*]\s/)) {
       const listItems: string[] = [line.replace(/^[-*]\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^[-*]\s/)) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.match(/^[-*]\s/)) {
         i++;
-        listItems.push(lines[i].replace(/^[-*]\s/, ''));
+        const currentLine = lines[i];
+        if (currentLine) listItems.push(currentLine.replace(/^[-*]\s/, ''));
+        nextLine = lines[i + 1];
       }
       elements.push(
         <ul key={i} className="my-4 ml-6 list-disc space-y-1">
@@ -159,9 +167,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Ordered lists
     else if (line.match(/^\d+\.\s/)) {
       const listItems: string[] = [line.replace(/^\d+\.\s/, '')];
-      while (i + 1 < lines.length && lines[i + 1].match(/^\d+\.\s/)) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.match(/^\d+\.\s/)) {
         i++;
-        listItems.push(lines[i].replace(/^\d+\.\s/, ''));
+        const currentLine = lines[i];
+        if (currentLine) listItems.push(currentLine.replace(/^\d+\.\s/, ''));
+        nextLine = lines[i + 1];
       }
       elements.push(
         <ol key={i} className="my-4 ml-6 list-decimal space-y-1">
@@ -174,9 +185,12 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Tables
     else if (line.includes('|') && line.trim().startsWith('|')) {
       const tableLines: string[] = [line];
-      while (i + 1 < lines.length && lines[i + 1].includes('|')) {
+      let nextLine = lines[i + 1];
+      while (i + 1 < lines.length && nextLine?.includes('|')) {
         i++;
-        tableLines.push(lines[i]);
+        const currentLine = lines[i];
+        if (currentLine) tableLines.push(currentLine);
+        nextLine = lines[i + 1];
       }
       elements.push(renderTable(tableLines, i));
     }
@@ -195,12 +209,13 @@ function MarkdownRenderer({ content }: { content: string }) {
 
 function renderTable(lines: string[], key: number): JSX.Element {
   const rows = lines.filter(line => !line.match(/^[\s|:-]+$/));
-  if (rows.length === 0) return <></>;
+  const firstRow = rows[0];
+  if (rows.length === 0 || !firstRow) return <></>;
 
   const parseCells = (row: string) =>
     row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
 
-  const headers = parseCells(rows[0]);
+  const headers = parseCells(firstRow);
   const bodyRows = rows.slice(1).map(parseCells);
 
   return (
@@ -266,18 +281,20 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
     // Links
     match = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
     if (match && match.index !== undefined) {
+      const linkText = match[1] ?? '';
+      const linkUrl = match[2] ?? '#';
       if (match.index > 0) {
         parts.push(remaining.slice(0, match.index));
       }
       parts.push(
         <a
           key={keyIdx++}
-          href={match[2]}
+          href={linkUrl}
           className="text-blue-400 hover:text-blue-300 underline"
-          target={match[2].startsWith('http') ? '_blank' : undefined}
-          rel={match[2].startsWith('http') ? 'noopener noreferrer' : undefined}
+          target={linkUrl.startsWith('http') ? '_blank' : undefined}
+          rel={linkUrl.startsWith('http') ? 'noopener noreferrer' : undefined}
         >
-          {match[1]}
+          {linkText}
         </a>
       );
       remaining = remaining.slice(match.index + match[0].length);

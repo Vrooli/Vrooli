@@ -403,7 +403,7 @@ describe('billing.service', () => {
 
       const badges = buildStripeStatusBadges(settings);
 
-      expect(badges[0].ok).toBe(true);
+      expect(badges[0]?.ok).toBe(true);
     });
 
     it('marks all badges as not ok when nothing is set', () => {

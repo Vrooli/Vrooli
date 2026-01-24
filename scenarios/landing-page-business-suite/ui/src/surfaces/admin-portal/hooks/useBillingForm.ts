@@ -197,24 +197,32 @@ export function useBillingForm() {
 
     try {
       await savePriceForm(bundleKey, priceId, formState);
-      setPriceForms((prev) => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          saving: false,
-          original: { ...formState.values },
-        },
-      }));
+      setPriceForms((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            saving: false,
+            original: { ...formState.values },
+          },
+        };
+      });
       loadBundles();
     } catch (error) {
-      setPriceForms((prev) => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          saving: false,
-          error: error instanceof Error ? error.message : 'Failed to update price',
-        },
-      }));
+      setPriceForms((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            saving: false,
+            error: error instanceof Error ? error.message : 'Failed to update price',
+          },
+        };
+      });
     }
   }, [priceForms, loadBundles]);
 

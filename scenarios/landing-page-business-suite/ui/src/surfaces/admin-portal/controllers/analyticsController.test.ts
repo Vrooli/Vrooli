@@ -201,7 +201,7 @@ describe('analyticsController', () => {
       const result = await fetchVariantAnalytics('control', range);
 
       expect(result).toHaveLength(2);
-      expect(result[0].variant_slug).toBe('control');
+      expect(result[0]?.variant_slug).toBe('control');
     });
 
     it('normalizes null stats to empty array', async () => {

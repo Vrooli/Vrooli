@@ -3,6 +3,16 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTierLimitsForm } from './useTierLimitsForm';
 import type { TierLimit } from '../../../shared/api';
 
+/**
+ * Helper to assert a value is defined in tests.
+ * Throws if undefined, causing the test to fail with a clear message.
+ */
+function assertDefined<T>(value: T | undefined, name: string): asserts value is T {
+  if (value === undefined) {
+    throw new Error(`Expected ${name} to be defined`);
+  }
+}
+
 // Mock the tiers service
 const fetchAllTierLimitsMock = vi.fn();
 const saveTierLimitMock = vi.fn();
@@ -145,7 +155,9 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.toasts[0].message).toBe('Failed to load tier limits');
+      const toast = result.current.toasts[0];
+      assertDefined(toast, 'toast');
+      expect(toast.message).toBe('Failed to load tier limits');
     });
   });
 
@@ -209,7 +221,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '15');
@@ -238,7 +253,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const studioLimit = mockLimits.studio[0];
+      const studioLimits = mockLimits['studio'];
+      assertDefined(studioLimits, 'mockLimits.studio');
+      const studioLimit = studioLimits[0];
+      assertDefined(studioLimit, 'mockLimits.studio[0]');
 
       act(() => {
         result.current.updateEditedValue('studio:ai_credits', 'unlimited');
@@ -262,7 +280,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const studioLimit = mockLimits.studio[0];
+      const studioLimits = mockLimits['studio'];
+      assertDefined(studioLimits, 'mockLimits.studio');
+      const studioLimit = studioLimits[0];
+      assertDefined(studioLimit, 'mockLimits.studio[0]');
 
       act(() => {
         result.current.updateEditedValue('studio:ai_credits', '-1');
@@ -284,7 +305,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', 'invalid');
@@ -308,7 +332,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '-5');
@@ -332,7 +359,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       await act(async () => {
         await result.current.handleSave('solo', soloLimit);
@@ -350,7 +380,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '15');
@@ -380,7 +413,10 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '15');
@@ -412,7 +448,10 @@ describe('useTierLimitsForm', () => {
 
       fetchAllTierLimitsMock.mockClear();
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '15');
@@ -494,8 +533,14 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
-      const proLimit = mockLimits.pro[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
+      const proLimits = mockLimits['pro'];
+      assertDefined(proLimits, 'mockLimits.pro');
+      const proLimit = proLimits[0];
+      assertDefined(proLimit, 'mockLimits.pro[0]');
 
       act(() => {
         result.current.updateEditedValue('solo:ai_credits', '15');
@@ -561,10 +606,16 @@ describe('useTierLimitsForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const soloLimit = mockLimits.solo[0];
+      const soloLimits = mockLimits['solo'];
+      assertDefined(soloLimits, 'mockLimits.solo');
+      const soloLimit = soloLimits[0];
+      assertDefined(soloLimit, 'mockLimits.solo[0]');
       expect(result.current.getDisplayValue(soloLimit)).toBe('5.00');
 
-      const businessLimit = mockLimits.business[0];
+      const businessLimits = mockLimits['business'];
+      assertDefined(businessLimits, 'mockLimits.business');
+      const businessLimit = businessLimits[0];
+      assertDefined(businessLimit, 'mockLimits.business[0]');
       expect(result.current.getDisplayValue(businessLimit)).toBe('unlimited');
     });
 
@@ -587,7 +638,11 @@ describe('useTierLimitsForm', () => {
 
       fetchAllTierLimitsMock.mockClear();
       const newLimits = { ...mockLimits };
-      newLimits.solo[0] = { ...newLimits.solo[0], display_dollars: 10 };
+      const soloArr = newLimits['solo'];
+      assertDefined(soloArr, 'newLimits.solo');
+      const firstSolo = soloArr[0];
+      assertDefined(firstSolo, 'newLimits.solo[0]');
+      soloArr[0] = { ...firstSolo, display_dollars: 10 };
       fetchAllTierLimitsMock.mockResolvedValue(newLimits);
 
       await act(async () => {
@@ -595,7 +650,11 @@ describe('useTierLimitsForm', () => {
       });
 
       expect(fetchAllTierLimitsMock).toHaveBeenCalledTimes(1);
-      expect(result.current.limits.solo[0].display_dollars).toBe(10);
+      const resultSoloLimits = result.current.limits['solo'];
+      assertDefined(resultSoloLimits, 'result.current.limits.solo');
+      const resultFirstSolo = resultSoloLimits[0];
+      assertDefined(resultFirstSolo, 'result.current.limits.solo[0]');
+      expect(resultFirstSolo.display_dollars).toBe(10);
     });
   });
 });

@@ -52,8 +52,8 @@ describe('formUtils', () => {
     });
 
     it('handles null values', () => {
-      const current = { value: null };
-      const original = { value: 'test' };
+      const current = { value: null as string | null };
+      const original = { value: 'test' as string | null };
       expect(isFormDirty(current, original)).toBe(true);
     });
 
@@ -64,8 +64,8 @@ describe('formUtils', () => {
     });
 
     it('handles undefined values', () => {
-      const current = { value: undefined };
-      const original = { value: 'test' };
+      const current = { value: undefined as string | undefined };
+      const original = { value: 'test' as string | undefined };
       expect(isFormDirty(current, original)).toBe(true);
     });
 

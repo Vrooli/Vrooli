@@ -132,7 +132,7 @@ describe('useBillingForm', () => {
       });
 
       expect(result.current.priceForms['test_bundle:price_123']).toBeDefined();
-      expect(result.current.priceForms['test_bundle:price_123'].values.planName).toBe('Pro Plan');
+      expect(result.current.priceForms['test_bundle:price_123']?.values.planName).toBe('Pro Plan');
     });
 
     it('handles Stripe settings load error', async () => {
@@ -236,7 +236,7 @@ describe('useBillingForm', () => {
         handler({ target: { value: 'Updated Plan' } } as React.ChangeEvent<HTMLInputElement>);
       });
 
-      expect(result.current.priceForms['test_bundle:price_123'].values.planName).toBe('Updated Plan');
+      expect(result.current.priceForms['test_bundle:price_123']?.values.planName).toBe('Updated Plan');
     });
 
     it('handles displayWeight as number', async () => {
@@ -251,7 +251,7 @@ describe('useBillingForm', () => {
         handler({ target: { value: '75' } } as React.ChangeEvent<HTMLInputElement>);
       });
 
-      expect(result.current.priceForms['test_bundle:price_123'].values.displayWeight).toBe(75);
+      expect(result.current.priceForms['test_bundle:price_123']?.values.displayWeight).toBe(75);
     });
 
     it('handles boolean fields (highlight)', async () => {
@@ -266,7 +266,7 @@ describe('useBillingForm', () => {
         handler({ target: { checked: true } } as unknown as React.ChangeEvent<HTMLInputElement>);
       });
 
-      expect(result.current.priceForms['test_bundle:price_123'].values.highlight).toBe(true);
+      expect(result.current.priceForms['test_bundle:price_123']?.values.highlight).toBe(true);
     });
 
     it('handles displayEnabled boolean', async () => {
@@ -281,7 +281,7 @@ describe('useBillingForm', () => {
         handler({ target: { checked: false } } as unknown as React.ChangeEvent<HTMLInputElement>);
       });
 
-      expect(result.current.priceForms['test_bundle:price_123'].values.displayEnabled).toBe(false);
+      expect(result.current.priceForms['test_bundle:price_123']?.values.displayEnabled).toBe(false);
     });
   });
 
@@ -342,7 +342,7 @@ describe('useBillingForm', () => {
         await result.current.handleSavePrice('test_bundle', 'price_123');
       });
 
-      expect(result.current.priceForms['test_bundle:price_123'].error).toBe('Save failed');
+      expect(result.current.priceForms['test_bundle:price_123']?.error).toBe('Save failed');
     });
   });
 
@@ -361,7 +361,7 @@ describe('useBillingForm', () => {
       });
 
       expect(verifyPriceIdMock).toHaveBeenCalledWith('price_123');
-      expect(result.current.priceChecks['test_bundle:price_123'].status).toBe('ok');
+      expect(result.current.priceChecks['test_bundle:price_123']?.status).toBe('ok');
     });
 
     it('shows checking status during verification', async () => {
@@ -382,7 +382,7 @@ describe('useBillingForm', () => {
         result.current.handleVerifyPrice('test_bundle', 'price_123');
       });
 
-      expect(result.current.priceChecks['test_bundle:price_123'].status).toBe('checking');
+      expect(result.current.priceChecks['test_bundle:price_123']?.status).toBe('checking');
 
       await act(async () => {
         resolveVerify!({ status: 'ok', message: 'Done' });
@@ -432,13 +432,16 @@ describe('useBillingForm', () => {
         expect(result.current.loadingBundles).toBe(false);
       });
 
-      const initialPriceCount = result.current.bundles[0].prices.length;
+      const bundle0 = result.current.bundles[0];
+      expect(bundle0).toBeDefined();
+      if (!bundle0) throw new Error('Expected bundle0 to be defined');
+      const initialPriceCount = bundle0.prices.length;
 
       act(() => {
         result.current.removeDemoPlan('test_bundle', 'demo_plan');
       });
 
-      expect(result.current.bundles[0].prices.length).toBe(initialPriceCount - 1);
+      expect(result.current.bundles[0]?.prices.length).toBe(initialPriceCount - 1);
       expect(result.current.priceForms['test_bundle:demo_plan']).toBeUndefined();
     });
   });

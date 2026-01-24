@@ -386,7 +386,7 @@ describe('downloads.service', () => {
 
       const result = serializeApp(values);
 
-      expect(result.storefronts![0].badge).toBeUndefined();
+      expect(result.storefronts?.[0]?.badge).toBeUndefined();
     });
 
     it('includes enabled platforms with required fields', () => {
@@ -496,8 +496,8 @@ describe('downloads.service', () => {
       const result = serializeApp(values);
 
       expect(result.platforms).toHaveLength(1);
-      expect(result.platforms[0].artifact_id).toBe(42);
-      expect(result.platforms[0].artifact_url).toBe('');
+      expect(result.platforms[0]?.artifact_id).toBe(42);
+      expect(result.platforms[0]?.artifact_url).toBe('');
     });
 
     it('excludes managed platforms without artifact_id', () => {

@@ -1,4 +1,14 @@
 import { apiCall, apiPost, apiGet } from './common';
+import { parseOrNull } from './safeParse';
+import {
+  AdminSessionResponseSchema,
+  AdminProfileSchema,
+  MagicLinkResponseSchema,
+  VerifyMagicLinkResponseSchema,
+  UserAuthTokensSchema,
+  UserAuthMeResponseSchema,
+} from './schemas/auth.schema';
+import { SuccessResponseSchema } from './schemas/common.schema';
 
 // ===== Admin Auth Types =====
 
@@ -24,27 +34,57 @@ export async function adminLogin(email: string, password: string) {
   return apiCall<AdminSessionResponse>('/admin/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
+  }).then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+    if (!validated) {
+      throw new Error('Invalid admin login response from API');
+    }
+    return validated;
   });
 }
 
 export async function adminLogout() {
   return apiCall<{ success: boolean }>('/admin/logout', {
     method: 'POST',
+  }).then((resp) => {
+    const validated = parseOrNull(SuccessResponseSchema, resp, 'AdminLogoutResponse');
+    if (!validated) {
+      throw new Error('Invalid admin logout response from API');
+    }
+    return validated;
   });
 }
 
 export async function checkAdminSession() {
-  return apiCall<AdminSessionResponse>('/admin/session');
+  return apiCall<AdminSessionResponse>('/admin/session').then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+    if (!validated) {
+      return { authenticated: false };
+    }
+    return validated;
+  });
 }
 
 export async function getAdminProfile() {
-  return apiCall<AdminProfile>('/admin/profile');
+  return apiCall<AdminProfile>('/admin/profile').then((resp) => {
+    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+    if (!validated) {
+      throw new Error('Invalid admin profile response from API');
+    }
+    return validated;
+  });
 }
 
 export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
   return apiCall<AdminProfile>('/admin/profile', {
     method: 'PUT',
     body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+    if (!validated) {
+      throw new Error('Invalid update admin profile response from API');
+    }
+    return validated;
   });
 }
 
@@ -85,7 +125,13 @@ export interface UserAuthMeResponse {
  * Always returns success to prevent email enumeration.
  */
 export async function requestMagicLink(email: string): Promise<MagicLinkResponse> {
-  return apiPost<MagicLinkResponse>('/auth/magic-link', { email });
+  return apiPost<MagicLinkResponse>('/auth/magic-link', { email }).then((resp) => {
+    const validated = parseOrNull(MagicLinkResponseSchema, resp, 'MagicLinkResponse');
+    if (!validated) {
+      return { message: 'Request sent' };
+    }
+    return validated;
+  });
 }
 
 /**
@@ -93,20 +139,33 @@ export async function requestMagicLink(email: string): Promise<MagicLinkResponse
  * Returns tokens in response body (for JSON clients) or redirects (handled server-side).
  */
 export async function verifyMagicLink(token: string): Promise<VerifyMagicLinkResponse> {
-  return apiGet<VerifyMagicLinkResponse>(`/auth/verify?token=${encodeURIComponent(token)}`);
+  return apiGet<VerifyMagicLinkResponse>(`/auth/verify?token=${encodeURIComponent(token)}`).then((resp) => {
+    const validated = parseOrNull(VerifyMagicLinkResponseSchema, resp, 'VerifyMagicLinkResponse');
+    if (!validated) {
+      throw new Error('Invalid verify magic link response from API');
+    }
+    return validated;
+  });
 }
 
 /**
  * Refresh the access token using a refresh token.
  */
 export async function refreshUserTokens(refreshToken: string): Promise<UserAuthTokens> {
-  return apiPost<UserAuthTokens>('/auth/refresh', { refresh_token: refreshToken });
+  return apiPost<UserAuthTokens>('/auth/refresh', { refresh_token: refreshToken }).then((resp) => {
+    const validated = parseOrNull(UserAuthTokensSchema, resp, 'UserAuthTokens');
+    if (!validated) {
+      throw new Error('Invalid refresh tokens response from API');
+    }
+    return validated;
+  });
 }
 
 /**
  * Log out the current user session.
  */
 export async function userLogout(): Promise<void> {
+  // No response validation needed for void return
   return apiPost<void>('/auth/logout', undefined);
 }
 
@@ -114,5 +173,11 @@ export async function userLogout(): Promise<void> {
  * Get the current authenticated user's information.
  */
 export async function getUserMe(): Promise<UserAuthMeResponse> {
-  return apiGet<UserAuthMeResponse>('/auth/me');
+  return apiGet<UserAuthMeResponse>('/auth/me').then((resp) => {
+    const validated = parseOrNull(UserAuthMeResponseSchema, resp, 'UserAuthMeResponse');
+    if (!validated) {
+      throw new Error('Invalid user me response from API');
+    }
+    return validated;
+  });
 }

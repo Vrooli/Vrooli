@@ -85,7 +85,10 @@ function formatAxisLabel(axisId: string) {
   const withSpaces = axisId.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
   return withSpaces
     .split(' ')
-    .map((word) => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+    .map((word) => {
+      const firstChar = word[0];
+      return word && firstChar ? firstChar.toUpperCase() + word.slice(1) : '';
+    })
     .join(' ')
     .trim();
 }

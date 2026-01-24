@@ -271,7 +271,7 @@ export function useAdminAnalytics(): UseAdminAnalyticsReturn {
 
   // Computed values
   const filtersChanged = selectedVariant !== 'all' || timeRange !== DEFAULT_TIME_RANGE;
-  const selectedTimeRangeLabel = TIME_RANGE_LABELS[timeRange] ?? TIME_RANGE_LABELS[DEFAULT_TIME_RANGE];
+  const selectedTimeRangeLabel = TIME_RANGE_LABELS[timeRange] ?? TIME_RANGE_LABELS[DEFAULT_TIME_RANGE] ?? 'Last 7 days';
 
   const variantNameLookup = useMemo(() => {
     const map = new Map<string, string>();

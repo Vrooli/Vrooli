@@ -521,14 +521,15 @@ function VisualBuilderPreview({ isActive }: { isActive: boolean }) {
     };
   }, [isActive]);
 
-  const getNodeColorClasses = (color: string) => {
+  const getNodeColorClasses = (color: string): { bg: string; border: string; text: string } => {
+    const defaultColors = { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' };
     const colors: Record<string, { bg: string; border: string; text: string }> = {
       green: { bg: 'bg-green-500/20', border: 'border-green-500/40', text: 'text-green-300' },
-      blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-300' },
+      blue: defaultColors,
       purple: { bg: 'bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-300' },
       emerald: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-300' },
     };
-    return colors[color] || colors.blue;
+    return colors[color] ?? defaultColors;
   };
 
   return (
@@ -688,30 +689,33 @@ function TestMonitorPreview({ isActive }: { isActive: boolean }) {
       </div>
 
       <div className="space-y-1 max-h-[85px] overflow-hidden">
-        {EXECUTION_STEPS.map((step, index) => (
-          <div
-            key={step.name}
-            className={`flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
-              stepStatuses[index] === 'running' ? 'bg-blue-500/10' : ''
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {getStatusIcon(stepStatuses[index])}
-              <span
-                className={`${
-                  stepStatuses[index] === 'passed'
-                    ? 'text-flow-text-secondary'
-                    : stepStatuses[index] === 'running'
-                      ? 'text-blue-300'
-                      : 'text-flow-text-muted'
-                }`}
-              >
-                {step.name}
-              </span>
+        {EXECUTION_STEPS.map((step, index) => {
+          const status = stepStatuses[index] ?? 'pending';
+          return (
+            <div
+              key={step.name}
+              className={`flex items-center justify-between px-2 py-1 rounded text-xs transition-colors ${
+                status === 'running' ? 'bg-blue-500/10' : ''
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {getStatusIcon(status)}
+                <span
+                  className={`${
+                    status === 'passed'
+                      ? 'text-flow-text-secondary'
+                      : status === 'running'
+                        ? 'text-blue-300'
+                        : 'text-flow-text-muted'
+                  }`}
+                >
+                  {step.name}
+                </span>
+              </div>
+              {status === 'passed' && <span className="text-flow-text-muted">{step.duration}</span>}
             </div>
-            {stepStatuses[index] === 'passed' && <span className="text-flow-text-muted">{step.duration}</span>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </PreviewContainer>
   );
@@ -802,7 +806,7 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
   const handleMouseEnter = useCallback(() => setIsPaused(true), []);
   const handleMouseLeave = useCallback(() => setIsPaused(false), []);
 
-  const activeFeature = FEATURE_CONFIGS[activeIndex];
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0]!;
 
   const previews = [
     <RecordModePreview key="record" isActive={activeIndex === 0 && !isTransitioning} />,
@@ -840,31 +844,34 @@ function FeatureShowcase({ onActiveIndexChange }: { onActiveIndexChange?: (index
 }
 
 function getAccentClasses(color: string): string {
+  const defaultClass = 'text-blue-400 bg-blue-500/10 border border-blue-500/20';
   const classes: Record<string, string> = {
     purple: 'text-purple-400 bg-purple-500/10 border border-purple-500/20',
     red: 'text-red-400 bg-red-500/10 border border-red-500/20',
-    blue: 'text-blue-400 bg-blue-500/10 border border-blue-500/20',
+    blue: defaultClass,
     green: 'text-green-400 bg-green-500/10 border border-green-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }
 
 function getAccentDotClass(color: string): string {
+  const defaultClass = 'bg-blue-400';
   const classes: Record<string, string> = {
     purple: 'bg-purple-400',
     red: 'bg-red-400',
-    blue: 'bg-blue-400',
+    blue: defaultClass,
     green: 'bg-green-400',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }
 
 function getGlowClass(color: string): string {
+  const defaultClass = 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20';
   const classes: Record<string, string> = {
     purple: 'bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-purple-500/20',
     red: 'bg-gradient-to-r from-red-500/20 via-orange-500/20 to-red-500/20',
-    blue: 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20',
+    blue: defaultClass,
     green: 'bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? defaultClass;
 }

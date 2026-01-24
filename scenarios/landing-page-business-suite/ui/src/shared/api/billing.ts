@@ -11,6 +11,13 @@ import {
 import { apiCall } from './common';
 import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
+import { parseOrNull } from './safeParse';
+import {
+  BundleCatalogResponseSchema,
+  CheckoutSessionSchema,
+  BillingPortalResponseSchema,
+  VerifyStripePriceResponseSchema,
+} from './schemas/billing.schema';
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -90,7 +97,14 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
 }
 
 export function getBundleCatalog() {
-  return apiCall<BundleCatalogResponse>('/admin/bundles');
+  return apiCall<BundleCatalogResponse>('/admin/bundles').then((resp) => {
+    const validated = parseOrNull(BundleCatalogResponseSchema, resp, 'BundleCatalogResponse');
+    if (!validated) {
+      // Return empty bundles array if validation fails but log error
+      return { bundles: [] };
+    }
+    return validated;
+  });
 }
 
 export function updateBundlePrice(bundleKey: string, priceId: string, payload: UpdateBundlePricePayload) {
@@ -104,7 +118,13 @@ export function verifyStripePrice(key: string) {
   const params = new URLSearchParams({ key });
   return apiCall<{ id: string; lookup_key?: string; currency?: string; amount_cents?: number; interval?: string; active?: boolean; product?: string }>(
     `/admin/stripe/verify-price?${params.toString()}`,
-  );
+  ).then((resp) => {
+    const validated = parseOrNull(VerifyStripePriceResponseSchema, resp, 'VerifyStripePriceResponse');
+    if (!validated) {
+      throw new Error('Invalid price verification response from Stripe');
+    }
+    return validated;
+  });
 }
 
 export function createCheckoutSession(payload: {
@@ -126,7 +146,13 @@ export function createCheckoutSession(payload: {
   return apiCall<{ session: CheckoutSession }>('/billing/create-checkout-session', {
     method: 'POST',
     body: JSON.stringify(body),
-  }).then((resp) => resp.session);
+  }).then((resp) => {
+    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+    if (!validated) {
+      throw new Error('Invalid checkout session response');
+    }
+    return validated;
+  });
 }
 
 export function createCreditsCheckoutSession(payload: { price_id: string; customer_email: string; success_url?: string; cancel_url?: string }) {
@@ -138,7 +164,13 @@ export function createCreditsCheckoutSession(payload: { price_id: string; custom
       success_url: payload.success_url,
       cancel_url: payload.cancel_url,
     }),
-  }).then((resp) => resp.session);
+  }).then((resp) => {
+    const validated = parseOrNull(CheckoutSessionSchema, resp.session, 'CheckoutSession');
+    if (!validated) {
+      throw new Error('Invalid credits checkout session response');
+    }
+    return validated;
+  });
 }
 
 export function createBillingPortalSession(returnUrl?: string, userEmail?: string) {
@@ -146,5 +178,11 @@ export function createBillingPortalSession(returnUrl?: string, userEmail?: strin
   if (returnUrl) params.set('return_url', returnUrl);
   if (userEmail) params.set('user', userEmail);
   const suffix = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`);
+  return apiCall<BillingPortalResponse>(`/billing/portal-url${suffix}`).then((resp) => {
+    const validated = parseOrNull(BillingPortalResponseSchema, resp, 'BillingPortalResponse');
+    if (!validated) {
+      throw new Error('Invalid billing portal response');
+    }
+    return validated;
+  });
 }

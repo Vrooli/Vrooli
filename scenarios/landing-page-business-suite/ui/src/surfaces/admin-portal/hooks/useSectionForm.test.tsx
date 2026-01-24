@@ -471,7 +471,7 @@ describe('useSectionForm', () => {
       });
 
       expect(result.current.timelineSections).toHaveLength(2);
-      expect(result.current.timelineSections[0].section_type).toBe('hero');
+      expect(result.current.timelineSections[0]?.section_type).toBe('hero');
     });
 
     it('computes previewVariantLabel', async () => {

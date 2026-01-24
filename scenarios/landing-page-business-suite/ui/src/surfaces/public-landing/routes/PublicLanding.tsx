@@ -10,6 +10,7 @@ import type {
   LandingHeaderConfig,
   LandingSection,
 } from '../../../shared/api';
+import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
 import { HeroSection } from '../sections/HeroSection';
 import { FeaturesSection } from '../sections/FeaturesSection';
 import { PricingSection } from '../sections/PricingSection';
@@ -82,22 +83,31 @@ const RESOLUTION_LABELS: Record<VariantResolution, string> = {
   unknown: 'Unknown source',
 };
 
+/**
+ * Safely parse section content with fallback to original content.
+ * Since section schemas have optional fields, parsing rarely fails.
+ */
+function getSafeContent<T>(sectionType: string, content: Record<string, unknown>): T {
+  const result = parseDynamicSectionContent(sectionType, content);
+  return (result.success ? result.data : content) as T;
+}
+
 // Map section types declared in variant schemas to their React implementations.
 // Add new entries here when introducing a new section so renderers stay centralized.
 const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
-  hero: ({ section }) => <HeroSection content={section.content} />, 
-  features: ({ section }) => <FeaturesSection content={section.content} />,
+  hero: ({ section }) => <HeroSection content={getSafeContent(section.section_type, section.content)} />,
+  features: ({ section }) => <FeaturesSection content={getSafeContent(section.section_type, section.content)} />,
   pricing: ({ section, config }) => {
     // Ensure we always have pricing data; fall back to section content tiers if needed
-    return <PricingSection content={section.content} pricingOverview={config?.pricing} />;
+    return <PricingSection content={getSafeContent(section.section_type, section.content)} pricingOverview={config?.pricing} />;
   },
-  cta: ({ section }) => <CTASection content={section.content} />, 
-  testimonials: ({ section }) => <TestimonialsSection content={section.content} />,
-  faq: ({ section, config }) => <FAQSection content={section.content} supportChatUrl={config?.branding?.support_chat_url} />,
-  footer: ({ section }) => <FooterSection content={section.content} />,
-  video: ({ section }) => <VideoSection content={section.content} />,
+  cta: ({ section }) => <CTASection content={getSafeContent(section.section_type, section.content)} />,
+  testimonials: ({ section }) => <TestimonialsSection content={getSafeContent(section.section_type, section.content)} />,
+  faq: ({ section, config }) => <FAQSection content={getSafeContent(section.section_type, section.content)} supportChatUrl={config?.branding?.support_chat_url} />,
+  footer: ({ section }) => <FooterSection content={getSafeContent(section.section_type, section.content)} />,
+  video: ({ section }) => <VideoSection content={getSafeContent(section.section_type, section.content)} />,
   downloads: ({ section, config }) => (
-    <DownloadSection content={section.content as any} downloads={config?.downloads} />
+    <DownloadSection content={getSafeContent(section.section_type, section.content)} downloads={config?.downloads} />
   ),
 };
 

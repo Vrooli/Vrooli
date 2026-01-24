@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getSubscriptionInfo, getCreditInfo, getEntitlements } from './account';
 import type { SubscriptionInfo, CreditInfo } from './types';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 vi.mock('@bufbuild/protobuf', () => ({
   fromJson: vi.fn((schema, data) => data),
@@ -158,9 +158,9 @@ describe('account API', () => {
 
       const result = await getEntitlements();
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('/entitlements');
-      expect(callArgs[0]).not.toContain('user=');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('/entitlements');
+      expect(url).not.toContain('user=');
       expect(result.plan_tier).toBe('pro');
     });
 
@@ -175,8 +175,8 @@ describe('account API', () => {
 
       await getEntitlements('user@example.com');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('user=user%40example.com');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('user=user%40example.com');
     });
 
     it('trims whitespace from email', async () => {
@@ -190,8 +190,8 @@ describe('account API', () => {
 
       await getEntitlements('  user@example.com  ');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).toContain('user=user%40example.com');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).toContain('user=user%40example.com');
     });
 
     it('skips empty user param', async () => {
@@ -205,8 +205,8 @@ describe('account API', () => {
 
       await getEntitlements('   ');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[0]).not.toContain('user=');
+      const [url] = getFetchCall(fetchMock);
+      expect(url).not.toContain('user=');
     });
 
     it('throws on server error', async () => {

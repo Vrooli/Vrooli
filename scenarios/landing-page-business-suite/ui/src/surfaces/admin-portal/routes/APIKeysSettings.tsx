@@ -131,20 +131,24 @@ export function APIKeysSettings() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {testResults[key.provider] && (
-                        <span
-                          className={`text-sm flex items-center gap-1 ${
-                            testResults[key.provider].success ? 'text-green-400' : 'text-red-400'
-                          }`}
-                        >
-                          {testResults[key.provider].success ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <X className="h-4 w-4" />
-                          )}
-                          {testResults[key.provider].message}
-                        </span>
-                      )}
+                      {(() => {
+                        const result = testResults[key.provider];
+                        if (!result) return null;
+                        return (
+                          <span
+                            className={`text-sm flex items-center gap-1 ${
+                              result.success ? 'text-green-400' : 'text-red-400'
+                            }`}
+                          >
+                            {result.success ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <X className="h-4 w-4" />
+                            )}
+                            {result.message}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </CardHeader>

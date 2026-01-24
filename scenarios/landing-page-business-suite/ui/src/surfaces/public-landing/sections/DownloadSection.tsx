@@ -96,8 +96,12 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
     for (const installer of platforms) {
       const key = installer.platform.toLowerCase();
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(installer);
+      const existing = groups[key];
+      if (existing) {
+        existing.push(installer);
+      } else {
+        groups[key] = [installer];
+      }
     }
 
     // Sort: detected platform first, then alphabetically
@@ -109,7 +113,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
 
     return sortedKeys.map((key) => ({
       platform: key,
-      installers: groups[key],
+      installers: groups[key] ?? [],
     }));
   }, [activeApp?.platforms, detectedPlatform]);
 
@@ -201,7 +205,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
     return { text: 'No active subscription', type: 'warning' as const };
   }, [email, entitlements, entitlementsError, entitlementsLoading]);
 
-  const platformInfo = PLATFORM_DISPLAY[recommendedGroup?.platform] ?? PLATFORM_DISPLAY.windows;
+  const platformKey = recommendedGroup?.platform ?? 'windows';
+  const windowsFallback = PLATFORM_DISPLAY.windows!;
+  const platformInfo = PLATFORM_DISPLAY[platformKey] ?? windowsFallback;
   const isRecommended = recommendedGroup?.platform === detectedPlatform;
 
   // Early return after all hooks have been called
@@ -364,7 +370,9 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
             {showOtherPlatforms && (
               <div className="mt-4 space-y-3" data-testid="other-platforms-list">
                 {otherGroups.map((group) => {
-                  const info = PLATFORM_DISPLAY[group.platform] ?? PLATFORM_DISPLAY.windows;
+                  // Fallback to windows icon/label if platform not found
+                  const info = PLATFORM_DISPLAY[group.platform];
+                  if (!info) return null;
                   return (
                     <div
                       key={group.platform}

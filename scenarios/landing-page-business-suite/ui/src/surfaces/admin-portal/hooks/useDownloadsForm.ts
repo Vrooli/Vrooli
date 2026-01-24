@@ -343,7 +343,7 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
     // Update forms based on results
     setForms((prev) =>
       prev.map((form) => {
-        const result = results.find((r, i) => dirtyForms[i].key === form.key);
+        const result = results.find((r, i) => dirtyForms[i]?.key === form.key);
         if (!result) return form;
 
         if (result.status === 'fulfilled') {
@@ -415,7 +415,8 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
 
         // Create new array with reordered items
         const newForms = [...prev];
-        const [removed] = newForms.splice(sourceIndex, 1);
+        const removed = newForms.splice(sourceIndex, 1)[0];
+        if (!removed) return prev;
         newForms.splice(targetIndex, 0, removed);
 
         // Update displayOrder for all items based on new positions

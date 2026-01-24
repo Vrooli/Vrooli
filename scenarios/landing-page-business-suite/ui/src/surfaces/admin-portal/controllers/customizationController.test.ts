@@ -71,7 +71,7 @@ describe('customizationController', () => {
       ];
       const result = filterArchivedVariants(variants);
       expect(result).toHaveLength(1);
-      expect(result[0].slug).toBe('b');
+      expect(result[0]?.slug).toBe('b');
     });
   });
 
@@ -163,7 +163,7 @@ describe('customizationController', () => {
 
       const result = findStaleVariants(variants);
       expect(result).toHaveLength(1);
-      expect(result[0].variant.slug).toBe('old');
+      expect(result[0]?.variant.slug).toBe('old');
     });
 
     it('limits results', () => {
@@ -276,7 +276,7 @@ describe('customizationController', () => {
     it('filters by name', () => {
       const result = filterVariantsByQuery(variants, 'hero', false, new Set());
       expect(result).toHaveLength(1);
-      expect(result[0].slug).toBe('hero-test');
+      expect(result[0]?.slug).toBe('hero-test');
     });
 
     it('filters by slug', () => {
@@ -298,7 +298,7 @@ describe('customizationController', () => {
       const attention = new Set(['hero-test']);
       const result = filterVariantsByQuery(variants, '', true, attention);
       expect(result).toHaveLength(1);
-      expect(result[0].slug).toBe('hero-test');
+      expect(result[0]?.slug).toBe('hero-test');
     });
 
     it('combines query and attention filters', () => {

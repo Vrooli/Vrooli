@@ -155,28 +155,28 @@ describe('pricing.service', () => {
       const prices = [monthlyPlan, yearlyPlan, oneTimePlan];
       const result = filterPricesByTab(prices, 'month', true);
       expect(result).toHaveLength(1);
-      expect(result[0].stripe_price_id).toBe('price_monthly');
+      expect(result[0]?.stripe_price_id).toBe('price_monthly');
     });
 
     it('filters to yearly plans when tab is year', () => {
       const prices = [monthlyPlan, yearlyPlan, oneTimePlan];
       const result = filterPricesByTab(prices, 'year', true);
       expect(result).toHaveLength(1);
-      expect(result[0].stripe_price_id).toBe('price_yearly');
+      expect(result[0]?.stripe_price_id).toBe('price_yearly');
     });
 
     it('filters to one_time and other plans when tab is other', () => {
       const prices = [monthlyPlan, yearlyPlan, oneTimePlan];
       const result = filterPricesByTab(prices, 'other', true);
       expect(result).toHaveLength(1);
-      expect(result[0].stripe_price_id).toBe('price_onetime');
+      expect(result[0]?.stripe_price_id).toBe('price_onetime');
     });
 
     it('excludes demo plans when includeDemoPlaceholders is false', () => {
       const prices = [monthlyPlan, demoPlan];
       const result = filterPricesByTab(prices, 'month', false);
       expect(result).toHaveLength(1);
-      expect(result[0].stripe_price_id).toBe('price_monthly');
+      expect(result[0]?.stripe_price_id).toBe('price_monthly');
     });
 
     it('includes demo plans when includeDemoPlaceholders is true', () => {
@@ -202,7 +202,7 @@ describe('pricing.service', () => {
         prices: [],
       };
       const result = enrichBundlesWithDemo([entry], true);
-      expect(result[0].prices.length).toBeGreaterThan(0);
+      expect(result[0]?.prices.length).toBeGreaterThan(0);
     });
   });
 
@@ -282,7 +282,7 @@ describe('pricing.service', () => {
       expect(Object.keys(result)).toHaveLength(2);
       expect(result['test_bundle:price_a']).toBeDefined();
       expect(result['test_bundle:price_b']).toBeDefined();
-      expect(result['test_bundle:price_a'].values.planName).toBe('Plan A');
+      expect(result['test_bundle:price_a']?.values.planName).toBe('Plan A');
     });
 
     it('marks demo plans in form state', () => {
@@ -296,7 +296,7 @@ describe('pricing.service', () => {
       };
 
       const result = buildPriceFormsFromBundles([entry]);
-      expect(result['test_bundle:demo_plan'].demo).toBe(true);
+      expect(result['test_bundle:demo_plan']?.demo).toBe(true);
     });
   });
 
@@ -398,9 +398,9 @@ describe('pricing.service', () => {
       ];
 
       const result = sortPlans(plans);
-      expect(result[0].plan_name).toBe('High');
-      expect(result[1].plan_name).toBe('Mid');
-      expect(result[2].plan_name).toBe('Low');
+      expect(result[0]?.plan_name).toBe('High');
+      expect(result[1]?.plan_name).toBe('Mid');
+      expect(result[2]?.plan_name).toBe('Low');
     });
 
     it('sorts by plan_rank when display_weight is equal', () => {
@@ -411,9 +411,9 @@ describe('pricing.service', () => {
       ];
 
       const result = sortPlans(plans);
-      expect(result[0].plan_name).toBe('First');
-      expect(result[1].plan_name).toBe('Second');
-      expect(result[2].plan_name).toBe('Third');
+      expect(result[0]?.plan_name).toBe('First');
+      expect(result[1]?.plan_name).toBe('Second');
+      expect(result[2]?.plan_name).toBe('Third');
     });
 
     it('handles undefined plan_rank by treating as MAX_SAFE_INTEGER', () => {
@@ -423,8 +423,8 @@ describe('pricing.service', () => {
       ];
 
       const result = sortPlans(plans);
-      expect(result[0].plan_name).toBe('Ranked');
-      expect(result[1].plan_name).toBe('NoRank');
+      expect(result[0]?.plan_name).toBe('Ranked');
+      expect(result[1]?.plan_name).toBe('NoRank');
     });
 
     it('does not mutate the original array', () => {
@@ -552,7 +552,7 @@ describe('pricing.service', () => {
       const result = buildPricingPreviewData(entry, {}, false);
 
       expect(result.overview.monthly).toHaveLength(1);
-      expect(result.overview.monthly[0].stripe_price_id).toBe('enabled');
+      expect(result.overview.monthly[0]?.stripe_price_id).toBe('enabled');
     });
 
     it('counts placeholder plans separately', () => {
@@ -606,8 +606,8 @@ describe('pricing.service', () => {
 
       const result = buildPricingPreviewData(entry, {}, false);
 
-      expect(result.overview.monthly[0].plan_name).toBe('High');
-      expect(result.overview.monthly[1].plan_name).toBe('Low');
+      expect(result.overview.monthly[0]?.plan_name).toBe('High');
+      expect(result.overview.monthly[1]?.plan_name).toBe('Low');
     });
   });
 });

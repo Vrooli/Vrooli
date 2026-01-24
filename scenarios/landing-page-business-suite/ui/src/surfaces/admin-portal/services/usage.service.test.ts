@@ -47,9 +47,9 @@ describe('usage.service', () => {
         ['c', 20],
       ];
       const result = sortByUsageDesc(entries);
-      expect(result[0][1]).toBe(30);
-      expect(result[1][1]).toBe(20);
-      expect(result[2][1]).toBe(10);
+      expect(result[0]?.[1]).toBe(30);
+      expect(result[1]?.[1]).toBe(20);
+      expect(result[2]?.[1]).toBe(10);
     });
 
     it('does not mutate original array', () => {
@@ -72,9 +72,9 @@ describe('usage.service', () => {
       };
       const result = getTopUsers(userTotals, 2);
       expect(result).toHaveLength(2);
-      expect(result[0].user).toBe('user2');
-      expect(result[0].usage).toBe(300);
-      expect(result[1].user).toBe('user3');
+      expect(result[0]?.user).toBe('user2');
+      expect(result[0]?.usage).toBe(300);
+      expect(result[1]?.user).toBe('user3');
     });
 
     it('returns all users if less than limit', () => {
@@ -104,11 +104,11 @@ describe('usage.service', () => {
       };
       const result = getSortedAppTotals(appTotals);
       expect(result).toHaveLength(2);
-      expect(result[0].app).toBe('app2');
-      expect(result[0].usage).toBe(800);
-      expect(result[0].percentage).toBe(80);
-      expect(result[1].app).toBe('app1');
-      expect(result[1].percentage).toBe(20);
+      expect(result[0]?.app).toBe('app2');
+      expect(result[0]?.usage).toBe(800);
+      expect(result[0]?.percentage).toBe(80);
+      expect(result[1]?.app).toBe('app1');
+      expect(result[1]?.percentage).toBe(20);
     });
 
     it('handles empty totals', () => {

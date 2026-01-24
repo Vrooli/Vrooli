@@ -190,8 +190,11 @@ export function useHeaderConfiguration({
       const nextIndex = index + direction;
       if (nextIndex < 0 || nextIndex >= config.nav.links.length) return;
       updateConfig((draft) => {
-        const [link] = draft.nav.links.splice(index, 1);
-        draft.nav.links.splice(nextIndex, 0, link);
+        const removed = draft.nav.links.splice(index, 1);
+        const link = removed[0];
+        if (link) {
+          draft.nav.links.splice(nextIndex, 0, link);
+        }
       });
     },
     [config.nav.links.length, updateConfig]

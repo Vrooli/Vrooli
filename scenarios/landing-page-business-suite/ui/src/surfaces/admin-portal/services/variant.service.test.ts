@@ -158,15 +158,15 @@ describe('variant.service', () => {
     it('creates children with custom type', () => {
       const result = createMenuNavLink();
 
-      expect(result.children?.[0].type).toBe('custom');
-      expect(result.children?.[0].label).toBe('First link');
-      expect(result.children?.[0].href).toBe('#');
+      expect(result.children?.[0]?.type).toBe('custom');
+      expect(result.children?.[0]?.label).toBe('First link');
+      expect(result.children?.[0]?.href).toBe('#');
     });
 
     it('generates unique IDs for children', () => {
       const result = createMenuNavLink();
 
-      expect(result.children?.[0].id).not.toBe(result.children?.[1].id);
+      expect(result.children?.[0]?.id).not.toBe(result.children?.[1]?.id);
     });
   });
 
@@ -337,7 +337,7 @@ describe('variant.service', () => {
       });
 
       expect(result.nav.links).toHaveLength(1);
-      expect(result.nav.links[0].label).toBe('New Link');
+      expect(result.nav.links[0]?.label).toBe('New Link');
       expect(baseConfig.nav.links).toHaveLength(0);
     });
 
@@ -365,11 +365,12 @@ describe('variant.service', () => {
       };
 
       const result = updateHeaderConfig(configWithLinks, (draft) => {
-        draft.nav.links[0].label = 'Modified';
+        const link0 = draft.nav.links[0];
+        if (link0) link0.label = 'Modified';
       });
 
-      expect(result.nav.links[0].label).toBe('Modified');
-      expect(configWithLinks.nav.links[0].label).toBe('Link 1');
+      expect(result.nav.links[0]?.label).toBe('Modified');
+      expect(configWithLinks.nav.links[0]?.label).toBe('Link 1');
     });
   });
 });

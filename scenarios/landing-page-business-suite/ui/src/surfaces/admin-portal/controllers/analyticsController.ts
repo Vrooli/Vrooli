@@ -8,7 +8,8 @@ export interface AnalyticsDateRange {
 function formatDate(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().split('T')[0];
+  const isoString = date.toISOString();
+  return isoString.split('T')[0] ?? isoString;
 }
 
 export function buildDateRange(days: number): AnalyticsDateRange {

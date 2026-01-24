@@ -68,7 +68,7 @@ describe('collections', () => {
       const items = createTestItems();
       const result = filterByProperties(items, { status: 'active', name: 'Alice' });
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(1);
+      expect(result[0]?.id).toBe(1);
     });
 
     it('returns all when all filters are "all"', () => {
@@ -88,22 +88,22 @@ describe('collections', () => {
     it('sorts by property ascending', () => {
       const items = createTestItems();
       const result = sortBy(items, 'name', 'asc');
-      expect(result[0].name).toBe('Alice');
-      expect(result[3].name).toBe('Diana');
+      expect(result[0]?.name).toBe('Alice');
+      expect(result[3]?.name).toBe('Diana');
     });
 
     it('sorts by property descending', () => {
       const items = createTestItems();
       const result = sortBy(items, 'name', 'desc');
-      expect(result[0].name).toBe('Diana');
-      expect(result[3].name).toBe('Alice');
+      expect(result[0]?.name).toBe('Diana');
+      expect(result[3]?.name).toBe('Alice');
     });
 
     it('sorts by numeric property', () => {
       const items = createTestItems();
       const result = sortBy(items, 'id', 'desc');
-      expect(result[0].id).toBe(4);
-      expect(result[3].id).toBe(1);
+      expect(result[0]?.id).toBe(4);
+      expect(result[3]?.id).toBe(1);
     });
 
     it('does not mutate original array', () => {
@@ -116,7 +116,7 @@ describe('collections', () => {
     it('defaults to ascending order', () => {
       const items = createTestItems();
       const result = sortBy(items, 'id');
-      expect(result[0].id).toBe(1);
+      expect(result[0]?.id).toBe(1);
     });
 
     it('handles null values (sorts to end for asc)', () => {
@@ -126,9 +126,9 @@ describe('collections', () => {
         { id: 3, value: 3 },
       ];
       const result = sortBy(items, 'value', 'asc');
-      expect(result[0].value).toBe(3);
-      expect(result[1].value).toBe(5);
-      expect(result[2].value).toBeNull();
+      expect(result[0]?.value).toBe(3);
+      expect(result[1]?.value).toBe(5);
+      expect(result[2]?.value).toBeNull();
     });
   });
 
@@ -136,15 +136,15 @@ describe('collections', () => {
     it('sorts by date descending (newest first) by default', () => {
       const items = createTestItems();
       const result = sortByDate(items, 'created_at');
-      expect(result[0].name).toBe('Diana'); // Jan 17
-      expect(result[3].name).toBe('Charlie'); // Jan 14
+      expect(result[0]?.name).toBe('Diana'); // Jan 17
+      expect(result[3]?.name).toBe('Charlie'); // Jan 14
     });
 
     it('sorts by date ascending (oldest first)', () => {
       const items = createTestItems();
       const result = sortByDate(items, 'created_at', 'asc');
-      expect(result[0].name).toBe('Charlie'); // Jan 14
-      expect(result[3].name).toBe('Diana'); // Jan 17
+      expect(result[0]?.name).toBe('Charlie'); // Jan 14
+      expect(result[3]?.name).toBe('Diana'); // Jan 17
     });
 
     it('handles null date values', () => {
@@ -154,8 +154,8 @@ describe('collections', () => {
         { id: 3, date: '2024-01-10' },
       ];
       const result = sortByDate(items, 'date', 'desc');
-      expect(result[0].date).toBe('2024-01-15');
-      expect(result[2].date).toBeNull();
+      expect(result[0]?.date).toBe('2024-01-15');
+      expect(result[2]?.date).toBeNull();
     });
   });
 
@@ -259,7 +259,7 @@ describe('collections', () => {
       const items = [{ key: 'a', name: 'A' }, { key: 'b', name: 'B' }];
       const result = removeById(items, 'a', 'key');
       expect(result).toHaveLength(1);
-      expect(result[0].key).toBe('b');
+      expect(result[0]?.key).toBe('b');
     });
   });
 
@@ -300,9 +300,11 @@ describe('collections', () => {
   describe('updateById', () => {
     it('updates item by id', () => {
       const items = createTestItems();
-      const updated = { ...items[1], name: 'Bobby' };
+      const item1 = items[1];
+      expect(item1).toBeDefined();
+      const updated = { ...item1, name: 'Bobby' };
       const result = updateById(items, 2, updated);
-      expect(result[1].name).toBe('Bobby');
+      expect(result[1]?.name).toBe('Bobby');
     });
 
     it('returns unchanged array if id not found', () => {
@@ -314,17 +316,21 @@ describe('collections', () => {
 
     it('does not mutate original array', () => {
       const items = createTestItems();
-      const updated = { ...items[0], name: 'New' };
+      const item0 = items[0];
+      expect(item0).toBeDefined();
+      const updated = { ...item0, name: 'New' };
       updateById(items, 1, updated);
-      expect(items[0].name).toBe('Alice');
+      expect(items[0]?.name).toBe('Alice');
     });
 
     it('does not mutate frozen array', () => {
       const items = Object.freeze([...createTestItems()]);
-      const updated = { ...createTestItems()[0], name: 'New' };
+      const testItem = createTestItems()[0];
+      expect(testItem).toBeDefined();
+      const updated = { ...testItem, name: 'New' };
       const result = updateById(items as TestItem[], 1, updated);
-      expect(items[0].name).toBe('Alice');
-      expect(result[0].name).toBe('New');
+      expect(items[0]?.name).toBe('Alice');
+      expect(result[0]?.name).toBe('New');
     });
   });
 
@@ -340,7 +346,7 @@ describe('collections', () => {
       const items = createTestItems();
       const result = searchByProperty(items, 'name', 'ALICE');
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Alice');
+      expect(result[0]?.name).toBe('Alice');
     });
 
     it('returns all items for empty query', () => {
@@ -375,7 +381,10 @@ describe('collections', () => {
     });
 
     it('handles single item', () => {
-      const items = [createTestItems()[0]];
+      const testItem = createTestItems()[0];
+      expect(testItem).toBeDefined();
+      if (!testItem) throw new Error('Expected testItem to be defined');
+      const items = [testItem];
       const result = getUniqueValues(items, 'status');
       expect(result).toEqual(['active']);
     });
@@ -417,8 +426,8 @@ describe('collections', () => {
     it('preserves item order within groups', () => {
       const items = createTestItems();
       const result = groupBy(items, 'status');
-      expect(result['active'][0].name).toBe('Alice');
-      expect(result['active'][1].name).toBe('Charlie');
+      expect(result['active']?.[0]?.name).toBe('Alice');
+      expect(result['active']?.[1]?.name).toBe('Charlie');
     });
   });
 });

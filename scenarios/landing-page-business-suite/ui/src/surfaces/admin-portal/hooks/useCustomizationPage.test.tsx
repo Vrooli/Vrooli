@@ -179,7 +179,7 @@ describe('useCustomizationPage', () => {
       });
 
       expect(result.current.filteredActiveVariants).toHaveLength(1);
-      expect(result.current.filteredActiveVariants[0].slug).toBe('hero-test');
+      expect(result.current.filteredActiveVariants[0]?.slug).toBe('hero-test');
     });
 
     it('clears filters', async () => {
@@ -337,7 +337,7 @@ describe('useCustomizationPage', () => {
       await waitFor(() => expect(result.current.loading).toBe(false));
 
       expect(result.current.neverUpdatedVariants).toHaveLength(1);
-      expect(result.current.neverUpdatedVariants[0].slug).toBe('never-updated');
+      expect(result.current.neverUpdatedVariants[0]?.slug).toBe('never-updated');
     });
 
     it('finds underperforming variant', async () => {

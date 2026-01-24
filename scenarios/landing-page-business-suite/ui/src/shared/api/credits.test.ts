@@ -23,7 +23,7 @@ import {
   type UsageSummary,
 } from './credits';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 describe('credits API', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -56,7 +56,7 @@ describe('credits API', () => {
         const result = await listAPIKeys();
 
         expect(result.keys).toHaveLength(1);
-        expect(result.keys[0].provider).toBe('anthropic');
+        expect(result.keys[0]?.provider).toBe('anthropic');
       });
 
       it('returns empty array when no keys', async () => {
@@ -82,9 +82,9 @@ describe('credits API', () => {
 
         await createAPIKey({ provider: 'openai', key: 'sk-full-key-value' });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(JSON.parse(options.body as string)).toEqual({
           provider: 'openai',
           key: 'sk-full-key-value',
         });
@@ -114,9 +114,9 @@ describe('credits API', () => {
 
         await deleteAPIKey('anthropic');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('DELETE');
-        expect(callArgs[0]).toContain('provider=anthropic');
+        const [url, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('DELETE');
+        expect(url).toContain('provider=anthropic');
       });
 
       it('URL encodes provider', async () => {
@@ -124,8 +124,8 @@ describe('credits API', () => {
 
         await deleteAPIKey('provider/with/special+chars');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain(encodeURIComponent('provider/with/special+chars'));
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain(encodeURIComponent('provider/with/special+chars'));
       });
 
       it('throws ApiError on failure', async () => {
@@ -146,10 +146,10 @@ describe('credits API', () => {
 
         await testAPIKey('anthropic');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(callArgs[0]).toContain('/api/v1/admin/api-keys/test');
-        expect(callArgs[0]).toContain('provider=anthropic');
+        const [url, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(url).toContain('/api/v1/admin/api-keys/test');
+        expect(url).toContain('provider=anthropic');
       });
 
       it('returns test result', async () => {
@@ -186,9 +186,9 @@ describe('credits API', () => {
 
         await toggleAPIKey('anthropic', false);
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
+        expect(JSON.parse(options.body as string)).toEqual({
           provider: 'anthropic',
           active: false,
         });
@@ -255,8 +255,8 @@ describe('credits API', () => {
 
         await getTierLimits('tier/with/slashes');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain(encodeURIComponent('tier/with/slashes'));
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain(encodeURIComponent('tier/with/slashes'));
       });
     });
 
@@ -277,9 +277,9 @@ describe('credits API', () => {
 
         await updateTierLimit('pro', 'ai_credits', { limit_value: 20000000 });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('PUT');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('PUT');
+        expect(JSON.parse(options.body as string)).toEqual({
           limit_key: 'ai_credits',
           app_bundle_key: undefined,
           update: { limit_value: 20000000 },
@@ -303,8 +303,8 @@ describe('credits API', () => {
 
         await updateTierLimit('pro', 'api_calls', { limit_value: 2000 }, 'my_app');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(JSON.parse(callArgs[1].body as string).app_bundle_key).toBe('my_app');
+        const [, options] = getFetchCall(fetchMock);
+        expect(JSON.parse(options.body as string).app_bundle_key).toBe('my_app');
       });
     });
 
@@ -330,8 +330,8 @@ describe('credits API', () => {
           limit_value: 50000000,
         });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('POST');
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('POST');
       });
     });
 
@@ -341,9 +341,9 @@ describe('credits API', () => {
 
         await deleteTierLimit('pro', 'ai_credits');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].method).toBe('DELETE');
-        expect(JSON.parse(callArgs[1].body as string)).toEqual({
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.method).toBe('DELETE');
+        expect(JSON.parse(options.body as string)).toEqual({
           tier_id: 'pro',
           limit_key: 'ai_credits',
           app_bundle_key: undefined,
@@ -355,8 +355,8 @@ describe('credits API', () => {
 
         await deleteTierLimit('pro', 'api_calls', 'my_app');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(JSON.parse(callArgs[1].body as string).app_bundle_key).toBe('my_app');
+        const [, options] = getFetchCall(fetchMock);
+        expect(JSON.parse(options.body as string).app_bundle_key).toBe('my_app');
       });
     });
   });
@@ -429,8 +429,8 @@ describe('credits API', () => {
 
         await getUsageSummary('other@example.com');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain('user=other%40example.com');
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain('user=other%40example.com');
       });
 
       it('includes tier param when provided', async () => {
@@ -448,8 +448,8 @@ describe('credits API', () => {
 
         await getUsageSummary(undefined, 'pro');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain('tier=pro');
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain('tier=pro');
       });
     });
 
@@ -485,8 +485,8 @@ describe('credits API', () => {
 
         await getAdminUsageSummary('2024-06');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[0]).toContain('period=2024-06');
+        const [url] = getFetchCall(fetchMock);
+        expect(url).toContain('period=2024-06');
       });
     });
   });

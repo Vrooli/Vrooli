@@ -9,7 +9,7 @@ import {
   isApiError,
   type ApiErrorType,
 } from './common';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 describe('common API utilities', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -124,8 +124,8 @@ describe('common API utilities', () => {
 
         await apiCall('/test');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].headers['Content-Type']).toBe('application/json');
+        const [, options] = getFetchCall(fetchMock);
+        expect((options.headers as Record<string, string>)['Content-Type']).toBe('application/json');
       });
 
       it('includes credentials', async () => {
@@ -133,8 +133,8 @@ describe('common API utilities', () => {
 
         await apiCall('/test');
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].credentials).toBe('include');
+        const [, options] = getFetchCall(fetchMock);
+        expect(options.credentials).toBe('include');
       });
 
       it('passes custom headers', async () => {
@@ -142,8 +142,8 @@ describe('common API utilities', () => {
 
         await apiCall('/test', { headers: { Authorization: 'Bearer token' } });
 
-        const callArgs = fetchMock.mock.calls[0];
-        expect(callArgs[1].headers.Authorization).toBe('Bearer token');
+        const [, options] = getFetchCall(fetchMock);
+        expect((options.headers as Record<string, string>).Authorization).toBe('Bearer token');
       });
     });
 
@@ -371,8 +371,8 @@ describe('common API utilities', () => {
 
       await apiGet('/test');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('GET');
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('GET');
     });
 
     it('returns response data', async () => {
@@ -391,8 +391,8 @@ describe('common API utilities', () => {
 
       await apiPost('/test', { name: 'test' });
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('POST');
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('POST');
     });
 
     it('serializes body as JSON', async () => {
@@ -401,8 +401,8 @@ describe('common API utilities', () => {
 
       await apiPost('/test', body);
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].body).toBe(JSON.stringify(body));
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe(JSON.stringify(body));
     });
 
     it('handles undefined body', async () => {
@@ -410,8 +410,8 @@ describe('common API utilities', () => {
 
       await apiPost('/test', undefined);
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].body).toBeUndefined();
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBeUndefined();
     });
   });
 
@@ -421,8 +421,8 @@ describe('common API utilities', () => {
 
       await apiPut('/test', { name: 'updated' });
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('PUT');
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('PUT');
     });
 
     it('serializes body as JSON', async () => {
@@ -431,8 +431,8 @@ describe('common API utilities', () => {
 
       await apiPut('/test', body);
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].body).toBe(JSON.stringify(body));
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe(JSON.stringify(body));
     });
   });
 
@@ -442,8 +442,8 @@ describe('common API utilities', () => {
 
       await apiDelete('/test');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].method).toBe('DELETE');
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('DELETE');
     });
 
     it('handles body for DELETE requests', async () => {
@@ -452,8 +452,8 @@ describe('common API utilities', () => {
 
       await apiDelete('/test', body);
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].body).toBe(JSON.stringify(body));
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBe(JSON.stringify(body));
     });
 
     it('handles DELETE without body', async () => {
@@ -461,8 +461,8 @@ describe('common API utilities', () => {
 
       await apiDelete('/test');
 
-      const callArgs = fetchMock.mock.calls[0];
-      expect(callArgs[1].body).toBeUndefined();
+      const [, options] = getFetchCall(fetchMock);
+      expect(options.body).toBeUndefined();
     });
   });
 });
