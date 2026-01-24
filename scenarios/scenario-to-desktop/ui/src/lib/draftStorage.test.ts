@@ -104,7 +104,7 @@ describe("saveGeneratorAppState", () => {
     saveGeneratorAppState({ selectedScenarioName: "test-scenario" });
 
     expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"]);
+    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}");
 
     expect(savedData.selectedScenarioName).toBe("test-scenario");
     expect(savedData.version).toBe(2);
@@ -124,7 +124,7 @@ describe("saveGeneratorAppState", () => {
       selectedScenarioName: "second-scenario",
     });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"]);
+    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}");
     expect(savedData.selectedScenarioName).toBe("second-scenario");
     expect(savedData.activeStep).toBe(1); // preserved from first save
   });
@@ -133,7 +133,7 @@ describe("saveGeneratorAppState", () => {
     const firstTimestamp = new Date().toISOString();
     saveGeneratorAppState({ viewMode: "wizard" });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"]);
+    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}");
     expect(savedData.version).toBe(2);
     expect(savedData.updatedAt).toBeDefined();
     expect(new Date(savedData.updatedAt).getTime()).toBeGreaterThanOrEqual(
@@ -156,7 +156,7 @@ describe("saveGeneratorAppState", () => {
 
     saveGeneratorAppState(fullState);
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"]);
+    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}");
     expect(savedData.viewMode).toBe("advanced");
     expect(savedData.selectedTemplate).toBe("custom");
     expect(savedData.selectionSource).toBe("inventory");
@@ -211,7 +211,7 @@ describe("edge cases", () => {
       docPath: null,
     });
 
-    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"]);
+    const savedData = JSON.parse(mockStorage["std_generator_app_state_v2"] ?? "{}");
     expect(savedData.currentBuildId).toBeNull();
     expect(savedData.installerBuildId).toBeNull();
     expect(savedData.selectionSource).toBeNull();

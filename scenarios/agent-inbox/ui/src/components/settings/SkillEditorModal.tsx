@@ -10,9 +10,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type SVGProps } from "react";
-import { X, Eye, ChevronDown, Info, Tag, Pencil, AlertTriangle, BookOpen, Loader2, Construction } from "lucide-react";
+import { X, Eye, ChevronDown, Tag, Pencil, AlertTriangle, BookOpen, Loader2, Construction } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import type { Skill, SkillSource, SkillWithSource } from "@/lib/types/templates";
+import type { Skill, SkillWithSource } from "@/lib/types/templates";
 import { IconSelector, SKILL_ICON_OPTIONS } from "@/components/shared/IconSelector";
 import { CategoryPathEditor } from "@/components/shared/CategoryPathEditor";
 import { ItemTreeSidebar } from "@/components/shared/ItemTreeSidebar";
@@ -27,25 +27,17 @@ function getIconComponent(name: string): IconComponent {
   return Icon || BookOpen;
 }
 
-interface SaveOptions {
-  applyToDefault?: boolean;
-}
-
 interface SkillEditorModalProps {
   open: boolean;
   onClose: () => void;
   skill?: Skill; // Undefined for create, defined for edit
-  skillSource?: SkillSource; // Source of the skill being edited
-  onSave?: (
-    skill: Omit<Skill, "id" | "createdAt" | "updatedAt">,
-    options?: SaveOptions
-  ) => void;
+  onSave?: (skill: Omit<Skill, "id" | "createdAt" | "updatedAt">) => void;
   readOnly?: boolean; // If true, modal is in preview mode (no editing)
   onEdit?: () => void; // Callback when Edit button is clicked in readOnly mode
   // Multi-item mode props
   allSkills?: SkillWithSource[]; // If provided, shows tree sidebar for navigation
   onSelectSkill?: (skill: SkillWithSource) => void; // Called when switching skills
-  onSaveAll?: (skills: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt">; options?: SaveOptions }>) => Promise<void>;
+  onSaveAll?: (skills: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt"> }>) => Promise<void>;
 }
 
 // Form state for tracking changes
@@ -57,7 +49,6 @@ interface SkillFormState {
   content: string;
   tagsInput: string;
   targetToolId: string;
-  applyToDefault: boolean;
   draft: boolean;
 }
 
@@ -65,7 +56,6 @@ export function SkillEditorModal({
   open,
   onClose,
   skill,
-  skillSource,
   onSave,
   readOnly = false,
   onEdit,
@@ -74,7 +64,6 @@ export function SkillEditorModal({
   onSaveAll,
 }: SkillEditorModalProps) {
   const isEditing = !!skill;
-  const isEditingDefault = isEditing && skillSource === "default" && !readOnly;
   const showSidebar = !!allSkills && allSkills.length > 0;
 
   // Form state
@@ -86,7 +75,6 @@ export function SkillEditorModal({
   const [tagsInput, setTagsInput] = useState("");
   const [targetToolId, setTargetToolId] = useState("");
   const [showPreview, setShowPreview] = useState(false);
-  const [applyToDefault, setApplyToDefault] = useState(false);
   const [draft, setDraft] = useState(false);
 
   // Validation
@@ -131,9 +119,8 @@ export function SkillEditorModal({
     content,
     tagsInput,
     targetToolId,
-    applyToDefault,
     draft,
-  }), [name, description, icon, modes, content, tagsInput, targetToolId, applyToDefault, draft]);
+  }), [name, description, icon, modes, content, tagsInput, targetToolId, draft]);
 
   // Store current changes in pending when switching skills
   const storeCurrentChanges = useCallback(() => {
@@ -217,7 +204,7 @@ export function SkillEditorModal({
 
     setIsSavingAll(true);
     try {
-      const updates: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt">; options?: SaveOptions }> = [];
+      const updates: Array<{ id: string; data: Omit<Skill, "id" | "createdAt" | "updatedAt"> }> = [];
 
       // Add current skill if dirty
       if (skill?.id && hasUnsavedChanges) {
@@ -238,15 +225,12 @@ export function SkillEditorModal({
             targetToolId: targetToolId.trim() || undefined,
             draft: draft || undefined,
           },
-          options: isEditingDefault ? { applyToDefault } : undefined,
         });
       }
 
       // Add pending changes
       for (const [id, state] of pendingChanges.entries()) {
         if (id === skill?.id) continue; // Skip if already added
-        const originalSkill = allSkills?.find((s) => s.id === id);
-        const isDefault = originalSkill?.source === "default";
         const tags = state.tagsInput
           .split(",")
           .map((t) => t.trim())
@@ -264,7 +248,6 @@ export function SkillEditorModal({
             targetToolId: state.targetToolId.trim() || undefined,
             draft: state.draft || undefined,
           },
-          options: isDefault ? { applyToDefault: state.applyToDefault } : undefined,
         });
       }
 
@@ -275,7 +258,7 @@ export function SkillEditorModal({
     } finally {
       setIsSavingAll(false);
     }
-  }, [onSaveAll, dirtyCount, skill?.id, hasUnsavedChanges, name, description, icon, modes, content, tagsInput, targetToolId, isEditingDefault, applyToDefault, pendingChanges, allSkills, draft]);
+  }, [onSaveAll, dirtyCount, skill?.id, hasUnsavedChanges, name, description, icon, modes, content, tagsInput, targetToolId, pendingChanges, draft]);
 
   // Handle close with unsaved changes check (updated for multi-item)
   const handleClose = useCallback(() => {
@@ -320,7 +303,6 @@ export function SkillEditorModal({
         setContent(pending.content);
         setTagsInput(pending.tagsInput);
         setTargetToolId(pending.targetToolId);
-        setApplyToDefault(pending.applyToDefault);
         setDraft(pending.draft);
       } else {
         // Initialize from skill
@@ -331,7 +313,6 @@ export function SkillEditorModal({
         setContent(skill.content);
         setTagsInput(skill.tags?.join(", ") || "");
         setTargetToolId(skill.targetToolId || "");
-        setApplyToDefault(false);
         setDraft(skill.draft || false);
       }
     } else {
@@ -342,7 +323,6 @@ export function SkillEditorModal({
       setContent("");
       setTagsInput("");
       setTargetToolId("");
-      setApplyToDefault(false);
       setDraft(false);
     }
     setErrors({});
@@ -385,21 +365,18 @@ export function SkillEditorModal({
       .map((t) => t.trim())
       .filter(Boolean);
 
-    onSave(
-      {
-        name: name.trim(),
-        description: description.trim(),
-        icon,
-        modes: modes.length > 0 ? modes : undefined,
-        content: content.trim(),
-        tags: tags.length > 0 ? tags : undefined,
-        targetToolId: targetToolId.trim() || undefined,
-        draft: draft || undefined,
-      },
-      isEditingDefault ? { applyToDefault } : undefined
-    );
+    onSave({
+      name: name.trim(),
+      description: description.trim(),
+      icon,
+      modes: modes.length > 0 ? modes : undefined,
+      content: content.trim(),
+      tags: tags.length > 0 ? tags : undefined,
+      targetToolId: targetToolId.trim() || undefined,
+      draft: draft || undefined,
+    });
     onClose();
-  }, [readOnly, onSave, validate, name, description, icon, modes, content, tagsInput, targetToolId, onClose, isEditingDefault, applyToDefault, draft]);
+  }, [readOnly, onSave, validate, name, description, icon, modes, content, tagsInput, targetToolId, onClose, draft]);
 
   if (!open) return null;
 
@@ -445,46 +422,6 @@ export function SkillEditorModal({
             </button>
           </div>
         </div>
-
-        {/* Info banner for editing defaults */}
-        {isEditingDefault && (
-          <div className={`flex-shrink-0 mx-4 mt-4 p-3 rounded-lg flex items-start gap-3 ${
-            applyToDefault
-              ? "bg-indigo-900/20 border border-indigo-500/30"
-              : "bg-amber-900/20 border border-amber-500/30"
-          }`}>
-            <Info className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
-              applyToDefault ? "text-indigo-400" : "text-amber-400"
-            }`} />
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${
-                applyToDefault ? "text-indigo-200" : "text-amber-200"
-              }`}>
-                {applyToDefault
-                  ? "Updating default skill"
-                  : "Editing a default skill"}
-              </p>
-              <p className={`text-xs mt-1 ${
-                applyToDefault ? "text-indigo-300/70" : "text-amber-300/70"
-              }`}>
-                {applyToDefault
-                  ? "Your changes will modify the default skill directly."
-                  : "Your changes will be saved as a custom version. The original default will remain available."}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setApplyToDefault(!applyToDefault)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-                applyToDefault
-                  ? "bg-amber-600/20 text-amber-300 hover:bg-amber-600/30"
-                  : "bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30"
-              }`}
-            >
-              {applyToDefault ? "Save as custom" : "Apply to default"}
-            </button>
-          </div>
-        )}
 
         {/* Content with optional sidebar */}
         <div className="flex-1 min-h-0 overflow-hidden flex">

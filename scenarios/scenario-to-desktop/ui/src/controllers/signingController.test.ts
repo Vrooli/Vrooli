@@ -7,6 +7,9 @@ import {
   storeExpiryWarning,
   getStoredExpiryWarning,
   clearStoredExpiryWarning,
+  loadSigningReadiness,
+  loadSigningPrerequisites,
+  validateSigningConfigForScenario,
 } from "./signingController";
 import type { SigningConfig, DiscoveredCertificate } from "../lib/api";
 
@@ -189,6 +192,136 @@ describe("signingController", () => {
       expect(result.config).toBeNull();
       expect(result.readiness?.ready).toBe(true);
       expect(result.error).toBeNull();
+    });
+  });
+
+  describe("loadSigningReadiness", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("returns null for empty scenario", async () => {
+      const result = await loadSigningReadiness("");
+      expect(result.readiness).toBeNull();
+      expect(result.error).toBeNull();
+    });
+
+    it("fetches readiness for valid scenario", async () => {
+      const { checkSigningReadiness } = await import("../lib/api");
+      vi.mocked(checkSigningReadiness).mockResolvedValue({
+        ready: true,
+        platforms: { windows: { ready: true }, macos: { ready: false }, linux: { ready: false } },
+      });
+
+      const result = await loadSigningReadiness("test-scenario");
+      expect(result.readiness?.ready).toBe(true);
+      expect(result.error).toBeNull();
+    });
+
+    it("handles error", async () => {
+      const { checkSigningReadiness } = await import("../lib/api");
+      vi.mocked(checkSigningReadiness).mockRejectedValue(new Error("Readiness check failed"));
+
+      const result = await loadSigningReadiness("test-scenario");
+      expect(result.readiness).toBeNull();
+      expect(result.error).toBe("Readiness check failed");
+    });
+
+    it("handles non-Error exceptions", async () => {
+      const { checkSigningReadiness } = await import("../lib/api");
+      vi.mocked(checkSigningReadiness).mockRejectedValue("string error");
+
+      const result = await loadSigningReadiness("test-scenario");
+      expect(result.readiness).toBeNull();
+      expect(result.error).toBe("Failed to load signing readiness");
+    });
+  });
+
+  describe("loadSigningPrerequisites", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("fetches prerequisites successfully", async () => {
+      const { fetchSigningPrerequisites } = await import("../lib/api");
+      vi.mocked(fetchSigningPrerequisites).mockResolvedValue({
+        tools: [{ tool: "signtool", installed: true }],
+      });
+
+      const result = await loadSigningPrerequisites();
+      expect(result.tools).toHaveLength(1);
+      expect(result.error).toBeNull();
+    });
+
+    it("returns empty array when response has no tools", async () => {
+      const { fetchSigningPrerequisites } = await import("../lib/api");
+      // Simulate malformed API response missing the tools field - tests defensive handling
+      vi.mocked(fetchSigningPrerequisites).mockResolvedValue({ tools: [] });
+
+      const result = await loadSigningPrerequisites();
+      expect(result.tools).toEqual([]);
+      expect(result.error).toBeNull();
+    });
+
+    it("handles error", async () => {
+      const { fetchSigningPrerequisites } = await import("../lib/api");
+      vi.mocked(fetchSigningPrerequisites).mockRejectedValue(new Error("Fetch failed"));
+
+      const result = await loadSigningPrerequisites();
+      expect(result.tools).toEqual([]);
+      expect(result.error).toBe("Fetch failed");
+    });
+
+    it("handles non-Error exceptions", async () => {
+      const { fetchSigningPrerequisites } = await import("../lib/api");
+      vi.mocked(fetchSigningPrerequisites).mockRejectedValue("string error");
+
+      const result = await loadSigningPrerequisites();
+      expect(result.tools).toEqual([]);
+      expect(result.error).toBe("Failed to load prerequisites");
+    });
+  });
+
+  describe("validateSigningConfigForScenario", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("returns error for empty scenario", async () => {
+      const result = await validateSigningConfigForScenario("");
+      expect(result.result).toBeNull();
+      expect(result.error).toBe("No scenario selected");
+    });
+
+    it("validates config successfully", async () => {
+      const { validateSigningConfig } = await import("../lib/api");
+      vi.mocked(validateSigningConfig).mockResolvedValue({
+        valid: true,
+        errors: [],
+        warnings: [],
+      });
+
+      const result = await validateSigningConfigForScenario("test-scenario");
+      expect(result.result?.valid).toBe(true);
+      expect(result.error).toBeNull();
+    });
+
+    it("handles validation error", async () => {
+      const { validateSigningConfig } = await import("../lib/api");
+      vi.mocked(validateSigningConfig).mockRejectedValue(new Error("Validation failed"));
+
+      const result = await validateSigningConfigForScenario("test-scenario");
+      expect(result.result).toBeNull();
+      expect(result.error).toBe("Validation failed");
+    });
+
+    it("handles non-Error exceptions", async () => {
+      const { validateSigningConfig } = await import("../lib/api");
+      vi.mocked(validateSigningConfig).mockRejectedValue("string error");
+
+      const result = await validateSigningConfigForScenario("test-scenario");
+      expect(result.result).toBeNull();
+      expect(result.error).toBe("Validation failed");
     });
   });
 

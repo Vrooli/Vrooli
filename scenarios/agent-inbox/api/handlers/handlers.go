@@ -155,8 +155,6 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/skills/{id}", h.GetSkill).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.UpdateSkill).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/api/v1/skills/{id}", h.DeleteSkill).Methods("DELETE", "OPTIONS")
-	r.HandleFunc("/api/v1/skills/{id}/reset", h.ResetSkill).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/v1/skills/{id}/update-default", h.UpdateDefaultSkill).Methods("PUT", "OPTIONS")
 }
 
 // Response helpers

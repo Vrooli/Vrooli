@@ -142,47 +142,6 @@ func (h *Handlers) DeleteSkill(w http.ResponseWriter, r *http.Request) {
 	h.JSONResponse(w, map[string]bool{"deleted": true}, http.StatusOK)
 }
 
-// UpdateDefaultSkill updates the actual default skill (not a user override).
-// PUT /api/v1/skills/{id}/update-default
-func (h *Handlers) UpdateDefaultSkill(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	if id == "" {
-		h.JSONError(w, "skill ID required", http.StatusBadRequest)
-		return
-	}
-
-	var updates services.Skill
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
-		h.JSONError(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	result, err := h.Skills.UpdateDefaultSkill(id, &updates)
-	if err != nil {
-		h.JSONError(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	h.JSONResponse(w, result, http.StatusOK)
-}
-
-// ResetSkill resets a modified default skill to its original state.
-// POST /api/v1/skills/{id}/reset
-func (h *Handlers) ResetSkill(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	if id == "" {
-		h.JSONError(w, "skill ID required", http.StatusBadRequest)
-		return
-	}
-
-	result, err := h.Skills.ResetSkill(id)
-	if err != nil {
-		h.JSONError(w, err.Error(), http.StatusNotFound)
-		return
-	}
-
-	h.JSONResponse(w, result, http.StatusOK)
-}
 
 // ImportSkills imports multiple skills from a JSON array.
 // POST /api/v1/skills/import

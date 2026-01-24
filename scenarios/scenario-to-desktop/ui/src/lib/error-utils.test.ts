@@ -253,8 +253,8 @@ describe("logError", () => {
     logError("Test context", error);
     expect(consoleSpy).toHaveBeenCalled();
     const args = consoleSpy.mock.calls[0];
-    expect(args[0]).toContain("Test context");
-    expect(args[1]).toMatchObject({
+    expect(args?.[0]).toContain("Test context");
+    expect(args?.[1]).toMatchObject({
       message: "Test error",
       code: "TEST_ERROR",
       recovery: "retry",
@@ -267,7 +267,7 @@ describe("logError", () => {
     logError("Context", error);
     expect(consoleSpy).toHaveBeenCalled();
     const args = consoleSpy.mock.calls[0];
-    expect(args[1]).toMatchObject({
+    expect(args?.[1]).toMatchObject({
       message: "Regular error",
       name: "Error",
     });
@@ -277,7 +277,7 @@ describe("logError", () => {
     logError("Context", "string error");
     expect(consoleSpy).toHaveBeenCalled();
     const args = consoleSpy.mock.calls[0];
-    expect(args[1]).toBe("string error");
+    expect(args?.[1]).toBe("string error");
   });
 });
 

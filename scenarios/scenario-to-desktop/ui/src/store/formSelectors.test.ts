@@ -371,7 +371,7 @@ describe("formSelectors", () => {
   describe("selectFieldErrors", () => {
     it("returns empty array when no errors for field", () => {
       const state = createTestState({
-        validationErrors: [{ field: "scenarioName", message: "Required" }],
+        validationErrors: [{ id: "1", field: "scenarioName", message: "Required" }],
       });
 
       const selector = selectFieldErrors("platforms");
@@ -381,8 +381,8 @@ describe("formSelectors", () => {
     it("returns errors for specific field", () => {
       const state = createTestState({
         validationErrors: [
-          { field: "scenarioName", message: "Required" },
-          { field: "platforms", message: "Select at least one" },
+          { id: "1", field: "scenarioName", message: "Required" },
+          { id: "2", field: "platforms", message: "Select at least one" },
         ],
       });
 
@@ -390,15 +390,15 @@ describe("formSelectors", () => {
       const errors = selector(state);
 
       expect(errors).toHaveLength(1);
-      expect(errors[0].message).toBe("Required");
+      expect(errors?.[0]?.message).toBe("Required");
     });
 
     it("returns multiple errors for same field", () => {
       const state = createTestState({
         validationErrors: [
-          { field: "scenarioName", message: "Required" },
-          { field: "scenarioName", message: "Invalid format" },
-          { field: "platforms", message: "Select at least one" },
+          { id: "1", field: "scenarioName", message: "Required" },
+          { id: "2", field: "scenarioName", message: "Invalid format" },
+          { id: "3", field: "platforms", message: "Select at least one" },
         ],
       });
 
@@ -406,13 +406,13 @@ describe("formSelectors", () => {
       const errors = selector(state);
 
       expect(errors).toHaveLength(2);
-      expect(errors[0].message).toBe("Required");
-      expect(errors[1].message).toBe("Invalid format");
+      expect(errors?.[0]?.message).toBe("Required");
+      expect(errors?.[1]?.message).toBe("Invalid format");
     });
 
     it("is a curried function for reuse", () => {
       const state = createTestState({
-        validationErrors: [{ field: "test", message: "Error" }],
+        validationErrors: [{ id: "1", field: "test", message: "Error" }],
       });
 
       // Can create reusable selectors
@@ -511,7 +511,7 @@ describe("formSelectors", () => {
 
     it("selectFieldErrors returns new function for each call but same logic", () => {
       const state = createTestState({
-        validationErrors: [{ field: "test", message: "Error" }],
+        validationErrors: [{ id: "1", field: "test", message: "Error" }],
       });
 
       const selector1 = selectFieldErrors("test");

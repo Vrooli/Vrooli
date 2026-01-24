@@ -40,15 +40,10 @@ import {
 import {
   getAllSkills,
   deleteSkill as deleteSkillFromAPI,
-  resetSkill as resetSkillFromAPI,
   createSkill as createSkillFromAPI,
   updateSkill as updateSkillFromAPI,
-  invalidateSkillsCache,
   syncSkills as syncSkillsFromAPI,
 } from "../../data/skills";
-import {
-  updateDefaultSkill as updateDefaultSkillFromAPI,
-} from "../../lib/api";
 import type { Model, ApprovalOverride, EffectiveTool } from "../../lib/api";
 import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types/templates";
 
@@ -227,12 +222,6 @@ export function Settings({
     setSkills(updated);
   }, []);
 
-  const handleResetSkill = useCallback(async (skillId: string) => {
-    await resetSkillFromAPI(skillId);
-    const updated = await getAllSkills();
-    setSkills(updated);
-  }, []);
-
   const handleSyncSkills = useCallback(async () => {
     setIsSyncingSkills(true);
     try {
@@ -257,22 +246,14 @@ export function Settings({
   }, []);
 
   const handleSaveSkill = useCallback(async (
-    skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">,
-    options?: { applyToDefault?: boolean }
+    skillData: Omit<Skill, "id" | "createdAt" | "updatedAt">
   ) => {
     if (isCreatingSkill) {
       // Create new skill
       await createSkillFromAPI(skillData);
     } else if (editingSkill) {
-      // Update existing skill
-      if (options?.applyToDefault && editingSkill.source === "default") {
-        // Apply changes to the default skill
-        await updateDefaultSkillFromAPI(editingSkill.id, skillData);
-        invalidateSkillsCache();
-      } else {
-        // Create user override or update user skill
-        await updateSkillFromAPI(editingSkill.id, skillData);
-      }
+      // Update existing skill - goes directly to prompt-manager
+      await updateSkillFromAPI(editingSkill.id, skillData);
     }
     // Refresh skills list
     const updated = await getAllSkills();
@@ -568,7 +549,6 @@ export function Settings({
               skills={skills}
               onEditSkill={handleEditSkill}
               onDeleteSkill={handleDeleteSkill}
-              onResetSkill={handleResetSkill}
               isLoading={isLoadingSkills}
               onSyncSkills={handleSyncSkills}
               isSyncing={isSyncingSkills}
@@ -761,7 +741,6 @@ export function Settings({
         setIsCreatingSkill(false);
       }}
       skill={editingSkill ?? undefined}
-      skillSource={editingSkill?.source}
       onSave={handleSaveSkill}
       // Multi-item mode props for sidebar navigation
       allSkills={skills}

@@ -58,13 +58,8 @@ export interface Skill {
   draft?: boolean; // Indicates skill may not be fully working
 }
 
-/** Skill source type - indicates where the skill came from */
-export type SkillSource = "default" | "user" | "modified";
-
-/** Skill with source metadata from API */
+/** Skill with metadata from API */
 export interface SkillWithSource extends Skill {
-  source: SkillSource;
-  hasDefault: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

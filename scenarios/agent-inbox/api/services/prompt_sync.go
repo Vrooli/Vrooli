@@ -32,30 +32,17 @@ type Skill struct {
 	Draft        bool     `json:"draft,omitempty"`        // Indicates skill may not be fully working
 }
 
-// SkillSource indicates where a skill came from.
-type SkillSource string
-
-const (
-	SkillSourceDefault  SkillSource = "default"
-	SkillSourceUser     SkillSource = "user"
-	SkillSourceModified SkillSource = "modified" // User modified a default
-)
-
 // SkillResponse is a skill with additional metadata for API responses.
 type SkillResponse struct {
 	Skill
-	Source     SkillSource `json:"source"`
-	HasDefault bool        `json:"hasDefault"`
-	CreatedAt  string      `json:"createdAt,omitempty"`
-	UpdatedAt  string      `json:"updatedAt,omitempty"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
 }
 
 // SkillListResponse is the response for listing skills.
 type SkillListResponse struct {
-	Skills                []SkillResponse `json:"skills"`
-	DefaultsCount         int             `json:"defaults_count"`
-	UserCount             int             `json:"user_count"`
-	ModifiedDefaultsCount int             `json:"modified_defaults_count"`
+	Skills []SkillResponse `json:"skills"`
+	Count  int             `json:"count"`
 }
 
 // PromptResponse is the response from prompt-manager for a single prompt.
@@ -250,10 +237,8 @@ func (s *PromptSyncService) promptToSkill(p PromptResponse) *SkillResponse {
 			TargetToolID: targetToolID,
 			Draft:        p.Draft,
 		},
-		Source:     SkillSourceDefault, // All synced skills are treated as defaults
-		HasDefault: true,
-		CreatedAt:  p.CreatedAt,
-		UpdatedAt:  p.UpdatedAt,
+		CreatedAt: p.CreatedAt,
+		UpdatedAt: p.UpdatedAt,
 	}
 }
 
@@ -280,28 +265,21 @@ func (s *PromptSyncService) loadOverrides() {
 	log.Printf("Loaded %d skill overrides", len(s.overrides))
 }
 
-// ListSkills returns all skills (synced + local).
+// ListSkills returns all skills from prompt-manager.
 func (s *PromptSyncService) ListSkills() (*SkillListResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]SkillResponse, 0, len(s.skills)+len(s.localSkills))
+	result := make([]SkillResponse, 0, len(s.skills))
 
-	// Add synced skills
+	// Add synced skills from prompt-manager
 	for _, skill := range s.skills {
 		result = append(result, *skill)
 	}
 
-	// Add local skills
-	for _, skill := range s.localSkills {
-		result = append(result, *skill)
-	}
-
 	return &SkillListResponse{
-		Skills:                result,
-		DefaultsCount:         len(s.skills),
-		UserCount:             len(s.localSkills),
-		ModifiedDefaultsCount: 0,
+		Skills: result,
+		Count:  len(result),
 	}, nil
 }
 
@@ -323,8 +301,30 @@ func (s *PromptSyncService) GetSkill(id string) (*SkillResponse, error) {
 	return nil, fmt.Errorf("skill not found: %s", id)
 }
 
-// CreateSkill creates a new local skill.
+// CreateSkill creates a new skill via prompt-manager.
+// Falls back to local storage only if prompt-manager is unavailable.
 func (s *PromptSyncService) CreateSkill(sk *Skill) (*SkillResponse, error) {
+	// Try to create in prompt-manager first
+	req := &CreateSkillRequest{
+		Name:         sk.Name,
+		Description:  sk.Description,
+		Content:      sk.Content,
+		Modes:        sk.Modes,
+		Tags:         sk.Tags,
+		Icon:         sk.Icon,
+		Draft:        sk.Draft,
+		Folder:       "local",
+		TargetToolID: sk.TargetToolID,
+	}
+
+	result, err := s.CreateSkillInPromptManager(req)
+	if err == nil {
+		return result, nil
+	}
+
+	// Fall back to local storage if prompt-manager unavailable
+	log.Printf("Prompt-manager unavailable, creating skill locally: %v", err)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -335,40 +335,41 @@ func (s *PromptSyncService) CreateSkill(sk *Skill) (*SkillResponse, error) {
 
 	// Check if ID already exists
 	if _, exists := s.skills[sk.ID]; exists {
-		return nil, fmt.Errorf("skill with ID %s already exists (synced)", sk.ID)
-	}
-	if _, exists := s.localSkills[sk.ID]; exists {
-		return nil, fmt.Errorf("skill with ID %s already exists (local)", sk.ID)
+		return nil, fmt.Errorf("skill with ID %s already exists", sk.ID)
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	resp := &SkillResponse{
-		Skill:      *sk,
-		Source:     SkillSourceUser,
-		HasDefault: false,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		Skill:     *sk,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
+	// Note: localSkills is kept for fallback but skills now primarily come from prompt-manager
 	s.localSkills[sk.ID] = resp
 
 	return resp, nil
 }
 
-// UpdateSkill updates an existing local skill.
+// UpdateSkill updates an existing skill via prompt-manager.
 func (s *PromptSyncService) UpdateSkill(id string, updates *Skill) (*SkillResponse, error) {
+	// Try to update via prompt-manager
+	result, err := s.UpdateSkillInPromptManager(id, updates)
+	if err == nil {
+		return result, nil
+	}
+
+	// Log the error but continue - may be a local-only skill
+	log.Printf("Could not update skill %s in prompt-manager: %v", id, err)
+
+	// Check if this is a local skill that can be updated directly
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if this is a synced skill
-	if _, isSynced := s.skills[id]; isSynced {
-		return nil, fmt.Errorf("cannot update synced skill %s - edit in prompt-manager instead", id)
-	}
-
-	// Check if local skill exists
 	existing, exists := s.localSkills[id]
 	if !exists {
+		// If not found locally and prompt-manager failed, return the error
 		return nil, fmt.Errorf("skill not found: %s", id)
 	}
 
@@ -402,18 +403,96 @@ func (s *PromptSyncService) UpdateSkill(id string, updates *Skill) (*SkillRespon
 	return existing, nil
 }
 
-// DeleteSkill deletes a local skill.
+// UpdateSkillInPromptManager sends skill updates to prompt-manager.
+func (s *PromptSyncService) UpdateSkillInPromptManager(id string, updates *Skill) (*SkillResponse, error) {
+	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
+		return nil, fmt.Errorf("prompt-manager sync is not enabled or URL not configured")
+	}
+
+	// Build the update payload
+	pmReq := map[string]interface{}{}
+	if updates.Name != "" {
+		pmReq["name"] = updates.Name
+	}
+	if updates.Description != "" {
+		pmReq["description"] = updates.Description
+	}
+	if updates.Content != "" {
+		pmReq["content"] = updates.Content
+	}
+	if updates.Icon != "" {
+		pmReq["icon"] = updates.Icon
+	}
+	if updates.Modes != nil {
+		pmReq["modes"] = updates.Modes
+	}
+	if updates.Tags != nil {
+		pmReq["tags"] = updates.Tags
+	}
+	pmReq["draft"] = updates.Draft
+
+	body, err := json.Marshal(pmReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/skills/%s", s.cfg.PromptManagerURL, id)
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update skill in prompt-manager: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	// Parse the response
+	var pmResp PromptResponse
+	if err := json.NewDecoder(resp.Body).Decode(&pmResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// If targetToolId is specified, save it as a local override
+	if updates.TargetToolID != "" {
+		if err := s.SaveOverride(id, updates.Icon, updates.TargetToolID); err != nil {
+			log.Printf("Warning: failed to save override for skill %s: %v", id, err)
+		}
+	}
+
+	// Trigger a sync to update our cache
+	if err := s.Sync(); err != nil {
+		log.Printf("Warning: sync after update failed: %v", err)
+	}
+
+	// Return the skill from our cache (with override applied)
+	return s.GetSkill(id)
+}
+
+// DeleteSkill deletes a skill via prompt-manager.
 func (s *PromptSyncService) DeleteSkill(id string) error {
+	// Try to delete via prompt-manager
+	err := s.DeleteSkillInPromptManager(id)
+	if err == nil {
+		return nil
+	}
+
+	// Log the error but continue - may be a local-only skill
+	log.Printf("Could not delete skill %s from prompt-manager: %v", id, err)
+
+	// Check if this is a local skill that can be deleted directly
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if this is a synced skill
-	if _, isSynced := s.skills[id]; isSynced {
-		return fmt.Errorf("cannot delete synced skill %s - delete in prompt-manager instead", id)
-	}
-
-	// Check if local skill exists
 	if _, exists := s.localSkills[id]; !exists {
+		// If not found locally and prompt-manager failed, return the error
 		return fmt.Errorf("skill not found: %s", id)
 	}
 
@@ -421,27 +500,37 @@ func (s *PromptSyncService) DeleteSkill(id string) error {
 	return nil
 }
 
-// UpdateDefaultSkill is not supported for synced skills.
-func (s *PromptSyncService) UpdateDefaultSkill(id string, updates *Skill) (*SkillResponse, error) {
-	return nil, fmt.Errorf("cannot update default skill %s - edit in prompt-manager instead", id)
-}
-
-// ResetSkill refreshes a synced skill from prompt-manager.
-func (s *PromptSyncService) ResetSkill(id string) (*SkillResponse, error) {
-	s.mu.RLock()
-	_, isSynced := s.skills[id]
-	s.mu.RUnlock()
-
-	if isSynced {
-		// Force a sync to get latest
-		if err := s.Sync(); err != nil {
-			return nil, fmt.Errorf("failed to refresh from prompt-manager: %w", err)
-		}
-		return s.GetSkill(id)
+// DeleteSkillInPromptManager deletes a skill from prompt-manager.
+func (s *PromptSyncService) DeleteSkillInPromptManager(id string) error {
+	if !s.cfg.Enabled || s.cfg.PromptManagerURL == "" {
+		return fmt.Errorf("prompt-manager sync is not enabled or URL not configured")
 	}
 
-	return nil, fmt.Errorf("skill not found or not a synced skill: %s", id)
+	url := fmt.Sprintf("%s/api/v1/skills/%s", s.cfg.PromptManagerURL, id)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete skill from prompt-manager: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("prompt-manager returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	// Trigger a sync to update our cache
+	if err := s.Sync(); err != nil {
+		log.Printf("Warning: sync after delete failed: %v", err)
+	}
+
+	return nil
 }
+
 
 // ImportSkills imports multiple local skills.
 func (s *PromptSyncService) ImportSkills(skills []Skill) (int, error) {

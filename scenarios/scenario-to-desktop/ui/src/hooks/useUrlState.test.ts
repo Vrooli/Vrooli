@@ -238,7 +238,7 @@ describe("useUrlState", () => {
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall[2]).toContain("view=distribution");
+      expect(lastCall?.[2]).toContain("view=distribution");
     });
   });
 
@@ -278,7 +278,7 @@ describe("useUrlState", () => {
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall[2]).toContain("scenario=new-scenario");
+      expect(lastCall?.[2]).toContain("scenario=new-scenario");
     });
 
     it("removes scenario from URL when cleared", () => {
@@ -298,7 +298,7 @@ describe("useUrlState", () => {
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall[2]).not.toContain("scenario=");
+      expect(lastCall?.[2]).not.toContain("scenario=");
     });
   });
 
@@ -358,7 +358,7 @@ describe("useUrlState", () => {
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall[2]).toContain("doc=");
+      expect(lastCall?.[2]).toContain("doc=");
     });
 
     it("removes doc from URL when cleared", () => {
@@ -378,7 +378,7 @@ describe("useUrlState", () => {
 
       expect(replaceSpy).toHaveBeenCalled();
       const lastCall = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1];
-      expect(lastCall[2]).not.toContain("doc=");
+      expect(lastCall?.[2]).not.toContain("doc=");
     });
   });
 

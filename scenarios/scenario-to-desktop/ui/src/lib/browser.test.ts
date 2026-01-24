@@ -101,47 +101,59 @@ describe("readFileAsText", () => {
 // ============================================================================
 
 describe("triggerDownload", () => {
-  let windowOpenSpy: ReturnType<typeof vi.spyOn>;
+  const windowOpenMock = vi.fn(() => null as Window | null);
   let originalLocation: Location;
+  let originalOpen: typeof window.open;
 
   beforeEach(() => {
-    windowOpenSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    originalOpen = window.open;
+    windowOpenMock.mockClear();
+    window.open = windowOpenMock as unknown as typeof window.open;
     originalLocation = window.location;
-    // @ts-expect-error - mocking window.location
-    delete window.location;
-    window.location = { href: "" } as Location;
+    // Use Object.defineProperty for location mock since it's not deletable
+    Object.defineProperty(window, "location", {
+      value: { href: "" },
+      writable: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
-    window.location = originalLocation;
+    window.open = originalOpen;
+    windowOpenMock.mockClear();
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+      configurable: true,
+    });
   });
 
   it("opens URL in new window by default", () => {
     triggerDownload({ url: "http://example.com/file.zip" });
 
-    expect(windowOpenSpy).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
+    expect(windowOpenMock).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
   });
 
   it("opens URL in new window when newWindow is true", () => {
     triggerDownload({ url: "http://example.com/file.zip", newWindow: true });
 
-    expect(windowOpenSpy).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
+    expect(windowOpenMock).toHaveBeenCalledWith("http://example.com/file.zip", "_blank");
   });
 
   it("navigates current window when newWindow is false", () => {
     triggerDownload({ url: "http://example.com/file.zip", newWindow: false });
 
     expect(window.location.href).toBe("http://example.com/file.zip");
-    expect(windowOpenSpy).not.toHaveBeenCalled();
+    expect(windowOpenMock).not.toHaveBeenCalled();
   });
 });
 
 describe("triggerBlobDownload", () => {
   let originalCreateObjectURL: typeof URL.createObjectURL;
   let originalRevokeObjectURL: typeof URL.revokeObjectURL;
-  let createElementSpy: ReturnType<typeof vi.spyOn>;
-  let appendChildSpy: ReturnType<typeof vi.spyOn>;
-  let removeChildSpy: ReturnType<typeof vi.spyOn>;
+  let originalCreateElement: typeof document.createElement;
+  let originalAppendChild: typeof document.body.appendChild;
+  let originalRemoveChild: typeof document.body.removeChild;
   let mockLink: { href: string; download: string; click: ReturnType<typeof vi.fn> };
   let createdUrls: Blob[];
   let revokedUrls: string[];
@@ -150,6 +162,9 @@ describe("triggerBlobDownload", () => {
     // Store originals and mock URL methods
     originalCreateObjectURL = URL.createObjectURL;
     originalRevokeObjectURL = URL.revokeObjectURL;
+    originalCreateElement = document.createElement.bind(document);
+    originalAppendChild = document.body.appendChild.bind(document.body);
+    originalRemoveChild = document.body.removeChild.bind(document.body);
     createdUrls = [];
     revokedUrls = [];
 
@@ -167,18 +182,18 @@ describe("triggerBlobDownload", () => {
       click: vi.fn(),
     };
 
-    createElementSpy = vi.spyOn(document, "createElement").mockReturnValue(mockLink as unknown as HTMLElement);
-    appendChildSpy = vi.spyOn(document.body, "appendChild").mockImplementation(() => mockLink as unknown as HTMLElement);
-    removeChildSpy = vi.spyOn(document.body, "removeChild").mockImplementation(() => mockLink as unknown as HTMLElement);
+    document.createElement = vi.fn().mockReturnValue(mockLink) as typeof document.createElement;
+    document.body.appendChild = vi.fn().mockReturnValue(mockLink) as typeof document.body.appendChild;
+    document.body.removeChild = vi.fn().mockReturnValue(mockLink) as typeof document.body.removeChild;
   });
 
   afterEach(() => {
     // Restore originals
     URL.createObjectURL = originalCreateObjectURL;
     URL.revokeObjectURL = originalRevokeObjectURL;
-    createElementSpy.mockRestore();
-    appendChildSpy.mockRestore();
-    removeChildSpy.mockRestore();
+    document.createElement = originalCreateElement;
+    document.body.appendChild = originalAppendChild;
+    document.body.removeChild = originalRemoveChild;
   });
 
   it("creates download link with correct attributes", () => {
@@ -197,9 +212,9 @@ describe("triggerBlobDownload", () => {
 
     triggerBlobDownload(blob, "test-file.txt");
 
-    expect(appendChildSpy).toHaveBeenCalled();
+    expect(document.body.appendChild).toHaveBeenCalled();
     expect(mockLink.click).toHaveBeenCalled();
-    expect(removeChildSpy).toHaveBeenCalled();
+    expect(document.body.removeChild).toHaveBeenCalled();
     expect(revokedUrls).toContain("blob:test-url");
   });
 });

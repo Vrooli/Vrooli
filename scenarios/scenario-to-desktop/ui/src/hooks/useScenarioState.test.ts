@@ -427,8 +427,8 @@ describe("useScenarioState", () => {
       });
 
       // Check that all updates were merged
-      const savedData = mockSaveScenarioState.mock.calls[0][1];
-      expect(savedData.app_display_name).toBe("Name");
+      const savedData = mockSaveScenarioState.mock.calls?.[0]?.[1];
+      expect(savedData?.app_display_name).toBe("Name");
       expect(savedData.app_description).toBe("Description");
       expect(savedData.framework).toBe("tauri");
 
@@ -508,8 +508,9 @@ describe("useScenarioState", () => {
 
       // Should have saved immediately
       expect(mockSaveScenarioState).toHaveBeenCalled();
-      const [, , options] = mockSaveScenarioState.mock.calls[0];
-      expect(options.stageResults).toEqual({ bundle: { success: true, path: "/output" } });
+      const call = mockSaveScenarioState.mock.calls?.[0];
+      const options = call?.[2];
+      expect(options?.stageResults).toEqual({ bundle: { success: true, path: "/output" } });
     });
 
     it("includes form state updates in stage result save", async () => {
@@ -535,8 +536,8 @@ describe("useScenarioState", () => {
         );
       });
 
-      const savedFormState = mockSaveScenarioState.mock.calls[0][1];
-      expect(savedFormState.bundle_manifest_path).toBe("/path/to/manifest.json");
+      const savedFormState = mockSaveScenarioState.mock.calls?.[0]?.[1];
+      expect(savedFormState?.bundle_manifest_path).toBe("/path/to/manifest.json");
     });
 
     it("passes additional options to stage result save", async () => {
@@ -563,8 +564,9 @@ describe("useScenarioState", () => {
         );
       });
 
-      const [, , options] = mockSaveScenarioState.mock.calls[0];
-      expect(options.buildArtifacts).toEqual([{ platform: "win", status: "ready" }]);
+      const call = mockSaveScenarioState.mock.calls?.[0];
+      const options = call?.[2];
+      expect(options?.buildArtifacts).toEqual([{ platform: "win", status: "ready" }]);
     });
   });
 
@@ -1068,7 +1070,7 @@ describe("useScenarioState", () => {
         expect(onSaveError).toHaveBeenCalled();
       });
 
-      expect(onSaveError.mock.calls[0][0].message).toBe("Save failed");
+      expect(onSaveError.mock.calls?.[0]?.[0]?.message).toBe("Save failed");
 
       vi.useRealTimers();
     });
@@ -1331,8 +1333,9 @@ describe("useScenarioState", () => {
         expect(mockSaveScenarioState).toHaveBeenCalled();
       });
 
-      const [, , options] = mockSaveScenarioState.mock.calls[0];
-      expect(options.expectedHash).toBe("currenthash");
+      const call = mockSaveScenarioState.mock.calls?.[0];
+      const options = call?.[2];
+      expect(options?.expectedHash).toBe("currenthash");
 
       vi.useRealTimers();
     });

@@ -1949,20 +1949,16 @@ export async function exportTemplates(): Promise<Template[]> {
 // Skills API
 // ============================================================================
 
-import type { Skill, SkillSource } from "@/lib/types/templates";
+import type { Skill } from "@/lib/types/templates";
 
 export interface SkillResponse extends Skill {
-  source: SkillSource;
-  hasDefault: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface SkillListResponse {
   skills: SkillResponse[];
-  defaults_count: number;
-  user_count: number;
-  modified_defaults_count: number;
+  count: number;
 }
 
 /**
@@ -2027,8 +2023,7 @@ export async function createSkill(skill: CreateSkillInput): Promise<SkillRespons
 export type UpdateSkillInput = Partial<Omit<Skill, "id">>;
 
 /**
- * Update an existing skill.
- * If it's a default skill, creates a user override.
+ * Update an existing skill via prompt-manager.
  * @param id - Skill ID
  * @param updates - Fields to update
  */
@@ -2065,47 +2060,6 @@ export async function deleteSkill(id: string): Promise<void> {
   }
 }
 
-/**
- * Reset a modified default skill to its original state.
- * Deletes the user override to reveal the default.
- * @param id - Skill ID
- */
-export async function resetSkill(id: string): Promise<SkillResponse> {
-  const url = buildApiUrl(`/skills/${id}/reset`, { baseUrl: API_BASE });
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" }
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to reset skill: ${res.status}`);
-  }
-
-  return res.json();
-}
-
-/**
- * Update the actual default skill (not a user override).
- * This modifies the shipped default skill files directly.
- * @param id - Skill ID
- * @param updates - Skill fields to update
- */
-export async function updateDefaultSkill(id: string, updates: UpdateSkillInput): Promise<SkillResponse> {
-  const url = buildApiUrl(`/skills/${id}/update-default`, { baseUrl: API_BASE });
-
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(updates)
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to update default skill: ${res.status}`);
-  }
-
-  return res.json();
-}
 
 /**
  * Import multiple skills from a JSON array.

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   findScenarioByName,
   getScenarioDefaults,
+  prepareFormSubmission,
+  type PrepareFormSubmissionParams,
 } from "./generatorController";
 import type { ScenarioDesktopStatus } from "../components/scenario-inventory/types";
 
@@ -338,6 +340,162 @@ describe("generatorController", () => {
 
       expect(result.result).toBeNull();
       expect(result.error).toBe("Connection refused");
+    });
+  });
+
+  describe("prepareFormSubmission", () => {
+    const createBaseParams = (): PrepareFormSubmissionParams => ({
+      scenarioName: "test-scenario",
+      selectedTemplate: "basic",
+      deploymentMode: "bundled",
+      proxyUrl: "",
+      selectedPlatforms: ["win"],
+      isBundled: true,
+      requiresProxyUrl: false,
+      bundleManifestPath: "/path/to/manifest.json",
+      appDisplayName: "Test App",
+      appDescription: "Test description",
+      locationMode: "proper",
+      outputPath: "",
+      signingEnabledForBuild: false,
+      signingConfig: null,
+      signingReadiness: null,
+      storePreflightResult: null,
+      serverPreflightResult: null,
+      missingSecretsCount: 0,
+      preflightOverride: false,
+    });
+
+    it("returns validation errors when scenario name is empty", () => {
+      const params = createBaseParams();
+      params.scenarioName = "";
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.pipelineConfig).toBeNull();
+    });
+
+    it("returns validation errors when no platforms selected", () => {
+      const params = createBaseParams();
+      params.selectedPlatforms = [];
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.pipelineConfig).toBeNull();
+    });
+
+    it("returns pipeline config when all validations pass", () => {
+      const params = createBaseParams();
+      // Add preflight result to satisfy validation - needs validation.valid and ready.ready
+      params.storePreflightResult = {
+        status: "ready",
+        validation: { valid: true },
+        ready: {
+          ready: true,
+          details: {},
+        },
+      };
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.pipelineConfig).not.toBeNull();
+      expect(result.pipelineConfig?.scenario_name).toBe("test-scenario");
+      expect(result.pipelineConfig?.stop_after_stage).toBe("generate");
+    });
+
+    it("includes proxy URL in pipeline config when in proxy mode", () => {
+      const params = createBaseParams();
+      params.deploymentMode = "proxy";
+      params.isBundled = false;
+      params.requiresProxyUrl = true;
+      params.proxyUrl = "https://api.example.com";
+      params.bundleManifestPath = "";
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.pipelineConfig?.proxy_url).toBe("https://api.example.com");
+    });
+
+    it("uses custom output path when location mode is custom", () => {
+      const params = createBaseParams();
+      params.locationMode = "custom";
+      params.outputPath = "/custom/output/path";
+      params.storePreflightResult = {
+        status: "ready",
+        validation: { valid: true },
+        ready: {
+          ready: true,
+          details: {},
+        },
+      };
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.pipelineConfig).not.toBeNull();
+    });
+
+    it("handles signing readiness in validation params", () => {
+      const params = createBaseParams();
+      params.signingEnabledForBuild = true;
+      params.signingConfig = { enabled: true };
+      params.signingReadiness = {
+        ready: true,
+        platforms: { windows: { ready: true }, macos: { ready: false }, linux: { ready: false } },
+      };
+      params.storePreflightResult = {
+        status: "ready",
+        validation: { valid: true },
+        ready: {
+          ready: true,
+          details: {},
+        },
+      };
+
+      const result = prepareFormSubmission(params);
+
+      // Should pass validation (signing is configured and ready for selected platform)
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it("uses server preflight result when store result is null", () => {
+      const params = createBaseParams();
+      params.storePreflightResult = null;
+      params.serverPreflightResult = {
+        status: "ready",
+        validation: { valid: true },
+        ready: {
+          ready: true,
+          details: {},
+        },
+      };
+
+      const result = prepareFormSubmission(params);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.pipelineConfig).not.toBeNull();
+    });
+
+    it("considers missing secrets count for preflight ok status", () => {
+      const params = createBaseParams();
+      params.storePreflightResult = {
+        status: "ready",
+        validation: { valid: true },
+        ready: {
+          ready: true,
+          details: {},
+        },
+      };
+      params.missingSecretsCount = 5;
+
+      const result = prepareFormSubmission(params);
+
+      // Should fail validation because there are missing secrets
+      expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 });

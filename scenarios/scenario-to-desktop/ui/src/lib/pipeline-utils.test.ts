@@ -114,9 +114,9 @@ describe("parseLogs", () => {
     ];
     const result = parseLogs(logs);
     expect(result).toHaveLength(3);
-    expect(result[0].level).toBe("INFO");
-    expect(result[1].level).toBe("ERROR");
-    expect(result[2].level).toBe("INFO"); // fallback
+    expect(result?.[0]?.level).toBe("INFO");
+    expect(result?.[1]?.level).toBe("ERROR");
+    expect(result?.[2]?.level).toBe("INFO"); // fallback
   });
 
   it("handles empty array", () => {
@@ -152,7 +152,7 @@ describe("filterLogsByLevel", () => {
   it("filters to ERROR only", () => {
     const result = filterLogsByLevel(logs, "ERROR");
     expect(result).toHaveLength(1);
-    expect(result[0].level).toBe("ERROR");
+    expect(result?.[0]?.level).toBe("ERROR");
   });
 });
 

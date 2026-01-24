@@ -460,13 +460,13 @@ describe("signing.service", () => {
     it("filters by Windows platform", () => {
       const filtered = filterCertificatesByPlatform(certs, "windows");
       expect(filtered).toHaveLength(1);
-      expect(filtered[0].name).toBe("Win Cert");
+      expect(filtered?.[0]?.name).toBe("Win Cert");
     });
 
     it("filters by macOS platform", () => {
       const filtered = filterCertificatesByPlatform(certs, "macos");
       expect(filtered).toHaveLength(1);
-      expect(filtered[0].name).toBe("Mac Cert");
+      expect(filtered?.[0]?.name).toBe("Mac Cert");
     });
 
     it("returns empty array when no match", () => {

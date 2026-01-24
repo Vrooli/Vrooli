@@ -253,9 +253,8 @@ describe("formStore", () => {
     it("setConnectionResult updates connection result", () => {
       const store = useFormStore.getState();
       const mockResult = {
-        proxy_url: "https://example.com",
-        healthy: true,
-        api_version: "1.0.0",
+        server: { status: "ok" as const, status_code: 200, url: "https://example.com" },
+        api: { status: "ok" as const, status_code: 200, url: "https://example.com/api" },
       };
 
       act(() => {
@@ -269,7 +268,10 @@ describe("formStore", () => {
       const store = useFormStore.getState();
 
       act(() => {
-        store.setConnectionResult({ proxy_url: "https://example.com", healthy: true });
+        store.setConnectionResult({
+          server: { status: "ok", status_code: 200 },
+          api: { status: "ok", status_code: 200 },
+        });
       });
 
       expect(useFormStore.getState().connection.connectionResult).not.toBeNull();
@@ -336,8 +338,8 @@ describe("formStore", () => {
     it("setValidationErrors updates validation errors", () => {
       const store = useFormStore.getState();
       const errors = [
-        { field: "scenarioName", message: "Required" },
-        { field: "platforms", message: "Select at least one" },
+        { id: "1", field: "scenarioName", message: "Required" },
+        { id: "2", field: "platforms", message: "Select at least one" },
       ];
 
       act(() => {
@@ -351,7 +353,7 @@ describe("formStore", () => {
       const store = useFormStore.getState();
 
       act(() => {
-        store.setValidationErrors([{ field: "test", message: "error" }]);
+        store.setValidationErrors([{ id: "1", field: "test", message: "error" }]);
       });
 
       expect(useFormStore.getState().validationErrors).toHaveLength(1);
@@ -397,7 +399,7 @@ describe("formStore", () => {
         store.setAutoManageTier1(true);
         store.setSigningEnabledForBuild(true);
         store.setSelectedTemplate("advanced");
-        store.setValidationErrors([{ field: "test", message: "error" }]);
+        store.setValidationErrors([{ id: "1", field: "test", message: "error" }]);
         store.setScenarioLocked(true);
       });
 

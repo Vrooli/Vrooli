@@ -127,8 +127,8 @@ describe("pipelineStore", () => {
         current_stage: "bundle",
         stage_order: ["bundle", "preflight"],
         stages: {
-          bundle: { status: "completed" },
-          preflight: { status: "running" },
+          bundle: { stage: "bundle", status: "completed", started_at: Date.now() },
+          preflight: { stage: "preflight", status: "running", started_at: Date.now() },
         },
       } as VerbosePipelineStatus;
 

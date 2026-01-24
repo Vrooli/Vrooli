@@ -381,7 +381,7 @@ describe("usePipelineMutation", () => {
 
     expect(result.current.state.error).toBeNull();
     // First argument to mutationFn is the config
-    expect(mockRunPipeline.mock.calls[0][0]).toEqual(config);
+    expect(mockRunPipeline.mock.calls?.[0]?.[0]).toEqual(config);
   });
 
   it("sets error on failed run", async () => {
@@ -570,8 +570,8 @@ describe("usePipelineStatus", () => {
     const mockStatus: PipelineStatus = {
       pipeline_id: "build-123",
       status: "running",
-      message: "Building...",
-      started_at: new Date().toISOString(),
+      progress_message: "Building...",
+      started_at: Date.now(),
     };
     mockGetPipelineStatus.mockResolvedValue(mockStatus);
 

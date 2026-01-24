@@ -381,7 +381,7 @@ describe("pipelineSelectors", () => {
         });
         const missing = selectMissingSecrets(state);
         expect(missing).toHaveLength(1);
-        expect(missing[0].id).toBe("API_KEY");
+        expect(missing?.[0]?.id).toBe("API_KEY");
       });
 
       it("returns stable empty array reference", () => {
@@ -417,8 +417,9 @@ describe("pipelineSelectors", () => {
       it("returns false when validation fails", () => {
         const state = createTestState({
           preflightResult: {
+            status: "completed",
             validation: { valid: false },
-            ready: { ready: true },
+            ready: { ready: true, details: {} },
             secrets: [],
           } as ReturnType<typeof createTestState>["preflightResult"],
         });
@@ -428,8 +429,9 @@ describe("pipelineSelectors", () => {
       it("returns false when readiness fails", () => {
         const state = createTestState({
           preflightResult: {
+            status: "completed",
             validation: { valid: true },
-            ready: { ready: false },
+            ready: { ready: false, details: {} },
             secrets: [],
           } as ReturnType<typeof createTestState>["preflightResult"],
         });
@@ -496,7 +498,7 @@ describe("pipelineSelectors", () => {
     });
 
     it("selectBuildResult returns buildResult", () => {
-      const buildResult = { artifacts: [] } as ReturnType<typeof createTestState>["buildResult"];
+      const buildResult = { artifacts: {} } as ReturnType<typeof createTestState>["buildResult"];
       const state = createTestState({ buildResult });
       expect(selectBuildResult(state)).toBe(buildResult);
     });
