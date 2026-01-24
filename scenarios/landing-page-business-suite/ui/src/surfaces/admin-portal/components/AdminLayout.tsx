@@ -17,9 +17,10 @@ interface AdminLayoutProps {
 }
 
 // Dropdown component for nav groups
-function NavDropdown({ group, currentPath }: {
+function NavDropdown({ group, currentPath, alignRight }: {
   group: NavGroup;
   currentPath: string;
+  alignRight?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -52,7 +53,7 @@ function NavDropdown({ group, currentPath }: {
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </Button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-50 min-w-[180px]">
+        <div className={`absolute top-full ${alignRight ? 'right-0' : 'left-0'} mt-1 bg-slate-800 border border-slate-700 rounded-md shadow-lg py-1 z-50 min-w-[180px]`}>
           {group.items.map((item) => {
             const ItemIcon = item.icon;
             return (
@@ -99,6 +100,10 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
     ? LAYOUT.maxWidth[maxWidth]
     : '';
 
+  // Split groups into left-aligned and right-aligned
+  const leftGroups = NAVIGATION_CONFIG.groups.filter(g => !g.rightAligned);
+  const rightGroups = NAVIGATION_CONFIG.groups.filter(g => g.rightAligned);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* Top Navigation Bar */}
@@ -122,8 +127,8 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
                     </Link>
                   );
                 })}
-                {/* Dropdown groups */}
-                {NAVIGATION_CONFIG.groups.map((group) => (
+                {/* Left-aligned dropdown groups */}
+                {leftGroups.map((group) => (
                   <NavDropdown
                     key={group.id}
                     group={group}
@@ -132,16 +137,27 @@ export function AdminLayout({ children, maxWidth }: AdminLayoutProps) {
                 ))}
               </nav>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-2"
-              data-testid="nav-logout"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-1">
+              {/* Right-aligned dropdown groups */}
+              {rightGroups.map((group) => (
+                <NavDropdown
+                  key={group.id}
+                  group={group}
+                  currentPath={location.pathname}
+                  alignRight
+                />
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="gap-2"
+                data-testid="nav-logout"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>

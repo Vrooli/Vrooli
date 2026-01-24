@@ -23,6 +23,8 @@ export interface NavGroup {
   label: string;
   icon: LucideIcon;
   items: NavItem[];
+  /** When true, renders this group on the right side of the nav bar */
+  rightAligned?: boolean;
 }
 
 /**
