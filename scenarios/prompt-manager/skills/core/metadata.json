@@ -200,6 +200,24 @@
       "updatedAt": "2025-01-21T00:00:00Z"
     },
     {
+      "id": "react-coherence",
+      "file": "react-coherence.md",
+      "name": "React Coherence",
+      "description": "Ensure architectural coherence in React codebases through Zustand state management, code sharing patterns, and styling organization",
+      "modes": [
+        "Steer",
+        "React"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Link",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-23T00:00:00Z",
+      "updatedAt": "2026-01-23T00:00:00Z"
+    },
+    {
       "id": "assumption-mapping-and-hardening",
       "file": "assumption-mapping-and-hardening.md",
       "name": "Assumption Mapping \u0026 Hardening",
