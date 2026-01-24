@@ -19,6 +19,13 @@ export {
   type ValidationErrorsProps,
 } from "./ValidationErrors";
 
+// Extracted components from GeneratorForm decomposition
+export { AppMetadataSection, type AppMetadataSectionProps } from "./AppMetadataSection";
+export { ConnectionSectionRouter, type ConnectionSectionRouterProps } from "./ConnectionSectionRouter";
+export { GeneratorFormHeader, type GeneratorFormHeaderProps } from "./GeneratorFormHeader";
+export { GeneratorFormFooter, type GeneratorFormFooterProps } from "./GeneratorFormFooter";
+export { GeneratorModalsContainer, type GeneratorModalsContainerProps } from "./GeneratorModalsContainer";
+
 // Re-export constants from constants.ts
 export { TEMPLATE_SUMMARIES, FRAMEWORK_SUMMARIES } from "./constants";
 

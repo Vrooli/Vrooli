@@ -12,12 +12,7 @@ import {
   type ProxyHintsResponse,
   type PipelineConfig,
 } from "../../lib/api";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Button } from "../ui/button";
-import { TemplateModal, ScenarioModal, FrameworkModal, DeploymentModal } from "../modals";
 import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
-import { BundledRuntimeSection, ExternalServerSection, EmbeddedServerSection } from "../runtime";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";
 import type { DesktopConnectionConfig, ScenariosResponse } from "../scenario-inventory/types";
@@ -27,8 +22,12 @@ import {
   SigningInlineSection,
   OutputLocationSelector,
   OutputPathField,
-  ValidationErrors,
   validateFormInputs,
+  AppMetadataSection,
+  ConnectionSectionRouter,
+  GeneratorFormHeader,
+  GeneratorFormFooter,
+  GeneratorModalsContainer,
 } from ".";
 import {
   DEFAULT_DEPLOYMENT_MODE,
@@ -50,7 +49,6 @@ import {
   selectPreflightOk,
   selectMissingSecrets,
 } from "../../store";
-import { PipelineStatusSummary } from "../state/PipelineStatusOverview";
 import { PendingChangesAlert } from "../state/PendingChangesAlert";
 import type { FormState } from "../../lib/api";
 
@@ -171,8 +169,9 @@ export function GeneratorForm({
     setPreflightOverride,
     pipelineId: preflightPipelineId,
     runStatus: preflightRunStatus,
-    error: preflightError,
+    errorInfo: preflightErrorInfo,
   } = usePipelineStore();
+  const preflightError = preflightErrorInfo?.message ?? null;
   const preflightPending = usePipelineStore(selectIsRunning);
   const preflightOk = usePipelineStore(selectPreflightOk);
   const missingPreflightSecrets = usePipelineStore(selectMissingSecrets);
@@ -703,43 +702,14 @@ export function GeneratorForm({
     }
   };
 
-  const connectionSection =
-    connectionDecision.kind === "bundled-runtime" ? (
-      <BundledRuntimeSection
-        bundleManifestPath={bundleManifestPath}
-        onBundleManifestChange={setBundleManifestPath}
-        scenarioName={scenarioName}
-        bundleHelperRef={bundleHelperRef}
-        onBundleExported={(manifestPath) => {
-          runPreflight(undefined, { bundle_manifest_path: manifestPath });
-        }}
-        onBundleComplete={handleBundleComplete}
-        initialBundleResult={initialBundleResult}
-      />
-    ) : connectionDecision.kind === "remote-server" ? (
-      <ExternalServerSection
-        proxyUrl={proxyUrl}
-        onProxyUrlChange={setProxyUrl}
-        scenarioName={scenarioName}
-        proxyHints={proxyHints}
-        connectionTester={{ isPending: connectionMutation.isPending, mutate: () => connectionMutation.mutate() }}
-        connectionResult={connectionResult}
-        connectionError={connectionError}
-        autoManageTier1={autoManageTier1}
-        onAutoManageTier1Change={setAutoManageTier1}
-        vrooliBinaryPath={vrooliBinaryPath}
-        onVrooliBinaryPathChange={setVrooliBinaryPath}
-      />
-    ) : (
-      <EmbeddedServerSection
-        serverPort={serverPort}
-        onServerPortChange={setServerPort}
-        localServerPath={localServerPath}
-        onLocalServerPathChange={setLocalServerPath}
-        localApiEndpoint={localApiEndpoint}
-        onLocalApiEndpointChange={setLocalApiEndpoint}
-      />
-    );
+  const handleBundleExported = (manifestPath: string) => {
+    runPreflight(undefined, { bundle_manifest_path: manifestPath });
+  };
+
+  const connectionTester = {
+    isPending: connectionMutation.isPending,
+    mutate: () => connectionMutation.mutate(),
+  };
 
   const draftUpdatedLabel = draftTimestamps?.updatedAt
     ? new Date(draftTimestamps.updatedAt).toLocaleString()
@@ -748,45 +718,25 @@ export function GeneratorForm({
     ? new Date(draftTimestamps.createdAt).toLocaleString()
     : null;
 
+  const handleReset = () => {
+    if (!scenarioName) return;
+    if (preflightPipelineId && preflightPending) {
+      void cancelPreflightPipeline();
+    }
+    clearDraft();
+    resetFormState(true);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          {scenarioName && (
-            <PipelineStatusSummary validationStatus={validationStatus} />
-          )}
-          {(draftCreatedLabel || draftUpdatedLabel) && (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              {draftCreatedLabel && (
-                <span>Started {draftCreatedLabel}</span>
-              )}
-              {draftUpdatedLabel && (
-                <span>Saved {draftUpdatedLabel}</span>
-              )}
-              {stateSaving && (
-                <span className="text-blue-400">Saving...</span>
-              )}
-            </div>
-          )}
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="sm:ml-auto"
-          disabled={!scenarioName}
-          onClick={() => {
-            if (!scenarioName) return;
-            if (preflightPipelineId && preflightPending) {
-              void cancelPreflightPipeline();
-            }
-            clearDraft();
-            resetFormState(true);
-          }}
-        >
-          Reset progress
-        </Button>
-      </div>
+      <GeneratorFormHeader
+        scenarioName={scenarioName}
+        validationStatus={validationStatus}
+        createdLabel={draftCreatedLabel}
+        updatedLabel={draftUpdatedLabel}
+        isSaving={stateSaving}
+        onReset={handleReset}
+      />
 
       {isStale && pendingChanges.length > 0 && (
         <PendingChangesAlert
@@ -821,69 +771,18 @@ export function GeneratorForm({
             onUnlock={() => setScenarioLocked(false)}
           />
 
-          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-4 space-y-3">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="appDisplayName">App display name</Label>
-                <Input
-                  id="appDisplayName"
-                  value={appDisplayName}
-                  onChange={(e) => setAppDisplayName(e.target.value)}
-                  placeholder={`${scenarioName || "scenario"} Desktop`}
-                  className="mt-1.5"
-                />
-                <p className="mt-1 text-xs text-slate-400">
-                  Controls window titles, installer product name, and tray labels.
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="iconPath">Icon path (PNG)</Label>
-                <Input
-                  id="iconPath"
-                  value={iconPath}
-                  onChange={(e) => setIconPath(e.target.value)}
-                  placeholder="/home/you/Vrooli/scenarios/picker-wheel/icon.png"
-                  className="mt-1.5"
-                />
-                <p className="mt-1 text-xs text-slate-400">
-                  Optional 256px+ PNG; it will be copied into <code>assets/icon.png</code> for the build.
-                </p>
-                <div className="mt-3 flex items-center gap-3 rounded-md border border-slate-800 bg-slate-950/60 p-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-md border border-slate-700 bg-slate-900">
-                    {iconPreviewUrl && !iconPreviewError ? (
-                      <img
-                        src={iconPreviewUrl}
-                        alt="Icon preview"
-                        className="h-10 w-10 rounded object-contain"
-                        onError={() => setIconPreviewError(true)}
-                      />
-                    ) : (
-                      <span className="text-xs text-slate-500">No icon</span>
-                    )}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    {iconPreviewUrl && !iconPreviewError
-                      ? "Previewing selected icon."
-                      : "Preview will appear once a valid PNG path is set."}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="appDescription">App description</Label>
-              <textarea
-                id="appDescription"
-                value={appDescription}
-                onChange={(e) => setAppDescription(e.target.value)}
-                className="mt-1.5 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-blue-600 focus:outline-none"
-                rows={3}
-                placeholder={`Desktop application for ${scenarioName || "your scenario"} scenario`}
-              />
-              <p className="mt-1 text-xs text-slate-400">
-                Shown in generated README and metadata.
-              </p>
-            </div>
-          </div>
+          <AppMetadataSection
+            scenarioName={scenarioName}
+            appDisplayName={appDisplayName}
+            onAppDisplayNameChange={setAppDisplayName}
+            iconPath={iconPath}
+            onIconPathChange={setIconPath}
+            iconPreviewUrl={iconPreviewUrl}
+            iconPreviewError={iconPreviewError}
+            onIconPreviewError={setIconPreviewError}
+            appDescription={appDescription}
+            onAppDescriptionChange={setAppDescription}
+          />
 
           <FrameworkTemplateSection
             framework={framework}
@@ -898,7 +797,32 @@ export function GeneratorForm({
             onOpenDeploymentModal={() => openModal('deployment')}
           />
 
-          {connectionSection}
+          <ConnectionSectionRouter
+            connectionDecision={connectionDecision}
+            bundleManifestPath={bundleManifestPath}
+            onBundleManifestChange={setBundleManifestPath}
+            scenarioName={scenarioName}
+            bundleHelperRef={bundleHelperRef}
+            onBundleExported={handleBundleExported}
+            onBundleComplete={handleBundleComplete}
+            initialBundleResult={initialBundleResult}
+            proxyUrl={proxyUrl}
+            onProxyUrlChange={setProxyUrl}
+            proxyHints={proxyHints}
+            connectionTester={connectionTester}
+            connectionResult={connectionResult}
+            connectionError={connectionError}
+            autoManageTier1={autoManageTier1}
+            onAutoManageTier1Change={setAutoManageTier1}
+            vrooliBinaryPath={vrooliBinaryPath}
+            onVrooliBinaryPathChange={setVrooliBinaryPath}
+            serverPort={serverPort}
+            onServerPortChange={setServerPort}
+            localServerPath={localServerPath}
+            onLocalServerPathChange={setLocalServerPath}
+            localApiEndpoint={localApiEndpoint}
+            onLocalApiEndpointChange={setLocalApiEndpoint}
+          />
 
           <PlatformSelector platforms={platforms} onPlatformChange={handlePlatformChange} />
 
@@ -938,76 +862,38 @@ export function GeneratorForm({
 
           <input type="hidden" name="scenarioName" value={scenarioName} />
 
-          {/* Validation errors - shown above submit button */}
-          <ValidationErrors
-            errors={validationErrors}
-            onDismiss={clearValidationErrors}
-          />
-
           {showSubmit && (
-            <>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={generateMutation.isPending || validationErrors.length > 0}
-              >
-                {generateMutation.isPending
-                  ? "Generating..."
-                  : isUpdateMode
-                    ? "Update Desktop Application"
-                    : "Generate Desktop Application"}
-              </Button>
-
-              {generateMutation.isError && (
-                <div className="rounded-lg bg-red-900/20 p-3 text-sm text-red-300">
-                  <strong>Error:</strong> {(generateMutation.error as Error).message}
-                </div>
-              )}
-            </>
+            <GeneratorFormFooter
+              validationErrors={validationErrors}
+              onDismissErrors={clearValidationErrors}
+              isPending={generateMutation.isPending}
+              isError={generateMutation.isError}
+              errorMessage={generateErrorMessage}
+              isUpdateMode={isUpdateMode}
+            />
           )}
       </form>
-      <ScenarioModal
-          open={modals.scenario}
-          loading={loadingScenarios}
-          scenarios={scenariosData?.scenarios ?? []}
-          selectedScenarioName={scenarioName}
-          onClose={() => closeModal('scenario')}
-          onSelect={(name) => {
-            onScenarioNameChange(name);
-            closeModal('scenario');
-          }}
-        />
-        <TemplateModal
-          open={modals.template}
-          selectedTemplate={selectedTemplate}
-          onClose={() => closeModal('template')}
-          onSelect={(template) => {
-            onTemplateChange(template);
-            closeModal('template');
-          }}
-        />
-        <FrameworkModal
-          open={modals.framework}
-          selectedFramework={framework}
-          onClose={() => closeModal('framework')}
-          onSelect={(nextFramework) => {
-            setFramework(nextFramework);
-            closeModal('framework');
-          }}
-        />
-        <DeploymentModal
-          open={modals.deployment}
-          deploymentMode={deploymentMode}
-          serverType={serverType}
-          allowedServerTypes={allowedServerTypes}
-          onClose={() => closeModal('deployment')}
-          onChange={(nextMode, nextServerType) => {
-            handleDeploymentChange(nextMode);
-            if (nextServerType) {
-              setServerType(nextServerType);
-            }
-          }}
-        />
+      <GeneratorModalsContainer
+        modals={modals}
+        closeModal={closeModal}
+        loadingScenarios={loadingScenarios}
+        scenarios={scenariosData?.scenarios ?? []}
+        selectedScenarioName={scenarioName}
+        onScenarioSelect={onScenarioNameChange}
+        selectedTemplate={selectedTemplate}
+        onTemplateSelect={onTemplateChange}
+        selectedFramework={framework}
+        onFrameworkSelect={setFramework}
+        deploymentMode={deploymentMode}
+        serverType={serverType}
+        allowedServerTypes={allowedServerTypes}
+        onDeploymentChange={(nextMode, nextServerType) => {
+          handleDeploymentChange(nextMode);
+          if (nextServerType) {
+            setServerType(nextServerType);
+          }
+        }}
+      />
     </div>
   );
 }

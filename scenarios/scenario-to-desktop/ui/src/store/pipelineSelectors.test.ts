@@ -534,13 +534,15 @@ describe("pipelineSelectors", () => {
 
   describe("error selectors", () => {
     describe("selectError", () => {
-      it("returns error from state", () => {
-        const state = createTestState({ error: "Something went wrong" });
+      it("returns error message from errorInfo", () => {
+        const state = createTestState({
+          errorInfo: { message: "Something went wrong" },
+        });
         expect(selectError(state)).toBe("Something went wrong");
       });
 
-      it("returns null when no error", () => {
-        const state = createTestState({ error: null });
+      it("returns null when no errorInfo", () => {
+        const state = createTestState({ errorInfo: null });
         expect(selectError(state)).toBeNull();
       });
     });
@@ -554,19 +556,13 @@ describe("pipelineSelectors", () => {
     });
 
     describe("selectHasError", () => {
-      it("returns false when no error", () => {
-        const state = createTestState({ error: null, errorInfo: null });
+      it("returns false when no errorInfo", () => {
+        const state = createTestState({ errorInfo: null });
         expect(selectHasError(state)).toBe(false);
-      });
-
-      it("returns true when error string exists", () => {
-        const state = createTestState({ error: "Error", errorInfo: null });
-        expect(selectHasError(state)).toBe(true);
       });
 
       it("returns true when errorInfo exists", () => {
         const state = createTestState({
-          error: null,
           errorInfo: { message: "Error" },
         });
         expect(selectHasError(state)).toBe(true);

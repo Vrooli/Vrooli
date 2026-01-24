@@ -114,7 +114,6 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
     pipelineId,
     pipelineStatus,
     runStatus,
-    error,
     errorInfo,
     preflightResult,
     preflightSecrets,
@@ -138,6 +137,9 @@ export function usePipelineActions(props: UsePipelineActionsProps): UsePipelineA
     stopPolling,
     loadPipelineStatus,
   } = store;
+
+  // ========== Derived State ==========
+  const error = errorInfo?.message ?? null;
 
   // ========== Selectors ==========
   const isRunning = usePipelineStore(selectIsRunning);

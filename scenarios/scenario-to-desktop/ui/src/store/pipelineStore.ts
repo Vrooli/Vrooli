@@ -55,6 +55,7 @@ export {
   selectDistributionResult,
   selectStageLogs,
   selectError,
+  selectErrorMessage,
   selectErrorInfo,
   selectHasError,
   selectPipelineHistory,
@@ -139,7 +140,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
       set({
         runStatus: "starting",
-        error: null,
         errorInfo: null,
         isSubmitting: true,
         currentIdempotencyKey: idempotencyKey,
@@ -169,7 +169,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
         const errorInfo = createErrorInfo(err);
         set({
           runStatus: "failed",
-          error: errorInfo.message,
           errorInfo,
           isSubmitting: false,
         });
@@ -204,7 +203,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
       set({
         runStatus: "starting",
-        error: null,
         errorInfo: null,
         isSubmitting: true,
         currentIdempotencyKey: idempotencyKey,
@@ -231,7 +229,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
         const errorInfo = createErrorInfo(err);
         set({
           runStatus: "failed",
-          error: errorInfo.message,
           errorInfo,
           isSubmitting: false,
         });
@@ -249,7 +246,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       } catch (err) {
         logError("cancelPipeline", err);
         const errorInfo = createErrorInfo(err);
-        set({ error: errorInfo.message, errorInfo });
+        set({ errorInfo });
       }
     },
 
@@ -273,7 +270,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
       set({
         runStatus: "starting",
-        error: null,
         errorInfo: null,
         isSubmitting: true,
       });
@@ -295,7 +291,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
         const errorInfo = createErrorInfo(err);
         set({
           runStatus: "failed",
-          error: errorInfo.message,
           errorInfo,
           isSubmitting: false,
         });
@@ -312,7 +307,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       } catch (err) {
         logError("loadPipelineStatus", err);
         const errorInfo = createErrorInfo(err);
-        set({ error: errorInfo.message, errorInfo });
+        set({ errorInfo });
       }
     },
 
@@ -340,7 +335,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
           logError("pollPipelineStatus", err);
           const errorInfo = createErrorInfo(err);
           set({
-            error: errorInfo.message,
             errorInfo,
             isPolling: false,
           });
@@ -376,7 +370,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       });
     },
 
-    clearError: () => set({ error: null, errorInfo: null }),
+    clearError: () => set({ errorInfo: null }),
 
     resetForRetry: () => {
       // Reset session ID to get fresh idempotency keys for explicit retries
@@ -385,7 +379,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       set({
         isSubmitting: false,
         currentIdempotencyKey: null,
-        error: null,
         errorInfo: null,
       });
     },
@@ -440,7 +433,6 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       set({
         pipelineStatus: status,
         runStatus,
-        error: status.error ?? null,
       });
 
       get()._extractStageResults(status);

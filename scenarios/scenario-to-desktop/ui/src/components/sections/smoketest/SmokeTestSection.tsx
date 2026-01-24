@@ -7,6 +7,7 @@ import { TestTube, CheckCircle2, XCircle, Monitor, FileText } from "lucide-react
 import {
   SectionCard,
   STATUS_CONFIG,
+  StageAbout,
   StageStatusOverview,
   StageDetailCard,
   StagePlaceholder,
@@ -50,6 +51,10 @@ export const SmokeTestSection = forwardRef<HTMLDivElement, SmokeTestSectionProps
         collapsible={true}
         contentClassName="space-y-4"
       >
+        <StageAbout title="About smoke testing">
+          <p>The smoke test stage verifies that built installers launch correctly on each platform.</p>
+        </StageAbout>
+
         <StageStatusOverview icon={TestTube} title="Smoke Test Status" description={getDescription()} statusDisplay={statusDisplay} />
 
         {hasResult && (

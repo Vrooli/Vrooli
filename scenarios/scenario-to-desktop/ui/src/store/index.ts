@@ -35,6 +35,7 @@ export {
   selectStageLogs,
   // Error selectors
   selectError,
+  selectErrorMessage,
   selectErrorInfo,
   selectHasError,
   // History selectors

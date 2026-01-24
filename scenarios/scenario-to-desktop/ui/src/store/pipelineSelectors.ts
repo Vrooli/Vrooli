@@ -63,11 +63,20 @@ export const selectIsBusy = (state: PipelineStore) =>
 // Preflight Selectors
 // ============================================================================
 
-/** Check if preflight validation passed */
+/**
+ * Check if preflight validation passed.
+ * Returns true when validation.valid is true (schema validation passed).
+ * This checks that the bundle manifest structure is valid and all referenced
+ * assets/binaries exist with matching checksums.
+ */
 export const selectPreflightValidationOk = (state: PipelineStore) =>
   state.preflightResult?.validation?.valid ?? false;
 
-/** Check if preflight readiness check passed */
+/**
+ * Check if preflight readiness check passed.
+ * Returns true when ready.ready is true (services are reachable).
+ * This checks that bundled services can start and respond to health checks.
+ */
 export const selectPreflightReadinessOk = (state: PipelineStore) =>
   state.preflightResult?.ready?.ready ?? false;
 
@@ -92,11 +101,24 @@ export const selectMissingSecrets = (state: PipelineStore) => {
   return missing.length === 0 ? EMPTY_SECRETS_ARRAY : missing;
 };
 
-/** Check if all required secrets are provided */
+/**
+ * Check if all required secrets are provided.
+ * Returns true when no secrets are missing values.
+ * Missing secrets are those marked as required but without has_value set.
+ */
 export const selectPreflightSecretsOk = (state: PipelineStore) =>
   selectMissingSecrets(state).length === 0;
 
-/** Check if preflight is fully OK (validation + readiness + secrets) */
+/**
+ * Check if preflight is fully OK (all checks pass).
+ * Returns true only when ALL of the following are true:
+ * - validation passed (manifest structure valid, assets exist)
+ * - readiness passed (services are reachable)
+ * - secrets passed (no required secrets are missing)
+ *
+ * When this returns false, the UI shows the "Override preflight" checkbox
+ * allowing users to bypass validation for development/debugging.
+ */
 export const selectPreflightOk = (state: PipelineStore) => {
   if (!state.preflightResult) return false;
   return (
@@ -138,15 +160,23 @@ export const selectStageLogs =
 // Error Selectors
 // ============================================================================
 
-/** Get the current error message */
-export const selectError = (state: PipelineStore) => state.error;
+/**
+ * Get the current error message from errorInfo.
+ */
+export const selectError = (state: PipelineStore) =>
+  state.errorInfo?.message ?? null;
 
-/** Get structured error info */
+/**
+ * Get the error message (alias for selectError).
+ * Use this when you specifically want just the message string.
+ */
+export const selectErrorMessage = selectError;
+
+/** Get structured error info with category and suggestions */
 export const selectErrorInfo = (state: PipelineStore) => state.errorInfo;
 
-/** Check if there's an error */
-export const selectHasError = (state: PipelineStore) =>
-  Boolean(state.error || state.errorInfo);
+/** Check if there's an error state */
+export const selectHasError = (state: PipelineStore) => Boolean(state.errorInfo);
 
 // ============================================================================
 // History Selectors

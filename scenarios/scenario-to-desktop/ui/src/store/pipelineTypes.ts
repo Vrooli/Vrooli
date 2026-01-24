@@ -69,8 +69,6 @@ export interface PipelineStoreState {
   pipelineId: string | null;
   pipelineStatus: VerbosePipelineStatus | null;
   runStatus: PipelineRunStatus;
-  /** @deprecated Use errorInfo for richer error context */
-  error: string | null;
   /** Structured error information with recovery guidance */
   errorInfo: PipelineErrorInfo | null;
 
@@ -93,7 +91,14 @@ export interface PipelineStoreState {
   pipelineHistory: string[];
 
   // Preflight-specific state (for GeneratorForm integration)
+  /** User-provided secret values for preflight validation (keyed by secret ID) */
   preflightSecrets: Record<string, string>;
+  /**
+   * When true, allows generation to proceed even if preflight fails.
+   * Used for development/debugging when users want to bypass validation.
+   * UI shows "Override preflight" checkbox when preflight is not OK.
+   * Note: This does NOT skip preflight checks, it just allows proceeding despite failures.
+   */
   preflightOverride: boolean;
 
   // Request deduplication: tracks whether a request is currently in-flight
@@ -160,7 +165,6 @@ export const initialPipelineState: PipelineStoreState = {
   pipelineId: null,
   pipelineStatus: null,
   runStatus: "idle",
-  error: null,
   errorInfo: null,
   isPolling: false,
   pollIntervalMs: 2000,

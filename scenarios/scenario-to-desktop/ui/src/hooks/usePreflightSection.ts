@@ -122,7 +122,7 @@ export function usePreflightSection(props: UsePreflightSectionProps): UsePreflig
   const preflightSecrets = usePipelineStore((s) => s.preflightSecrets);
   const preflightOverride = usePipelineStore((s) => s.preflightOverride);
   const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
-  const preflightError = usePipelineStore((s) => s.error);
+  const preflightError = usePipelineStore((s) => s.errorInfo?.message ?? null);
   const preflightPending = usePipelineStore(selectIsRunning);
   const preflightOk = usePipelineStore(selectPreflightOk);
   const missingSecrets = usePipelineStore(selectMissingSecrets);

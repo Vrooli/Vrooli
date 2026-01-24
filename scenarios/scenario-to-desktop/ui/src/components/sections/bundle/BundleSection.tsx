@@ -7,6 +7,7 @@ import { Package, FileJson, FolderOpen, HardDrive } from "lucide-react";
 import {
   SectionCard,
   getStatusDisplay,
+  StageAbout,
   StageStatusOverview,
   StageDetailCard,
   StagePlaceholder,
@@ -43,6 +44,10 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         collapsible={true}
         contentClassName="space-y-4"
       >
+        <StageAbout title="About bundling">
+          <p>The bundle stage collects scenario assets, runtime binaries, and dependencies into a portable package.</p>
+        </StageAbout>
+
         <StageStatusOverview
           icon={Package}
           title="Bundle Status"

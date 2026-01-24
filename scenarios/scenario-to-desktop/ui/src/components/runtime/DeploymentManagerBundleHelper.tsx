@@ -46,12 +46,13 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
       setScenario,
       runBundleStage,
       runStatus,
-      error: pipelineError,
+      errorInfo,
       bundleResult,
       stageLogs,
       pipelineId,
       clearError,
     } = usePipelineStore();
+    const pipelineError = errorInfo?.message ?? null;
     const isRunning = usePipelineStore(selectIsRunning);
 
     // Track previous scenario to detect genuine changes

@@ -22,7 +22,6 @@ function getStoreSnapshot() {
     pipelineId: state.pipelineId,
     pipelineStatus: state.pipelineStatus,
     runStatus: state.runStatus,
-    error: state.error,
     errorInfo: state.errorInfo,
     isPolling: state.isPolling,
     pollIntervalMs: state.pollIntervalMs,

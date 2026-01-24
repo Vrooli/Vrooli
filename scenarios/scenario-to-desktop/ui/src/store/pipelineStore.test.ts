@@ -43,7 +43,6 @@ describe("pipelineStore", () => {
       expect(state.pipelineId).toBeNull();
       expect(state.pipelineStatus).toBeNull();
       expect(state.runStatus).toBe("idle");
-      expect(state.error).toBeNull();
       expect(state.errorInfo).toBeNull();
       expect(state.isPolling).toBe(false);
       expect(state.pollIntervalMs).toBe(2000);
@@ -299,18 +298,16 @@ describe("pipelineStore", () => {
   });
 
   describe("clearError", () => {
-    it("clears error and errorInfo", () => {
+    it("clears errorInfo", () => {
       const store = usePipelineStore.getState();
 
       // Set an error state directly (normally done through failed actions)
       act(() => {
         usePipelineStore.setState({
-          error: "Something went wrong",
           errorInfo: { message: "Details", category: "unknown" },
         });
       });
 
-      expect(usePipelineStore.getState().error).toBe("Something went wrong");
       expect(usePipelineStore.getState().errorInfo).toBeDefined();
 
       // Clear
@@ -318,20 +315,18 @@ describe("pipelineStore", () => {
         store.clearError();
       });
 
-      expect(usePipelineStore.getState().error).toBeNull();
       expect(usePipelineStore.getState().errorInfo).toBeNull();
     });
   });
 
   describe("resetForRetry", () => {
-    it("clears error and submission state for retry", () => {
+    it("clears errorInfo and submission state for retry", () => {
       const store = usePipelineStore.getState();
 
       // Set a failed state with submitting stuck
       act(() => {
         usePipelineStore.setState({
           runStatus: "failed",
-          error: "Failed to run",
           errorInfo: { message: "Failed" },
           isSubmitting: true,
           currentIdempotencyKey: "test-key",
@@ -347,7 +342,6 @@ describe("pipelineStore", () => {
       // resetForRetry clears submission state and errors, but NOT runStatus
       expect(state.isSubmitting).toBe(false);
       expect(state.currentIdempotencyKey).toBeNull();
-      expect(state.error).toBeNull();
       expect(state.errorInfo).toBeNull();
       // runStatus is preserved (allows UI to show last state)
       expect(state.runStatus).toBe("failed");
