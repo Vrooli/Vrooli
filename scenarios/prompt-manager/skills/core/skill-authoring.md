@@ -4,9 +4,72 @@ Guide for creating and updating skills that steer AI agents effectively. Skills 
 
 ---
 
-### **1. Principles Over Prescriptions**
+### **1. The Shared Mental Model Problem**
 
-Skills guide *thinking*, not dictate *steps*. Good skills create a mental model that helps agents reason about problems.
+Skills exist to solve a fundamental problem: **multiple agents across different sessions need to conceptualize problems the same way.**
+
+Without shared mental models, each agent (or even the same agent across sessions) makes different architectural decisions, leading to divergent implementations, duplication, and inconsistency. Generic advice like "keep code DRY" doesn't prevent this - agents need concrete patterns they can consistently apply.
+
+**The goal of every skill:** Create a mental model so clear that any agent, in any session, would make the same structural decisions when facing similar problems.
+
+---
+
+### **2. Convergence Patterns**
+
+The most effective skills provide **visual patterns** that agents can reference consistently. When something can be described as a decision tree, diagram, or table, agents gravitate toward it across sessions.
+
+#### **Decision Trees**
+
+For multi-step decisions, provide a visual flow:
+
+```
+                    Is this used in 2+ places?
+                              │
+              ┌───────────────┴───────────────┐
+            YES                               NO
+              │                                │
+              ▼                                ▼
+     Extract to shared/              Is this conceptually
+     immediately                     reusable?
+                                           │
+                               ┌───────────┴───────────┐
+                             YES                       NO
+                               │                        │
+                               ▼                        ▼
+                       Design for reuse          Keep local
+```
+
+#### **Decision Tables**
+
+For classification decisions, use YES/NO tables:
+
+| Question | If YES | If NO |
+|----------|--------|-------|
+| Is it used by 2+ components? | Zustand store | Continue... |
+| Will it persist across navigation? | Zustand store | Continue... |
+| Is it purely ephemeral UI? | Local useState | Zustand store |
+
+#### **Architecture Diagrams**
+
+For layered systems, show the flow:
+
+```
+Components (consume state, never define shared state)
+    ↓
+Hooks (React state management, UI logic)
+    ↓
+Controllers (orchestration, business logic)
+    ↓
+Services (API calls, validation)
+```
+
+**Why these work:** Visual patterns are unambiguous. Prose like "consider whether the state is shared" leaves room for interpretation. A decision table with explicit criteria does not.
+
+---
+
+### **3. Principles Over Prescriptions**
+
+While convergence patterns provide structure, skills should still guide *thinking*, not dictate *steps*.
 
 **Good guidance:**
 - "Prioritize stability-critical code paths"
@@ -18,11 +81,11 @@ Skills guide *thinking*, not dictate *steps*. Good skills create a mental model 
 - "Add exactly 5 tests per file"
 - "Complete this in 30 minutes"
 
-The goal is to teach *what to care about*, not *what to do*. Agents should be able to apply the principles to novel situations.
+The goal is to teach *what to care about*, not *what to do*. Agents should be able to apply the principles to novel situations - but with enough concrete patterns that they arrive at consistent solutions.
 
 ---
 
-### **2. Clear Intent Statement**
+### **4. Clear Intent Statement**
 
 Every skill opens with a clear statement of purpose:
 
@@ -40,7 +103,7 @@ The summary should answer: "If I only read this sentence, what would I prioritiz
 
 ---
 
-### **3. Boundary Definition**
+### **5. Boundary Definition**
 
 Every skill must explicitly define what's IN scope and OUT of scope. This prevents conflicts between skills and keeps agents focused.
 
@@ -63,22 +126,47 @@ Every skill must explicitly define what's IN scope and OUT of scope. This preven
 
 ---
 
-### **4. The 8-Section Structure**
+### **6. Skill Structure**
 
 Skills follow a consistent structure that makes them scannable and predictable:
 
 1. **Focus statement** - What this skill steers toward
 2. **Tooling prerequisites** - Required setup (optional)
-3-7. **Core principles** - Numbered sections covering main guidance areas
-8. **Memory management** - Integration with visited-tracker (optional)
-9. **Scenario constraints** - What's out of scope
-10. **Output expectations** - What can/must be changed
+3-7. **Core principles** - Numbered sections with convergence patterns where applicable
+8. **Audit section** - Assessment checklist for existing codebases (optional, see below)
+9. **Memory management** - Integration with visited-tracker (optional)
+10. **Scenario constraints** - What's out of scope
+11. **Output expectations** - What can/must be changed
 
 The exact number of principle sections varies, but the structure should feel consistent.
 
+#### **When to Include an Audit Section**
+
+Some skills need to assess existing codebases at any maturity level before prescribing changes. For these, include an audit section with:
+
+- **Concrete discovery commands** (grep, find, etc.) to identify current patterns
+- **Red flag checklists** that indicate problems to address
+- **A documentation template** for recording findings
+
+**Example audit pattern:**
+```markdown
+### **Coherence Audit**
+
+#### Step 1: State Inventory
+\`\`\`bash
+rg "useState\(" --type tsx -c | sort -t: -k2 -nr | head -20
+\`\`\`
+
+**Red flags:**
+- [ ] Files with 10+ useState calls → candidate for consolidation
+- [ ] Similar state shapes in multiple components → missing shared abstraction
+```
+
+Audit sections make skills applicable to brownfield projects, not just greenfield development.
+
 ---
 
-### **5. Anti-Gaming Measures**
+### **7. Anti-Gaming Measures**
 
 Skills should distinguish between "real improvements" and "superficial changes" to prevent metric-gaming:
 
@@ -91,7 +179,7 @@ If a skill can be gamed by making shallow changes, add explicit guidance about w
 
 ---
 
-### **6. Memory Integration**
+### **8. Memory Integration**
 
 For skills that involve systematic work across many files, integrate with `visited-tracker`:
 
@@ -109,7 +197,7 @@ This prevents repeated work across conversation loops and ensures systematic cov
 
 ---
 
-### **7. Protective Comments**
+### **9. Protective Comments**
 
 When skills include configuration blocks (tsconfig, eslint, etc.), wrap them in protective comments that explain:
 - Why the configuration exists
@@ -135,7 +223,7 @@ Future agents need to understand *why* rules exist before they can safely modify
 
 ---
 
-### **8. Registration**
+### **10. Registration**
 
 To publish a skill:
 
@@ -162,7 +250,7 @@ To publish a skill:
 
 ---
 
-### **9. Maintain Skill System Constraints**
+### **11. Maintain Skill System Constraints**
 
 * Do **not** create skills for one-off tasks (use direct instructions instead)
 * Do **not** duplicate guidance that belongs in CLAUDE.md or scenario-specific docs
@@ -172,7 +260,7 @@ To publish a skill:
 
 ---
 
-### **10. Output Expectations**
+### **12. Output Expectations**
 
 You may update:
 * Existing skill files for clarity, completeness, or correcting outdated guidance
@@ -180,6 +268,7 @@ You may update:
 
 You **must**:
 * Preserve principle-based guidance style
+* Include convergence patterns (decision trees, tables, diagrams) where decisions need consistency
 * Include boundary definitions (what's in/out of scope)
 * Include output expectations section
 * Test that skills load correctly in prompt-manager
@@ -190,3 +279,4 @@ You **must**:
 * File-level directives ("edit src/foo.ts")
 * Output quotas ("add 5 tests per file")
 * Tool-specific instructions that may not apply to all scenarios
+* Prose-only guidance where a decision tree or table would be clearer

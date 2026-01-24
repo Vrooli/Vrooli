@@ -565,7 +565,7 @@
       "id": "skill-authoring",
       "file": "skill-authoring.md",
       "name": "Skill Authoring",
-      "description": "Guide for creating and updating skills that steer AI agents effectively",
+      "description": "Guide for creating and updating skills that steer AI agents effectively. Covers convergence patterns, audit sections, and shared mental models.",
       "modes": [
         "Steer",
         "Meta"
@@ -577,7 +577,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-23T00:00:00Z",
-      "updatedAt": "2026-01-23T00:00:00Z"
+      "updatedAt": "2026-01-24T00:00:00Z"
     }
   ]
 }
