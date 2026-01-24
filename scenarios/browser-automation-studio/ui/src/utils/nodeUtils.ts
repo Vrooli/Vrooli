@@ -126,7 +126,7 @@ async function resolveScenarioUrl(scenarioName: string, scenarioPath?: string): 
     scenarioUrlCache.set(cacheKey, { url: resolvedUrl, timestamp: Date.now() });
 
     return resolvedUrl;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -144,8 +144,9 @@ export function findUpstreamNavigateNode(
   const queue: string[] = [nodeId];
 
   while (queue.length > 0) {
-    const currentNodeId = queue.shift()!;
-    
+    const currentNodeId = queue.shift();
+    if (currentNodeId === undefined) continue;
+
     if (visited.has(currentNodeId)) {
       continue;
     }
@@ -190,7 +191,8 @@ export function getUpstreamScreenshot(
   const queue: string[] = [nodeId];
 
   while (queue.length > 0) {
-    const currentId = queue.shift()!;
+    const currentId = queue.shift();
+    if (currentId === undefined) continue;
     if (visited.has(currentId)) {
       continue;
     }

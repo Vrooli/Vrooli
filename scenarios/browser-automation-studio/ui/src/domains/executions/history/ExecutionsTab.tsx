@@ -171,7 +171,9 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
               <button
                 onClick={() => {
                   const latest = allExecutions[0];
-                  handleSelectExecution(latest.id, latest.workflowId);
+                  if (latest) {
+                    handleSelectExecution(latest.id, latest.workflowId);
+                  }
                 }}
                 className="hero-button-secondary w-full sm:w-auto justify-center"
               >

@@ -64,8 +64,9 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
   if (points.length === 0) {
     return { x: 0, y: 0 };
   }
-  if (points.length === 1) {
-    return points[0];
+  const firstPoint = points[0];
+  if (points.length === 1 || !firstPoint) {
+    return firstPoint ?? { x: 0, y: 0 };
   }
 
   let totalDistance = 0;
@@ -73,7 +74,7 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
     const end = points[index + 1];
-    if (typeof start.x !== 'number' || typeof start.y !== 'number' || typeof end.x !== 'number' || typeof end.y !== 'number') {
+    if (!start || !end || typeof start.x !== 'number' || typeof start.y !== 'number' || typeof end.x !== 'number' || typeof end.y !== 'number') {
       continue;
     }
     const length = Math.hypot(end.x - start.x, end.y - start.y);
@@ -84,8 +85,9 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
     segments.push({ start, end, length, cumulative: totalDistance });
   }
 
+  const lastPoint = points[points.length - 1];
   if (segments.length === 0 || totalDistance <= 0) {
-    return points[points.length - 1];
+    return lastPoint ?? { x: 0, y: 0 };
   }
 
   const targetDistance = totalDistance * clamp01(progress);
@@ -100,7 +102,8 @@ export const interpolatePath = (points: ReplayPoint[], progress: number): Replay
     }
   }
 
-  return segments[segments.length - 1].end;
+  const lastSegment = segments[segments.length - 1];
+  return lastSegment?.end ?? { x: 0, y: 0 };
 };
 
 // =============================================================================
@@ -206,10 +209,13 @@ export const generateCatmullRomPath = (
   }
   const points: NormalizedPoint[] = [];
   for (let i = 0; i < controlPoints.length - 1; i += 1) {
-    const p0 = controlPoints[i - 1] ?? controlPoints[i];
-    const p1 = controlPoints[i];
-    const p2 = controlPoints[i + 1];
-    const p3 = controlPoints[i + 2] ?? controlPoints[i + 1];
+    const pCurrent = controlPoints[i];
+    const pNext = controlPoints[i + 1];
+    if (!pCurrent || !pNext) continue;
+    const p0 = controlPoints[i - 1] ?? pCurrent;
+    const p1 = pCurrent;
+    const p2 = pNext;
+    const p3 = controlPoints[i + 2] ?? pNext;
     for (let step = 1; step <= samplesPerSegment; step += 1) {
       const t = step / (samplesPerSegment + 1);
       points.push(clampNormalizedPoint(catmullRom(p0, p1, p2, p3, t)));
@@ -217,6 +223,7 @@ export const generateCatmullRomPath = (
   }
   const first = controlPoints[0];
   const last = controlPoints[controlPoints.length - 1];
+  if (!first || !last) return points;
   return points.filter((point) => !isSamePoint(point, first) && !isSamePoint(point, last));
 };
 
@@ -280,7 +287,7 @@ export const generateStylizedPath = (
       x: baseX + Math.cos(angle) * offsetMagnitude,
       y: baseY + Math.sin(angle) * offsetMagnitude,
     });
-    const prev = controlPoints[controlPoints.length - 1];
+    const prev = controlPoints[controlPoints.length - 1] ?? start;
     const prevDist = Math.hypot(prev.x - target.x, prev.y - target.y);
     const candidateDist = Math.hypot(candidate.x - target.x, candidate.y - target.y);
     if (candidateDist > prevDist) {

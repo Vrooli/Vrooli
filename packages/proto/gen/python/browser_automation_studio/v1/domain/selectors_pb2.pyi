@@ -1,5 +1,5 @@
-from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message

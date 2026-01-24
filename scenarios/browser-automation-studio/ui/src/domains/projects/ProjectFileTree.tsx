@@ -203,10 +203,11 @@ export function ProjectFileTree({
     const folderMap = new Map<string, FileTreeNode>();
 
     const ensureFolder = (folderPath: string): FileTreeNode => {
-      if (folderMap.has(folderPath)) {
-        return folderMap.get(folderPath)!;
+      const existing = folderMap.get(folderPath);
+      if (existing) {
+        return existing;
       }
-      const name = folderPath === "" ? "root" : folderPath.split("/").pop()!;
+      const name = folderPath === "" ? "root" : (folderPath.split("/").pop() ?? folderPath);
       const node: FileTreeNode = {
         kind: "folder",
         path: folderPath,
@@ -229,7 +230,9 @@ export function ProjectFileTree({
 
       let current = "";
       for (let i = 0; i < parts.length - (isDir ? 0 : 1); i++) {
-        current = current ? `${current}/${parts[i]}` : parts[i];
+        const part = parts[i];
+        if (!part) continue;
+        current = current ? `${current}/${part}` : part;
         ensureFolder(current);
       }
 
@@ -239,13 +242,16 @@ export function ProjectFileTree({
         const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : "";
         const parent = ensureFolder(parentPath);
         parent.children = parent.children ?? [];
-        parent.children.push({
-          kind: entry.kind,
-          path: relPath,
-          name: parts[parts.length - 1],
-          workflowId: entry.workflow_id,
-          metadata: entry.metadata,
-        });
+        const fileName = parts[parts.length - 1];
+        if (fileName) {
+          parent.children.push({
+            kind: entry.kind,
+            path: relPath,
+            name: fileName,
+            workflowId: entry.workflow_id,
+            metadata: entry.metadata,
+          });
+        }
       }
     }
 

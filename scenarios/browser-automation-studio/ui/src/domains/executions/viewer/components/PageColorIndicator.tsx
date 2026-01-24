@@ -20,9 +20,12 @@ const PAGE_COLORS = [
   { bg: 'bg-rose-500', text: 'text-rose-500', border: 'border-rose-500', hex: '#f43f5e' },
 ];
 
+/** Default color fallback if somehow we can't find a color. */
+const DEFAULT_PAGE_COLOR = PAGE_COLORS[0] ?? { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500', hex: '#3b82f6' };
+
 /** Get consistent color for a page based on its index. */
 export function getPageColor(pageIndex: number) {
-  return PAGE_COLORS[pageIndex % PAGE_COLORS.length];
+  return PAGE_COLORS[pageIndex % PAGE_COLORS.length] ?? DEFAULT_PAGE_COLOR;
 }
 
 /** Get page color by ID from a list of pages. */
@@ -62,8 +65,10 @@ export function PageColorIndicator({
     if (!pageId || pages.length <= 1) return null;
     const index = pages.findIndex((p) => p.id === pageId);
     if (index < 0) return null;
+    const page = pages[index];
+    if (!page) return null;
     return {
-      page: pages[index],
+      page,
       color: getPageColor(index),
       index,
     };
@@ -103,8 +108,10 @@ export function PageBadge({ pageId, pages, compact = false, className = '' }: Pa
     if (!pageId || pages.length <= 1) return null;
     const index = pages.findIndex((p) => p.id === pageId);
     if (index < 0) return null;
+    const page = pages[index];
+    if (!page) return null;
     return {
-      page: pages[index],
+      page,
       color: getPageColor(index),
       index,
     };
@@ -118,7 +125,8 @@ export function PageBadge({ pageId, pages, compact = false, className = '' }: Pa
     // Try to get a meaningful short label from the URL
     try {
       const url = new URL(page.url);
-      const path = url.pathname.split('/').filter(Boolean).pop();
+      const pathSegments = url.pathname.split('/').filter(Boolean);
+      const path = pathSegments[pathSegments.length - 1];
       if (path && path.length <= 10) return path;
     } catch {
       // ignore

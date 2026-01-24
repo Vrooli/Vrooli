@@ -58,11 +58,11 @@ export function AssetImportModal({
 
   // Handle files selected from drop zone
   const handleFilesSelected = useCallback((files: SelectedFile[]) => {
-    if (files.length === 0) return;
-
     const file = files[0];
+    if (!file) return;
+
     if (!file.validation?.isValid) {
-      setValidationError(file.validation?.error || 'Invalid file');
+      setValidationError(file.validation?.error ?? 'Invalid file');
       return;
     }
 

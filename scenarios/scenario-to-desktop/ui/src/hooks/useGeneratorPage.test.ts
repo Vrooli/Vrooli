@@ -199,7 +199,7 @@ describe("useGeneratorPage", () => {
       // Set some validation errors first
       act(() => {
         result.current.formState.setValidationErrors([
-          { field: "test", message: "Test error" },
+          { id: "1", field: "test", message: "Test error" },
         ]);
       });
 

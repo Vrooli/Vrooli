@@ -3254,7 +3254,7 @@ var File_agent_manager_v1_api_service_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\n" +
-	"\"agent-manager/v1/api/service.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a#agent-manager/v1/domain/types.proto\x1a%agent-manager/v1/domain/profile.proto\x1a\"agent-manager/v1/domain/task.proto\x1a!agent-manager/v1/domain/run.proto\x1a$agent-manager/v1/domain/events.proto\"\x0f\n" +
+	"\"agent-manager/v1/api/service.proto\x12\x10agent_manager.v1\x1a$agent-manager/v1/domain/events.proto\x1a%agent-manager/v1/domain/profile.proto\x1a!agent-manager/v1/domain/run.proto\x1a\"agent-manager/v1/domain/task.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\"\x0f\n" +
 	"\rHealthRequest\"X\n" +
 	"\x14CreateProfileRequest\x12@\n" +
 	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileB\x06\xbaH\x03\xc8\x01\x01R\aprofile\"Q\n" +

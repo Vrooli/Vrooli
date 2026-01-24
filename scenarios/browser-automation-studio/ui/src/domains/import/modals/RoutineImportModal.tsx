@@ -70,10 +70,8 @@ export function RoutineImportModal({
   // Handle file selection from drop zone - upload to temp then inspect
   const handleFilesSelected = useCallback(
     async (files: SelectedFile[]) => {
-      if (files.length === 0) return;
-
       const file = files[0];
-      if (!file.validation?.isValid) {
+      if (!file || !file.validation?.isValid) {
         return;
       }
 

@@ -63,6 +63,7 @@ const textToHeaders = (text: string): Record<string, string> | undefined => {
   const headers: Record<string, string> = {};
   lines.forEach((line) => {
     const [key, ...rest] = line.split(':');
+    if (!key) return;
     const headerKey = key.trim();
     if (!headerKey) {
       return;

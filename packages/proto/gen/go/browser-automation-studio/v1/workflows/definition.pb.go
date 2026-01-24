@@ -695,7 +695,7 @@ var File_browser_automation_studio_v1_workflows_definition_proto protoreflect.Fi
 
 const file_browser_automation_studio_v1_workflows_definition_proto_rawDesc = "" +
 	"\n" +
-	"7browser-automation-studio/v1/workflows/definition.proto\x12\x1cbrowser_automation_studio.v1\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a1browser-automation-studio/v1/actions/action.proto\"\xba\x02\n" +
+	"7browser-automation-studio/v1/workflows/definition.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a.browser-automation-studio/v1/base/shared.proto\"\xba\x02\n" +
 	"\x14WorkflowDefinitionV2\x12L\n" +
 	"\bmetadata\x18\x01 \x01(\v20.browser_automation_studio.v1.WorkflowMetadataV2R\bmetadata\x12L\n" +
 	"\bsettings\x18\x02 \x01(\v20.browser_automation_studio.v1.WorkflowSettingsV2R\bsettings\x12B\n" +

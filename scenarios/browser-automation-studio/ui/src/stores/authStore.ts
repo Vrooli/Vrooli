@@ -33,10 +33,19 @@ interface AuthState {
   _setError: (error: string | null) => void;
 }
 
-// Check if running in desktop environment with auth support
-function isDesktopWithAuth(): boolean {
-  return typeof window !== 'undefined' &&
-    typeof window.desktop?.auth !== 'undefined';
+/** Desktop auth API interface */
+interface DesktopAuthApi {
+  signIn: () => Promise<{ state: string }>;
+  signOut: () => Promise<void>;
+  isAuthenticated: () => Promise<boolean>;
+  getUser: () => Promise<unknown>;
+  getAccessToken: () => Promise<string | null>;
+  onAuthChanged: (callback: (event: AuthChangeEvent) => void) => void;
+}
+
+/** Get the desktop auth API if available. */
+function getDesktopAuth(): DesktopAuthApi | undefined {
+  return window.desktop?.auth as DesktopAuthApi | undefined;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -49,9 +58,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      if (isDesktopWithAuth()) {
+      const desktopAuth = getDesktopAuth();
+      if (desktopAuth) {
         // Desktop: Use deep link auth flow
-        const result = await window.desktop!.auth.signIn();
+        const result = await desktopAuth.signIn();
         // Store state for CSRF validation (optional, main process handles it)
         sessionStorage.setItem('auth_state', result.state);
 
@@ -82,8 +92,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      if (isDesktopWithAuth()) {
-        await window.desktop!.auth.signOut();
+      const desktopAuth = getDesktopAuth();
+      if (desktopAuth) {
+        await desktopAuth.signOut();
       }
       // Clear state
       set({
@@ -101,11 +112,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      if (isDesktopWithAuth()) {
-        const isAuthenticated = await window.desktop!.auth.isAuthenticated();
+      const desktopAuth = getDesktopAuth();
+      if (desktopAuth) {
+        const isAuthenticated = await desktopAuth.isAuthenticated();
 
         if (isAuthenticated) {
-          const user = await window.desktop!.auth.getUser();
+          const user = await desktopAuth.getUser();
           set({
             isAuthenticated: true,
             user: user as AuthUser | null,
@@ -137,8 +149,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   getAccessToken: async (): Promise<string | null> => {
-    if (isDesktopWithAuth()) {
-      return window.desktop!.auth.getAccessToken();
+    const desktopAuth = getDesktopAuth();
+    if (desktopAuth) {
+      return desktopAuth.getAccessToken();
     }
     return null;
   },
@@ -163,15 +176,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 if (typeof window !== 'undefined') {
   // Wait for window.desktop to be available
   const setupAuthListener = () => {
-    if (isDesktopWithAuth()) {
-      window.desktop!.auth.onAuthChanged((event: AuthChangeEvent) => {
+    const desktopAuth = getDesktopAuth();
+    if (desktopAuth) {
+      desktopAuth.onAuthChanged((event: AuthChangeEvent) => {
         const store = useAuthStore.getState();
 
         switch (event) {
           case 'tokens-received':
           case 'tokens-refreshed':
             // Fetch user info and update state
-            window.desktop!.auth.getUser().then((user) => {
+            desktopAuth.getUser().then((user) => {
               store._setAuthenticated(user as AuthUser | null);
               store._setLoading(false);
             });

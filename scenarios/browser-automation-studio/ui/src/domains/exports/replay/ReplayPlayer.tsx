@@ -340,7 +340,7 @@ export function ReplayPlayer({
   });
 
   // Current frame
-  const currentFrame = normalizedFrames.length > 0 ? normalizedFrames[currentIndex] : null;
+  const currentFrame = normalizedFrames[currentIndex] ?? null;
 
   const replayStyleOverrides = useMemo(
     () => ({

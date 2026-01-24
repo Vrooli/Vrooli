@@ -45,7 +45,11 @@ export function ReplayCursorEditor({
     : undefined;
   const selectedPathStyle = currentOverride?.pathStyle ?? basePathStyle;
   const usingRecordedTrail = cursorPlan.hasRecordedTrail;
-  const pathStyleOption = CURSOR_PATH_STYLE_OPTIONS.find((option) => option.id === selectedPathStyle) ?? CURSOR_PATH_STYLE_OPTIONS[0];
+  const firstPathOption = CURSOR_PATH_STYLE_OPTIONS[0];
+  const pathStyleOption = CURSOR_PATH_STYLE_OPTIONS.find((option) => option.id === selectedPathStyle) ?? firstPathOption;
+  if (!pathStyleOption) {
+    throw new Error('CURSOR_PATH_STYLE_OPTIONS must have at least one option');
+  }
 
   const handleResetSpeedProfile = () => {
     onUpdateOverride(cursorPlan.frameId, (previous) => {

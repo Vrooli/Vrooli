@@ -106,7 +106,8 @@ export function isTabVisible(tabId: TabId, mode: TimelineMode): boolean {
  */
 export function getDefaultTab(mode: TimelineMode): TabId {
   const visibleTabs = getVisibleTabs(mode);
-  return visibleTabs.length > 0 ? visibleTabs[0].id : 'timeline';
+  const first = visibleTabs[0];
+  return first ? first.id : 'timeline';
 }
 
 /**

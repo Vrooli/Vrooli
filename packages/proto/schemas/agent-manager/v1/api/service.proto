@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/api/annotations.proto";
+import "agent-manager/v1/domain/events.proto";
+import "agent-manager/v1/domain/profile.proto";
+import "agent-manager/v1/domain/run.proto";
+import "agent-manager/v1/domain/task.proto";
+import "agent-manager/v1/domain/types.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
-import "agent-manager/v1/domain/types.proto";
-import "agent-manager/v1/domain/profile.proto";
-import "agent-manager/v1/domain/task.proto";
-import "agent-manager/v1/domain/run.proto";
-import "agent-manager/v1/domain/events.proto";
+import "google/api/annotations.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api;api";
 
@@ -48,9 +48,7 @@ service AgentManagerService {
 
   // Health returns the service health status.
   rpc Health(HealthRequest) returns (common.v1.HealthResponse) {
-    option (google.api.http) = {
-      get: "/health"
-    };
+    option (google.api.http) = {get: "/health"};
   }
 
   // ==========================================================================
@@ -75,16 +73,12 @@ service AgentManagerService {
 
   // GetProfile retrieves a profile by ID.
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/profiles/{profile_id}"
-    };
+    option (google.api.http) = {get: "/api/v1/profiles/{profile_id}"};
   }
 
   // ListProfiles returns all agent profiles.
   rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/profiles"
-    };
+    option (google.api.http) = {get: "/api/v1/profiles"};
   }
 
   // UpdateProfile updates an existing profile.
@@ -97,9 +91,7 @@ service AgentManagerService {
 
   // DeleteProfile removes a profile.
   rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/profiles/{profile_id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/profiles/{profile_id}"};
   }
 
   // ==========================================================================
@@ -116,16 +108,12 @@ service AgentManagerService {
 
   // GetTask retrieves a task by ID.
   rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/tasks/{task_id}"
-    };
+    option (google.api.http) = {get: "/api/v1/tasks/{task_id}"};
   }
 
   // ListTasks returns all tasks with optional filtering.
   rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/tasks"
-    };
+    option (google.api.http) = {get: "/api/v1/tasks"};
   }
 
   // UpdateTask updates an existing task.
@@ -138,16 +126,12 @@ service AgentManagerService {
 
   // DeleteTask permanently removes a cancelled task.
   rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/tasks/{task_id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/tasks/{task_id}"};
   }
 
   // CancelTask cancels a queued or running task.
   rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/tasks/{task_id}/cancel"
-    };
+    option (google.api.http) = {post: "/api/v1/tasks/{task_id}/cancel"};
   }
 
   // ==========================================================================
@@ -164,44 +148,32 @@ service AgentManagerService {
 
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runs/{run_id}"
-    };
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
   }
 
   // GetRunByTag retrieves a run by its custom tag.
   rpc GetRunByTag(GetRunByTagRequest) returns (GetRunByTagResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runs/tag/{tag}"
-    };
+    option (google.api.http) = {get: "/api/v1/runs/tag/{tag}"};
   }
 
   // ListRuns returns runs with optional filtering.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runs"
-    };
+    option (google.api.http) = {get: "/api/v1/runs"};
   }
 
   // DeleteRun permanently removes a run.
   rpc DeleteRun(DeleteRunRequest) returns (DeleteRunResponse) {
-    option (google.api.http) = {
-      delete: "/api/v1/runs/{run_id}"
-    };
+    option (google.api.http) = {delete: "/api/v1/runs/{run_id}"};
   }
 
   // StopRun stops a running run.
   rpc StopRun(StopRunRequest) returns (StopRunResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/runs/{run_id}/stop"
-    };
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/stop"};
   }
 
   // StopRunByTag stops a run identified by its custom tag.
   rpc StopRunByTag(StopRunByTagRequest) returns (StopRunByTagResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/runs/tag/{tag}/stop"
-    };
+    option (google.api.http) = {post: "/api/v1/runs/tag/{tag}/stop"};
   }
 
   // StopAllRuns stops all running runs, optionally filtered by tag prefix.
@@ -218,16 +190,12 @@ service AgentManagerService {
 
   // GetRunEvents returns the event stream for a run.
   rpc GetRunEvents(GetRunEventsRequest) returns (GetRunEventsResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runs/{run_id}/events"
-    };
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/events"};
   }
 
   // GetRunDiff returns the diff for a sandboxed run.
   rpc GetRunDiff(GetRunDiffRequest) returns (GetRunDiffResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runs/{run_id}/diff"
-    };
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/diff"};
   }
 
   // ==========================================================================
@@ -256,16 +224,12 @@ service AgentManagerService {
 
   // GetRunnerStatus returns status of all runners.
   rpc GetRunnerStatus(GetRunnerStatusRequest) returns (GetRunnerStatusResponse) {
-    option (google.api.http) = {
-      get: "/api/v1/runners"
-    };
+    option (google.api.http) = {get: "/api/v1/runners"};
   }
 
   // ProbeRunner sends a test request to verify runner connectivity.
   rpc ProbeRunner(ProbeRunnerRequest) returns (ProbeRunnerResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/runners/{runner_type}/probe"
-    };
+    option (google.api.http) = {post: "/api/v1/runners/{runner_type}/probe"};
   }
 
   // ==========================================================================
@@ -307,7 +271,10 @@ message CreateProfileResponse {
 // EnsureProfileRequest resolves a profile by key, creating it with defaults if needed.
 message EnsureProfileRequest {
   // Stable profile key for lookup or creation.
-  string profile_key = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+  string profile_key = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
 
   // Default profile settings to use if the profile does not exist.
   AgentProfile defaults = 2;
@@ -368,10 +335,16 @@ message GetProfileResponse {
 // ListProfilesRequest filters and paginates profile listings.
 message ListProfilesRequest {
   // Filter by runner type.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 
   // Pagination limit (default: 50, max: 100).
-  optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  optional int32 limit = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
 
   // Pagination offset.
   optional int32 offset = 3 [(buf.validate.field).int32.gte = 0];
@@ -456,7 +429,10 @@ message ListTasksRequest {
   optional string scope_prefix = 2;
 
   // Pagination limit (default: 50, max: 100).
-  optional int32 limit = 3 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  optional int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
 
   // Pagination offset.
   optional int32 offset = 4 [(buf.validate.field).int32.gte = 0];
@@ -526,7 +502,10 @@ message CancelTaskResponse {
 // ProfileRef identifies a profile by key and optional defaults.
 message ProfileRef {
   // Stable profile key for lookup or creation.
-  string profile_key = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+  string profile_key = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
 
   // Default profile settings to use if the profile does not exist.
   AgentProfile defaults = 2;
@@ -547,7 +526,10 @@ message CreateRunRequest {
   optional string tag = 3;
 
   // Execution mode.
-  optional RunMode run_mode = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  optional RunMode run_mode = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 
   // Inline configuration overrides (applied only when fields are set).
   optional RunConfigOverrides inline_config = 5;
@@ -631,7 +613,10 @@ message ListRunsRequest {
   optional string tag_prefix = 4;
 
   // Pagination limit (default: 50, max: 100).
-  optional int32 limit = 5 [(buf.validate.field).int32 = {gte: 1, lte: 100}];
+  optional int32 limit = 5 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 100
+  }];
 
   // Pagination offset.
   optional int32 offset = 6 [(buf.validate.field).int32.gte = 0];
@@ -706,7 +691,10 @@ message GetRunEventsRequest {
   optional int64 after_sequence = 2;
 
   // Maximum events to return.
-  optional int32 limit = 3 [(buf.validate.field).int32 = {gte: 1, lte: 1000}];
+  optional int32 limit = 3 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
 
   // Filter by event types.
   repeated RunEventType event_types = 4;
@@ -795,7 +783,10 @@ message GetRunnerStatusResponse {
 // ProbeRunnerRequest tests runner connectivity.
 message ProbeRunnerRequest {
   // Runner type to probe.
-  RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  RunnerType runner_type = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // ProbeRunnerResponse returns probe result.

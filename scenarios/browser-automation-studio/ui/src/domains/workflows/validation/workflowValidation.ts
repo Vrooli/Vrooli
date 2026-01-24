@@ -53,7 +53,7 @@ const readErrorMessage = async (response: Response): Promise<string> => {
     if (payload && typeof payload.message === 'string') {
       return payload.message;
     }
-  } catch (error) {
+  } catch (_error) {
     // Ignore JSON parsing errors and fall back to status message
   }
   return `Workflow validation failed (${response.status})`;

@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { API_BASE } from '../config';
+import { safeParse } from '../shared/api/safeParse';
+import {
+  EntitlementStatusResponseSchema,
+  UsageHistoryResponseSchema,
+  OperationLogPageSchema,
+  IdentityResponseSchema,
+  ApiSourceResponseSchema,
+} from '../shared/api/schemas';
 
 const joinApi = (base: string, path: string): string => {
   const normalizedBase = base.replace(/\/+$/, '');
@@ -219,7 +227,13 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(errorData.error || `Failed to fetch entitlement status: ${response.status}`);
       }
 
-      const data: EntitlementStatusResponse = await response.json();
+      const rawData = await response.json();
+      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementStatus');
+      if (!result.success) {
+        set({ error: result.error, isLoading: false });
+        return;
+      }
+      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -326,7 +340,13 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(errorData.error || `Failed to refresh entitlement: ${response.status}`);
       }
 
-      const data: EntitlementStatusResponse = await response.json();
+      const rawData = await response.json();
+      const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementRefresh');
+      if (!result.success) {
+        set({ error: result.error, isLoading: false });
+        return;
+      }
+      const data = result.data;
       set({
         status: data,
         userEmail: data.user_identity || '',
@@ -360,8 +380,12 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         return '';
       }
 
-      const data = await response.json();
-      const email = data.email || '';
+      const rawData = await response.json();
+      const result = safeParse(IdentityResponseSchema, rawData, 'Identity');
+      if (!result.success) {
+        return '';
+      }
+      const email = result.data.email || '';
       set({ userEmail: email });
       return email;
     } catch {
@@ -412,10 +436,15 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         return;
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
+      const result = safeParse(ApiSourceResponseSchema, rawData, 'ApiSource');
+      if (!result.success) {
+        // Default to production if validation fails
+        return;
+      }
       set({
-        apiSource: (data.source || 'production') as ApiSource,
-        localApiPort: data.local_port || 15000,
+        apiSource: result.data.source,
+        localApiPort: result.data.local_port || 15000,
       });
     } catch {
       // Silently fail - defaults are fine
@@ -481,9 +510,15 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(`Failed to fetch usage history: ${response.status}`);
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
+      const result = safeParse(UsageHistoryResponseSchema, rawData, 'UsageHistory');
+      if (!result.success) {
+        console.error('Failed to validate usage history:', result.error);
+        set({ historyLoading: false });
+        return;
+      }
       set({
-        usageHistory: data.periods || [],
+        usageHistory: result.data.periods,
         historyLoading: false,
       });
     } catch (err) {
@@ -515,7 +550,14 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(`Failed to fetch operation log: ${response.status}`);
       }
 
-      const data: OperationLogPage = await response.json();
+      const rawData = await response.json();
+      const result = safeParse(OperationLogPageSchema, rawData, 'OperationLog');
+      if (!result.success) {
+        console.error('Failed to validate operation log:', result.error);
+        set({ operationLogLoading: false });
+        return;
+      }
+      const data = result.data;
 
       // If offset > 0, append to existing operations
       if (offset > 0) {

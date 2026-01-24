@@ -444,7 +444,9 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
   const telemetry = entry.telemetry;
 
   // Map artifacts from aggregates
-  const artifacts = aggregates?.artifacts?.map((a) => mapTimelineArtifactFromProto(a)!).filter(Boolean) ?? [];
+  const artifacts = (aggregates?.artifacts ?? [])
+    .map((a) => mapTimelineArtifactFromProto(a))
+    .filter((a): a is TimelineArtifact => a !== undefined);
   const telemetryArtifacts = [
     mapTelemetryArtifactFromProto('dom_snapshot', telemetry?.domSnapshot),
     mapTelemetryArtifactFromProto('console_log', telemetry?.consoleLogArtifact),
@@ -563,7 +565,12 @@ const mapScreenshotsFromProto = (raw: unknown): Screenshot[] => {
   }
   return proto.screenshots
     .map((shot) => {
-      const ts = timestampToDate(shot.timestamp) ?? coerceDate(shot.timestamp) ?? parseTimestamp(shot.timestamp as any);
+      // Timestamp may be proto Timestamp, Date, string, or number - try multiple parsers
+      const rawTs = shot.timestamp;
+      const ts = timestampToDate(rawTs)
+        ?? coerceDate(rawTs)
+        ?? (typeof rawTs === 'string' || typeof rawTs === 'number' ? parseTimestamp(rawTs) : undefined)
+        ?? new Date(); // Fallback to now if all parsing fails
       const url = shot.screenshot?.url || shot.screenshot?.thumbnailUrl || '';
       if (!url) {
         return null;

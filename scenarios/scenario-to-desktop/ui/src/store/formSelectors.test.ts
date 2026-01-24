@@ -350,7 +350,7 @@ describe("formSelectors", () => {
 
     it("returns true when validation errors exist", () => {
       const state = createTestState({
-        validationErrors: [{ field: "scenarioName", message: "Required" }],
+        validationErrors: [{ id: "1", field: "scenarioName", message: "Required" }],
       });
 
       expect(selectHasValidationErrors(state)).toBe(true);
@@ -359,8 +359,8 @@ describe("formSelectors", () => {
     it("returns true for multiple validation errors", () => {
       const state = createTestState({
         validationErrors: [
-          { field: "scenarioName", message: "Required" },
-          { field: "platforms", message: "Select at least one" },
+          { id: "1", field: "scenarioName", message: "Required" },
+          { id: "2", field: "platforms", message: "Select at least one" },
         ],
       });
 

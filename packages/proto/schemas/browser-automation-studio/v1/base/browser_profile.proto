@@ -54,26 +54,26 @@ message FingerprintSettings {
   optional int32 viewport_height = 2;
 
   // Device characteristics
-  optional double device_scale_factor = 3;   // Display scaling (1.0 = 100%)
-  optional int32 hardware_concurrency = 4;   // CPU cores to report
-  optional int32 device_memory = 5;          // GB of RAM to report
+  optional double device_scale_factor = 3; // Display scaling (1.0 = 100%)
+  optional int32 hardware_concurrency = 4; // CPU cores to report
+  optional int32 device_memory = 5; // GB of RAM to report
 
   // Browser identity
-  optional string user_agent = 6;            // Custom user agent string
-  optional string user_agent_preset = 7;     // chrome-win, chrome-mac, firefox-linux, etc.
+  optional string user_agent = 6; // Custom user agent string
+  optional string user_agent_preset = 7; // chrome-win, chrome-mac, firefox-linux, etc.
 
   // Locale and timezone
-  optional string locale = 8;                // e.g., "en-US"
-  optional string timezone_id = 9;           // e.g., "America/New_York"
+  optional string locale = 8; // e.g., "en-US"
+  optional string timezone_id = 9; // e.g., "America/New_York"
 
   // Geolocation spoofing
   optional bool geolocation_enabled = 10;
   optional double latitude = 11;
   optional double longitude = 12;
-  optional double accuracy = 13;             // Accuracy in meters
+  optional double accuracy = 13; // Accuracy in meters
 
   // Display preferences
-  optional string color_scheme = 14;         // light, dark, no-preference
+  optional string color_scheme = 14; // light, dark, no-preference
 }
 
 // BehaviorSettings controls human-like interaction patterns.
@@ -96,7 +96,7 @@ message BehaviorSettings {
 
   // Mouse movement style: "linear", "bezier", or "natural"
   optional string mouse_movement_style = 3;
-  optional double mouse_jitter_amount = 4;   // Pixels of random movement
+  optional double mouse_jitter_amount = 4; // Pixels of random movement
 
   // Click behavior - milliseconds before clicking
   optional int32 click_delay_min = 5;
@@ -104,8 +104,8 @@ message BehaviorSettings {
 
   // Scroll behavior: "smooth" or "stepped"
   optional string scroll_style = 7;
-  optional int32 scroll_speed_min = 8;       // Min pixels per step
-  optional int32 scroll_speed_max = 9;       // Max pixels per step
+  optional int32 scroll_speed_min = 8; // Min pixels per step
+  optional int32 scroll_speed_max = 9; // Max pixels per step
 
   // Random micro-pauses between actions
   optional bool micro_pause_enabled = 10;
@@ -117,23 +117,23 @@ message BehaviorSettings {
 // AntiDetectionSettings controls bot detection bypass techniques.
 message AntiDetectionSettings {
   // Browser launch modifications
-  optional bool disable_automation_controlled = 1;  // --disable-blink-features=AutomationControlled
-  optional bool disable_webrtc = 2;                 // Prevent IP leak via WebRTC
+  optional bool disable_automation_controlled = 1; // --disable-blink-features=AutomationControlled
+  optional bool disable_webrtc = 2; // Prevent IP leak via WebRTC
 
   // Navigator property patches
-  optional bool patch_navigator_webdriver = 3;      // Remove navigator.webdriver
-  optional bool patch_navigator_plugins = 4;        // Spoof plugins array
-  optional bool patch_navigator_languages = 5;      // Ensure consistent languages
-  optional bool patch_webgl = 6;                    // Spoof WebGL renderer/vendor
-  optional bool patch_canvas = 7;                   // Add noise to canvas fingerprint
-  optional bool patch_audio_context = 10;           // Add noise to AudioContext to prevent audio fingerprinting
-  optional bool headless_detection_bypass = 8;      // Bypass headless detection
+  optional bool patch_navigator_webdriver = 3; // Remove navigator.webdriver
+  optional bool patch_navigator_plugins = 4; // Spoof plugins array
+  optional bool patch_navigator_languages = 5; // Ensure consistent languages
+  optional bool patch_webgl = 6; // Spoof WebGL renderer/vendor
+  optional bool patch_canvas = 7; // Add noise to canvas fingerprint
+  optional bool patch_audio_context = 10; // Add noise to AudioContext to prevent audio fingerprinting
+  optional bool headless_detection_bypass = 8; // Bypass headless detection
 
   // Additional fingerprinting protection
-  optional bool patch_fonts = 11;                   // Spoof font enumeration to return common fonts only
-  optional bool patch_screen_properties = 12;       // Spoof screen dimensions to match viewport
-  optional bool patch_battery_api = 13;             // Return consistent battery status
-  optional bool patch_connection_api = 14;          // Spoof network connection type
+  optional bool patch_fonts = 11; // Spoof font enumeration to return common fonts only
+  optional bool patch_screen_properties = 12; // Spoof screen dimensions to match viewport
+  optional bool patch_battery_api = 13; // Return consistent battery status
+  optional bool patch_connection_api = 14; // Spoof network connection type
 
   // Ad blocking mode: "none", "ads_only", or "ads_and_tracking"
   // - none: No ad blocking

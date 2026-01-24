@@ -191,6 +191,10 @@ export default function DashboardViewWrapper({ initialTab }: DashboardViewWrappe
         } else {
           // Use first project
           const targetProject = projects[0];
+          if (!targetProject) {
+            toast.error('No project available. Please create one first.');
+            return;
+          }
           setCurrentProject(targetProject);
 
           // Generate workflow

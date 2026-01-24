@@ -14,8 +14,6 @@ import {
   ExecutionEventsClient,
 } from '../../domains/executions/live/executionEvents';
 
-const baseTimestamp = { seconds: BigInt(1), nanos: 0 };
-
 describe('envelopeToExecutionEvent', () => {
   it('maps status updates into execution events', () => {
     const event = envelopeToExecutionEvent({

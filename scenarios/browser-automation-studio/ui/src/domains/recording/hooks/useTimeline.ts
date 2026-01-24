@@ -149,9 +149,11 @@ export function useTimeline({
 
   // Assign colors to pages based on creation order
   const pageColorMap = useMemo(() => {
+    const defaultColor = PAGE_COLORS[0] ?? 'bg-gray-500';
     const map = new Map<string, PageColor>();
     pages.forEach((page, index) => {
-      map.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length]);
+      const color = PAGE_COLORS[index % PAGE_COLORS.length];
+      map.set(page.id, color ?? defaultColor);
     });
     return map;
   }, [pages]);

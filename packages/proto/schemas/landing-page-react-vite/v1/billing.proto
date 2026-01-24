@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package landing_page_react_vite.v1;
 
-import "google/protobuf/timestamp.proto";
 import "common/v1/types.proto";
+import "google/protobuf/timestamp.proto";
 import "landing-page-react-vite/v1/pricing.proto";
 import "landing-page-react-vite/v1/settings.proto";
 

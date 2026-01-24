@@ -446,9 +446,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
             </div>
           ))}
-          {runningExecutions.length > 3 && (
+          {runningExecutions.length > 3 && runningExecutions[0] && (
             <button
-              onClick={() => onViewExecution(runningExecutions[0].id, runningExecutions[0].workflowId)}
+              onClick={() => onViewExecution(runningExecutions[0]!.id, runningExecutions[0]!.workflowId)}
               className="w-full text-center text-xs text-flow-text-secondary hover:text-surface py-2 transition-colors"
             >
               +{runningExecutions.length - 3} more running...

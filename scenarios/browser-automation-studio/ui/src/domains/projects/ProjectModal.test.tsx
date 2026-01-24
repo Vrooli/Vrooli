@@ -48,8 +48,7 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     expect(screen.getByPlaceholderText(/visited tracker tests/i)).toHaveValue('');
   });
 
-  it('renders edit mode when project is provided', async () => {
-    const user = userEvent.setup();
+  it('renders edit mode when project is provided', () => {
     const existingProject = {
       id: 'test-id',
       name: 'Existing Project',

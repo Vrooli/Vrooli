@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "buf/validate/validate.proto";
 import "agent-manager/v1/domain/types.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -40,7 +40,10 @@ message Task {
 
   // Short title summarizing the task.
   // @constraint 1-200 characters
-  string title = 2 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+  string title = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
 
   // Detailed description of what needs to be done.
   // This is the main prompt sent to the agent.
@@ -90,7 +93,13 @@ message Task {
 message ContextAttachment {
   // Type of attachment.
   // @constraint "file" | "link" | "note"
-  string type = 1 [(buf.validate.field).string = {in: ["file", "link", "note"]}];
+  string type = 1 [(buf.validate.field).string = {
+    in: [
+      "file",
+      "link",
+      "note"
+    ]
+  }];
 
   // File path for "file" type attachments.
   // Relative to project_root or absolute.

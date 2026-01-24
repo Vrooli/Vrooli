@@ -46,9 +46,11 @@ function normalizeUrl(input: string): string {
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/.test(trimmed)) {
     // Private IP ranges use http
     const ipMatch = trimmed.match(/^(\d{1,3})\.(\d{1,3})\./);
-    if (ipMatch) {
-      const first = parseInt(ipMatch[1], 10);
-      const second = parseInt(ipMatch[2], 10);
+    const firstOctet = ipMatch?.[1];
+    const secondOctet = ipMatch?.[2];
+    if (firstOctet && secondOctet) {
+      const first = parseInt(firstOctet, 10);
+      const second = parseInt(secondOctet, 10);
       if (first === 10 || first === 127 || (first === 192 && second === 168) || (first === 172 && second >= 16 && second <= 31)) {
         return `http://${trimmed}`;
       }
@@ -124,11 +126,12 @@ function saveHistory(history: HistoryEntry[]): void {
 function addToHistory(history: HistoryEntry[], url: string, title?: string): HistoryEntry[] {
   const normalizedUrl = url.toLowerCase();
   const existingIndex = history.findIndex((e) => e.url.toLowerCase() === normalizedUrl);
+  const existingEntry = existingIndex >= 0 ? history[existingIndex] : undefined;
 
   const newEntry: HistoryEntry = {
     url,
     title,
-    visitCount: existingIndex >= 0 ? history[existingIndex].visitCount + 1 : 1,
+    visitCount: existingEntry ? existingEntry.visitCount + 1 : 1,
     lastVisited: Date.now(),
   };
 
@@ -356,15 +359,16 @@ export function BrowserUrlBar({
           setInputValue(value);
           inputRef.current?.blur();
           break;
-        case 'Tab':
+        case 'Tab': {
           // Accept first suggestion on Tab if available
-          if (suggestions.length > 0 && selectedIndex === -1) {
+          const firstSuggestion = suggestions[0];
+          if (firstSuggestion && selectedIndex === -1) {
             e.preventDefault();
-            const suggestion = suggestions[0];
-            setInputValue(suggestion.url);
+            setInputValue(firstSuggestion.url);
             setSelectedIndex(0);
           }
           break;
+        }
       }
     },
     [suggestions, selectedIndex, inputValue, value, handleNavigate]

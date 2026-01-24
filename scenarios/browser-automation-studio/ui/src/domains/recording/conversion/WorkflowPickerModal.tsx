@@ -51,7 +51,10 @@ export function WorkflowPickerModal({
       if (defaultProject) {
         setSelectedProject(defaultProject);
       } else {
-        setSelectedProject(projects[0]);
+        const firstProject = projects[0];
+        if (firstProject) {
+          setSelectedProject(firstProject);
+        }
       }
     }
   }, [isOpen, selectedProject, projects, getSmartDefaultProject]);

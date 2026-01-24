@@ -42,7 +42,8 @@ export function useFileTreeOperations(projectId: string) {
   const fileBasename = useCallback((relPath: string): string => {
     const normalized = relPath.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
     const parts = normalized.split("/").filter(Boolean);
-    return parts.length > 0 ? parts[parts.length - 1] : "";
+    const lastPart = parts[parts.length - 1];
+    return lastPart ?? "";
   }, []);
 
   /**

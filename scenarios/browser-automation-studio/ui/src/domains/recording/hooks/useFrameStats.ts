@@ -104,7 +104,8 @@ export function useFrameStats() {
     }
 
     // Calculate averages
-    const historyDuration = history.length > 1 ? (now - history[0].timestamp) / 1000 : 1;
+    const firstEntry = history[0];
+    const historyDuration = history.length > 1 && firstEntry ? (now - firstEntry.timestamp) / 1000 : 1;
     const avgFps = history.length / Math.max(historyDuration, 0.1);
     const avgFrameSize = history.length > 0 ? totalSize / history.length : 0;
     const bytesPerSecond = historyDuration > 0 ? totalSize / historyDuration : 0;
@@ -139,8 +140,10 @@ export function useFrameStats() {
 
     // Prune old entries (older than HISTORY_WINDOW_MS)
     const cutoff = now - HISTORY_WINDOW_MS;
-    while (history.length > 0 && history[0].timestamp < cutoff) {
+    let firstHistoryEntry = history[0];
+    while (firstHistoryEntry && firstHistoryEntry.timestamp < cutoff) {
       history.shift();
+      firstHistoryEntry = history[0];
     }
 
     // Mark stats as dirty for the next interval update

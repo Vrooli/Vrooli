@@ -129,9 +129,10 @@ export function useCursorAnimation({
       const recordedClickNormalized = toNormalizedPoint(frame.clickPosition ?? undefined, dims);
 
       const overrideTargetNormalized = override?.target ? clampNormalizedPoint(override.target) : undefined;
+      const lastTrailPoint = recordedTrailNormalized[recordedTrailNormalized.length - 1];
       const recordedTargetNormalized =
-        recordedTrailNormalized.length > 0
-          ? recordedTrailNormalized[recordedTrailNormalized.length - 1]
+        recordedTrailNormalized.length > 0 && lastTrailPoint
+          ? lastTrailPoint
           : recordedClickNormalized ?? undefined;
 
       const fallbackNormalized = computeFallbackNormalized(frame.id, dims);
@@ -144,8 +145,9 @@ export function useCursorAnimation({
 
       let startNormalized = previousNormalized;
       if (!startNormalized) {
-        if (recordedTrailNormalized.length > 0) {
-          startNormalized = recordedTrailNormalized[0];
+        const firstTrailPoint = recordedTrailNormalized[0];
+        if (firstTrailPoint) {
+          startNormalized = firstTrailPoint;
         } else {
           startNormalized = fallbackNormalized;
         }

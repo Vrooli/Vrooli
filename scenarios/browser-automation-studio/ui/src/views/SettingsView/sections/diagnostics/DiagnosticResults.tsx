@@ -281,10 +281,12 @@ function ChecksBreakdown({ checks }: ChecksBreakdownProps) {
   const checksByCategory = useMemo(() => {
     const grouped: Record<string, DiagnosticCheck[]> = {};
     for (const check of checks) {
-      if (!grouped[check.category]) {
-        grouped[check.category] = [];
+      const existing = grouped[check.category];
+      if (!existing) {
+        grouped[check.category] = [check];
+      } else {
+        existing.push(check);
       }
-      grouped[check.category].push(check);
     }
     return grouped;
   }, [checks]);
@@ -323,6 +325,7 @@ function ChecksBreakdown({ checks }: ChecksBreakdownProps) {
         if (!categoryChecks || categoryChecks.length === 0) return null;
 
         const stats = categoryStats[category];
+        if (!stats) return null;
         const isExpanded = expandedCategories.has(category);
         const hasIssues = stats.failed > 0 || stats.warning > 0;
 

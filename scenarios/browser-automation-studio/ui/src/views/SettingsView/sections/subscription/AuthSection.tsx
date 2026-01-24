@@ -53,7 +53,7 @@ export function AuthSection() {
       try {
         await setUserEmail(user.email);
         toast.success('Subscription status updated');
-      } catch (err) {
+      } catch (_err) {
         toast.error('Failed to sync subscription');
       }
     }

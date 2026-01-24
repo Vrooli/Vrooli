@@ -1,4 +1,4 @@
-import { fromJson, type JsonReadOptions } from '@bufbuild/protobuf';
+import { fromJson, type JsonReadOptions, type JsonValue } from '@bufbuild/protobuf';
 import {
   ProjectListSchema,
   ProjectSchema,
@@ -6,7 +6,6 @@ import {
   type Project as ProtoProject,
   type ProjectWithStats as ProtoProjectWithStats,
 } from '@vrooli/proto-types/browser-automation-studio/v1/projects/project_pb';
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 const protoOptions: Partial<JsonReadOptions> = { ignoreUnknownFields: false };
 
@@ -24,15 +23,21 @@ export type ParsedProject = {
   };
 };
 
-const toIsoString = (value?: Timestamp | { seconds?: number | string | bigint; nanos?: number } | string | null): string | undefined => {
+/** Type guard for timestamp-like objects */
+const isTimestampLike = (value: unknown): value is { seconds?: unknown; nanos?: unknown } =>
+  typeof value === 'object' && value !== null && ('seconds' in value || 'nanos' in value);
+
+const toIsoString = (value: unknown): string | undefined => {
   if (!value) return undefined;
   if (typeof value === 'string') {
     const parsed = new Date(value);
     return Number.isNaN(parsed.valueOf()) ? undefined : parsed.toISOString();
   }
-  const secondsRaw = (value as Timestamp).seconds ?? (value as any).seconds ?? 0;
-  const nanos = Number((value as any).nanos ?? 0);
+  if (!isTimestampLike(value)) return undefined;
+  const secondsRaw = value.seconds ?? 0;
+  const nanosRaw = value.nanos ?? 0;
   const seconds = typeof secondsRaw === 'bigint' ? Number(secondsRaw) : Number(secondsRaw);
+  const nanos = Number(nanosRaw);
   const millis = seconds * 1_000 + Math.floor(nanos / 1_000_000);
   const date = new Date(millis);
   return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
@@ -68,7 +73,7 @@ const mapProjectWithStats = (proto: ProtoProjectWithStats | undefined): ParsedPr
 
 export const parseProjectList = (raw: unknown): ParsedProject[] => {
   try {
-    const proto = fromJson(ProjectListSchema, raw as any, protoOptions);
+    const proto = fromJson(ProjectListSchema, raw as JsonValue, protoOptions);
     return (proto.projects ?? [])
       .map((entry) => mapProjectWithStats(entry))
       .filter((p): p is ParsedProject => p !== null);
@@ -79,7 +84,7 @@ export const parseProjectList = (raw: unknown): ParsedProject[] => {
     return projects
       .map((entry) => {
         try {
-          const proto = fromJson(ProjectWithStatsSchema, entry as any, protoOptions);
+          const proto = fromJson(ProjectWithStatsSchema, entry as JsonValue, protoOptions);
           return mapProjectWithStats(proto);
         } catch {
           return fallbackProjectWithStats(entry);
@@ -91,7 +96,7 @@ export const parseProjectList = (raw: unknown): ParsedProject[] => {
 
 export const parseProjectWithStats = (raw: unknown): ParsedProject | null => {
   try {
-    const proto = fromJson(ProjectWithStatsSchema, raw as any, protoOptions);
+    const proto = fromJson(ProjectWithStatsSchema, raw as JsonValue, protoOptions);
     return mapProjectWithStats(proto);
   } catch {
     return fallbackProjectWithStats(raw);
@@ -100,7 +105,7 @@ export const parseProjectWithStats = (raw: unknown): ParsedProject | null => {
 
 export const parseProject = (raw: unknown): ParsedProject | null => {
   try {
-    const proto = fromJson(ProjectSchema, raw as any, protoOptions);
+    const proto = fromJson(ProjectSchema, raw as JsonValue, protoOptions);
     return mapProject(proto);
   } catch {
     return fallbackProject(raw);
@@ -110,8 +115,8 @@ export const parseProject = (raw: unknown): ParsedProject | null => {
 const fallbackProject = (raw: unknown): ParsedProject | null => {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
-  const createdAt = toIsoString(obj.created_at as any ?? obj.createdAt as any) ?? '';
-  const updatedAt = toIsoString(obj.updated_at as any ?? obj.updatedAt as any) ?? createdAt;
+  const createdAt = toIsoString(obj.created_at ?? obj.createdAt) ?? '';
+  const updatedAt = toIsoString(obj.updated_at ?? obj.updatedAt) ?? createdAt;
   const id = typeof obj.id === 'string' ? obj.id : '';
   const name = typeof obj.name === 'string' ? obj.name : '';
   const folder = typeof obj.folder_path === 'string' ? obj.folder_path : typeof obj.folderPath === 'string' ? obj.folderPath : '';
@@ -136,7 +141,7 @@ const fallbackProjectWithStats = (raw: unknown): ParsedProject | null => {
     ? {
         workflow_count: Number(statsObj.workflow_count ?? statsObj.workflowCount ?? 0),
         execution_count: Number(statsObj.execution_count ?? statsObj.executionCount ?? 0),
-        last_execution: toIsoString(statsObj.last_execution as any ?? statsObj.lastExecution as any),
+        last_execution: toIsoString(statsObj.last_execution ?? statsObj.lastExecution),
       }
     : undefined;
   return stats ? { ...base, stats } : base;

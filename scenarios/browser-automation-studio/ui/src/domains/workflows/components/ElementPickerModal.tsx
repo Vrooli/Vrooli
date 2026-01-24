@@ -25,11 +25,10 @@ const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
       continue;
     }
 
+    const firstElementSelector = Array.isArray(candidate.element.selectors) ? candidate.element.selectors[0] : undefined;
     const selector = typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
       ? candidate.selector.trim()
-      : (Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
-          ? candidate.element.selectors[0].selector
-          : '');
+      : (firstElementSelector?.selector ?? '');
 
     const depth = Number.isFinite(candidate.depth as number)
       ? Number(candidate.depth)
@@ -63,7 +62,8 @@ const deriveSelector = (entry: ElementHierarchyEntry | null | undefined): string
     return entry.selector.trim();
   }
   const selectors = Array.isArray(entry.element?.selectors) ? entry.element.selectors : [];
-  return selectors.length > 0 ? selectors[0].selector : '';
+  const firstSelector = selectors[0];
+  return firstSelector?.selector ?? '';
 };
 
 const summarizeCandidate = (entry: ElementHierarchyEntry | null | undefined): string => {
@@ -202,6 +202,10 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         ? payload.selectedIndex
         : 0;
       const chosen = candidates[preferredIndex] ?? candidates[0];
+      if (!chosen) {
+        toast.error('No selector found at that position');
+        return;
+      }
       const bestSelector = deriveSelector(chosen);
 
       if (!bestSelector) {
@@ -308,10 +312,11 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       setHierarchyCandidates([]);
       setHierarchyIndex(-1);
       
-      if (suggestions.length > 0) {
+      const firstSuggestion = suggestions[0];
+      if (firstSuggestion) {
         // Auto-select the top suggestion
-        setSelectedElement(suggestions[0]);
-        setCustomSelector(suggestions[0].selectors?.[0]?.selector || '');
+        setSelectedElement(firstSuggestion);
+        setCustomSelector(firstSuggestion.selectors?.[0]?.selector ?? '');
       }
     } catch (error) {
       logger.error('Failed to analyze with AI', { component: 'ElementPickerModal', action: 'handleAIAnalysis' }, error);

@@ -178,9 +178,9 @@ function getDomainGradient(domain: string): string {
     'from-orange-500 to-red-600',
     'from-cyan-500 to-blue-600',
     'from-rose-500 to-purple-600',
-  ];
+  ] as const;
   const hash = domain.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return gradients[hash % gradients.length];
+  return gradients[hash % gradients.length] ?? gradients[0];
 }
 
 /** Individual site card with preview data */

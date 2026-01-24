@@ -908,7 +908,7 @@ var File_browser_automation_studio_v1_timeline_entry_proto protoreflect.FileDesc
 
 const file_browser_automation_studio_v1_timeline_entry_proto_rawDesc = "" +
 	"\n" +
-	"1browser-automation-studio/v1/timeline/entry.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a1browser-automation-studio/v1/actions/action.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\"\x92\x06\n" +
+	"1browser-automation-studio/v1/timeline/entry.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a0browser-automation-studio/v1/base/geometry.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x06\n" +
 	"\rTimelineEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fsequence_num\x18\x02 \x01(\x05R\vsequenceNum\x12\"\n" +

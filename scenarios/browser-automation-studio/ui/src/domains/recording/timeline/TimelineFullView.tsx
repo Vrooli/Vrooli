@@ -60,7 +60,10 @@ const WORKFLOW_COLORS = [
   { bg: 'bg-amber-500', light: 'bg-amber-100 dark:bg-amber-900/30', border: 'border-amber-300 dark:border-amber-700', text: 'text-amber-700 dark:text-amber-300' },
   { bg: 'bg-rose-500', light: 'bg-rose-100 dark:bg-rose-900/30', border: 'border-rose-300 dark:border-rose-700', text: 'text-rose-700 dark:text-rose-300' },
   { bg: 'bg-cyan-500', light: 'bg-cyan-100 dark:bg-cyan-900/30', border: 'border-cyan-300 dark:border-cyan-700', text: 'text-cyan-700 dark:text-cyan-300' },
-];
+] as const;
+
+// Default color for type safety (first color in array)
+const DEFAULT_WORKFLOW_COLOR = WORKFLOW_COLORS[0];
 
 function normalizeRelFolder(value: string): string {
   const normalized = value.replace(/\\/g, '/').trim().replace(/^\/+/, '').replace(/\/+$/, '');
@@ -75,7 +78,8 @@ type ProjectPresetConfig = {
 function fileBasename(relPath: string): string {
   const normalized = relPath.replace(/\\/g, '/').trim().replace(/^\/+/, '').replace(/\/+$/, '');
   const parts = normalized.split('/').filter(Boolean);
-  return parts.length > 0 ? parts[parts.length - 1] : '';
+  const lastPart = parts[parts.length - 1];
+  return lastPart ?? '';
 }
 
 function fileDirname(relPath: string): string {
@@ -274,8 +278,8 @@ export function TimelineFullView({
   // Fetch existing workflows for projects when reference mode is used
   useEffect(() => {
     const projectsWithReferenceMode = workflows
-      .filter((wf) => wf.compositionMode === 'reference' && wf.projectId)
-      .map((wf) => wf.projectId!)
+      .filter((wf): wf is typeof wf & { projectId: string } => wf.compositionMode === 'reference' && Boolean(wf.projectId))
+      .map((wf) => wf.projectId)
       .filter((id, idx, arr) => arr.indexOf(id) === idx); // unique
 
     if (projectsWithReferenceMode.length === 0) return;
@@ -367,7 +371,7 @@ export function TimelineFullView({
         sessionId: null,
         startIndex: 0,
         endIndex: actions.length - 1,
-        color: WORKFLOW_COLORS[0].bg,
+        color: DEFAULT_WORKFLOW_COLOR.bg,
         isTesting: false,
         compositionMode: 'inline',
       }]);
@@ -407,9 +411,11 @@ export function TimelineFullView({
     return Array.from(stepCount.values()).some(c => c > 1);
   }, [workflows]);
 
-  // Get color for a workflow by index
-  const getWorkflowColor = useCallback((index: number) => {
-    return WORKFLOW_COLORS[index % WORKFLOW_COLORS.length];
+  // Get color for a workflow by index (guaranteed to return a color since WORKFLOW_COLORS is non-empty)
+  const getWorkflowColor = useCallback((index: number): typeof WORKFLOW_COLORS[number] => {
+    const color = WORKFLOW_COLORS[index % WORKFLOW_COLORS.length];
+    // Modulo guarantees valid index, but TypeScript needs fallback - use DEFAULT_WORKFLOW_COLOR
+    return color ?? DEFAULT_WORKFLOW_COLOR;
   }, []);
 
   // Add a new workflow
@@ -418,13 +424,15 @@ export function TimelineFullView({
     let startIdx = 0;
     let endIdx = actions.length - 1;
 
-    if (unassignedSteps.length > 0) {
+    const firstUnassigned = unassignedSteps[0];
+    if (firstUnassigned !== undefined) {
       // Find contiguous range of unassigned steps
-      startIdx = unassignedSteps[0];
+      startIdx = firstUnassigned;
       endIdx = startIdx;
       for (let i = 1; i < unassignedSteps.length; i++) {
-        if (unassignedSteps[i] === endIdx + 1) {
-          endIdx = unassignedSteps[i];
+        const step = unassignedSteps[i];
+        if (step !== undefined && step === endIdx + 1) {
+          endIdx = step;
         } else {
           break;
         }
@@ -525,6 +533,7 @@ export function TimelineFullView({
     try {
       for (let i = 0; i < workflows.length; i++) {
         const wf = workflows[i];
+        if (!wf) continue;
         setGenerationProgress({ current: i + 1, total: workflows.length });
 
         const indices = Array.from(
@@ -539,9 +548,11 @@ export function TimelineFullView({
         const baseName = templatePath ? fileBasename(templatePath) : `${slugifyWorkflowFilename(wf.name)}${typedWorkflowFileSuffix(wf.workflowType)}`;
         const relPath = folder ? `${folder}/${baseName}` : baseName;
 
+        // projectId is guaranteed by validation at line 501
+        if (!wf.projectId) continue;
         await onGenerate({
           name: wf.name.trim(),
-          projectId: wf.projectId!,
+          projectId: wf.projectId,
           defaultSessionId: wf.sessionId,
           actionIndices: indices,
           workflowType: wf.workflowType,
@@ -612,7 +623,7 @@ export function TimelineFullView({
 
   // Calculate which workflow owns each step for coloring
   const stepColors = useMemo(() => {
-    const colors: (typeof WORKFLOW_COLORS[0] | null)[] = new Array(actions.length).fill(null);
+    const colors: (typeof WORKFLOW_COLORS[number] | null)[] = new Array(actions.length).fill(null);
     workflows.forEach((wf, wfIdx) => {
       const color = getWorkflowColor(wfIdx);
       for (let i = wf.startIndex; i <= wf.endIndex; i++) {

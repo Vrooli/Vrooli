@@ -1808,7 +1808,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\x1a%agent-manager/v1/domain/profile.proto\"\xfe\v\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfe\v\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -2085,8 +2085,8 @@ func file_agent_manager_v1_domain_run_proto_init() {
 	if File_agent_manager_v1_domain_run_proto != nil {
 		return
 	}
-	file_agent_manager_v1_domain_types_proto_init()
 	file_agent_manager_v1_domain_profile_proto_init()
+	file_agent_manager_v1_domain_types_proto_init()
 	file_agent_manager_v1_domain_run_proto_msgTypes[0].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_run_proto_msgTypes[3].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_run_proto_msgTypes[4].OneofWrappers = []any{}

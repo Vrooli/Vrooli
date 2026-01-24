@@ -51,12 +51,17 @@ export class LatencyLogger {
     const sorted = [...this.samples].sort((a, b) => a - b);
     const count = sorted.length;
 
+    const firstSample = sorted[0] ?? 0;
+    const lastSample = sorted[count - 1] ?? firstSample;
+    const medianSample = sorted[Math.floor(count / 2)] ?? firstSample;
+    const p95Sample = sorted[Math.floor(count * 0.95)] ?? lastSample;
+
     return {
       count,
-      min: sorted[0],
-      max: sorted[count - 1],
-      median: sorted[Math.floor(count / 2)],
-      p95: sorted[Math.floor(count * 0.95)] ?? sorted[count - 1],
+      min: firstSample,
+      max: lastSample,
+      median: medianSample,
+      p95: p95Sample,
       avg: Math.round(sorted.reduce((a, b) => a + b, 0) / count * 100) / 100,
     };
   }

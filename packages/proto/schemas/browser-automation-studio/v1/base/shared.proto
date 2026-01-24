@@ -540,19 +540,19 @@ enum AssertionMode {
 enum HighlightColor {
   HIGHLIGHT_COLOR_UNSPECIFIED = 0;
   // Primary action colors
-  HIGHLIGHT_COLOR_RED = 1;        // Error, failure, critical elements
-  HIGHLIGHT_COLOR_GREEN = 2;      // Success, verified elements
-  HIGHLIGHT_COLOR_BLUE = 3;       // Information, focus
-  HIGHLIGHT_COLOR_YELLOW = 4;     // Warning, attention
+  HIGHLIGHT_COLOR_RED = 1; // Error, failure, critical elements
+  HIGHLIGHT_COLOR_GREEN = 2; // Success, verified elements
+  HIGHLIGHT_COLOR_BLUE = 3; // Information, focus
+  HIGHLIGHT_COLOR_YELLOW = 4; // Warning, attention
   // Secondary colors
-  HIGHLIGHT_COLOR_ORANGE = 5;     // Caution
-  HIGHLIGHT_COLOR_PURPLE = 6;     // Special emphasis
-  HIGHLIGHT_COLOR_CYAN = 7;       // Secondary info
-  HIGHLIGHT_COLOR_PINK = 8;       // Accent
+  HIGHLIGHT_COLOR_ORANGE = 5; // Caution
+  HIGHLIGHT_COLOR_PURPLE = 6; // Special emphasis
+  HIGHLIGHT_COLOR_CYAN = 7; // Secondary info
+  HIGHLIGHT_COLOR_PINK = 8; // Accent
   // Neutral colors
-  HIGHLIGHT_COLOR_WHITE = 9;      // Light backgrounds
-  HIGHLIGHT_COLOR_GRAY = 10;      // Subtle emphasis
-  HIGHLIGHT_COLOR_BLACK = 11;     // Dark backgrounds
+  HIGHLIGHT_COLOR_WHITE = 9; // Light backgrounds
+  HIGHLIGHT_COLOR_GRAY = 10; // Subtle emphasis
+  HIGHLIGHT_COLOR_BLACK = 11; // Dark backgrounds
 }
 
 // =============================================================================

@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AutoTab, type AutoTabProps } from './AutoTab';
-import { createUserMessage, createAssistantMessage, createSystemMessage, DEFAULT_AI_SETTINGS } from './types';
+import { createUserMessage, createAssistantMessage, DEFAULT_AI_SETTINGS } from './types';
 import { VISION_MODELS } from '../ai-navigation/types';
 import type { AIMessage } from './types';
 

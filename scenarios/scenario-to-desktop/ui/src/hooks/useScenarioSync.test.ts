@@ -261,7 +261,7 @@ describe("useScenarioSync", () => {
         callbacks.onStateLoaded({
           form_state: {
             preflight_result: { validation: { valid: true } },
-            preflight_error: null,
+            preflight_error: undefined,
             preflight_override: true,
             preflight_secrets: { API_KEY: "secret" },
           },

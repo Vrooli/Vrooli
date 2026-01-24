@@ -47,7 +47,7 @@ import { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
 import { PreviewContainer } from './shared';
 import { PreviewSettingsPanel } from '@/domains/preview-settings';
 import { ViewportProvider } from './context';
-import { mergeConsecutiveActions } from './utils/mergeActions';
+import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions';
 import { getConfig } from '@/config';
 import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
@@ -664,9 +664,11 @@ export function RecordModePage({
 
   // Create a stable color map for pages based on creation order
   const pageColorMap = useMemo(() => {
+    const defaultColor = PAGE_COLORS[0] ?? 'bg-blue-500';
     const map = new Map<string, typeof PAGE_COLORS[number]>();
     openPages.forEach((page, index) => {
-      map.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length]);
+      const color = PAGE_COLORS[index % PAGE_COLORS.length];
+      map.set(page.id, color ?? defaultColor);
     });
     return map;
   }, [openPages]);
@@ -697,8 +699,9 @@ export function RecordModePage({
   const handleEditMergedSelector = useCallback(
     (index: number, newSelector: string) => {
       const originalIndices = mergedIndexMap.get(index) ?? [];
-      if (originalIndices.length > 0) {
-        updateSelector(originalIndices[0], newSelector);
+      const firstIndex = originalIndices[0];
+      if (firstIndex !== undefined) {
+        updateSelector(firstIndex, newSelector);
       }
     },
     [mergedIndexMap, updateSelector]
@@ -743,6 +746,7 @@ export function RecordModePage({
 
     for (let i = 0; i < mergedTimelineItems.length; i++) {
       const item = mergedTimelineItems[i];
+      if (!item) continue;
       const isPageEvent = item.entryType === 'page_event';
 
       if (!isPageEvent) {
@@ -1019,7 +1023,7 @@ export function RecordModePage({
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
       const selected = mode === 'recording'
-        ? actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+        ? actionIndices.map((index) => mergedActions[index]).filter((a): a is MergedAction => a !== undefined)
         : [];
       const actionsToReplay = selected.length > 0 ? selected : mergedActions;
       const results = await replayPreview(
@@ -1099,7 +1103,7 @@ export function RecordModePage({
           // TODO: API should support generating from subset of actions
           // For now, generate from all actions
           const selectedActions = mode === 'recording'
-            ? params.actionIndices.map((index) => mergedActions[index]).filter(Boolean)
+            ? params.actionIndices.map((index) => mergedActions[index]).filter((a): a is MergedAction => a !== undefined)
             : [];
           const actionsToGenerate = selectedActions.length > 0 ? selectedActions : mergedActions;
           const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate, params.settings);

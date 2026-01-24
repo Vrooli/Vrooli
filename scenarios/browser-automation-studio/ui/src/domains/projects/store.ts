@@ -353,7 +353,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     // If there's only one project, return it
     if (projects.length === 1) {
-      return projects[0];
+      return projects[0] ?? null;
     }
 
     // Try to find the last used project
@@ -368,7 +368,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const sortedByUpdate = [...projects].sort(
       (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
     );
-    return sortedByUpdate[0];
+    return sortedByUpdate[0] ?? null;
   },
 
   setLastUsedProject: (projectId: string) => {

@@ -162,7 +162,7 @@ function Header({
     setShowVersionHistory(true);
     try {
       await loadWorkflowVersions(currentWorkflow.id);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to load version history");
     }
   };
@@ -180,7 +180,7 @@ function Header({
           changeDescription: "Manual save before viewing history",
         });
         toast.success("Workflow saved successfully");
-      } catch (error) {
+      } catch (_error) {
         toast.error("Failed to save workflow");
         return;
       }
@@ -228,7 +228,7 @@ function Header({
         `Restored from version ${versionNumber}`,
       );
       toast.success(`Workflow restored to version ${versionNumber}`);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to restore workflow version");
     }
   };
@@ -244,7 +244,7 @@ function Header({
         await loadWorkflow(currentWorkflow.id);
       }
       toast.success("Workflow reloaded");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to reload workflow");
     }
   };
@@ -259,7 +259,7 @@ function Header({
         source: "manual-force-save",
       });
       toast.success("Local changes saved");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to force save workflow");
     }
   };
@@ -276,7 +276,7 @@ function Header({
       });
       acknowledgeSaveError();
       toast.success("Workflow saved");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Retry failed");
     }
   };
@@ -285,7 +285,7 @@ function Header({
     try {
       await refreshConflictWorkflow();
       toast.success("Conflict snapshot refreshed");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to refresh conflict snapshot");
     }
   };
@@ -521,7 +521,7 @@ function Header({
       await updateWorkflow({ ...displayWorkflow, name: editTitle.trim() });
       setIsEditingTitle(false);
       toast.success("Workflow title updated");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update workflow title");
     }
   };

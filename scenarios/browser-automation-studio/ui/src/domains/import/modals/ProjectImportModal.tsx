@@ -242,7 +242,7 @@ export function ProjectImportModal({
 
         {/* Content - scrollable */}
         <div className="px-6 pb-6 flex-1 overflow-y-auto min-h-0">
-          {!showPreview ? (
+          {!showPreview || !inspectResult ? (
             <SelectStep
               folderPath={folderPath}
               validationError={validationError}
@@ -257,7 +257,7 @@ export function ProjectImportModal({
             />
           ) : (
             <PreviewStep
-              inspectResult={inspectResult!}
+              inspectResult={inspectResult}
               name={name}
               description={description}
               isImporting={isImporting}

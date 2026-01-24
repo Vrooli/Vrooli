@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
+import { safeParse, parseArrayFiltered } from '../shared/api/safeParse';
+import { ListScenariosResponseSchema, ScenarioSchema } from '../shared/api/schemas';
 
 export interface Scenario {
   name: string;
@@ -52,18 +54,21 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         throw new Error(message || `Failed to load scenarios (${response.status})`);
       }
 
-      const payload = await response.json();
-      const items = Array.isArray(payload?.scenarios) ? payload.scenarios : [];
-      const mapped: Scenario[] = items
-        .map((item: unknown): Scenario => {
-          const itemData = item as Record<string, unknown>;
-          return {
-            name: typeof itemData.name === 'string' ? itemData.name : '',
-            description: typeof itemData.description === 'string' ? itemData.description : '',
-            status: typeof itemData.status === 'string' ? itemData.status : '',
-          };
-        })
-        .filter((scenario: Scenario) => Boolean(scenario.name));
+      const rawData = await response.json();
+
+      // Validate with safeParse, filtering out invalid items
+      const result = safeParse(ListScenariosResponseSchema, rawData, 'ListScenarios');
+      let mapped: Scenario[];
+
+      if (result.success) {
+        // Filter out scenarios without names
+        mapped = result.data.scenarios.filter((scenario) => Boolean(scenario.name));
+      } else {
+        // Fall back to filtered array parsing for partial data recovery
+        const items = Array.isArray(rawData?.scenarios) ? rawData.scenarios : [];
+        mapped = parseArrayFiltered(ScenarioSchema, items, 'Scenario')
+          .filter((scenario) => Boolean(scenario.name));
+      }
 
       set({
         scenarios: mapped,

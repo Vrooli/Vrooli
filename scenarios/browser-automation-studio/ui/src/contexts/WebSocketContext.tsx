@@ -8,6 +8,8 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { logger } from '../utils/logger';
+import { safeParse } from '../shared/api/safeParse';
+import { LooseWebSocketMessageSchema } from '../shared/api/schemas';
 
 export interface WebSocketMessage {
   type: string;
@@ -113,7 +115,23 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
         // Text message (JSON)
         try {
-          const message = JSON.parse(event.data) as WebSocketMessage;
+          const rawMessage = JSON.parse(event.data);
+          const result = safeParse(LooseWebSocketMessageSchema, rawMessage, 'WebSocketMessage');
+          if (!result.success) {
+            logger.warn('Invalid WebSocket message format', { component: 'WebSocketContext', action: 'onmessage', error: result.error });
+            return;
+          }
+          // Convert validated GenericMessage to WebSocketMessage interface
+          const message: WebSocketMessage = {
+            type: result.data.type,
+            execution_id: result.data.execution_id,
+            workflow_id: result.data.workflow_id,
+            status: result.data.status,
+            progress: result.data.progress,
+            message: result.data.message,
+            data: result.data.data,
+            timestamp: result.data.timestamp,
+          };
           setLastMessage(message);
         } catch (error) {
           logger.warn('Failed to parse WebSocket message', { component: 'WebSocketContext', action: 'onmessage' }, error);

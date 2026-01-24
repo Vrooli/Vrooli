@@ -778,7 +778,7 @@ var File_landing_page_react_vite_v1_pricing_proto protoreflect.FileDescriptor
 
 const file_landing_page_react_vite_v1_pricing_proto_rawDesc = "" +
 	"\n" +
-	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15common/v1/types.proto\"\xdc\x03\n" +
+	"(landing-page-react-vite/v1/pricing.proto\x12\x1alanding_page_react_vite.v1\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdc\x03\n" +
 	"\x06Bundle\x12\x1d\n" +
 	"\n" +
 	"bundle_key\x18\x01 \x01(\tR\tbundleKey\x12\x12\n" +

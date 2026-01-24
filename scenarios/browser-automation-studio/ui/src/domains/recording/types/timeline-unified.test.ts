@@ -2,15 +2,12 @@ import { describe, it, expect } from 'vitest';
 import {
   mergeActionsWithAISteps,
   recordedActionToTimelineItem,
-  timelineEntryToTimelineItem,
   useTimelineEntryToTimelineItem,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
-  type TimelineItem,
   type UseTimelineEntry,
 } from './timeline-unified';
 import type { RecordedAction } from './types';
-import type { TimelineEntry } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 /**
  * Test suite for timeline unification and AI reconciliation utilities.

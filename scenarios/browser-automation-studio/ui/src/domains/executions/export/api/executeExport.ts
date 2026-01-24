@@ -10,6 +10,11 @@
 
 import type { ReplayMovieSpec } from "@/types/export";
 import { getConfig } from "@/config";
+import { safeParse } from "@/shared/api/safeParse";
+import {
+  ServerExportResponseSchema,
+  ExportStatusResponseSchema,
+} from "@/shared/api/schemas";
 
 // =============================================================================
 // Types
@@ -188,20 +193,19 @@ export async function executeServerExport(options: {
     throw new Error(text || `Export request failed (${response.status})`);
   }
 
-  // Parse JSON response
-  const data = await response.json();
+  // Parse and validate JSON response
+  const rawData = await response.json();
+  const result = safeParse(ServerExportResponseSchema, rawData, "ServerExport");
+  if (!result.success) {
+    throw new Error(result.error);
+  }
 
   // Save output_dir to localStorage for next time
   if (payload.output_dir) {
     saveOutputDir(payload.output_dir);
   }
 
-  return {
-    export_id: data.export_id,
-    execution_id: data.execution_id,
-    status: "processing",
-    message: data.message,
-  };
+  return result.data;
 }
 
 /**
@@ -223,5 +227,11 @@ export async function getExportStatus(exportId: string): Promise<ExportStatusRes
     throw new Error(text || `Failed to get export status (${response.status})`);
   }
 
-  return response.json();
+  const rawData = await response.json();
+  const result = safeParse(ExportStatusResponseSchema, rawData, "ExportStatus");
+  if (!result.success) {
+    throw new Error(result.error);
+  }
+
+  return result.data;
 }

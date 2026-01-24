@@ -2,6 +2,8 @@
 
 This package hosts Protocol Buffers schemas for inter-scenario contracts and their generated artifacts (Go, TypeScript, Python). Source files live under `schemas/`; generated code lives under `gen/` and is committed.
 
+> **Style Guide**: For detailed naming conventions, file headers, layer architecture, and documentation requirements, see [STYLE_GUIDE.md](./STYLE_GUIDE.md).
+
 ## Quickstart
 
 - Edit `.proto` files in `schemas/`.
@@ -123,3 +125,125 @@ Key types:
 
 - Pricing/billing metadata maps now include `metadata_typed` so clients can avoid `google.protobuf.Value` and stay type-safe across pricing, sessions, subscription status, and wallet transactions.
 - Use `common.v1.JsonValue` for flexible-yet-typed metadata instead of raw `Struct`/`Value`.
+
+## Adding a new scenario
+
+When creating proto definitions for a new scenario:
+
+### 1. Create the directory structure
+
+```bash
+mkdir -p schemas/<scenario-name>/v1
+```
+
+### 2. Create your proto files
+
+Follow the layer hierarchy (see [STYLE_GUIDE.md](./STYLE_GUIDE.md) for details):
+
+| Layer | Purpose | Examples |
+|-------|---------|----------|
+| 0 | Base types, enums | `base/shared.proto` |
+| 1 | Domain models | `domain/models.proto` |
+| 2 | Actions, workflows | `actions/action.proto` |
+| 3 | Aggregates, sessions | `recording/session.proto` |
+| 4 | Runtime state | `execution/execution.proto` |
+| 5 | API services, projects | `api/service.proto` |
+
+Each file should include a header with `@layer`, `@domain`, `@imports`, and `@stability` annotations.
+
+### 3. Regenerate code
+
+```bash
+cd packages/proto && make generate
+```
+
+This regenerates all language outputs (Go, TypeScript, Python) and creates `py.typed` markers.
+
+### 4. Verify your changes
+
+```bash
+# Lint your proto files
+make lint
+
+# Check for breaking changes (against master)
+make breaking
+
+# Ensure generated code is in sync
+make check
+```
+
+### 5. Import in your scenario
+
+- **Go**: Add a `replace` directive or use `go.work` to point to local protos
+- **TypeScript**: Import from `@vrooli/proto-types/<scenario-name>/v1/<file>_pb`
+- **Python**: Import from `<scenario_name>.v1.<file>_pb2`
+
+## Protovalidate
+
+Protovalidate provides **declarative validation rules** directly in your proto definitions. This complements client-side validation (like Zod) by ensuring validation rules are defined once and enforced consistently across all languages.
+
+### When to use Protovalidate
+
+- **API ingress**: Validate incoming requests before processing
+- **Critical business logic**: Enforce invariants at the proto level
+- **Cross-language consistency**: Same rules in Go, TS, Python without duplication
+
+### Current support
+
+| Language | Status | Notes |
+|----------|--------|-------|
+| Go | Partial | Requires `protovalidate` Go module in consumers |
+| TypeScript | Partial | Uses `@bufbuild/protovalidate` in validating services |
+| Python | Not yet | Requires vendoring Protovalidate protos |
+
+### Example annotation
+
+```protobuf
+import "buf/validate/validate.proto";
+
+message CreatePlanRequest {
+  string plan_name = 1 [(buf.validate.field).string.min_len = 1];
+  int64 price_cents = 2 [(buf.validate.field).int64.gte = 0];
+}
+```
+
+**Note**: For UI applications, Protovalidate is typically used server-side. Client-side validation (Zod) provides immediate feedback to users, while Protovalidate provides a backend safety net. See the `react-stability` skill in prompt-manager for client-side validation patterns.
+
+## Troubleshooting
+
+### Code generation fails
+
+1. **Check proto syntax**: Run `make lint` to validate your proto files
+2. **Check imports**: Ensure all imports exist and paths are correct
+3. **Check buf.yaml**: Verify your scenario is included in the `inputs` section
+
+### Breaking change detected
+
+`make breaking` compares against `master` by default. If you intentionally made a breaking change:
+
+1. Document the change in your PR
+2. Ensure downstream consumers are updated
+3. Consider using field deprecation instead of removal when possible
+
+### Generated code not updating
+
+```bash
+# Clean and regenerate
+make clean && make generate
+
+# Verify generated code is committed
+make check
+```
+
+### TypeScript import issues
+
+- `@vrooli/proto-types` is ESM-only
+- For Jest/CJS consumers, use dynamic `import()` or configure Jest for ESM
+- Ensure `tsconfig.json` includes `"moduleResolution": "bundler"` or `"node16"`
+
+### Python import errors
+
+Python Tier 1 support is limited. If you see `ModuleNotFoundError` for `buf.validate`:
+- Protovalidate annotations require additional Python packaging
+- For local development, install `gen/python` in editable mode
+- Consider vendoring Protovalidate protos if needed

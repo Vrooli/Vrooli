@@ -193,7 +193,7 @@ export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
     setIsPaused(false);
   }, []);
 
-  const activeFeature = FEATURE_CONFIGS[activeIndex];
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0]!;
   const previews = PREVIEW_RENDERERS.map((render, index) =>
     render(activeIndex === index && !isTransitioning)
   );
@@ -255,7 +255,7 @@ function getAccentClasses(color: string): string {
     green: 'text-green-400 bg-green-500/10 border border-green-500/20',
     amber: 'text-amber-400 bg-amber-500/10 border border-amber-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'text-blue-400 bg-blue-500/10 border border-blue-500/20';
 }
 
 function getAccentDotClass(color: string): string {
@@ -266,7 +266,7 @@ function getAccentDotClass(color: string): string {
     green: 'bg-green-400',
     amber: 'bg-amber-400',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'bg-blue-400';
 }
 
 function getGlowClass(color: string): string {
@@ -277,7 +277,7 @@ function getGlowClass(color: string): string {
     green: 'bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20',
     amber: 'bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20',
   };
-  return classes[color] || classes.blue;
+  return classes[color] ?? 'bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20';
 }
 
 export default FeatureShowcase;

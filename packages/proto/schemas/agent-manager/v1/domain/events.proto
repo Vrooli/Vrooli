@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/struct.proto";
 import "agent-manager/v1/domain/types.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 

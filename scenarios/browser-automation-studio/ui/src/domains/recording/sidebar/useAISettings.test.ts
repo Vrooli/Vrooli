@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAISettings, estimateNavigationCost, formatCost } from './useAISettings';
 import { DEFAULT_AI_SETTINGS, STORAGE_KEYS } from './types';
-import { VISION_MODELS, type VisionModelSpec } from '../ai-navigation/types';
+import type { VisionModelSpec } from '../ai-navigation/types';
 
 describe('useAISettings', () => {
   // Mock localStorage

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, waitFor, renderHook } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@testing-library/react';
 import { ViewportProvider, useViewport, useViewportOptional } from './ViewportProvider';
 import type { ReactNode } from 'react';
 

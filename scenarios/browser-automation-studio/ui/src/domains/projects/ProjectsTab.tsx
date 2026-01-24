@@ -74,7 +74,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
     try {
       await deleteProject(projectId);
       toast.success(`Project "${projectName}" deleted`);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to delete project');
     } finally {
       setDeletingProjectId(null);
@@ -89,7 +89,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({
       const result = await executeAllWorkflows(projectId);
       const successCount = result.executions.filter((exec) => exec.status !== 'failed').length;
       toast.success(`Started ${successCount} workflow(s)`);
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to execute workflows');
     }
   };

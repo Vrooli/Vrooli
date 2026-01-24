@@ -72,7 +72,9 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
   const merged: MergedAction[] = [];
 
   for (let i = 0; i < actions.length; i++) {
-    const action = { ...actions[i] } as MergedAction;
+    const currentAction = actions[i];
+    if (!currentAction) continue;
+    const action = { ...currentAction } as MergedAction;
     const mergedIds: string[] = [action.id];
 
     // Rule 1: Focus Removal
@@ -81,7 +83,7 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
     // We skip focus if the very next action is an input on the same element.
     if (action.actionType === 'focus' && i + 1 < actions.length) {
       const next = actions[i + 1];
-      if (next.actionType === 'input' && selectorsMatch(action.selector, next.selector)) {
+      if (next && next.actionType === 'input' && selectorsMatch(action.selector, next.selector)) {
         continue; // Skip this focus, it's implied by the following input
       }
     }
@@ -99,7 +101,7 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
       // Look ahead for more input actions on same element
       while (i + 1 < actions.length) {
         const next = actions[i + 1];
-        if (next.actionType !== 'input' || !selectorsMatch(action.selector, next.selector)) {
+        if (!next || next.actionType !== 'input' || !selectorsMatch(action.selector, next.selector)) {
           break;
         }
         // Merge the text
@@ -134,7 +136,7 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
       // Look ahead for more scroll actions
       while (i + 1 < actions.length) {
         const next = actions[i + 1];
-        if (next.actionType !== 'scroll') {
+        if (!next || next.actionType !== 'scroll') {
           break;
         }
         // Accumulate deltas and use final position
@@ -177,7 +179,7 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
       // Look ahead for more navigate actions
       while (i + 1 < actions.length) {
         const next = actions[i + 1];
-        if (next.actionType !== 'navigate') {
+        if (!next || next.actionType !== 'navigate') {
           break;
         }
         // Use the final URL from the chain
@@ -204,12 +206,13 @@ export function mergeConsecutiveActions(actions: RecordedAction[]): MergedAction
     }
 
     // Check if the previous action was a focus that should be noted
+    const prevAction = i > 0 ? actions[i - 1] : undefined;
     if (
       merged.length === 0 &&
-      i > 0 &&
-      actions[i - 1].actionType === 'focus' &&
+      prevAction &&
+      prevAction.actionType === 'focus' &&
       action.actionType === 'input' &&
-      selectorsMatch(actions[i - 1].selector, action.selector)
+      selectorsMatch(prevAction.selector, action.selector)
     ) {
       // This input action had a focus removed before it
       if (!action._merged) {

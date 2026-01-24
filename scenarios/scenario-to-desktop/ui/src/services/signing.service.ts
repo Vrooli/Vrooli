@@ -195,7 +195,7 @@ export function isPlatformReady(
   platform: SigningPlatform
 ): boolean {
   if (!readiness) return false;
-  return readiness.platforms[platform]?.ready ?? false;
+  return readiness.platforms?.[platform]?.ready ?? false;
 }
 
 /**
@@ -206,7 +206,7 @@ export function getPlatformNotReadyReason(
   platform: SigningPlatform
 ): string | null {
   if (!readiness) return null;
-  const status = readiness.platforms[platform];
+  const status = readiness.platforms?.[platform];
   if (!status) return null;
   if (status.ready) return null;
   return status.reason || "Not configured";
@@ -219,7 +219,7 @@ export function countReadyPlatforms(
   readiness: SigningReadinessResponse | null | undefined
 ): number {
   if (!readiness) return 0;
-  return PLATFORM_ORDER.filter((platform) => readiness.platforms[platform]?.ready).length;
+  return PLATFORM_ORDER.filter((platform) => readiness.platforms?.[platform]?.ready).length;
 }
 
 // ============================================================================
@@ -231,7 +231,7 @@ export function countReadyPlatforms(
  */
 export function getValidationErrorCount(result: SigningValidationResult | null): number {
   if (!result) return 0;
-  return result.errors.length;
+  return result.errors?.length ?? 0;
 }
 
 /**
@@ -239,7 +239,7 @@ export function getValidationErrorCount(result: SigningValidationResult | null):
  */
 export function getValidationWarningCount(result: SigningValidationResult | null): number {
   if (!result) return 0;
-  return result.warnings.length;
+  return result.warnings?.length ?? 0;
 }
 
 /**

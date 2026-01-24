@@ -12,6 +12,11 @@
 import { create } from 'zustand';
 import { getApiBase } from '../config';
 import { logger } from '../utils/logger';
+import { safeParse } from '../shared/api/safeParse';
+import {
+  ExecutionMetricsSchema,
+  WorkflowMetricsAggregateSchema,
+} from '../shared/api/schemas';
 
 // =============================================================================
 // Types
@@ -317,6 +322,19 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
       return null;
     }
 
+    // Validate with schema first
+    const validation = safeParse(ExecutionMetricsSchema, result.data, 'ExecutionMetrics');
+    if (!validation.success) {
+      // Fall back to manual mapping if schema validation fails (handles snake_case -> camelCase)
+      const metrics = mapExecutionMetrics(result.data);
+      set((state) => ({
+        executionMetrics: new Map(state.executionMetrics).set(executionId, metrics),
+        isLoading: false,
+      }));
+      return metrics;
+    }
+
+    // Map validated data to local types
     const metrics = mapExecutionMetrics(result.data);
 
     set((state) => ({
@@ -345,6 +363,9 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
       return null;
     }
 
+    // Validate with schema (logs warnings but doesn't fail)
+    safeParse(ExecutionMetricsSchema, result.data, 'ComputeMetrics');
+
     const metrics = mapExecutionMetrics(result.data);
 
     set((state) => ({
@@ -371,6 +392,9 @@ export const useUXMetricsStore = create<UXMetricsState>((set) => ({
       set({ error: result.error ?? 'Failed to fetch workflow aggregate', isLoading: false });
       return null;
     }
+
+    // Validate with schema (logs warnings but doesn't fail)
+    safeParse(WorkflowMetricsAggregateSchema, result.data, 'WorkflowMetricsAggregate');
 
     const aggregate = mapWorkflowAggregate(result.data);
 

@@ -196,7 +196,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
         
         {hasChildren && isExpanded && (
           <div>
-            {node.children!.map(child => renderNode(child, depth + 1))}
+            {(node.children ?? []).map(child => renderNode(child, depth + 1))}
           </div>
         )}
       </div>

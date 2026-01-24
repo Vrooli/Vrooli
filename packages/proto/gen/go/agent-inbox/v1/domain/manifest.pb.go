@@ -326,7 +326,7 @@ var File_agent_inbox_v1_domain_manifest_proto protoreflect.FileDescriptor
 
 const file_agent_inbox_v1_domain_manifest_proto_rawDesc = "" +
 	"\n" +
-	"$agent-inbox/v1/domain/manifest.proto\x12\x0eagent_inbox.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a agent-inbox/v1/domain/tool.proto\"\xf0\x02\n" +
+	"$agent-inbox/v1/domain/manifest.proto\x12\x0eagent_inbox.v1\x1a agent-inbox/v1/domain/tool.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x02\n" +
 	"\fToolManifest\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x128\n" +
 	"\bscenario\x18\x02 \x01(\v2\x1c.agent_inbox.v1.ScenarioInfoR\bscenario\x124\n" +

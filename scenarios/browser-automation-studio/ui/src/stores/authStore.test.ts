@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useAuthStore, useIsAuthenticated, useAuthUser, useAuthLoading, type AuthUser } from './authStore';
+import { useAuthStore, type AuthUser } from './authStore';
 
 // Mock the desktop API
 const mockDesktopAuth = {

@@ -1870,7 +1870,7 @@ var File_browser_automation_studio_v1_api_service_proto protoreflect.FileDescrip
 
 const file_browser_automation_studio_v1_api_service_proto_rawDesc = "" +
 	"\n" +
-	".browser-automation-studio/v1/api/service.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bbuf/validate/validate.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a6browser-automation-studio/v1/execution/execution.proto\"\xea\x04\n" +
+	".browser-automation-studio/v1/api/service.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a6browser-automation-studio/v1/execution/execution.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xea\x04\n" +
 	"\x0fWorkflowSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +

@@ -24,14 +24,20 @@ function aggregateByCategory(period: UsagePeriod) {
   if (period.by_operation) {
     for (const [opType, credits] of Object.entries(period.by_operation)) {
       const cat = getCategoryFromOperation(opType);
-      if (cat) creditsByCategory[cat] += credits;
+      if (cat) {
+        const current = creditsByCategory[cat] ?? 0;
+        creditsByCategory[cat] = current + credits;
+      }
     }
   }
 
   if (period.operation_counts) {
     for (const [opType, count] of Object.entries(period.operation_counts)) {
       const cat = getCategoryFromOperation(opType);
-      if (cat) opsByCategory[cat] += count;
+      if (cat) {
+        const current = opsByCategory[cat] ?? 0;
+        opsByCategory[cat] = current + count;
+      }
     }
   }
 
@@ -64,7 +70,9 @@ export function UsageHistorySection({ onViewOperations }: UsageHistorySectionPro
 
   const formatMonth = (monthStr: string): string => {
     // Parse YYYY-MM directly to avoid timezone issues
-    const [year, month] = monthStr.split('-').map(Number);
+    const parts = monthStr.split('-').map(Number);
+    const year = parts[0] ?? new Date().getFullYear();
+    const month = parts[1] ?? 1;
     const date = new Date(year, month - 1, 1); // month is 0-indexed
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };

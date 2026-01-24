@@ -598,7 +598,8 @@ export function useFrameStream({
 
       // Draw to canvas using createImageBitmap (more efficient than Image())
       // Convert base64 data URI to blob
-      const base64Data = data.image.includes(',') ? data.image.split(',')[1] : data.image;
+      const splitImage = data.image.split(',');
+      const base64Data = splitImage[1] ?? splitImage[0] ?? '';
       const binaryString = atob(base64Data);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {

@@ -27,12 +27,13 @@ export const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
       continue;
     }
 
+    const firstSelector = Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
+      ? candidate.element.selectors[0]
+      : null;
     const selector =
       typeof candidate.selector === 'string' && candidate.selector.trim().length > 0
         ? candidate.selector.trim()
-        : Array.isArray(candidate.element.selectors) && candidate.element.selectors.length > 0
-          ? candidate.element.selectors[0].selector
-          : '';
+        : firstSelector?.selector ?? '';
 
     const depth = Number.isFinite(candidate.depth as number) ? Number(candidate.depth) : 0;
 
@@ -68,7 +69,8 @@ export const deriveSelector = (entry: ElementHierarchyEntry | null | undefined):
     return entry.selector.trim();
   }
   const selectors = Array.isArray(entry.element?.selectors) ? entry.element.selectors : [];
-  return selectors.length > 0 ? selectors[0].selector : '';
+  const first = selectors[0];
+  return first ? first.selector : '';
 };
 
 /**

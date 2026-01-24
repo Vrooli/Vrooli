@@ -104,7 +104,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       } catch (err) {
         logger.error('Failed to parse workflow list proto', { component: 'WorkflowStore', action: 'loadWorkflows' }, err);
         // Fallback for legacy payloads
-        const legacyList = Array.isArray((data as any)?.workflows) ? (data as any).workflows as Record<string, unknown>[] : [];
+        const dataObj = data as { workflows?: unknown };
+        const legacyList = Array.isArray(dataObj?.workflows) ? dataObj.workflows as Record<string, unknown>[] : [];
         workflows = legacyList
           .map((entry, idx) => {
             const parsed = parseWorkflowSummaryMessage(entry);
@@ -654,8 +655,9 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         }, err);
       }
 
-      if (summaries.length === 0 && Array.isArray((payload as any)?.versions)) {
-        summaries = (payload as any).versions
+      const payloadObj = payload as { versions?: unknown };
+      if (summaries.length === 0 && Array.isArray(payloadObj?.versions)) {
+        summaries = payloadObj.versions
           .map((item: unknown) => {
             try {
               return normalizeVersionSummary(item as Record<string, unknown>);

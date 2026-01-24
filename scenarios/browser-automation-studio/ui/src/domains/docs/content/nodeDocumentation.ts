@@ -300,10 +300,12 @@ export function getNodeDocumentationByCategory(): Record<string, NodeDocEntry[]>
   const byCategory: Record<string, NodeDocEntry[]> = {};
 
   for (const entry of Object.values(NODE_DOCUMENTATION)) {
-    if (!byCategory[entry.category]) {
-      byCategory[entry.category] = [];
+    const existing = byCategory[entry.category];
+    if (existing) {
+      existing.push(entry);
+    } else {
+      byCategory[entry.category] = [entry];
     }
-    byCategory[entry.category].push(entry);
   }
 
   return byCategory;

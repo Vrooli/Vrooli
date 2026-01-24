@@ -96,7 +96,7 @@ describe('getFormatConfig', () => {
 
 describe('config objects have required properties', () => {
   it('all export status configs have icon, color, bgColor, label', () => {
-    for (const [key, config] of Object.entries(EXPORT_STATUS_CONFIG)) {
+    for (const [_key, config] of Object.entries(EXPORT_STATUS_CONFIG)) {
       expect(config.icon).toBeDefined();
       expect(config.color).toBeDefined();
       expect(config.bgColor).toBeDefined();
@@ -105,7 +105,7 @@ describe('config objects have required properties', () => {
   });
 
   it('all execution status configs have icon, color, bgColor, label', () => {
-    for (const [key, config] of Object.entries(EXECUTION_STATUS_CONFIG)) {
+    for (const [_key, config] of Object.entries(EXECUTION_STATUS_CONFIG)) {
       expect(config.icon).toBeDefined();
       expect(config.color).toBeDefined();
       expect(config.bgColor).toBeDefined();
@@ -114,7 +114,7 @@ describe('config objects have required properties', () => {
   });
 
   it('all format configs have icon, color, bgColor, label', () => {
-    for (const [key, config] of Object.entries(FORMAT_CONFIG)) {
+    for (const [_key, config] of Object.entries(FORMAT_CONFIG)) {
       expect(config.icon).toBeDefined();
       expect(config.color).toBeDefined();
       expect(config.bgColor).toBeDefined();

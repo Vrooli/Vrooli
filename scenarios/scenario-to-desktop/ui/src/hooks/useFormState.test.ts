@@ -210,14 +210,14 @@ describe("useFormState", () => {
     it("syncs scenarioLocked with selectionSource", async () => {
       const { result, rerender } = renderHook(
         (props: UseFormStateProps) => useFormState(props),
-        { initialProps: { scenarioName: "test", selectionSource: null } }
+        { initialProps: { scenarioName: "test", selectionSource: null } as UseFormStateProps }
       );
 
       // Initially not locked
       expect(result.current.scenarioLocked).toBe(false);
 
       // Rerender with inventory selection source
-      rerender({ scenarioName: "test", selectionSource: "inventory" });
+      rerender({ scenarioName: "test", selectionSource: "inventory" } as UseFormStateProps);
 
       await waitFor(() => {
         expect(result.current.scenarioLocked).toBe(true);
@@ -524,8 +524,7 @@ describe("useFormState", () => {
       service_display_name: "Test Scenario App",
       service_description: "A test scenario description",
       service_icon_path: "/scenarios/test-scenario/icon.png",
-      has_ui: true,
-      has_api: true,
+      has_desktop: true,
     };
 
     it("applies scenario defaults when fields are not edited", () => {
@@ -584,8 +583,7 @@ describe("useFormState", () => {
 
       const partialScenario: ScenarioDesktopStatus = {
         name: "test-scenario",
-        has_ui: true,
-        has_api: false,
+        has_desktop: true,
         // No display_name, description, or icon_path
       };
 
@@ -608,13 +606,13 @@ describe("useFormState", () => {
 
       act(() => {
         result.current.setValidationErrors([
-          { field: "scenarioName", message: "Required" },
-          { field: "platforms", message: "Select at least one" },
+          { id: "1", field: "scenarioName", message: "Required" },
+          { id: "2", field: "platforms", message: "Select at least one" },
         ]);
       });
 
       expect(result.current.validationErrors).toHaveLength(2);
-      expect(result.current.validationErrors[0].field).toBe("scenarioName");
+      expect(result.current.validationErrors?.[0]?.field).toBe("scenarioName");
 
       act(() => {
         result.current.clearValidationErrors();

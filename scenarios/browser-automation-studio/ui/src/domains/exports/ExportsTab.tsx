@@ -268,7 +268,7 @@ export const ExportsTab: React.FC<ExportsTabProps> = ({
                 {export_.aiCaption}
               </p>
               <button
-                onClick={() => handleCopyCaption(export_.aiCaption!)}
+                onClick={() => handleCopyCaption(export_.aiCaption ?? '')}
                 className="mt-1.5 flex items-center gap-1 text-xs text-gray-400 hover:text-surface transition-colors"
               >
                 <Copy size={10} />

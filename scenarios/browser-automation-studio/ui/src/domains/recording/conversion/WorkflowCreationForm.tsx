@@ -95,16 +95,21 @@ export function computeSelectionRanges(indices: number[]): SelectionRange[] {
 
   const sorted = [...indices].sort((a, b) => a - b);
   const ranges: SelectionRange[] = [];
-  let rangeStart = sorted[0];
-  let rangeEnd = sorted[0];
+  const first = sorted[0];
+  if (first === undefined) return ranges;
+
+  let rangeStart = first;
+  let rangeEnd = first;
 
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i] === rangeEnd + 1) {
-      rangeEnd = sorted[i];
+    const current = sorted[i];
+    if (current === undefined) continue;
+    if (current === rangeEnd + 1) {
+      rangeEnd = current;
     } else {
       ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
-      rangeStart = sorted[i];
-      rangeEnd = sorted[i];
+      rangeStart = current;
+      rangeEnd = current;
     }
   }
   ranges.push({ start: rangeStart, end: rangeEnd, count: rangeEnd - rangeStart + 1 });
@@ -118,12 +123,12 @@ export function computeSelectionRanges(indices: number[]): SelectionRange[] {
  */
 function formatRanges(ranges: SelectionRange[]): string {
   if (ranges.length === 0) return 'No steps selected';
-  if (ranges.length === 1) {
-    const r = ranges[0];
-    if (r.start === r.end) {
-      return `Step ${r.start + 1}`;
+  const firstRange = ranges[0];
+  if (ranges.length === 1 && firstRange) {
+    if (firstRange.start === firstRange.end) {
+      return `Step ${firstRange.start + 1}`;
     }
-    return `Steps ${r.start + 1}-${r.end + 1}`;
+    return `Steps ${firstRange.start + 1}-${firstRange.end + 1}`;
   }
   return ranges
     .map((r) => (r.start === r.end ? `${r.start + 1}` : `${r.start + 1}-${r.end + 1}`))

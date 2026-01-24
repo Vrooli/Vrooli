@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
-import "buf/validate/validate.proto";
 import "agent-manager/v1/domain/types.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -41,18 +41,27 @@ message AgentProfile {
 
   // Human-readable name for the profile.
   // @constraint 1-100 characters
-  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
 
   // Stable key used to reference the profile across scenarios and runs.
   // This is used for idempotent profile resolution.
   // @constraint 1-100 characters
-  string profile_key = 18 [(buf.validate.field).string = {min_len: 1, max_len: 255}];
+  string profile_key = 18 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 255
+  }];
 
   // Optional description of what this profile is used for.
   string description = 3;
 
   // Which agent runner to use (claude-code, codex, opencode).
-  RunnerType runner_type = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  RunnerType runner_type = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 
   // Model to use (e.g., "claude-sonnet-4-5", "gpt-4o", "anthropic/claude-opus-4-5").
   // If empty, uses the runner's default model.
@@ -65,7 +74,10 @@ message AgentProfile {
   // Maximum number of conversation turns before stopping.
   // 0 means unlimited (use with caution).
   // @constraint 0-1000
-  int32 max_turns = 6 [(buf.validate.field).int32 = {gte: 0, lte: 1000}];
+  int32 max_turns = 6 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000
+  }];
 
   // Maximum execution time for the agent.
   // Default: 30 minutes if not specified.
@@ -183,7 +195,10 @@ message RunConfig {
 // @usage CreateRunRequest.inline_config
 message RunConfigOverrides {
   // Which agent runner to use.
-  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  optional RunnerType runner_type = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 
   // Model to use for execution.
   optional string model = 2;

@@ -1,11 +1,11 @@
-from google.api import annotations_pb2 as _annotations_pb2
-from buf.validate import validate_pb2 as _validate_pb2
-from common.v1 import types_pb2 as _types_pb2
-from agent_manager.v1.domain import types_pb2 as _types_pb2_1
-from agent_manager.v1.domain import profile_pb2 as _profile_pb2
-from agent_manager.v1.domain import task_pb2 as _task_pb2
-from agent_manager.v1.domain import run_pb2 as _run_pb2
 from agent_manager.v1.domain import events_pb2 as _events_pb2
+from agent_manager.v1.domain import profile_pb2 as _profile_pb2
+from agent_manager.v1.domain import run_pb2 as _run_pb2
+from agent_manager.v1.domain import task_pb2 as _task_pb2
+from agent_manager.v1.domain import types_pb2 as _types_pb2
+from buf.validate import validate_pb2 as _validate_pb2
+from common.v1 import types_pb2 as _types_pb2_1
+from google.api import annotations_pb2 as _annotations_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -104,10 +104,10 @@ class ListProfilesRequest(_message.Message):
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    runner_type: _types_pb2_1.RunnerType
+    runner_type: _types_pb2.RunnerType
     limit: int
     offset: int
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2_1.RunnerType, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListProfilesResponse(_message.Message):
     __slots__ = ("profiles", "total", "has_more")
@@ -175,11 +175,11 @@ class ListTasksRequest(_message.Message):
     SCOPE_PREFIX_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    status: _types_pb2_1.TaskStatus
+    status: _types_pb2.TaskStatus
     scope_prefix: str
     limit: int
     offset: int
-    def __init__(self, status: _Optional[_Union[_types_pb2_1.TaskStatus, str]] = ..., scope_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ..., scope_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListTasksResponse(_message.Message):
     __slots__ = ("tasks", "total", "has_more")
@@ -254,14 +254,14 @@ class CreateRunRequest(_message.Message):
     task_id: str
     agent_profile_id: str
     tag: str
-    run_mode: _types_pb2_1.RunMode
+    run_mode: _types_pb2.RunMode
     inline_config: _profile_pb2.RunConfigOverrides
     force: bool
     idempotency_key: str
     profile_ref: ProfileRef
     prompt: str
     existing_sandbox_id: str
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2_1.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ...) -> None: ...
 
 class DeleteRunRequest(_message.Message):
     __slots__ = ("run_id",)
@@ -313,13 +313,13 @@ class ListRunsRequest(_message.Message):
     TAG_PREFIX_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
-    status: _types_pb2_1.RunStatus
+    status: _types_pb2.RunStatus
     task_id: str
     agent_profile_id: str
     tag_prefix: str
     limit: int
     offset: int
-    def __init__(self, status: _Optional[_Union[_types_pb2_1.RunStatus, str]] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_types_pb2.RunStatus, str]] = ..., task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
 
 class ListRunsResponse(_message.Message):
     __slots__ = ("runs", "total", "has_more")
@@ -380,8 +380,8 @@ class GetRunEventsRequest(_message.Message):
     run_id: str
     after_sequence: int
     limit: int
-    event_types: _containers.RepeatedScalarFieldContainer[_types_pb2_1.RunEventType]
-    def __init__(self, run_id: _Optional[str] = ..., after_sequence: _Optional[int] = ..., limit: _Optional[int] = ..., event_types: _Optional[_Iterable[_Union[_types_pb2_1.RunEventType, str]]] = ...) -> None: ...
+    event_types: _containers.RepeatedScalarFieldContainer[_types_pb2.RunEventType]
+    def __init__(self, run_id: _Optional[str] = ..., after_sequence: _Optional[int] = ..., limit: _Optional[int] = ..., event_types: _Optional[_Iterable[_Union[_types_pb2.RunEventType, str]]] = ...) -> None: ...
 
 class GetRunEventsResponse(_message.Message):
     __slots__ = ("events", "has_more")
@@ -450,8 +450,8 @@ class GetRunnerStatusResponse(_message.Message):
 class ProbeRunnerRequest(_message.Message):
     __slots__ = ("runner_type",)
     RUNNER_TYPE_FIELD_NUMBER: _ClassVar[int]
-    runner_type: _types_pb2_1.RunnerType
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2_1.RunnerType, str]] = ...) -> None: ...
+    runner_type: _types_pb2.RunnerType
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ...) -> None: ...
 
 class ProbeRunnerResponse(_message.Message):
     __slots__ = ("result",)

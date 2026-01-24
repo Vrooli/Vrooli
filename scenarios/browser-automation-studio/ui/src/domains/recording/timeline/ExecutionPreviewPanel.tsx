@@ -355,13 +355,13 @@ function ExecutionContent({
           </p>
         )}
 
-        {screenshots && screenshots.length > 0 && (
+        {screenshots && screenshots.length > 0 && screenshots[screenshots.length - 1] && (
           <div className="mt-6 w-full max-w-md">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide font-medium">
               Latest Screenshot
             </p>
             <img
-              src={screenshots[screenshots.length - 1].url}
+              src={screenshots[screenshots.length - 1]!.url}
               alt="Latest step screenshot"
               className="w-full rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
             />
@@ -384,10 +384,10 @@ function ExecutionContent({
           {stepCount} step{stepCount !== 1 ? 's' : ''} executed successfully
         </p>
 
-        {screenshots && screenshots.length > 0 && (
+        {screenshots && screenshots.length > 0 && screenshots[screenshots.length - 1] && (
           <div className="mt-6 w-full max-w-md">
             <img
-              src={screenshots[screenshots.length - 1].url}
+              src={screenshots[screenshots.length - 1]!.url}
               alt="Final screenshot"
               className="w-full rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
             />
@@ -426,13 +426,13 @@ function ExecutionContent({
           </p>
         )}
 
-        {screenshots && screenshots.length > 0 && (
+        {screenshots && screenshots.length > 0 && screenshots[screenshots.length - 1] && (
           <div className="mt-6 w-full max-w-md">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-wide font-medium">
               Screenshot at Failure
             </p>
             <img
-              src={screenshots[screenshots.length - 1].url}
+              src={screenshots[screenshots.length - 1]!.url}
               alt="Failure screenshot"
               className="w-full rounded-lg border border-red-200 dark:border-red-800 shadow-sm"
             />

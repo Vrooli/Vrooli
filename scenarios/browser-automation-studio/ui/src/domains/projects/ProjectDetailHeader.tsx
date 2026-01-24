@@ -278,9 +278,9 @@ export function ProjectDetailHeader({
   const handleRecordingImport = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
-      if (!files || files.length === 0) return;
+      const file = files?.[0];
+      if (!file) return;
 
-      const file = files[0];
       setIsImportingRecording(true);
 
       try {
@@ -325,7 +325,7 @@ export function ProjectDetailHeader({
       );
       clearSelection();
       setSelectionMode(false);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to delete selected workflows");
     } finally {
       setBulkDeleting(false);

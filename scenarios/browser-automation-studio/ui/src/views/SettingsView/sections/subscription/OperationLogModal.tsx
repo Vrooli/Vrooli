@@ -102,7 +102,9 @@ export function OperationLogModal({ isOpen, onClose, month }: OperationLogModalP
   // Format month for display
   const formatMonth = (monthStr: string): string => {
     // Parse YYYY-MM directly to avoid timezone issues
-    const [year, month] = monthStr.split('-').map(Number);
+    const parts = monthStr.split('-').map(Number);
+    const year = parts[0] ?? new Date().getFullYear();
+    const month = parts[1] ?? 1;
     const date = new Date(year, month - 1, 1); // month is 0-indexed
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };

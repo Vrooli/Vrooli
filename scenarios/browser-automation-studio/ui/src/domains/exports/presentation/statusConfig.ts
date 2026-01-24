@@ -92,11 +92,19 @@ export const getExportStatusConfig = (status: string): ExportStatusConfig => {
   return EXPORT_STATUS_CONFIG[status as ExportStatus] ?? EXPORT_STATUS_CONFIG.pending;
 };
 
+/** Default fallback status configuration. */
+const DEFAULT_STATUS_CONFIG: ExportStatusConfig = {
+  icon: Clock,
+  color: 'text-gray-400',
+  bgColor: 'bg-gray-500/10',
+  label: 'Pending',
+};
+
 /**
  * Gets execution status config with a fallback to pending if status is unknown.
  */
 export const getExecutionStatusConfig = (status: string): ExportStatusConfig => {
-  return EXECUTION_STATUS_CONFIG[status] ?? EXECUTION_STATUS_CONFIG.pending;
+  return EXECUTION_STATUS_CONFIG[status] ?? EXECUTION_STATUS_CONFIG.pending ?? DEFAULT_STATUS_CONFIG;
 };
 
 /**

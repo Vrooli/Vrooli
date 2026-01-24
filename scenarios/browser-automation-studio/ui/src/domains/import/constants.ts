@@ -74,6 +74,9 @@ export const FILE_TYPE_INFO: Record<
   'text/markdown': { label: 'Markdown', color: 'text-purple-400' },
 };
 
+/** Default file type info for fallback */
+const DEFAULT_FILE_TYPE_INFO = { label: 'File', color: 'text-gray-400' };
+
 /** Get file type info with fallback */
 export function getFileTypeInfo(file: File): { label: string; color: string } {
   const info = FILE_TYPE_INFO[file.type];
@@ -81,10 +84,10 @@ export function getFileTypeInfo(file: File): { label: string; color: string } {
 
   // Fallback based on extension
   const ext = file.name.toLowerCase().split('.').pop();
-  if (ext === 'md') return FILE_TYPE_INFO['text/markdown'];
-  if (ext === 'json') return FILE_TYPE_INFO['application/json'];
+  if (ext === 'md') return FILE_TYPE_INFO['text/markdown'] ?? DEFAULT_FILE_TYPE_INFO;
+  if (ext === 'json') return FILE_TYPE_INFO['application/json'] ?? DEFAULT_FILE_TYPE_INFO;
 
-  return { label: 'File', color: 'text-gray-400' };
+  return DEFAULT_FILE_TYPE_INFO;
 }
 
 /** Format file size for display */

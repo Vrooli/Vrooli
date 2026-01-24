@@ -309,15 +309,15 @@ describe("generator.service", () => {
       expect(types).toEqual(["external"]);
     });
 
-    it("returns all types for proxy mode", () => {
-      const types = getAllowedServerTypes("proxy");
+    it("returns all types for external-server mode", () => {
+      const types = getAllowedServerTypes("external-server");
       expect(types.length).toBeGreaterThan(1);
     });
   });
 
   describe("adjustServerTypeForMode", () => {
     it("returns external for bundled mode", () => {
-      const adjusted = adjustServerTypeForMode("local", "bundled");
+      const adjusted = adjustServerTypeForMode("node", "bundled");
       expect(adjusted).toBe("external");
     });
 

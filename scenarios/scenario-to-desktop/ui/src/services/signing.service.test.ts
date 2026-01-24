@@ -117,7 +117,7 @@ describe("signing.service", () => {
       ];
       const warnings = detectExpiryWarnings(certs);
       expect(warnings).toHaveLength(1);
-      expect(warnings[0].isExpired).toBe(true);
+      expect(warnings?.[0]?.isExpired).toBe(true);
     });
 
     it("detects certificates expiring soon", () => {
@@ -126,7 +126,7 @@ describe("signing.service", () => {
       ];
       const warnings = detectExpiryWarnings(certs);
       expect(warnings).toHaveLength(1);
-      expect(warnings[0].daysToExpiry).toBe(15);
+      expect(warnings?.[0]?.daysToExpiry).toBe(15);
     });
 
     it("ignores certificates with plenty of time", () => {
@@ -152,9 +152,9 @@ describe("signing.service", () => {
         { name: "Cert C", is_expired: false, days_to_expiry: 10 },
       ];
       const warnings = detectExpiryWarnings(certs);
-      expect(warnings[0].daysToExpiry).toBe(5);
-      expect(warnings[1].daysToExpiry).toBe(10);
-      expect(warnings[2].daysToExpiry).toBe(20);
+      expect(warnings?.[0]?.daysToExpiry).toBe(5);
+      expect(warnings?.[1]?.daysToExpiry).toBe(10);
+      expect(warnings?.[2]?.daysToExpiry).toBe(20);
     });
   });
 
@@ -258,7 +258,7 @@ describe("signing.service", () => {
     });
 
     it("returns true for macOS config", () => {
-      expect(hasAnyPlatformConfig({ enabled: false, macos: { identity: "test" } })).toBe(true);
+      expect(hasAnyPlatformConfig({ enabled: false, macos: { identity: "test", team_id: "", hardened_runtime: false, notarize: false } })).toBe(true);
     });
 
     it("returns true for Linux config", () => {
@@ -380,7 +380,10 @@ describe("signing.service", () => {
     it("returns error count", () => {
       const result: SigningValidationResult = {
         valid: false,
-        errors: ["Error 1", "Error 2"],
+        errors: [
+          { code: "E001", message: "Error 1" },
+          { code: "E002", message: "Error 2" },
+        ],
         warnings: [],
       };
       expect(getValidationErrorCount(result)).toBe(2);
@@ -396,7 +399,7 @@ describe("signing.service", () => {
       const result: SigningValidationResult = {
         valid: true,
         errors: [],
-        warnings: ["Warning 1"],
+        warnings: [{ code: "W001", message: "Warning 1" }],
       };
       expect(getValidationWarningCount(result)).toBe(1);
     });
@@ -409,7 +412,7 @@ describe("signing.service", () => {
 
     it("returns validation valid flag", () => {
       expect(isValidationPassed({ valid: true, errors: [], warnings: [] })).toBe(true);
-      expect(isValidationPassed({ valid: false, errors: ["Error"], warnings: [] })).toBe(false);
+      expect(isValidationPassed({ valid: false, errors: [{ code: "E001", message: "Error" }], warnings: [] })).toBe(false);
     });
   });
 

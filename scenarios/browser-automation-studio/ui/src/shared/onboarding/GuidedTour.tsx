@@ -600,8 +600,8 @@ export function GuidedTour({
   const hasInitializedRef = useRef(false);
   const previousStepRef = useRef<number | null>(null);
 
-  // Derived state
-  const currentStep = resolvedSteps[currentStepIndex];
+  // Derived state (currentStep can be undefined if index is out of range)
+  const currentStep = resolvedSteps[currentStepIndex] ?? null;
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === resolvedSteps.length - 1;
   const isOffTrack =
@@ -672,7 +672,9 @@ export function GuidedTour({
     }
 
     const findAnchor = () => {
-      const el = document.querySelector(currentStep.anchorSelector!);
+      const selector = currentStep.anchorSelector;
+      if (!selector) return;
+      const el = document.querySelector(selector);
       if (el) {
         setAnchorRect(el.getBoundingClientRect());
       } else {
@@ -726,8 +728,8 @@ export function GuidedTour({
 
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Element;
-      const selectors = currentStep
-        .advanceOnClick!.split(",")
+      const selectors = (currentStep.advanceOnClick ?? '')
+        .split(",")
         .map((s) => s.trim());
 
       for (const selector of selectors) {
@@ -873,6 +875,7 @@ export function GuidedTour({
     if (pendingAutoAction) return;
 
     const step = resolvedSteps[currentStepIndex];
+    if (!step) return;
 
     // If step requires interaction and has autoAction, perform it
     if (step.waitForInteraction && step.autoAction) {
@@ -890,7 +893,7 @@ export function GuidedTour({
     }
 
     // Call onExit before advancing
-    step?.onExit?.();
+    step.onExit?.();
 
     if (isLastStep) {
       handleComplete();
@@ -899,7 +902,7 @@ export function GuidedTour({
 
       // Handle navigation if needed
       if (
-        nextStep.navigateTo &&
+        nextStep?.navigateTo &&
         !location.pathname.startsWith(nextStep.navigateTo)
       ) {
         navigate(nextStep.navigateTo);
@@ -1076,7 +1079,7 @@ export function GuidedTour({
             <div className="flex-1">
               <p className="text-sm font-medium text-white">Continue tutorial?</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                Step {currentStepIndex + 1}: {currentStep.title}
+                Step {currentStepIndex + 1}: {currentStep?.title ?? 'Loading...'}
               </p>
             </div>
           </div>
@@ -1181,11 +1184,11 @@ export function GuidedTour({
           {/* Icon and title */}
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-shrink-0 p-2.5 bg-gray-800 rounded-lg border border-gray-700">
-              {currentStep.icon}
+              {currentStep?.icon}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-base font-semibold text-white leading-tight">
-                {currentStep.title}
+                {currentStep?.title}
               </h3>
               <p className="text-xs text-gray-400 mt-0.5">
                 Step {currentStepIndex + 1} of {resolvedSteps.length}
@@ -1195,11 +1198,11 @@ export function GuidedTour({
 
           {/* Description */}
           <p className="text-sm text-gray-300 leading-relaxed mb-4">
-            {currentStep.description}
+            {currentStep?.description}
           </p>
 
           {/* Action hint */}
-          {currentStep.actionHint && (
+          {currentStep?.actionHint && (
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg mb-4">
               <Circle size={10} className="text-blue-400 fill-blue-400 flex-shrink-0" />
               <span className="text-xs text-blue-300">{currentStep.actionHint}</span>

@@ -703,7 +703,7 @@ var File_agent_manager_v1_domain_task_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_task_proto_rawDesc = "" +
 	"\n" +
-	"\"agent-manager/v1/domain/task.proto\x12\x10agent_manager.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a#agent-manager/v1/domain/types.proto\"\xf0\x03\n" +
+	"\"agent-manager/v1/domain/task.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x03\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\x05title\x18\x02 \x01(\tB\n" +

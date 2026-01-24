@@ -1502,7 +1502,7 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a1browser-automation-studio/v1/actions/action.proto\"\xa3\b\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\b\n" +
 	"\x18ArtifactCollectionConfig\x12\x1d\n" +
 	"\aprofile\x18\x01 \x01(\tH\x00R\aprofile\x88\x01\x01\x124\n" +
 	"\x13collect_screenshots\x18\x02 \x01(\bH\x01R\x12collectScreenshots\x88\x01\x01\x127\n" +

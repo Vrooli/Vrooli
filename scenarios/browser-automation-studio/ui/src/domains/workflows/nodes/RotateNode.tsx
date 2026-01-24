@@ -34,14 +34,16 @@ const RotateNode: FC<NodeProps> = ({ selected, id }) => {
     onCommit: (v) => {
       const nextAllowedAngles = allowedAnglesForOrientation(v);
       const currentAngle = angle.value;
-      const nextAngle = nextAllowedAngles.includes(currentAngle) ? currentAngle : nextAllowedAngles[0];
+      const firstAngle = nextAllowedAngles[0] ?? 0;
+      const nextAngle = nextAllowedAngles.includes(currentAngle) ? currentAngle : firstAngle;
       updateParams({ orientation: v, angle: nextAngle });
       angle.setValue(nextAngle);
     },
   });
 
   // Number field for angle - handled specially since options depend on orientation
-  const angle = useSyncedNumber(params?.angle ?? allowedAnglesForOrientation(params?.orientation ?? ORIENTATION_PORTRAIT)[0], {
+  const defaultAngle = allowedAnglesForOrientation(params?.orientation ?? ORIENTATION_PORTRAIT)[0] ?? 0;
+  const angle = useSyncedNumber(params?.angle ?? defaultAngle, {
     onCommit: (v) => updateParams({ angle: v }),
   });
 

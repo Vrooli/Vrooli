@@ -1,0 +1,364 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// CODE SIGNING CONFIGURATION
+// =============================================================================
+//
+// @layer 1
+// @domain signing
+// @imports base
+// @stability beta
+//
+// Configuration types for code signing across Windows, macOS, and Linux.
+// Enables secure, verified distribution of desktop applications.
+//
+// USAGE CONTEXTS:
+//   - Build: SigningConfig determines if/how to sign artifacts
+//   - Validation: SigningValidationResult reports readiness
+//   - UI: Forms collect signing credentials and validate setup
+//
+// =============================================================================
+
+// =============================================================================
+// CERTIFICATE SOURCE ENUM
+// =============================================================================
+
+// CertificateSource enumerates where signing certificates are stored.
+//
+// @usage WindowsSigningConfig.certificate_source
+enum CertificateSource {
+  // Default/unknown source. Should not be used.
+  CERTIFICATE_SOURCE_UNSPECIFIED = 0;
+
+  // Certificate stored in a local file (PFX, P12).
+  CERTIFICATE_SOURCE_FILE = 1;
+
+  // Certificate in Windows Certificate Store.
+  CERTIFICATE_SOURCE_STORE = 2;
+
+  // Certificate stored in Azure Key Vault.
+  CERTIFICATE_SOURCE_AZURE_KEY_VAULT = 3;
+
+  // Certificate stored in AWS KMS.
+  CERTIFICATE_SOURCE_AWS_KMS = 4;
+}
+
+// SignAlgorithm enumerates supported signing hash algorithms.
+//
+// @usage WindowsSigningConfig.sign_algorithm
+enum SignAlgorithm {
+  // Default/unknown algorithm. Treat as SHA256.
+  SIGN_ALGORITHM_UNSPECIFIED = 0;
+
+  // SHA-256 (recommended for modern systems).
+  SIGN_ALGORITHM_SHA256 = 1;
+
+  // SHA-384.
+  SIGN_ALGORITHM_SHA384 = 2;
+
+  // SHA-512.
+  SIGN_ALGORITHM_SHA512 = 3;
+}
+
+// =============================================================================
+// WINDOWS SIGNING
+// =============================================================================
+
+// WindowsSigningConfig configures code signing for Windows executables.
+//
+// Supports multiple certificate sources and timestamp servers for
+// long-term validity.
+//
+// @usage SigningConfig.windows
+message WindowsSigningConfig {
+  // Whether Windows signing is enabled.
+  bool enabled = 1;
+
+  // Where the certificate is stored.
+  CertificateSource certificate_source = 2;
+
+  // Path to certificate file (for FILE source).
+  // @format path
+  optional string certificate_path = 3;
+
+  // Certificate thumbprint (for STORE source).
+  // SHA-1 fingerprint of the certificate.
+  optional string certificate_thumbprint = 4;
+
+  // Subject name for certificate lookup.
+  optional string certificate_subject_name = 5;
+
+  // Environment variable containing the certificate password.
+  // @example "WIN_CERT_PASSWORD"
+  optional string password_env = 6;
+
+  // Signing hash algorithm.
+  SignAlgorithm sign_algorithm = 7;
+
+  // RFC 3161 timestamp server URL.
+  // @format uri
+  // @default "http://timestamp.digicert.com"
+  optional string timestamp_server = 8;
+
+  // Description shown in UAC dialogs.
+  optional string description = 9;
+
+  // URL shown in UAC dialogs.
+  // @format uri
+  optional string description_url = 10;
+
+  // Azure Key Vault URL (for AZURE_KEY_VAULT source).
+  // @format uri
+  optional string azure_key_vault_url = 11;
+
+  // Azure Key Vault certificate name.
+  optional string azure_certificate_name = 12;
+
+  // Azure tenant ID for authentication.
+  optional string azure_tenant_id = 13;
+
+  // Azure client ID for authentication.
+  optional string azure_client_id = 14;
+
+  // Environment variable containing Azure client secret.
+  optional string azure_client_secret_env = 15;
+}
+
+// =============================================================================
+// MACOS SIGNING
+// =============================================================================
+
+// MacOSSigningConfig configures code signing and notarization for macOS.
+//
+// Requires an Apple Developer account and certificates installed in the
+// system keychain.
+//
+// @usage SigningConfig.macos
+message MacOSSigningConfig {
+  // Whether macOS signing is enabled.
+  bool enabled = 1;
+
+  // Signing identity (Developer ID Application certificate).
+  // @example "Developer ID Application: Company Name (TEAM_ID)"
+  optional string identity = 2;
+
+  // Apple Developer Team ID.
+  // 10-character alphanumeric identifier.
+  optional string team_id = 3;
+
+  // Whether to notarize the application.
+  // Requires Apple ID credentials.
+  bool notarize = 4;
+
+  // Apple ID for notarization.
+  // @format email
+  optional string apple_id = 5;
+
+  // Environment variable containing Apple ID password or app-specific password.
+  optional string apple_password_env = 6;
+
+  // Path to entitlements.plist file.
+  // @format path
+  optional string entitlements_path = 7;
+
+  // Whether to enable hardened runtime.
+  // Required for notarization.
+  // @default true
+  optional bool hardened_runtime = 8;
+
+  // App-specific password name in keychain.
+  optional string keychain_profile = 9;
+
+  // Provisioning profile for distribution.
+  // @format path
+  optional string provisioning_profile = 10;
+}
+
+// =============================================================================
+// LINUX SIGNING
+// =============================================================================
+
+// LinuxSigningConfig configures GPG signing for Linux packages.
+//
+// @usage SigningConfig.linux
+message LinuxSigningConfig {
+  // Whether Linux signing is enabled.
+  bool enabled = 1;
+
+  // GPG key ID for signing.
+  optional string gpg_key_id = 2;
+
+  // Environment variable containing GPG passphrase.
+  optional string passphrase_env = 3;
+
+  // Path to GPG keyring.
+  // @format path
+  optional string keyring_path = 4;
+}
+
+// =============================================================================
+// TOP-LEVEL SIGNING CONFIG
+// =============================================================================
+
+// SigningConfig is the complete code signing configuration.
+//
+// Contains per-platform signing settings. Only platforms that need
+// signing should have their configuration populated.
+//
+// @usage DesktopConfig.signing, BuildRequest.signing
+message SigningConfig {
+  // Whether any code signing is enabled.
+  bool enabled = 1;
+
+  // Windows signing configuration.
+  optional WindowsSigningConfig windows = 2;
+
+  // macOS signing configuration.
+  optional MacOSSigningConfig macos = 3;
+
+  // Linux signing configuration.
+  optional LinuxSigningConfig linux = 4;
+
+  // Schema version for configuration compatibility.
+  optional string schema_version = 5;
+}
+
+// =============================================================================
+// VALIDATION RESULTS
+// =============================================================================
+
+// CertificateInfo contains details about a discovered certificate.
+//
+// @usage PlatformValidation.certificate
+message CertificateInfo {
+  // Certificate subject name.
+  string subject = 1;
+
+  // Certificate issuer name.
+  string issuer = 2;
+
+  // Certificate thumbprint/fingerprint.
+  string thumbprint = 3;
+
+  // Certificate expiration date.
+  google.protobuf.Timestamp expires_at = 4;
+
+  // Whether the certificate is currently valid.
+  bool is_valid = 5;
+
+  // Whether the certificate is expired.
+  bool is_expired = 6;
+
+  // Days until expiration (negative if expired).
+  int32 days_until_expiry = 7;
+}
+
+// PlatformValidation contains validation results for a single platform.
+//
+// @usage SigningValidationResult.platforms
+message PlatformValidation {
+  // Target platform.
+  Platform platform = 1;
+
+  // Whether signing is properly configured for this platform.
+  bool valid = 2;
+
+  // Whether signing is enabled for this platform.
+  bool enabled = 3;
+
+  // Certificate details (if discovered).
+  optional CertificateInfo certificate = 4;
+
+  // Validation errors that block signing.
+  repeated ValidationError errors = 5;
+
+  // Validation warnings that don't block signing.
+  repeated ValidationWarning warnings = 6;
+
+  // Whether required tools are installed.
+  bool tools_available = 7;
+
+  // Missing tool names.
+  repeated string missing_tools = 8;
+}
+
+// SigningValidationResult is the complete signing validation report.
+//
+// Returned by validation endpoints to indicate signing readiness.
+//
+// @usage GET /api/signing/validate response
+message SigningValidationResult {
+  // Whether all enabled platforms are ready for signing.
+  bool valid = 1;
+
+  // Whether any signing is enabled.
+  bool signing_enabled = 2;
+
+  // Per-platform validation results.
+  // Key: Platform name (win, mac, linux)
+  map<string, PlatformValidation> platforms = 3;
+
+  // Global validation errors.
+  repeated ValidationError errors = 4;
+
+  // Global validation warnings.
+  repeated ValidationWarning warnings = 5;
+
+  // Timestamp of validation.
+  google.protobuf.Timestamp validated_at = 6;
+}
+
+// =============================================================================
+// READINESS CHECK
+// =============================================================================
+
+// PlatformStatus indicates signing readiness for a single platform.
+//
+// @usage ReadinessResponse.platforms
+message PlatformStatus {
+  // Target platform.
+  Platform platform = 1;
+
+  // Whether signing is ready.
+  bool ready = 2;
+
+  // Whether signing is enabled in config.
+  bool enabled = 3;
+
+  // Human-readable status message.
+  string message = 4;
+}
+
+// ReadinessResponse indicates overall signing readiness.
+//
+// @usage GET /api/signing/ready response
+message ReadinessResponse {
+  // Whether signing is ready for all enabled platforms.
+  bool ready = 1;
+
+  // Per-platform readiness status.
+  repeated PlatformStatus platforms = 2;
+
+  // Human-readable summary message.
+  string message = 3;
+}
+
+// SigningConfigResponse returns the current signing configuration.
+//
+// Sensitive values (passwords, secrets) are redacted.
+//
+// @usage GET /api/signing/config response
+message SigningConfigResponse {
+  // Current signing configuration (with secrets redacted).
+  SigningConfig config = 1;
+
+  // Validation result for the current config.
+  SigningValidationResult validation = 2;
+}

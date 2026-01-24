@@ -2,11 +2,11 @@ syntax = "proto3";
 
 package agent_manager.v1;
 
-import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
-import "buf/validate/validate.proto";
-import "agent-manager/v1/domain/types.proto";
 import "agent-manager/v1/domain/profile.proto";
+import "agent-manager/v1/domain/types.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
 
@@ -84,7 +84,10 @@ message Run {
   optional google.protobuf.Timestamp last_heartbeat = 12;
 
   // Progress percentage (0-100).
-  int32 progress_percent = 13 [(buf.validate.field).int32 = {gte: 0, lte: 100}];
+  int32 progress_percent = 13 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
 
   // Idempotency key for replay safety.
   string idempotency_key = 14;

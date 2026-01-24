@@ -1,0 +1,525 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// PREFLIGHT VALIDATION
+// =============================================================================
+//
+// @layer 1
+// @domain preflight
+// @imports base
+// @stability beta
+//
+// Types for preflight validation of bundles before desktop generation.
+// Preflight performs dry-run validation to detect missing secrets,
+// configuration issues, and runtime dependencies.
+//
+// USAGE CONTEXTS:
+//   - Pipeline: Preflight stage validates before generation
+//   - API: Standalone preflight validation endpoints
+//   - UI: Display validation results and prompt for missing secrets
+//
+// =============================================================================
+
+// =============================================================================
+// PREFLIGHT STATUS
+// =============================================================================
+
+// PreflightStatus enumerates preflight validation states.
+//
+// @usage PreflightResponse.status
+enum PreflightStatus {
+  // Default/unknown status. Should never appear in valid data.
+  PREFLIGHT_STATUS_UNSPECIFIED = 0;
+
+  // Preflight validation is in progress.
+  PREFLIGHT_STATUS_RUNNING = 1;
+
+  // Preflight completed successfully. Bundle is ready.
+  PREFLIGHT_STATUS_PASSED = 2;
+
+  // Preflight failed. Check errors for details.
+  PREFLIGHT_STATUS_FAILED = 3;
+
+  // Preflight partially passed with warnings.
+  PREFLIGHT_STATUS_WARNINGS = 4;
+}
+
+// CheckStatus enumerates individual check states.
+//
+// @usage PreflightCheck.status
+enum CheckStatus {
+  // Default/unknown status.
+  CHECK_STATUS_UNSPECIFIED = 0;
+
+  // Check is pending execution.
+  CHECK_STATUS_PENDING = 1;
+
+  // Check is running.
+  CHECK_STATUS_RUNNING = 2;
+
+  // Check passed.
+  CHECK_STATUS_PASSED = 3;
+
+  // Check failed.
+  CHECK_STATUS_FAILED = 4;
+
+  // Check was skipped.
+  CHECK_STATUS_SKIPPED = 5;
+}
+
+// =============================================================================
+// PREFLIGHT REQUEST
+// =============================================================================
+
+// PreflightRequest initiates preflight validation.
+//
+// @usage POST /api/preflight request body
+message PreflightRequest {
+  // Path to the bundle manifest file.
+  // @format path
+  string bundle_manifest_path = 1;
+
+  // Root directory for bundle files.
+  // @format path
+  optional string bundle_root = 2;
+
+  // Secrets to inject during validation.
+  // Key: Secret name, Value: Secret value
+  map<string, string> secrets = 3;
+
+  // Timeout in seconds for the preflight process.
+  // @default 60
+  // @constraint 10-300
+  optional int32 timeout_seconds = 4;
+
+  // Whether to start services during validation.
+  // Enables deeper validation but takes longer.
+  optional bool start_services = 5;
+
+  // Number of log lines to tail from services.
+  // @default 50
+  optional int32 log_tail_lines = 6;
+
+  // Only return current status without starting new validation.
+  optional bool status_only = 7;
+
+  // Existing session ID to reuse.
+  // @format uuid
+  optional string session_id = 8;
+
+  // Session time-to-live in seconds.
+  // @default 300
+  optional int32 session_ttl = 9;
+
+  // Whether to stop the session after validation.
+  optional bool session_stop = 10;
+}
+
+// =============================================================================
+// SECRET TYPES
+// =============================================================================
+
+// SecretClass enumerates secret classification types.
+//
+// @usage PreflightSecret.class
+enum SecretClass {
+  // Default/unknown class.
+  SECRET_CLASS_UNSPECIFIED = 0;
+
+  // API key or token.
+  SECRET_CLASS_API_KEY = 1;
+
+  // Password or passphrase.
+  SECRET_CLASS_PASSWORD = 2;
+
+  // OAuth or JWT token.
+  SECRET_CLASS_TOKEN = 3;
+
+  // Connection string (database, etc.).
+  SECRET_CLASS_CONNECTION_STRING = 4;
+
+  // Certificate or private key.
+  SECRET_CLASS_CERTIFICATE = 5;
+
+  // Generic secret.
+  SECRET_CLASS_GENERIC = 6;
+}
+
+// PreflightSecret describes a secret requirement.
+//
+// @usage PreflightResponse.secrets
+message PreflightSecret {
+  // Unique secret identifier.
+  string id = 1;
+
+  // Secret classification.
+  SecretClass secret_class = 2;
+
+  // Whether this secret is required.
+  bool required = 3;
+
+  // Whether a value was provided.
+  bool has_value = 4;
+
+  // Human-readable description.
+  optional string description = 5;
+
+  // Expected format or pattern.
+  optional string format = 6;
+
+  // Prompt text for UI collection.
+  // Key: Language code, Value: Prompt text
+  map<string, string> prompt = 7;
+}
+
+// =============================================================================
+// GPU DETECTION
+// =============================================================================
+
+// GPUInfo contains GPU detection results.
+//
+// @usage PreflightReady.gpu
+message GPUInfo {
+  // Whether a compatible GPU is available.
+  bool available = 1;
+
+  // Detection method used.
+  // @example "nvidia-smi", "vulkan", "metal"
+  optional string method = 2;
+
+  // Reason for unavailability (if not available).
+  optional string reason = 3;
+
+  // GPU requirements from the manifest.
+  // Key: Requirement name, Value: Required value
+  map<string, string> requirements = 4;
+}
+
+// =============================================================================
+// READY STATE
+// =============================================================================
+
+// PreflightReady contains runtime readiness information.
+//
+// @usage PreflightResponse.ready
+message PreflightReady {
+  // Whether the runtime is ready.
+  bool ready = 1;
+
+  // Detailed ready state per component.
+  // Key: Component name, Value: Ready status
+  map<string, bool> details = 2;
+
+  // GPU detection information.
+  optional GPUInfo gpu = 3;
+
+  // Timestamp of the snapshot.
+  google.protobuf.Timestamp snapshot_at = 4;
+
+  // Seconds waited for ready state.
+  int32 waited_seconds = 5;
+}
+
+// =============================================================================
+// RUNTIME INFO
+// =============================================================================
+
+// PreflightRuntime contains runtime instance metadata.
+//
+// @usage PreflightResponse.runtime
+message PreflightRuntime {
+  // Unique instance identifier.
+  // @format uuid
+  string instance_id = 1;
+
+  // When the instance started.
+  google.protobuf.Timestamp started_at = 2;
+
+  // Application data directory.
+  // @format path
+  optional string app_data_dir = 3;
+
+  // Bundle root directory.
+  // @format path
+  optional string bundle_root = 4;
+
+  // Whether this is a dry-run instance.
+  bool dry_run = 5;
+
+  // Hash of the manifest file.
+  optional string manifest_hash = 6;
+
+  // Manifest schema version.
+  optional string manifest_schema = 7;
+
+  // Target platform.
+  optional string target = 8;
+
+  // Application name.
+  optional string app_name = 9;
+
+  // Application version.
+  optional string app_version = 10;
+
+  // IPC server host.
+  optional string ipc_host = 11;
+
+  // IPC server port.
+  optional int32 ipc_port = 12;
+
+  // Runtime version.
+  optional string runtime_version = 13;
+
+  // Build version.
+  optional string build_version = 14;
+}
+
+// =============================================================================
+// CHECKS AND LOGS
+// =============================================================================
+
+// PreflightCheck represents a single validation check.
+//
+// @usage PreflightResponse.checks
+message PreflightCheck {
+  // Unique check identifier.
+  string id = 1;
+
+  // Step number in the sequence.
+  int32 step = 2;
+
+  // Human-readable check name.
+  string name = 3;
+
+  // Check status.
+  CheckStatus status = 4;
+
+  // Detailed result or error message.
+  optional string detail = 5;
+}
+
+// ServiceLogTail contains log output from a service.
+//
+// @usage PreflightResponse.log_tails
+message ServiceLogTail {
+  // Service identifier.
+  string service_id = 1;
+
+  // Number of lines captured.
+  int32 lines = 2;
+
+  // Log content.
+  string content = 3;
+
+  // Error if log capture failed.
+  optional string error = 4;
+}
+
+// ServiceFingerprint contains binary metadata for debugging.
+//
+// @usage PreflightResponse.service_fingerprints
+message ServiceFingerprint {
+  // Service identifier.
+  string service_id = 1;
+
+  // Target platform.
+  string platform = 2;
+
+  // Path to binary.
+  // @format path
+  optional string binary_path = 3;
+
+  // Resolved binary path (after symlink resolution).
+  // @format path
+  optional string binary_resolved_path = 4;
+
+  // SHA-256 hash of the binary.
+  optional string binary_sha256 = 5;
+
+  // Binary file size in bytes.
+  optional int64 binary_size_bytes = 6;
+
+  // Binary modification time.
+  optional google.protobuf.Timestamp binary_mtime = 7;
+
+  // Error if fingerprinting failed.
+  optional string error = 8;
+}
+
+// TelemetryInfo contains telemetry file metadata.
+//
+// @usage PreflightResponse.telemetry
+message TelemetryInfo {
+  // Path to the telemetry file.
+  // @format path
+  string path = 1;
+
+  // URL for uploading telemetry.
+  // @format uri
+  optional string upload_url = 2;
+}
+
+// =============================================================================
+// PREFLIGHT RESPONSE
+// =============================================================================
+
+// PreflightResponse contains the complete preflight validation results.
+//
+// @usage POST /api/preflight response
+message PreflightResponse {
+  // Overall preflight status.
+  PreflightStatus status = 1;
+
+  // Validation result summary.
+  optional string validation = 2;
+
+  // Runtime readiness state.
+  optional PreflightReady ready = 3;
+
+  // Secret requirements.
+  repeated PreflightSecret secrets = 4;
+
+  // Port assignments.
+  // Key: Port name, Value: Assigned port number
+  map<string, int32> ports = 5;
+
+  // Telemetry information.
+  optional TelemetryInfo telemetry = 6;
+
+  // Service log tails.
+  repeated ServiceLogTail log_tails = 7;
+
+  // Individual check results.
+  repeated PreflightCheck checks = 8;
+
+  // Runtime instance information.
+  optional PreflightRuntime runtime = 9;
+
+  // Service binary fingerprints.
+  repeated ServiceFingerprint service_fingerprints = 10;
+
+  // Validation errors.
+  repeated ValidationError errors = 11;
+
+  // Validation warnings.
+  repeated ValidationWarning warnings = 12;
+
+  // Session ID for subsequent requests.
+  // @format uuid
+  optional string session_id = 13;
+
+  // When the session expires.
+  optional google.protobuf.Timestamp expires_at = 14;
+}
+
+// =============================================================================
+// ASYNC JOB TYPES
+// =============================================================================
+
+// JobStatus enumerates async job states.
+//
+// @usage JobStatusResponse.status
+enum JobStatus {
+  // Default/unknown status.
+  JOB_STATUS_UNSPECIFIED = 0;
+
+  // Job is queued.
+  JOB_STATUS_PENDING = 1;
+
+  // Job is running.
+  JOB_STATUS_RUNNING = 2;
+
+  // Job completed successfully.
+  JOB_STATUS_COMPLETED = 3;
+
+  // Job failed.
+  JOB_STATUS_FAILED = 4;
+}
+
+// JobStep represents a step in an async job.
+//
+// @usage JobStatusResponse.steps
+message JobStep {
+  // Step identifier.
+  string id = 1;
+
+  // Human-readable step name.
+  string name = 2;
+
+  // Step state.
+  CheckStatus state = 3;
+
+  // Step detail or error message.
+  optional string detail = 4;
+}
+
+// JobStartResponse is returned when an async job is started.
+//
+// @usage POST /api/preflight/async response
+message JobStartResponse {
+  // Unique job identifier.
+  // @format uuid
+  string job_id = 1;
+}
+
+// JobStatusResponse contains async job progress.
+//
+// @usage GET /api/preflight/job/{id} response
+message JobStatusResponse {
+  // Job identifier.
+  // @format uuid
+  string job_id = 1;
+
+  // Current job status.
+  JobStatus status = 2;
+
+  // Job steps and their progress.
+  repeated JobStep steps = 3;
+
+  // Final result (when completed).
+  optional PreflightResponse result = 4;
+
+  // Error message (if failed).
+  optional string error = 5;
+
+  // When the job started.
+  google.protobuf.Timestamp started_at = 6;
+
+  // When the job was last updated.
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// =============================================================================
+// MANIFEST TYPES
+// =============================================================================
+
+// ManifestRequest requests manifest loading.
+//
+// @usage POST /api/preflight/manifest request body
+message ManifestRequest {
+  // Path to the manifest file.
+  // @format path
+  string manifest_path = 1;
+}
+
+// ManifestResponse contains the loaded manifest.
+//
+// @usage POST /api/preflight/manifest response
+message ManifestResponse {
+  // Parsed manifest content.
+  // Key: Manifest field, Value: Field value
+  map<string, string> manifest = 1;
+
+  // Manifest schema version.
+  optional string schema_version = 2;
+
+  // Validation errors.
+  repeated ValidationError errors = 3;
+}

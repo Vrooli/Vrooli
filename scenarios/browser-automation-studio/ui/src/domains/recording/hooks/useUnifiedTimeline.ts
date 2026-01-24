@@ -131,19 +131,22 @@ export function useUnifiedTimeline({
         const pageEventEntries = initialTimelineEntries.filter(e => e.type === 'page_event');
 
         // Convert action entries to RecordedActions for merging
-        const actionsForMerging: RecordedAction[] = actionEntries.map(e => ({
-          id: e.action!.id,
-          sessionId: '',
-          sequenceNum: e.action!.sequenceNum,
-          timestamp: e.action!.timestamp,
-          actionType: e.action!.actionType as RecordedAction['actionType'],
-          url: e.action!.url ?? '',
-          selector: e.action!.selector ? { primary: e.action!.selector.primary, candidates: [] } : undefined,
-          payload: e.action!.payload,
-          confidence: e.action!.confidence,
-          pageId: e.pageId,
-          pageTitle: e.action!.pageTitle,
-        }));
+        // Note: actionEntries are filtered to only include entries with e.action defined
+        const actionsForMerging: RecordedAction[] = actionEntries
+          .filter((e): e is typeof e & { action: NonNullable<typeof e.action> } => e.action != null)
+          .map(e => ({
+            id: e.action.id,
+            sessionId: '',
+            sequenceNum: e.action.sequenceNum,
+            timestamp: e.action.timestamp,
+            actionType: e.action.actionType as RecordedAction['actionType'],
+            url: e.action.url ?? '',
+            selector: e.action.selector ? { primary: e.action.selector.primary, candidates: [] } : undefined,
+            payload: e.action.payload,
+            confidence: e.action.confidence,
+            pageId: e.pageId,
+            pageTitle: e.action.pageTitle,
+          }));
 
         // Merge consecutive actions (typing) for readability
         const mergedActionRecords = mergeConsecutiveActions(actionsForMerging);

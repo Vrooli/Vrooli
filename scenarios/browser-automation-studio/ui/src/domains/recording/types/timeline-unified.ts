@@ -846,6 +846,7 @@ export function mergeActionsWithAISteps(
 
     for (let i = 0; i < unmatchedSteps.length; i++) {
       const step = unmatchedSteps[i];
+      if (!step) continue;
       const stepTime = step.timestamp.getTime();
       const timeDiff = Math.abs(actionTime - stepTime);
 
@@ -864,11 +865,13 @@ export function mergeActionsWithAISteps(
     if (bestMatchIndex >= 0) {
       // Match found: consume the AI step (remove from pool) and attach its metadata
       const matchedStep = unmatchedSteps.splice(bestMatchIndex, 1)[0];
-      return recordedActionToTimelineItem(action, {
-        reasoning: matchedStep.reasoning,
-        tokensUsed: matchedStep.tokensUsed,
-        goalAchieved: matchedStep.goalAchieved,
-      });
+      if (matchedStep) {
+        return recordedActionToTimelineItem(action, {
+          reasoning: matchedStep.reasoning,
+          tokensUsed: matchedStep.tokensUsed,
+          goalAchieved: matchedStep.goalAchieved,
+        });
+      }
     }
 
     // No match: return action without AI context (human action or unmatched AI action)

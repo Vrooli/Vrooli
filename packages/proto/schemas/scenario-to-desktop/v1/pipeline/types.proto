@@ -1,0 +1,371 @@
+syntax = "proto3";
+
+package scenario_to_desktop.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/base/shared.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+
+// =============================================================================
+// PIPELINE ORCHESTRATION
+// =============================================================================
+//
+// @layer 2
+// @domain pipeline
+// @imports base
+// @stability beta
+//
+// Pipeline orchestration types for managing the desktop deployment workflow.
+// Coordinates stages: bundle -> preflight -> generate -> build -> smoke_test -> distribution.
+//
+// USAGE CONTEXTS:
+//   - API: Pipeline run/status/cancel endpoints
+//   - UI: Pipeline progress display and control
+//   - CLI: vrooli pipeline run/status commands
+//
+// =============================================================================
+
+// =============================================================================
+// PIPELINE CONFIGURATION
+// =============================================================================
+
+// PipelineConfig defines the configuration for a pipeline run.
+//
+// All settings are optional with sensible defaults. The only required
+// field is scenario_name.
+//
+// @usage POST /api/pipeline request body
+message PipelineConfig {
+  // Name of the scenario to deploy (required).
+  // @constraint non-empty
+  string scenario_name = 1;
+
+  // Target platforms to build for.
+  // Empty means current platform only.
+  repeated Platform platforms = 2;
+
+  // Whether to skip preflight validation.
+  // @default false
+  optional bool skip_preflight = 3;
+
+  // Whether to skip smoke testing.
+  // @default false
+  optional bool skip_smoke_test = 4;
+
+  // Whether to stop pipeline if any stage fails.
+  // @default true
+  optional bool stop_on_failure = 5;
+
+  // Deployment mode for the desktop application.
+  DeploymentMode deployment_mode = 6;
+
+  // Target desktop framework.
+  Framework framework = 7;
+
+  // Application template type.
+  TemplateType template_type = 8;
+
+  // Webhook URL for pipeline notifications.
+  // @format uri
+  optional string webhook_url = 9;
+
+  // Proxy URL for proxy deployment mode.
+  // Required when deployment_mode is PROXY.
+  // @format uri
+  optional string proxy_url = 10;
+
+  // Override path to bundle manifest.
+  // @format path
+  optional string bundle_manifest_path = 11;
+
+  // Whether to clean existing output before building.
+  // @default false
+  optional bool clean = 12;
+
+  // Whether to sign built artifacts.
+  // @default false
+  optional bool sign = 13;
+
+  // Whether to publish after building.
+  // @default false
+  optional bool publish = 14;
+
+  // Whether to distribute artifacts after building.
+  // @default false
+  optional bool distribute = 15;
+
+  // Specific distribution targets to upload to.
+  // Empty means all enabled targets.
+  repeated string distribution_targets = 16;
+
+  // Release version for distribution path.
+  optional string version = 17;
+
+  // Timeout in seconds for preflight validation.
+  // @default 60
+  optional int32 preflight_timeout_seconds = 18;
+
+  // Secrets for preflight validation.
+  // Key: Secret name, Value: Secret value
+  map<string, string> preflight_secrets = 19;
+
+  // Stage to stop after (for partial runs).
+  // Empty means run all stages.
+  optional StageName stop_after_stage = 20;
+
+  // Stage to resume from (requires prior stop_after_stage run).
+  optional StageName resume_from_stage = 21;
+
+  // Parent pipeline ID when resuming.
+  // @format uuid
+  optional string parent_pipeline_id = 22;
+
+  // Client-provided key for request deduplication.
+  // If a pipeline with this key already exists and is running/completed,
+  // returns existing pipeline instead of starting new one.
+  optional string idempotency_key = 23;
+}
+
+// =============================================================================
+// STAGE RESULT
+// =============================================================================
+
+// StageResult contains the outcome of a single pipeline stage.
+//
+// @usage PipelineStatus.stages
+message StageResult {
+  // Stage name.
+  StageName stage = 1;
+
+  // Stage execution status.
+  StageStatus status = 2;
+
+  // When the stage started.
+  google.protobuf.Timestamp started_at = 3;
+
+  // When the stage completed (success or failure).
+  optional google.protobuf.Timestamp completed_at = 4;
+
+  // Error message if stage failed.
+  optional string error = 5;
+
+  // Stage-specific output data.
+  // Structure varies by stage type.
+  optional google.protobuf.Struct details = 6;
+
+  // Log messages from stage execution.
+  repeated string logs = 7;
+}
+
+// =============================================================================
+// PIPELINE STATUS
+// =============================================================================
+
+// PipelineStatus contains the complete state of a pipeline run.
+//
+// @usage GET /api/pipeline/{id}/status response
+message PipelineStatus {
+  // Unique pipeline run identifier.
+  // @format uuid
+  string pipeline_id = 1;
+
+  // Scenario being deployed.
+  string scenario_name = 2;
+
+  // Overall pipeline status.
+  StageStatus status = 3;
+
+  // Currently executing stage.
+  optional StageName current_stage = 4;
+
+  // Progress percentage (0-100).
+  // Calculated from completed stages / total stages.
+  int32 progress_percent = 5;
+
+  // Human-readable progress message.
+  // @example "Running build stage (3/6)"
+  optional string progress_message = 6;
+
+  // Per-stage results.
+  // Key: Stage name (bundle, preflight, generate, build, smoketest, distribution)
+  map<string, StageResult> stages = 7;
+
+  // Ordered list of stages to execute.
+  repeated StageName stage_order = 8;
+
+  // Pipeline configuration used.
+  PipelineConfig config = 9;
+
+  // When the pipeline started.
+  google.protobuf.Timestamp started_at = 10;
+
+  // When the pipeline completed.
+  optional google.protobuf.Timestamp completed_at = 11;
+
+  // Error message if pipeline failed.
+  optional string error = 12;
+
+  // Final build artifacts.
+  // Key: Platform or artifact name, Value: File path
+  map<string, string> final_artifacts = 13;
+
+  // Stage the pipeline was stopped after (if intentionally stopped).
+  optional StageName stopped_after_stage = 14;
+
+  // Parent pipeline ID if this is a resumed run.
+  // @format uuid
+  optional string parent_pipeline_id = 15;
+
+  // Idempotency key used for this pipeline.
+  optional string idempotency_key = 16;
+}
+
+// =============================================================================
+// API REQUEST/RESPONSE TYPES
+// =============================================================================
+
+// PipelineRunRequest is the request to start a pipeline.
+// Alias for PipelineConfig with identical structure.
+//
+// @usage POST /api/pipeline request body
+message PipelineRunRequest {
+  // Embedded configuration.
+  PipelineConfig config = 1;
+}
+
+// PipelineRunResponse is returned when a pipeline is started.
+//
+// @usage POST /api/pipeline response
+message PipelineRunResponse {
+  // Unique pipeline identifier.
+  // @format uuid
+  string pipeline_id = 1;
+
+  // URL to poll for status updates.
+  // @format uri
+  string status_url = 2;
+
+  // Informational message.
+  optional string message = 3;
+}
+
+// PipelineCancelResponse is returned when a pipeline is cancelled.
+//
+// @usage POST /api/pipeline/{id}/cancel response
+message PipelineCancelResponse {
+  // Resulting status after cancellation.
+  string status = 1;
+
+  // Informational message.
+  optional string message = 2;
+}
+
+// PipelineResumeResponse is returned when a pipeline is resumed.
+//
+// @usage POST /api/pipeline/{id}/resume response
+message PipelineResumeResponse {
+  // New pipeline identifier for the resumed run.
+  // @format uuid
+  string pipeline_id = 1;
+
+  // Parent pipeline that was resumed from.
+  // @format uuid
+  string parent_pipeline_id = 2;
+
+  // URL to poll for status updates.
+  // @format uri
+  string status_url = 3;
+
+  // Stage the resumed pipeline starts from.
+  StageName resume_from_stage = 4;
+
+  // Informational message.
+  optional string message = 5;
+}
+
+// PipelineListItem is a summary of a pipeline for list views.
+//
+// @usage PipelineListResponse.pipelines
+message PipelineListItem {
+  // Pipeline identifier.
+  // @format uuid
+  string pipeline_id = 1;
+
+  // Scenario name.
+  string scenario_name = 2;
+
+  // Pipeline status.
+  StageStatus status = 3;
+
+  // Progress percentage.
+  int32 progress_percent = 4;
+
+  // Current stage (if running).
+  optional StageName current_stage = 5;
+
+  // When the pipeline was created.
+  google.protobuf.Timestamp created_at = 6;
+
+  // When the pipeline was last updated.
+  optional google.protobuf.Timestamp updated_at = 7;
+
+  // When the pipeline completed.
+  optional google.protobuf.Timestamp completed_at = 8;
+
+  // Whether this pipeline can be resumed.
+  bool can_resume = 9;
+}
+
+// PipelineListResponse contains a list of pipelines.
+//
+// @usage GET /api/pipeline response
+message PipelineListResponse {
+  // List of pipeline summaries.
+  repeated PipelineListItem pipelines = 1;
+
+  // Total number of pipelines (for pagination).
+  optional int32 total = 2;
+}
+
+// =============================================================================
+// GENERATE RESPONSE
+// =============================================================================
+
+// GenerateResponse is returned after the generate stage completes.
+//
+// @usage POST /api/generate response
+message GenerateResponse {
+  // Pipeline ID for the generation (deprecated, use pipeline_id).
+  // @format uuid
+  // @deprecated Use pipeline_id instead
+  optional string build_id = 1;
+
+  // Pipeline identifier.
+  // @format uuid
+  string pipeline_id = 2;
+
+  // Initial status.
+  string status = 3;
+
+  // Scenario that was generated.
+  string scenario_name = 4;
+
+  // Path to the generated desktop wrapper.
+  // @format path
+  optional string desktop_path = 5;
+
+  // Detected scenario metadata.
+  optional google.protobuf.Struct detected_metadata = 6;
+
+  // Instructions for installing dependencies.
+  optional string install_instructions = 7;
+
+  // Command to test the generated application.
+  optional string test_command = 8;
+
+  // URL to poll for pipeline status.
+  // @format uri
+  optional string status_url = 9;
+}

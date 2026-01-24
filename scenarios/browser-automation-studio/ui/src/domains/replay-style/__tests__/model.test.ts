@@ -6,7 +6,6 @@ import {
   getReplayBackgroundThemeId,
 } from '../model';
 import {
-  MAX_BROWSER_SCALE,
   MIN_BROWSER_SCALE,
   MAX_CURSOR_SCALE,
   MIN_CURSOR_SCALE,

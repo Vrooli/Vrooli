@@ -75,7 +75,6 @@ describe('StreamSection', () => {
     });
 
     it('calls onSettingsChange when quality slider changes', async () => {
-      const user = userEvent.setup();
       render(<StreamSection {...defaultProps} preset="custom" />);
 
       const qualitySlider = screen.getByLabelText('Quality');

@@ -32,7 +32,7 @@ function getScheduleColor(scheduleId: string): string {
   for (let i = 0; i < scheduleId.length; i++) {
     hash = scheduleId.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return SCHEDULE_COLORS[Math.abs(hash) % SCHEDULE_COLORS.length];
+  return SCHEDULE_COLORS[Math.abs(hash) % SCHEDULE_COLORS.length] ?? '#3b82f6';
 }
 
 export function CalendarView({ onCreateSchedule, onEditSchedule }: CalendarViewProps) {

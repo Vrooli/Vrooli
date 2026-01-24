@@ -31,8 +31,10 @@ const PAGE_COLORS = [
 ];
 
 /** Get consistent color for a page based on its index. */
-function getPageColor(pageIndex: number) {
-  return PAGE_COLORS[pageIndex % PAGE_COLORS.length];
+function getPageColor(pageIndex: number): { bg: string; hex: string } {
+  const color = PAGE_COLORS[pageIndex % PAGE_COLORS.length];
+  // Modulo guarantees valid index, but TypeScript needs assertion
+  return color ?? { bg: 'bg-gray-500', hex: '#6b7280' };
 }
 
 export interface ReplayStoryboardProps {

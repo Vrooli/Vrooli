@@ -649,9 +649,13 @@ const generatePresetId = (): string => {
   return `user-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 };
 
-// Pick a random item from an array
+// Pick a random item from an array (assumes non-empty array)
 const randomChoice = <T,>(arr: readonly T[]): T => {
-  return arr[Math.floor(Math.random() * arr.length)];
+  const item = arr[Math.floor(Math.random() * arr.length)];
+  if (item === undefined) {
+    throw new Error('randomChoice called on empty array');
+  }
+  return item;
 };
 
 // Valid speed profiles for randomization

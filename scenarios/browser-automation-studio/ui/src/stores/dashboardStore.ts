@@ -3,6 +3,13 @@ import { persist } from 'zustand/middleware';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
 import { parseProjectList } from '../utils/projectProto';
+import { safeParse } from '../shared/api/safeParse';
+import {
+  WorkflowsListResponseSchema,
+  ExecutionsListResponseSchema,
+  type WorkflowItem,
+  type ExecutionItem,
+} from '../shared/api/schemas';
 
 export interface RecentWorkflow {
   id: string;
@@ -111,13 +118,16 @@ const getWorkflowNamesCached = async (
 
   workflowNamesCache.inFlight = (async () => {
     const workflowsResponse = await fetch(`${apiBase}/workflows?limit=100`);
-    const workflowsData = await workflowsResponse.json();
+    const rawData = await workflowsResponse.json() as Record<string, unknown>;
+    // Ensure workflows array exists for schema validation
+    const normalizedData = { workflows: Array.isArray(rawData?.workflows) ? rawData.workflows : [] };
+    const result = safeParse(WorkflowsListResponseSchema, normalizedData, 'WorkflowNamesCache');
     const next = new Map<string, { name: string; projectId?: string; projectName?: string }>();
-    if (Array.isArray(workflowsData.workflows)) {
-      workflowsData.workflows.forEach((w: Record<string, unknown>) => {
-        const projectId = String(w.project_id ?? w.projectId ?? '');
-        next.set(String(w.id), {
-          name: String(w.name ?? 'Untitled'),
+    if (result.success) {
+      result.data.workflows.forEach((w) => {
+        const projectId = w.project_id ?? w.projectId ?? '';
+        next.set(w.id, {
+          name: w.name ?? 'Untitled',
           projectId,
           projectName: projectsMap.get(projectId),
         });
@@ -131,15 +141,15 @@ const getWorkflowNamesCached = async (
 };
 
 // Helper to normalize workflow response
-const normalizeRecentWorkflow = (raw: Record<string, unknown>, projects: Map<string, string>): RecentWorkflow => {
-  const projectId = String(raw.project_id ?? raw.projectId ?? '');
+const normalizeRecentWorkflow = (raw: WorkflowItem, projects: Map<string, string>): RecentWorkflow => {
+  const projectId = raw.project_id ?? raw.projectId ?? '';
   return {
-    id: String(raw.id ?? ''),
-    name: String(raw.name ?? 'Untitled'),
+    id: raw.id,
+    name: raw.name ?? 'Untitled',
     projectId,
     projectName: projects.get(projectId) ?? 'Unknown Project',
-    updatedAt: new Date(String(raw.updated_at ?? raw.updatedAt ?? new Date().toISOString())),
-    folderPath: String(raw.folder_path ?? raw.folderPath ?? '/'),
+    updatedAt: new Date(raw.updated_at ?? raw.updatedAt ?? new Date().toISOString()),
+    folderPath: raw.folder_path ?? raw.folderPath ?? '/',
   };
 };
 
@@ -156,23 +166,23 @@ const normalizeExecutionStatus = (rawStatus: unknown): RecentExecution['status']
 };
 
 // Helper to normalize execution response
-const normalizeRecentExecution = (raw: Record<string, unknown>, workflowNames: Map<string, { name: string; projectId?: string; projectName?: string }>): RecentExecution => {
-  const workflowId = String(raw.workflow_id ?? raw.workflowId ?? '');
+const normalizeRecentExecution = (raw: ExecutionItem, workflowNames: Map<string, { name: string; projectId?: string; projectName?: string }>): RecentExecution => {
+  const workflowId = raw.workflow_id ?? raw.workflowId ?? '';
   const workflowInfo = workflowNames.get(workflowId);
   const status = normalizeExecutionStatus(raw.status);
 
   return {
-    id: String(raw.id ?? raw.executionId ?? raw.execution_id ?? ''),
+    id: raw.id ?? raw.executionId ?? raw.execution_id ?? '',
     workflowId,
     workflowName: workflowInfo?.name ?? 'Unknown Workflow',
     projectId: workflowInfo?.projectId,
     projectName: workflowInfo?.projectName,
     status,
-    startedAt: new Date(String(raw.started_at ?? raw.startedAt ?? new Date().toISOString())),
-    completedAt: raw.completed_at || raw.completedAt
-      ? new Date(String(raw.completed_at ?? raw.completedAt))
+    startedAt: new Date(raw.started_at ?? raw.startedAt ?? new Date().toISOString()),
+    completedAt: raw.completed_at ?? raw.completedAt
+      ? new Date(raw.completed_at ?? raw.completedAt ?? '')
       : undefined,
-    error: raw.error ? String(raw.error) : undefined,
+    error: raw.error ?? undefined,
   };
 };
 
@@ -199,10 +209,15 @@ export const useDashboardStore = create<DashboardState>()(
           if (!response.ok) {
             throw new Error(`Failed to fetch workflows: ${response.status}`);
           }
-          const data = await response.json();
-          const workflows = Array.isArray(data.workflows)
-            ? data.workflows.map((w: Record<string, unknown>) => normalizeRecentWorkflow(w, projectsMap))
-            : [];
+          const rawData = await response.json() as Record<string, unknown>;
+          // Ensure workflows array exists for schema validation
+          const normalizedData = { workflows: Array.isArray(rawData?.workflows) ? rawData.workflows : [] };
+          const result = safeParse(WorkflowsListResponseSchema, normalizedData, 'WorkflowsList');
+          if (!result.success) {
+            throw new Error(result.error);
+          }
+
+          const workflows = result.data.workflows.map((w) => normalizeRecentWorkflow(w, projectsMap));
 
           // Sort by updatedAt descending
           workflows.sort((a: RecentWorkflow, b: RecentWorkflow) => b.updatedAt.getTime() - a.updatedAt.getTime());
@@ -224,13 +239,18 @@ export const useDashboardStore = create<DashboardState>()(
           if (!response.ok) {
             throw new Error(`Failed to fetch executions: ${response.status}`);
           }
-          const data = await response.json();
-          const rawExecutions = Array.isArray(data.executions) ? data.executions : [];
+          const rawData = await response.json() as Record<string, unknown>;
+          // Ensure executions array exists for schema validation
+          const normalizedData = { executions: Array.isArray(rawData?.executions) ? rawData.executions : [] };
+          const result = safeParse(ExecutionsListResponseSchema, normalizedData, 'ExecutionsList');
+          if (!result.success) {
+            throw new Error(result.error);
+          }
 
           const projectsMap = await getProjectsMapCached(config.API_URL);
           const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
-          const executions = rawExecutions.map((e: Record<string, unknown>) =>
+          const executions = result.data.executions.map((e) =>
             normalizeRecentExecution(e, workflowNames)
           );
 
@@ -258,18 +278,24 @@ export const useDashboardStore = create<DashboardState>()(
           const response = await fetch(`${config.API_URL}/executions?limit=50`);
           if (!response.ok) return;
 
-          const data = await response.json();
-          const rawExecutions = Array.isArray(data.executions) ? data.executions : [];
+          const rawData = await response.json() as Record<string, unknown>;
+          // Ensure executions array exists for schema validation
+          const normalizedData = { executions: Array.isArray(rawData?.executions) ? rawData.executions : [] };
+          const result = safeParse(ExecutionsListResponseSchema, normalizedData, 'RunningExecutionsList');
+          if (!result.success) {
+            logger.warn('Failed to parse running executions', { component: 'DashboardStore', action: 'fetchRunningExecutions', error: result.error });
+            return;
+          }
 
           const projectsMap = await getProjectsMapCached(config.API_URL);
           const workflowNames = await getWorkflowNamesCached(config.API_URL, projectsMap);
 
-          const running = rawExecutions
-            .filter((e: Record<string, unknown>) => {
+          const running = result.data.executions
+            .filter((e) => {
               const status = normalizeExecutionStatus(e.status);
               return status === 'running' || status === 'pending';
             })
-            .map((e: Record<string, unknown>) => normalizeRecentExecution(e, workflowNames));
+            .map((e) => normalizeRecentExecution(e, workflowNames));
 
           set({ runningExecutions: running });
         } catch (error) {

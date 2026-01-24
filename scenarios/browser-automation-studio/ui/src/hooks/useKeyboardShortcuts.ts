@@ -217,7 +217,10 @@ export function useRegisterShortcuts(
 
     const ids = Object.keys(actionMap);
     for (const id of ids) {
-      registerAction(id, actionMap[id]);
+      const action = actionMap[id];
+      if (action) {
+        registerAction(id, action);
+      }
     }
 
     return () => {
