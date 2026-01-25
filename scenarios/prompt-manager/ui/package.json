@@ -53,6 +53,7 @@
     "framer-motion": "^10.18.0",
     "gsap": "^3.14.2",
     "lucide-react": "^0.307.0",
+    "marked": "^15.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "shiki": "^1.29.2",

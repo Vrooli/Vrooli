@@ -7,13 +7,16 @@
  * - Rich text formatting in TipTap
  * - Editor preference persisted to localStorage
  * - Toggle is embedded in each editor's header for maximum space efficiency
+ * - Validates markdown for patterns that won't survive HTML round-trip
+ * - Shows warnings in code mode and when switching to rich mode
  */
 
-import { useCallback, useRef, useState, useEffect } from 'react'
-import Editor, { type OnMount, type OnChange } from '@monaco-editor/react'
-import { Code, Type } from 'lucide-react'
+import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
+import Editor, { useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
+import { AlertTriangle, Code, Type, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TipTapEditor } from './TipTapEditor'
+import { validateMarkdown, type MarkdownIssue } from '@/services/content/validation'
 
 export type EditorType = 'code' | 'wysiwyg'
 
@@ -80,6 +83,7 @@ export function SkillContentEditor({
   className,
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+  const monaco = useMonaco()
 
   // Initialize editor type from localStorage
   const [editorType, setEditorType] = useState<EditorType>(() => {
@@ -88,12 +92,66 @@ export function SkillContentEditor({
     return stored === 'wysiwyg' ? 'wysiwyg' : 'code'
   })
 
+  // State for markdown validation - issues persist across mode switches
+  const [validationIssues, setValidationIssues] = useState<MarkdownIssue[]>([])
+  const [showValidationWarning, setShowValidationWarning] = useState(false)
+
   // Persist editor type preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, editorType)
     }
   }, [editorType])
+
+  // Validate markdown content whenever value changes (regardless of mode)
+  // Issues persist so we can warn when switching modes
+  const validationResult = useMemo(() => validateMarkdown(value), [value])
+
+  // Update validation issues state when validation result changes
+  useEffect(() => {
+    setValidationIssues(validationResult.issues)
+  }, [validationResult.issues])
+
+  // Set Monaco markers when validation issues change
+  useEffect(() => {
+    if (!monaco || !editorRef.current) return
+
+    const model = editorRef.current.getModel()
+    if (!model) return
+
+    const markers = validationIssues.map((issue) => ({
+      severity:
+        issue.severity === 'error'
+          ? monaco.MarkerSeverity.Error
+          : monaco.MarkerSeverity.Warning,
+      message:
+        issue.message + (issue.suggestion ? `\n\nSuggestion: ${issue.suggestion}` : ''),
+      startLineNumber: issue.line,
+      startColumn: issue.column,
+      endLineNumber: issue.endLine || issue.line,
+      endColumn: issue.endColumn || issue.column + 1,
+    }))
+
+    monaco.editor.setModelMarkers(model, 'markdown-validator', markers)
+
+    // Cleanup on unmount or when issues change
+    return () => {
+      if (model && !model.isDisposed()) {
+        monaco.editor.setModelMarkers(model, 'markdown-validator', [])
+      }
+    }
+  }, [monaco, validationIssues])
+
+  // Handle mode switching with validation warning
+  const handleEditorTypeChange = useCallback(
+    (newType: EditorType) => {
+      if (newType === 'wysiwyg' && validationIssues.length > 0) {
+        setShowValidationWarning(true)
+      }
+      setEditorType(newType)
+    },
+    [validationIssues.length]
+  )
 
   // Handle editor mount
   const handleEditorMount: OnMount = useCallback((editor) => {
@@ -122,6 +180,25 @@ export function SkillContentEditor({
 
   return (
     <div className={cn('flex flex-col', className)}>
+      {/* Validation warning banner - shown when switching to rich mode with issues */}
+      {showValidationWarning && validationIssues.length > 0 && (
+        <div className="flex items-center gap-2 bg-yellow-900/30 border-l-4 border-yellow-500 px-3 py-2 text-sm text-yellow-200">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1">
+            {validationIssues.length} markdown issue
+            {validationIssues.length !== 1 ? 's' : ''} detected. Content may not display
+            correctly in Rich mode.
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowValidationWarning(false)}
+            className="p-0.5 hover:bg-yellow-800/50 rounded"
+            aria-label="Dismiss warning"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {/* Editor container - takes full height */}
       <div
         className={cn(
@@ -135,7 +212,7 @@ export function SkillContentEditor({
             <div className="flex-shrink-0 flex items-center justify-end px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
               <EditorToggle
                 editorType={editorType}
-                onEditorTypeChange={setEditorType}
+                onEditorTypeChange={handleEditorTypeChange}
               />
             </div>
             <div className="flex-1">
@@ -179,7 +256,7 @@ export function SkillContentEditor({
             onChange={handleTipTapChange}
             placeholder="Start writing your skill content..."
             editorType={editorType}
-            onEditorTypeChange={setEditorType}
+            onEditorTypeChange={handleEditorTypeChange}
             className="h-full"
           />
         )}

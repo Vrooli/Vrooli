@@ -6,87 +6,48 @@
  * - Code blocks with syntax highlighting
  * - Placeholder text
  * - Clean, dark-themed UI
+ *
+ * This component has been refactored to use extracted hooks and components
+ * for better separation of concerns and testability.
  */
 
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Placeholder from '@tiptap/extension-placeholder'
-import Highlight from '@tiptap/extension-highlight'
-import Typography from '@tiptap/extension-typography'
-import { CodeBlockExtension } from './codeblock'
-import { InlineCodeExtension } from './inlinecode'
+import { useEffect, useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
 import {
-  LinkPreviewExtension,
   setLinkHoverCallback,
   LinkPreviewTooltip,
   type LinkHoverEvent,
 } from './linkpreview'
-import { useEffect, useCallback, useRef, useState } from 'react'
-import {
-  Bold,
-  Italic,
-  Strikethrough,
-  Code,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  Quote,
-  Minus,
-  FileCode,
-  Highlighter,
-  Link as LinkIcon,
-  Unlink,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { isHtml, markdownToHtml, htmlToMarkdown } from '@/services/contentConverter'
-import { EditorToggle, type EditorType } from './SkillContentEditor'
-import { ToolbarDropdown, DropdownItem } from './ToolbarDropdown'
-import { useIsMobile } from '@/hooks/useMediaQuery'
+import { createTipTapExtensions, getEditorProseClasses, useTipTapContent } from './tiptap'
+import { useLinkManagement, LinkDialog } from './links'
+import { TipTapToolbar } from './toolbar'
+import { type EditorType } from './SkillContentEditor'
 
-interface TipTapEditorProps {
+export interface TipTapEditorProps {
+  /** The markdown content value */
   value: string
+  /** Callback when content changes */
   onChange: (value: string) => void
+  /** Whether the editor is disabled */
   disabled?: boolean
+  /** Placeholder text shown when editor is empty */
   placeholder?: string
+  /** Current editor type (code/wysiwyg) */
   editorType?: EditorType
+  /** Callback when editor type changes */
   onEditorTypeChange?: (type: EditorType) => void
+  /** Additional CSS classes */
   className?: string
 }
 
-interface ToolbarButtonProps {
-  onClick: () => void
-  isActive?: boolean
-  disabled?: boolean
-  title: string
-  children: React.ReactNode
-}
-
-function ToolbarButton({ onClick, isActive, disabled, title, children }: ToolbarButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={cn(
-        'p-1.5 rounded transition-colors',
-        isActive
-          ? 'bg-primary/30 text-primary'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-        disabled && 'opacity-50 cursor-not-allowed'
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function ToolbarDivider() {
-  return <div className="w-px h-6 bg-border mx-1" />
-}
-
+/**
+ * TipTap WYSIWYG editor component.
+ *
+ * Converts markdown to HTML for editing and back to markdown for storage.
+ * Uses the useTipTapContent hook for content synchronization with
+ * better error handling and infinite loop prevention.
+ */
 export function TipTapEditor({
   value,
   onChange,
@@ -96,133 +57,63 @@ export function TipTapEditor({
   onEditorTypeChange,
   className,
 }: TipTapEditorProps) {
-  // Track the last markdown value we output to avoid infinite loops
-  // when comparing incoming value with editor state
-  const lastOutputRef = useRef<string>(value)
+  // Track if we've set initial content to avoid re-setting on every render
+  const initializedRef = useRef(false)
 
+  // Create the editor first (without content - will be set separately)
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-        // Disable default codeBlock - we use our custom extension
-        codeBlock: false,
-        // Disable default code mark - we use our custom extension with copy button
-        code: false,
-      }),
-      // Custom inline code with copy button on hover
-      InlineCodeExtension.configure({
-        HTMLAttributes: {
-          class: 'bg-muted rounded px-1.5 py-0.5 font-mono text-sm text-primary',
-        },
-      }),
-      // Custom code block with syntax highlighting and copy button
-      CodeBlockExtension.configure({
-        languages: [
-          '',
-          'typescript',
-          'javascript',
-          'python',
-          'go',
-          'json',
-          'bash',
-          'sql',
-          'html',
-          'css',
-          'yaml',
-          'rust',
-          'java',
-          'cpp',
-          'ruby',
-        ],
-      }),
-      Placeholder.configure({
-        placeholder,
-        emptyEditorClass: 'is-editor-empty',
-      }),
-      Highlight.configure({
-        HTMLAttributes: {
-          class: 'bg-yellow-500/30 rounded px-0.5',
-        },
-      }),
-      Typography,
-      LinkPreviewExtension.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline hover:text-primary/80 cursor-pointer',
-        },
-      }),
-    ],
-    // Convert markdown to HTML for initial content since TipTap works with HTML
-    content: isHtml(value) ? value : markdownToHtml(value),
+    extensions: createTipTapExtensions({ placeholder }),
+    content: '', // Initial content will be set by hook
     editable: !disabled,
     editorProps: {
       attributes: {
-        class: cn(
-          'prose dark:prose-invert prose-sm max-w-none',
-          'focus:outline-none min-h-[200px] p-4',
-          // Heading styles - distinct sizes for visual hierarchy
-          'prose-h1:text-2xl prose-h1:font-bold prose-h1:text-foreground prose-h1:mt-6 prose-h1:mb-4',
-          'prose-h2:text-xl prose-h2:font-bold prose-h2:text-foreground prose-h2:mt-5 prose-h2:mb-3',
-          'prose-h3:text-lg prose-h3:font-semibold prose-h3:text-foreground prose-h3:mt-4 prose-h3:mb-2',
-          'prose-p:text-muted-foreground prose-p:leading-relaxed',
-          'prose-a:text-primary prose-a:no-underline hover:prose-a:underline',
-          'prose-strong:text-foreground prose-em:text-foreground/90',
-          'prose-code:text-primary prose-code:bg-muted',
-          'prose-pre:bg-muted prose-pre:rounded-lg',
-          'prose-blockquote:border-primary prose-blockquote:text-muted-foreground',
-          'prose-ul:text-muted-foreground prose-ol:text-muted-foreground',
-          'prose-li:text-muted-foreground'
-        ),
+        class: getEditorProseClasses(),
       },
-    },
-    onUpdate: ({ editor: updatedEditor }: { editor: Editor }) => {
-      // Get HTML content and convert to markdown for storage
-      const html = updatedEditor.getHTML()
-      // Convert HTML to markdown so content is stored in markdown format
-      const markdown = htmlToMarkdown(html)
-      // Track the output to avoid infinite loops in useEffect
-      lastOutputRef.current = markdown
-      onChange(markdown)
     },
   })
 
-  // Update content when value changes externally
-  // Only update if the incoming value is different from what we last output
+  // Use the content synchronization hook
+  // This handles markdown <-> HTML conversion with error handling
+  const { getInitialContent, handleEditorUpdate, error } = useTipTapContent({
+    value,
+    onChange,
+    editor,
+  })
+
+  // Set initial content once when editor is first ready
+  useEffect(() => {
+    if (!editor || initializedRef.current) return
+
+    const initialContent = getInitialContent()
+    if (initialContent) {
+      editor.commands.setContent(initialContent)
+    }
+    initializedRef.current = true
+  }, [editor, getInitialContent])
+
+  // Set up the onUpdate handler
   useEffect(() => {
     if (!editor) return
 
-    // Skip if the incoming value matches what we last output
-    // This prevents infinite loops from our own onChange calls
-    if (value === lastOutputRef.current) return
+    const updateHandler = ({ editor: updatedEditor }: { editor: Editor }) => {
+      handleEditorUpdate(updatedEditor)
+    }
+    editor.on('update', updateHandler)
 
-    // Update the ref to track this new incoming value
-    lastOutputRef.current = value
+    return () => {
+      editor.off('update', updateHandler)
+    }
+  }, [editor, handleEditorUpdate])
 
-    // Convert markdown to HTML if needed, then set content
-    const htmlContent = isHtml(value) ? value : markdownToHtml(value)
-    editor.commands.setContent(htmlContent)
-  }, [editor, value])
-
-  // Update editable state
+  // Update editable state when disabled changes
   useEffect(() => {
     if (editor) {
       editor.setEditable(!disabled)
     }
   }, [editor, disabled])
 
-  const setHeading = useCallback(
-    (level: 1 | 2 | 3) => {
-      editor?.chain().focus().toggleHeading({ level }).run()
-    },
-    [editor]
-  )
-
-  // Link dialog state
-  const [showLinkInput, setShowLinkInput] = useState(false)
-  const [linkUrl, setLinkUrl] = useState('')
-  const linkInputRef = useRef<HTMLInputElement>(null)
+  // Link management
+  const linkManagement = useLinkManagement({ editor })
 
   // Link preview state
   const [linkPreview, setLinkPreview] = useState<{
@@ -250,33 +141,7 @@ export function TipTapEditor({
     }
   }, [])
 
-  const openLinkDialog = useCallback(() => {
-    if (!editor) return
-    // Pre-populate with existing link if present
-    const existingUrl = editor.getAttributes('link').href as string | undefined
-    setLinkUrl(existingUrl ?? '')
-    setShowLinkInput(true)
-    // Focus input after state update
-    setTimeout(() => linkInputRef.current?.focus(), 0)
-  }, [editor])
-
-  const setLink = useCallback(() => {
-    if (!editor) return
-    if (linkUrl.trim()) {
-      // Add https:// if no protocol specified
-      const url = linkUrl.match(/^https?:\/\//) ? linkUrl : `https://${linkUrl}`
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-    }
-    setShowLinkInput(false)
-    setLinkUrl('')
-  }, [editor, linkUrl])
-
-  const removeLink = useCallback(() => {
-    editor?.chain().focus().unsetLink().run()
-  }, [editor])
-
-  const isMobile = useIsMobile()
-
+  // Loading state
   if (!editor) {
     return (
       <div className={cn('flex-1 bg-card rounded-lg border border-border', className)}>
@@ -287,317 +152,34 @@ export function TipTapEditor({
     )
   }
 
-  // Check if any heading is active
-  const hasActiveHeading =
-    editor.isActive('heading', { level: 1 }) ||
-    editor.isActive('heading', { level: 2 }) ||
-    editor.isActive('heading', { level: 3 })
-
-  // Check if any text formatting is active
-  const hasActiveTextFormat =
-    editor.isActive('bold') ||
-    editor.isActive('italic') ||
-    editor.isActive('strike') ||
-    editor.isActive('highlight')
-
   return (
     <div className={cn('flex flex-col bg-card', className)}>
       {/* Toolbar */}
       {!disabled && (
-        <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
-          {isMobile ? (
-            // Mobile: Use dropdowns for grouped buttons
-            <>
-              {/* Headings dropdown */}
-              <ToolbarDropdown
-                icon={<Heading1 className="h-4 w-4" />}
-                label="Headings"
-                hasActiveItem={hasActiveHeading}
-              >
-                <DropdownItem
-                  onClick={() => setHeading(1)}
-                  isActive={editor.isActive('heading', { level: 1 })}
-                  icon={<Heading1 className="h-4 w-4" />}
-                  label="Heading 1"
-                />
-                <DropdownItem
-                  onClick={() => setHeading(2)}
-                  isActive={editor.isActive('heading', { level: 2 })}
-                  icon={<Heading2 className="h-4 w-4" />}
-                  label="Heading 2"
-                />
-                <DropdownItem
-                  onClick={() => setHeading(3)}
-                  isActive={editor.isActive('heading', { level: 3 })}
-                  icon={<Heading3 className="h-4 w-4" />}
-                  label="Heading 3"
-                />
-              </ToolbarDropdown>
-
-              {/* Text formatting dropdown */}
-              <ToolbarDropdown
-                icon={<Bold className="h-4 w-4" />}
-                label="Formatting"
-                hasActiveItem={hasActiveTextFormat}
-              >
-                <DropdownItem
-                  onClick={() => editor.chain().focus().toggleBold().run()}
-                  isActive={editor.isActive('bold')}
-                  icon={<Bold className="h-4 w-4" />}
-                  label="Bold"
-                />
-                <DropdownItem
-                  onClick={() => editor.chain().focus().toggleItalic().run()}
-                  isActive={editor.isActive('italic')}
-                  icon={<Italic className="h-4 w-4" />}
-                  label="Italic"
-                />
-                <DropdownItem
-                  onClick={() => editor.chain().focus().toggleStrike().run()}
-                  isActive={editor.isActive('strike')}
-                  icon={<Strikethrough className="h-4 w-4" />}
-                  label="Strikethrough"
-                />
-                <DropdownItem
-                  onClick={() => editor.chain().focus().toggleHighlight().run()}
-                  isActive={editor.isActive('highlight')}
-                  icon={<Highlighter className="h-4 w-4" />}
-                  label="Highlight"
-                />
-              </ToolbarDropdown>
-
-              <ToolbarDivider />
-
-              {/* Code buttons - inline */}
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleCode().run()}
-                isActive={editor.isActive('code')}
-                title="Inline Code"
-              >
-                <Code className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                isActive={editor.isActive('codeBlock')}
-                title="Code Block"
-              >
-                <FileCode className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              {/* Link buttons - inline */}
-              <ToolbarButton
-                onClick={openLinkDialog}
-                isActive={editor.isActive('link')}
-                title="Add Link"
-              >
-                <LinkIcon className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={removeLink}
-                disabled={!editor.isActive('link')}
-                title="Remove Link"
-              >
-                <Unlink className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              {/* List buttons - inline */}
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                isActive={editor.isActive('bulletList')}
-                title="Bullet List"
-              >
-                <List className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                isActive={editor.isActive('orderedList')}
-                title="Numbered List"
-              >
-                <ListOrdered className="h-4 w-4" />
-              </ToolbarButton>
-            </>
-          ) : (
-            // Desktop: Show all buttons inline
-            <>
-              <ToolbarButton
-                onClick={() => setHeading(1)}
-                isActive={editor.isActive('heading', { level: 1 })}
-                title="Heading 1"
-              >
-                <Heading1 className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => setHeading(2)}
-                isActive={editor.isActive('heading', { level: 2 })}
-                title="Heading 2"
-              >
-                <Heading2 className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => setHeading(3)}
-                isActive={editor.isActive('heading', { level: 3 })}
-                title="Heading 3"
-              >
-                <Heading3 className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                isActive={editor.isActive('bold')}
-                title="Bold"
-              >
-                <Bold className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                isActive={editor.isActive('italic')}
-                title="Italic"
-              >
-                <Italic className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                isActive={editor.isActive('strike')}
-                title="Strikethrough"
-              >
-                <Strikethrough className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleHighlight().run()}
-                isActive={editor.isActive('highlight')}
-                title="Highlight"
-              >
-                <Highlighter className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleCode().run()}
-                isActive={editor.isActive('code')}
-                title="Inline Code"
-              >
-                <Code className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                isActive={editor.isActive('codeBlock')}
-                title="Code Block"
-              >
-                <FileCode className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              <ToolbarButton
-                onClick={openLinkDialog}
-                isActive={editor.isActive('link')}
-                title="Add Link"
-              >
-                <LinkIcon className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={removeLink}
-                disabled={!editor.isActive('link')}
-                title="Remove Link"
-              >
-                <Unlink className="h-4 w-4" />
-              </ToolbarButton>
-
-              <ToolbarDivider />
-
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                isActive={editor.isActive('bulletList')}
-                title="Bullet List"
-              >
-                <List className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                isActive={editor.isActive('orderedList')}
-                title="Numbered List"
-              >
-                <ListOrdered className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                isActive={editor.isActive('blockquote')}
-                title="Blockquote"
-              >
-                <Quote className="h-4 w-4" />
-              </ToolbarButton>
-              <ToolbarButton
-                onClick={() => editor.chain().focus().setHorizontalRule().run()}
-                title="Horizontal Rule"
-              >
-                <Minus className="h-4 w-4" />
-              </ToolbarButton>
-            </>
-          )}
-
-          {/* Editor type toggle - pushed to right */}
-          {editorType && onEditorTypeChange && (
-            <>
-              <div className="flex-1" />
-              <EditorToggle
-                editorType={editorType}
-                onEditorTypeChange={onEditorTypeChange}
-              />
-            </>
-          )}
-        </div>
+        <TipTapToolbar
+          editor={editor}
+          onOpenLinkDialog={linkManagement.openDialog}
+          onRemoveLink={linkManagement.removeLink}
+          editorType={editorType}
+          onEditorTypeChange={onEditorTypeChange}
+        />
       )}
 
       {/* Link input dialog */}
-      {showLinkInput && (
-        <div className="flex-shrink-0 flex items-center gap-2 px-2 py-2 border-b border-border bg-muted/50">
-          <LinkIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-          <input
-            ref={linkInputRef}
-            type="url"
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                setLink()
-              } else if (e.key === 'Escape') {
-                setShowLinkInput(false)
-                setLinkUrl('')
-              }
-            }}
-            placeholder="Enter URL (e.g., https://example.com)"
-            className={cn(
-              'flex-1 px-2 py-1 text-sm',
-              'bg-muted border border-border rounded',
-              'text-foreground placeholder:text-muted-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-primary'
-            )}
-          />
-          <button
-            type="button"
-            onClick={setLink}
-            className="px-3 py-1 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded transition-colors"
-          >
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowLinkInput(false)
-              setLinkUrl('')
-            }}
-            className="px-3 py-1 text-sm bg-muted hover:bg-muted/80 text-foreground rounded transition-colors"
-          >
-            Cancel
-          </button>
+      {linkManagement.isDialogOpen && (
+        <LinkDialog
+          linkUrl={linkManagement.linkUrl}
+          onLinkUrlChange={linkManagement.setLinkUrl}
+          onSave={linkManagement.saveLink}
+          onClose={linkManagement.closeDialog}
+          inputRef={linkManagement.linkInputRef}
+        />
+      )}
+
+      {/* Error display */}
+      {error && (
+        <div className="px-4 py-2 text-sm text-destructive bg-destructive/10 border-t border-destructive/20">
+          {error}
         </div>
       )}
 

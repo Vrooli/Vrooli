@@ -218,6 +218,25 @@
       "updatedAt": "2026-01-23T00:00:00Z"
     },
     {
+      "id": "documentation-health",
+      "file": "documentation-health.md",
+      "name": "Documentation Health",
+      "description": "Ensure documentation quality, consistency, and bidirectional traceability between code and docs. Includes audit checklist and reference format standards.",
+      "modes": [
+        "Steer",
+        "Documentation",
+        "Audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "FileText",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-24T00:00:00Z",
+      "updatedAt": "2026-01-24T13:54:52-05:00"
+    },
+    {
       "id": "assumption-mapping-and-hardening",
       "file": "assumption-mapping-and-hardening.md",
       "name": "Assumption Mapping \u0026 Hardening",

@@ -149,18 +149,18 @@ Some skills need to assess existing codebases at any maturity level before presc
 - **A documentation template** for recording findings
 
 **Example audit pattern:**
-```markdown
+````markdown
 ### **Coherence Audit**
 
 #### Step 1: State Inventory
-\`\`\`bash
+```bash
 rg "useState\(" --type tsx -c | sort -t: -k2 -nr | head -20
-\`\`\`
+```
 
 **Red flags:**
 - [ ] Files with 10+ useState calls → candidate for consolidation
 - [ ] Similar state shapes in multiple components → missing shared abstraction
-```
+````
 
 Audit sections make skills applicable to brownfield projects, not just greenfield development.
 

@@ -62,9 +62,20 @@ export const CodeBlockExtension = CodeBlockBase.extend<CodeBlockOptions>({
         default: '',
         parseHTML: (element: HTMLElement) => {
           // Try to get language from class (e.g., "language-typescript")
-          const className = element.className || ''
-          const classMatch = className.match(/language-(\w+)/)
-          return classMatch ? classMatch[1] : ''
+          // Check both <pre> element and its <code> child (marked puts class on <code>)
+          const preClassName = element.className || ''
+          const preMatch = preClassName.match(/language-(\w+)/)
+          if (preMatch) return preMatch[1]
+
+          // Check the <code> child element (this is where marked puts the language class)
+          const codeChild = element.firstElementChild
+          if (codeChild) {
+            const codeClassName = codeChild.className || ''
+            const codeMatch = codeClassName.match(/language-(\w+)/)
+            if (codeMatch) return codeMatch[1]
+          }
+
+          return ''
         },
         renderHTML: (attributes: Record<string, unknown>) => {
           const lang = attributes.language

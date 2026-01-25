@@ -20,6 +20,10 @@ vi.mock('@monaco-editor/react', () => ({
   default: ({ value }: { value: string }) => (
     <div data-testid="monaco-editor">{value}</div>
   ),
+  useMonaco: () => ({
+    MarkerSeverity: { Warning: 4, Error: 8 },
+    editor: { setModelMarkers: vi.fn() },
+  }),
 }))
 
 // Mock TipTapEditor
