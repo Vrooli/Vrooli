@@ -3,6 +3,9 @@
  *
  * Manages camera position, target, mode, and history for smooth transitions.
  */
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#camera-system
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#state-management-flow
+// DOC: docs/SEAMS.md#2-zustand-stores-state-injection
 
 import { create } from 'zustand'
 

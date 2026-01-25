@@ -554,6 +554,167 @@ This separation means:
 - UI handles all user preferences (favorites, theme, view mode)
 - No need to sync favorites to server (they're personal UI state)
 
+## 3D World Testing Seams
+
+The 3D world visualization system has clear testing seams at multiple layers.
+
+### 1. MemberProvider (Dependency Injection)
+
+**Location:** `ui/src/components/world/MemberProvider.tsx`
+
+**Purpose:** Enables swapping member implementations for testing or alternative visualizations.
+
+**Interface:**
+```typescript
+interface MemberConfig {
+  Component: React.ComponentType<MemberProps>
+  preloadAssets?: () => Promise<void>
+  displayName: string
+  description?: string
+}
+
+type MemberRegistry = Record<string, MemberConfig>
+```
+
+**Testing Strategy:**
+- Register mock member components via `registerMember()`
+- Test different member implementations in isolation
+- Verify DI context propagation
+
+**Example:**
+```typescript
+import { registerMember, MemberProvider } from '@/components/world'
+
+const MockMember = ({ onMemberClick }: MemberProps) => (
+  <mesh onClick={onMemberClick}>
+    <boxGeometry args={[1, 1, 1]} />
+  </mesh>
+)
+
+registerMember('mock', {
+  Component: MockMember,
+  displayName: 'Test Member',
+})
+
+// Use in tests
+<MemberProvider member="mock">{children}</MemberProvider>
+```
+
+### 2. Zustand Stores (State Injection)
+
+**Locations:**
+- `ui/src/stores/cameraStore.ts`
+- `ui/src/stores/graphicsStore.ts`
+- `ui/src/stores/interactionStore.ts`
+- `ui/src/stores/accessoryStore.ts`
+- `ui/src/stores/environmentStore.ts`
+
+**Purpose:** Centralized state management with testing hooks.
+
+**Testing Strategy:**
+- Access stores directly for state manipulation
+- Use store's `reset()` methods between tests
+- Mock initial state via store creation
+
+**Example:**
+```typescript
+import { useCameraStore } from '@/stores/cameraStore'
+
+beforeEach(() => {
+  // Reset to default state
+  useCameraStore.setState({
+    position: [0, 15, 15],
+    target: [0, 0, 0],
+    mode: 'freeform',
+    focusedMemberId: null,
+  })
+})
+
+test('zooms to member', () => {
+  const { zoomToMember } = useCameraStore.getState()
+  zoomToMember('member-1', [5, 0, 5])
+
+  const state = useCameraStore.getState()
+  expect(state.mode).toBe('zoomed-member')
+  expect(state.focusedMemberId).toBe('member-1')
+})
+```
+
+### 3. MaterialProvider (Material Cache)
+
+**Location:** `ui/src/components/world/materials/MaterialProvider.tsx`
+
+**Purpose:** Caches material instances for memory efficiency.
+
+**Interface:**
+```typescript
+interface MaterialCache {
+  getMaterial: (preset: PresetName, color: string) => THREE.Material
+  clear: () => void
+  stats: () => { count: number; presets: string[] }
+}
+```
+
+**Testing Strategy:**
+- Use `stats()` to verify caching behavior
+- Use `clear()` for cleanup between tests
+- Test outside provider for fallback behavior
+
+### 4. Graphics Tier System
+
+**Location:** `ui/src/stores/graphicsStore.ts`, `ui/src/config/graphics.ts`
+
+**Purpose:** Configurable rendering quality tiers.
+
+**Testing Strategy:**
+- Set specific tiers to test feature flags
+- Verify component behavior at each tier
+- Test tier auto-detection logic
+
+**Example:**
+```typescript
+import { useGraphicsStore } from '@/stores/graphicsStore'
+
+test('disables post-processing on low tier', () => {
+  useGraphicsStore.getState().setTier('low')
+  const { config } = useGraphicsStore.getState()
+
+  expect(config.postProcessing).toBe(false)
+  expect(config.shadows).toBe(false)
+})
+```
+
+### 5. React Three Fiber Testing
+
+**Testing Strategy:**
+- Use `@react-three/test-renderer` for isolated component tests
+- Mock R3F hooks for unit tests
+- Use actual Canvas for integration tests
+
+**Example:**
+```typescript
+import ReactThreeTestRenderer from '@react-three/test-renderer'
+import { GeometricMember } from '@/components/world'
+
+test('renders member at position', async () => {
+  const renderer = await ReactThreeTestRenderer.create(
+    <GeometricMember
+      position={[0, 0, 0]}
+      cursorPosition={null}
+      selectedNodes={[]}
+      isAnimating={false}
+    />
+  )
+
+  const group = renderer.scene.children[0]
+  expect(group.position.toArray()).toEqual([0, 0, 0])
+})
+```
+
+For detailed architecture documentation, see [DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md].
+
+---
+
 ## Related Skills
 
 - `seam-discovery-and-enforcement.md` - The skill that guided this architecture

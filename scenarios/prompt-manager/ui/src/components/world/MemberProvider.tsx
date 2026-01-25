@@ -2,6 +2,8 @@
  * Member Provider - Dependency injection for member components.
  * Allows easy swapping of member implementations.
  */
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#dependency-injection-pattern
+// DOC: docs/SEAMS.md#1-memberprovider-dependency-injection
 
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useMemo } from 'react'

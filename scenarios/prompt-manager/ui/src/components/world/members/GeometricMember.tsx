@@ -1,7 +1,8 @@
 /**
  * GeometricMember - A 3D geometric member built with Three.js primitives.
- * Features cursor tracking, idle animations, and reaction animations.
+ * Features cursor tracking, idle animations, reaction animations, and hover effects.
  */
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#geometricmember-anatomy
 
 import { useRef, useMemo, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
@@ -9,6 +10,7 @@ import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
 import type { MemberProps } from '@/types/world'
+import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 
 // Default member colors
 const DEFAULT_COLORS = {
@@ -27,8 +29,15 @@ export function GeometricMember({
   isAnimating: _isAnimating,
   onMemberClick,
   colors,
+  memberId,
 }: MemberProps) {
   void _isAnimating // Reserved for future animation triggers
+
+  // Hover highlighting - only if memberId is provided
+  const { isHovered, hoverProps } = useHoverHighlight(memberId ?? 'unknown', {
+    enabled: !!memberId,
+  })
+
   // Merge custom colors with defaults
   const COLORS = useMemo(
     () => ({
@@ -188,7 +197,7 @@ export function GeometricMember({
   })
 
   return (
-    <group ref={groupRef} position={position} onClick={handleClick}>
+    <group ref={groupRef} position={position} onClick={handleClick} {...hoverProps}>
       {/* Body - capsule shape */}
       <mesh ref={bodyRef} position={[0, -0.3, 0]} material={materials.body}>
         <capsuleGeometry args={[0.25, 0.5, 8, 16]} />
@@ -239,6 +248,14 @@ export function GeometricMember({
           <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
         </mesh>
       </group>
+
+      {/* Hover glow effect */}
+      {isHovered && (
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[0.55, 16, 16]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.08} />
+        </mesh>
+      )}
 
       {/* Floating orbs around member when selected */}
       {selectedNodes.length > 0 && (

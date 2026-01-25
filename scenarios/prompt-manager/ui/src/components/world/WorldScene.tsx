@@ -4,6 +4,7 @@
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
  * This scene now focuses on member display with ambient environment.
  */
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
 import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'

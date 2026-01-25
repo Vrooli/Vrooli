@@ -35,6 +35,7 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@react-three/drei": "9.88",
     "@react-three/fiber": "8.15",
+    "@react-three/postprocessing": "^3.0.4",
     "@tanstack/react-query": "^5.17.0",
     "@tiptap/extension-code": "^2.27.2",
     "@tiptap/extension-code-block": "^2.27.2",

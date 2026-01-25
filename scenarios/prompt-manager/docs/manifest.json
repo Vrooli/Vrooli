@@ -1,0 +1,39 @@
+{
+  "version": "1.0.0",
+  "title": "Prompt Manager Documentation",
+  "description": "Documentation for the prompt-manager scenario including API, UI, and 3D world visualization system",
+  "defaultDocument": "concepts/3D-WORLD-ARCHITECTURE.md",
+  "sections": [
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "lightbulb",
+      "documents": [
+        {
+          "path": "concepts/3D-WORLD-ARCHITECTURE.md",
+          "title": "3D World Architecture",
+          "description": "Component hierarchy, state management, and rendering pipeline for the 3D visualization system",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "SEAMS.md",
+          "title": "Testing Seams",
+          "description": "Integration boundaries, dependency injection points, and testing strategies",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["concepts"],
+    "secondary": ["internal"]
+  }
+}

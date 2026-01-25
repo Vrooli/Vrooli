@@ -5,6 +5,8 @@
  * When "Set Skills" is clicked on a member, it triggers the sidebar to
  * enter skill selection mode with checkboxes.
  */
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
+// DOC: docs/SEAMS.md#3d-world-testing-seams
 
 import { Suspense, useCallback, useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
@@ -23,6 +25,9 @@ import { CombinePanel } from './CombinePanel'
 import { MemberOverlay } from './MemberOverlay'
 import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { RenderPipeline } from './rendering/RenderPipeline'
+import { EnvironmentSetup } from './rendering/EnvironmentSetup'
+import { MaterialProvider } from './materials/MaterialProvider'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
@@ -254,18 +259,23 @@ export function WorldCanvas({
         dpr={[1, 2]}
       >
         <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
-        <MemberProvider member={memberType}>
-          <Suspense fallback={null}>
-            <WorldScene
-              cameraState={cameraState}
-              selectedNodeIds={selectedSkillIds}
-              cursorPosition={cursorPosition}
-              membersWithPositions={membersWithPositions}
-              onMemberClick={handleMemberClick}
-              isDarkMode={isDarkMode}
-            />
-          </Suspense>
-        </MemberProvider>
+        <RenderPipeline>
+          <EnvironmentSetup />
+          <MaterialProvider>
+            <MemberProvider member={memberType}>
+              <Suspense fallback={null}>
+                <WorldScene
+                  cameraState={cameraState}
+                  selectedNodeIds={selectedSkillIds}
+                  cursorPosition={cursorPosition}
+                  membersWithPositions={membersWithPositions}
+                  onMemberClick={handleMemberClick}
+                  isDarkMode={isDarkMode}
+                />
+              </Suspense>
+            </MemberProvider>
+          </MaterialProvider>
+        </RenderPipeline>
       </Canvas>
 
       {/* Loading indicator */}
