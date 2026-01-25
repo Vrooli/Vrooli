@@ -108,6 +108,8 @@ function SectionHeader({ title, count, icon: Icon, color }: {
 function FileItem({ file, onSelect }: { file: RelatedFile; onSelect: () => void }) {
   const Icon = getRelationIcon(file.relation_type);
   const color = getRelationColor(file.relation_type);
+  const fileName = file.path.split("/").pop() || file.path;
+  const dirPath = file.path.includes("/") ? file.path.substring(0, file.path.lastIndexOf("/")) : "";
 
   return (
     <button
@@ -116,9 +118,16 @@ function FileItem({ file, onSelect }: { file: RelatedFile; onSelect: () => void 
       className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-slate-800/50 transition-colors"
     >
       <Icon className={`h-4 w-4 flex-shrink-0 ${color}`} />
-      <span className="flex-1 truncate font-mono text-xs text-slate-300">
-        {file.path}
-      </span>
+      <div className="flex-1 min-w-0 flex items-baseline gap-2">
+        <span className="font-mono text-xs font-medium text-slate-200 truncate">
+          {fileName}
+        </span>
+        {dirPath && (
+          <span className="text-xs text-slate-500 truncate">
+            {dirPath}
+          </span>
+        )}
+      </div>
     </button>
   );
 }

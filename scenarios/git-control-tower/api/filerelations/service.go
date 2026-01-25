@@ -165,6 +165,7 @@ func (s *Service) findConventionFiles(ctx context.Context, filePath string, repo
 					testPatterns = append(testPatterns,
 						nameWithoutExt+".test"+altExt,
 						nameWithoutExt+".spec"+altExt,
+						nameWithoutExt+"_test"+altExt,
 					)
 				}
 			}
@@ -185,23 +186,26 @@ func (s *Service) findConventionFiles(ctx context.Context, filePath string, repo
 			}
 		}
 
-		// 2. Check __tests__ subdirectory
-		testsSubDir := filepath.Join(dir, "__tests__")
-		for _, pattern := range testPatterns {
-			testPath := filepath.Join(testsSubDir, pattern)
-			if !foundPaths[testPath] && s.fileExists(repoRoot, testPath) {
-				foundPaths[testPath] = true
-				related = append(related, RelatedFile{
-					Path:         testPath,
-					RelationType: RelationTest,
-				})
+		// 2. Check __tests__ and __test__ subdirectories (both common conventions)
+		testsSubDirs := []string{"__tests__", "__test__"}
+		for _, subDir := range testsSubDirs {
+			testsSubDir := filepath.Join(dir, subDir)
+			for _, pattern := range testPatterns {
+				testPath := filepath.Join(testsSubDir, pattern)
+				if !foundPaths[testPath] && s.fileExists(repoRoot, testPath) {
+					foundPaths[testPath] = true
+					related = append(related, RelatedFile{
+						Path:         testPath,
+						RelationType: RelationTest,
+					})
+				}
 			}
 		}
 
 		// 3. Check top-level test directories mirroring the source structure
 		// e.g., src/components/Button.tsx -> tests/components/Button.test.tsx
 		// or src/components/Button.tsx -> test/src/components/Button.test.tsx
-		topLevelTestDirs := []string{"tests", "test", "__tests__"}
+		topLevelTestDirs := []string{"tests", "test", "__tests__", "__test__"}
 		for _, testDir := range topLevelTestDirs {
 			// Try direct mirror (tests/components/Button.test.tsx for src/components/Button.tsx)
 			testDirPath := filepath.Join(testDir, dir)

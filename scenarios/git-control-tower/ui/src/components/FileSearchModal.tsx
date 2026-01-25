@@ -307,11 +307,18 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
                   }`}
                 >
                   <FileCode className={`h-4 w-4 flex-shrink-0 ${getFileIconColor(file.language)}`} />
-                  <span className="flex-1 truncate font-mono text-sm">
-                    {file.path}
-                  </span>
+                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                    <span className="font-mono text-sm font-medium truncate">
+                      {file.path.split("/").pop()}
+                    </span>
+                    {file.path.includes("/") && (
+                      <span className="text-xs text-slate-500 truncate">
+                        {file.path.substring(0, file.path.lastIndexOf("/"))}
+                      </span>
+                    )}
+                  </div>
                   {file.status === "untracked" && (
-                    <span className="text-xs text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 rounded">
+                    <span className="text-xs text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 rounded flex-shrink-0">
                       new
                     </span>
                   )}

@@ -79,7 +79,8 @@ export function useDiff(path?: string, staged = false, untracked = false, commit
   return useQuery({
     queryKey: queryKeys.diff(path, staged, untracked, commit, mode),
     queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any),
-    enabled: true
+    // Only enable when we have a valid path, especially important for "any" file viewing
+    enabled: Boolean(path)
   });
 }
 
