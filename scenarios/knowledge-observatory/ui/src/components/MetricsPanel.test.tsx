@@ -50,4 +50,14 @@ describe("MetricsPanel", () => {
     expect(screen.getByText(/alpha/i)).toBeDefined();
     expect(screen.getByText(/12 vectors/i)).toBeDefined();
   });
+
+  it("falls back safely when the view model is missing", () => {
+    const unsafeProps = {
+      ...createProps(),
+      viewModel: undefined as unknown as MetricsViewModel,
+    };
+
+    expect(() => render(<MetricsPanel {...unsafeProps} />)).not.toThrow();
+    expect(screen.getByText(/unknown condition/i)).toBeDefined();
+  });
 });

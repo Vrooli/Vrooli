@@ -56,4 +56,43 @@ describe("SearchPanel", () => {
     expect(screen.getByText(/Score: 90.0%/i)).toBeDefined();
     expect(screen.getByText(/Metadata/i)).toBeDefined();
   });
+
+  it("renders a safe metadata fallback when JSON serialization fails", () => {
+    const metadata: Record<string, unknown> = {};
+    metadata.self = metadata;
+
+    render(
+      <SearchPanel
+        {...createProps({
+          hasData: true,
+          hasResults: true,
+          totalResults: 1,
+          tookMsLabel: "8ms",
+          results: [
+            {
+              id: "r-2",
+              content: "Result content",
+              metadata,
+              scoreLabel: "88.0%",
+              hasMetadata: true,
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText(/Unable to render metadata/i)).toBeDefined();
+  });
+
+  it("does not crash when handlers are missing", () => {
+    const unsafeProps = {
+      ...createProps(),
+      onQueryChange: undefined as unknown as SearchPanelProps["onQueryChange"],
+      onSubmit: undefined as unknown as SearchPanelProps["onSubmit"],
+      onClear: undefined as unknown as SearchPanelProps["onClear"],
+      onSampleClick: undefined as unknown as SearchPanelProps["onSampleClick"],
+    };
+
+    expect(() => render(<SearchPanel {...unsafeProps} />)).not.toThrow();
+  });
 });

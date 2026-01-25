@@ -4,6 +4,38 @@ import { Button } from "./ui/button";
 import { selectors } from "../consts/selectors";
 import type { SearchResultView } from "../controllers/knowledgeController";
 
+// AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
+
+const EMPTY_RESULTS: SearchResultView[] = [];
+const EMPTY_SAMPLE_QUERIES: string[] = [];
+const DEFAULT_ERROR_MESSAGE = "Search failed. Please try again.";
+const DEFAULT_DISPLAY_QUERY = "your query";
+
+function safeJsonStringify(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    console.warn("[knowledge-observatory] Unable to render metadata", error);
+    return "Unable to render metadata.";
+  }
+}
+
+function normalizeSamples(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return EMPTY_SAMPLE_QUERIES;
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+}
+
+function normalizeResults(value: unknown): SearchResultView[] {
+  if (!Array.isArray(value)) {
+    return EMPTY_RESULTS;
+  }
+
+  return value.filter((entry): entry is SearchResultView => Boolean(entry) && typeof entry === "object");
+}
+
 export type SearchPanelProps = {
   query: string;
   onQueryChange: (value: string) => void;
@@ -43,14 +75,50 @@ export function SearchPanel({
   tookMsLabel,
   results,
 }: SearchPanelProps) {
+  const safeSampleQueries = normalizeSamples(sampleQueries);
+  const safeResults = normalizeResults(results);
+  const safeDisplayQuery =
+    typeof displayQuery === "string" && displayQuery.trim().length > 0
+      ? displayQuery
+      : DEFAULT_DISPLAY_QUERY;
+  const safeErrorMessage =
+    typeof errorMessage === "string" && errorMessage.trim().length > 0
+      ? errorMessage
+      : DEFAULT_ERROR_MESSAGE;
+  const safeTotalResults = Number.isFinite(totalResults) ? totalResults : safeResults.length;
+  const safeTookMsLabel =
+    typeof tookMsLabel === "string" && tookMsLabel.trim().length > 0 ? tookMsLabel : "?ms";
+  const resolvedHasResults = hasResults || safeResults.length > 0;
+  const handleQueryChange = (value: string) => {
+    if (typeof onQueryChange === "function") {
+      onQueryChange(value);
+    }
+  };
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (typeof onSubmit === "function") {
+      onSubmit(event);
+    }
+  };
+  const handleClear = () => {
+    if (typeof onClear === "function") {
+      onClear();
+    }
+  };
+  const handleSampleClick = (value: string) => {
+    if (typeof onSampleClick === "function") {
+      onSampleClick(value);
+    }
+  };
+
   return (
     <div className="ko-stack-sm">
-      <form onSubmit={onSubmit} className="flex flex-col md:flex-row gap-3" data-testid={selectors.search.form}>
+      <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3" data-testid={selectors.search.form}>
         <div className="flex-1">
           <input
             type="text"
             value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder="Ask a question or describe the concept you want to find..."
             className="ko-input"
             data-testid={selectors.search.input}
@@ -76,7 +144,7 @@ export function SearchPanel({
           </Button>
           <Button
             type="button"
-            onClick={onClear}
+            onClick={handleClear}
             className="ko-button-secondary"
             data-testid={selectors.search.clear}
             disabled={isClearDisabled}
@@ -88,11 +156,11 @@ export function SearchPanel({
 
       <div className="flex flex-wrap items-center gap-2" data-testid={selectors.search.sampleGroup}>
         <span className="ko-meta">Try:</span>
-        {sampleQueries.map((sample) => (
+        {safeSampleQueries.map((sample, index) => (
           <Button
-            key={sample}
+            key={`${sample}-${index}`}
             type="button"
-            onClick={() => onSampleClick(sample)}
+            onClick={() => handleSampleClick(sample)}
             className="ko-button-secondary ko-button-compact"
             data-testid={selectors.search.sampleButton}
             data-query={sample}
@@ -110,7 +178,7 @@ export function SearchPanel({
           <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-red-300 ko-alert-title">Search Error</p>
-            <p className="ko-text-sm text-red-600 mt-1">{errorMessage}</p>
+            <p className="ko-text-sm text-red-600 mt-1">{safeErrorMessage}</p>
           </div>
         </div>
       )}
@@ -118,39 +186,47 @@ export function SearchPanel({
       {hasData && (
         <div className="ko-stack-sm">
           <div className="flex flex-wrap items-center justify-between ko-text-sm ko-muted" data-testid={selectors.search.resultsSummary}>
-            <span>Found {totalResults} results</span>
-            <span>Took {tookMsLabel}</span>
+            <span>Found {safeTotalResults} results</span>
+            <span>Took {safeTookMsLabel}</span>
           </div>
 
-          {!hasResults ? (
+          {!resolvedHasResults ? (
             <div
               className="ko-panel p-6 text-center"
               data-testid={selectors.search.emptyState}
             >
-              <p className="ko-muted">No results found for "{displayQuery}"</p>
+              <p className="ko-muted">No results found for "{safeDisplayQuery}"</p>
               <p className="ko-text-sm ko-subtle mt-1">Try a different phrasing or a broader concept.</p>
             </div>
           ) : (
             <div className="ko-stack-xs" data-testid={selectors.search.resultsList}>
-              {results.map((result) => {
+              {safeResults.map((result, index) => {
+                const resultId = typeof result.id === "string" && result.id.trim().length > 0 ? result.id : `result-${index + 1}`;
+                const content =
+                  typeof result.content === "string" && result.content.trim().length > 0
+                    ? result.content
+                    : "No content available";
+                const metadata = result.metadata && typeof result.metadata === "object" ? result.metadata : {};
+                const hasMetadata = result.hasMetadata && Object.keys(metadata).length > 0;
+
                 return (
                   <div
-                    key={result.id}
+                    key={resultId}
                     className="ko-card p-4 hover:border-green-500/70 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-4 mb-2">
-                      <span className="ko-text-xs text-green-500 font-mono">ID: {result.id}</span>
+                      <span className="ko-text-xs text-green-500 font-mono">ID: {resultId}</span>
                       <span className="ko-text-xs text-green-300 font-semibold">
                         Score: {result.scoreLabel}
                       </span>
                     </div>
-                    <p className="ko-text-sm text-green-200">{result.content}</p>
-                    {result.hasMetadata && (
+                    <p className="ko-text-sm text-green-200">{content}</p>
+                    {hasMetadata && (
                       <div className="mt-2 pt-2 border-t border-green-800/40">
                         <details className="ko-text-xs text-green-500">
                           <summary className="cursor-pointer hover:text-green-300">Metadata</summary>
                           <pre className="mt-2 p-2 bg-black/70 rounded overflow-x-auto text-green-200 font-mono">
-                            {JSON.stringify(result.metadata, null, 2)}
+                            {safeJsonStringify(metadata)}
                           </pre>
                         </details>
                       </div>

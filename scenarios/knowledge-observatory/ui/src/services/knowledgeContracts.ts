@@ -2,6 +2,9 @@ import { z } from "zod";
 import { fromJson, type GenMessage } from "@bufbuild/protobuf";
 import { createValidator } from "@bufbuild/protovalidate";
 import {
+  type InfrastructureHealthResponse,
+  type KnowledgeHealthResponse,
+  type SearchResponse,
   InfrastructureHealthResponseSchema,
   KnowledgeHealthResponseSchema,
   SearchResponseSchema,
@@ -9,7 +12,7 @@ import {
 
 const validator = createValidator();
 
-function createProtoSchema<T>(schema: GenMessage<T>, label: string) {
+function createProtoSchema<T>(schema: GenMessage<T>, label: string): z.ZodType<T> {
   return z.unknown().transform((value, ctx) => {
     try {
       const message = fromJson(schema, value, {
@@ -34,17 +37,20 @@ function createProtoSchema<T>(schema: GenMessage<T>, label: string) {
       });
       return z.NEVER;
     }
-  });
+  }) as z.ZodType<T>;
 }
 
-export const infrastructureHealthResponseSchema = createProtoSchema(
+export const infrastructureHealthResponseSchema: z.ZodType<InfrastructureHealthResponse> = createProtoSchema(
   InfrastructureHealthResponseSchema,
   "health"
 );
 
-export const searchResponseSchema = createProtoSchema(SearchResponseSchema, "search");
+export const searchResponseSchema: z.ZodType<SearchResponse> = createProtoSchema(
+  SearchResponseSchema,
+  "search"
+);
 
-export const knowledgeHealthResponseSchema = createProtoSchema(
+export const knowledgeHealthResponseSchema: z.ZodType<KnowledgeHealthResponse> = createProtoSchema(
   KnowledgeHealthResponseSchema,
   "knowledge health"
 );

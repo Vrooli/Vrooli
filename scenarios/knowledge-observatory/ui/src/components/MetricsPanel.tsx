@@ -3,6 +3,8 @@ import { Button } from "./ui/button";
 import { selectors } from "../consts/selectors";
 import type { MetricCardView, MetricsViewModel } from "../controllers/knowledgeController";
 
+// AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
+
 const toneStyles: Record<MetricCardView["tone"], { color: string; bg: string; border: string }> = {
   good: {
     color: "text-green-300",
@@ -21,8 +23,19 @@ const toneStyles: Record<MetricCardView["tone"], { color: string; bg: string; bo
   },
 };
 
+const EMPTY_METRIC_CARDS: MetricCardView[] = [];
+const EMPTY_COLLECTIONS: MetricsViewModel["collections"] = [];
+const DEFAULT_VIEW_MODEL: MetricsViewModel = {
+  metricCards: EMPTY_METRIC_CARDS,
+  collections: EMPTY_COLLECTIONS,
+  overallHealth: "unknown",
+  lastUpdated: "Unknown",
+  totalEntriesLabel: "Unknown",
+  hasMetrics: false,
+};
+
 function MetricCard({ label, percentageLabel, description, tone }: MetricCardView) {
-  const styles = toneStyles[tone];
+  const styles = toneStyles[tone] ?? toneStyles.medium;
 
   return (
     <div className={`ko-metric-card ${styles.border} ${styles.bg}`}>
@@ -53,6 +66,12 @@ export function MetricsPanel({
   viewModel,
   onRetry,
 }: MetricsPanelProps) {
+  const handleRetry = () => {
+    if (typeof onRetry === "function") {
+      onRetry();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -69,7 +88,7 @@ export function MetricsPanel({
         <div className="flex-1">
           <p className="text-red-300 ko-alert-title">Failed to load metrics</p>
           <p className="ko-text-sm text-red-600 mt-1">{errorMessage}</p>
-          <Button onClick={onRetry} className="mt-3 ko-button-danger">
+          <Button onClick={handleRetry} className="mt-3 ko-button-danger">
             Retry
           </Button>
         </div>
@@ -81,14 +100,30 @@ export function MetricsPanel({
     return (
       <div className="ko-panel p-6 text-center">
         <p className="ko-text-sm ko-muted">Metrics data is not available yet.</p>
-        <Button onClick={onRetry} className="mt-3 ko-button-primary">
+        <Button onClick={handleRetry} className="mt-3 ko-button-primary">
           Retry
         </Button>
       </div>
     );
   }
 
-  const { metricCards, collections, overallHealth, lastUpdated, totalEntriesLabel, hasMetrics } = viewModel;
+  const safeViewModel = viewModel ?? DEFAULT_VIEW_MODEL;
+  const metricCards = Array.isArray(safeViewModel.metricCards) ? safeViewModel.metricCards : EMPTY_METRIC_CARDS;
+  const collections = Array.isArray(safeViewModel.collections) ? safeViewModel.collections : EMPTY_COLLECTIONS;
+  const overallHealth =
+    typeof safeViewModel.overallHealth === "string" && safeViewModel.overallHealth.trim().length > 0
+      ? safeViewModel.overallHealth
+      : "unknown";
+  const lastUpdated =
+    typeof safeViewModel.lastUpdated === "string" && safeViewModel.lastUpdated.trim().length > 0
+      ? safeViewModel.lastUpdated
+      : "Unknown";
+  const totalEntriesLabel =
+    typeof safeViewModel.totalEntriesLabel === "string" && safeViewModel.totalEntriesLabel.trim().length > 0
+      ? safeViewModel.totalEntriesLabel
+      : "Unknown";
+  const hasMetrics = safeViewModel.hasMetrics || metricCards.length > 0;
+
   return (
     <div className="ko-stack">
       {/* Overall Status */}
@@ -98,7 +133,7 @@ export function MetricsPanel({
           <p className="ko-text-sm ko-muted capitalize">{overallHealth} condition</p>
         </div>
         <Button
-          onClick={onRetry}
+          onClick={handleRetry}
           variant="outline"
           size="sm"
           className="ko-button-outline"
@@ -126,8 +161,8 @@ export function MetricsPanel({
       {/* Metrics Grid */}
       {hasMetrics && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {metricCards.map((card) => (
-            <MetricCard key={card.label} {...card} />
+          {metricCards.map((card, index) => (
+            <MetricCard key={card.label || `metric-${index + 1}`} {...card} />
           ))}
         </div>
       )}
@@ -143,19 +178,31 @@ export function MetricsPanel({
             <h4 className="font-semibold text-green-300">Collections</h4>
           </div>
           <div className="ko-stack-sm">
-            {collections.map((collection) => {
+            {collections.map((collection, index) => {
+              const metrics = Array.isArray(collection.metrics) ? collection.metrics : [];
+              const name =
+                typeof collection.name === "string" && collection.name.trim().length > 0
+                  ? collection.name
+                  : `Collection ${index + 1}`;
+              const sizeLabel =
+                typeof collection.sizeLabel === "string" && collection.sizeLabel.trim().length > 0
+                  ? collection.sizeLabel
+                  : "Vectors: unknown";
+
               return (
-                <div key={collection.name} className="ko-card p-3 border-green-800/50">
+                <div key={name} className="ko-card p-3 border-green-800/50">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="ko-text-sm font-semibold text-green-200">{collection.name}</span>
-                    <span className="ko-text-xs ko-subtle">{collection.sizeLabel}</span>
+                    <span className="ko-text-sm font-semibold text-green-200">{name}</span>
+                    <span className="ko-text-xs ko-subtle">{sizeLabel}</span>
                   </div>
-                  {collection.metrics.length > 0 && (
+                  {metrics.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
-                      {collection.metrics.map((metric) => (
-                        <div key={`${collection.name}-${metric.label}`}>
-                          <span className="ko-subtle">{metric.label}:</span>
-                          <span className="text-green-300 ml-1">{metric.percentageLabel}</span>
+                      {metrics.map((metric, metricIndex) => (
+                        <div key={`${name}-${metric.label || metricIndex}`}>
+                          <span className="ko-subtle">{metric.label ?? "Metric"}:</span>
+                          <span className="text-green-300 ml-1">
+                            {metric.percentageLabel ?? "N/A"}
+                          </span>
                         </div>
                       ))}
                     </div>

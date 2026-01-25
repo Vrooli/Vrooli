@@ -4,7 +4,6 @@ import {
   searchKnowledge,
   type ApiHealthResponse,
   type CollectionHealth,
-  type QualityMetrics,
   type SearchResponse,
   type SearchResult,
   type HealthResponse,
