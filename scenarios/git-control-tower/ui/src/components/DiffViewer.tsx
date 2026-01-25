@@ -5,9 +5,12 @@ import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { ViewModeSelector } from "./ViewModeSelector";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { ImagePreview } from "./ImagePreview";
 import { useIsMobile } from "../hooks";
 import type { DiffResponse, DiffHunk, ViewMode, AnnotatedLine, LineChange } from "../lib/api";
 import { highlightCode, getLanguageFromPath, type HighlightToken, type HighlightedLine } from "../lib/highlighter";
+import { getFileTypeInfo } from "../lib/fileTypes";
 
 interface DiffViewerProps {
   diff?: DiffResponse;
@@ -72,6 +75,7 @@ function useHighlighting(content: string | undefined, filePath: string | undefin
   useEffect(() => {
     if (!content || !filePath) {
       setHighlighted(null);
+      setIsHighlighting(false);
       return;
     }
 
@@ -95,6 +99,7 @@ function useHighlighting(content: string | undefined, filePath: string | undefin
 
     return () => {
       cancelled = true;
+      setIsHighlighting(false);
     };
   }, [content, filePath]);
 
@@ -180,7 +185,7 @@ function DiffLine({ line, lineNumber }: { line: string; lineNumber?: number }) {
           {isContext ? lineNumber : ""}
         </span>
       )}
-      <pre className={`flex-1 px-3 py-0.5 whitespace-pre overflow-x-auto ${textColor}`}>
+      <pre className={`flex-1 px-3 py-0.5 whitespace-pre ${textColor}`}>
         {line || " "}
       </pre>
     </div>
@@ -219,7 +224,7 @@ function HighlightedCodeLine({
         {change === "deleted" && "-"}
       </span>
       {/* Code content */}
-      <pre className="flex-1 px-2 py-0.5 whitespace-pre overflow-x-auto text-slate-300">
+      <pre className="flex-1 px-2 py-0.5 whitespace-pre text-slate-300">
         {tokens ? <HighlightedTokens tokens={tokens} /> : " "}
       </pre>
     </div>
@@ -498,6 +503,7 @@ export function DiffViewer({
               onChange={onViewModeChange}
               compact={isMobile}
               disabled={isLoading}
+              filePath={selectedFile}
             />
           )}
 
@@ -625,6 +631,23 @@ export function DiffViewer({
               highlightedLines={highlightedLines}
             />
           )}
+
+          {/* Preview mode - render markdown or images */}
+          {selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && (() => {
+            const fileType = getFileTypeInfo(selectedFile);
+            if (fileType.category === "markdown") {
+              return <MarkdownPreview content={diff!.full_content!} />;
+            }
+            if (fileType.category === "image" && fileType.mimeType) {
+              return (
+                <ImagePreview
+                  src={`data:${fileType.mimeType};base64,${diff!.full_content}`}
+                  alt={selectedFile}
+                />
+              );
+            }
+            return null;
+          })()}
 
           {/* Binary diff notice */}
           {showBinaryNotice && (

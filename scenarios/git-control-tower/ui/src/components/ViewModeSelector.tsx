@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { cn } from "../lib/utils";
 import type { ViewMode } from "../lib/api";
+import { getFileTypeInfo } from "../lib/fileTypes";
 
 interface ViewModeSelectorProps {
   mode: ViewMode;
@@ -7,6 +9,8 @@ interface ViewModeSelectorProps {
   disabled?: boolean;
   className?: string;
   compact?: boolean;
+  /** File path to determine if preview is available */
+  filePath?: string;
 }
 
 interface ModeOption {
@@ -16,7 +20,7 @@ interface ModeOption {
   description: string;
 }
 
-const modes: ModeOption[] = [
+const baseModes: ModeOption[] = [
   {
     value: "diff",
     label: "Diff",
@@ -37,13 +41,31 @@ const modes: ModeOption[] = [
   }
 ];
 
+const previewMode: ModeOption = {
+  value: "preview",
+  label: "Preview",
+  shortLabel: "View",
+  description: "Preview rendered content"
+};
+
 export function ViewModeSelector({
   mode,
   onChange,
   disabled = false,
   className,
-  compact = false
+  compact = false,
+  filePath
 }: ViewModeSelectorProps) {
+  const modes = useMemo(() => {
+    if (!filePath) return baseModes;
+
+    const fileType = getFileTypeInfo(filePath);
+    if (fileType.canPreview) {
+      return [...baseModes, previewMode];
+    }
+    return baseModes;
+  }, [filePath]);
+
   return (
     <div
       className={cn(

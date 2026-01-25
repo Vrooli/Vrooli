@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,6 +54,24 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 	return getTrackedDiff(ctx, deps, req, repoDir, mode)
 }
 
+// isBinaryFile checks if a file is binary based on its extension
+func isBinaryFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	binaryExts := map[string]bool{
+		".png":  true,
+		".jpg":  true,
+		".jpeg": true,
+		".gif":  true,
+		".svg":  true,
+		".webp": true,
+		".ico":  true,
+		".bmp":  true,
+		".tiff": true,
+		".pdf":  true,
+	}
+	return binaryExts[ext]
+}
+
 // getSourceContent returns just the file content without any diff information
 func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir string) (*DiffResponse, error) {
 	cleanPath := cleanFilePath(req.Path)
@@ -61,6 +80,8 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 	}
 
 	var content string
+	var annotatedLines []AnnotatedLine
+	isBinary := isBinaryFile(cleanPath)
 
 	if req.Commit != "" {
 		// Get file content at a specific commit
@@ -68,7 +89,12 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 		if err != nil {
 			return nil, fmt.Errorf("show file at commit: %w", err)
 		}
-		content = string(out)
+		if isBinary {
+			// Return base64 encoded for binary files
+			content = base64.StdEncoding.EncodeToString(out)
+		} else {
+			content = string(out)
+		}
 	} else {
 		// Get current file content from working directory
 		absPath := filepath.Join(repoDir, cleanPath)
@@ -76,17 +102,24 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 		if err != nil {
 			return nil, fmt.Errorf("read file: %w", err)
 		}
-		content = string(data)
+		if isBinary {
+			// Return base64 encoded for binary files
+			content = base64.StdEncoding.EncodeToString(data)
+		} else {
+			content = string(data)
+		}
 	}
 
-	// Build annotated lines (all lines, no change markers)
-	lines := strings.Split(content, "\n")
-	annotatedLines := make([]AnnotatedLine, len(lines))
-	for i, line := range lines {
-		annotatedLines[i] = AnnotatedLine{
-			Number:  i + 1,
-			Content: line,
-			Change:  LineChangeNone,
+	// Build annotated lines (all lines, no change markers) - only for text files
+	if !isBinary {
+		lines := strings.Split(content, "\n")
+		annotatedLines = make([]AnnotatedLine, len(lines))
+		for i, line := range lines {
+			annotatedLines[i] = AnnotatedLine{
+				Number:  i + 1,
+				Content: line,
+				Change:  LineChangeNone,
+			}
 		}
 	}
 

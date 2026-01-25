@@ -167,7 +167,7 @@ export interface DiffStats {
 }
 
 /** View mode for the diff viewer */
-export type ViewMode = "diff" | "full_diff" | "source";
+export type ViewMode = "diff" | "full_diff" | "source" | "preview";
 
 /** Type of change on a line */
 export type LineChange = "" | "added" | "deleted" | "modified";
