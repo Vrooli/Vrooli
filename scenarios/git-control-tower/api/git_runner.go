@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -27,7 +28,8 @@ type GitRunner interface {
 	Diff(ctx context.Context, repoDir string, path string, staged bool) ([]byte, error)
 
 	// Stage adds the specified paths to the git index.
-	Stage(ctx context.Context, repoDir string, paths []string) error
+	// Returns warnings (e.g., for ignored files) and an error if staging failed.
+	Stage(ctx context.Context, repoDir string, paths []string) (warnings []string, err error)
 
 	// Unstage removes the specified paths from the git index (git reset HEAD).
 	Unstage(ctx context.Context, repoDir string, paths []string) error
@@ -197,20 +199,37 @@ func (r *ExecGitRunner) Diff(ctx context.Context, repoDir string, path string, s
 	return nil, fmt.Errorf("git diff failed: %w", err)
 }
 
-func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []string) error {
+func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []string) ([]string, error) {
 	args := []string{"-C", repoDir, "add", "--"}
 	args = append(args, paths...)
 
 	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
-	out, err := cmd.CombinedOutput()
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	// Parse stderr for warnings even if command succeeded
+	var warnings []string
+	stderrStr := strings.TrimSpace(stderr.String())
+	if stderrStr != "" {
+		// Check for known warning patterns that aren't fatal errors
+		if strings.Contains(stderrStr, "ignored by one of your .gitignore files") ||
+			strings.Contains(stderrStr, "hint:") ||
+			strings.Contains(stderrStr, "warning:") {
+			warnings = append(warnings, stderrStr)
+		}
+	}
+
 	if err != nil {
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {
-			return fmt.Errorf("git add failed: %w (%s)", err, strings.TrimSpace(string(out)))
+			return warnings, fmt.Errorf("git add failed: %w (%s)", err, stderrStr)
 		}
-		return fmt.Errorf("git add failed: %w", err)
+		return warnings, fmt.Errorf("git add failed: %w", err)
 	}
-	return nil
+	return warnings, nil
 }
 
 func (r *ExecGitRunner) Unstage(ctx context.Context, repoDir string, paths []string) error {

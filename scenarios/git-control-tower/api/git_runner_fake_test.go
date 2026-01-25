@@ -37,6 +37,7 @@ type FakeGitRunner struct {
 	StatusError          error
 	DiffError            error
 	StageError           error
+	StageWarnings        []string // Warnings to return from Stage()
 	UnstageError         error
 	CommitError          error
 	RevParseError        error
@@ -233,11 +234,12 @@ index 1234567..abcdef0 100644
 }
 
 // Stage simulates adding files to the index.
-func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []string) error {
+// Returns warnings (if any) and an error if staging failed.
+func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []string) ([]string, error) {
 	f.recordCall("Stage", append([]string{repoDir}, paths...)...)
 
 	if f.StageError != nil {
-		return f.StageError
+		return f.StageWarnings, f.StageError
 	}
 
 	// Move files from unstaged/untracked to staged
@@ -259,7 +261,7 @@ func (f *FakeGitRunner) Stage(ctx context.Context, repoDir string, paths []strin
 		}
 	}
 
-	return nil
+	return f.StageWarnings, nil
 }
 
 // Unstage simulates removing files from the index.

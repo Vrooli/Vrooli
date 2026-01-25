@@ -55,12 +55,13 @@ func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*Stage
 		}, nil
 	}
 
-	err := deps.Git.Stage(ctx, repoDir, validPaths)
+	warnings, err := deps.Git.Stage(ctx, repoDir, validPaths)
 	if err != nil {
 		return &StageResponse{
 			Success:   false,
 			Failed:    validPaths,
 			Errors:    []string{err.Error()},
+			Warnings:  warnings,
 			Timestamp: time.Now().UTC(),
 		}, nil
 	}
@@ -68,6 +69,7 @@ func StageFiles(ctx context.Context, deps StagingDeps, req StageRequest) (*Stage
 	return &StageResponse{
 		Success:   true,
 		Staged:    validPaths,
+		Warnings:  warnings,
 		Timestamp: time.Now().UTC(),
 	}, nil
 }

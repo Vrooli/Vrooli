@@ -14,6 +14,7 @@ type StageResponse struct {
 	Staged    []string  `json:"staged"`
 	Failed    []string  `json:"failed,omitempty"`
 	Errors    []string  `json:"errors,omitempty"`
+	Warnings  []string  `json:"warnings,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }
 

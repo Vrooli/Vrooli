@@ -206,6 +206,7 @@ export interface StageResponse {
   staged: string[];
   failed?: string[];
   errors?: string[];
+  warnings?: string[];
   timestamp: string;
 }
 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
 import { MobileNav } from "./components/MobileNav";
@@ -22,6 +23,7 @@ import { useIsMobile } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode } from "./lib/api";
+import { getFileTypeInfo } from "./lib/fileTypes";
 
 /** State for viewing a historical commit (read-only mode) */
 export interface ViewingCommit {
@@ -117,6 +119,10 @@ export default function App() {
     tone: "success" | "info" | "warning";
     message: string;
   } | null>(null);
+  const [warningNotice, setWarningNotice] = useState<{
+    message: string;
+    details?: string;
+  } | null>(null);
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
   // File search state
   const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
@@ -139,6 +145,14 @@ export default function App() {
     }, 4000);
     return () => window.clearTimeout(timeout);
   }, [pushNotice]);
+
+  useEffect(() => {
+    if (!warningNotice) return;
+    const timeout = window.setTimeout(() => {
+      setWarningNotice(null);
+    }, 4000);
+    return () => window.clearTimeout(timeout);
+  }, [warningNotice]);
 
   // Selected file state
   const selectionKey = useCallback(
@@ -471,7 +485,7 @@ export default function App() {
       stageMutation.mutate(
         { paths: pathsToStage },
         {
-          onSuccess: () => {
+          onSuccess: (data) => {
             // If we were viewing this file's unstaged diff, switch to staged
             if (selectedFile === path && !selectedIsStaged) {
               setSelectedIsStaged(true);
@@ -488,6 +502,13 @@ export default function App() {
                 queryKey: queryKeys.diff(stagedPath, true, false)
               });
             });
+            // Show warning notice if there were warnings (e.g., ignored files)
+            if (data.warnings && data.warnings.length > 0) {
+              setWarningNotice({
+                message: "Some files were skipped",
+                details: data.warnings.join("\n")
+              });
+            }
           }
         }
       );
@@ -541,13 +562,37 @@ export default function App() {
     ];
     if (allUnstaged.length === 0) return;
 
-    stageMutation.mutate({ paths: allUnstaged });
+    stageMutation.mutate(
+      { paths: allUnstaged },
+      {
+        onSuccess: (data) => {
+          if (data.warnings && data.warnings.length > 0) {
+            setWarningNotice({
+              message: "Some files were skipped",
+              details: data.warnings.join("\n")
+            });
+          }
+        }
+      }
+    );
   }, [stageMutation, statusQuery.data]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
       if (paths.length === 0) return;
-      stageMutation.mutate({ paths });
+      stageMutation.mutate(
+        { paths },
+        {
+          onSuccess: (data) => {
+            if (data.warnings && data.warnings.length > 0) {
+              setWarningNotice({
+                message: "Some files were skipped",
+                details: data.warnings.join("\n")
+              });
+            }
+          }
+        }
+      );
     },
     [stageMutation]
   );
@@ -559,9 +604,15 @@ export default function App() {
     stageMutation.mutate(
       { paths: approvedPendingPaths },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           if (suggestedMessage) {
             setCommitMessage(suggestedMessage);
+          }
+          if (data.warnings && data.warnings.length > 0) {
+            setWarningNotice({
+              message: "Some files were skipped",
+              details: data.warnings.join("\n")
+            });
           }
         }
       }
@@ -950,6 +1001,25 @@ export default function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
+  useEffect(() => {
+    if (!selectedFile) return;
+
+    const fileType = getFileTypeInfo(selectedFile);
+    const availableModes: ViewMode[] = ["diff", "full_diff", "source"];
+    if (fileType.canPreview) {
+      availableModes.push("preview");
+    }
+
+    // If current mode is not available for this file, fallback
+    if (!availableModes.includes(viewMode)) {
+      // For files from search (isViewingAnyFile), prefer "source"
+      // For git changes, prefer "diff"
+      const fallbackMode = isViewingAnyFile ? "source" : "diff";
+      setViewMode(fallbackMode);
+    }
+  }, [selectedFile, viewMode, isViewingAnyFile]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1803,23 +1873,71 @@ export default function App() {
           switchBranchMutation.error ||
           publishBranchMutation.error) && (
           <div
-            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm"
+            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm shadow-lg"
             data-testid="error-toast"
           >
-            <p className="font-medium">Operation failed</p>
-            <p className="text-xs mt-1 text-red-300">
-              {(
-                stageMutation.error ||
-                unstageMutation.error ||
-                discardMutation.error ||
-                ignoreMutation.error ||
-                pushMutation.error ||
-                pullMutation.error ||
-                createBranchMutation.error ||
-                switchBranchMutation.error ||
-                publishBranchMutation.error
-              )?.message}
-            </p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-medium">Operation failed</p>
+                <p className="text-xs mt-1 text-red-300">
+                  {(
+                    stageMutation.error ||
+                    unstageMutation.error ||
+                    discardMutation.error ||
+                    ignoreMutation.error ||
+                    pushMutation.error ||
+                    pullMutation.error ||
+                    createBranchMutation.error ||
+                    switchBranchMutation.error ||
+                    publishBranchMutation.error
+                  )?.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  stageMutation.reset();
+                  unstageMutation.reset();
+                  discardMutation.reset();
+                  ignoreMutation.reset();
+                  pushMutation.reset();
+                  pullMutation.reset();
+                  createBranchMutation.reset();
+                  switchBranchMutation.reset();
+                  publishBranchMutation.reset();
+                }}
+                className="text-red-400 hover:text-red-200 p-1"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Warning Toast - positioned above bottom nav */}
+        {warningNotice && (
+          <div
+            className="fixed bottom-20 left-4 right-4 px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
+            data-testid="warning-toast"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-medium">{warningNotice.message}</p>
+                {warningNotice.details && (
+                  <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {warningNotice.details}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setWarningNotice(null)}
+                className="text-amber-400 hover:text-amber-200 p-1"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
         {pushNotice && (
@@ -1955,23 +2073,71 @@ export default function App() {
         switchBranchMutation.error ||
         publishBranchMutation.error) && (
         <div
-          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md"
+          className="fixed bottom-4 right-4 px-4 py-3 rounded-lg bg-red-950 border border-red-800 text-red-200 text-sm max-w-md shadow-lg"
           data-testid="error-toast"
         >
-          <p className="font-medium">Operation failed</p>
-          <p className="text-xs mt-1 text-red-300">
-            {(
-              stageMutation.error ||
-              unstageMutation.error ||
-              discardMutation.error ||
-              ignoreMutation.error ||
-              pushMutation.error ||
-              pullMutation.error ||
-              createBranchMutation.error ||
-              switchBranchMutation.error ||
-              publishBranchMutation.error
-            )?.message}
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium">Operation failed</p>
+              <p className="text-xs mt-1 text-red-300">
+                {(
+                  stageMutation.error ||
+                  unstageMutation.error ||
+                  discardMutation.error ||
+                  ignoreMutation.error ||
+                  pushMutation.error ||
+                  pullMutation.error ||
+                  createBranchMutation.error ||
+                  switchBranchMutation.error ||
+                  publishBranchMutation.error
+                )?.message}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                stageMutation.reset();
+                unstageMutation.reset();
+                discardMutation.reset();
+                ignoreMutation.reset();
+                pushMutation.reset();
+                pullMutation.reset();
+                createBranchMutation.reset();
+                switchBranchMutation.reset();
+                publishBranchMutation.reset();
+              }}
+              className="text-red-400 hover:text-red-200 p-1"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Warning Toast */}
+      {warningNotice && (
+        <div
+          className="fixed bottom-4 right-4 max-w-md px-4 py-3 rounded-lg bg-amber-950 border border-amber-800 text-amber-200 text-sm shadow-lg"
+          data-testid="warning-toast"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-medium">{warningNotice.message}</p>
+              {warningNotice.details && (
+                <p className="text-xs mt-1 text-amber-300 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  {warningNotice.details}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setWarningNotice(null)}
+              className="text-amber-400 hover:text-amber-200 p-1"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
       {pushNotice && (
