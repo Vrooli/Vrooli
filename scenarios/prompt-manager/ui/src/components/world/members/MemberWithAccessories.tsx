@@ -8,6 +8,7 @@ import { GeometricMember } from './GeometricMember'
 import { BackpackAccessory } from '../accessories/BackpackAccessory'
 import { HeadAccessory } from '../accessories/HeadAccessory'
 import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
+import { ClothingTop, ClothingBottom, FootwearAccessory } from '../accessories/ClothingAccessory'
 import { MemberOverlayGroup } from '../overlays/MemberOverlayGroup'
 import { useSkillBackpack } from '../accessories/hooks/useSkillBackpack'
 import { useAccessoryStore } from '@/stores/accessoryStore'
@@ -117,6 +118,31 @@ export function MemberWithAccessories({
               type={storedAccessories.held.type}
               hand={storedAccessories.held.hand}
               color={storedAccessories.held.color}
+            />
+          )}
+
+          {/* Clothing - top */}
+          {storedAccessories.clothingTop && storedAccessories.clothingTop.type !== 'none' && (
+            <ClothingTop
+              type={storedAccessories.clothingTop.type}
+              color={storedAccessories.clothingTop.color}
+              accentColor={storedAccessories.clothingTop.accentColor}
+            />
+          )}
+
+          {/* Clothing - bottom */}
+          {storedAccessories.clothingBottom && storedAccessories.clothingBottom.type !== 'none' && (
+            <ClothingBottom
+              type={storedAccessories.clothingBottom.type}
+              color={storedAccessories.clothingBottom.color}
+            />
+          )}
+
+          {/* Footwear */}
+          {storedAccessories.footwear && storedAccessories.footwear.type !== 'none' && (
+            <FootwearAccessory
+              type={storedAccessories.footwear.type}
+              color={storedAccessories.footwear.color}
             />
           )}
         </group>

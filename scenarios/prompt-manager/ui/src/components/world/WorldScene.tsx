@@ -3,6 +3,11 @@
  *
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
  * This scene now focuses on member display with ambient environment.
+ *
+ * Includes:
+ * - Performance monitoring with FPS tracking and auto-adjustment
+ * - LOD system for optimizing cursor tracking at scale
+ * - Memory cleanup for proper asset disposal
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
@@ -11,6 +16,12 @@ import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useMemberComponent } from './MemberProvider'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
+import { DragPlane } from './interaction'
+import { FurnitureManager } from './furniture'
+import { DecorationManager } from './decorations'
+import { PerformanceMonitor, FPSOverlay } from './performance'
+import { useInteractionStore } from '@/stores/interactionStore'
+import { useFurnitureStore } from '@/stores/furnitureStore'
 import type { Member } from '@/types/member'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
@@ -40,6 +51,10 @@ interface WorldSceneProps {
   /** Called when a member is clicked, with member ID and position */
   onMemberClick?: (memberId: string, position: [number, number, number]) => void
   isDarkMode?: boolean
+  /** Whether to show FPS overlay */
+  showFpsOverlay?: boolean
+  /** Whether to enable automatic performance adjustment */
+  autoAdjustPerformance?: boolean
 }
 
 export function WorldScene({
@@ -49,12 +64,20 @@ export function WorldScene({
   membersWithPositions,
   onMemberClick,
   isDarkMode = true,
+  showFpsOverlay = false,
+  autoAdjustPerformance = true,
 }: WorldSceneProps) {
   const controlsRef = useRef<OrbitControlsRef>(null)
   const { camera } = useThree()
 
   // Get member component from DI
   const MemberComponent = useMemberComponent()
+
+  // Disable orbit controls during drag
+  const isDragging = useInteractionStore((state) => state.isDragging)
+
+  // Furniture seat position lookup
+  const getMemberSeatPosition = useFurnitureStore((state) => state.getMemberSeatPosition)
 
   // Update camera position when state changes
   useEffect(() => {
@@ -67,6 +90,15 @@ export function WorldScene({
 
   return (
     <>
+      {/* Performance Monitoring */}
+      <PerformanceMonitor
+        enabled
+        autoAdjust={autoAdjustPerformance}
+        enableMemoryCleanup
+        enableLOD
+      />
+      {showFpsOverlay && <FPSOverlay position={[-6, 4, 0]} detailed />}
+
       {/* Lighting */}
       <ambientLight intensity={0.4} />
       <directionalLight
@@ -86,9 +118,10 @@ export function WorldScene({
       )}
       <fog attach="fog" args={[isDarkMode ? '#0f172a' : '#f8fafc', 10, 50]} />
 
-      {/* Controls */}
+      {/* Controls - disabled during drag */}
       <OrbitControls
         ref={controlsRef as React.Ref<never>}
+        enabled={!isDragging}
         enableDamping
         dampingFactor={0.05}
         minDistance={3}
@@ -97,29 +130,45 @@ export function WorldScene({
         minPolarAngle={Math.PI * 0.15}
       />
 
+      {/* Drag plane - catches pointer events during drag */}
+      <DragPlane y={0} />
+
       {/* Grid helper */}
       <gridHelper
         args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
         position={[0, -2, 0]}
       />
 
+      {/* Furniture and Decorations */}
+      <FurnitureManager interactive draggable />
+      <DecorationManager interactive draggable />
+
       {/* Render all members */}
-      {membersWithPositions.map(({ member, position }) => (
-        <MemberComponent
-          key={member.id}
-          memberId={member.id}
-          position={position}
-          cursorPosition={cursorPosition}
-          selectedNodes={selectedNodeIds}
-          isAnimating={false}
-          onMemberClick={() => onMemberClick?.(member.id, position)}
-          colors={{
-            body: member.bodyColor,
-            head: member.headColor,
-            accent: member.accentColor,
-          }}
-        />
-      ))}
+      {membersWithPositions.map(({ member, position }) => {
+        const seatInfo = getMemberSeatPosition(member.id)
+        const finalPosition = seatInfo?.position ?? position
+        const isSeated = !!seatInfo
+        const seatRotation = seatInfo?.rotation ?? 0
+
+        return (
+          <MemberComponent
+            key={member.id}
+            memberId={member.id}
+            position={finalPosition}
+            cursorPosition={cursorPosition}
+            selectedNodes={selectedNodeIds}
+            isAnimating={false}
+            isSeated={isSeated}
+            seatRotation={seatRotation}
+            onMemberClick={() => onMemberClick?.(member.id, finalPosition)}
+            colors={{
+              body: member.bodyColor,
+              head: member.headColor,
+              accent: member.accentColor,
+            }}
+          />
+        )
+      })}
     </>
   )
 }

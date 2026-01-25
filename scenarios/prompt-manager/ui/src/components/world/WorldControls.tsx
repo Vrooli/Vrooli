@@ -1,6 +1,6 @@
 /**
  * WorldControls - UI overlay for world controls.
- * Includes camera mode toggle and help button.
+ * Includes camera mode toggle, help button, and environment controls.
  */
 
 import { useState } from 'react'
@@ -8,6 +8,7 @@ import { Camera, HelpCircle, Eye, Map, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CameraMode } from '@/stores/cameraStore'
 import { HelpModal } from './HelpModal'
+import { EnvironmentControls } from './EnvironmentControls'
 
 interface WorldControlsProps {
   cameraMode: CameraMode
@@ -80,6 +81,11 @@ export function WorldControls({
         <span className="text-xs text-slate-400">
           {CAMERA_MODE_LABELS[cameraMode]}
         </span>
+      </div>
+
+      {/* Environment controls - bottom left */}
+      <div className="absolute bottom-4 left-4">
+        <EnvironmentControls />
       </div>
 
       {/* Help Modal */}

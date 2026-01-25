@@ -1,8 +1,10 @@
 /**
  * StatusIcon - Visual indicator for member status.
  * Shows warning, error, info, or other status icons.
+ * Hover to reveal an optional message tooltip.
  */
 
+import { useState } from 'react'
 import { Html } from '@react-three/drei'
 import { AlertTriangle, XCircle, Info, Loader2, MessageCircle } from 'lucide-react'
 import type { MemberStatusType } from '@/types/accessory'
@@ -27,6 +29,16 @@ const STATUS_COLORS: Record<MemberStatusType, string> = {
   speaking: 'text-green-500',
 }
 
+/** Background color mapping for tooltips */
+const STATUS_BG_COLORS: Record<MemberStatusType, string> = {
+  normal: 'bg-muted',
+  warning: 'bg-yellow-500/10 border-yellow-500/30',
+  error: 'bg-red-500/10 border-red-500/30',
+  info: 'bg-blue-500/10 border-blue-500/30',
+  thinking: 'bg-purple-500/10 border-purple-500/30',
+  speaking: 'bg-green-500/10 border-green-500/30',
+}
+
 /** Animation classes for status types */
 const STATUS_ANIMATIONS: Record<MemberStatusType, string> = {
   normal: '',
@@ -46,35 +58,68 @@ interface StatusIconProps {
   yOffset?: number
   /** Icon size */
   size?: number
+  /** Optional message to show on hover */
+  message?: string
 }
 
 /**
  * Renders a status icon that floats above a member.
  * Different status types have different icons and animations.
+ * Hover over the icon to see the optional message tooltip.
  */
 export function StatusIcon({
   status,
   position,
   yOffset = 1.5,
   size = 20,
+  message,
 }: StatusIconProps) {
+  const [showTooltip, setShowTooltip] = useState(false)
   const Icon = STATUS_ICONS[status]
 
   if (!Icon || status === 'normal') {
     return null
   }
 
+  const hasMessage = !!message
+
   return (
     <Html
       position={[position[0], position[1] + yOffset, position[2]]}
       center
       style={{
-        pointerEvents: 'none',
+        pointerEvents: hasMessage ? 'auto' : 'none',
         userSelect: 'none',
       }}
     >
-      <div className={`${STATUS_COLORS[status]} ${STATUS_ANIMATIONS[status]}`}>
+      <div
+        className={`
+          relative flex flex-col items-center
+          ${STATUS_COLORS[status]} ${STATUS_ANIMATIONS[status]}
+          cursor-default
+        `}
+        onPointerEnter={() => setShowTooltip(true)}
+        onPointerLeave={() => setShowTooltip(false)}
+      >
         <Icon size={size} strokeWidth={2.5} />
+
+        {/* Tooltip shown on hover */}
+        {message && showTooltip && (
+          <div
+            className={`
+              absolute top-full mt-1
+              px-2 py-1
+              text-xs whitespace-nowrap
+              rounded-md border
+              ${STATUS_BG_COLORS[status]}
+              ${STATUS_COLORS[status]}
+              animate-in fade-in duration-200
+              shadow-lg
+            `}
+          >
+            {message}
+          </div>
+        )}
       </div>
     </Html>
   )

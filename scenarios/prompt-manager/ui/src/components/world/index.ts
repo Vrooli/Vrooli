@@ -9,6 +9,7 @@
 export { WorldCanvas } from './WorldCanvas'
 export { WorldScene } from './WorldScene'
 export { WorldControls } from './WorldControls'
+export { EnvironmentControls } from './EnvironmentControls'
 export { CombinePanel } from './CombinePanel'
 
 // Member system
@@ -39,8 +40,26 @@ export {
   BackpackAccessory,
   HeadAccessory,
   HeldItemAccessory,
+  ClothingTop,
+  ClothingBottom,
+  FootwearAccessory,
   useSkillBackpack,
   useAccessoryLoader,
   getBackpackDescription,
   getBackpackCapacity,
 } from './accessories'
+
+// Interaction system
+export { DraggableObject, DragPlane } from './interaction'
+
+// Furniture system
+export { FurnitureItem, FurnitureManager, useAddFurniture, useRemoveFurniture } from './furniture'
+
+// Decorations system
+export {
+  DecorationItem,
+  DecorationManager,
+  useAddDecoration,
+  useRemoveDecoration,
+  useToggleDecorationLight,
+} from './decorations'

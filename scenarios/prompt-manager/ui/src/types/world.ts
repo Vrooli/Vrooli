@@ -30,6 +30,10 @@ export interface MemberProps {
     head: string
     accent: string
   }
+  /** Whether the member is seated on furniture */
+  isSeated?: boolean
+  /** Rotation when seated (radians) */
+  seatRotation?: number
 }
 
 /**

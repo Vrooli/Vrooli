@@ -12,6 +12,15 @@ export type BackAccessoryType = 'none' | 'paper' | 'folder' | 'briefcase' | 'bac
 /** Types of held items */
 export type HeldItemType = 'none' | 'book' | 'tool' | 'orb' | 'wand'
 
+/** Types of clothing - tops */
+export type ClothingTopType = 'none' | 'tshirt' | 'hoodie' | 'jacket' | 'vest' | 'dress'
+
+/** Types of clothing - bottoms */
+export type ClothingBottomType = 'none' | 'pants' | 'shorts' | 'skirt'
+
+/** Types of footwear */
+export type FootwearType = 'none' | 'shoes' | 'boots' | 'sneakers' | 'sandals'
+
 /**
  * Head accessory configuration
  */
@@ -45,12 +54,44 @@ export interface HeldAccessory {
 }
 
 /**
+ * Clothing top configuration
+ */
+export interface ClothingTop {
+  type: ClothingTopType
+  /** Primary color */
+  color?: string
+  /** Secondary/accent color for patterns */
+  accentColor?: string
+}
+
+/**
+ * Clothing bottom configuration
+ */
+export interface ClothingBottom {
+  type: ClothingBottomType
+  /** Primary color */
+  color?: string
+}
+
+/**
+ * Footwear configuration
+ */
+export interface Footwear {
+  type: FootwearType
+  /** Primary color */
+  color?: string
+}
+
+/**
  * Complete accessory configuration for a member
  */
 export interface MemberAccessories {
   head?: HeadAccessory
   back?: BackAccessory
   held?: HeldAccessory
+  clothingTop?: ClothingTop
+  clothingBottom?: ClothingBottom
+  footwear?: Footwear
 }
 
 /**
@@ -78,10 +119,13 @@ export interface AccessoryOffset {
   scale: number
 }
 
+/** All accessory slot types */
+export type AccessorySlot = 'head' | 'back' | 'leftHand' | 'rightHand' | 'torso' | 'legs' | 'feet'
+
 /**
  * Default accessory offsets for each slot
  */
-export const ACCESSORY_OFFSETS: Record<'head' | 'back' | 'leftHand' | 'rightHand', AccessoryOffset> = {
+export const ACCESSORY_OFFSETS: Record<AccessorySlot, AccessoryOffset> = {
   head: {
     position: [0, 0.55, 0],
     rotation: [0, 0, 0],
@@ -101,6 +145,21 @@ export const ACCESSORY_OFFSETS: Record<'head' | 'back' | 'leftHand' | 'rightHand
     position: [0.45, -0.2, 0.1],
     rotation: [0, 0, 0],
     scale: 0.8,
+  },
+  torso: {
+    position: [0, -0.3, 0],
+    rotation: [0, 0, 0],
+    scale: 1,
+  },
+  legs: {
+    position: [0, -0.7, 0],
+    rotation: [0, 0, 0],
+    scale: 1,
+  },
+  feet: {
+    position: [0, -1.0, 0],
+    rotation: [0, 0, 0],
+    scale: 1,
   },
 }
 

@@ -21,6 +21,7 @@ import { useMemberData } from '@/hooks/useMemberData'
 import { MemberProvider } from './MemberProvider'
 import { WorldScene, type MemberWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
+import { EnvironmentControls } from './EnvironmentControls'
 import { CombinePanel } from './CombinePanel'
 import { MemberOverlay } from './MemberOverlay'
 import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
@@ -306,6 +307,7 @@ export function WorldCanvas({
         selectionCount={selectedSkillIds.length}
         memberCount={members.length}
       />
+      <EnvironmentControls className="absolute bottom-4 left-4" />
 
       {/* Combine panel */}
       <CombinePanel

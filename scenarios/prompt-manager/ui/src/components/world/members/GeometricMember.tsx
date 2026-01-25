@@ -1,16 +1,23 @@
 /**
  * GeometricMember - A 3D geometric member built with Three.js primitives.
  * Features cursor tracking, idle animations, reaction animations, and hover effects.
+ *
+ * LOD System Integration:
+ * - Cursor tracking disabled for distant members (LOD low/culled)
+ * - Animations simplified for medium LOD
+ * - Hover disabled for low/culled LOD
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#geometricmember-anatomy
 
-import { useRef, useMemo, useCallback } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useRef, useMemo, useCallback, useEffect } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
 import type { MemberProps } from '@/types/world'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
+import { useLODStore } from '@/stores/lodStore'
+import type { LODLevel } from '@/types/lod'
 
 // Default member colors
 const DEFAULT_COLORS = {
@@ -30,15 +37,25 @@ export function GeometricMember({
   onMemberClick,
   colors,
   memberId,
+  isSeated = false,
+  seatRotation = 0,
 }: MemberProps) {
   void _isAnimating // Reserved for future animation triggers
+
+  const { camera } = useThree()
 
   // Defensive: ensure selectedNodes is always an array
   const selectedNodes = selectedNodesProp ?? []
 
-  // Hover highlighting - only if memberId is provided
+  // LOD state refs (updated in useFrame, no React updates)
+  const lodLevelRef = useRef<LODLevel>('high')
+  const lodDistanceRef = useRef<number>(0)
+  const lodFrameCountRef = useRef<number>(0)
+  const objectIdRef = useRef(memberId ?? `member-${Math.random().toString(36).slice(2)}`)
+
+  // Hover highlighting - only if memberId is provided and LOD allows
   const { isHovered, hoverProps } = useHoverHighlight(memberId ?? 'unknown', {
-    enabled: !!memberId,
+    enabled: !!memberId && (lodLevelRef.current === 'high' || lodLevelRef.current === 'medium'),
   })
 
   // Merge custom colors with defaults
@@ -68,6 +85,13 @@ export function GeometricMember({
     celebrationProgress: 0,
     isCelebrating: false,
   })
+
+  // Cleanup LOD tracking on unmount
+  useEffect(() => {
+    return () => {
+      useLODStore.getState().removeObject(objectIdRef.current)
+    }
+  }, [])
 
   // Trigger wave when selection changes
   const prevSelectionCount = useRef(selectedNodes.length)
@@ -117,85 +141,141 @@ export function GeometricMember({
     [onMemberClick]
   )
 
-  // Animation loop
+  // Animation loop with LOD-based optimization
   useFrame((_, delta) => {
     if (!groupRef.current || !headRef.current) return
 
     const state = animationState.current
     state.time += delta
 
-    // Idle floating animation
-    const floatY = Math.sin(state.time * 1.5) * 0.05
-    const floatX = Math.sin(state.time * 0.8) * 0.02
-    groupRef.current.position.y = position[1] + floatY
-    groupRef.current.position.x = position[0] + floatX
+    // ===== LOD CALCULATION (every 5 frames) =====
+    lodFrameCountRef.current++
+    if (lodFrameCountRef.current % 5 === 0) {
+      // Calculate distance from camera
+      const dx = position[0] - camera.position.x
+      const dy = position[1] - camera.position.y
+      const dz = position[2] - camera.position.z
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      lodDistanceRef.current = distance
 
-    // Look at cursor
-    if (cursorPosition) {
-      state.lookTarget.set(
-        cursorPosition.x * 0.5,
-        cursorPosition.y * 0.3,
-        5
-      )
+      // Calculate LOD level (uses store's thresholds)
+      const lodLevel = useLODStore.getState().calculateLODLevel(distance)
+      lodLevelRef.current = lodLevel
+
+      // Update store for aggregate statistics
+      useLODStore.getState().updateObjectLOD(objectIdRef.current, distance)
+    }
+
+    const lodLevel = lodLevelRef.current
+
+    // ===== CULLED: Skip all rendering logic =====
+    if (lodLevel === 'culled') {
+      // Just update position for potential re-entry
+      groupRef.current.position.set(position[0], position[1], position[2])
+      return
+    }
+
+    // ===== IDLE FLOATING ANIMATION (all LOD levels except culled) =====
+    // When seated, reduce floating significantly and lower position
+    const seatedOffset = isSeated ? -0.2 : 0
+    const floatMultiplier = isSeated ? 0.1 : 1
+
+    // Simplified for low LOD
+    if (lodLevel === 'low') {
+      // Minimal floating for low LOD
+      const floatY = Math.sin(state.time * 0.5) * 0.02 * floatMultiplier
+      groupRef.current.position.y = position[1] + floatY + seatedOffset
+      groupRef.current.position.x = position[0]
     } else {
-      state.lookTarget.lerp(new THREE.Vector3(0, 0, 5), 0.02)
+      // Full floating animation for medium/high
+      const floatY = Math.sin(state.time * 1.5) * 0.05 * floatMultiplier
+      const floatX = Math.sin(state.time * 0.8) * 0.02 * floatMultiplier
+      groupRef.current.position.y = position[1] + floatY + seatedOffset
+      groupRef.current.position.x = position[0] + floatX
     }
 
-    // Head rotation toward target
-    const headLookDirection = state.lookTarget.clone().normalize()
-    const targetRotationY = Math.atan2(headLookDirection.x, headLookDirection.z)
-    const targetRotationX = -Math.atan2(
-      headLookDirection.y,
-      Math.sqrt(headLookDirection.x ** 2 + headLookDirection.z ** 2)
-    )
+    // Apply seat rotation when seated
+    if (isSeated) {
+      groupRef.current.rotation.y = seatRotation
+    }
 
-    headRef.current.rotation.y += (targetRotationY - headRef.current.rotation.y) * 0.1
-    headRef.current.rotation.x +=
-      (Math.max(-0.3, Math.min(0.3, targetRotationX)) - headRef.current.rotation.x) * 0.1
+    // ===== CURSOR TRACKING (high and medium LOD only) =====
+    if (lodLevel === 'high' || lodLevel === 'medium') {
+      if (cursorPosition) {
+        // Full tracking for high LOD
+        const trackingStrength = lodLevel === 'high' ? 0.5 : 0.25
+        state.lookTarget.set(
+          cursorPosition.x * trackingStrength,
+          cursorPosition.y * (trackingStrength * 0.6),
+          5
+        )
+      } else {
+        state.lookTarget.lerp(new THREE.Vector3(0, 0, 5), 0.02)
+      }
 
-    // Wave animation
-    if (state.isWaving && rightArmRef.current) {
-      state.waveProgress += delta * 2
-      const wave = Math.sin(state.waveProgress * 8) * 0.5
-      rightArmRef.current.rotation.z = -Math.PI / 4 + wave
-      rightArmRef.current.rotation.x = -Math.PI / 3
+      // Head rotation toward target
+      const headLookDirection = state.lookTarget.clone().normalize()
+      const targetRotationY = Math.atan2(headLookDirection.x, headLookDirection.z)
+      const targetRotationX = -Math.atan2(
+        headLookDirection.y,
+        Math.sqrt(headLookDirection.x ** 2 + headLookDirection.z ** 2)
+      )
 
-      if (state.waveProgress > 1.5) {
-        state.isWaving = false
-        state.waveProgress = 0
-        rightArmRef.current.rotation.z = 0
-        rightArmRef.current.rotation.x = 0
+      const rotationSpeed = lodLevel === 'high' ? 0.1 : 0.05
+      headRef.current.rotation.y += (targetRotationY - headRef.current.rotation.y) * rotationSpeed
+      headRef.current.rotation.x +=
+        (Math.max(-0.3, Math.min(0.3, targetRotationX)) - headRef.current.rotation.x) * rotationSpeed
+    }
+
+    // ===== REACTION ANIMATIONS (high LOD only, skip when seated) =====
+    if (lodLevel === 'high' && !isSeated) {
+      // Wave animation
+      if (state.isWaving && rightArmRef.current) {
+        state.waveProgress += delta * 2
+        const wave = Math.sin(state.waveProgress * 8) * 0.5
+        rightArmRef.current.rotation.z = -Math.PI / 4 + wave
+        rightArmRef.current.rotation.x = -Math.PI / 3
+
+        if (state.waveProgress > 1.5) {
+          state.isWaving = false
+          state.waveProgress = 0
+          rightArmRef.current.rotation.z = 0
+          rightArmRef.current.rotation.x = 0
+        }
+      }
+
+      // Celebration animation
+      if (state.isCelebrating) {
+        state.celebrationProgress += delta
+        const spin = state.celebrationProgress * Math.PI * 4
+        groupRef.current.rotation.y = spin
+
+        const bounce = Math.sin(state.celebrationProgress * 15) * 0.1
+        groupRef.current.scale.setScalar(1 + bounce)
+
+        if (state.celebrationProgress > 1.5) {
+          state.isCelebrating = false
+          state.celebrationProgress = 0
+          groupRef.current.rotation.y = 0
+          groupRef.current.scale.setScalar(1)
+        }
       }
     }
 
-    // Celebration animation
-    if (state.isCelebrating) {
-      state.celebrationProgress += delta
-      const spin = state.celebrationProgress * Math.PI * 4
-      groupRef.current.rotation.y = spin
+    // ===== BODY SWAY (high and medium LOD) =====
+    if ((lodLevel === 'high' || lodLevel === 'medium') && bodyRef.current) {
+      const swayAmount = lodLevel === 'high' ? 0.03 : 0.015
+      bodyRef.current.rotation.z = Math.sin(state.time * 0.7) * swayAmount
+    }
 
-      const bounce = Math.sin(state.celebrationProgress * 15) * 0.1
-      groupRef.current.scale.setScalar(1 + bounce)
-
-      if (state.celebrationProgress > 1.5) {
-        state.isCelebrating = false
-        state.celebrationProgress = 0
-        groupRef.current.rotation.y = 0
-        groupRef.current.scale.setScalar(1)
+    // ===== ARM IDLE ANIMATION (high LOD only) =====
+    if (lodLevel === 'high') {
+      if (leftArmRef.current && !state.isWaving) {
+        leftArmRef.current.rotation.z = Math.sin(state.time * 1.2) * 0.1
       }
-    }
-
-    // Subtle body sway
-    if (bodyRef.current) {
-      bodyRef.current.rotation.z = Math.sin(state.time * 0.7) * 0.03
-    }
-
-    // Arm idle animation
-    if (leftArmRef.current && !state.isWaving) {
-      leftArmRef.current.rotation.z = Math.sin(state.time * 1.2) * 0.1
-    }
-    if (rightArmRef.current && !state.isWaving) {
-      rightArmRef.current.rotation.z = -Math.sin(state.time * 1.2 + 0.5) * 0.1
+      if (rightArmRef.current && !state.isWaving) {
+        rightArmRef.current.rotation.z = -Math.sin(state.time * 1.2 + 0.5) * 0.1
+      }
     }
   })
 
