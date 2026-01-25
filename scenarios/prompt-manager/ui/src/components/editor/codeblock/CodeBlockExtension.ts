@@ -87,6 +87,24 @@ export const CodeBlockExtension = CodeBlockBase.extend<CodeBlockOptions>({
           }
         },
       },
+      fenceCount: {
+        default: 3,
+        parseHTML: (element: HTMLElement) => {
+          // Get fence count from data attribute (set by MarkedParser for 4+ backtick fences)
+          const count = element.getAttribute('data-fence-count')
+          return count ? parseInt(count, 10) : 3
+        },
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const count = attributes.fenceCount
+          // Only output attribute for extended fences (4+)
+          if (!count || count === 3) {
+            return {}
+          }
+          return {
+            'data-fence-count': String(count),
+          }
+        },
+      },
     }
   },
 

@@ -179,21 +179,106 @@ If a skill can be gamed by making shallow changes, add explicit guidance about w
 
 ---
 
-### **8. Memory Integration**
+### **8. Agent Memory Loop**
 
-For skills that involve systematic work across many files, integrate with `visited-tracker`:
+Agent sessions are stateless - when a session ends, all context is lost. For skills that involve investigation, audit, or systematic work, agents must explicitly read and write documentation to maintain continuity across sessions.
 
-```markdown
-### **Memory Management with Visited Tracker**
+#### The Memory Loop Pattern
 
-**At the start of each iteration:**
-visited-tracker least-visited --location scenarios/{{TARGET}}/ui --tag [skill-tag] --limit 5
-
-**After analyzing each file:**
-visited-tracker visit <file-path> --location scenarios/{{TARGET}}/ui --tag [skill-tag] --note "<summary>"
+```
+┌─────────────────────────────────────────────┐
+│           AGENT MEMORY LOOP                 │
+├─────────────────────────────────────────────┤
+│                                             │
+│  START SESSION                              │
+│       │                                     │
+│       ▼                                     │
+│  READ existing findings docs                │
+│  (understand what prior agents discovered)  │
+│       │                                     │
+│       ▼                                     │
+│  DO the skill's work                        │
+│  (informed by prior findings)               │
+│       │                                     │
+│       ▼                                     │
+│  WRITE updated findings                     │
+│  (so next agent can continue)               │
+│       │                                     │
+│       ▼                                     │
+│  END SESSION                                │
+│                                             │
+└─────────────────────────────────────────────┘
 ```
 
-This prevents repeated work across conversation loops and ensures systematic coverage.
+Without READ: Agent duplicates or overwrites prior work
+Without WRITE: Discoveries are lost when session ends
+
+#### Specifying Documentation Patterns
+
+Skills that involve investigation should specify:
+1. **What to read** at session start
+2. **What to write** at session end
+3. **Document template** for consistent structure
+
+The specific documents depend on what makes sense for the skill's purpose. A skill might:
+- Use an existing doc pattern (e.g., SEAMS.md for boundary discovery)
+- Define a new doc type specific to its needs
+- Use multiple documents for different types of findings
+
+**Conventional location:** `docs/internal/` for agent-produced findings (not user-facing docs)
+
+#### Example: Skill with Documentation Pattern
+
+````markdown
+### **Documentation**
+
+**At session start**, read existing findings:
+- `docs/internal/MY_FINDINGS.md` - prior audit results
+
+**At session end**, update findings:
+
+Update `docs/internal/MY_FINDINGS.md` to reflect your findings:
+* The code is the source of truth. Verify existing claims before extending.
+* If the file exists, correct inaccuracies and add new findings.
+* Create the `docs/internal/` directory if needed.
+
+**Template:**
+```markdown
+# [Skill Name] Findings
+
+## Last Updated
+[Date]
+
+## Summary
+[Current state overview]
+
+## Findings
+- [Finding with file references]
+
+## Priority Actions
+1. [Most important next step]
+```
+````
+
+#### Relationship to visited-tracker
+
+The memory loop has two complementary parts:
+
+| Tool | Tracks | Purpose |
+|------|--------|---------|
+| `visited-tracker` | Which files have been analyzed | Prevents re-investigating same files |
+| Findings docs | What was discovered | Preserves knowledge for future sessions |
+
+Use both together for skills involving systematic codebase work.
+
+**visited-tracker commands:**
+```bash
+# At session start: find files not yet analyzed
+visited-tracker least-visited --location scenarios/{{TARGET}} --tag [skill-tag] --limit 5
+
+# After analyzing a file: mark as visited
+visited-tracker visit <file-path> --location scenarios/{{TARGET}} --tag [skill-tag] --note "<summary>"
+```
 
 ---
 

@@ -4,7 +4,10 @@
 
 export {
   validateMarkdown,
+  validateRoundTrip,
+  normalizeForComparison,
   type IssueType,
   type MarkdownIssue,
   type ValidationResult,
+  type RoundTripResult,
 } from './MarkdownValidator'

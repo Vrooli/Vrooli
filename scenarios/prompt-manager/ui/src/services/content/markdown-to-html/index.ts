@@ -4,3 +4,4 @@
 
 export { MarkedParser, type MarkedParserConfig } from './MarkedParser'
 export * from './preprocessors'
+export * from './postprocessors'

@@ -430,7 +430,7 @@ rg "export (function|const) (Button|Card|Modal|Input)" --type tsx -l | grep -v s
 
 #### **Step 5: Document Findings**
 
-After running the audit, create or update `COHERENCE_NOTES.md` in the UI root:
+After running the audit, create or update `docs/internal/COHERENCE_NOTES.md`:
 
 ```markdown
 # Coherence Audit - [Date]

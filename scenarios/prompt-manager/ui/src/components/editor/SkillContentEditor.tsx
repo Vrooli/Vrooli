@@ -16,7 +16,12 @@ import Editor, { useMonaco, type OnMount, type OnChange } from '@monaco-editor/r
 import { AlertTriangle, Code, Type, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TipTapEditor } from './TipTapEditor'
-import { validateMarkdown, type MarkdownIssue } from '@/services/content/validation'
+import {
+  validateMarkdown,
+  validateRoundTrip,
+  type MarkdownIssue,
+  type RoundTripResult,
+} from '@/services/content/validation'
 
 export type EditorType = 'code' | 'wysiwyg'
 
@@ -96,6 +101,10 @@ export function SkillContentEditor({
   const [validationIssues, setValidationIssues] = useState<MarkdownIssue[]>([])
   const [showValidationWarning, setShowValidationWarning] = useState(false)
 
+  // State for round-trip validation (catch-all protection)
+  const [roundTripResult, setRoundTripResult] = useState<RoundTripResult | null>(null)
+  const [showRoundTripWarning, setShowRoundTripWarning] = useState(false)
+
   // Persist editor type preference
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -111,6 +120,14 @@ export function SkillContentEditor({
   useEffect(() => {
     setValidationIssues(validationResult.issues)
   }, [validationResult.issues])
+
+  // Validate round-trip when content changes (debounced for performance)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRoundTripResult(validateRoundTrip(value))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [value])
 
   // Set Monaco markers when validation issues change
   useEffect(() => {
@@ -142,16 +159,32 @@ export function SkillContentEditor({
     }
   }, [monaco, validationIssues])
 
-  // Handle mode switching with validation warning
+  // Handle mode switching with validation warning and round-trip blocking
   const handleEditorTypeChange = useCallback(
     (newType: EditorType) => {
-      if (newType === 'wysiwyg' && validationIssues.length > 0) {
-        setShowValidationWarning(true)
+      // When switching to Rich mode, check for issues
+      if (newType === 'wysiwyg') {
+        // Block switch if round-trip validation fails (content would be corrupted)
+        if (roundTripResult && !roundTripResult.isStable) {
+          setShowRoundTripWarning(true)
+          return // Block the switch
+        }
+
+        // Show warning for known validation issues (non-blocking)
+        if (validationIssues.length > 0) {
+          setShowValidationWarning(true)
+        }
       }
       setEditorType(newType)
     },
-    [validationIssues.length]
+    [validationIssues.length, roundTripResult]
   )
+
+  // Force switch to Rich mode despite round-trip warning
+  const handleForceRichMode = useCallback(() => {
+    setShowRoundTripWarning(false)
+    setEditorType('wysiwyg')
+  }, [])
 
   // Handle editor mount
   const handleEditorMount: OnMount = useCallback((editor) => {
@@ -180,6 +213,31 @@ export function SkillContentEditor({
 
   return (
     <div className={cn('flex flex-col', className)}>
+      {/* Round-trip warning banner - BLOCKS switching to rich mode when content would be corrupted */}
+      {showRoundTripWarning && roundTripResult && !roundTripResult.isStable && (
+        <div className="flex items-center gap-2 bg-red-900/30 border-l-4 border-red-500 px-3 py-2 text-sm text-red-200">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span className="flex-1">
+            <strong>Rich mode blocked:</strong> Content would be corrupted during conversion.
+            {roundTripResult.changeDescription && ` (${roundTripResult.changeDescription})`}
+          </span>
+          <button
+            type="button"
+            onClick={handleForceRichMode}
+            className="px-2 py-0.5 text-xs bg-red-800/50 hover:bg-red-700/50 rounded transition-colors"
+          >
+            Show anyway
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowRoundTripWarning(false)}
+            className="p-0.5 hover:bg-red-800/50 rounded"
+            aria-label="Dismiss warning"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       {/* Validation warning banner - shown when switching to rich mode with issues */}
       {showValidationWarning && validationIssues.length > 0 && (
         <div className="flex items-center gap-2 bg-yellow-900/30 border-l-4 border-yellow-500 px-3 py-2 text-sm text-yellow-200">

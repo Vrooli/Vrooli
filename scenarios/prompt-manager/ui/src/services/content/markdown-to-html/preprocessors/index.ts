@@ -3,3 +3,4 @@
  */
 
 export { preprocessHighlight, type HighlightPreprocessorOptions } from './HighlightPreprocessor'
+export { preprocessExtendedFences, type FenceInfo } from './ExtendedFencePreprocessor'

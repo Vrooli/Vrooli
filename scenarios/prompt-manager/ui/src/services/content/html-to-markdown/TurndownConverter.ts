@@ -13,6 +13,7 @@ import {
   createCodeBlockRule,
   createHighlightRule,
   createStrikethroughRule,
+  createTableRule,
 } from './rules'
 
 export interface TurndownConverterConfig {
@@ -26,6 +27,8 @@ export interface TurndownConverterConfig {
   emDelimiter?: '*' | '_'
   /** Strong delimiter */
   strongDelimiter?: '**' | '__'
+  /** Horizontal rule style */
+  hr?: '---' | '***' | '* * *' | '- - -'
   /** Whether to disable escaping of markdown characters (important for round-trips) */
   disableEscaping?: boolean
 }
@@ -36,6 +39,7 @@ const DEFAULT_CONFIG: Required<TurndownConverterConfig> = {
   bulletListMarker: '-',
   emDelimiter: '*',
   strongDelimiter: '**',
+  hr: '---',
   disableEscaping: true,
 }
 
@@ -54,6 +58,7 @@ export class TurndownConverter {
       bulletListMarker: finalConfig.bulletListMarker,
       emDelimiter: finalConfig.emDelimiter,
       strongDelimiter: finalConfig.strongDelimiter,
+      hr: finalConfig.hr,
     })
 
     // CRITICAL: Disable escaping of markdown characters
@@ -63,6 +68,7 @@ export class TurndownConverter {
     }
 
     // Add custom rules
+    this.addRule('table', createTableRule())
     this.addRule('codeBlock', createCodeBlockRule())
     this.addRule('highlight', createHighlightRule())
     this.addRule('strikethrough', createStrikethroughRule())

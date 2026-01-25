@@ -8,18 +8,36 @@ Do **not** break functionality, regress tests, or introduce new features. All ch
 
 ---
 
-### **1. Understand the Domain & Mental Model**
+### **1. Check Documentation Structure & Build Mental Model**
 
-* Study the scenario’s **PRD, operational targets, and technical requirements** to understand:
-  * what this scenario exists to do
-  * who/what its primary “actors” are
-  * the main workflows and concepts it operates on
-* From this, derive a **clear, simple mental model**:
-  * key domain concepts (entities, resources, operations)
-  * main flows (inputs → processing → outputs)
-  * natural boundaries (e.g. UI vs orchestration vs integration vs persistence)
+**Before deriving your own mental model, check existing documentation:**
 
-Keep this mental model in mind as the “true architecture” you want the code to scream.
+1. **Verify docs infrastructure exists:**
+   * Does `docs/manifest.json` exist?
+   * Does `docs/concepts/ARCHITECTURE.md` or similar exist?
+   * Is there an existing mental model documented?
+
+2. **If documentation exists:**
+   * Use it as the starting point for your mental model
+   * Note any drift between documented and actual architecture
+   * Flag documentation gaps as findings
+
+3. **If documentation is missing/sparse:**
+   * This is an architecture gap — document it
+   * Derive mental model from PRD + code inspection
+   * Consider creating missing docs as part of alignment work
+
+4. **Study source documents:**
+   * PRD, operational targets, technical requirements
+   * Existing architecture documentation
+   * Cross-reference with actual code structure
+
+5. **Derive/validate mental model:**
+   * key domain concepts (entities, resources, operations)
+   * main flows (inputs → processing → outputs)
+   * natural boundaries (e.g. UI vs orchestration vs integration vs persistence)
+
+**The mental model should converge with documentation over repeated audits.** Keep this mental model in mind as the "true architecture" you want the code to scream.
 
 ---
 
@@ -125,6 +143,18 @@ By the end of this loop, the scenario should:
   * the physical file/module layout
 * retain or improve test coverage and stability
 
-Avoid superficial changes (e.g. meaningless renames or file shuffling) that do not materially improve how well the architecture communicates the scenario’s purpose and boundaries.
+#### Documentation Health Findings
+
+Include a documentation health assessment in your findings:
+
+| Area | Status | Notes |
+|------|--------|-------|
+| docs/manifest.json | Present/Missing | Navigation structure for UI display |
+| Mental model documented | Yes/No/Partial | ARCHITECTURE.md or similar |
+| Code↔Doc references | Coverage % | DOC: comments and [CODE: ...] links |
+| Orphaned docs | X files | Docs not in manifest or referencing dead code |
+| Broken references | X found | Invalid paths in either direction |
+
+Avoid superficial changes (e.g. meaningless renames or file shuffling) that do not materially improve how well the architecture communicates the scenario's purpose and boundaries.
 
 Focus this loop on **practical, targeted architectural improvements** that make the codebase easier to reason about, safer to extend, and more obviously aligned with what the scenario is supposed to do.

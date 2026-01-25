@@ -4,7 +4,8 @@
  * Handles:
  * - Code blocks with language classes (e.g., language-typescript)
  * - Language detection from both <pre> and <code> elements
- * - Proper fenced code block output (```language)
+ * - Extended fence preservation (4+ backticks via data-fence-count attribute)
+ * - Proper fenced code block output (```language or ````language for extended)
  */
 
 import type TurndownService from 'turndown'
@@ -55,7 +56,16 @@ export function createCodeBlockRule(
       const preLanguage = extractLanguageFromClass(node.className)
       const language = codeLanguage ?? preLanguage ?? defaultLanguage
 
-      return '\n```' + language + '\n' + text + '\n```\n'
+      // Get fence count from data attribute (default to 3 for standard fences)
+      const fenceCountAttr = node.getAttribute('data-fence-count')
+      const fenceCount = fenceCountAttr ? parseInt(fenceCountAttr, 10) : 3
+      const fence = '`'.repeat(fenceCount)
+
+      // Strip trailing newlines from content to avoid double newlines before closing fence
+      const trimmedText = text.replace(/\n+$/, '')
+
+      // Leading newline ensures code block is on its own line when inside other elements
+      return '\n' + fence + language + '\n' + trimmedText + '\n' + fence + '\n'
     },
   }
 }

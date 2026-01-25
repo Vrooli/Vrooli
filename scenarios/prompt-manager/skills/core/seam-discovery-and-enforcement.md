@@ -114,12 +114,12 @@ If you detect a seam that **should** exist but requires a major redesign, docume
 
 ### **8. Documentation**
 
-Update `docs/SEAMS.md` to reflect your findings:
+Update `docs/internal/SEAMS.md` to reflect your findings:
 
 * The code is the source of truth, not the document. Verify claims in existing documentation against actual code before extending or preserving them.
 * If the file exists, correct any inaccuracies and extend with your findings.
-* If a SEAMS.md exists at the scenario root, consolidate into `docs/SEAMS.md` and remove the duplicate.
-* Create the `docs/` directory if needed.
+* If a SEAMS.md exists at the scenario root or directly under `docs/`, consolidate into `docs/internal/SEAMS.md` and remove the duplicate.
+* Create the `docs/internal/` directory if needed.
 
 ---
 

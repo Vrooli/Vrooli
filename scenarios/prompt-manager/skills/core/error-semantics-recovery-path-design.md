@@ -25,6 +25,63 @@ Do **not** regress tests, weaken protections, or introduce unrelated features. A
 
 Focus on **crisp, high-signal categories**, not an explosion of tiny types.
 
+#### Principles for Good Error Categories
+
+When deriving categories, apply these criteria:
+
+1. **Mutually exclusive**: Each error should map to exactly one category. If you're unsure where an error belongs, the categories need refinement.
+
+2. **Recovery-distinct**: Two categories should have different recovery paths. If "network timeout" and "service unavailable" both mean "retry after backoff," they might be one category.
+
+3. **User-recognizable**: Category names should make sense to users, not just developers. "Validation error" is good; "schema mismatch" is too internal.
+
+4. **Aim for 4-8 categories**: Fewer than 4 means overly generic (everything is "error"). More than 8 means hard to maintain consistency.
+
+5. **Stable across the codebase**: The same category should mean the same thing everywhere. If "not found" sometimes means "resource deleted" and sometimes "URL typo," split them.
+
+---
+
+### **1.5 Error Handling Audit**
+
+Before improving error semantics, understand the current state:
+
+#### Step 1: Inventory Error Origins
+```bash
+# Where are errors created/thrown?
+rg "throw |new Error|Error\(" --type ts --type go -l
+
+# Where are errors caught/handled?
+rg "catch|\.catch\(|if.*err != nil" --type ts --type go -l
+
+# What error types/shapes exist?
+rg "type.*Error|interface.*Error|class.*Error" --type ts --type go
+```
+
+#### Step 2: Assess Error Message Quality
+```bash
+# Find generic/unhelpful messages
+rg "Something went wrong|An error occurred|Unknown error|Error:" --type ts
+
+# Find messages that might leak internals
+rg "stack|stackTrace|internal|debug" --type ts -i
+```
+
+#### Step 3: Find Recovery Path Gaps
+```bash
+# Error UI without recovery actions
+rg "error|Error" --type tsx -A 5 | rg -v "retry|try again|go back|refresh"
+
+# Catch blocks that swallow errors
+rg "catch.*\{" --type ts -A 2 | rg -B 2 "^\s*\}"
+```
+
+**Red flags:**
+- [ ] Many different error shapes (strings, objects, classes) mixed together
+- [ ] Generic messages without specific guidance
+- [ ] Error UIs that are dead-ends (no recovery action)
+- [ ] Silent failures (empty catch blocks)
+- [ ] Same error message for different failure modes
+
 ---
 
 ### **2. Normalize & Structure Error Representations**
@@ -37,6 +94,28 @@ Focus on **crisp, high-signal categories**, not an explosion of tiny types.
 * Avoid leaking low-level details (stack traces, internal IDs, sensitive values) into user- or client-facing errors.
 
 Do not introduce a brand-new global error framework; prefer **incremental normalization** of existing patterns.
+
+#### Documenting Error Categories
+
+When defining error categories, add protective comments explaining the design:
+
+```typescript
+/**
+ * ╔════════════════════════════════════════════════════════════════╗
+ * ║  ERROR CATEGORIES - Read before modifying                      ║
+ * ║                                                                ║
+ * ║  Each category has a specific recovery path. Changing these    ║
+ * ║  affects UI error states and automated retry logic.            ║
+ * ║                                                                ║
+ * ║  To add a new category:                                        ║
+ * ║  1. Ensure it has a distinct recovery path                     ║
+ * ║  2. Update error UI components to handle it                    ║
+ * ║  3. Add to API error mapping if client-facing                  ║
+ * ╚════════════════════════════════════════════════════════════════╝
+ */
+```
+
+This prevents future agents from creating ad-hoc error types that fragment the error handling system.
 
 ---
 
@@ -55,6 +134,24 @@ For each major error category, make the **intended recovery action** clear and c
   * making it easy for agents to choose the right follow-up behavior
 
 Avoid speculative recovery flows; focus on **concrete, realistic failure modes** that the scenario actually encounters.
+
+#### Criteria for Choosing Recovery Paths
+
+When deciding what recovery action fits an error category, consider:
+
+| Question | If YES → | If NO → |
+|----------|----------|---------|
+| Can the user fix the cause? | Guide them to fix it (show what's wrong, keep their input) | Don't blame them |
+| Is the cause likely transient? | Retry automatically (with backoff) or offer retry button | Don't suggest retry |
+| Is partial progress valuable? | Preserve it, let user continue from checkpoint | Clean abort is fine |
+| Does the user need to know? | Show clear message with next steps | Log only, don't interrupt |
+| Can an agent reasonably handle this? | Return structured error with machine-readable hints | User escalation path |
+
+**Common anti-patterns:**
+- Suggesting "retry" for validation errors (user needs to fix input, not retry)
+- Showing technical details for transient failures (user can't fix server issues)
+- Silent failures that leave user wondering what happened
+- Generic "contact support" when user could self-serve
 
 ---
 
@@ -108,6 +205,38 @@ Favor **small, coherent improvements** over wide, speculative changes.
 * Do **not** change core workflows or business rules except where clearly necessary to make error handling internally consistent.
 * Ensure all changes respect the scenario’s PRD, operational targets, and test-driven requirements.
 * Keep user experience and agent behavior at least as smooth as before, ideally more predictable under failure.
+
+---
+
+### **7.5 Memory Management with Visited Tracker**
+
+To ensure **systematic coverage without repetition**, use `visited-tracker`:
+
+**At the start of each iteration:**
+```bash
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*.{ts,tsx,go}" \
+  --tag error-semantics \
+  --name "{{TARGET}} - Error Semantics" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag error-semantics \
+  --note "<what error patterns were found/improved, what remains>"
+```
+
+**When a file has no error handling concerns:**
+```bash
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag error-semantics \
+  --reason "No error handling - pure types/utils/constants"
+```
 
 ---
 
