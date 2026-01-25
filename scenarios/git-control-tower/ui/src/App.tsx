@@ -13,6 +13,7 @@ import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
+import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import {
   LayoutSettingsModal,
@@ -115,7 +116,15 @@ export default function App() {
   });
   const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
   // Mobile-specific state: which panel is currently active on mobile
-  const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>("changes");
+  const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
+    if (typeof window === "undefined") return "changes";
+    const stored = localStorage.getItem("gct.mobileActivePanel");
+    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history"];
+    if (stored && validPanels.includes(stored as LayoutSection)) {
+      return stored as LayoutSection;
+    }
+    return "changes";
+  });
   const [pushNotice, setPushNotice] = useState<{
     tone: "success" | "info" | "warning";
     message: string;
@@ -1124,6 +1133,11 @@ export default function App() {
   }, [historyHeight]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("gct.mobileActivePanel", mobileActivePanel);
+  }, [mobileActivePanel]);
+
+  useEffect(() => {
     if (!repoDir) return;
     if (groupingLoadedKey === repoKey) return;
 
@@ -1937,6 +1951,7 @@ export default function App() {
           onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
           onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
+          onOpenFileSearch={() => setIsFileSearchOpen(true)}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
         />
@@ -2081,7 +2096,7 @@ export default function App() {
           onConfirm={handleDiscardMultiple}
           onCancel={() => setPendingDiscardFiles(null)}
         />
-        <FileSearchModal
+        <MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
           onSelectFile={handleSelectAnyFile}

@@ -12,6 +12,7 @@ import {
   Settings,
   LayoutGrid,
   History,
+  Search,
   X
 } from "lucide-react";
 import { Badge } from "./ui/badge";
@@ -31,6 +32,7 @@ interface MobileHeaderProps {
   onOpenLayoutSettings: () => void;
   onOpenGroupingSettings?: () => void;
   onOpenUpstreamInfo?: () => void;
+  onOpenFileSearch?: () => void;
   // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
@@ -46,6 +48,7 @@ export function MobileHeader({
   onOpenLayoutSettings,
   onOpenGroupingSettings,
   onOpenUpstreamInfo,
+  onOpenFileSearch,
   viewingCommit,
   onExitHistoryMode
 }: MobileHeaderProps) {
@@ -168,6 +171,18 @@ export function MobileHeader({
               <Circle className="h-4 w-4 text-slate-600" />
             )}
           </div>
+
+          {/* Search button */}
+          {onOpenFileSearch && (
+            <button
+              onClick={onOpenFileSearch}
+              className="p-3 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors touch-target"
+              aria-label="Search files"
+              data-testid="mobile-search-button"
+            >
+              <Search className="h-5 w-5 text-slate-400" />
+            </button>
+          )}
 
           {/* Refresh button */}
           <button
