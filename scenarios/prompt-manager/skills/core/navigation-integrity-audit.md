@@ -10,7 +10,9 @@ Focus on **correctness, coherence, and honesty** in navigation and interaction c
 
 ### 1. Establish the Navigation Mental Model
 
-* Use the scenario’s **PRD, operational targets, and key user journeys** to infer:
+* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read the Navigation section first to understand what navigation issues have been identified.
+
+* Use the scenario's **PRD, operational targets, and key user journeys** to infer:
   * the main “places” or modes in the scenario (pages, panels, major views)
   * how users are expected to move between them
   * what “back”, “home”, and “next” are supposed to mean in this context
@@ -139,3 +141,19 @@ You **must**:
 Focus this loop on **practical, targeted navigation fixes** that make movement through the scenario honest, stable, and easy to understand.
 
 Avoid superficial changes (e.g. renaming buttons without fixing their behavior, or shuffling links without clarifying flows) that do not materially improve navigation integrity.
+
+---
+
+### **9. Documentation**
+
+Update the **Navigation** section of `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Intended navigation mental model/graph
+* Label→destination mismatches found (fixed and deferred)
+* Back/forward coherence issues and their status
+* Edge cases: deep links, refresh behavior, multi-path navigation

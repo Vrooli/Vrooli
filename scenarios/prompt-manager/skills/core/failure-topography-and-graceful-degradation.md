@@ -13,7 +13,9 @@ Do **not** break functionality, regress tests, or introduce new features unrelat
 
 ### **1. Map Critical Flows & Dependencies**
 
-* Identify the scenario’s most important flows (e.g. key user journeys, background jobs, external integrations).
+* **If `docs/internal/ERROR-SEMANTICS.md` exists**, read the Failure Modes section first to understand what failure modes have been mapped.
+
+* Identify the scenario's most important flows (e.g. key user journeys, background jobs, external integrations).
 * For each, clarify:
   * primary inputs
   * critical internal steps
@@ -144,3 +146,19 @@ By the end of this loop, the scenario should:
 * preserve or improve test coverage around failure paths
 
 Avoid superficial changes (e.g. renaming error messages without improving behavior). Focus this loop on **practical, targeted improvements** to how the system behaves under stress, so that real-world failures are safer, clearer, and easier to work with for both users and future agents.
+
+---
+
+### **10. Documentation**
+
+Update the **Failure Modes** section of `docs/internal/ERROR-SEMANTICS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Critical flows and their dependencies
+* Failure modes by flow with scope, frequency, and impact
+* Current behavior vs. desired behavior for each failure mode
+* Graceful degradation patterns implemented

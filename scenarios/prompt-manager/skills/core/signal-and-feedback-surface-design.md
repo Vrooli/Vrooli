@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or introduce new observability st
 
 ### **1. Clarify What Must Be Observable**
 
+* **If `docs/internal/SEAMS.md` exists**, read the Observability Surface section first to understand what observability patterns have been documented.
+
 * Using the PRD, operational targets, and main workflows, identify:
   * key states the scenario can be in (idle, in-progress, degraded, blocked, etc.)
   * important transitions (start/finish of operations, retries, fallbacks, cancellations)
@@ -135,3 +137,19 @@ You **must**:
 * avoid both noise and under-reporting
 
 Focus this loop on **practical, targeted improvements to how the scenario communicates its own behavior**, so that users, operators, and future agents can quickly understand, debug, and safely extend it.
+
+---
+
+### **10. Documentation**
+
+Update the **Observability Surface** section of `docs/internal/SEAMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Key states and transitions that must be observable
+* Signal inventory: logs, status fields, UI feedback, metrics
+* Gaps where important events happen silently
+* Improvements made and remaining signal debt

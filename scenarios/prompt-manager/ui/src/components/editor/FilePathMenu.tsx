@@ -4,8 +4,9 @@
  * Shows:
  * - Breadcrumb display of the folder/mode path
  * - Editable filename input
- * - Copy relative path button
- * - Copy full path button
+ * - Copy relative path button (relative to skills folder)
+ * - Copy project path button (relative to Vrooli root - useful for coding agents)
+ * - Copy full path button (absolute path)
  * - Storage location toggle (Core/Local)
  */
 
@@ -50,6 +51,7 @@ export function FilePathMenu({
   const filenameWithoutExt = safeFile.replace(/\.md$/, '')
   const [editingName, setEditingName] = useState(filenameWithoutExt)
   const [copiedRelative, setCopiedRelative] = useState(false)
+  const [copiedProject, setCopiedProject] = useState(false)
   const [copiedFull, setCopiedFull] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -147,12 +149,19 @@ export function FilePathMenu({
     }
   }, [isOpen, safeFile])
 
-  // Build path segments for breadcrumb (excluding folder, which is shown in toggle)
+  // Build path segments for breadcrumb display only (modes are UI categories, not directory structure)
   const pathSegments = modes.filter(Boolean)
 
-  // Build file paths
-  const relativePath = [folder, ...pathSegments, safeFile].join('/')
-  const fullPath = `${skillsBasePath}/${relativePath}`
+  // Build file paths - actual structure is skills/{folder}/{filename}
+  // Note: modes are for UI tree organization, NOT file paths
+  const relativePath = `skills/${folder}/${safeFile}`
+  const fullPath = `${skillsBasePath}/${folder}/${safeFile}`
+  // Project path: relative to Vrooli root (useful for coding agents)
+  // Extract from skillsBasePath by finding "scenarios/" prefix
+  const scenariosIndex = skillsBasePath.indexOf('scenarios/')
+  const projectPath = scenariosIndex !== -1
+    ? `${skillsBasePath.slice(scenariosIndex)}/${folder}/${safeFile}`
+    : relativePath
 
   // Copy function - wrapped to avoid returning promise in onClick
   const handleCopyRelative = useCallback(() => {
@@ -163,6 +172,15 @@ export function FilePathMenu({
       console.error('Failed to copy:', err)
     })
   }, [relativePath])
+
+  const handleCopyProject = useCallback(() => {
+    void navigator.clipboard.writeText(projectPath).then(() => {
+      setCopiedProject(true)
+      setTimeout(() => setCopiedProject(false), 2000)
+    }).catch((err: unknown) => {
+      console.error('Failed to copy:', err)
+    })
+  }, [projectPath])
 
   const handleCopyFull = useCallback(() => {
     void navigator.clipboard.writeText(fullPath).then(() => {
@@ -327,6 +345,21 @@ export function FilePathMenu({
             >
               <span className="text-foreground">Copy relative path</span>
               {copiedRelative ? (
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+              ) : (
+                <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyProject}
+              className={cn(
+                'flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm',
+                'hover:bg-muted transition-colors w-full text-left'
+              )}
+            >
+              <span className="text-foreground">Copy project path</span>
+              {copiedProject ? (
                 <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
               ) : (
                 <Copy className="h-4 w-4 text-muted-foreground flex-shrink-0" />

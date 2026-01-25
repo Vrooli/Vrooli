@@ -79,10 +79,17 @@ docs/
 │   ├── api-endpoints.md
 │   ├── cli-commands.md
 │   └── configuration.md
-├── internal/              # Developer-only docs
-│   ├── SEAMS.md           # Integration boundaries
-│   ├── PROBLEMS.md        # Known issues
-│   └── PROGRESS.md        # Development history
+├── internal/              # Developer-only docs (agent memory)
+│   ├── SEAMS.md           # Integration boundaries, responsibility zones, testability
+│   ├── PROBLEMS.md        # Known issues, tech debt, deferred work
+│   ├── PROGRESS.md        # Development history, what's been completed
+│   ├── INVARIANTS.md      # System contracts that must never be violated (optional)
+│   ├── ASSUMPTIONS.md     # Implicit beliefs not yet validated (optional)
+│   ├── ERROR-SEMANTICS.md # Error categories, recovery paths (optional)
+│   ├── SECURITY-POSTURE.md # Security hardening status (optional)
+│   ├── TEMPORAL-FLOWS.md  # Async patterns, race conditions (optional)
+│   ├── COHERENCE-NOTES.md # React coherence audit (React UIs only)
+│   └── EXPERIENCE-AUDIT.md # UX friction analysis (user-facing only)
 └── plans/                 # Architecture decisions, proposals
 ```
 
@@ -412,3 +419,315 @@ You **must**:
 * Duplicating information that belongs in a single source of truth
 
 Focus on **documentation that helps agents quickly understand the scenario** and maintain accurate mental models across sessions.
+
+---
+
+### **11. Internal Document Templates**
+
+The `docs/internal/` directory serves as **persistent agent memory** - documents written by agents to share findings with future agents. These are NOT user-facing documentation.
+
+#### Purpose of Internal Docs
+
+| File | Purpose | Contributing Skills |
+|------|---------|---------------------|
+| SEAMS.md | Integration boundaries, responsibility zones, decision points, testability | seam-discovery, boundary-of-responsibility, decision-boundary-extraction, cognitive-load-reduction, signal-and-feedback-surface-design, change-axis-and-evolution-resilience-audit, explore |
+| PROBLEMS.md | Known issues, tech debt, test gaps, UX issues, cleanup history | code-cleanup, refactor, react-stability, test, ux |
+| PROGRESS.md | Development history, completed milestones | (general tracking) |
+| INVARIANTS.md | System contracts that must never be violated | invariant-discovery-and-enforcement, idempotency-replay-safety-hardening |
+| ASSUMPTIONS.md | Implicit beliefs not yet validated | assumption-mapping-and-hardening |
+| ERROR-SEMANTICS.md | Error categories, recovery paths, user messaging | error-semantics-recovery-path-design, failure-topography-and-graceful-degradation |
+| SECURITY-POSTURE.md | Security hardening status by category | security |
+| TEMPORAL-FLOWS.md | Async patterns, race conditions, checkpoint flows | temporal-flow-audit, progress-continuity-interruption-resilience |
+| COHERENCE-NOTES.md | React state patterns, duplication, styling audit | react-coherence |
+| EXPERIENCE-AUDIT.md | Persona mapping, friction analysis, navigation | experience-architecture-audit, navigation-integrity-audit |
+
+#### SEAMS.md Template
+
+```markdown
+# Seams & Architecture Boundaries
+
+## Last Updated
+[Date]
+
+## Integration Seams
+[Discovered seams where behavior can be substituted for testing/variation]
+- **Seam name**: location, purpose, testability status
+
+## Responsibility Zones
+[Layer boundaries and what each layer owns]
+- Entry/presentation:
+- Coordination/orchestration:
+- Domain rules:
+- Integrations/infrastructure:
+- Cross-cutting concerns:
+
+## Decision Points
+[Extracted decision logic and where it lives]
+- **Decision**: criteria, location, test coverage
+
+## Change Axes
+[How changes land in the codebase]
+- Primary change axis: [what changes most often]
+- Current cost of change: [localized vs. scattered]
+
+## Observability Surface
+[Logging, metrics, feedback mechanisms]
+- Signal gaps identified:
+- Feedback surfaces added:
+
+## Architecture Clarity Notes
+[Simplifications made, complexity hot spots remaining]
+
+## Exploration Log
+[Architectural variations attempted and outcomes]
+```
+
+#### PROBLEMS.md Template
+
+```markdown
+# Known Issues & Technical Debt
+
+## Last Updated
+[Date]
+
+## Code Quality Debt
+[From refactor, code-cleanup]
+- **Area**: issue description, severity, recommended fix
+
+## Test Gaps
+[From test skill]
+- Coverage gaps:
+- Flaky tests:
+- Weak assertions:
+
+## Stability Issues
+[From react-stability]
+- Crash-prone areas:
+- Unsafe data access:
+- Missing error boundaries:
+
+## UX Issues
+[From ux skill]
+- Friction points:
+- Clarity gaps:
+- Accessibility concerns:
+
+## Cleanup History
+[Major code removal patterns and outcomes]
+- [Date]: Removed X, pattern was Y, outcome was Z
+```
+
+#### INVARIANTS.md Template
+
+```markdown
+# System Invariants
+
+## Last Updated
+[Date]
+
+## Critical Invariants
+[Must never be violated - type-enforced or test-validated]
+
+| Invariant | Domain Concept | Enforcement | Test Coverage |
+|-----------|----------------|-------------|---------------|
+| [description] | [what concept] | [types/validation/tests] | [test file] |
+
+## Important Invariants
+[Should be preserved but violation is recoverable]
+
+## Replay/Idempotency Invariants
+[Operations that must be safe to retry]
+- **Operation**: idempotency key, safe retry pattern
+
+## Enforcement Mechanisms
+[How each invariant is protected]
+```
+
+#### ASSUMPTIONS.md Template
+
+```markdown
+# Documented Assumptions
+
+## Last Updated
+[Date]
+
+## Data Shape Assumptions
+[Expected structure of inputs/outputs]
+- **Assumption**: where it's made, what breaks if wrong
+
+## Behavioral Assumptions
+[User behavior, external system behavior]
+
+## Timing Assumptions
+[Ordering, delays, timeouts]
+
+## Environment Assumptions
+[What the code expects from its runtime]
+
+## Hardening Status
+| Assumption | Status | Moved to INVARIANTS |
+|------------|--------|---------------------|
+| [description] | implicit/validated/hardened | [yes/no] |
+```
+
+#### ERROR-SEMANTICS.md Template
+
+```markdown
+# Error Semantics & Recovery Paths
+
+## Last Updated
+[Date]
+
+## Error Categories
+
+### Configuration Errors
+- Recovery: [how to recover]
+- User message pattern: [template]
+- Machine hint: `{ category: 'CONFIG', ... }`
+
+### Validation Errors
+- Recovery: [how to recover]
+- User message pattern: [template]
+- Machine hint: `{ category: 'VALIDATION', field: '...', ... }`
+
+### Connectivity Errors
+- Recovery: [how to recover]
+- User message pattern: [template]
+- Retry strategy: [exponential backoff, etc.]
+
+### Permission Errors
+- Recovery: [how to recover]
+- User message pattern: [template]
+
+### Internal Logic Errors
+- Recovery: [how to recover]
+- Logging pattern: [what to log]
+
+## Failure Modes
+[From failure-topography-and-graceful-degradation]
+
+| Flow | Failure Mode | Current Behavior | Desired Behavior |
+|------|--------------|------------------|------------------|
+| [flow] | [what fails] | [what happens now] | [graceful degradation] |
+```
+
+#### SECURITY-POSTURE.md Template
+
+```markdown
+# Security Posture
+
+## Last Updated
+[Date]
+
+## Hardening Status by Category
+
+### Secrets Management
+- [ ] No hardcoded secrets
+- [ ] Environment variable validation
+- [ ] Secret rotation support
+Status: [hardened/partial/needs-work]
+
+### Authentication & Authorization
+- [ ] Auth flows reviewed
+- [ ] Permission checks consistent
+- [ ] Session handling secure
+Status: [hardened/partial/needs-work]
+
+### Input Validation
+- [ ] All user input validated
+- [ ] SQL injection prevented
+- [ ] XSS prevented
+Status: [hardened/partial/needs-work]
+
+### Error Handling
+- [ ] No sensitive data in errors
+- [ ] Consistent error responses
+Status: [hardened/partial/needs-work]
+
+## Known Vulnerabilities
+[Issues identified but not yet fixed]
+
+## Priority Hardening Areas
+1. [Most critical]
+2. [Second priority]
+```
+
+#### TEMPORAL-FLOWS.md Template
+
+```markdown
+# Temporal Flows & Async Patterns
+
+## Last Updated
+[Date]
+
+## Async Flows Identified
+
+| Flow | Entry Point | Async Operations | Completion Signal |
+|------|-------------|------------------|-------------------|
+| [name] | [where it starts] | [what's async] | [how we know it's done] |
+
+## Race Conditions
+[Identified race conditions and their status]
+- **Location**: description, mitigation status
+
+## Timing Assumptions
+[Implicit ordering or delay assumptions]
+
+## Checkpoint Flows
+[From progress-continuity-interruption-resilience]
+- **Flow**: checkpoints, resume entrypoints, interruption handling
+
+## Concurrency Concerns
+[Shared state, locking, coordination patterns]
+```
+
+#### EXPERIENCE-AUDIT.md Template
+
+```markdown
+# Experience Architecture Audit
+
+## Last Updated
+[Date]
+
+## Personas Identified
+
+| Persona | Primary Job | Current Flow | Ideal Flow |
+|---------|-------------|--------------|------------|
+| [who] | [what they're trying to do] | [how it works now] | [how it should work] |
+
+## Friction Analysis
+
+### Mechanical Friction
+[Too many clicks, slow operations]
+
+### Cognitive Friction
+[Confusing UI, unclear state]
+
+### Discoverability Friction
+[Features hard to find]
+
+## Navigation Integrity
+[From navigation-integrity-audit]
+- Label→destination mismatches:
+- Back/forward coherence issues:
+- Deep link handling:
+
+## Priority Improvements
+1. [Highest impact]
+2. [Second priority]
+```
+
+#### When to Create vs. Skip Files
+
+| File | Create When | Skip When |
+|------|-------------|-----------|
+| SEAMS.md | Always - core internal doc | Never skip |
+| PROBLEMS.md | Always - core internal doc | Never skip |
+| PROGRESS.md | Always - core internal doc | Never skip |
+| INVARIANTS.md | System has critical contracts | Simple CRUD with no invariants |
+| ASSUMPTIONS.md | Code makes implicit assumptions | Well-typed, explicit code |
+| ERROR-SEMANTICS.md | User-facing errors matter | Internal tooling only |
+| SECURITY-POSTURE.md | Security is a concern | Internal-only, no auth |
+| TEMPORAL-FLOWS.md | Async/concurrent operations | Purely synchronous code |
+| COHERENCE-NOTES.md | React UI exists | No React UI |
+| EXPERIENCE-AUDIT.md | User-facing scenario | Backend-only service |
