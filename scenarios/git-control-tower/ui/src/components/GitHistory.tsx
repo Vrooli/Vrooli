@@ -93,7 +93,9 @@ function parseHistoryLine(line: string): HistoryEntry | null {
     headBranch,
     remoteBranches,
     isHead: Boolean(headToken || decorations.includes("HEAD")),
-    isRemote: remoteBranches.length > 0
+    isRemote: remoteBranches.length > 0,
+    isFirstRemote: false,
+    isPushed: false
   };
 }
 

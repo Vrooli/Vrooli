@@ -51,7 +51,7 @@ export function UpstreamInfoModal({
   const canSuggestSetUpstream = Boolean(localBranch);
   const hasUpstream = Boolean(upstreamRef);
   const trackingMismatch =
-    Boolean(localBranch && upstreamRef) && !upstreamRef.endsWith(`/${localBranch}`);
+    Boolean(localBranch && upstreamRef) && !upstreamRef?.endsWith(`/${localBranch}`);
   const hasIssue = !hasUpstream || trackingMismatch || behind > 0;
   const showActions = hasIssue || showActionsOverride;
   const copyCommand = (command: string) => {

@@ -1065,8 +1065,8 @@ export default function App() {
   }, [groupingRules, groupingEnabled]);
 
   useEffect(() => {
-    // Skip working directory cleanup when in history mode
-    if (viewingCommit) return;
+    // Skip working directory cleanup when in history mode or viewing any file
+    if (viewingCommit || isViewingAnyFile) return;
 
     if (!orderedKeySet.size) {
       setSelectedFiles([]);
@@ -1078,11 +1078,11 @@ export default function App() {
     }
 
     setSelectedFiles((prev) => prev.filter((entry) => orderedKeySet.has(selectionKey(entry))));
-  }, [orderedKeySet, selectionKey, viewingCommit]);
+  }, [orderedKeySet, selectionKey, viewingCommit, isViewingAnyFile]);
 
   useEffect(() => {
-    // Skip working directory cleanup when in history mode
-    if (viewingCommit) return;
+    // Skip working directory cleanup when in history mode or viewing any file
+    if (viewingCommit || isViewingAnyFile) return;
 
     if (!selectedFile) return;
     const activeKey = selectionKey({ path: selectedFile, staged: selectedIsStaged });
@@ -1105,7 +1105,8 @@ export default function App() {
     selectedIsStaged,
     selectionKey,
     untrackedSet,
-    viewingCommit
+    viewingCommit,
+    isViewingAnyFile
   ]);
 
   useEffect(() => {

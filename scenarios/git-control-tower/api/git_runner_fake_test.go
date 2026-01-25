@@ -56,7 +56,7 @@ type FakeGitRunner struct {
 	CheckRefFormatError  error
 
 	// Commit tracking
-	LastCommitMessage     string
+	LastCommitMsg         string
 	LastCommitAuthorName  string
 	LastCommitAuthorEmail string
 	CommitCount           int
@@ -299,11 +299,11 @@ func (f *FakeGitRunner) Commit(ctx context.Context, repoDir string, message stri
 
 	// Track commit
 	if options.NoEdit {
-		if f.LastCommitMessage == "" {
-			f.LastCommitMessage = message
+		if f.LastCommitMsg == "" {
+			f.LastCommitMsg = message
 		}
 	} else {
-		f.LastCommitMessage = message
+		f.LastCommitMsg = message
 	}
 	f.LastCommitAuthorName = options.AuthorName
 	f.LastCommitAuthorEmail = options.AuthorEmail
@@ -367,10 +367,10 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 // LastCommitMessage returns the simulated last commit subject.
 func (f *FakeGitRunner) LastCommitMessage(ctx context.Context, repoDir string) (string, error) {
 	f.recordCall("LastCommitMessage", repoDir)
-	if strings.TrimSpace(f.LastCommitMessage) == "" {
+	if strings.TrimSpace(f.LastCommitMsg) == "" {
 		return "", fmt.Errorf("no commits")
 	}
-	return f.LastCommitMessage, nil
+	return f.LastCommitMsg, nil
 }
 
 // LookPath simulates checking for the git binary.
@@ -607,6 +607,53 @@ func (f *FakeGitRunner) ShowFileAtCommit(ctx context.Context, repoDir string, co
 
 	// Return simulated file content
 	return []byte("line 1\nline 2\nline 3\nmodified line\nline 5\n"), nil
+}
+
+// CatFile returns the content of a file in the working tree.
+func (f *FakeGitRunner) CatFile(ctx context.Context, repoDir string, path string) ([]byte, error) {
+	f.recordCall("CatFile", repoDir, path)
+
+	if f.DiffError != nil {
+		return nil, f.DiffError
+	}
+
+	// Return simulated file content
+	return []byte("line 1\nline 2\nline 3\nline 4\nline 5\n"), nil
+}
+
+// ListTrackedFiles returns all tracked files in the repository.
+func (f *FakeGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListTrackedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	// Return simulated tracked files based on staged and unstaged
+	var files []string
+	for path := range f.Staged {
+		files = append(files, path)
+	}
+	for path := range f.Unstaged {
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	return files, nil
+}
+
+// ListUntrackedFiles returns all untracked files (respects .gitignore).
+func (f *FakeGitRunner) ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	f.recordCall("ListUntrackedFiles", repoDir)
+
+	if f.StatusError != nil {
+		return nil, f.StatusError
+	}
+
+	// Return the untracked files
+	result := make([]string, len(f.Untracked))
+	copy(result, f.Untracked)
+	sort.Strings(result)
+	return result, nil
 }
 
 func (f *FakeGitRunner) Branches(ctx context.Context, repoDir string) ([]byte, error) {

@@ -88,7 +88,7 @@ func TestCreateCommit_AmendNoEditKeepsMessage(t *testing.T) {
 	fakeGit := NewFakeGitRunner().AddStagedFile("file.go")
 	fakeGit.Branch.Upstream = "origin/main"
 	fakeGit.Branch.Ahead = 1
-	fakeGit.LastCommitMessage = "feat: previous message"
+	fakeGit.LastCommitMsg = "feat: previous message"
 	result, err := CreateCommit(context.Background(), CommitDeps{
 		Git:     fakeGit,
 		RepoDir: "/fake/repo",
@@ -122,8 +122,8 @@ func TestCreateCommit_WithFakeGit(t *testing.T) {
 	if result.Hash == "" {
 		t.Fatalf("expected commit hash to be set")
 	}
-	if fakeGit.LastCommitMessage != "feat: add new feature" {
-		t.Fatalf("expected message='feat: add new feature', got %q", fakeGit.LastCommitMessage)
+	if fakeGit.LastCommitMsg != "feat: add new feature" {
+		t.Fatalf("expected message='feat: add new feature', got %q", fakeGit.LastCommitMsg)
 	}
 	if !fakeGit.AssertCalled("Commit") {
 		t.Fatalf("expected Commit to be called")
