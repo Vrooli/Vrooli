@@ -1033,11 +1033,16 @@ export default function App() {
     setIsViewingAnyFile(true);
     setViewingCommit(null);
     setViewMode("source"); // Force source mode for any file
-    setShowRelatedFiles(false); // Close related files panel when selecting from search
+    // If related files panel is open, update it to show relations for the new file
+    if (showRelatedFiles) {
+      setRelatedFilesForPath(path);
+    } else {
+      setRelatedFilesForPath(undefined);
+    }
     if (isMobile) {
       setMobileActivePanel("diff");
     }
-  }, [isMobile]);
+  }, [isMobile, showRelatedFiles]);
 
   // Handle showing related files panel
   const handleShowRelatedFiles = useCallback((path: string) => {
@@ -1213,6 +1218,8 @@ export default function App() {
   }, [groupingRules, groupingEnabled]);
 
   useEffect(() => {
+    // Skip on initial render (URL initialization handles state)
+    if (!initializedFromUrlRef.current) return;
     // Skip working directory cleanup when in history mode or viewing any file
     if (viewingCommit || isViewingAnyFile) return;
 
@@ -1229,6 +1236,8 @@ export default function App() {
   }, [orderedKeySet, selectionKey, viewingCommit, isViewingAnyFile]);
 
   useEffect(() => {
+    // Skip on initial render (URL initialization handles state)
+    if (!initializedFromUrlRef.current) return;
     // Skip working directory cleanup when in history mode or viewing any file
     if (viewingCommit || isViewingAnyFile) return;
 
