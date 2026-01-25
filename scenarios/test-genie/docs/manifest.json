@@ -53,6 +53,18 @@
       ]
     },
     {
+      "id": "plans",
+      "title": "Implementation Plans",
+      "icon": "map",
+      "description": "Detailed implementation plans for features",
+      "documents": [
+        { "path": "plans/bidirectional-reference-validation.md", "title": "Bidirectional Reference Validation", "description": "Implementation plan for CODE:/DOC: reference validation" },
+        { "path": "plans/lint-phase-implementation.md", "title": "Lint Phase Implementation", "description": "Implementation plan for lint phase" },
+        { "path": "plans/standards-phase-implementation-plan.md", "title": "Standards Phase Implementation", "description": "Implementation plan for standards phase" },
+        { "path": "plans/ui-smoke-go-implementation.md", "title": "UI Smoke Go Implementation", "description": "Implementation plan for UI smoke testing in Go" }
+      ]
+    },
+    {
       "id": "guides",
       "title": "Guides",
       "icon": "book",
@@ -114,6 +126,6 @@
   ],
   "navigation": {
     "primary": ["getting-started", "safety", "phases", "guides", "reference"],
-    "secondary": ["concepts", "standard"]
+    "secondary": ["concepts", "plans", "standard"]
   }
 }

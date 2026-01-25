@@ -122,6 +122,143 @@ type CommandRunner interface {
 
 ---
 
+## Package: `internal/docs`
+
+### Seam: `WithHTTPClient` (runner.go:46-48)
+
+**Purpose:** Inject custom HTTP client for external link validation.
+
+**Functional Option:**
+```go
+func WithHTTPClient(client *http.Client) Option {
+    return func(r *Runner) { r.client = client }
+}
+```
+
+**Usage:**
+```go
+runner := docs.New(config, docs.WithHTTPClient(testServer.Client()))
+```
+
+**Why this seam exists:**
+- Enables testing external link validation without real HTTP calls
+- Allows mocking timeout behavior
+- Supports test server injection for deterministic tests
+
+---
+
+### Seam: `WithLogger` (runner.go:41-43)
+
+**Purpose:** Inject custom logger for output control.
+
+**Functional Option:**
+```go
+func WithLogger(w io.Writer) Option {
+    return func(r *Runner) { r.log = w }
+}
+```
+
+**Usage:**
+```go
+var buf bytes.Buffer
+runner := docs.New(config, docs.WithLogger(&buf))
+```
+
+**Why this seam exists:**
+- Enables capturing validation output in tests
+- Allows redirecting output to different destinations
+- Supports silent mode for programmatic usage
+
+---
+
+### Seam: `Config.Settings` (runner.go:22-27)
+
+**Purpose:** Override validation settings for testing different configurations.
+
+**Structure:**
+```go
+type Config struct {
+    ScenarioDir  string
+    ScenarioName string
+    Settings     *Settings  // Injectable settings override
+    HTTPClient   *http.Client
+}
+```
+
+**Usage:**
+```go
+settings := docs.DefaultSettings()
+settings.References.Strict = boolPtr(true)
+runner := docs.New(docs.Config{Settings: settings})
+```
+
+**Why this seam exists:**
+- Enables testing strict vs non-strict modes
+- Allows enabling/disabling individual validators
+- Supports custom extension lists and skip directories
+
+---
+
+### Seam: `WithLinkIgnoreChecker` (runner.go:54-58)
+
+**Purpose:** Override the function that determines which external URLs to skip during validation.
+
+**Type:**
+```go
+type LinkIgnoreChecker func(url string) bool
+```
+
+**Functional Option:**
+```go
+func WithLinkIgnoreChecker(checker LinkIgnoreChecker) Option {
+    return func(r *Runner) { r.ignoreChecker = checker }
+}
+```
+
+**Usage:**
+```go
+// Bypass localhost detection in tests
+noIgnore := func(url string) bool { return false }
+runner := docs.New(config, docs.WithLinkIgnoreChecker(noIgnore))
+```
+
+**Why this seam exists:**
+- Enables testing external link validation HTTP logic without localhost bypass
+- Default implementation ignores localhost/127.0.0.1 URLs (not useful for testing)
+- Allows testing all HTTP paths: success, 404, 500, network errors, HEAD→GET fallback
+- Critical for achieving high test coverage of `checkExternalLink`
+
+---
+
+### Docs Phase Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  api/internal/docs/                                  │
+│  ┌──────────────┐   ┌────────────┐   ┌────────────┐                 │
+│  │  config.go   │   │  types.go  │   │ runner.go  │                 │
+│  │  Settings    │──▶│  Summary   │──▶│   Run()    │                 │
+│  └──────────────┘   └────────────┘   └────────────┘                 │
+│         ▲                                   │                        │
+│         │            Seams                  │                        │
+│  ┌──────┴───────────────────────────────────┴──────┐                │
+│  │  WithHTTPClient()       - for HTTP client mock  │                │
+│  │  WithLogger()           - for output control    │                │
+│  │  WithLinkIgnoreChecker()- for link skip bypass  │                │
+│  │  Config.Settings        - for behavior override │                │
+│  └─────────────────────────────────────────────────┘                │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+| Seam | Has Tests | Mock Impl | Production Impl | Documentation |
+|------|-----------|-----------|-----------------|---------------|
+| `WithHTTPClient` | Yes | httptest.Server | http.DefaultClient | Yes |
+| `WithLogger` | Yes | bytes.Buffer | io.Discard | Yes |
+| `WithLinkIgnoreChecker` | Yes | `noIgnore` func | `shouldIgnoreLink` | Yes |
+| `Config.Settings` | Yes | Custom Settings | DefaultSettings() | Yes |
+
+---
+
 ## Package: `internal/app/httpserver`
 
 ### Seam: Server Dependencies (server.go)
