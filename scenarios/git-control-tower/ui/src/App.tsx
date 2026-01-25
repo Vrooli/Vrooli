@@ -132,6 +132,8 @@ export default function App() {
   // Related files panel state
   const [showRelatedFiles, setShowRelatedFiles] = useState(false);
   const [relatedFilesForPath, setRelatedFilesForPath] = useState<string | undefined>();
+  // Track whether URL initialization is complete (state variable, not ref, for proper batching)
+  const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
@@ -217,6 +219,8 @@ export default function App() {
     }
     // Mark as initialized so URL update effect can run
     initializedFromUrlRef.current = true;
+    // Mark URL init complete (batched with other state updates from handleUrlStateChange)
+    setUrlInitComplete(true);
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1218,8 +1222,8 @@ export default function App() {
   }, [groupingRules, groupingEnabled]);
 
   useEffect(() => {
-    // Skip on initial render (URL initialization handles state)
-    if (!initializedFromUrlRef.current) return;
+    // Skip until URL initialization is complete (state batched together)
+    if (!urlInitComplete) return;
     // Skip working directory cleanup when in history mode or viewing any file
     if (viewingCommit || isViewingAnyFile) return;
 
@@ -1233,11 +1237,11 @@ export default function App() {
     }
 
     setSelectedFiles((prev) => prev.filter((entry) => orderedKeySet.has(selectionKey(entry))));
-  }, [orderedKeySet, selectionKey, viewingCommit, isViewingAnyFile]);
+  }, [urlInitComplete, orderedKeySet, selectionKey, viewingCommit, isViewingAnyFile]);
 
   useEffect(() => {
-    // Skip on initial render (URL initialization handles state)
-    if (!initializedFromUrlRef.current) return;
+    // Skip until URL initialization is complete (state batched together)
+    if (!urlInitComplete) return;
     // Skip working directory cleanup when in history mode or viewing any file
     if (viewingCommit || isViewingAnyFile) return;
 
@@ -1256,6 +1260,7 @@ export default function App() {
       setSelectedIsUntracked(false);
     }
   }, [
+    urlInitComplete,
     orderedKeySet,
     selectedFile,
     selectedFiles,
