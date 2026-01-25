@@ -31,6 +31,7 @@ import type { NavigationConfig } from './navigation.types';
  * - Users: Manage customers
  * - Account: Admin's own settings (right-aligned)
  */
+// DOC: docs/guides/ADMIN_GUIDE.md#admin-navigation-map
 export const NAVIGATION_CONFIG: NavigationConfig = {
   directLinks: [
     {
@@ -247,6 +248,7 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
  * Map of route paths to breadcrumb labels
  * Used for generating breadcrumb navigation
  */
+// DOC: docs/guides/ADMIN_GUIDE.md#admin-navigation-map
 export const ROUTE_LABELS: Record<string, string> = {
   '/admin': 'Admin',
   '/admin/landing': 'Landing Dashboard',

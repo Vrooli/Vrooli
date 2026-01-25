@@ -126,9 +126,9 @@ Alternatively, visit `/admin/profile` after your first login to change credentia
 ### 1. Check Health
 
 Navigate to `/admin` and log in. The dashboard shows:
-- Variant status
-- Recent analytics
-- Quick actions
+- Quick navigation to Landing, Billing, Apps, and Users dashboards
+- Variant and traffic allocation snapshot
+- Stripe readiness indicators
 
 ### 2. Preview Your Landing Page
 
@@ -164,7 +164,7 @@ From [Stripe Dashboard](https://dashboard.stripe.com/apikeys):
 
 ### 2. Configure in Admin
 
-1. Go to **Customization → Stripe Settings**
+1. Go to **Billing → Stripe** (`/admin/billing`)
 2. Enter your keys
 3. Save
 
@@ -184,7 +184,7 @@ Use test card `4242 4242 4242 4242` with any future date and CVC.
 
 ### 1. Create a Variant
 
-1. Go to **Customization → Variants**
+1. Go to **Customization** (`/admin/customization`)
 2. Click **Create New Variant**
 3. Name it (e.g., "Holiday Special")
 4. Set weight to 50 (splits traffic evenly with Control)

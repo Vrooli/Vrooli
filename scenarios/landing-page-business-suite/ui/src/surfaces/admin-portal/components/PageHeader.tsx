@@ -1,5 +1,8 @@
-import type { LucideIcon } from 'lucide-react';
+import { BookOpen, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from '../../../shared/ui/button';
+import { getAdminPageDocLink } from '../config/adminPages';
 
 export interface PageHeaderProps {
   /** Page title */
@@ -30,6 +33,23 @@ export interface PageHeaderProps {
  */
 export function PageHeader(props: PageHeaderProps) {
   const { title, description, icon: Icon, iconBgClass, iconColorClass, actions, testId } = props;
+  const location = useLocation();
+  const docLink = getAdminPageDocLink(location.pathname);
+  const docAction = docLink ? (
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      className="text-slate-300 hover:text-white"
+      data-testid="page-docs-link"
+      aria-label={docLink.label}
+      title={docLink.label}
+    >
+      <Link to={docLink.url}>
+        <BookOpen className="h-4 w-4" />
+      </Link>
+    </Button>
+  ) : null;
 
   return (
     <div className="flex items-center gap-4 mb-8" data-testid={testId}>
@@ -42,7 +62,12 @@ export function PageHeader(props: PageHeaderProps) {
           <p className="text-slate-400 mt-1">{description}</p>
         )}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {(docAction || actions) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {docAction}
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

@@ -31,7 +31,7 @@ Add these events to the endpoint:
 
 ## Wire it into the app
 
-Set via admin portal (**Customization → Stripe Settings → Webhook Secret**) or environment:
+Set via admin portal (**Billing → Stripe → Webhook Secret**) or environment:
 - `STRIPE_WEBHOOK_SECRET=whsec_...`
 
 ### How it’s used

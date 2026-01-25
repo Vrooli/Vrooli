@@ -210,7 +210,7 @@ Variant B: 20/100 = 20%
 **Solutions**:
 
 1. **Verify Stripe keys are set**:
-   - Admin -> Stripe Settings
+   - Admin -> Billing -> Stripe (`/admin/billing`)
    - Check both publishable and restricted keys
 
 2. **Check Stripe Dashboard** for errors

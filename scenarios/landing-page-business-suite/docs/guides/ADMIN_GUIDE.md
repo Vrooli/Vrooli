@@ -8,16 +8,16 @@ audience: ["users", "marketers"]
 
 # Admin Portal Guide
 
-This guide covers how to use the admin portal in your landing page to manage content, run A/B tests, view analytics, and configure payments.
+This guide covers the admin portal for the Landing Page Business Suite. It is grounded in the UI navigation config, admin page catalog, and route map:
+- [CODE: ui/src/surfaces/admin-portal/config/navigation.ts#NAVIGATION_CONFIG]
+- [CODE: ui/src/surfaces/admin-portal/config/adminPages.ts]
+- [CODE: ui/src/App.tsx]
 
 ## Accessing the Admin Portal
 
-Navigate to your landing page's admin URL:
-```
-http://localhost:<port>/admin
-```
-
-The admin portal is **not linked** from the public landing page for security.
+- Login URL: `http://localhost:<port>/admin/login`
+- Admin home after login: `http://localhost:<port>/admin`
+- The admin portal is not linked from the public landing page.
 
 ### Default Credentials
 
@@ -26,354 +26,268 @@ Email: admin@localhost
 Password: changeme123
 ```
 
--> **Important**: Change these credentials immediately in production!
+Important: change these credentials immediately in production.
+
+Options for changing credentials:
+1. Environment variables (recommended for deployments): set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` before starting the scenario.
+2. Admin portal: change via the Profile page (`/admin/profile`) after logging in.
+
+## Admin Navigation Map
+
+This section mirrors the UI navigation config. If you update `NAVIGATION_CONFIG`, update this map.
+
+### Direct Links
+
+- Home (`/admin`): Admin overview with quick flows, stats, and reset controls.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AdminHome.tsx]
+- Docs (`/admin/docs`): Built-in documentation viewer backed by `docs/manifest.json`.
+  - [CODE: ui/src/surfaces/admin-portal/routes/DocsViewer.tsx]
+  - [CODE: docs/manifest.json]
+
+### Landing
 
-**Options for changing credentials:**
-1. **Environment variables** (recommended for deployments): Set `ADMIN_DEFAULT_EMAIL` and `ADMIN_DEFAULT_PASSWORD` before starting the scenario. For scenario-to-cloud deployments, add these via the Secrets Tab.
-2. **Admin portal**: Change via the **Profile** page (`/admin/profile`) after logging in.
+- Dashboard (`/admin/landing`): Landing page health, quick flows, and resume actions.
+  - [CODE: ui/src/surfaces/admin-portal/routes/LandingDashboard.tsx]
+- Customization (`/admin/customization`): Manage landing variants, sections, and weights.
+  - [CODE: ui/src/surfaces/admin-portal/routes/Customization.tsx]
+- Analytics (`/admin/analytics`): Conversion metrics and variant performance.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AdminAnalytics.tsx]
+- Branding (`/admin/branding`): Site identity, SEO defaults, and coming soon settings.
+  - [CODE: ui/src/surfaces/admin-portal/routes/BrandingSettings.tsx]
+- Agent (`/admin/customization/agent`): Trigger AI-powered landing improvements.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AgentCustomization.tsx]
+
+### Billing
 
----
+- Dashboard (`/admin/billing-home`): Stripe readiness, plans status, and quick flows.
+  - [CODE: ui/src/surfaces/admin-portal/routes/BillingDashboard.tsx]
+- Stripe (`/admin/billing`): Configure Stripe keys and webhook settings.
+  - [CODE: ui/src/surfaces/admin-portal/routes/BillingSettings.tsx]
+- Plans (`/admin/tiers`): Subscription tier management (marked as "Soon" in UI).
+  - [CODE: ui/src/surfaces/admin-portal/routes/TiersManagement.tsx]
+- AI Keys (`/admin/api-keys`): Manage AI provider API keys.
+  - [CODE: ui/src/surfaces/admin-portal/routes/APIKeysSettings.tsx]
 
-## Dashboard Overview
-
-After logging in, you'll see the admin dashboard:
+### Apps
 
-```
-+---------------------------------------------------------------------------+
-|  Admin Portal                              [Analytics]  [Customization]  [*]|
-+---------------------------------------------------------------------------+
-|                                                                             |
-|  OVERVIEW                                      Last 7 days v               |
-|  +--------------+  +--------------+  +--------------+  +--------------+    |
-|  |    1,247     |  |    3.2%      |  |     40       |  |   $1,160     |    |
-|  |   Visitors   |  |  Conv. Rate  |  | Conversions  |  |   Revenue    |    |
-|  |   ^ +12%     |  |   ^ +0.4%    |  |   ^ +8       |  |   ^ +$290    |    |
-|  +--------------+  +--------------+  +--------------+  +--------------+    |
-|                                                                             |
-|  VARIANT PERFORMANCE                                                        |
-|  +--------------------------------------------------------------------------+
-|  |  Variant        | Visitors | Conversions | Rate  | Status             | |
-|  |-----------------+----------+-------------+-------+--------------------|  |
-|  |  Control        |    623   |     18      | 2.9%  | * Active (50%)     | |
-|  |  Holiday Promo  |    624   |     22      | 3.5%  | * Active (50%)     | |
-|  +--------------------------------------------------------------------------+
-|                                                                             |
-|  RECENT EVENTS                                                              |
-|  * page_view on Control - 2 min ago                                         |
-|  * cta_click on Holiday Promo - 5 min ago                                   |
-|  * checkout_started on Holiday Promo - 12 min ago                           |
-|                                                                             |
-+---------------------------------------------------------------------------+
-```
+- Dashboard (`/admin/apps`): App distribution health and usage quick flows.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AppsManagement.tsx]
+- Downloads (`/admin/downloads`): App registry, installers, hosting, and artifacts.
+  - [CODE: ui/src/surfaces/admin-portal/routes/DownloadSettings.tsx]
+- Usage (`/admin/usage`): Monthly AI credit usage reporting.
+  - [CODE: ui/src/surfaces/admin-portal/routes/UsageDashboard.tsx]
+- Tier Limits (`/admin/tier-limits`): Credit limits per subscription tier.
+  - [CODE: ui/src/surfaces/admin-portal/routes/TierLimitsSettings.tsx]
+- App Limits (`/admin/app-limits`): Per-app quota configuration.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AppLimitsSettings.tsx]
 
-The dashboard has two main modes:
+### Users
 
-| Mode | Purpose |
-|------|---------|
-| **Analytics / Metrics** | View visitor data, conversion rates, A/B test results |
-| **Customization** | Edit content, manage variants, configure settings |
+- Dashboard (`/admin/users`): User activity, feedback, and waitlist stats.
+  - [CODE: ui/src/surfaces/admin-portal/routes/UsersDashboard.tsx]
+- Accounts (`/admin/accounts`): User accounts, subscriptions, and sessions (UI marks as "Soon").
+  - [CODE: ui/src/surfaces/admin-portal/routes/UserAccounts.tsx]
+- Feedback (`/admin/feedback`): Triage user feedback and requests.
+  - [CODE: ui/src/surfaces/admin-portal/routes/FeedbackManagement.tsx]
+- Waitlist (`/admin/waitlist`): Coming soon signups and toggle.
+  - [CODE: ui/src/surfaces/admin-portal/routes/WaitlistManagement.tsx]
 
----
+### Account
 
-## Analytics Dashboard
+- Profile (`/admin/profile`): Update admin email and password.
+  - [CODE: ui/src/surfaces/admin-portal/routes/ProfileSettings.tsx]
 
-### Key Metrics
+### Deep Links Used By Editors
 
-The analytics view shows:
+- Variant Editor (`/admin/customization/variants/:slug`): Edit variant metadata and sections.
+  - [CODE: ui/src/surfaces/admin-portal/routes/VariantEditor.tsx]
+- Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`): Edit a single section with live preview.
+  - [CODE: ui/src/surfaces/admin-portal/routes/SectionEditor.tsx]
+- Analytics Variant Shortcut (`/admin/analytics/:variantSlug`): Opens analytics pre-filtered to a variant.
+  - [CODE: ui/src/surfaces/admin-portal/routes/AdminAnalytics.tsx]
 
-| Metric | Description |
-|--------|-------------|
-| **Total Visitors** | Unique visitors across all variants |
-| **Conversion Rate** | Percentage of visitors who converted (paid) |
-| **Top CTAs** | Which call-to-action buttons get the most clicks |
-| **Variant Performance** | Side-by-side comparison of A/B test variants |
+## Admin Home
 
-### Filtering Data
+The Admin Home page (`/admin`) is a quick-entry dashboard for the entire suite. It provides:
+- Quick links to Landing, Billing, Apps, and Users dashboards.
+- Snapshot stats (active variants, traffic allocation, Stripe readiness, live variant).
+- A preview shortcut to the public landing page.
+- A "Danger Zone" to reset the demo data when needed.
 
-- **Date Range**: Select start and end dates to filter metrics
-- **Variant Filter**: View stats for a specific variant only
+## Landing Management
 
-### Understanding Variant Stats
+### Landing Dashboard
 
-Each variant shows:
-- **Views**: How many times this variant was shown
-- **Clicks**: CTA button clicks
-- **Conversions**: Completed checkouts
-- **Conversion Rate**: Conversions / Views x 100%
-- **Trend**: Daily performance chart
-
----
-
-## A/B Testing
-
-### How Variants Work
-
-When a visitor arrives at your landing page:
-
-1. **URL Override**: If `?variant=<slug>` in URL, show that variant
-2. **Returning Visitor**: If they've seen a variant before (localStorage), show the same one
-3. **New Visitor**: Randomly select based on variant weights
-
-### Managing Variants
-
-#### Viewing Variants
-
-Go to **Customization -> Variants** to see all variants.
-
-| Status | Meaning |
-|--------|---------|
-| **Active** | Included in random selection for new visitors |
-| **Archived** | Visible in analytics but not shown to new visitors |
-| **Deleted** | Permanently removed |
-
-#### Creating a New Variant
-
-1. Go to **Customization -> Variants**
-2. Click **Create New Variant**
-3. Fill in:
-   - **Name**: Display name (e.g., "Holiday Special")
-   - **Slug**: URL identifier (e.g., "holiday-special")
-   - **Weight**: Traffic percentage (0-100)
-   - **Axes**: Persona, JTBD, Conversion Style
-
-New variants start as a copy of the Control variant's sections.
-
-#### Adjusting Traffic Weights
-
-Weights determine how traffic is split. Example:
-- Control: 50
-- Variant A: 30
-- Variant B: 20
-
-Total doesn't need to equal 100 - weights are normalized.
-
-#### Archiving a Variant
-
-Archiving removes a variant from rotation while preserving its data:
-1. Go to **Variants**
-2. Click **Archive** on the variant
-3. Confirm
-
-Archived variants still appear in historical analytics.
-
----
-
-## Content Customization
-
-### Editing Sections
-
-Each landing page is composed of sections:
-
-| Section Type | Purpose |
-|--------------|---------|
-| **Hero** | Main headline, subheadline, primary CTA |
-| **Features** | Product feature grid |
-| **Pricing** | Pricing tiers and comparison |
-| **Testimonials** | Customer quotes |
-| **FAQ** | Frequently asked questions |
-| **CTA** | Secondary call-to-action block |
-| **Video** | Embedded video content |
-| **Footer** | Links, copyright, social |
-
-### Edit Workflow
-
-1. Go to **Customization**
-2. Select a **Variant** to edit
-3. Click on a **Section** card
-4. Edit fields in the form (left side)
-5. See changes in **Live Preview** (right side)
-6. Click **Save**
-
-```
-+---------------------------------------------------------------------------+
-|  Customization > Control > Hero Section                         [<- Back]  |
-+---------------------------------------------------------------------------+
-|                                                                             |
-|  EDIT FORM                          |  LIVE PREVIEW                         |
-|  ---------------------------------  |  ---------------------------------    |
-|                                     |                                       |
-|  Headline *                         |  +---------------------------------+  |
-|  +-----------------------------+   |  |                                 |  |
-|  | Ship Products 10x Faster    |   |  |   Ship Products 10x Faster     |  |
-|  +-----------------------------+   |  |                                 |  |
-|  Max 80 characters                  |  |   The fastest way to launch    |  |
-|                                     |  |   your SaaS landing page.      |  |
-|  Subheadline                        |  |                                 |  |
-|  +-----------------------------+   |  |      [Start Free Trial]        |  |
-|  | The fastest way to launch   |   |  |                                 |  |
-|  | your SaaS landing page.     |   |  +---------------------------------+  |
-|  +-----------------------------+   |                                       |
-|                                     |                                       |
-|  CTA Button Text                    |                                       |
-|  +-----------------------------+   |                                       |
-|  | Start Free Trial            |   |                                       |
-|  +-----------------------------+   |                                       |
-|                                     |                                       |
-|  CTA Button URL                     |                                       |
-|  +-----------------------------+   |                                       |
-|  | /signup                     |   |                                       |
-|  +-----------------------------+   |                                       |
-|                                     |                                       |
-|           [Cancel]  [Save]          |                                       |
-|                                     |                                       |
-+---------------------------------------------------------------------------+
-```
+Use the Landing dashboard (`/admin/landing`) for at-a-glance landing health and quick flows. It highlights:
+- Current live variant and resolution status.
+- Variant health summaries and traffic allocation.
+- Resume shortcuts for the last variant or analytics view.
 
-Changes take effect immediately - no deployment needed.
+### Customization (Variants and Sections)
 
-### Live Preview
+The Customization page (`/admin/customization`) is the hub for A/B testing:
+- Create, edit, archive, and delete variants.
+- Adjust traffic weights (relative weights; all-zero means an even split).
+- Jump into the Variant Editor or Section Editor.
 
-The preview updates within 300ms of typing (debounced). This lets you see exactly how your changes will look without saving first.
+#### Variant Editor
 
----
+The Variant Editor (`/admin/customization/variants/:slug`) lets you:
+- Update variant metadata (name, slug, axes).
+- Add, reorder, and edit sections.
+- Edit the entire variant + sections payload as JSON.
 
-## Branding Settings
+#### Section Editor
 
-### Site Branding
+The Section Editor (`/admin/customization/variants/:variantSlug/sections/:sectionId`) lets you:
+- Edit section fields with a live preview.
+- Switch between sections in the variant timeline.
 
-Go to **Customization -> Branding** to configure:
+### Analytics
 
-| Field | Purpose |
-|-------|---------|
-| **Site Name** | Appears in browser tab, header |
-| **Tagline** | Short description |
-| **Logo** | Upload your logo image |
-| **Favicon** | Browser tab icon |
-| **Primary Color** | Main accent color (hex) |
+The Analytics page (`/admin/analytics`) shows:
+- Total visitors, conversions, and conversion rate.
+- Variant comparisons with conversion and trend signals.
+- Filters for time range and variant.
 
-### SEO Settings
+### Branding
 
-Per-variant SEO configuration:
+The Branding page (`/admin/branding`) configures:
+- Site identity (name, tagline, logos, favicon).
+- SEO defaults and social previews.
+- Support contact channels.
+- Coming soon messaging that pairs with the Waitlist page.
 
-| Field | Purpose |
-|-------|---------|
-| **Meta Title** | Browser tab / search results title |
-| **Meta Description** | Search results description |
-| **OG Image** | Social media preview image |
-| **Canonical URL** | Preferred URL for search engines |
+### Agent Customization
 
----
+The Agent page (`/admin/customization/agent`) triggers AI-assisted landing improvements. Provide:
+- A brief describing goals and target audience.
+- Optional asset URLs.
+- Optional preview mode to review changes before applying.
 
-## Stripe Setup
+## Billing and Monetization
 
-### Configuration Steps
+### Billing Dashboard
 
-1. Go to **Customization -> Stripe Settings**
-2. Enter your Stripe keys:
-   - **Publishable Key**: `pk_test_...` or `pk_live_...`
-   - **Restricted Key**: `rk_test_...` or `rk_live_...` (created in Stripe as a restricted key)
-   - **Webhook Secret**: `whsec_...`
-3. Save
+Use the Billing dashboard (`/admin/billing-home`) to:
+- Check Stripe readiness.
+- Jump to Stripe settings, plans, and AI key management.
 
-### Setting Up Webhooks
+### Stripe Settings
 
-In your Stripe Dashboard:
+The Stripe page (`/admin/billing`) configures:
+- Publishable key, secret key, and webhook secret.
+- Status indicators for each key.
 
-1. Go to **Developers -> Webhooks**
-2. Add endpoint: `https://your-domain.com/api/v1/webhooks/stripe`
-3. Select events:
-   - `checkout.session.completed`
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `invoice.paid`
-   - `invoice.payment_failed`
+Related reference docs:
+- [DOC: docs/reference/STRIPE_WEBHOOKS.md#stripe-webhooks--signing-secret]
+- [DOC: docs/reference/STRIPE_RESTRICTED_KEYS.md#stripe-restricted-keys]
 
-### Testing Payments
+### Plans (Coming Soon)
 
-Use Stripe test mode keys and test card numbers:
-- Success: `4242 4242 4242 4242`
-- Decline: `4000 0000 0000 0002`
+The Plans page (`/admin/tiers`) is a placeholder. Use:
+- Tier Limits for credit allocations.
+- Stripe settings for price configuration.
 
----
+### AI Keys
 
-## Download Management
+The AI Keys page (`/admin/api-keys`) lets you:
+- Add, test, enable/disable, and remove provider keys.
+- Configure the fallback keys used when customers do not provide their own.
 
-For landing pages with downloadable apps:
+## Apps and Usage
 
-### Configuring Downloads
+### Apps Dashboard
 
-Go to **Customization -> Downloads** to manage:
+The Apps dashboard (`/admin/apps`) focuses on distribution readiness:
+- Downloads health (apps configured, platforms, store links).
+- Quick links to Downloads, Usage, Tier Limits, and App Limits.
 
-| Field | Purpose |
-|-------|---------|
-| **App Key** | Unique identifier |
-| **App Name** | Display name |
-| **Description** | What the app does |
-| **Platforms** | Windows, Mac, Linux |
-| **Installers** | Download URLs per platform |
-| **Store Links** | App Store, Google Play URLs |
-| **Release Notes** | What's new in this version |
+### Downloads
 
-### Entitlement Requirements
+The Downloads page (`/admin/downloads`) manages:
+- App registry entries and platforms.
+- Installer hosting, storage settings, and artifacts.
+- Previewing the public landing page download section.
 
-Downloads are gated by subscription status. Visitors must have an active subscription to download.
+Downloads are gated by subscription status in the public experience.
 
----
+### Usage
 
-## Agent Customization
+The Usage dashboard (`/admin/usage`) provides:
+- Monthly usage totals and active user counts.
+- Breakdown by app and top users.
+- Period navigation to historical months.
 
-Landing pages can be customized by AI agents.
+### Tier Limits
 
-### Triggering Agent Customization
+The Tier Limits page (`/admin/tier-limits`) sets:
+- Monthly AI credit allocations per subscription tier.
+- Bulk actions like reset and doubling limits.
 
-1. Go to **Customization -> Agent**
-2. Write a **Brief** describing what you want
-3. Optionally select a **Persona** (optimization style)
-4. Click **Trigger Customization**
+### App Limits
 
-The agent will create a GitHub issue and begin investigating your landing page.
+The App Limits page (`/admin/app-limits`) sets:
+- Per-app quotas beyond global AI credits.
+- Limits scoped by subscription tier.
 
-### Example Briefs
+## Users and Feedback
 
-```
-Make the hero section more compelling for enterprise buyers.
-Focus on security and compliance messaging.
-```
+### Users Dashboard
 
-```
-Add a comparison section showing us vs competitors.
-Emphasize our AI-native approach and cost savings.
-```
+The Users dashboard (`/admin/users`) shows:
+- Feedback counts by status.
+- Waitlist totals.
+- Quick links to feedback and waitlist workflows.
 
----
+### Accounts (In Progress)
 
-## Keyboard Shortcuts
+The Accounts page (`/admin/accounts`) lists user accounts and sessions. The UI currently marks this area as "Soon" in navigation; expect workflows to evolve.
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + S` | Save current section |
-| `Cmd/Ctrl + K` | Quick search / command palette |
-| `Escape` | Close dialog / cancel |
-| `Tab` | Navigate form fields |
+### Feedback
 
----
+The Feedback page (`/admin/feedback`) supports:
+- Filtering by type and status.
+- Status changes, replies, and deletion.
+- Bulk actions for triage.
+
+### Waitlist
+
+The Waitlist page (`/admin/waitlist`) manages:
+- Coming soon signups and CSV export.
+- The coming soon toggle (pairs with Branding settings).
+
+## Account and Security
+
+### Profile
+
+The Profile page (`/admin/profile`) is the recommended way to:
+- Replace the seeded admin email.
+- Rotate the admin password.
+- Verify whether default credentials are still active.
+
+### Docs Viewer
+
+Use `/admin/docs` to browse this scenario's documentation. The tree is driven by `docs/manifest.json`.
+
+Admin page headers show a documentation icon when a related guide section exists. The link routes into the docs viewer with the correct document path and anchor (driven by `ui/src/surfaces/admin-portal/config/adminPages.ts`), so you land directly on the matching section.
 
 ## Best Practices
 
 ### A/B Testing
 
-1. **One variable at a time**: Only change one thing between variants
-2. **Sufficient sample size**: Wait for statistical significance (usually 100+ conversions per variant)
-3. **Run long enough**: At least 2 weeks to account for weekly patterns
-4. **Document hypotheses**: Note what you expected before seeing results
+1. Change one variable at a time between variants.
+2. Wait for adequate sample size before deciding a winner.
+3. Run tests long enough to cover weekly cycles.
+4. Record your hypothesis for each variant before reviewing results.
 
-### Content
+### Content Quality
 
-1. **Clear headlines**: State the benefit in 8 words or fewer
-2. **Specific CTAs**: "Start Free Trial" beats "Get Started"
-3. **Social proof**: Include real testimonials with names/photos
-4. **Mobile first**: Check preview at mobile widths
+1. Keep hero headlines short and benefit-driven.
+2. Use specific CTAs ("Start Free Trial" beats "Get Started").
+3. Validate mobile layout with the live preview.
 
-### Performance
-
-1. **Compress images**: Use WebP format, under 200KB
-2. **Limit video**: One video section maximum
-3. **Test regularly**: Run Lighthouse audits monthly
-
----
-
-## Troubleshooting Admin Portal
+## Troubleshooting
 
 ### "Session expired"
 
@@ -381,23 +295,19 @@ Your login timed out. Log in again at `/admin/login`.
 
 ### Changes not saving
 
-1. Check browser console for errors
-2. Ensure the API is running (`/health` returns `healthy`)
-3. Try refreshing the page
+1. Check the browser console for errors.
+2. Confirm the API is running ("/health" returns "healthy").
+3. Refresh the page and retry.
 
-### Analytics not updating
+### Analytics missing data
 
-Metrics are near-real-time with up to 5-minute delay. If data is more than 10 minutes stale:
-1. Check API health
-2. Check database connection
-3. Review API logs
+Analytics ingestion can lag by several minutes. If data is stale:
+1. Check API health.
+2. Verify database connectivity.
+3. Review API logs for errors.
 
 ### Stripe webhooks failing
 
-1. Verify webhook secret is correct
-2. Check webhook endpoint is accessible
-3. Review Stripe Dashboard -> Webhooks for error details
-
----
-
-**Next**: [Core Concepts](../concepts/CONCEPTS.md) | [API Reference](../reference/api/README.md)
+1. Verify the webhook secret in Stripe settings.
+2. Confirm the webhook endpoint is reachable.
+3. Review Stripe's webhook delivery logs for errors.

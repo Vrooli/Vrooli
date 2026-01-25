@@ -48,3 +48,28 @@ export function findFirstMarkdownFile(entries: DocEntry[]): string | null {
 export function getInitialExpandedPaths(entries: DocEntry[]): Set<string> {
   return new Set(entries.filter((e) => e.isDir).map((e) => e.path));
 }
+
+/**
+ * Get expanded paths for a specific document path, including parent folders.
+ */
+export function getExpandedPathsForDocPath(entries: DocEntry[], docPath: string | null): Set<string> {
+  const expanded = getInitialExpandedPaths(entries);
+  if (!docPath) {
+    return expanded;
+  }
+
+  const normalized = docPath.replace(/^\/+/, '').replace(/\/+$/, '');
+  const segments = normalized.split('/').filter(Boolean);
+
+  if (segments.length <= 1) {
+    return expanded;
+  }
+
+  let current = '';
+  for (const segment of segments.slice(0, -1)) {
+    current = current ? `${current}/${segment}` : segment;
+    expanded.add(current);
+  }
+
+  return expanded;
+}

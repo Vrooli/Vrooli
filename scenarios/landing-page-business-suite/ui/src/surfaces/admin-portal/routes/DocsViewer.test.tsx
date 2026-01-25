@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReactElement } from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DocsViewer } from './DocsViewer';
@@ -48,8 +48,8 @@ const mockDoc: DocContent = {
   content: '# Installation\n\nThis is the installation guide.\n\n## Prerequisites\n\nYou need Node.js installed.',
 };
 
-const renderWithRouter = (component: ReactElement) => {
-  return render(<BrowserRouter>{component}</BrowserRouter>);
+const renderWithRouter = (component: ReactElement, route = '/admin/docs') => {
+  return render(<MemoryRouter initialEntries={[route]}>{component}</MemoryRouter>);
 };
 
 describe('DocsViewer', () => {
@@ -121,6 +121,14 @@ describe('DocsViewer', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Installation Guide')).toBeInTheDocument();
+      });
+    });
+
+    it('loads requested document when doc query param is provided', async () => {
+      renderWithRouter(<DocsViewer />, '/admin/docs?doc=api/endpoints.md');
+
+      await waitFor(() => {
+        expect(mockGetDocContent).toHaveBeenCalledWith('api/endpoints.md');
       });
     });
 

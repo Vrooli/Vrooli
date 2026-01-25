@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { LAYOUT } from '../config/layout.constants';
@@ -76,6 +78,29 @@ function TreeNode({ entry, level, selectedPath, expandedPaths, onSelect, onToggl
   );
 }
 
+function buildHeadingId(text: string, counts: Map<string, number>): string {
+  const base = text
+    .toLowerCase()
+    .trim()
+    .replace(/[`*_~]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
+  if (!base) {
+    const fallback = `section-${counts.size + 1}`;
+    counts.set(fallback, 1);
+    return fallback;
+  }
+
+  const count = counts.get(base) ?? 0;
+  counts.set(base, count + 1);
+  if (count === 0) {
+    return base;
+  }
+  return `${base}-${count + 1}`;
+}
+
 function MarkdownRenderer({ content }: { content: string }) {
   // Simple markdown rendering with basic formatting
   const lines = content.split('\n');
@@ -83,6 +108,7 @@ function MarkdownRenderer({ content }: { content: string }) {
   let i = 0;
   let inCodeBlock = false;
   let codeBlockContent: string[] = [];
+  const headingCounts = new Map<string, number>();
 
   while (i < lines.length) {
     const line = lines[i];
@@ -118,20 +144,44 @@ function MarkdownRenderer({ content }: { content: string }) {
 
     // Headings
     if (line.startsWith('# ')) {
+      const headingText = line.slice(2);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h1 key={i} className="text-3xl font-bold text-white mt-8 mb-4 first:mt-0">{formatInlineMarkdown(line.slice(2))}</h1>
+        <h1
+          key={i}
+          id={headingId}
+          className="text-3xl font-bold text-white mt-8 mb-4 first:mt-0 scroll-mt-24"
+        >
+          {formatInlineMarkdown(headingText)}
+        </h1>
       );
     } else if (line.startsWith('## ')) {
+      const headingText = line.slice(3);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h2 key={i} className="text-2xl font-semibold text-white mt-6 mb-3 border-b border-white/10 pb-2">{formatInlineMarkdown(line.slice(3))}</h2>
+        <h2
+          key={i}
+          id={headingId}
+          className="text-2xl font-semibold text-white mt-6 mb-3 border-b border-white/10 pb-2 scroll-mt-24"
+        >
+          {formatInlineMarkdown(headingText)}
+        </h2>
       );
     } else if (line.startsWith('### ')) {
+      const headingText = line.slice(4);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h3 key={i} className="text-xl font-semibold text-white mt-5 mb-2">{formatInlineMarkdown(line.slice(4))}</h3>
+        <h3 key={i} id={headingId} className="text-xl font-semibold text-white mt-5 mb-2 scroll-mt-24">
+          {formatInlineMarkdown(headingText)}
+        </h3>
       );
     } else if (line.startsWith('#### ')) {
+      const headingText = line.slice(5);
+      const headingId = buildHeadingId(headingText, headingCounts);
       elements.push(
-        <h4 key={i} className="text-lg font-medium text-white mt-4 mb-2">{formatInlineMarkdown(line.slice(5))}</h4>
+        <h4 key={i} id={headingId} className="text-lg font-medium text-white mt-4 mb-2 scroll-mt-24">
+          {formatInlineMarkdown(headingText)}
+        </h4>
       );
     }
     // Horizontal rule
@@ -321,6 +371,10 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
 }
 
 export function DocsViewer() {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const requestedDoc = searchParams.get('doc');
+  const requestedAnchor = location.hash ? location.hash.slice(1) : null;
   const {
     tree,
     selectedPath,
@@ -332,7 +386,24 @@ export function DocsViewer() {
     loadTree,
     loadDoc,
     handleToggle,
-  } = useDocsViewer();
+  } = useDocsViewer({ requestedPath: requestedDoc });
+
+  useEffect(() => {
+    if (!requestedAnchor || loadingDoc || !selectedDoc) {
+      return;
+    }
+
+    const schedule = window.requestAnimationFrame ?? ((cb: FrameRequestCallback) => window.setTimeout(cb, 0));
+    const cancel = window.cancelAnimationFrame ?? window.clearTimeout;
+    const handle = schedule(() => {
+      const element = document.getElementById(requestedAnchor);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    return () => cancel(handle);
+  }, [loadingDoc, requestedAnchor, selectedDoc]);
 
   return (
     <AdminLayout maxWidth="wide">

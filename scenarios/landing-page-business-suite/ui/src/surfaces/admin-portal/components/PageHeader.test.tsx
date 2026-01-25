@@ -1,12 +1,22 @@
 import { describe, it, expect } from 'vitest';
+import type { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
 import { Users } from 'lucide-react';
+import { MemoryRouter } from 'react-router-dom';
 import { PageHeader } from './PageHeader';
 import { Button } from '../../../shared/ui/button';
 
+const renderWithRouter = (ui: ReactElement, route = '/__test') => {
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      {ui}
+    </MemoryRouter>
+  );
+};
+
 describe('PageHeader', () => {
   it('renders icon with title and description', () => {
-    render(
+    renderWithRouter(
       <PageHeader
         title="User Accounts"
         description="Manage users"
@@ -23,7 +33,7 @@ describe('PageHeader', () => {
   });
 
   it('renders without description', () => {
-    render(
+    renderWithRouter(
       <PageHeader
         title="Settings"
         icon={Users}
@@ -37,7 +47,7 @@ describe('PageHeader', () => {
   });
 
   it('applies icon styling classes', () => {
-    const { container } = render(
+    const { container } = renderWithRouter(
       <PageHeader
         title="User Accounts"
         icon={Users}
@@ -51,7 +61,7 @@ describe('PageHeader', () => {
   });
 
   it('renders with actions', () => {
-    render(
+    renderWithRouter(
       <PageHeader
         title="User Accounts"
         icon={Users}
@@ -66,7 +76,7 @@ describe('PageHeader', () => {
   });
 
   it('accepts deprecated variant prop for backwards compatibility', () => {
-    render(
+    renderWithRouter(
       <PageHeader
         variant="icon-title"
         title="User Accounts"
@@ -78,5 +88,22 @@ describe('PageHeader', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'User Accounts' })).toBeInTheDocument();
+  });
+
+  it('shows documentation link when page has docs', () => {
+    renderWithRouter(
+      <PageHeader
+        title="Admin Home"
+        icon={Users}
+        iconBgClass="bg-emerald-500/10"
+        iconColorClass="text-emerald-400"
+        testId="header"
+      />,
+      '/admin'
+    );
+
+    const docLink = screen.getByTestId('page-docs-link');
+    expect(docLink).toBeInTheDocument();
+    expect(docLink).toHaveAttribute('href', '/admin/docs?doc=guides%2FADMIN_GUIDE.md#admin-home');
   });
 });

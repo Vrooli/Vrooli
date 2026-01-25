@@ -31,7 +31,7 @@ Everything else should stay **No access**. If you do not cancel subscriptions fr
 
 ## Wire it into this app
 
-You can set these via the admin portal (Customization → Stripe Settings) or environment variables:
+You can set these via the admin portal (Billing → Stripe) or environment variables:
 
 - `STRIPE_PUBLISHABLE_KEY`: `pk_...` (unchanged)
 - `STRIPE_SECRET_KEY`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)

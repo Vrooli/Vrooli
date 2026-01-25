@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DocEntry, DocContent } from '../../../shared/api';
 import {
   fetchDocsTree,
   fetchDocContent,
   findFirstMarkdownFile,
-  getInitialExpandedPaths,
+  getExpandedPathsForDocPath,
 } from '../services/docs.service';
 
 /**
@@ -26,6 +26,10 @@ export interface UseDocsViewerReturn {
   handleToggle: (path: string) => void;
 }
 
+export interface UseDocsViewerOptions {
+  requestedPath?: string | null;
+}
+
 /**
  * Hook for managing documentation viewer state and actions
  *
@@ -35,7 +39,10 @@ export interface UseDocsViewerReturn {
  * - Loading individual document content
  * - Managing folder expand/collapse state
  */
-export function useDocsViewer(): UseDocsViewerReturn {
+export function useDocsViewer(options: UseDocsViewerOptions = {}): UseDocsViewerReturn {
+  const requestedPathRef = useRef(options.requestedPath ?? null);
+  requestedPathRef.current = options.requestedPath ?? null;
+
   // Tree and document state
   const [tree, setTree] = useState<DocEntry[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -76,13 +83,15 @@ export function useDocsViewer(): UseDocsViewerReturn {
       const data = await fetchDocsTree();
       setTree(data);
 
-      // Auto-expand root level directories
-      setExpandedPaths(getInitialExpandedPaths(data));
+      const requestedPath = requestedPathRef.current;
+      setExpandedPaths(getExpandedPathsForDocPath(data, requestedPath));
 
-      // Auto-select first markdown file if available
-      const firstFile = findFirstMarkdownFile(data);
-      if (firstFile) {
-        loadDoc(firstFile);
+      if (!requestedPath) {
+        // Auto-select first markdown file if available
+        const firstFile = findFirstMarkdownFile(data);
+        if (firstFile) {
+          loadDoc(firstFile);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load documentation');
@@ -110,6 +119,18 @@ export function useDocsViewer(): UseDocsViewerReturn {
   useEffect(() => {
     loadTree();
   }, [loadTree]);
+
+  useEffect(() => {
+    const requestedPath = options.requestedPath ?? null;
+    if (!requestedPath || tree.length === 0) {
+      return;
+    }
+
+    setExpandedPaths(getExpandedPathsForDocPath(tree, requestedPath));
+    if (selectedPath !== requestedPath) {
+      loadDoc(requestedPath);
+    }
+  }, [options.requestedPath, loadDoc, selectedPath, tree]);
 
   return {
     // State

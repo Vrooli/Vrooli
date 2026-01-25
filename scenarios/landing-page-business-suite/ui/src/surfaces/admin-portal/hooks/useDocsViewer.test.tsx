@@ -7,13 +7,13 @@ import type { DocEntry, DocContent } from '../../../shared/api';
 const fetchDocsTreeMock = vi.fn();
 const fetchDocContentMock = vi.fn();
 const findFirstMarkdownFileMock = vi.fn();
-const getInitialExpandedPathsMock = vi.fn();
+const getExpandedPathsForDocPathMock = vi.fn();
 
 vi.mock('../services/docs.service', () => ({
   fetchDocsTree: (...args: unknown[]) => fetchDocsTreeMock(...args),
   fetchDocContent: (...args: unknown[]) => fetchDocContentMock(...args),
   findFirstMarkdownFile: (...args: unknown[]) => findFirstMarkdownFileMock(...args),
-  getInitialExpandedPaths: (...args: unknown[]) => getInitialExpandedPathsMock(...args),
+  getExpandedPathsForDocPath: (...args: unknown[]) => getExpandedPathsForDocPathMock(...args),
 }));
 
 const mockTree: DocEntry[] = [
@@ -40,7 +40,7 @@ describe('useDocsViewer', () => {
     fetchDocsTreeMock.mockResolvedValue(mockTree);
     fetchDocContentMock.mockResolvedValue(mockDoc);
     findFirstMarkdownFileMock.mockReturnValue('getting-started/installation.md');
-    getInitialExpandedPathsMock.mockReturnValue(new Set(['getting-started']));
+    getExpandedPathsForDocPathMock.mockReturnValue(new Set(['getting-started']));
   });
 
   describe('initial state', () => {
@@ -95,7 +95,7 @@ describe('useDocsViewer', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(getInitialExpandedPathsMock).toHaveBeenCalledWith(mockTree);
+      expect(getExpandedPathsForDocPathMock).toHaveBeenCalledWith(mockTree, null);
       expect(result.current.expandedPaths.has('getting-started')).toBe(true);
     });
 
@@ -247,9 +247,33 @@ describe('useDocsViewer', () => {
     });
   });
 
+  describe('requested doc', () => {
+    it('loads requested doc instead of auto-selecting the first file', async () => {
+      const { result } = renderHook(() => useDocsViewer({ requestedPath: 'README.md' }));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(findFirstMarkdownFileMock).not.toHaveBeenCalled();
+      expect(fetchDocContentMock).toHaveBeenCalledWith('README.md');
+    });
+
+    it('expands to the requested doc path', async () => {
+      const { result } = renderHook(() => useDocsViewer({ requestedPath: 'getting-started/installation.md' }));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(getExpandedPathsForDocPathMock).toHaveBeenCalledWith(mockTree, 'getting-started/installation.md');
+      expect(result.current.expandedPaths.has('getting-started')).toBe(true);
+    });
+  });
+
   describe('folder toggle', () => {
     it('adds path to expanded paths when not present', async () => {
-      getInitialExpandedPathsMock.mockReturnValue(new Set());
+      getExpandedPathsForDocPathMock.mockReturnValue(new Set());
 
       const { result } = renderHook(() => useDocsViewer());
 
@@ -271,7 +295,7 @@ describe('useDocsViewer', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      // Initially expanded via getInitialExpandedPaths
+      // Initially expanded via getExpandedPathsForDocPath
       expect(result.current.expandedPaths.has('getting-started')).toBe(true);
 
       act(() => {
@@ -282,7 +306,7 @@ describe('useDocsViewer', () => {
     });
 
     it('can toggle multiple folders', async () => {
-      getInitialExpandedPathsMock.mockReturnValue(new Set());
+      getExpandedPathsForDocPathMock.mockReturnValue(new Set());
 
       const { result } = renderHook(() => useDocsViewer());
 
