@@ -10,6 +10,12 @@ audience: ["developers"]
 
 This document describes the system architecture of landing pages generated from this template.
 
+**Key Implementation Files:**
+- [CODE: api/main.go] - API server entry point and service initialization
+- [CODE: ui/src/App.tsx] - React application entry point and routing
+- [CODE: api/landing_config_service.go] - Landing page configuration service
+- [CODE: api/variant_handlers.go] - A/B testing variant endpoints
+
 ## Table of Contents
 
 1. [System Overview](#system-overview)
@@ -527,6 +533,6 @@ User action → Frontend SDK → POST /metrics/track → Database INSERT
 ## See Also
 
 - [Core Concepts](CONCEPTS.md) - A/B testing, data flow
-- [Seams & Testability](SEAMS.md) - Code organization
-- [Configuration Guide](CONFIGURATION_GUIDE.md) - All config files
-- [Deployment Guide](DEPLOYMENT.md) - Production setup
+- [Seams & Testability](../internal/SEAMS.md) - Code organization
+- [Configuration Guide](../guides/CONFIGURATION_GUIDE.md) - All config files
+- [Deployment Guide](../guides/DEPLOYMENT.md) - Production setup

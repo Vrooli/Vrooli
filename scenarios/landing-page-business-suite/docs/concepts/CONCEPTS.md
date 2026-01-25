@@ -10,6 +10,13 @@ audience: ["users", "developers", "agents"]
 
 This document explains the key concepts and architecture of your landing page.
 
+**Key Implementation Files:**
+- [CODE: api/variant_handlers.go] - A/B testing variant selection and management
+- [CODE: api/variant_space.go] - Variant space configuration
+- [CODE: api/stripe_handlers.go] - Stripe payment integration
+- [CODE: api/metrics_handlers.go] - Analytics event tracking
+- [CODE: ui/src/app/providers/LandingVariantProvider.tsx] - Client-side variant handling
+
 ## Table of Contents
 
 1. [A/B Testing System](#ab-testing-system)
@@ -375,4 +382,4 @@ vrooli scenario status <slug>
 
 ---
 
-**Next**: [Admin Guide](ADMIN_GUIDE.md) | [API Reference](api/README.md) | [Troubleshooting](TROUBLESHOOTING.md)
+**Next**: [Admin Guide](../guides/ADMIN_GUIDE.md) | [API Reference](../reference/api/README.md) | [Troubleshooting](../guides/TROUBLESHOOTING.md)

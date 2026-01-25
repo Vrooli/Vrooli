@@ -525,7 +525,7 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 
 ## See Also
 
- - [Quick Start](QUICKSTART.md) - Initial setup
+ - [Quick Start](../QUICKSTART.md) - Initial setup
 - [Configuration Guide](CONFIGURATION_GUIDE.md) - All config options
 - [Troubleshooting](TROUBLESHOOTING.md) - Common issues
 - [Admin Guide](ADMIN_GUIDE.md) - Managing your landing page

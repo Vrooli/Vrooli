@@ -459,7 +459,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 
 ## See Also
 
-- [Configuration Guide](CONFIGURATION_GUIDE.md) - Environment variable reference
-- [Deployment Guide](DEPLOYMENT.md) - Production deployment steps
+- [Configuration Guide](../guides/CONFIGURATION_GUIDE.md) - Environment variable reference
+- [Deployment Guide](../guides/DEPLOYMENT.md) - Production deployment steps
 - [API Reference](api/README.md) - Endpoint documentation
-- [Troubleshooting](TROUBLESHOOTING.md) - Common issues
+- [Troubleshooting](../guides/TROUBLESHOOTING.md) - Common issues

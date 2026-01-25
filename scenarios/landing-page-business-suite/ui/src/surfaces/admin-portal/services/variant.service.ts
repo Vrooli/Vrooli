@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/variants.md - A/B testing variant API
+// DOC: docs/concepts/CONCEPTS.md#ab-testing-system - A/B testing architecture
+// DOC: docs/concepts/CONCEPTS.md#section-architecture - Section structure
 import type {
   ContentSection,
   LandingHeaderConfig,

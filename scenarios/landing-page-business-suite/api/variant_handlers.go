@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/variants.md - A/B testing variant endpoints
+// DOC: docs/concepts/CONCEPTS.md#ab-testing-system - A/B testing architecture
+// DOC: docs/concepts/CONCEPTS.md#variant-selection-flow - Variant selection algorithm
 package main
 
 import (

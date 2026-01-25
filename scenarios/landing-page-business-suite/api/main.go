@@ -1,3 +1,6 @@
+// DOC: docs/concepts/ARCHITECTURE.md - System design and component overview
+// DOC: docs/QUICKSTART.md - Getting started guide
+// DOC: PRD.md - Product requirements and operational targets
 package main
 
 import (

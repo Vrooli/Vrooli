@@ -368,6 +368,6 @@ When reporting issues, include:
 
 ## See Also
 
-- [FAQ](FAQ.md) - Frequently asked questions
-- [Concepts](CONCEPTS.md) - Architecture understanding
+- [FAQ](../FAQ.md) - Frequently asked questions
+- [Concepts](../concepts/CONCEPTS.md) - Architecture understanding
 - [Deployment Guide](DEPLOYMENT.md) - Deployment troubleshooting

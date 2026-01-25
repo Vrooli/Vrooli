@@ -32,7 +32,7 @@ The landing page is a standalone application. Once set up, it can theoretically 
 
 When visitors arrive, they're assigned to a variant based on configured weights. Their assignment is stored in localStorage so they see the same variant on return visits.
 
-See [Concepts - A/B Testing](CONCEPTS.md#ab-testing-system) for the complete flow.
+See [Concepts - A/B Testing](concepts/CONCEPTS.md#ab-testing-system) for the complete flow.
 
 ### Can I force a specific variant for testing?
 
@@ -163,7 +163,7 @@ Yes! Use the Agent Customization feature in the admin portal:
 
 ### How do I deploy to production?
 
-See the [Deployment Guide](DEPLOYMENT.md) for complete instructions. Options include:
+See the [Deployment Guide](guides/DEPLOYMENT.md) for complete instructions. Options include:
 - Vrooli managed (Cloudflare tunnel)
 - Docker containers
 - Traditional VPS
@@ -258,12 +258,12 @@ SPA (Single Page Application). For SSR, you'd need to modify the template signif
 
 ### See Also
 
-- [Troubleshooting Guide](TROUBLESHOOTING.md) - Detailed solutions
-- [Concepts](CONCEPTS.md) - Architecture understanding
+- [Troubleshooting Guide](guides/TROUBLESHOOTING.md) - Detailed solutions
+- [Concepts](concepts/CONCEPTS.md) - Architecture understanding
 
 ---
 
 ## Still Have Questions?
 
-1. Check the [documentation index](index.md) for other guides
-2. Review [Troubleshooting](TROUBLESHOOTING.md) for specific issues
+1. Check the [Quick Start](QUICKSTART.md) for getting started
+2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues

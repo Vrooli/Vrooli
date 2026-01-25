@@ -1,3 +1,6 @@
+// DOC: docs/concepts/ARCHITECTURE.md - UI architecture and component structure
+// DOC: docs/QUICKSTART.md - Getting started guide
+// DOC: docs/guides/ADMIN_GUIDE.md - Admin portal usage
 import { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AdminAuthProvider } from './app/providers/AdminAuthProvider';

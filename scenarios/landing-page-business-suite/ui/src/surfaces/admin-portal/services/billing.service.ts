@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/payments.md - Stripe integration API
+// DOC: docs/reference/STRIPE_WEBHOOKS.md - Webhook configuration
+// DOC: docs/guides/ADMIN_GUIDE.md#stripe-setup - Admin Stripe setup
 import {
   getStripeSettings,
   updateStripeSettings,

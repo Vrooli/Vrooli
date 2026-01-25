@@ -348,4 +348,4 @@ Updates Stripe configuration.
 ## See Also
 
 - [API Overview](README.md)
-- [Admin Guide - Stripe Setup](../ADMIN_GUIDE.md#stripe-setup)
+- [Admin Guide - Stripe Setup](../../guides/ADMIN_GUIDE.md#stripe-setup)

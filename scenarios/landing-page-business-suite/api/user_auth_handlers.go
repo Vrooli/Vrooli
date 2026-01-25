@@ -1,3 +1,6 @@
+// DOC: docs/reference/SECURITY.md - Authentication and session management
+// DOC: docs/guides/ADMIN_GUIDE.md - Admin portal authentication
+// DOC: PRD.md#OT-P0-008 - Admin portal authentication requirement
 package main
 
 import (

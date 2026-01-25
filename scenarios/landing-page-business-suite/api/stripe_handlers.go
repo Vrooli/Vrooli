@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/payments.md - Stripe integration API endpoints
+// DOC: docs/reference/STRIPE_WEBHOOKS.md - Webhook configuration guide
+// DOC: docs/concepts/CONCEPTS.md#stripe-integration-flow - Payment flow diagram
 package main
 
 import (

@@ -480,5 +480,5 @@ Before publishing, verify:
 ## See Also
 
 - [Admin Guide](ADMIN_GUIDE.md) - How to edit content
-- [Concepts - A/B Testing](CONCEPTS.md#ab-testing-system) - Test your copy
-- [FAQ](FAQ.md) - Common questions
+- [Concepts - A/B Testing](../concepts/CONCEPTS.md#ab-testing-system) - Test your copy
+- [FAQ](../FAQ.md) - Common questions

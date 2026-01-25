@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/landing.md - Public landing page configuration API
+// DOC: docs/concepts/CONCEPTS.md#data-flow-architecture - Data flow overview
+// DOC: PRD.md#OT-P0-031 - API-driven landing config + fallback requirement
 package main
 
 import (

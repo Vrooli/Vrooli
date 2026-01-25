@@ -444,5 +444,5 @@ Resets all data to demo defaults.
 ## See Also
 
 - [API Overview](README.md)
-- [Admin Guide](../ADMIN_GUIDE.md) - Using the admin portal
+- [Admin Guide](../../guides/ADMIN_GUIDE.md) - Using the admin portal
 - [Payments](payments.md) - Stripe settings

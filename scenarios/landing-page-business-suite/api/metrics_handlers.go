@@ -1,3 +1,6 @@
+// DOC: docs/reference/api/metrics.md - Analytics and event tracking endpoints
+// DOC: docs/concepts/CONCEPTS.md#ab-testing-system - Metrics integration with A/B testing
+// DOC: PRD.md#OT-P0-019 - Event variant tagging requirement
 package main
 
 import (

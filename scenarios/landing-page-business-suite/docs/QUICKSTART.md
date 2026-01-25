@@ -262,16 +262,16 @@ go build -o landing-api .
 
 | Goal | Document |
 |------|----------|
-| Manage content effectively | [Admin Guide](ADMIN_GUIDE.md) |
-| Write converting copy | [Content Guide](CONTENT_GUIDE.md) |
-| Understand the architecture | [Architecture](ARCHITECTURE.md) |
-| Deploy to production | [Deployment Guide](DEPLOYMENT.md) |
-| Integrate with Stripe | [Payments API](api/payments.md) |
+| Manage content effectively | [Admin Guide](guides/ADMIN_GUIDE.md) |
+| Write converting copy | [Content Guide](guides/CONTENT_GUIDE.md) |
+| Understand the architecture | [Architecture](concepts/ARCHITECTURE.md) |
+| Deploy to production | [Deployment Guide](guides/DEPLOYMENT.md) |
+| Integrate with Stripe | [Payments API](reference/api/payments.md) |
 
 ---
 
 ## Getting Help
 
 1. Check [FAQ](FAQ.md) for common questions
-2. Review [Troubleshooting](TROUBLESHOOTING.md) for specific issues
+2. Review [Troubleshooting](guides/TROUBLESHOOTING.md) for specific issues
 3. Run `vrooli help` for CLI assistance
