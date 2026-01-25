@@ -44,7 +44,7 @@ import {
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
@@ -283,7 +283,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const seekAutoSteer = useSeekAutoSteerExecution();
-  const { data: phaseNames = [] } = usePhaseNames();
+  const { data: phaseNames = [] } = useMergedPhaseNames();
 
   // Fetch task prompt
   const { data: promptData } = useQuery({

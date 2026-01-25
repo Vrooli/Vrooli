@@ -69,7 +69,12 @@ export const queryKeys = {
     all: ['prompts'] as const,
     list: () => [...queryKeys.prompts.all, 'list'] as const,
     file: (id: string) => [...queryKeys.prompts.all, 'file', id] as const,
-    phaseNames: () => [...queryKeys.prompts.all, 'phase-names'] as const,
+  },
+
+  // Skills (from prompt-manager)
+  skills: {
+    all: ['skills'] as const,
+    list: () => [...queryKeys.skills.all, 'list'] as const,
   },
 
   // Logs

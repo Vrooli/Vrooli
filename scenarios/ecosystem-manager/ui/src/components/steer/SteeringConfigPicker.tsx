@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
 import { cn, formatPhaseName } from '@/lib/utils';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
 import type { SteeringConfig, SteeringStrategy, AutoSteerProfile } from '@/types/api';
 
@@ -95,7 +95,7 @@ export function SteeringConfigPicker({
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
-  const { data: phaseNames = [], isLoading: isLoadingPhases } = usePhaseNames();
+  const { data: phaseNames = [], isLoading: isLoadingPhases } = useMergedPhaseNames();
 
   const display = getStrategyDisplay(value, profiles);
   const Icon = display.icon;

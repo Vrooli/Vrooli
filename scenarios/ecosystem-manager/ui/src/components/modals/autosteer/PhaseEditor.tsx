@@ -12,7 +12,7 @@ import type { AutoSteerPhase, SteerMode } from '@/types/api';
 import { ConditionBuilderModal } from './ConditionBuilderModal';
 import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { PhasePicker } from '@/components/steer/PhasePicker';
 
 interface PhaseEditorProps {
@@ -46,7 +46,7 @@ export function PhaseEditor({
   isLast,
 }: PhaseEditorProps) {
   const [isConditionBuilderOpen, setIsConditionBuilderOpen] = useState(false);
-  const { data: phaseNames = [], isLoading: phasesLoading } = usePhaseNames();
+  const { data: phaseNames = [], isLoading: phasesLoading } = useMergedPhaseNames();
 
   const updateField = (field: keyof AutoSteerPhase, value: any) => {
     onChange({ ...phase, [field]: value });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, Compass } from 'lucide-react';
 import { cn, formatPhaseName } from '@/lib/utils';
-import { usePhaseNames } from '@/hooks/usePromptFiles';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { PhasePickerDialog } from './PhasePickerDialog';
 import type { PhaseInfo } from '@/types/api';
 
@@ -20,7 +20,7 @@ interface PhasePickerProps {
 /**
  * PhasePicker - A reusable phase selection component with search, sort, and grid view.
  *
- * Can either receive phaseNames as a prop or fetch them internally via usePhaseNames().
+ * Can either receive phaseNames as a prop or fetch them internally via useMergedPhaseNames().
  * Tracks usage in localStorage for recent/most-used sorting.
  */
 export function PhasePicker({
@@ -37,7 +37,7 @@ export function PhasePicker({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Use external data if provided, otherwise fetch internally
-  const { data: internalPhaseNames = [], isLoading: internalLoading } = usePhaseNames();
+  const { data: internalPhaseNames = [], isLoading: internalLoading } = useMergedPhaseNames();
 
   const phaseNames = externalPhaseNames ?? internalPhaseNames;
   const isLoading = externalLoading ?? internalLoading;

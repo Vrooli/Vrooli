@@ -1,9 +1,6 @@
 package autosteer
 
 import (
-	"io/fs"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -53,9 +50,8 @@ var (
 )
 
 type modeRegistry struct {
-	mu        sync.RWMutex
-	custom    map[SteerMode]struct{}
-	phasesDir string
+	mu     sync.RWMutex
+	custom map[SteerMode]struct{}
 }
 
 func normalizeSteerMode(mode SteerMode) SteerMode {
@@ -95,19 +91,7 @@ func (r *modeRegistry) listCustom() []SteerMode {
 	return modes
 }
 
-func (r *modeRegistry) setPhasesDir(dir string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.phasesDir = dir
-}
-
-func (r *modeRegistry) getPhasesDir() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.phasesDir
-}
-
-// RegisterSteerModes allows custom modes to be registered at runtime (e.g., from prompt files).
+// RegisterSteerModes allows custom modes to be registered at runtime (e.g., from prompt-manager skills).
 func RegisterSteerModes(modes ...SteerMode) {
 	for _, mode := range modes {
 		normalized := normalizeSteerMode(mode)
@@ -116,42 +100,6 @@ func RegisterSteerModes(modes ...SteerMode) {
 		}
 		steerModeRegistry.add(normalized)
 	}
-}
-
-// RegisterSteerModesFromDir scans prompts/phases for markdown files and registers them as modes.
-// It also records the directory for future lookups when new prompts are added at runtime.
-func RegisterSteerModesFromDir(phasesDir string) error {
-	if strings.TrimSpace(phasesDir) == "" {
-		return nil
-	}
-
-	steerModeRegistry.setPhasesDir(phasesDir)
-
-	var modes []SteerMode
-
-	err := filepath.WalkDir(phasesDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
-			return nil
-		}
-
-		name := normalizeSteerMode(SteerMode(strings.TrimSuffix(d.Name(), ".md")))
-		if name != "" {
-			modes = append(modes, name)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	RegisterSteerModes(modes...)
-	return nil
 }
 
 // AllowedSteerModes returns all built-in and registered custom modes, sorted for stability.
@@ -174,7 +122,7 @@ func AllowedSteerModes() []SteerMode {
 	return modes
 }
 
-// IsValid checks if a SteerMode is valid. Custom modes are lazily registered from phase prompts.
+// IsValid checks if a SteerMode is valid. Custom modes come from prompt-manager skills.
 func (m SteerMode) IsValid() bool {
 	normalized := normalizeSteerMode(m)
 	if normalized == "" {
@@ -185,19 +133,7 @@ func (m SteerMode) IsValid() bool {
 		return true
 	}
 
-	if steerModeRegistry.has(normalized) {
-		return true
-	}
-
-	if phasesDir := steerModeRegistry.getPhasesDir(); phasesDir != "" {
-		promptPath := filepath.Join(phasesDir, string(normalized)+".md")
-		if _, err := os.Stat(promptPath); err == nil {
-			steerModeRegistry.add(normalized)
-			return true
-		}
-	}
-
-	return false
+	return steerModeRegistry.has(normalized)
 }
 
 // ConditionType defines the type of condition (simple or compound)

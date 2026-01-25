@@ -37,7 +37,7 @@ type PromptResponse struct {
 
 // SyncResponse is the response from prompt-manager's sync endpoint.
 type SyncResponse struct {
-	Prompts     []PromptResponse `json:"prompts"`
+	Skills      []PromptResponse `json:"skills"`
 	LastUpdated string           `json:"lastUpdated"`
 	Hash        string           `json:"hash"`
 }
@@ -84,6 +84,18 @@ func DefaultPromptLoaderConfig() *PromptLoaderConfig {
 	}
 }
 
+// fallbackInstructions provides default steering content when prompt-manager is unavailable.
+var fallbackInstructions = map[SteerMode]string{
+	ModeProgress:    "Focus on advancing the task toward completion. Make meaningful progress on the primary objectives.",
+	ModeExplore:     "Explore the problem space thoroughly. Gather information before committing to solutions.",
+	ModeRefactor:    "Improve code quality while preserving behavior. Focus on readability and maintainability.",
+	ModeTest:        "Strengthen test coverage. Add tests for edge cases and failure scenarios.",
+	ModePolish:      "Apply final touches. Fix typos, improve formatting, ensure consistency.",
+	ModeUX:          "Improve user experience. Focus on usability, clarity, and accessibility.",
+	ModePerformance: "Optimize performance. Profile first, then optimize hot paths.",
+	ModeSecurity:    "Review for security vulnerabilities. Check input validation and access controls.",
+}
+
 // PromptLoader fetches prompts from prompt-manager API with caching.
 // Supports graceful degradation when prompt-manager is unavailable.
 type PromptLoader struct {
@@ -91,6 +103,7 @@ type PromptLoader struct {
 	client      *http.Client
 	mu          sync.RWMutex
 	cache       map[string]*cachedPrompt
+	rawSkills   []PromptResponse // Store raw skills for UI access
 	lastSync    time.Time
 	available   bool      // is prompt-manager reachable?
 	lastAttempt time.Time // when did we last try to connect?
@@ -143,7 +156,7 @@ func (l *PromptLoader) IsAvailable() bool {
 
 // syncAll fetches all skill prompts from prompt-manager.
 func (l *PromptLoader) syncAll() error {
-	url := fmt.Sprintf("%s/api/v1/prompts/sync?tag=skill", l.cfg.PromptManagerURL)
+	url := fmt.Sprintf("%s/api/v1/skills/sync", l.cfg.PromptManagerURL)
 
 	resp, err := l.client.Get(url)
 	if err != nil {
@@ -165,10 +178,10 @@ func (l *PromptLoader) syncAll() error {
 	defer l.mu.Unlock()
 
 	now := time.Now()
-	for _, p := range syncResp.Prompts {
+	for _, p := range syncResp.Skills {
 		data, err := parsePhasePrompt(p.Content)
 		if err != nil {
-			log.Printf("Warning: could not parse prompt %s: %v", p.ID, err)
+			log.Printf("Warning: could not parse skill %s: %v", p.ID, err)
 			continue
 		}
 		l.cache[p.ID] = &cachedPrompt{
@@ -188,8 +201,11 @@ func (l *PromptLoader) syncAll() error {
 		}
 	}
 
+	// Store raw skills for UI access
+	l.rawSkills = syncResp.Skills
+
 	l.lastSync = now
-	log.Printf("Synced %d prompts from prompt-manager", len(syncResp.Prompts))
+	log.Printf("Synced %d skills from prompt-manager", len(syncResp.Skills))
 
 	return nil
 }
@@ -246,6 +262,15 @@ func (l *PromptLoader) loadPrompt(mode SteerMode) (phasePromptData, bool) {
 	if cached, ok := l.cache[modeStr]; ok {
 		return cached.data, true
 	}
+
+	// Return fallback if available
+	if fallback, ok := fallbackInstructions[mode]; ok {
+		return phasePromptData{
+			Instructions: fallback,
+			Raw:          fallback,
+		}, true
+	}
+
 	return phasePromptData{}, false
 }
 
@@ -308,6 +333,14 @@ func FormatModeContent(mode SteerMode, content string) string {
 // RefreshCache forces a refresh of the cache from prompt-manager.
 func (l *PromptLoader) RefreshCache() error {
 	return l.syncAll()
+}
+
+// GetCachedSkills returns the raw skills that were synced from prompt-manager.
+// This is used by the UI to display available skills.
+func (l *PromptLoader) GetCachedSkills() []PromptResponse {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.rawSkills
 }
 
 // parsePhasePrompt parses a markdown prompt into structured data.

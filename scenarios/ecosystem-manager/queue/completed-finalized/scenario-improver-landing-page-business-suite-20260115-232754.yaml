@@ -1,0 +1,36 @@
+id: scenario-improver-landing-page-business-suite-20260115-232754
+title: Improve scenario landing-page-business-suite
+type: scenario
+operation: improver
+target: landing-page-business-suite
+targets:
+    - landing-page-business-suite
+category: ""
+priority: medium
+effort_estimate: ""
+urgency: ""
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+status: completed-finalized
+current_phase: completed-finalized
+started_at: "2026-01-16T01:37:51-05:00"
+completed_at: "2026-01-16T01:43:53-05:00"
+cooldown_until: "2026-01-16T01:47:03-05:00"
+completion_count: 17
+last_completed_at: "2026-01-16T01:43:53-05:00"
+validation_criteria: []
+created_by: ""
+created_at: "2026-01-15T23:27:54-05:00"
+updated_at: "2026-01-16T01:43:53-05:00"
+tags: []
+notes: ""
+results: {}
+consecutive_completion_claims: 0
+consecutive_failures: 0
+processor_auto_requeue: false
+steering_queue:
+    - react-stability
+    - react-stability
+    - react-stability

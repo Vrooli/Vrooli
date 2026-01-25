@@ -25,7 +25,7 @@ export type OperationType = 'generator' | 'improver';
 
 export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
-// SteerMode is now dynamic - any phase name from prompts/phases/*.md files
+// SteerMode - phase names come from prompt-manager skills with "Steer" mode
 export type SteerMode = string;
 
 // Steering strategy types for unified steering configuration
@@ -516,6 +516,33 @@ export interface PromptFile {
 export interface PhaseInfo {
   name: string;
   description?: string;
+}
+
+// ==================== Skills Types (from prompt-manager) ====================
+
+export interface SkillResponse {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  modes: string[];
+  tags: string[];
+  icon?: string;
+  targetToolId?: string;
+  draft: boolean;
+  folder: string;
+  createdAt: string;
+  updatedAt: string;
+  usageCount: number;
+  lastUsed?: string;
+  effectivenessRating?: number;
+}
+
+export interface SkillsSyncResult {
+  success: boolean;
+  available: boolean;
+  skillCount?: number;
+  error?: string;
 }
 
 // ==================== API Response Wrappers ====================

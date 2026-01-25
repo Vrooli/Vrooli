@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -36,15 +37,35 @@ export function useCreatePromptFile() {
     mutationFn: ({ path, content }: { path: string; content: string }) => api.createPromptFile(path, content),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.prompts.list() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.prompts.phaseNames() });
       queryClient.setQueryData(queryKeys.prompts.file(data.id), data);
     },
   });
 }
 
-export function usePhaseNames() {
-  return useQuery<PhaseInfo[]>({
-    queryKey: queryKeys.prompts.phaseNames(),
-    queryFn: () => api.listPhaseNames(),
+/**
+ * Hook to fetch phase names from prompt-manager skills.
+ * Skills with "Steer" mode are converted to PhaseInfo format.
+ */
+export function useMergedPhaseNames() {
+  const skillsQuery = useQuery({
+    queryKey: queryKeys.skills.list(),
+    queryFn: () => api.listSkills(),
   });
+
+  const phases = useMemo(() => {
+    const skills = skillsQuery.data ?? [];
+    return skills
+      .filter((s) => s.modes?.some((m) => m.toLowerCase() === 'steer'))
+      .map((s): PhaseInfo => ({
+        name: s.modes?.find((m) => m.toLowerCase() !== 'steer') || s.name,
+        description: s.description,
+      }));
+  }, [skillsQuery.data]);
+
+  return {
+    data: phases,
+    isLoading: skillsQuery.isLoading,
+    isError: skillsQuery.isError,
+    error: skillsQuery.error,
+  };
 }

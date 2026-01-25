@@ -66,6 +66,7 @@ type Application struct {
 	promptsHandlers        *handlers.PromptsHandlers
 	insightHandlers        *handlers.InsightHandlers
 	autoSteerHandlers      *autosteer.AutoSteerHandlers
+	skillsSyncHandlers     *handlers.SkillsSyncHandlers
 	visitedTrackerHandlers *handlers.VisitedTrackerHandlers
 
 	// Paths
@@ -218,7 +219,6 @@ func (a *Application) initializeDatabase() error {
 func (a *Application) initializeComponents() error {
 	queueDir := filepath.Join(a.scenarioRoot, "queue")
 	promptsDir := filepath.Join(a.scenarioRoot, "prompts")
-	phasesDir := filepath.Join(promptsDir, "phases")
 
 	// Ensure queue directories exist (aligned with valid queue statuses)
 	for _, dir := range tasks.GetValidStatuses() {
@@ -254,11 +254,6 @@ func (a *Application) initializeComponents() error {
 	}
 	log.Println("✅ Prompt assembler initialized")
 	systemlog.Info("Prompt assembler initialized")
-
-	if err := autosteer.RegisterSteerModesFromDir(phasesDir); err != nil {
-		log.Printf("Warning: could not register steer modes from %s: %v", phasesDir, err)
-		systemlog.Warnf("Could not register steer modes from %s: %v", phasesDir, err)
-	}
 
 	// Initialize WebSocket manager
 	a.wsManager = websocket.NewManager()
@@ -344,6 +339,7 @@ func (a *Application) initializeComponents() error {
 	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
 	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
+	a.skillsSyncHandlers = handlers.NewSkillsSyncHandlers(promptEnhancer.GetPromptLoader())
 	log.Println("✅ HTTP handlers initialized")
 
 	return nil
@@ -373,6 +369,7 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerDiscoveryRoutes(api)
 	a.registerInsightRoutes(api)
 	a.registerAutoSteerRoutes(api)
+	a.registerSkillsRoutes(api)
 	a.registerVisitedTrackerRoutes(api)
 
 	origins := a.allowedOrigins
@@ -439,7 +436,6 @@ func (a *Application) registerPromptRoutes(api *mux.Router) {
 	api.HandleFunc("/prompt-viewer", a.taskHandlers.PromptViewerHandler).Methods("POST")
 	api.HandleFunc("/prompts", a.promptsHandlers.ListPromptFilesHandler).Methods("GET")
 	api.HandleFunc("/prompts", a.promptsHandlers.CreatePromptFileHandler).Methods("POST")
-	api.HandleFunc("/prompts/phases/names", a.promptsHandlers.ListPhaseNamesHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.GetPromptFileHandler).Methods("GET")
 	api.HandleFunc("/prompts/{path:.*}", a.promptsHandlers.UpdatePromptFileHandler).Methods("PUT")
 }
@@ -511,6 +507,11 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/history/{executionId}/feedback/entries", a.autoSteerHandlers.SubmitFeedbackEntry).Methods("POST")
 
 	api.HandleFunc("/auto-steer/analytics/{profileId}", a.autoSteerHandlers.GetProfileAnalytics).Methods("GET")
+}
+
+func (a *Application) registerSkillsRoutes(api *mux.Router) {
+	api.HandleFunc("/skills", a.skillsSyncHandlers.ListSkillsHandler).Methods("GET")
+	api.HandleFunc("/skills/sync", a.skillsSyncHandlers.SyncSkillsHandler).Methods("POST")
 }
 
 func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {

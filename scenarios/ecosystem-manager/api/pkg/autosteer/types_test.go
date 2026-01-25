@@ -1,8 +1,6 @@
 package autosteer
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -10,39 +8,24 @@ func resetSteerModeRegistry(t *testing.T) func() {
 	t.Helper()
 
 	steerModeRegistry.mu.Lock()
-	originalDir := steerModeRegistry.phasesDir
 	originalCustom := steerModeRegistry.custom
 
-	steerModeRegistry.phasesDir = ""
 	steerModeRegistry.custom = make(map[SteerMode]struct{})
 	steerModeRegistry.mu.Unlock()
 
 	return func() {
 		steerModeRegistry.mu.Lock()
-		steerModeRegistry.phasesDir = originalDir
 		steerModeRegistry.custom = originalCustom
 		steerModeRegistry.mu.Unlock()
 	}
 }
 
-func TestRegisterSteerModesFromDirRegistersCustomModes(t *testing.T) {
+func TestRegisterSteerModesRegistersCustomModes(t *testing.T) {
 	restore := resetSteerModeRegistry(t)
 	defer restore()
 
-	root := t.TempDir()
-	phasesDir := filepath.Join(root, "phases")
-	if err := os.MkdirAll(phasesDir, 0o755); err != nil {
-		t.Fatalf("failed to create phases dir: %v", err)
-	}
-
 	modeName := "screaming-architecture-audit"
-	if err := os.WriteFile(filepath.Join(phasesDir, modeName+".md"), []byte("# prompt"), 0o644); err != nil {
-		t.Fatalf("failed to write phase prompt: %v", err)
-	}
-
-	if err := RegisterSteerModesFromDir(phasesDir); err != nil {
-		t.Fatalf("RegisterSteerModesFromDir returned error: %v", err)
-	}
+	RegisterSteerModes(SteerMode(modeName))
 
 	if !SteerMode(modeName).IsValid() {
 		t.Fatalf("expected mode %s to be valid after registration", modeName)
@@ -60,30 +43,23 @@ func TestRegisterSteerModesFromDirRegistersCustomModes(t *testing.T) {
 	}
 }
 
-func TestSteerModeIsValidLazyRegistersNewPrompt(t *testing.T) {
+func TestBuiltInSteerModesAreValid(t *testing.T) {
 	restore := resetSteerModeRegistry(t)
 	defer restore()
 
-	root := t.TempDir()
-	phasesDir := filepath.Join(root, "phases")
-	if err := os.MkdirAll(phasesDir, 0o755); err != nil {
-		t.Fatalf("failed to create phases dir: %v", err)
+	for _, mode := range builtInSteerModes {
+		if !mode.IsValid() {
+			t.Errorf("expected built-in mode %s to be valid", mode)
+		}
 	}
+}
 
-	if err := RegisterSteerModesFromDir(phasesDir); err != nil {
-		t.Fatalf("RegisterSteerModesFromDir returned error: %v", err)
-	}
+func TestUnregisteredModeIsInvalid(t *testing.T) {
+	restore := resetSteerModeRegistry(t)
+	defer restore()
 
-	mode := SteerMode("temporal-flow-audit")
+	mode := SteerMode("nonexistent-custom-mode")
 	if mode.IsValid() {
-		t.Fatalf("expected %s to be invalid before prompt exists", mode)
-	}
-
-	if err := os.WriteFile(filepath.Join(phasesDir, string(mode)+".md"), []byte("# new prompt"), 0o644); err != nil {
-		t.Fatalf("failed to write new phase prompt: %v", err)
-	}
-
-	if !mode.IsValid() {
-		t.Fatalf("expected %s to become valid after prompt file creation without restart", mode)
+		t.Fatalf("expected unregistered mode %s to be invalid", mode)
 	}
 }

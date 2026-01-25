@@ -25,7 +25,8 @@ import type {
   PromptPreviewResult,
   PromptFileInfo,
   PromptFile,
-  PhaseInfo,
+  SkillResponse,
+  SkillsSyncResult,
   AutoSteerProfile,
   AutoSteerTemplate,
   ProfilePerformance,
@@ -903,8 +904,16 @@ class ApiClient {
     });
   }
 
-  async listPhaseNames(): Promise<PhaseInfo[]> {
-    return this.fetchJSON<PhaseInfo[]>(`/api/prompts/phases/names`);
+  // ==================== Skills (from prompt-manager) ====================
+
+  async listSkills(): Promise<SkillResponse[]> {
+    return this.fetchJSON<SkillResponse[]>(`/api/skills`);
+  }
+
+  async syncSkills(): Promise<SkillsSyncResult> {
+    return this.fetchJSON<SkillsSyncResult>(`/api/skills/sync`, {
+      method: 'POST',
+    });
   }
 
   // ==================== Auto Steer ====================

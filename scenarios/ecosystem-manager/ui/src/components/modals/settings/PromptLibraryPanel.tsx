@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, RefreshCw, Save, FolderOpen, Eye, Copy, Plus } from 'lucide-react';
+import { FileText, RefreshCw, Save, FolderOpen, Eye, Copy, Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -11,17 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { usePromptFile, usePromptFiles, useSavePromptFile, useCreatePromptFile } from '@/hooks/usePromptFiles';
+import { usePromptFile, usePromptFiles, useSavePromptFile } from '@/hooks/usePromptFiles';
+import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
 import { markdownToHtml } from '@/lib/markdown';
-import type { PromptFileInfo } from '@/types/api';
+import type { PromptFileInfo, SkillResponse } from '@/types/api';
 
 function formatBytes(size?: number) {
   if (!size) return '0 B';
@@ -47,10 +39,6 @@ function describePrompt(file: PromptFileInfo) {
   const base = file.display_name || file.id;
   const clean = base.replace(/\.md$/, '');
 
-  if (file.type === 'phase') {
-    return `Auto Steer phase: ${toTitleCase(clean)}`;
-  }
-
   if (file.type === 'template') {
     return `Prompt template: ${toTitleCase(clean)}`;
   }
@@ -58,42 +46,106 @@ function describePrompt(file: PromptFileInfo) {
   return `Prompt file: ${toTitleCase(clean)}`;
 }
 
-type GroupedPrompts = {
+// Unified item type for the dropdown
+type DropdownItem = {
+  id: string;
+  displayName: string;
+  description: string;
+  type: 'local' | 'skill';
+  // For local files
+  fileInfo?: PromptFileInfo;
+  // For skills
+  skill?: SkillResponse;
+};
+
+type GroupedItems = {
   key: string;
   label: string;
-  items: PromptFileInfo[];
+  items: DropdownItem[];
+  isSkillGroup?: boolean;
 };
 
 export function PromptLibraryPanel() {
   const { data: files = [], isLoading: filesLoading } = usePromptFiles();
+  const { data: steerSkills = [], isLoading: skillsLoading } = useSteerSkills();
+  const syncSkills = useSyncSkills();
   const [selectedId, setSelectedId] = useState<string>();
-  const { data: file, isFetching: fileLoading, refetch } = usePromptFile(selectedId);
+  const { data: file, isFetching: fileLoading, refetch } = usePromptFile(
+    // Only fetch if it's a local file (not a skill)
+    selectedId?.startsWith('skill:') ? undefined : selectedId
+  );
   const savePrompt = useSavePromptFile();
-  const createPrompt = useCreatePromptFile();
   const [draft, setDraft] = useState('');
-  const [isNewPromptDialogOpen, setIsNewPromptDialogOpen] = useState(false);
-  const [newPromptName, setNewPromptName] = useState('');
-  const [newPromptContent, setNewPromptContent] = useState('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
 
-  const groupedSections: GroupedPrompts[] = useMemo(() => {
-    const groups: Record<string, PromptFileInfo[]> = {
-      phase: [],
+  // Determine prompt-manager availability based on whether we have skills
+  const promptManagerAvailable = steerSkills.length > 0;
+
+  // Find the selected skill if a skill is selected
+  const selectedSkill = useMemo(() => {
+    if (!selectedId?.startsWith('skill:')) return null;
+    const skillId = selectedId.replace('skill:', '');
+    return steerSkills.find((s) => s.id === skillId);
+  }, [selectedId, steerSkills]);
+
+  // Check if the selected item is a skill (read-only)
+  const isSkillSelected = selectedId?.startsWith('skill:');
+
+  // Build grouped sections with local files and skills
+  const groupedSections: GroupedItems[] = useMemo(() => {
+    const groups: Record<string, DropdownItem[]> = {
+      skill: [],
       template: [],
       other: [],
     };
 
+    // Add local files (excluding phases - those now come from prompt-manager)
     files.forEach((f) => {
       const key = f.type && groups[f.type] ? f.type : 'other';
-      groups[key].push(f);
+      groups[key].push({
+        id: f.id,
+        displayName: f.display_name || f.id,
+        description: describePrompt(f),
+        type: 'local',
+        fileInfo: f,
+      });
     });
 
-    return [
-      { key: 'phase', label: 'Auto Steer Phases', items: groups.phase },
-      { key: 'template', label: 'Prompt Templates', items: groups.template },
-      { key: 'other', label: 'Other Prompts', items: groups.other },
-    ].filter((section) => section.items.length > 0);
-  }, [files]);
+    // Add skills from prompt-manager
+    steerSkills.forEach((skill) => {
+      const modeName = skill.modes?.find((m) => m.toLowerCase() !== 'steer') || skill.name;
+      groups.skill.push({
+        id: `skill:${skill.id}`,
+        displayName: modeName,
+        description: skill.description || `Steer skill: ${modeName}`,
+        type: 'skill',
+        skill,
+      });
+    });
 
+    const sections: GroupedItems[] = [];
+
+    // Add skill group first if there are skills
+    if (groups.skill.length > 0) {
+      sections.push({
+        key: 'skill',
+        label: 'Steer Phases (from prompt-manager)',
+        items: groups.skill,
+        isSkillGroup: true,
+      });
+    }
+
+    // Add local file groups
+    if (groups.template.length > 0) {
+      sections.push({ key: 'template', label: 'Prompt Templates', items: groups.template });
+    }
+    if (groups.other.length > 0) {
+      sections.push({ key: 'other', label: 'Other Prompts', items: groups.other });
+    }
+
+    return sections;
+  }, [files, steerSkills]);
+
+  // Auto-select first item
   useEffect(() => {
     if (!selectedId && groupedSections.length > 0) {
       const first = groupedSections[0].items[0];
@@ -103,16 +155,24 @@ export function PromptLibraryPanel() {
     }
   }, [groupedSections, selectedId]);
 
+  // Update draft when file or skill changes
   useEffect(() => {
-    setDraft(file?.content ?? '');
-  }, [file?.id, file?.content]);
+    if (selectedSkill) {
+      setDraft(selectedSkill.content);
+    } else if (file) {
+      setDraft(file.content);
+    } else {
+      setDraft('');
+    }
+  }, [file?.id, file?.content, selectedSkill]);
 
-  const currentInfo: PromptFileInfo | undefined = files.find((f) => f.id === selectedId);
-  const isDirty = draft !== (file?.content ?? '');
+  // Find current info for the metadata panel
+  const currentLocalFile: PromptFileInfo | undefined = files.find((f) => f.id === selectedId);
+  const isDirty = !isSkillSelected && draft !== (file?.content ?? '');
   const renderedPreview = useMemo(() => markdownToHtml(draft), [draft]);
 
   const handleSave = () => {
-    if (!selectedId) return;
+    if (!selectedId || isSkillSelected) return;
     savePrompt.mutate(
       { id: selectedId, content: draft },
       {
@@ -130,34 +190,11 @@ export function PromptLibraryPanel() {
     }
   };
 
-  const handleCreateNewPrompt = () => {
-    if (!newPromptName.trim()) {
-      alert('Please enter a name for the new phase prompt');
-      return;
-    }
-
-    const fileName = newPromptName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    const path = `phases/${fileName}.md`;
-
-    createPrompt.mutate(
-      { path, content: newPromptContent },
-      {
-        onSuccess: (data) => {
-          setIsNewPromptDialogOpen(false);
-          setNewPromptName('');
-          setNewPromptContent('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
-          setSelectedId(data.id);
-        },
-        onError: (error: any) => {
-          alert(`Failed to create prompt: ${error.message || 'Unknown error'}`);
-        },
-      }
-    );
-  };
-
-  const modifiedLabel = currentInfo?.modified_at
-    ? new Date(currentInfo.modified_at).toLocaleString()
+  const modifiedLabel = currentLocalFile?.modified_at
+    ? new Date(currentLocalFile.modified_at).toLocaleString()
     : '—';
+
+  const isLoading = filesLoading || skillsLoading;
 
   return (
     <div className="space-y-4">
@@ -166,10 +203,31 @@ export function PromptLibraryPanel() {
           <FileText className="h-4 w-4" />
           <span>Browse, edit, and preview raw prompt files</span>
         </div>
-        <Button size="sm" onClick={() => setIsNewPromptDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Phase Prompt
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* prompt-manager status and sync */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 mr-2">
+            {promptManagerAvailable ? (
+              <Cloud className="h-3.5 w-3.5 text-green-400" />
+            ) : (
+              <CloudOff className="h-3.5 w-3.5 text-slate-500" />
+            )}
+            <span className={promptManagerAvailable ? 'text-green-400' : ''}>
+              {promptManagerAvailable ? 'Connected' : 'Unavailable'}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncSkills.mutate()}
+            disabled={syncSkills.isPending}
+          >
+            {syncSkills.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[280px_1fr]">
@@ -179,22 +237,30 @@ export function PromptLibraryPanel() {
             <Select
               value={selectedId || ''}
               onValueChange={setSelectedId}
-              disabled={filesLoading || files.length === 0}
+              disabled={isLoading || (files.length === 0 && steerSkills.length === 0)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={filesLoading ? 'Loading...' : 'Select file'} />
+                <SelectValue placeholder={isLoading ? 'Loading...' : 'Select file'} />
               </SelectTrigger>
               <SelectContent>
                 {groupedSections.map((section) => (
                   <div key={section.key} className="px-2 py-1">
-                    <div className="text-xs uppercase tracking-wide text-slate-400 px-2 pb-1">
+                    <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-400 px-2 pb-1">
+                      {section.isSkillGroup && (
+                        <Cloud className="h-3 w-3 text-green-400" />
+                      )}
                       {section.label}
                     </div>
-                    {section.items.map((fileInfo) => (
-                      <SelectItem key={fileInfo.id} value={fileInfo.id} className="py-2">
+                    {section.items.map((item) => (
+                      <SelectItem key={item.id} value={item.id} className="py-2">
                         <div className="flex flex-col">
-                          <span className="font-medium">{fileInfo.display_name || fileInfo.id}</span>
-                          <span className="text-xs text-slate-400">{describePrompt(fileInfo)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium">{item.displayName}</span>
+                            {item.type === 'skill' && item.skill?.icon && (
+                              <span className="text-sm">{item.skill.icon}</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-400">{item.description}</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -205,35 +271,68 @@ export function PromptLibraryPanel() {
           </div>
 
           <div className="space-y-2 rounded-md border border-white/10 bg-slate-900 p-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Path</span>
-              <code className="text-xs bg-white/5 px-2 py-1 rounded border border-white/10">
-                {currentInfo?.path || '—'}
-              </code>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Type</span>
-              <span className="text-slate-100">{currentInfo?.type || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Size</span>
-              <span className="text-slate-100">{formatBytes(currentInfo?.size)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Last Modified</span>
-              <span className="text-slate-100">{modifiedLabel}</span>
-            </div>
+            {isSkillSelected && selectedSkill ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Source</span>
+                  <span className="text-green-400 flex items-center gap-1">
+                    <Cloud className="h-3 w-3" />
+                    prompt-manager
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Name</span>
+                  <span className="text-slate-100">{selectedSkill.name}</span>
+                </div>
+                {selectedSkill.modes && selectedSkill.modes.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Modes</span>
+                    <span className="text-slate-100">{selectedSkill.modes.join(', ')}</span>
+                  </div>
+                )}
+                {selectedSkill.tags && selectedSkill.tags.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Tags</span>
+                    <span className="text-slate-100">{selectedSkill.tags.join(', ')}</span>
+                  </div>
+                )}
+                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-200">
+                  This is a read-only skill from prompt-manager. Edit in the Prompt Manager UI.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Path</span>
+                  <code className="text-xs bg-white/5 px-2 py-1 rounded border border-white/10">
+                    {currentLocalFile?.path || '—'}
+                  </code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Type</span>
+                  <span className="text-slate-100">{currentLocalFile?.type || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Size</span>
+                  <span className="text-slate-100">{formatBytes(currentLocalFile?.size)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Last Modified</span>
+                  <span className="text-slate-100">{modifiedLabel}</span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigator.clipboard.writeText(currentInfo?.path || '')}
-              disabled={!currentInfo}
+              onClick={() => navigator.clipboard.writeText(isSkillSelected ? (selectedSkill?.name || '') : (currentLocalFile?.path || ''))}
+              disabled={!currentLocalFile && !selectedSkill}
             >
               <FolderOpen className="h-4 w-4 mr-2" />
-              Copy Path
+              {isSkillSelected ? 'Copy Name' : 'Copy Path'}
             </Button>
             <Button
               variant="outline"
@@ -250,39 +349,44 @@ export function PromptLibraryPanel() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <Label className="text-sm">Editor</Label>
+              <Label className="text-sm">{isSkillSelected ? 'Content (Read-only)' : 'Editor'}</Label>
               <p className="text-xs text-slate-400">
-                Changes are saved directly to the prompt file. Keep markdown formatting intact.
+                {isSkillSelected
+                  ? 'Skills from prompt-manager are read-only. Edit them in the Prompt Manager UI.'
+                  : 'Changes are saved directly to the prompt file. Keep markdown formatting intact.'}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleReset} disabled={!isDirty || fileLoading}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Revert
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={!isDirty || savePrompt.isPending || !selectedId}
-              >
-                {savePrompt.isPending ? (
-                  'Saving...'
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </>
-                )}
-              </Button>
-            </div>
+            {!isSkillSelected && (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleReset} disabled={!isDirty || fileLoading}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Revert
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={!isDirty || savePrompt.isPending || !selectedId}
+                >
+                  {savePrompt.isPending ? (
+                    'Saving...'
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
 
           <Textarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => !isSkillSelected && setDraft(e.target.value)}
             className="font-mono text-sm min-h-[320px] bg-slate-900"
             spellCheck={false}
-            placeholder={fileLoading ? 'Loading prompt...' : 'Select a prompt file to edit'}
+            readOnly={isSkillSelected}
+            placeholder={fileLoading || skillsLoading ? 'Loading prompt...' : 'Select a prompt file to edit'}
           />
 
           <div className="space-y-2">
@@ -298,70 +402,13 @@ export function PromptLibraryPanel() {
                 />
               ) : (
                 <div className="text-slate-500 text-sm">
-                  {fileLoading ? 'Loading preview...' : 'No content to preview'}
+                  {fileLoading || skillsLoading ? 'Loading preview...' : 'No content to preview'}
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* New Phase Prompt Dialog */}
-      <Dialog open={isNewPromptDialogOpen} onOpenChange={setIsNewPromptDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create New Phase Prompt</DialogTitle>
-            <DialogDescription>
-              Create a new auto steer phase prompt. This will be saved to the phases/ directory.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="prompt-name">Phase Name *</Label>
-              <Input
-                id="prompt-name"
-                value={newPromptName}
-                onChange={(e) => setNewPromptName(e.target.value)}
-                placeholder="e.g., Documentation, Code Review, etc."
-              />
-              <p className="text-xs text-slate-400">
-                This will be converted to a filename (e.g., "code-review.md")
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="prompt-content">Initial Content *</Label>
-              <Textarea
-                id="prompt-content"
-                value={newPromptContent}
-                onChange={(e) => setNewPromptContent(e.target.value)}
-                className="font-mono text-sm min-h-[200px]"
-                placeholder="Enter the phase prompt content in markdown..."
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsNewPromptDialogOpen(false);
-                setNewPromptName('');
-                setNewPromptContent('# New Phase Prompt\n\nDescribe the focus and goals of this phase here.');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateNewPrompt}
-              disabled={!newPromptName.trim() || !newPromptContent.trim() || createPrompt.isPending}
-            >
-              {createPrompt.isPending ? 'Creating...' : 'Create Phase Prompt'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

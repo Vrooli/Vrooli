@@ -48,6 +48,15 @@ func (p *PromptEnhancer) IsAvailable() bool {
 	return p.promptLoader.IsAvailable()
 }
 
+// GetPromptLoader returns the underlying prompt loader for external access.
+// This allows handlers to access cached skills and other prompt loader functionality.
+func (p *PromptEnhancer) GetPromptLoader() *PromptLoader {
+	if p == nil {
+		return nil
+	}
+	return p.promptLoader
+}
+
 // GenerateModeSection renders a standalone section for a specific mode (no Auto Steer framing).
 func (p *PromptEnhancer) GenerateModeSection(mode SteerMode) string {
 	if p == nil {

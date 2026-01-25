@@ -58,97 +58,6 @@ func (h *PromptsHandlers) ListPromptFilesHandler(w http.ResponseWriter, r *http.
 	writeJSON(w, files, http.StatusOK)
 }
 
-// ListPhaseNamesHandler returns available phase names from prompts/phases/*.md files.
-func (h *PromptsHandlers) ListPhaseNamesHandler(w http.ResponseWriter, r *http.Request) {
-	phasesDir := filepath.Join(h.assembler.PromptsDir, "phases")
-	var phases []PhaseInfo
-
-	err := filepath.WalkDir(phasesDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(d.Name(), ".md") {
-			return nil
-		}
-
-		// Extract phase name from filename (remove .md extension)
-		name := strings.TrimSuffix(d.Name(), ".md")
-
-		// Extract description from file content
-		description := extractPhaseDescription(path)
-
-		phases = append(phases, PhaseInfo{Name: name, Description: description})
-		return nil
-	})
-
-	if err != nil {
-		writeError(w, fmt.Sprintf("Failed to list phase names: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, phases, http.StatusOK)
-}
-
-// extractPhaseDescription reads a phase markdown file and extracts the first paragraph
-// after the "## Steer focus:" heading as the description.
-func extractPhaseDescription(path string) string {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return ""
-	}
-
-	content := string(data)
-	lines := strings.Split(content, "\n")
-
-	// Find the line after "## Steer focus:" heading and collect the first paragraph
-	foundHeading := false
-	var descLines []string
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Look for the "## Steer focus:" heading
-		if !foundHeading {
-			if strings.HasPrefix(trimmed, "## Steer focus:") {
-				foundHeading = true
-			}
-			continue
-		}
-
-		// Skip empty lines right after heading
-		if len(descLines) == 0 && trimmed == "" {
-			continue
-		}
-
-		// Stop at next heading, horizontal rule, or empty line (end of paragraph)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "---") {
-			break
-		}
-
-		descLines = append(descLines, trimmed)
-	}
-
-	if len(descLines) == 0 {
-		return ""
-	}
-
-	// Join lines and clean up markdown formatting
-	description := strings.Join(descLines, " ")
-
-	// Remove bold markers
-	description = strings.ReplaceAll(description, "**", "")
-
-	// Truncate if too long (limit to ~200 chars)
-	if len(description) > 200 {
-		description = description[:197] + "..."
-	}
-
-	return description
-}
-
 // GetPromptFileHandler returns the content of a prompt file.
 func (h *PromptsHandlers) GetPromptFileHandler(w http.ResponseWriter, r *http.Request) {
 	relPath, fullPath, ok := h.resolvePromptPath(w, r)
@@ -353,9 +262,6 @@ func (h *PromptsHandlers) resolvePromptPath(w http.ResponseWriter, r *http.Reque
 func classifyPromptFile(relPath string) string {
 	if strings.HasPrefix(relPath, "templates/") {
 		return "template"
-	}
-	if strings.HasPrefix(relPath, "phases/") {
-		return "phase"
 	}
 	return "other"
 }
