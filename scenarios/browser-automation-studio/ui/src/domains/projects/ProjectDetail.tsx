@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { selectors } from "@constants/selectors";
 import type { Project } from "./store";
 import { useProjectStore } from "./store";
-import type { Workflow } from "@stores/workflowStore";
+import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
 import { useDeleteProjectDialog } from "@hooks/useDeleteProjectDialog";
 import { DeleteProjectDialog } from "@shared/ui/DeleteProjectDialog";
 import ProjectModal from "./ProjectModal";
@@ -22,7 +22,7 @@ import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
 interface ProjectDetailProps {
   project: Project;
   onBack: () => void;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;

@@ -10,8 +10,7 @@ import (
 var ErrTestcontainersDisabled = errors.New("testcontainers support disabled (build with -tags=testcontainers)")
 
 type Handle struct {
-	DSN        string
-	externalDS bool
+	DSN string
 }
 
 func Start(ctx context.Context) (*Handle, error) {

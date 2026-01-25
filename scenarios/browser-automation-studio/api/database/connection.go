@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -248,9 +247,17 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 		return err
 	}
 
+	rollback := func(reason string) {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			if db.log != nil {
+				db.log.WithError(rollbackErr).WithField("reason", reason).Warn("Failed to rollback transaction")
+			}
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
-			tx.Rollback()
+			rollback("panic")
 			// Log the panic but don't re-panic - let the error propagate gracefully
 			if db.log != nil {
 				db.log.WithField("panic", r).Error("Panic recovered during database transaction")
@@ -259,7 +266,7 @@ func (db *DB) WithTransaction(fn func(*sqlx.Tx) error) error {
 	}()
 
 	if err := fn(tx); err != nil {
-		tx.Rollback()
+		rollback("error")
 		return err
 	}
 
@@ -384,11 +391,6 @@ func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func getCurrentFilePath() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filename
 }
 
 // migrateWorkflowUniqueConstraint migrates the workflows table unique constraint

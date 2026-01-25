@@ -124,7 +124,7 @@ export function startServer() {
     wsPathTransform: (pathValue) => pathValue,
     proxyTimeoutMs: 60000,
     // Include playwright driver port in config for direct WebSocket frame streaming
-    configBuilder: (env) => ({
+    configBuilder: (_env) => ({
       apiUrl: `http://${API_HOST}:${API_PORT}/api/v1`,
       wsUrl: `ws://${WS_HOST || API_HOST}:${API_PORT}/ws`,
       apiPort: API_PORT,

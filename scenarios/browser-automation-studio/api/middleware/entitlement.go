@@ -224,5 +224,7 @@ func writeEntitlementError(w http.ResponseWriter, status int, code, message stri
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	// Simple JSON without importing encoding/json to keep middleware lightweight
-	w.Write([]byte(`{"error":{"code":"` + code + `","message":"` + message + `"}}`))
+	if _, err := w.Write([]byte(`{"error":{"code":"` + code + `","message":"` + message + `"}}`)); err != nil {
+		return
+	}
 }

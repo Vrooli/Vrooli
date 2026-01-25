@@ -32,3 +32,9 @@ export * from './scenario.schema';
 
 // Dashboard schemas and types
 export * from './dashboard.schema';
+
+// Recording schemas and types
+export * from './recording.schema';
+
+// Project schemas and types
+export * from './project.schema';

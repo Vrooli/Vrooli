@@ -1,31 +1,34 @@
 import { create } from "zustand";
-import { getConfig } from "@/config";
 import { logger } from "@utils/logger";
-import type { Workflow } from "@stores/workflowStore";
+import type { Edge, Node } from "reactflow";
+import { fetchProjectEntries, fetchProjectWorkflows } from "@/domains/projects/services/projectApi";
+import type { ProjectEntry, ProjectEntryKind } from "@/shared/api/schemas";
 
-// Extended Workflow interface with API response fields
-export interface WorkflowWithStats extends Workflow {
+// Workflow summary for project detail views (API list payloads)
+export interface WorkflowWithStats {
+  id: string;
+  name: string;
+  description?: string;
   folder_path?: string;
+  folderPath?: string;
   created_at?: string;
+  createdAt?: string | Date;
   updated_at?: string;
+  updatedAt?: string | Date;
   project_id?: string;
+  projectId?: string;
+  version?: number;
+  nodes?: Node[];
+  edges?: Edge[];
   stats?: {
-    execution_count: number;
+    execution_count?: number;
     last_execution?: string;
     success_rate?: number;
   };
+  [key: string]: unknown;
 }
 
-export type ProjectEntryKind = "folder" | "workflow_file" | "asset_file";
-
-export interface ProjectEntry {
-  id: string;
-  project_id: string;
-  path: string;
-  kind: ProjectEntryKind;
-  workflow_id?: string;
-  metadata?: Record<string, unknown>;
-}
+export type { ProjectEntry, ProjectEntryKind };
 
 export type ViewMode = "card" | "tree";
 export type ActiveTab = "workflows" | "executions";
@@ -197,17 +200,27 @@ export const useProjectDetailStore = create<ProjectDetailState & ProjectDetailAc
   fetchWorkflows: async (projectId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/workflows`,
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch workflows: ${response.status}`);
-      }
-      const data = await response.json();
-      const workflowList = data.workflows || [];
+      const workflowList = await fetchProjectWorkflows(projectId);
+      const normalized: WorkflowWithStats[] = workflowList.map((workflow) => {
+        const folderPath = workflow.folder_path ?? workflow.folderPath ?? "/";
+        return {
+          id: workflow.id,
+          name: workflow.name ?? "Untitled",
+          description: workflow.description,
+          folder_path: folderPath,
+          folderPath,
+          created_at: workflow.created_at,
+          createdAt: workflow.createdAt,
+          updated_at: workflow.updated_at,
+          updatedAt: workflow.updatedAt,
+          project_id: workflow.project_id,
+          projectId: workflow.projectId,
+          version: workflow.version,
+          stats: workflow.stats,
+        };
+      });
       set({
-        workflows: workflowList,
+        workflows: normalized,
         selectedWorkflows: new Set(),
         selectionMode: false,
         isLoading: false,
@@ -232,16 +245,9 @@ export const useProjectDetailStore = create<ProjectDetailState & ProjectDetailAc
   fetchProjectEntries: async (projectId: string) => {
     set({ projectEntriesLoading: true, projectEntriesError: null });
     try {
-      const config = await getConfig();
-      const response = await fetch(
-        `${config.API_URL}/projects/${projectId}/files/tree`,
-      );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch project files: ${response.status}`);
-      }
-      const payload = (await response.json()) as { entries?: ProjectEntry[] };
+      const entries = await fetchProjectEntries(projectId);
       set({
-        projectEntries: Array.isArray(payload.entries) ? payload.entries : [],
+        projectEntries: entries,
         projectEntriesLoading: false,
       });
     } catch (error) {

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { Search } from "lucide-react";
-import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
+import { useWorkflowStore } from "@stores/workflowStore";
 import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { selectors } from "@constants/selectors";
@@ -17,7 +17,7 @@ import { EmptyWorkflowState } from "./EmptyWorkflowState";
 
 interface WorkflowCardGridProps {
   projectId: string;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;

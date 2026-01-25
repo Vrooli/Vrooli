@@ -373,6 +373,20 @@ export default defineConfig({
           poolOptions: THREADS_TWO,
         },
       }),
+      defineProject({
+        resolve: { alias: ALIASES },
+        test: {
+          ...PROJECT_BASE_TEST_CONFIG,
+          name: 'shared',
+          include: [
+            'src/shared/**/*.test.{ts,tsx}',
+            'src/domains/**/services/**/*.test.{ts,tsx}',
+            'src/views/**/controllers/**/*.test.{ts,tsx}',
+          ],
+          pool: 'threads',
+          poolOptions: THREADS_TWO,
+        },
+      }),
     ],
   },
   server: {

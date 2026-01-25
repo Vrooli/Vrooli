@@ -24,6 +24,10 @@ export const WorkflowItemSchema = z.object({
   updatedAt: z.string().optional(),
   folder_path: z.string().optional(),
   folderPath: z.string().optional(),
+  execution_count: z.number().optional(),
+  executionCount: z.number().optional(),
+  last_execution: z.string().optional(),
+  lastExecution: z.string().optional(),
 });
 
 /**

@@ -68,6 +68,16 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
 const CYCLE_DURATION = 6000; // 6 seconds per preview
 const ANIMATION_DURATION = 500; // Transition duration in ms
 
+// Default feature for type safety (used when array index returns undefined)
+const DEFAULT_FEATURE: FeatureConfig = FEATURE_CONFIGS[0] ?? {
+  id: 'ai-powered',
+  title: 'AI-Powered',
+  label: 'AI generates your workflow',
+  icon: <Sparkles size={16} />,
+  gradient: 'from-purple-500/20 to-pink-500/20',
+  accentColor: 'purple',
+};
+
 // ============================================
 // NAVIGATION DOTS
 // ============================================
@@ -193,7 +203,7 @@ export const FeatureShowcase: React.FC<FeatureShowcaseProps> = ({
     setIsPaused(false);
   }, []);
 
-  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? FEATURE_CONFIGS[0]!;
+  const activeFeature = FEATURE_CONFIGS[activeIndex] ?? DEFAULT_FEATURE;
   const previews = PREVIEW_RENDERERS.map((render, index) =>
     render(activeIndex === index && !isTransitioning)
   );

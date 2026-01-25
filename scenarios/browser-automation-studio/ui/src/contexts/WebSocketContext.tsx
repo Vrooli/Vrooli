@@ -6,6 +6,8 @@
  * The proxy forwards /ws to the actual WebSocket server (see vite.config.ts).
  */
 
+/* eslint-disable react-refresh/only-export-components */
+
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { logger } from '../utils/logger';
 import { safeParse } from '../shared/api/safeParse';

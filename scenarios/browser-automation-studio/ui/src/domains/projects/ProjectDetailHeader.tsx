@@ -25,7 +25,8 @@ import { selectors } from "@constants/selectors";
 import { Breadcrumbs } from "@shared/layout";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
 import type { Project } from "./store";
-import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
+import { useWorkflowStore } from "@stores/workflowStore";
+import type { WorkflowWithStats } from "./hooks/useProjectDetailStore";
 import toast from "react-hot-toast";
 import {
   useProjectDetailStore,
@@ -40,7 +41,7 @@ interface ProjectDetailHeaderProps {
   onStartRecording?: () => void;
   onDeleteProject: () => Promise<void>;
   onImportRecording: (file: File) => Promise<void>;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
 }
 
 /**

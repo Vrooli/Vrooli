@@ -9,11 +9,40 @@ import {
 import { usePromptDialog } from '@hooks/usePromptDialog';
 import { workflowStartsWithNavigate } from '@utils/nodeUtils';
 import { getConfig } from '../../../config';
+import { safeParse, WorkflowResponseSchema } from '@/shared/api';
 import type { Node, Edge } from 'reactflow';
 
 interface WorkflowDefinition {
   nodes: Node[];
   edges: Edge[];
+}
+
+/**
+ * Parse flow definition from various formats to nodes/edges.
+ * Ensures data field is present on nodes (required by ReactFlow).
+ */
+function parseFlowDefinition(
+  flowDef: string | { nodes?: unknown[]; edges?: unknown[] } | undefined
+): { nodes: Node[]; edges: Edge[] } {
+  if (!flowDef) return { nodes: [], edges: [] };
+
+  const parsed = typeof flowDef === 'string'
+    ? (JSON.parse(flowDef) as Record<string, unknown>)
+    : flowDef;
+
+  // Ensure nodes have required 'data' field (ReactFlow requirement)
+  const rawNodes = Array.isArray(parsed.nodes) ? parsed.nodes : [];
+  const nodes: Node[] = rawNodes.map((node) => {
+    const n = node as Record<string, unknown>;
+    return {
+      ...n,
+      data: n.data ?? {},
+    } as Node;
+  });
+
+  const edges: Edge[] = Array.isArray(parsed.edges) ? (parsed.edges as Edge[]) : [];
+
+  return { nodes, edges };
 }
 
 /**
@@ -27,27 +56,42 @@ async function fetchWorkflowDefinition(workflowId: string): Promise<WorkflowDefi
     if (!response.ok) {
       return null;
     }
-    const data = await response.json();
+    const rawData: unknown = await response.json();
+
+    // Validate the response shape
+    const result = safeParse(WorkflowResponseSchema, rawData, 'WorkflowResponse');
+    if (!result.success) {
+      console.warn('Workflow response validation failed, attempting fallback parsing');
+      // Fall back to treating as raw workflow data
+      const workflow = (rawData as Record<string, unknown>)?.workflow ?? rawData;
+      const flowDef = (workflow as Record<string, unknown>)?.flow_definition;
+      if (flowDef) {
+        return parseFlowDefinition(flowDef as string | { nodes?: unknown[]; edges?: unknown[] });
+      }
+      return { nodes: [], edges: [] };
+    }
+
+    const data = result.data;
 
     // Handle both direct response and wrapped response formats
     const workflow = data.workflow ?? data;
 
     // Parse nodes from flow_definition if present
-    let nodes: Node[] = [];
-    let edges: Edge[] = [];
-
     if (workflow.flow_definition) {
-      const flowDef = typeof workflow.flow_definition === 'string'
-        ? JSON.parse(workflow.flow_definition)
-        : workflow.flow_definition;
-      nodes = Array.isArray(flowDef.nodes) ? flowDef.nodes : [];
-      edges = Array.isArray(flowDef.edges) ? flowDef.edges : [];
-    } else if (Array.isArray(workflow.nodes)) {
-      nodes = workflow.nodes;
-      edges = Array.isArray(workflow.edges) ? workflow.edges : [];
+      return parseFlowDefinition(workflow.flow_definition);
     }
 
-    return { nodes, edges };
+    // Direct nodes/edges format - ensure nodes have required 'data' field
+    const rawNodes = workflow.nodes ?? [];
+    const nodes: Node[] = rawNodes.map((node) => ({
+      ...node,
+      data: node.data ?? {},
+    })) as Node[];
+
+    return {
+      nodes,
+      edges: workflow.edges ?? [],
+    };
   } catch {
     return null;
   }

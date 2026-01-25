@@ -1596,12 +1596,6 @@ func normalizeActionType(actionType string) string {
 	return out
 }
 
-// sanitizeOutcome applies default size limits to outcome fields.
-// For configurable limits, use sanitizeOutcomeWithConfig instead.
-func sanitizeOutcome(out contracts.StepOutcome) contracts.StepOutcome {
-	return sanitizeOutcomeWithLimits(out, contracts.ScreenshotMaxBytes, contracts.DOMSnapshotMaxBytes, contracts.ConsoleEntryMaxBytes, contracts.NetworkPayloadPreviewMaxBytes)
-}
-
 // sanitizeOutcomeWithConfig applies configurable size limits from ArtifactCollectionSettings.
 func (r *FileWriter) sanitizeOutcomeWithConfig(out contracts.StepOutcome, cfg config.ArtifactCollectionSettings) contracts.StepOutcome {
 	maxScreenshot := cfg.MaxScreenshotBytes
@@ -1659,11 +1653,6 @@ func sanitizeOutcomeWithLimits(out contracts.StepOutcome, maxScreenshot, maxDOM,
 	return out
 }
 
-// sanitizeConsole applies default size limits to console log entries.
-func sanitizeConsole(entries []contracts.ConsoleLogEntry) []contracts.ConsoleLogEntry {
-	return sanitizeConsoleWithLimit(entries, contracts.ConsoleEntryMaxBytes)
-}
-
 // sanitizeConsoleWithLimit applies configurable size limits to console log entries.
 func sanitizeConsoleWithLimit(entries []contracts.ConsoleLogEntry, maxEntryBytes int) []contracts.ConsoleLogEntry {
 	if len(entries) == 0 {
@@ -1683,11 +1672,6 @@ func sanitizeConsoleWithLimit(entries []contracts.ConsoleLogEntry, maxEntryBytes
 		}
 	}
 	return sanitized
-}
-
-// sanitizeNetwork applies default size limits to network events.
-func sanitizeNetwork(events []contracts.NetworkEvent) []contracts.NetworkEvent {
-	return sanitizeNetworkWithLimit(events, contracts.NetworkPayloadPreviewMaxBytes)
 }
 
 // sanitizeNetworkWithLimit applies configurable size limits to network events.

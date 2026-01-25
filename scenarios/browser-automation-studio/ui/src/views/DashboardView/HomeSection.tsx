@@ -446,14 +446,17 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               </div>
             </div>
           ))}
-          {runningExecutions.length > 3 && runningExecutions[0] && (
-            <button
-              onClick={() => onViewExecution(runningExecutions[0]!.id, runningExecutions[0]!.workflowId)}
-              className="w-full text-center text-xs text-flow-text-secondary hover:text-surface py-2 transition-colors"
-            >
-              +{runningExecutions.length - 3} more running...
-            </button>
-          )}
+          {runningExecutions.length > 3 && (() => {
+            const firstExecution = runningExecutions[0];
+            return firstExecution ? (
+              <button
+                onClick={() => onViewExecution(firstExecution.id, firstExecution.workflowId)}
+                className="w-full text-center text-xs text-flow-text-secondary hover:text-surface py-2 transition-colors"
+              >
+                +{runningExecutions.length - 3} more running...
+              </button>
+            ) : null;
+          })()}
         </div>
       </div>
     );

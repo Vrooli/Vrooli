@@ -5,6 +5,8 @@
  * Uses consistent colors from the ExecutionTabBar color palette.
  */
 
+/* eslint-disable react-refresh/only-export-components */
+
 import { useMemo } from 'react';
 import type { ExecutionPage } from '../../store';
 

@@ -130,7 +130,7 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 				sb.WriteString(fmt.Sprintf("- Check console logs for step %d in `console-logs.md`\n", frame.StepIndex+1))
 			}
 			if frame.Screenshot != nil {
-				sb.WriteString(fmt.Sprintf("- Review screenshot from failed step in `screenshots/`\n"))
+				sb.WriteString("- Review screenshot from failed step in `screenshots/`\n")
 			}
 		}
 

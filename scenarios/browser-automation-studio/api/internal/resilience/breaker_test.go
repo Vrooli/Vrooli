@@ -84,9 +84,10 @@ func TestBreakerRecovery(t *testing.T) {
 
 	// Trip the breaker
 	for i := 0; i < 3; i++ {
-		b.Execute(func() (any, error) {
+		_, err := b.Execute(func() (any, error) {
 			return nil, testErr
 		})
+		require.Error(t, err)
 	}
 	assert.Equal(t, StateOpen, b.State())
 
@@ -192,9 +193,12 @@ func TestBreakerCounts(t *testing.T) {
 	assert.Equal(t, uint32(0), counts.TotalFailures)
 
 	// Execute some operations
-	b.Execute(func() (any, error) { return nil, nil })
-	b.Execute(func() (any, error) { return nil, nil })
-	b.Execute(func() (any, error) { return nil, errors.New("fail") })
+	_, err := b.Execute(func() (any, error) { return nil, nil })
+	require.NoError(t, err)
+	_, err = b.Execute(func() (any, error) { return nil, nil })
+	require.NoError(t, err)
+	_, err = b.Execute(func() (any, error) { return nil, errors.New("fail") })
+	require.Error(t, err)
 
 	counts = b.Counts()
 	assert.Equal(t, uint32(3), counts.Requests)

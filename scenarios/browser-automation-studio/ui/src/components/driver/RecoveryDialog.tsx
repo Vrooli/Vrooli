@@ -5,30 +5,18 @@
  * The user can choose to resume from the last checkpoint or start fresh.
  */
 
+/* eslint-disable react-refresh/only-export-components */
+
 import React, { useState } from 'react';
 import { formatDuration } from '../../hooks/useDriverStatus';
+import {
+  safeParse,
+  RecoveryCheckResponseSchema,
+  type RecoveryCheckpoint,
+} from '@/shared/api';
 
-/** Checkpoint data from the API */
-export interface RecoveryCheckpoint {
-  /** Session ID */
-  sessionId: string;
-  /** Workflow ID if recording was for a workflow */
-  workflowId?: string;
-  /** Number of recorded actions */
-  actionCount: number;
-  /** Last URL at checkpoint */
-  currentUrl: string;
-  /** When the checkpoint was created */
-  createdAt: string;
-  /** When the checkpoint was last updated */
-  updatedAt: string;
-  /** Browser configuration */
-  browserConfig: {
-    viewportWidth: number;
-    viewportHeight: number;
-    userAgent?: string;
-  };
-}
+// Re-export the type from schemas for external use
+export type { RecoveryCheckpoint } from '@/shared/api';
 
 /** Props for the RecoveryDialog */
 interface RecoveryDialogProps {
@@ -287,9 +275,10 @@ export function useRecoveryCheck(): {
     try {
       const response = await fetch('/api/recording/recovery/check');
       if (response.ok) {
-        const data = await response.json();
-        if (data.checkpoint) {
-          setCheckpoint(data.checkpoint);
+        const rawData: unknown = await response.json();
+        const result = safeParse(RecoveryCheckResponseSchema, rawData, 'RecoveryCheck');
+        if (result.success && result.data.checkpoint) {
+          setCheckpoint(result.data.checkpoint);
         } else {
           setCheckpoint(null);
         }

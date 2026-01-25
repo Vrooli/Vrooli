@@ -144,6 +144,48 @@ export const SaveWorkflowResponseSchema = z.object({
   updated_at: FlexibleTimestampSchema,
 });
 
+// Single workflow fetch response schema
+// Handles both direct response and wrapped response formats
+export const WorkflowResponseSchema = z.object({
+  workflow: z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    version: z.number().optional(),
+    created_at: FlexibleTimestampSchema.optional(),
+    updated_at: FlexibleTimestampSchema.optional(),
+    project_id: z.string().optional(),
+    projectId: z.string().optional(),
+    // flow_definition can be either a JSON string or an object
+    flow_definition: z.union([
+      z.string(),
+      z.object({
+        nodes: z.array(ReactFlowNodeSchema).optional(),
+        edges: z.array(ReactFlowEdgeSchema).optional(),
+      }),
+    ]).optional(),
+    // Direct nodes/edges for legacy format
+    nodes: z.array(ReactFlowNodeSchema).optional(),
+    edges: z.array(ReactFlowEdgeSchema).optional(),
+    settings: MetadataSchema.nullable().optional(),
+    metadata: MetadataSchema.nullable().optional(),
+  }).optional(),
+  // Allow direct workflow fields at root level (unwrapped format)
+  id: z.string().optional(),
+  name: z.string().optional(),
+  project_id: z.string().optional(),
+  projectId: z.string().optional(),
+  flow_definition: z.union([
+    z.string(),
+    z.object({
+      nodes: z.array(ReactFlowNodeSchema).optional(),
+      edges: z.array(ReactFlowEdgeSchema).optional(),
+    }),
+  ]).optional(),
+  nodes: z.array(ReactFlowNodeSchema).optional(),
+  edges: z.array(ReactFlowEdgeSchema).optional(),
+});
+
 // Export types from schemas
 export type ReactFlowNode = z.infer<typeof ReactFlowNodeSchema>;
 export type ReactFlowEdge = z.infer<typeof ReactFlowEdgeSchema>;
@@ -157,3 +199,4 @@ export type ResilienceSettings = z.infer<typeof ResilienceSettingsSchema>;
 export type WorkflowListItem = z.infer<typeof WorkflowListItemSchema>;
 export type ListWorkflowsResponse = z.infer<typeof ListWorkflowsResponseSchema>;
 export type SaveWorkflowResponse = z.infer<typeof SaveWorkflowResponseSchema>;
+export type WorkflowResponse = z.infer<typeof WorkflowResponseSchema>;

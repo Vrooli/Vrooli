@@ -288,10 +288,10 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (*ChargeResult,
 // NOTE ON TOCTOU: This method has a known time-of-check-time-of-use (TOCTOU) race condition
 // between the CanCharge check and the Charge call. Concurrent requests could potentially
 // exceed limits briefly. This is acceptable for BAS's use case because:
-// 1. When using the LPBS AI gateway (VrooliProvider), credits are checked and charged
-//    atomically by LPBS using database transactions with row-level locking.
-// 2. This local credit tracking is primarily for BYOK usage analytics and dev mode.
-// 3. The potential overage is limited to concurrent requests within milliseconds.
+//  1. When using the LPBS AI gateway (VrooliProvider), credits are checked and charged
+//     atomically by LPBS using database transactions with row-level locking.
+//  2. This local credit tracking is primarily for BYOK usage analytics and dev mode.
+//  3. The potential overage is limited to concurrent requests within milliseconds.
 //
 // For production use with paid credits, always use the LPBS AI gateway which provides
 // true atomic credit operations via ReserveAndCharge.
@@ -880,12 +880,19 @@ func (s *Service) upsertUsagePostgres(ctx context.Context, userIdentity, month s
 }
 
 // upsertUsageSQLite uses read-modify-write pattern since SQLite has no JSONB functions.
-func (s *Service) upsertUsageSQLite(ctx context.Context, userIdentity, month string, op OperationType, credits int) error {
+func (s *Service) upsertUsageSQLite(ctx context.Context, userIdentity, month string, op OperationType, credits int) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err == nil {
+			return
+		}
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			s.log.WithError(rollbackErr).Warn("Failed to rollback credit usage transaction")
+		}
+	}()
 
 	// Try to get existing row
 	var existingID string
@@ -949,7 +956,12 @@ func (s *Service) upsertUsageSQLite(ctx context.Context, userIdentity, month str
 		}
 	}
 
-	return tx.Commit()
+	if commitErr := tx.Commit(); commitErr != nil {
+		err = fmt.Errorf("commit credit usage: %w", commitErr)
+		return err
+	}
+
+	return nil
 }
 
 // logOperation inserts a log entry for an operation.

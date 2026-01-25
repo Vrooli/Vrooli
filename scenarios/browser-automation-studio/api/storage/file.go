@@ -97,14 +97,6 @@ func (f *FileStorage) StoreScreenshot(_ context.Context, executionID uuid.UUID, 
 		return nil, fmt.Errorf("failed to write screenshot: %w", err)
 	}
 	width, height := decodeDimensions(data)
-	if contentType == "" {
-		if ext := filepath.Ext(path); ext != "" {
-			contentType = mime.TypeByExtension(ext)
-		}
-		if contentType == "" {
-			contentType = http.DetectContentType(data)
-		}
-	}
 
 	url := fmt.Sprintf("/api/v1/screenshots/%s", objectName)
 	return &ScreenshotInfo{

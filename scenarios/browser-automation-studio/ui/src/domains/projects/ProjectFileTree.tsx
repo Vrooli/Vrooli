@@ -15,7 +15,7 @@ import {
   type FileTreeNode,
 } from "./FileTree";
 import type { Project } from "./store";
-import { useWorkflowStore, type Workflow } from "@stores/workflowStore";
+import { useWorkflowStore } from "@stores/workflowStore";
 import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
@@ -26,6 +26,7 @@ import toast from "react-hot-toast";
 import {
   useProjectDetailStore,
   type ProjectEntry,
+  type WorkflowWithStats,
 } from "./hooks/useProjectDetailStore";
 import { useFileTreeOperations } from "./hooks/useFileTreeOperations";
 import { selectors } from "@constants/selectors";
@@ -35,7 +36,7 @@ import { EmptyWorkflowState } from "./EmptyWorkflowState";
 
 interface ProjectFileTreeProps {
   project: Project;
-  onWorkflowSelect: (workflow: Workflow) => Promise<void>;
+  onWorkflowSelect: (workflow: WorkflowWithStats) => Promise<void>;
   onCreateWorkflow: () => void;
   onCreateWorkflowDirect?: () => void;
   onStartRecording?: () => void;
@@ -130,7 +131,7 @@ export function ProjectFileTree({
   });
 
   // State for fallback workflow loading when not found in cache
-  const [fallbackWorkflow, setFallbackWorkflow] = useState<Workflow | null>(null);
+  const [fallbackWorkflow, setFallbackWorkflow] = useState<WorkflowWithStats | null>(null);
   const [isFallbackLoading, setIsFallbackLoading] = useState(false);
 
   // Get the previewed workflow details from cache first, then fallback
