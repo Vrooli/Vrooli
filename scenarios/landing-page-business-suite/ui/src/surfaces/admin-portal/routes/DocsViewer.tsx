@@ -1,13 +1,13 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { LAYOUT } from '../config/layout.constants';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import type { DocEntry } from '../../../shared/api';
 import { useDocsViewer } from '../hooks/useDocsViewer';
-import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink } from 'lucide-react';
+import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink, PanelLeftClose, PanelLeft, GripVertical } from 'lucide-react';
 
 interface TreeNodeProps {
   entry: DocEntry;
@@ -370,6 +370,10 @@ function formatInlineMarkdown(text: string): (string | JSX.Element)[] {
   return parts;
 }
 
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 500;
+const DEFAULT_SIDEBAR_WIDTH = 280;
+
 export function DocsViewer() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -388,6 +392,42 @@ export function DocsViewer() {
     handleToggle,
   } = useDocsViewer({ requestedPath: requestedDoc });
 
+  // Sidebar state
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Handle resize drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newWidth = e.clientX - containerRect.left;
+      setSidebarWidth(Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // Scroll to anchor when doc loads
   useEffect(() => {
     if (!requestedAnchor || loadingDoc || !selectedDoc) {
       return;
@@ -397,16 +437,21 @@ export function DocsViewer() {
     const cancel = window.cancelAnimationFrame ?? window.clearTimeout;
     const handle = schedule(() => {
       const element = document.getElementById(requestedAnchor);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (element && contentRef.current) {
+        const elementTop = element.offsetTop;
+        contentRef.current.scrollTo({ top: elementTop - 24, behavior: 'smooth' });
       }
     });
 
     return () => cancel(handle);
   }, [loadingDoc, requestedAnchor, selectedDoc]);
 
+  const toggleSidebar = useCallback(() => {
+    setIsCollapsed(prev => !prev);
+  }, []);
+
   return (
-    <AdminLayout maxWidth="wide">
+    <AdminLayout maxWidth="extraWide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
           variant="icon-title"
@@ -429,7 +474,7 @@ export function DocsViewer() {
         ) : error ? (
           <div className="text-rose-400" data-testid="docs-error">{error}</div>
         ) : tree.length === 0 ? (
-          <Card className="${LAYOUT.card.base}" data-testid="docs-empty">
+          <Card className={LAYOUT.card.base} data-testid="docs-empty">
             <CardContent className="py-12 text-center">
               <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">No Documentation Found</h3>
@@ -439,47 +484,14 @@ export function DocsViewer() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6" data-testid="docs-content">
-            {/* Sidebar - File Tree */}
-            <Card className="${LAYOUT.card.base} lg:col-span-1">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Folder className="h-4 w-4 text-amber-400" />
-                  Files
+          <Card className={LAYOUT.card.base} data-testid="docs-content">
+            <CardHeader className="border-b border-white/10 py-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Book className="h-5 w-5 text-amber-400" />
+                  Documentation Browser
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="space-y-0.5 max-h-[60vh] overflow-y-auto" data-testid="docs-tree">
-                  {tree.map((entry) => (
-                    <TreeNode
-                      key={entry.path}
-                      entry={entry}
-                      level={0}
-                      selectedPath={selectedPath}
-                      expandedPaths={expandedPaths}
-                      onSelect={loadDoc}
-                      onToggle={handleToggle}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Main Content */}
-            <Card className="${LAYOUT.card.base} lg:col-span-3">
-              <CardHeader className="border-b border-white/10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-blue-400" />
-                      {selectedDoc?.title || 'Select a document'}
-                    </CardTitle>
-                    {selectedPath && (
-                      <CardDescription className="mt-1 font-mono text-xs">
-                        docs/{selectedPath}
-                      </CardDescription>
-                    )}
-                  </div>
+                <div className="flex items-center gap-2">
                   {selectedPath && (
                     <Button
                       variant="ghost"
@@ -492,22 +504,115 @@ export function DocsViewer() {
                       Open in editor
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleSidebar}
+                    className="gap-2"
+                    title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    data-testid="docs-toggle-sidebar"
+                  >
+                    {isCollapsed ? (
+                      <PanelLeft className="h-4 w-4" />
+                    ) : (
+                      <PanelLeftClose className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                {loadingDoc ? (
-                  <div className="text-slate-400" data-testid="docs-loading-doc">Loading document...</div>
-                ) : selectedDoc ? (
-                  <MarkdownRenderer content={selectedDoc.content} />
-                ) : (
-                  <div className="text-center py-12" data-testid="docs-no-selection">
-                    <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-                    <p className="text-slate-400">Select a document from the sidebar to view its contents.</p>
+              </div>
+            </CardHeader>
+            <div
+              ref={containerRef}
+              className="flex relative"
+              style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
+            >
+              {/* Sidebar - File Tree */}
+              <div
+                className={`flex-shrink-0 border-r border-white/10 overflow-hidden transition-all duration-200 ${
+                  isCollapsed ? 'w-0' : ''
+                }`}
+                style={{ width: isCollapsed ? 0 : sidebarWidth }}
+              >
+                <div className="h-full flex flex-col">
+                  <div className="px-4 py-3 border-b border-white/5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+                      <Folder className="h-4 w-4 text-amber-400" />
+                      Files
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  <div className="flex-1 overflow-y-auto p-2" data-testid="docs-tree">
+                    <div className="space-y-0.5">
+                      {tree.map((entry) => (
+                        <TreeNode
+                          key={entry.path}
+                          entry={entry}
+                          level={0}
+                          selectedPath={selectedPath}
+                          expandedPaths={expandedPaths}
+                          onSelect={loadDoc}
+                          onToggle={handleToggle}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resizable Divider */}
+              {!isCollapsed && (
+                <div
+                  className={`w-1 flex-shrink-0 cursor-col-resize group relative ${
+                    isDragging ? 'bg-blue-500/50' : 'hover:bg-blue-500/30'
+                  } transition-colors`}
+                  onMouseDown={handleMouseDown}
+                  data-testid="docs-resize-handle"
+                >
+                  <div className="absolute inset-y-0 -left-1 -right-1" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <GripVertical className="h-6 w-4 text-slate-500" />
+                  </div>
+                </div>
+              )}
+
+              {/* Main Content */}
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* Document Header */}
+                <div className="px-6 py-3 border-b border-white/5 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <FileText className={`h-4 w-4 flex-shrink-0 ${selectedDoc ? 'text-blue-400' : 'text-slate-500'}`} />
+                    <span className="text-sm font-medium text-slate-200 truncate">
+                      {selectedDoc?.title || 'Select a document'}
+                    </span>
+                    {selectedPath && (
+                      <span className="text-xs text-slate-500 font-mono ml-2 truncate">
+                        docs/{selectedPath}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Document Content */}
+                <div
+                  ref={contentRef}
+                  className="flex-1 overflow-y-auto px-6 py-4"
+                  data-testid="docs-content-area"
+                >
+                  {loadingDoc ? (
+                    <div className="text-slate-400" data-testid="docs-loading-doc">Loading document...</div>
+                  ) : selectedDoc ? (
+                    <div className="max-w-4xl">
+                      <MarkdownRenderer content={selectedDoc.content} />
+                    </div>
+                  ) : (
+                    <div className="text-center py-12" data-testid="docs-no-selection">
+                      <Book className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+                      <p className="text-slate-400">Select a document from the sidebar to view its contents.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
         )}
       </div>
     </AdminLayout>
