@@ -65,7 +65,11 @@ func (h *Handler) GetDebugMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to encode debug mode response")
+		}
+	}
 }
 
 // SetDebugMode enables or disables debug mode
@@ -107,11 +111,15 @@ func (h *Handler) SetDebugMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(DebugModeResponse{
+	if err := json.NewEncoder(w).Encode(DebugModeResponse{
 		Enabled:    globalDebugMode.enabled,
 		Components: globalDebugMode.components,
 		ExpiresAt:  globalDebugMode.expiresAt,
-	})
+	}); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to encode debug mode update response")
+		}
+	}
 }
 
 // IsDebugEnabled checks if debug mode is enabled for a component
@@ -169,7 +177,11 @@ func (h *Handler) GetObservability(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // RefreshObservability proxies POST /observability/refresh requests to the playwright-driver.
@@ -199,7 +211,11 @@ func (h *Handler) RefreshObservability(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // RunDiagnostics proxies POST /observability/diagnostics/run requests to the playwright-driver.
@@ -234,7 +250,11 @@ func (h *Handler) RunDiagnostics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // GetSessionList proxies GET /observability/sessions requests to the playwright-driver.
@@ -264,7 +284,11 @@ func (h *Handler) GetSessionList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // RunCleanup proxies POST /observability/cleanup/run requests to the playwright-driver.
@@ -294,7 +318,11 @@ func (h *Handler) RunCleanup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // GetMetrics proxies GET /observability/metrics requests to the playwright-driver.
@@ -325,7 +353,11 @@ func (h *Handler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // GetConfigRuntime proxies GET /observability/config/runtime requests to the playwright-driver.
@@ -356,7 +388,11 @@ func (h *Handler) GetConfigRuntime(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // UpdateConfig proxies PUT /observability/config/{env_var} requests to the playwright-driver.
@@ -392,7 +428,11 @@ func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request, envVar st
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // ResetConfig proxies DELETE /observability/config/{env_var} requests to the playwright-driver.
@@ -423,7 +463,11 @@ func (h *Handler) ResetConfig(w http.ResponseWriter, r *http.Request, envVar str
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }
 
 // RunPipelineTest proxies POST /observability/pipeline-test requests to the playwright-driver.
@@ -461,5 +505,9 @@ func (h *Handler) RunPipelineTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if logger := logutil.LoggerFromContext(r.Context()); logger != nil {
+			logger.WithError(err).Warn("observability: failed to proxy response")
+		}
+	}
 }

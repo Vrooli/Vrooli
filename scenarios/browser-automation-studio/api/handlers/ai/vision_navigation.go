@@ -414,7 +414,9 @@ func (h *VisionNavigationHandler) HandleAINavigate(w http.ResponseWriter, r *htt
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.log.WithError(err).Warn("vision_navigation: failed to encode response")
+	}
 }
 
 // HandleAINavigateCallback handles POST /api/v1/internal/ai-navigate/callback.
@@ -540,10 +542,12 @@ func (h *VisionNavigationHandler) handleStepCallback(ctx context.Context, w http
 	// Respond with acknowledgment
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"received": true,
 		"abort":    false, // Could implement abort signaling here
-	})
+	}); err != nil {
+		h.log.WithError(err).Warn("vision_navigation_callback: failed to encode response")
+	}
 }
 
 // handleCompleteCallback processes a navigation complete event.
@@ -598,9 +602,11 @@ func (h *VisionNavigationHandler) handleCompleteCallback(ctx context.Context, w 
 	// Respond with acknowledgment
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"received": true,
-	})
+	}); err != nil {
+		h.log.WithError(err).Warn("vision_navigation_callback: failed to encode completion response")
+	}
 }
 
 // HandleAINavigateStatus handles GET /api/v1/ai-navigate/:id/status.
@@ -636,7 +642,9 @@ func (h *VisionNavigationHandler) HandleAINavigateStatus(w http.ResponseWriter, 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.log.WithError(err).Warn("vision_navigation_status: failed to encode response")
+	}
 }
 
 // HandleAINavigateAbort handles POST /api/v1/ai-navigate/:id/abort.
@@ -692,11 +700,13 @@ func (h *VisionNavigationHandler) HandleAINavigateAbort(w http.ResponseWriter, r
 	h.log.WithField("navigation_id", navigationID).Info("vision_navigation: abort requested")
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":        "aborting",
 		"navigation_id": navigationID,
 		"message":       "Abort signal sent. Navigation will stop after current step.",
-	})
+	}); err != nil {
+		h.log.WithError(err).Warn("vision_navigation: failed to encode abort response")
+	}
 }
 
 // HandleAINavigateResume handles POST /api/v1/ai-navigate/:id/resume.
@@ -792,11 +802,13 @@ func (h *VisionNavigationHandler) HandleAINavigateResume(w http.ResponseWriter, 
 	h.log.WithField("navigation_id", navigationID).Info("vision_navigation: resumed after human intervention")
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":        "resumed",
 		"navigation_id": navigationID,
 		"message":       "Navigation resumed. Will continue from where it paused.",
-	})
+	}); err != nil {
+		h.log.WithError(err).Warn("vision_navigation: failed to encode resume response")
+	}
 }
 
 // ============================

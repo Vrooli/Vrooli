@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, renderHook } from '@testing-library/react';
-import { ViewportProvider, useViewport, useViewportOptional } from './ViewportProvider';
+import { ViewportProvider } from './ViewportProvider';
+import { useViewport, useViewportOptional } from './viewportHooks';
 import type { ReactNode } from 'react';
 
 // Mock getConfig

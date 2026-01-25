@@ -9,6 +9,25 @@ import {
   TriggerScheduleResponseSchema,
 } from '../shared/api/schemas';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    const data: unknown = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
+
 export interface WorkflowSchedule {
   id: string;
   workflow_id: string;
@@ -120,7 +139,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load schedules (${response.status})`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListSchedules');
       if (!result.success) {
         throw new Error(result.error);
@@ -146,7 +165,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load workflow schedules (${response.status})`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ListSchedulesResponseSchema, rawData, 'ListWorkflowSchedules');
       if (!result.success) {
         throw new Error(result.error);
@@ -180,7 +199,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
         throw new Error(message || `Failed to load schedule occurrences (${response.status})`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(OccurrencesResponseSchema, rawData, 'ScheduleOccurrences');
       if (!result.success) {
         throw new Error(result.error);
@@ -210,11 +229,11 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to create schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to create schedule (${response.status})`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ScheduleResponseSchema, rawData, 'CreateSchedule');
       if (!result.success) {
         throw new Error(result.error);
@@ -248,11 +267,11 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to update schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to update schedule (${response.status})`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ScheduleResponseSchema, rawData, 'UpdateSchedule');
       if (!result.success) {
         throw new Error(result.error);
@@ -286,8 +305,8 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to delete schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to delete schedule (${response.status})`));
       }
 
       // Remove from local state
@@ -316,11 +335,11 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to toggle schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to toggle schedule (${response.status})`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ScheduleResponseSchema, rawData, 'ToggleSchedule');
       if (!result.success) {
         throw new Error(result.error);
@@ -354,11 +373,11 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to trigger schedule (${response.status})`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData, `Failed to trigger schedule (${response.status})`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(TriggerScheduleResponseSchema, rawData, 'TriggerSchedule');
       if (!result.success) {
         throw new Error(result.error);

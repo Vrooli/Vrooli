@@ -31,6 +31,9 @@ interface UseConfigUpdateReturn {
   error: Error | null;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 async function updateConfigRequest(envVar: string, value: string): Promise<ConfigUpdateResult> {
   const config = await getConfig();
   const request: ConfigUpdateRequest = { value };
@@ -41,13 +44,19 @@ async function updateConfigRequest(envVar: string, value: string): Promise<Confi
     body: JSON.stringify(request),
   });
 
-  const result = await response.json();
-
-  if (!response.ok && !result.success) {
-    throw new Error(result.error || `Failed to update config: ${response.statusText}`);
+  const result: unknown = await response.json();
+  if (!isRecord(result)) {
+    throw new Error(`Failed to update config: ${response.statusText}`);
   }
 
-  return result;
+  if (!response.ok && result.success !== true) {
+    const message = typeof result.error === 'string'
+      ? result.error
+      : `Failed to update config: ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  return result as ConfigUpdateResult;
 }
 
 async function resetConfigRequest(envVar: string): Promise<{ success: boolean; current_value?: string }> {
@@ -57,13 +66,19 @@ async function resetConfigRequest(envVar: string): Promise<{ success: boolean; c
     method: 'DELETE',
   });
 
-  const result = await response.json();
-
-  if (!response.ok && !result.success) {
-    throw new Error(result.error || `Failed to reset config: ${response.statusText}`);
+  const result: unknown = await response.json();
+  if (!isRecord(result)) {
+    throw new Error(`Failed to reset config: ${response.statusText}`);
   }
 
-  return result;
+  if (!response.ok && result.success !== true) {
+    const message = typeof result.error === 'string'
+      ? result.error
+      : `Failed to reset config: ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  return result as { success: boolean; current_value?: string };
 }
 
 export function useConfigUpdate(options: UseConfigUpdateOptions = {}): UseConfigUpdateReturn {

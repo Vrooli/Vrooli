@@ -26,6 +26,9 @@ import type { ExecutionConfigSettings } from '../timeline/WorkflowInfoCard';
 import type { StreamSettingsValues } from '../capture/StreamSettings';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from '../constants';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 /** Workflow node shape from API */
 export interface WorkflowNode {
   id: string;
@@ -43,6 +46,40 @@ export interface WorkflowEdge {
   source: string;
   target: string;
 }
+
+const parseWorkflowNodes = (value: unknown): WorkflowNode[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((node) => {
+      if (!isRecord(node) || typeof node.id !== 'string') return null;
+      const parsedNode: WorkflowNode = { id: node.id };
+      if (typeof node.type === 'string') parsedNode.type = node.type;
+      if (isRecord(node.data)) parsedNode.data = node.data;
+      if (isRecord(node.action) && typeof node.action.type === 'string') {
+        const action: WorkflowNode['action'] = { type: node.action.type };
+        if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+          action.metadata = { label: node.action.metadata.label };
+        }
+        if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+          action.navigate = { url: node.action.navigate.url };
+        }
+        parsedNode.action = action;
+      }
+      return parsedNode;
+    })
+    .filter((node): node is WorkflowNode => node !== null);
+};
+
+const parseWorkflowEdges = (value: unknown): WorkflowEdge[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((edge) => {
+      if (!isRecord(edge)) return null;
+      if (typeof edge.source !== 'string' || typeof edge.target !== 'string') return null;
+      return { source: edge.source, target: edge.target };
+    })
+    .filter((edge): edge is WorkflowEdge => edge !== null);
+};
 
 interface UseExecutionModeStateOptions {
   /** Initial execution ID (from props) */
@@ -298,21 +335,26 @@ export function useExecutionModeState({
           console.warn('Failed to fetch workflow definition');
           return;
         }
-        const data = await res.json();
+        const payload: unknown = await res.json();
 
         // Parse workflow definition
-        if (data.definition) {
-          const def =
-            typeof data.definition === 'string'
-              ? JSON.parse(data.definition)
-              : data.definition;
-          setWorkflowNodes(def.nodes || []);
-          setWorkflowEdges(def.edges || []);
+        if (isRecord(payload) && payload.definition) {
+          let definition: unknown = payload.definition;
+          if (typeof payload.definition === 'string') {
+            try {
+              definition = JSON.parse(payload.definition);
+            } catch {
+              definition = null;
+            }
+          }
+          if (isRecord(definition)) {
+            setWorkflowNodes(parseWorkflowNodes(definition.nodes));
+            setWorkflowEdges(parseWorkflowEdges(definition.edges));
+          }
         }
 
-        // Set workflow name if not already set
-        if (!selectedWorkflowName && data.name) {
-          setSelectedWorkflowName(data.name);
+        if (!selectedWorkflowName && isRecord(payload) && typeof payload.name === 'string') {
+          setSelectedWorkflowName(payload.name);
         }
       } catch (err) {
         console.warn('Error fetching workflow definition:', err);

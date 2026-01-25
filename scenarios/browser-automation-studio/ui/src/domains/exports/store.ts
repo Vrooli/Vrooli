@@ -96,6 +96,25 @@ interface ExportState {
   hasExportsForExecution: (executionId: string) => boolean;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
+
 // Helper to normalize API response to Export interface. Expects snake_case protojson payloads.
 const normalizeExport = (raw: unknown): Export | null => {
   if (!raw || typeof raw !== 'object') return null;
@@ -147,6 +166,22 @@ const normalizeExport = (raw: unknown): Export | null => {
   };
 };
 
+const normalizeExportList = (value: unknown): Export[] => {
+  if (!isRecord(value) || !Array.isArray(value.exports)) {
+    return [];
+  }
+  return value.exports
+    .map((entry: unknown) => normalizeExport(entry))
+    .filter((entry: Export | null | undefined): entry is Export => Boolean(entry));
+};
+
+const normalizeExportResponse = (value: unknown): Export | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  return normalizeExport(value.export);
+};
+
 export const useExportStore = create<ExportState>((set, get) => ({
   exports: [],
   selectedExport: null,
@@ -166,18 +201,14 @@ export const useExportStore = create<ExportState>((set, get) => ({
         throw new Error(`Failed to fetch exports: ${response.status}`);
       }
 
-      const data = await response.json();
-      const exports = Array.isArray(data.exports)
-        ? data.exports
-            .map((e: unknown) => normalizeExport(e))
-            .filter((e: Export | null | undefined): e is Export => Boolean(e))
-        : [];
+      const data: unknown = await response.json();
+      const exports = normalizeExportList(data);
 
       // Sort by createdAt descending
       exports.sort((a: Export, b: Export) => b.createdAt.getTime() - a.createdAt.getTime());
 
       set({ exports, isLoading: false });
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to fetch exports';
       logger.error('Failed to fetch exports', { component: 'ExportStore', action: 'fetchExports' }, error);
       set({ error: message, isLoading: false });
@@ -193,15 +224,11 @@ export const useExportStore = create<ExportState>((set, get) => ({
         throw new Error(`Failed to fetch exports: ${response.status}`);
       }
 
-      const data = await response.json();
-      const exports = Array.isArray(data.exports)
-        ? data.exports
-            .map((e: unknown) => normalizeExport(e))
-            .filter((e: Export | null | undefined): e is Export => Boolean(e))
-        : [];
+      const data: unknown = await response.json();
+      const exports = normalizeExportList(data);
 
       return exports;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to fetch exports by execution', { component: 'ExportStore', action: 'fetchExportsByExecution', executionId }, error);
       return [];
     }
@@ -216,15 +243,11 @@ export const useExportStore = create<ExportState>((set, get) => ({
         throw new Error(`Failed to fetch exports: ${response.status}`);
       }
 
-      const data = await response.json();
-      const exports = Array.isArray(data.exports)
-        ? data.exports
-            .map((e: unknown) => normalizeExport(e))
-            .filter((e: Export | null | undefined): e is Export => Boolean(e))
-        : [];
+      const data: unknown = await response.json();
+      const exports = normalizeExportList(data);
 
       return exports;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to fetch exports by workflow', { component: 'ExportStore', action: 'fetchExportsByWorkflow', workflowId }, error);
       return [];
     }
@@ -242,10 +265,10 @@ export const useExportStore = create<ExportState>((set, get) => ({
         throw new Error(`Failed to get export: ${response.status}`);
       }
 
-      const data = await response.json();
-      const normalized = normalizeExport(data.export);
+      const data: unknown = await response.json();
+      const normalized = normalizeExportResponse(data);
       return normalized;
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to get export', { component: 'ExportStore', action: 'getExport', id }, error);
       return null;
     }
@@ -274,12 +297,12 @@ export const useExportStore = create<ExportState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message ?? `Failed to create export: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData) ?? `Failed to create export: ${response.status}`);
       }
 
-      const data = await response.json();
-      const newExport = normalizeExport(data.export);
+      const data: unknown = await response.json();
+      const newExport = normalizeExportResponse(data);
 
       if (newExport) {
         // Add to the beginning of the exports list
@@ -292,7 +315,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
       }
 
       return newExport;
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to create export';
       logger.error('Failed to create export', { component: 'ExportStore', action: 'createExport' }, error);
       set({ error: message, isCreating: false });
@@ -322,12 +345,12 @@ export const useExportStore = create<ExportState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message ?? `Failed to update export: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData) ?? `Failed to update export: ${response.status}`);
       }
 
-      const data = await response.json();
-      const updatedExport = normalizeExport(data.export);
+      const data: unknown = await response.json();
+      const updatedExport = normalizeExportResponse(data);
 
       if (updatedExport) {
         set((state) => ({
@@ -340,7 +363,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
       }
 
       return updatedExport;
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to update export';
       logger.error('Failed to update export', { component: 'ExportStore', action: 'updateExport', id }, error);
       set({ error: message, isUpdating: false });
@@ -357,8 +380,8 @@ export const useExportStore = create<ExportState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message ?? `Failed to delete export: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractMessage(errorData) ?? `Failed to delete export: ${response.status}`);
       }
 
       set((state) => ({
@@ -368,7 +391,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
       }));
 
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to delete export';
       logger.error('Failed to delete export', { component: 'ExportStore', action: 'deleteExport', id }, error);
       set({ error: message, isDeleting: false });
@@ -405,7 +428,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
         exports: state.exports.filter((e: Export) => e.id !== oldId),
         selectedExport: state.selectedExport?.id === oldId ? null : state.selectedExport,
       }));
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Failed to delete old export during replace', { component: 'ExportStore', action: 'replaceExport', oldId }, error);
       // Note: new export was already created, so we don't fail the whole operation
     }
@@ -436,12 +459,13 @@ export const useExportStore = create<ExportState>((set, get) => ({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          errors.push(`Failed to delete "${exportItem.name}": ${errorData.message ?? response.status}`);
+          const errorData = await parseJson(response);
+          const errorMessage = extractMessage(errorData) ?? String(response.status);
+          errors.push(`Failed to delete "${exportItem.name}": ${errorMessage}`);
         } else {
           deleted++;
         }
-      } catch (error) {
+      } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         errors.push(`Failed to delete "${exportItem.name}": ${message}`);
         logger.error('Failed to delete export during bulk delete', { component: 'ExportStore', action: 'deleteAllExports', id: exportItem.id }, error);

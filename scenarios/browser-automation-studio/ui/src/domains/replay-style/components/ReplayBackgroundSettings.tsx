@@ -135,17 +135,23 @@ export function ReplayBackgroundSettings({
     [gradientSpec.stops],
   );
   const gradientType = gradientSpec.type ?? 'linear';
-  const gradientCenter = gradientSpec.center ?? { x: 50, y: 50 };
+  const gradientCenter = useMemo(
+    () => gradientSpec.center ?? { x: 50, y: 50 },
+    [gradientSpec.center],
+  );
   const gradientAngle =
     gradientSpec.type === 'linear' && typeof gradientSpec.angle === 'number'
       ? gradientSpec.angle
       : DEFAULT_REPLAY_GRADIENT_SPEC.angle ?? 135;
-  const baseGradientSpec: ReplayGradientSpec = {
-    type: gradientType,
-    angle: gradientType === 'linear' ? gradientAngle : undefined,
-    center: gradientType === 'radial' ? gradientCenter : undefined,
-    stops: gradientStops,
-  };
+  const baseGradientSpec = useMemo<ReplayGradientSpec>(
+    () => ({
+      type: gradientType,
+      angle: gradientType === 'linear' ? gradientAngle : undefined,
+      center: gradientType === 'radial' ? gradientCenter : undefined,
+      stops: gradientStops,
+    }),
+    [gradientType, gradientAngle, gradientCenter, gradientStops],
+  );
 
   const backgroundThemeId = getReplayBackgroundThemeId(background);
   const selectedBackgroundAsset = useMemo(() => {

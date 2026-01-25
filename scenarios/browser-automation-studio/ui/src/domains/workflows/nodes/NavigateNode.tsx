@@ -14,11 +14,32 @@ import { useNodeData } from '@hooks/useNodeData';
 import type { NavigateParams } from '@utils/actionBuilder';
 import BaseNode from './BaseNode';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 interface ConsoleLog {
   level: string;
   message: string;
   timestamp: string;
 }
+
+const parseConsoleLog = (value: unknown): ConsoleLog | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.level !== 'string') return null;
+  if (typeof value.message !== 'string') return null;
+  if (typeof value.timestamp !== 'string') return null;
+  return { level: value.level, message: value.message, timestamp: value.timestamp };
+};
 
 type DestinationType = 'url' | 'scenario';
 
@@ -157,12 +178,17 @@ const NavigateNode: FC<NodeProps> = ({ selected, id }) => {
         throw new Error(message || 'Unable to resolve app port');
       }
 
-      const info = await response.json();
-      const baseUrl: string | undefined = typeof info?.url === 'string' && info.url.trim() !== ''
-        ? info.url
-        : info?.port
-          ? `http://localhost:${info.port}`
-          : undefined;
+      const info = await safeJson(response);
+      const portValue =
+        isRecord(info) && (typeof info.port === 'number' || typeof info.port === 'string')
+          ? info.port
+          : null;
+      const baseUrl: string | undefined =
+        isRecord(info) && typeof info.url === 'string' && info.url.trim() !== ''
+          ? info.url
+          : portValue !== null
+            ? `http://localhost:${portValue}`
+            : undefined;
 
       if (!baseUrl) {
         throw new Error('App port is unavailable');
@@ -279,14 +305,20 @@ const NavigateNode: FC<NodeProps> = ({ selected, id }) => {
         throw new Error(errorText || 'Failed to take screenshot');
       }
 
-      const payload = await response.json();
+      const payload = await safeJson(response);
       if (requestId !== requestIdRef.current) {
         return;
       }
 
-      if (payload?.screenshot) {
-        const logs = Array.isArray(payload.consoleLogs) ? payload.consoleLogs : [];
-        setPreviewImage(payload.screenshot);
+      const screenshot =
+        isRecord(payload) && typeof payload.screenshot === 'string'
+          ? payload.screenshot
+          : null;
+      if (screenshot) {
+        const logs = isRecord(payload) && Array.isArray(payload.consoleLogs)
+          ? payload.consoleLogs.map(parseConsoleLog).filter((log): log is ConsoleLog => log !== null)
+          : [];
+        setPreviewImage(screenshot);
         setConsoleLogs(logs);
         setActiveTab((prev) => (prev === 'console' && logs.length === 0 ? 'screenshot' : prev));
         setPreviewError(null);

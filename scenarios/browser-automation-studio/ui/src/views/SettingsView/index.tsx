@@ -64,6 +64,3 @@ export default function SettingsView() {
     </div>
   );
 }
-
-// Also export sections for use elsewhere
-export * from './sections';

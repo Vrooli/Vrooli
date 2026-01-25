@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSelectionRanges } from './WorkflowCreationForm';
+import { computeSelectionRanges } from './workflowCreationUtils';
 
 describe('computeSelectionRanges', () => {
   it('returns empty array for empty input', () => {

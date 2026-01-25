@@ -19,6 +19,9 @@ import { getApiBase } from '../../../config';
 
 type Step = 'select' | 'preview';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export function AssetImportModal({
   isOpen,
   onClose,
@@ -123,8 +126,12 @@ export function AssetImportModal({
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Copy failed');
+          const errorData: unknown = await response.json().catch(() => null);
+          const message =
+            isRecord(errorData) && typeof errorData.message === 'string'
+              ? errorData.message
+              : 'Copy failed';
+          throw new Error(message);
         }
       } else if (selectedFile) {
         // Upload the file via FormData
@@ -139,8 +146,12 @@ export function AssetImportModal({
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Upload failed');
+          const errorData: unknown = await response.json().catch(() => null);
+          const message =
+            isRecord(errorData) && typeof errorData.message === 'string'
+              ? errorData.message
+              : 'Upload failed';
+          throw new Error(message);
         }
       }
 

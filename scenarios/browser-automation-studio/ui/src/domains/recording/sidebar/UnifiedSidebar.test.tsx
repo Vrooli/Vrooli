@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { UnifiedSidebar, type UnifiedSidebarProps } from './UnifiedSidebar';
 import { DEFAULT_AI_SETTINGS } from './types';
 import { VISION_MODELS } from '../ai-navigation/types';
+import type { RecordedAction } from '../types/types';
 
 // Mock scrollIntoView which isn't available in jsdom
 Element.prototype.scrollIntoView = vi.fn();
@@ -220,9 +221,20 @@ describe('UnifiedSidebar', () => {
       const { rerender } = render(<UnifiedSidebar {...defaultProps} initialTab="auto" />);
 
       // Add an action while on auto tab
+      const action: RecordedAction = {
+        id: '1',
+        sessionId: 'session-1',
+        sequenceNum: 1,
+        timestamp: new Date().toISOString(),
+        actionType: 'click',
+        confidence: 1,
+        url: '',
+        payload: {},
+        selector: { primary: 'button', candidates: [] },
+      };
       const updatedTimelineProps = {
         ...defaultTimelineProps,
-        actions: [{ id: '1', type: 'click', timestamp: new Date(), selector: 'button' }] as any,
+        actions: [action],
       };
       rerender(
         <UnifiedSidebar {...defaultProps} initialTab="auto" timelineProps={updatedTimelineProps} />

@@ -61,7 +61,7 @@ export function ReplaySection({ onRandomize, onSavePreset }: ReplaySectionProps)
   const [showPresetDropdown, setShowPresetDropdown] = useState(false);
   const [presetToDelete, setPresetToDelete] = useState<string | null>(null);
 
-  const allPresets = useMemo(() => getAllPresets(), [getAllPresets, userPresets]);
+  const allPresets = getAllPresets();
 
   const activePreset = useMemo(() => {
     if (!activePresetId) return null;

@@ -207,8 +207,8 @@ export function extractParams<T>(action: ActionDefinition | undefined): T | unde
     return undefined;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (action as any)[fieldName] as T | undefined;
+  const actionRecord = action as Record<string, unknown>;
+  return actionRecord[fieldName] as T | undefined;
 }
 
 /**
@@ -235,8 +235,10 @@ export function updateActionParams<T>(
     throw new Error(`Cannot update params: unknown action type ${action.type}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const existingParams = (action as any)[fieldName] as Record<string, unknown> | undefined;
+  const actionRecord = action as Record<string, unknown>;
+  const rawParams = actionRecord[fieldName];
+  const existingParams =
+    rawParams && typeof rawParams === 'object' ? (rawParams as Record<string, unknown>) : undefined;
   const updatedParams = { ...existingParams, ...updates } as Record<string, unknown>;
 
   // Remove undefined values from params
@@ -292,8 +294,8 @@ export function createAction<T extends ActionTypeValue>(
   const action: ActionDefinition = { type };
 
   if (fieldName && params) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (action as any)[fieldName] = params;
+    const actionRecord = action as Record<string, unknown>;
+    actionRecord[fieldName] = params as Record<string, unknown>;
   }
 
   if (metadata && Object.keys(metadata).length > 0) {

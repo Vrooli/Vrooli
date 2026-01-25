@@ -28,22 +28,6 @@ func normalizeMouseButton(button string) string {
 	}
 }
 
-// normalizeWaitState converts a lowercase state to proto WaitState format.
-func normalizeWaitState(state string) string {
-	switch strings.ToLower(state) {
-	case "attached":
-		return "WAIT_STATE_ATTACHED"
-	case "detached":
-		return "WAIT_STATE_DETACHED"
-	case "visible":
-		return "WAIT_STATE_VISIBLE"
-	case "hidden":
-		return "WAIT_STATE_HIDDEN"
-	default:
-		return state
-	}
-}
-
 // normalizeAssertionMode converts a lowercase mode to proto AssertionMode format.
 func normalizeAssertionMode(mode string) string {
 	switch strings.ToLower(mode) {

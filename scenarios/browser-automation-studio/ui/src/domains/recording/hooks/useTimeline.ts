@@ -11,6 +11,19 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import { getApiBase } from '@/config';
 import type { Page } from './usePages';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 /** Timeline entry types */
 export type TimelineEntryType = 'action' | 'page_event';
 
@@ -57,6 +70,32 @@ interface TimelineResponse {
   hasMore: boolean;
   totalEntries: number;
 }
+
+const parseTimelineEntry = (value: unknown): TimelineEntry | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== 'string') return null;
+  if (typeof value.type !== 'string') return null;
+  if (typeof value.timestamp !== 'string') return null;
+  if (typeof value.pageId !== 'string') return null;
+  return {
+    id: value.id,
+    type: value.type as TimelineEntryType,
+    timestamp: value.timestamp,
+    pageId: value.pageId,
+    action: isRecord(value.action) ? (value.action as TimelineAction) : undefined,
+    pageEvent: isRecord(value.pageEvent) ? (value.pageEvent as TimelinePageEvent) : undefined,
+  };
+};
+
+const parseTimelineResponse = (value: unknown): TimelineResponse | null => {
+  if (!isRecord(value)) return null;
+  const entries = Array.isArray(value.entries)
+    ? value.entries.map(parseTimelineEntry).filter((entry): entry is TimelineEntry => entry !== null)
+    : [];
+  const hasMore = typeof value.hasMore === 'boolean' ? value.hasMore : false;
+  const totalEntries = typeof value.totalEntries === 'number' ? value.totalEntries : entries.length;
+  return { entries, hasMore, totalEntries };
+};
 
 /** WebSocket message for recording action */
 interface RecordingActionMessage {
@@ -181,7 +220,11 @@ export function useTimeline({
         throw new Error(`Failed to fetch timeline: ${response.statusText}`);
       }
 
-      const data: TimelineResponse = await response.json();
+      const payload = await safeJson(response);
+      const data = parseTimelineResponse(payload);
+      if (!data) {
+        throw new Error('Invalid timeline response');
+      }
       setEntries(data.entries || []);
       setTotalEntries(data.totalEntries || 0);
       setHasMore(data.hasMore || false);

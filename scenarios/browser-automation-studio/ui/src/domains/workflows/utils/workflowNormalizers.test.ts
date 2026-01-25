@@ -16,6 +16,14 @@ describe('autoLayoutNodes', () => {
         target,
     });
 
+    const getNodeById = (nodes: Node[], id: string): Node => {
+        const node = nodes.find((n) => n.id === id);
+        if (!node) {
+            throw new Error(`Expected node ${id} to exist`);
+        }
+        return node;
+    };
+
     it('returns empty array for empty input', () => {
         expect(autoLayoutNodes([], [])).toEqual([]);
     });
@@ -44,9 +52,9 @@ describe('autoLayoutNodes', () => {
         ];
 
         const result = autoLayoutNodes(nodes, edges);
-        const posA = result.find(n => n.id === 'A')!.position;
-        const posB = result.find(n => n.id === 'B')!.position;
-        const posC = result.find(n => n.id === 'C')!.position;
+        const posA = getNodeById(result, 'A').position;
+        const posB = getNodeById(result, 'B').position;
+        const posC = getNodeById(result, 'C').position;
 
         // Check x levels
         expect(posA.x).toBe(0);
@@ -71,9 +79,9 @@ describe('autoLayoutNodes', () => {
         ];
 
         const result = autoLayoutNodes(nodes, edges);
-        const posA = result.find(n => n.id === 'A')!.position;
-        const posB = result.find(n => n.id === 'B')!.position;
-        const posC = result.find(n => n.id === 'C')!.position;
+        const posA = getNodeById(result, 'A').position;
+        const posB = getNodeById(result, 'B').position;
+        const posC = getNodeById(result, 'C').position;
 
         expect(posA.x).toBe(0);
         expect(posB.x).toBe(300);
@@ -107,8 +115,8 @@ describe('autoLayoutNodes', () => {
         const edges: Edge[] = [];
 
         const result = autoLayoutNodes(nodes, edges);
-        const posA = result.find(n => n.id === 'A')!.position;
-        const posB = result.find(n => n.id === 'B')!.position;
+        const posA = getNodeById(result, 'A').position;
+        const posB = getNodeById(result, 'B').position;
 
         expect(posA.x).toBe(0);
         expect(posB.x).toBe(0);
@@ -124,8 +132,8 @@ describe('autoLayoutNodes', () => {
         const edges = [createEdge('A', 'B')];
 
         const result = autoLayoutNodes(nodes, edges);
-        const posA = result.find(n => n.id === 'A')!.position;
-        const posB = result.find(n => n.id === 'B')!.position;
+        const posA = getNodeById(result, 'A').position;
+        const posB = getNodeById(result, 'B').position;
 
         // Should be laid out horizontally (0, 300) instead of diagonal
         expect(posA.x).toBe(0);

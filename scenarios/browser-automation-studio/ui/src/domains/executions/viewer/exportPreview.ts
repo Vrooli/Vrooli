@@ -82,6 +82,6 @@ export const fetchExecutionExportPreview = async (
     const text = await response.text();
     throw new Error(text || `Export request failed (${response.status})`);
   }
-  const raw = await response.json();
+  const raw: unknown = await response.json();
   return parseExportPreviewPayload(raw);
 };

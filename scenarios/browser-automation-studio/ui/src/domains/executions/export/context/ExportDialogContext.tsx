@@ -16,12 +16,9 @@
  * @module export/context
  */
 
-/* eslint-disable react-refresh/only-export-components */
-
 import {
   createContext,
   useContext,
-  type ReactNode,
   type MutableRefObject,
 } from "react";
 import type { ReplayMovieSpec } from "@/types/export";
@@ -224,7 +221,7 @@ export interface ExportDialogContextValue {
 // Context
 // =============================================================================
 
-const ExportDialogContext = createContext<ExportDialogContextValue | null>(null);
+export const ExportDialogContext = createContext<ExportDialogContextValue | null>(null);
 
 // =============================================================================
 // Hook
@@ -307,29 +304,6 @@ export function useExportMetricsState(): ExportMetricsState {
  */
 export function useExportDialogActions(): ExportDialogActions {
   return useExportDialogContext().actions;
-}
-
-// =============================================================================
-// Provider
-// =============================================================================
-
-interface ExportDialogProviderProps {
-  children: ReactNode;
-  value: ExportDialogContextValue;
-}
-
-/**
- * Provider component for export dialog context.
- */
-export function ExportDialogProvider({
-  children,
-  value,
-}: ExportDialogProviderProps): JSX.Element {
-  return (
-    <ExportDialogContext.Provider value={value}>
-      {children}
-    </ExportDialogContext.Provider>
-  );
 }
 
 // =============================================================================

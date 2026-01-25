@@ -103,6 +103,20 @@ const asCursorPathStyle = (
   return match;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const readFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
 // Initialize basExport bootstrap on module load
 ensureBasExportBootstrap();
 
@@ -614,29 +628,35 @@ const ReplayExportPage = () => {
       return;
     }
     const handleMessage = (event: MessageEvent) => {
-      const payload = event.data;
-      if (!payload || typeof payload !== "object") {
+      const payload = event.data as unknown;
+      if (!isRecord(payload)) {
         return;
       }
-      const { type } = payload as { type?: unknown };
+      const type = payload.type;
       if (typeof type !== "string" || !type.startsWith("bas:")) {
         return;
       }
       parentOriginRef.current = event.origin;
       switch (type) {
         case "bas:spec:set": {
-          const incoming = payload.spec as ReplayMovieSpec | undefined;
-          if (incoming) {
+          const incoming = payload.spec;
+          if (isRecord(incoming)) {
             clearPendingRetry();
-            setMovieSpec(incoming);
+            setMovieSpec(incoming as ReplayMovieSpec);
             setLoadError(null);
             setStatusPayload(null);
             setIsAwaitingSpec(false);
-            if (typeof payload.apiBase === "string" && payload.apiBase.trim()) {
-              window.__BAS_EXPORT_API_BASE__ = payload.apiBase.trim();
+            if (typeof payload.apiBase === "string") {
+              const apiBase = payload.apiBase.trim();
+              if (apiBase) {
+                window.__BAS_EXPORT_API_BASE__ = apiBase;
+              }
             }
-            if (typeof payload.specId === "string" && payload.specId.trim()) {
-              executionSourceRef.current = payload.specId.trim();
+            if (typeof payload.specId === "string") {
+              const specId = payload.specId.trim();
+              if (specId) {
+                executionSourceRef.current = specId;
+              }
             } else if (typeof payload.executionId === "string") {
               executionSourceRef.current = payload.executionId.trim() || null;
             }
@@ -652,8 +672,11 @@ const ReplayExportPage = () => {
               setLoadError(null);
               setStatusPayload(null);
               setIsAwaitingSpec(false);
-              if (typeof payload.specId === "string" && payload.specId.trim()) {
-                executionSourceRef.current = payload.specId.trim();
+              if (typeof payload.specId === "string") {
+                const specId = payload.specId.trim();
+                if (specId) {
+                  executionSourceRef.current = specId;
+                }
               } else if (typeof payload.executionId === "string") {
                 executionSourceRef.current = payload.executionId.trim() || null;
               }
@@ -670,11 +693,9 @@ const ReplayExportPage = () => {
           break;
         }
         case "bas:control:seek": {
-          if (
-            typeof payload.timeMs === "number" &&
-            Number.isFinite(payload.timeMs)
-          ) {
-            void seekToTime(payload.timeMs);
+          const timeMs = readFiniteNumber(payload.timeMs);
+          if (timeMs != null) {
+            void seekToTime(timeMs);
           }
           break;
         }
@@ -687,22 +708,13 @@ const ReplayExportPage = () => {
           break;
         }
         case "bas:control:frame": {
-          const frameIndex = payload.frameIndex;
-          const progress = payload.progress;
-          if (
-            typeof frameIndex === "number" &&
-            Number.isFinite(frameIndex) &&
-            controllerRef.current
-          ) {
-            const waiterPromise = registerWaiter(
-              frameIndex,
-              Number(progress) || 0,
-            );
+          const frameIndex = readFiniteNumber(payload.frameIndex);
+          const progress = readFiniteNumber(payload.progress);
+          if (frameIndex != null && controllerRef.current) {
+            const waiterPromise = registerWaiter(frameIndex, progress ?? 0);
             controllerRef.current.seek({
               frameIndex,
-              progress: Number.isFinite(progress)
-                ? Number(progress)
-                : undefined,
+              progress: progress ?? undefined,
             });
             void waiterPromise.catch((error) => {
               logger.warn(
@@ -887,7 +899,13 @@ const ReplayExportPage = () => {
     controllerSignal,
     currentFrameIndex,
     currentProgress,
+    effectiveCanvasHeight,
+    effectiveCanvasWidth,
     loadError,
+    movieSpec?.assets,
+    movieSpec?.execution?.execution_id,
+    movieSpec?.presentation?.browser_frame?.radius,
+    movieSpec?.presentation?.device_scale_factor,
     replayFrames.length,
     seekToTime,
   ]);

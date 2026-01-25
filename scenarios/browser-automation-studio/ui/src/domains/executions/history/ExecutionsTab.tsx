@@ -117,7 +117,10 @@ export const ExecutionsTab: React.FC<ExecutionsTabProps> = ({
   }, [onRerunWorkflow]);
 
   // Combine and filter executions
-  const allExecutions = [...runningExecutions, ...recentExecutions];
+  const allExecutions = useMemo(
+    () => [...runningExecutions, ...recentExecutions],
+    [runningExecutions, recentExecutions],
+  );
   const filteredExecutions = allExecutions.filter((execution) => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'running') return execution.status === 'running' || execution.status === 'pending';

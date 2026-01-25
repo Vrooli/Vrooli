@@ -5,18 +5,9 @@
  * The user can choose to resume from the last checkpoint or start fresh.
  */
 
-/* eslint-disable react-refresh/only-export-components */
-
 import React, { useState } from 'react';
 import { formatDuration } from '../../hooks/useDriverStatus';
-import {
-  safeParse,
-  RecoveryCheckResponseSchema,
-  type RecoveryCheckpoint,
-} from '@/shared/api';
-
-// Re-export the type from schemas for external use
-export type { RecoveryCheckpoint } from '@/shared/api';
+import type { RecoveryCheckpoint } from '@/shared/api';
 
 /** Props for the RecoveryDialog */
 interface RecoveryDialogProps {
@@ -255,82 +246,3 @@ export const RecoveryDialog: React.FC<RecoveryDialogProps> = ({
     </div>
   );
 };
-
-/**
- * Hook to check for available recovery checkpoints.
- *
- * This would typically call an API endpoint to get recoverable sessions.
- */
-export function useRecoveryCheck(): {
-  checkpoint: RecoveryCheckpoint | null;
-  isLoading: boolean;
-  checkForRecovery: () => Promise<void>;
-  resumeRecording: () => Promise<void>;
-  startFresh: () => Promise<void>;
-} {
-  const [checkpoint, setCheckpoint] = React.useState<RecoveryCheckpoint | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
-
-  const checkForRecovery = React.useCallback(async () => {
-    try {
-      const response = await fetch('/api/recording/recovery/check');
-      if (response.ok) {
-        const rawData: unknown = await response.json();
-        const result = safeParse(RecoveryCheckResponseSchema, rawData, 'RecoveryCheck');
-        if (result.success && result.data.checkpoint) {
-          setCheckpoint(result.data.checkpoint);
-        } else {
-          setCheckpoint(null);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to check for recovery:', error);
-      setCheckpoint(null);
-    }
-  }, []);
-
-  const resumeRecording = React.useCallback(async () => {
-    if (!checkpoint) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/recording/recovery/${checkpoint.sessionId}/resume`, {
-        method: 'POST',
-      });
-      if (response.ok) {
-        setCheckpoint(null);
-        // Navigation to recording session would happen here
-      }
-    } catch (error) {
-      console.error('Failed to resume recording:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkpoint]);
-
-  const startFresh = React.useCallback(async () => {
-    if (!checkpoint) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/recording/recovery/${checkpoint.sessionId}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setCheckpoint(null);
-      }
-    } catch (error) {
-      console.error('Failed to delete checkpoint:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [checkpoint]);
-
-  return {
-    checkpoint,
-    isLoading,
-    checkForRecovery,
-    resumeRecording,
-    startFresh,
-  };
-}

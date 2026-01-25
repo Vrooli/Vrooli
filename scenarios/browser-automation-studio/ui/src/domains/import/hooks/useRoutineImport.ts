@@ -10,6 +10,25 @@ import { getApiBase } from '../../../config';
 import { logger } from '../../../utils/logger';
 import type { ValidationSummary } from '../types';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
+
 /** Response from inspecting a routine file */
 export interface InspectRoutineResponse {
   file_path: string;
@@ -129,16 +148,21 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.message || 'Failed to inspect file';
+          const errorData = await parseJson(response);
+          const errorMsg = extractErrorMessage(errorData) ?? 'Failed to inspect file';
           setError(errorMsg);
           return null;
         }
 
-        const data = await response.json();
-        setInspectResult(data);
-        return data;
-      } catch (err) {
+        const data: unknown = await response.json();
+        if (!isRecord(data)) {
+          setError('Invalid inspect response');
+          return null;
+        }
+        const result = data as InspectRoutineResponse;
+        setInspectResult(result);
+        return result;
+      } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to inspect file';
         logger.error('Failed to inspect routine', { error: err, filePath });
         setError(errorMsg);
@@ -164,14 +188,19 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.message || 'Failed to import routine';
+          const errorData = await parseJson(response);
+          const errorMsg = extractErrorMessage(errorData) ?? 'Failed to import routine';
           setError(errorMsg);
           return null;
         }
 
-        return await response.json();
-      } catch (err) {
+        const data: unknown = await response.json();
+        if (!isRecord(data)) {
+          setError('Invalid import response');
+          return null;
+        }
+        return data as ImportRoutineResponse;
+      } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to import routine';
         logger.error('Failed to import routine', { error: err, params });
         setError(errorMsg);
@@ -197,16 +226,21 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.message || 'Failed to scan workflows';
+          const errorData = await parseJson(response);
+          const errorMsg = extractErrorMessage(errorData) ?? 'Failed to scan workflows';
           setError(errorMsg);
           return null;
         }
 
-        const data = await response.json();
-        setScanResult(data);
-        return data;
-      } catch (err) {
+        const data: unknown = await response.json();
+        if (!isRecord(data)) {
+          setError('Invalid scan response');
+          return null;
+        }
+        const result = data as ScanRoutinesResponse;
+        setScanResult(result);
+        return result;
+      } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to scan workflows';
         logger.error('Failed to scan workflows', { error: err, path });
         setError(errorMsg);

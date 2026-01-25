@@ -4,6 +4,9 @@ import { logger } from '@/utils/logger';
 import { createProfileResourceHook } from './useProfileResource';
 import type { HistoryResponse, HistorySettings } from '../types/types';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export interface UseHistoryResult {
   history: HistoryResponse | null;
   loading: boolean;
@@ -28,25 +31,37 @@ const useHistoryBase = createProfileResourceHook<HistoryResponse>({
 
 export function useHistory(): UseHistoryResult {
   const base = useHistoryBase();
+  const {
+    data,
+    loading,
+    error,
+    deleting,
+    fetch: fetchHistory,
+    clear,
+    clearAll,
+    deleteRequest,
+    setLoading,
+    setError,
+  } = base;
 
   // Additional state for navigation operations
   const [navigating, setNavigating] = useState(false);
 
   const deleteHistoryEntry = useCallback(
     async (profileId: string, entryId: string): Promise<boolean> => {
-      return base.deleteRequest(profileId, encodeURIComponent(entryId));
+      return deleteRequest(profileId, encodeURIComponent(entryId));
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   const updateSettings = useCallback(
     async (profileId: string, settings: Partial<HistorySettings>): Promise<boolean> => {
-      base.setLoading(true);
-      base.setError(null);
+      setLoading(true);
+      setError(null);
       try {
         const config = await getConfig();
         // Merge with existing settings
-        const existingSettings = base.data?.settings ?? {
+        const existingSettings = data?.settings ?? {
           maxEntries: 100,
           retentionDays: 30,
           captureThumbnails: true,
@@ -69,71 +84,81 @@ export function useHistory(): UseHistoryResult {
           throw new Error(`Update settings failed (${response.status})`);
         }
         // Refetch history to get updated data (settings may have triggered pruning)
-        await base.fetch(profileId);
+        await fetchHistory(profileId);
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Update settings failed';
-        base.setError(message);
+        setError(message);
         logger.error(message, { component: 'useHistory', action: 'updateSettings' }, err);
         return false;
       } finally {
-        base.setLoading(false);
+        setLoading(false);
       }
     },
-    [base.data?.settings, base.fetch, base.setLoading, base.setError]
+    [data?.settings, fetchHistory, setLoading, setError]
   );
 
   const navigateToUrl = useCallback(
     async (profileId: string, url: string): Promise<boolean> => {
       setNavigating(true);
-      base.setError(null);
+      setError(null);
       try {
         const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/recordings/sessions/${profileId}/history/navigate`, {
+        const response = await window.fetch(`${config.API_URL}/recordings/sessions/${profileId}/history/navigate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url }),
         });
         if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.message || `Navigate failed (${response.status})`);
+          const payloadText = await response.text();
+          let payload: unknown = null;
+          try {
+            payload = JSON.parse(payloadText);
+          } catch {
+            payload = null;
+          }
+          const message =
+            isRecord(payload) && typeof payload.message === 'string'
+              ? payload.message
+              : `Navigate failed (${response.status})`;
+          throw new Error(message);
         }
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Navigate failed';
-        base.setError(message);
+        setError(message);
         logger.error(message, { component: 'useHistory', action: 'navigateToUrl', url }, err);
         return false;
       } finally {
         setNavigating(false);
       }
     },
-    [base.setError]
+    [setError]
   );
 
   return useMemo(
     () => ({
-      history: base.data,
-      loading: base.loading,
-      error: base.error,
-      deleting: base.deleting,
+      history: data,
+      loading,
+      error,
+      deleting,
       navigating,
-      fetchHistory: base.fetch,
-      clear: base.clear,
-      clearAllHistory: base.clearAll,
+      fetchHistory: fetchHistory,
+      clear,
+      clearAllHistory: clearAll,
       deleteHistoryEntry,
       updateSettings,
       navigateToUrl,
     }),
     [
-      base.data,
-      base.loading,
-      base.error,
-      base.deleting,
+      data,
+      loading,
+      error,
+      deleting,
       navigating,
-      base.fetch,
-      base.clear,
-      base.clearAll,
+      fetchHistory,
+      clear,
+      clearAll,
       deleteHistoryEntry,
       updateSettings,
       navigateToUrl,

@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or introduce new product features
 
 ### **1. Discover Implicit Levers**
 
+* **If `docs/reference/configuration.md` exists**, read it first to understand what levers are already documented.
+
 * Scan the scenario for **hard-coded decisions** that meaningfully affect behavior, such as:
   * thresholds, limits, timeouts, batch sizes
   * strategy choices, modes, or feature toggles
@@ -113,7 +115,24 @@ If you identify a lever that would require a large migration or ecosystem-wide c
 
 ---
 
-### **8. Output Expectations**
+### **8. Documentation**
+
+Update `docs/reference/configuration.md` (user-facing) to document the control surface:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/reference/` directory if needed.
+
+Include:
+* New tunable levers: name, purpose, valid ranges, default, impact
+* Rationale for why certain values are NOT exposed (conscious decisions)
+* Grouping and organization of related levers
+
+This is a **user-facing document** - operators need to understand what they can tune.
+
+---
+
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 

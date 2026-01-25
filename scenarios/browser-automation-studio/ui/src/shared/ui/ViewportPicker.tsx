@@ -12,7 +12,8 @@
  */
 
 import { useMemo, useCallback } from 'react';
-import { Monitor, Smartphone, Tv, Settings2 } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
+import { VIEWPORT_PRESETS } from './viewportPresets';
 
 // ============================================================================
 // Types
@@ -51,49 +52,6 @@ export interface ViewportPickerProps {
   /** Number of columns for preset grid */
   columns?: 2 | 4;
 }
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-export const VIEWPORT_PRESETS: ViewportPresetOption[] = [
-  {
-    id: 'widescreen-720',
-    label: '1280 × 720',
-    description: 'YouTube, demos',
-    width: 1280,
-    height: 720,
-    icon: <Monitor size={14} />,
-    ratioLabel: '16:9',
-  },
-  {
-    id: 'full-hd',
-    label: '1920 × 1080',
-    description: 'Desktop shares',
-    width: 1920,
-    height: 1080,
-    icon: <Tv size={14} />,
-    ratioLabel: '16:9',
-  },
-  {
-    id: 'instagram-feed',
-    label: '1080 × 1350',
-    description: 'Instagram feed',
-    width: 1080,
-    height: 1350,
-    icon: <Smartphone size={14} />,
-    ratioLabel: '4:5',
-  },
-  {
-    id: 'tiktok',
-    label: '1080 × 1920',
-    description: 'TikTok, Reels',
-    width: 1080,
-    height: 1920,
-    icon: <Smartphone size={14} />,
-    ratioLabel: '9:16',
-  },
-];
 
 const MIN_DIMENSION = 320;
 const MAX_DIMENSION = 3840;

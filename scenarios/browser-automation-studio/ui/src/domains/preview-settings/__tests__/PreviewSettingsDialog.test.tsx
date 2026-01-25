@@ -44,7 +44,7 @@ vi.mock('@stores/settingsStore', () => ({
 }));
 
 // Mock the stream settings hook
-vi.mock('@/domains/recording/capture/StreamSettings', () => ({
+vi.mock('@/domains/recording/capture/streamSettingsState', () => ({
   useStreamSettings: () => ({
     preset: 'balanced',
     settings: { quality: 55, fps: 20, scale: 'css' },

@@ -266,14 +266,15 @@ export function useDropZone(options: UseDropZoneOptions = {}): UseDropZoneReturn
     if (disabled || !onFolderSelected) return;
 
     // Check for native directory picker support
-    if ('showDirectoryPicker' in window) {
+    const picker = (window as unknown as { showDirectoryPicker?: () => Promise<{ name: string }> })
+      .showDirectoryPicker;
+    if (picker) {
       try {
-        // @ts-expect-error - showDirectoryPicker is not in all TS definitions
-        const handle = await window.showDirectoryPicker();
+        const handle = await picker();
         // In browser context, we can only get the directory name
         // For full path, we'd need electron/tauri integration
         onFolderSelected(handle.name);
-      } catch (err) {
+      } catch (err: unknown) {
         // User cancelled or error
         if (err instanceof Error && err.name !== 'AbortError') {
           setError('Failed to select folder');

@@ -41,7 +41,10 @@ describe('usePromptDialog', () => {
     });
 
     expect(result.current.dialogState).toBeNull();
-    const value = await promptPromise!;
+    if (!promptPromise) {
+      throw new Error('Expected prompt promise to be defined');
+    }
+    const value = await promptPromise;
     expect(value).toBe('updated');
   });
 
@@ -60,7 +63,10 @@ describe('usePromptDialog', () => {
       result.current.close(null);
     });
 
-    const value = await promptPromise!;
+    if (!promptPromise) {
+      throw new Error('Expected prompt promise to be defined');
+    }
+    const value = await promptPromise;
     expect(value).toBeNull();
   });
 
@@ -123,7 +129,10 @@ describe('usePromptDialog', () => {
       result.current.submit();
     });
 
-    const value = await promptPromise!;
+    if (!promptPromise) {
+      throw new Error('Expected prompt promise to be defined');
+    }
+    const value = await promptPromise;
     expect(value).toBe('spaces around');
   });
 
@@ -171,7 +180,10 @@ describe('usePromptDialog', () => {
     });
 
     // First should be cancelled
-    const firstResult = await firstPromise!;
+    if (!firstPromise) {
+      throw new Error('Expected first promise to be defined');
+    }
+    const firstResult = await firstPromise;
     expect(firstResult).toBeNull();
 
     // Second should be active
@@ -182,7 +194,10 @@ describe('usePromptDialog', () => {
       result.current.submit();
     });
 
-    const secondResult = await secondPromise!;
+    if (!secondPromise) {
+      throw new Error('Expected second promise to be defined');
+    }
+    const secondResult = await secondPromise;
     expect(secondResult).toBe('result');
   });
 });

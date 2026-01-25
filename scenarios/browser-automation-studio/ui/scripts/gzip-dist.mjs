@@ -55,7 +55,5 @@ walk(distDir, (filePath) => {
 })
 
 if (process.env.VROOLI_VERBOSE_GZIP === '1') {
-  // eslint-disable-next-line no-console
   console.log(`[gzip-dist] wrote ${written} file(s)`)
 }
-

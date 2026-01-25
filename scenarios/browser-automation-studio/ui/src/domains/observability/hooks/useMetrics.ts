@@ -43,17 +43,28 @@ interface UseMetricsReturn {
   refetch: () => Promise<void>;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 async function fetchMetrics(): Promise<MetricsResponse> {
   const config = await getConfig();
 
   const response = await fetch(`${config.API_URL}/observability/metrics`);
+  const payload: unknown = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to fetch metrics: ${response.statusText}`);
+    const message =
+      isRecord(payload) && typeof payload.message === 'string'
+        ? payload.message
+        : `Failed to fetch metrics: ${response.statusText}`;
+    throw new Error(message);
   }
 
-  return response.json();
+  if (!isRecord(payload)) {
+    throw new Error('Invalid metrics response');
+  }
+
+  return payload as MetricsResponse;
 }
 
 export function useMetrics(options: UseMetricsOptions = {}): UseMetricsReturn {

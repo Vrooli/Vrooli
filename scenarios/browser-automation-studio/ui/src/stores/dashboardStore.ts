@@ -93,7 +93,7 @@ const getProjectsMapCached = async (apiBase: string): Promise<Map<string, string
 
   projectsCache.inFlight = (async () => {
     const projectsResponse = await fetch(`${apiBase}/projects`);
-    const projectsData = await projectsResponse.json();
+    const projectsData: unknown = await projectsResponse.json();
     const projectEntries = parseProjectList(projectsData);
     const next = new Map<string, string>();
     projectEntries.forEach((p) => next.set(p.id, p.name));

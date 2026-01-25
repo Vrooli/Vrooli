@@ -13,6 +13,28 @@ import { getConfig } from '@/config';
 import { logger } from '@utils/logger';
 import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const parseElementInfo = (value: unknown): ElementInfo | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.text !== 'string') return null;
+  if (typeof value.tagName !== 'string') return null;
+  if (typeof value.type !== 'string') return null;
+  if (!Array.isArray(value.selectors)) return null;
+  return value as ElementInfo;
+};
+
 export interface AISuggestionsPanelProps {
   /** Node ID for logging */
   nodeId: string;
@@ -73,8 +95,10 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
         throw new Error(message || 'Failed to analyze page');
       }
 
-      const result: ElementInfo[] = await response.json();
-      const normalized = Array.isArray(result) ? result : [];
+      const payload = await safeJson(response);
+      const normalized = Array.isArray(payload)
+        ? payload.map(parseElementInfo).filter((entry): entry is ElementInfo => entry !== null)
+        : [];
       onSuggestionsChange(normalized);
 
       if (normalized.length === 0) {

@@ -623,7 +623,10 @@ export function TimelineFullView({
 
   // Calculate which workflow owns each step for coloring
   const stepColors = useMemo(() => {
-    const colors: (typeof WORKFLOW_COLORS[number] | null)[] = new Array(actions.length).fill(null);
+    const colors = Array.from(
+      { length: actions.length },
+      () => null as typeof WORKFLOW_COLORS[number] | null
+    );
     workflows.forEach((wf, wfIdx) => {
       const color = getWorkflowColor(wfIdx);
       for (let i = wf.startIndex; i <= wf.endIndex; i++) {

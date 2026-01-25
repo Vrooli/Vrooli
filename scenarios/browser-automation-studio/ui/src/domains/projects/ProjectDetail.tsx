@@ -19,6 +19,14 @@ import { WorkflowCardGrid } from "./WorkflowCardGrid";
 import { ProjectFileTree } from "./ProjectFileTree";
 import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const pickString = (record: Record<string, unknown>, key: string): string | undefined => {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+};
+
 interface ProjectDetailProps {
   project: Project;
   onBack: () => void;
@@ -159,17 +167,22 @@ function ProjectDetail({
         if (!response.ok) {
           const text = await response.text();
           try {
-            const payload = JSON.parse(text);
-            const message =
-              payload.message || payload.error || "Failed to import recording";
+            const payload: unknown = JSON.parse(text);
+            const message = isRecord(payload)
+              ? pickString(payload, "message")
+                ?? pickString(payload, "error")
+                ?? "Failed to import recording"
+              : "Failed to import recording";
             throw new Error(message);
           } catch {
             throw new Error(text || "Failed to import recording");
           }
         }
 
-        const payload = await response.json();
-        const executionId = payload.execution_id || payload.executionId;
+        const payload: unknown = await response.json();
+        const executionId = isRecord(payload)
+          ? pickString(payload, "execution_id") ?? pickString(payload, "executionId")
+          : undefined;
         toast.success(
           `Recording imported${executionId ? ` (execution ${executionId})` : ""}.`,
         );

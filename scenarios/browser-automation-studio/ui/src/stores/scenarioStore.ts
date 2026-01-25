@@ -4,6 +4,9 @@ import { logger } from '../utils/logger';
 import { safeParse, parseArrayFiltered } from '../shared/api/safeParse';
 import { ListScenariosResponseSchema, ScenarioSchema } from '../shared/api/schemas';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export interface Scenario {
   name: string;
   description: string;
@@ -54,7 +57,8 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         throw new Error(message || `Failed to load scenarios (${response.status})`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
+      const rawRecord = isRecord(rawData) ? rawData : {};
 
       // Validate with safeParse, filtering out invalid items
       const result = safeParse(ListScenariosResponseSchema, rawData, 'ListScenarios');
@@ -65,7 +69,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
         mapped = result.data.scenarios.filter((scenario) => Boolean(scenario.name));
       } else {
         // Fall back to filtered array parsing for partial data recovery
-        const items = Array.isArray(rawData?.scenarios) ? rawData.scenarios : [];
+        const items = Array.isArray(rawRecord.scenarios) ? rawRecord.scenarios : [];
         mapped = parseArrayFiltered(ScenarioSchema, items, 'Scenario')
           .filter((scenario) => Boolean(scenario.name));
       }

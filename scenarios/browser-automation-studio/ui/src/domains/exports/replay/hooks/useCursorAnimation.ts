@@ -5,7 +5,7 @@
  * the current cursor position based on playback progress.
  */
 
-import { useMemo, useEffect, useState, useRef } from 'react';
+import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import type {
   ReplayFrame,
   ReplayPoint,
@@ -69,7 +69,7 @@ export function useCursorAnimation({
     }
   }, [isCursorEnabled]);
 
-  const computeFallbackNormalized = (frameId: string, dims: Dimensions): NormalizedPoint => {
+  const computeFallbackNormalized = useCallback((frameId: string, dims: Dimensions): NormalizedPoint => {
     const width = dims.width || FALLBACK_DIMENSIONS.width;
     const height = dims.height || FALLBACK_DIMENSIONS.height;
     const computePadRatio = (size: number) => {
@@ -101,7 +101,7 @@ export function useCursorAnimation({
       default:
         return { x: 0.5, y: 0.5 };
     }
-  };
+  }, [cursorInitialPosition]);
 
   const cursorPlans = useMemo<CursorPlan[]>(() => {
     const plans: CursorPlan[] = [];
@@ -178,7 +178,7 @@ export function useCursorAnimation({
     });
 
     return plans;
-  }, [frames, cursorOverrides, cursorInitialPosition, basePathStyle, baseSpeedProfile]);
+  }, [frames, cursorOverrides, basePathStyle, baseSpeedProfile, computeFallbackNormalized]);
 
   // Update cursor position based on current frame and progress
   useEffect(() => {

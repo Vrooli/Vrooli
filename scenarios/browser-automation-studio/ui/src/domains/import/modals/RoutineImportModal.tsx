@@ -21,6 +21,9 @@ import { getApiBase } from '../../../config';
 
 type Step = 'select' | 'preview';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 export function RoutineImportModal({
   isOpen,
   onClose,
@@ -90,20 +93,32 @@ export function RoutineImportModal({
         });
 
         if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.message || 'Failed to upload file');
+          const errorData: unknown = await uploadResponse.json().catch(() => null);
+          const message =
+            isRecord(errorData) && typeof errorData.message === 'string'
+              ? errorData.message
+              : 'Failed to upload file';
+          throw new Error(message);
         }
 
-        const { temp_path } = await uploadResponse.json();
-        setSelectedPath(temp_path);
+        const uploadData: unknown = await uploadResponse.json();
+        const tempPath =
+          isRecord(uploadData) && typeof uploadData.temp_path === 'string'
+            ? uploadData.temp_path
+            : null;
+        if (!tempPath) {
+          throw new Error('Invalid upload response');
+        }
+        setSelectedPath(tempPath);
 
         // Inspect the uploaded file
-        const result = await inspectFile(temp_path);
+        const result = await inspectFile(tempPath);
         if (result && result.exists && result.is_valid) {
           setStep('preview');
         }
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to upload file');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to upload file';
+        toast.error(message);
       } finally {
         setIsUploadingFile(false);
       }

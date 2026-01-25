@@ -75,6 +75,24 @@ interface UseRecordingDebugReturn {
   reset: () => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
+
 export function useRecordingDebug(): UseRecordingDebugReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [data, setData] = useState<RecordingDebugResponse | null>(null);
@@ -88,15 +106,20 @@ export function useRecordingDebug(): UseRecordingDebugReturn {
       const config = await getConfig();
       const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/debug`);
 
+      const payload = await parseJson(response);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to fetch debug info: ${response.statusText}`);
+        throw new Error(extractMessage(payload, `Failed to fetch debug info: ${response.statusText}`));
       }
 
-      const result = await response.json();
+      if (!isRecord(payload)) {
+        throw new Error('Invalid debug response');
+      }
+
+      const result = payload as RecordingDebugResponse;
       setData(result);
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Failed to fetch recording debug info', { component: 'useRecordingDebug' }, error);
       setError(error);

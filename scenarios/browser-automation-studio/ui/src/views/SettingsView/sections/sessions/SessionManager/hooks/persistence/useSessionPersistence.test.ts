@@ -75,7 +75,7 @@ describe('useSessionPersistence', () => {
 
   describe('handleSave', () => {
     it('sets saving to true during save operation', async () => {
-      let resolveSave: () => void;
+      let resolveSave: (() => void) | null = null;
       const slowSave = new Promise<void>((resolve) => {
         resolveSave = resolve;
       });
@@ -95,8 +95,11 @@ describe('useSessionPersistence', () => {
 
       expect(result.current.saving).toBe(true);
 
+      if (!resolveSave) {
+        throw new Error('Expected save resolver to be defined');
+      }
       await act(async () => {
-        resolveSave!();
+        resolveSave();
         await savePromise;
       });
 
@@ -123,12 +126,12 @@ describe('useSessionPersistence', () => {
         useSessionPersistence({ settings, onSave: mockOnSave })
       );
 
-      let success: boolean;
+      let success = false;
       await act(async () => {
         success = await result.current.handleSave();
       });
 
-      expect(success!).toBe(true);
+      expect(success).toBe(true);
     });
 
     it('clears error on successful save', async () => {
@@ -179,12 +182,12 @@ describe('useSessionPersistence', () => {
         useSessionPersistence({ settings, onSave: mockOnSave })
       );
 
-      let success: boolean;
+      let success = false;
       await act(async () => {
         success = await result.current.handleSave();
       });
 
-      expect(success!).toBe(false);
+      expect(success).toBe(false);
     });
 
     it('handles non-Error thrown values', async () => {

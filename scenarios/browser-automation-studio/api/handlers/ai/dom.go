@@ -267,7 +267,9 @@ func (h *DOMHandler) GetDOMTree(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(domData))
+	if _, err := w.Write([]byte(domData)); err != nil {
+		h.log.WithError(err).Warn("Failed to write DOM response")
+	}
 }
 
 // buildDOMExtractionInstructions creates the compiled instructions for DOM extraction.

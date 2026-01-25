@@ -38,7 +38,10 @@ describe('useConfirmDialog', () => {
     expect(result.current.dialogState).toBeNull();
 
     // Promise should resolve to true
-    const confirmed = await confirmPromise!;
+    if (!confirmPromise) {
+      throw new Error('Expected confirm promise to be defined');
+    }
+    const confirmed = await confirmPromise;
     expect(confirmed).toBe(true);
   });
 
@@ -59,7 +62,10 @@ describe('useConfirmDialog', () => {
     });
 
     expect(result.current.dialogState).toBeNull();
-    const confirmed = await confirmPromise!;
+    if (!confirmPromise) {
+      throw new Error('Expected confirm promise to be defined');
+    }
+    const confirmed = await confirmPromise;
     expect(confirmed).toBe(false);
   });
 
@@ -82,7 +88,10 @@ describe('useConfirmDialog', () => {
     expect(result.current.dialogState?.title).toBe('Second');
 
     // First promise should resolve to false (cancelled)
-    const firstResult = await firstPromise!;
+    if (!firstPromise) {
+      throw new Error('Expected first promise to be defined');
+    }
+    const firstResult = await firstPromise;
     expect(firstResult).toBe(false);
 
     // Close second dialog
@@ -90,7 +99,10 @@ describe('useConfirmDialog', () => {
       result.current.close(true);
     });
 
-    const secondResult = await secondPromise!;
+    if (!secondPromise) {
+      throw new Error('Expected second promise to be defined');
+    }
+    const secondResult = await secondPromise;
     expect(secondResult).toBe(true);
   });
 

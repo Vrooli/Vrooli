@@ -218,12 +218,6 @@ func TestGetElementAtCoordinate_DriverIntegration(t *testing.T) {
 	})
 
 	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] handles navigation failure", func(t *testing.T) {
-		// Check if Playwright driver is available
-		driverURL := os.Getenv("PLAYWRIGHT_DRIVER_URL")
-		if driverURL == "" {
-			driverURL = "http://127.0.0.1:39400"
-		}
-
 		ctx := context.Background()
 
 		// Use an invalid URL that will fail navigation

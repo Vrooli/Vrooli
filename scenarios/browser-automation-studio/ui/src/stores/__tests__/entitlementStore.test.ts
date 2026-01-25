@@ -238,12 +238,12 @@ describe('entitlementStore', () => {
     });
 
     it('sets loading state during request', async () => {
-      let resolvePromise: (value: unknown) => void;
-      const fetchPromise = new Promise((resolve) => {
+      let resolvePromise: ((value: Response) => void) | null = null;
+      const fetchPromise = new Promise<Response>((resolve) => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise as Promise<Response>);
+      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
 
       const setPromise = useEntitlementStore.getState().setApiSource('local');
 
@@ -251,10 +251,13 @@ describe('entitlementStore', () => {
       expect(useEntitlementStore.getState().isLoading).toBe(true);
 
       // Resolve fetch
-      resolvePromise!({
+      if (!resolvePromise) {
+        throw new Error('Expected fetch resolver to be defined');
+      }
+      resolvePromise({
         ok: true,
         json: async () => ({ source: 'local', local_port: 15000 }),
-      });
+      } as Response);
 
       await act(async () => {
         await setPromise;
@@ -542,12 +545,12 @@ describe('entitlementStore', () => {
     });
 
     it('sets loading state during fetch', async () => {
-      let resolvePromise: (value: unknown) => void;
-      const fetchPromise = new Promise((resolve) => {
+      let resolvePromise: ((value: Response) => void) | null = null;
+      const fetchPromise = new Promise<Response>((resolve) => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise as Promise<Response>);
+      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
 
       const fetchCall = useEntitlementStore.getState().fetchStatus();
 
@@ -555,7 +558,10 @@ describe('entitlementStore', () => {
       expect(useEntitlementStore.getState().isLoading).toBe(true);
 
       // Resolve fetch
-      resolvePromise!({
+      if (!resolvePromise) {
+        throw new Error('Expected fetch resolver to be defined');
+      }
+      resolvePromise({
         ok: true,
         json: async () => ({
           user_identity: '',
@@ -563,7 +569,7 @@ describe('entitlementStore', () => {
           tier: 'free',
           is_active: false,
         }),
-      });
+      } as Response);
 
       await act(async () => {
         await fetchCall;
@@ -644,12 +650,12 @@ describe('entitlementStore', () => {
         json: async () => ({ email: 'stored@example.com' }),
       } as Response);
 
-      let result: string;
+      let result = '';
       await act(async () => {
         result = await useEntitlementStore.getState().getUserEmail();
       });
 
-      expect(result!).toBe('stored@example.com');
+      expect(result).toBe('stored@example.com');
       expect(useEntitlementStore.getState().userEmail).toBe('stored@example.com');
     });
 
@@ -659,12 +665,12 @@ describe('entitlementStore', () => {
         status: 404,
       } as Response);
 
-      let result: string;
+      let result = '';
       await act(async () => {
         result = await useEntitlementStore.getState().getUserEmail();
       });
 
-      expect(result!).toBe('');
+      expect(result).toBe('');
     });
   });
 

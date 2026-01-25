@@ -1,5 +1,5 @@
 import { Cookie, Database, Cog, History, Layers, type LucideIcon } from 'lucide-react';
-import type { SectionId } from './SessionSidebar';
+import type { SectionId } from './sessionSidebarConfig';
 import type { StorageStateResponse, HistoryResponse } from '@/domains/recording/types/types';
 
 interface ServiceWorkersData {

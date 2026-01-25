@@ -172,7 +172,9 @@ func (h *UXMetricsHandler) jsonOK(w http.ResponseWriter, data any) {
 func (h *UXMetricsHandler) jsonError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"error": message,
-	})
+	}); err != nil {
+		h.log.WithError(err).Error("Failed to encode JSON error response")
+	}
 }

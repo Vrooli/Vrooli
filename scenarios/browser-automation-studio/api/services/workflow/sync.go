@@ -84,15 +84,6 @@ func (s *WorkflowService) removeWorkflowPath(workflowID uuid.UUID) {
 	s.filePathCache.Delete(workflowID)
 }
 
-func (s *WorkflowService) lookupWorkflowPath(workflowID uuid.UUID) (syncCacheEntry, bool) {
-	value, ok := s.filePathCache.Load(workflowID)
-	if !ok {
-		return syncCacheEntry{}, false
-	}
-	entry, entryOK := value.(syncCacheEntry)
-	return entry, entryOK
-}
-
 // SyncProjectWorkflows reconciles the database index with the filesystem for a project.
 //
 // The filesystem is the source of truth. This function:

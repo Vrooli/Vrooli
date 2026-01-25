@@ -8,9 +8,11 @@ Do **not** break functionality, regress tests, or introduce new product features
 
 ---
 
-### **1. Reconstruct the Domain’s Core**
+### **1. Reconstruct the Domain's Core**
 
-* Study the scenario’s **PRD, operational targets, and technical requirements** to understand:
+* **If `docs/concepts/ARCHITECTURE.md` exists**, read it first to understand the current domain model documentation.
+
+* Study the scenario's **PRD, operational targets, and technical requirements** to understand:
   * what problem this scenario solves  
   * who/what the primary “actors” are  
   * the main flows and outcomes it cares about
@@ -122,4 +124,21 @@ You **must**:
 * reduce conceptual duplication and unnecessary variation  
 * make the core domain concepts **smaller, clearer, and easier to reason about**
 
-Focus this loop on **practical, targeted domain simplifications** that remove redundant concepts, unify terminology, and make the scenario’s true domain feel compact, well-defined, and easy for future loops to extend correctly.
+Focus this loop on **practical, targeted domain simplifications** that remove redundant concepts, unify terminology, and make the scenario's true domain feel compact, well-defined, and easy for future loops to extend correctly.
+
+---
+
+### **9. Documentation**
+
+Update `docs/concepts/ARCHITECTURE.md` (user-facing) to document the compressed domain model:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/concepts/` directory if needed.
+
+Include:
+* Core domain model: essential entities, primary actions, key states
+* Where duplicate/overlapping concepts were found and collapsed
+* Decisions about which concepts are core (stable) vs. volatile (edge)
+
+This is a **user-facing document** - it helps everyone understand the domain structure.

@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or change user-facing behavior. A
 
 ### **1. Optimize for Local Readability**
 
+* **If `docs/internal/SEAMS.md` exists**, read the Architecture Clarity Notes section first to understand what simplifications have been made.
+
 * Make it possible to understand what a function/module does by reading **as little code as possible in one place**.
 * Prefer straightforward, explicit code over clever or “compressed” code.
 * Inline or simplify logic where indirection adds confusion without meaningful reuse.
@@ -119,7 +121,22 @@ If you discover areas that need substantial redesign, describe them in comments 
 
 ---
 
-### **9. Output Expectations**
+### **9. Documentation**
+
+Update the **Architecture Clarity Notes** section of `docs/internal/SEAMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Major simplifications made (what was complex, what it became)
+* Complexity hot spots identified but not yet addressed
+* Areas where cognitive load is still high
+
+---
+
+### **10. Output Expectations**
 
 When you’re finished, the scenario should:
 

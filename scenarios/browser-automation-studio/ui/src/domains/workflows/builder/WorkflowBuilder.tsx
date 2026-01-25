@@ -72,6 +72,9 @@ import SubflowNode from "../nodes/SubflowNode";
 import WorkflowToolbar from "./WorkflowToolbar";
 import { ViewportDialog, normalizeViewportSetting, CodeEditorPanel } from "./components";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
   navigate: NavigateNode,
@@ -257,6 +260,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       cancelAutosave();
     };
   }, [
+    currentWorkflow,
     currentWorkflow?.id,
     isDirty,
     hasVersionConflict,
@@ -526,7 +530,7 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
     const allNodes = [...updatedNodes, ...newNodes];
 
     setNodes(allNodes);
-  }, [nodes, edges, setNodes, saveToHistory]);
+  }, [nodes, setNodes, saveToHistory]);
 
   // Delete selected nodes and edges
   const deleteSelected = useCallback(() => {
@@ -672,7 +676,8 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
         data: connectionData,
       } as Edge;
       if (meta) {
-        nextEdge.data = { ...(nextEdge.data ?? {}), condition: meta.condition };
+        const baseData = isRecord(nextEdge.data) ? nextEdge.data : {};
+        nextEdge.data = { ...baseData, condition: meta.condition };
         nextEdge.label = meta.label;
         nextEdge.style = { ...(nextEdge.style ?? {}), stroke: meta.stroke };
       }
@@ -680,8 +685,9 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
         connection.targetHandle ?? undefined,
       );
       if (targetMeta) {
+        const baseData = isRecord(nextEdge.data) ? nextEdge.data : {};
         nextEdge.data = {
-          ...(nextEdge.data ?? {}),
+          ...baseData,
           condition: targetMeta.condition,
         };
         nextEdge.label = targetMeta.label;

@@ -312,10 +312,8 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 
 		// Build execution parameters
 		execParams := make(map[string]any)
-		if params != nil {
-			for k, v := range params {
-				execParams[k] = v
-			}
+		for k, v := range params {
+			execParams[k] = v
 		}
 		// Add metadata about the trigger
 		execParams["_trigger_type"] = "scheduled"

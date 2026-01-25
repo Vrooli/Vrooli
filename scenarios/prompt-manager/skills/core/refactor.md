@@ -7,6 +7,8 @@ Focus on producing a **cleaner, clearer, easier-to-extend codebase**, guided by 
 
 ### **1. Preserve Behavior & Intent**
 
+* **If `docs/internal/PROBLEMS.md` exists**, read the Tech Debt section first to understand what tech debt has been identified.
+
 * Treat existing passing tests, the PRD, and operational targets as the **source of truth** for behavior.
 * Refactor in ways that **preserve external behavior**:
   * same user-visible workflows and outcomes
@@ -163,3 +165,19 @@ You **must**:
 * avoid gaming metrics or making superficial changes that don't materially improve structure
 
 Focus this loop on delivering **practical, targeted refactors** that reduce complexity, remove duplication, and improve clarity, so future loops (and agents) can build on a stronger foundation.
+
+---
+
+### **9. Documentation**
+
+Update the **Tech Debt** section of `docs/internal/PROBLEMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* High-leverage refactoring targets identified
+* Patterns of duplication or complexity observed
+* Refactors completed and their impact
+* Remaining structural issues and their priority

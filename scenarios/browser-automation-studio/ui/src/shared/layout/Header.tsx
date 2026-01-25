@@ -121,14 +121,16 @@ function Header({
     },
   );
 
+  const currentWorkflowId = currentWorkflow?.id;
+
   useEffect(() => {
-    if (hasVersionConflict && !conflictMetadata && currentWorkflow) {
+    if (hasVersionConflict && !conflictMetadata && currentWorkflowId) {
       refreshConflictWorkflow().catch(() => {});
     }
   }, [
     hasVersionConflict,
     conflictMetadata,
-    currentWorkflow?.id,
+    currentWorkflowId,
     refreshConflictWorkflow,
   ]);
 
@@ -584,10 +586,10 @@ function Header({
   }, [displayWorkflow?.id, currentProject?.id]);
 
   useEffect(() => {
-    if (!currentWorkflow) {
+    if (!currentWorkflowId) {
       setShowVersionHistory(false);
     }
-  }, [currentWorkflow?.id]);
+  }, [currentWorkflowId]);
 
   return (
     <>

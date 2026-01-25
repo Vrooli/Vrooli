@@ -5,8 +5,6 @@
  * Uses consistent colors from the ExecutionTabBar color palette.
  */
 
-/* eslint-disable react-refresh/only-export-components */
-
 import { useMemo } from 'react';
 import type { ExecutionPage } from '../../store';
 
@@ -26,21 +24,8 @@ const PAGE_COLORS = [
 const DEFAULT_PAGE_COLOR = PAGE_COLORS[0] ?? { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-500', hex: '#3b82f6' };
 
 /** Get consistent color for a page based on its index. */
-export function getPageColor(pageIndex: number) {
+function getPageColor(pageIndex: number) {
   return PAGE_COLORS[pageIndex % PAGE_COLORS.length] ?? DEFAULT_PAGE_COLOR;
-}
-
-/** Get page color by ID from a list of pages. */
-export function getPageColorById(pageId: string | undefined, pages: ExecutionPage[]) {
-  if (!pageId) return null;
-  const index = pages.findIndex((p) => p.id === pageId);
-  return index >= 0 ? getPageColor(index) : null;
-}
-
-/** Get page info by ID. */
-export function getPageById(pageId: string | undefined, pages: ExecutionPage[]) {
-  if (!pageId) return null;
-  return pages.find((p) => p.id === pageId) ?? null;
 }
 
 interface PageColorIndicatorProps {

@@ -24,13 +24,6 @@ var stepTypeCapabilityMatrix = map[string]contracts.CapabilityRequirement{
 // preflight.go derives capability requirements from plans/instructions so
 // engine selection can fail fast before execution starts.
 
-// deriveRequirements preserves the historical API, returning only the
-// aggregated requirement flags.
-func deriveRequirements(plan contracts.ExecutionPlan) contracts.CapabilityRequirement {
-	req, _ := analyzeRequirements(plan)
-	return req
-}
-
 // analyzeRequirements returns both the requirements and the reasons (step types
 // or params) that triggered each flag. The reasons map is keyed by requirement
 // name (e.g., "har", "downloads", "video").

@@ -61,7 +61,7 @@ async function fetchWorkflow(
     throw new Error(`Failed to fetch workflow: ${response.status}`);
   }
 
-  const raw = await response.json();
+  const raw: unknown = await response.json();
 
   // Validate response at runtime using Zod
   const result = safeParse(WorkflowResponseSchema, raw, 'fetchWorkflow');

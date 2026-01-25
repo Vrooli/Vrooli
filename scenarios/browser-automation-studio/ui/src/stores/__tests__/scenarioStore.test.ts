@@ -96,12 +96,12 @@ describe('scenarioStore', () => {
     });
 
     it('sets loading state during fetch', async () => {
-      let resolvePromise: (value: any) => void;
-      const fetchPromise = new Promise((resolve) => {
+      let resolvePromise: ((value: Response) => void) | null = null;
+      const fetchPromise = new Promise<Response>((resolve) => {
         resolvePromise = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise as any);
+      vi.mocked(global.fetch).mockReturnValueOnce(fetchPromise);
 
       const fetchCall = useScenarioStore.getState().fetchScenarios();
 
@@ -109,10 +109,13 @@ describe('scenarioStore', () => {
       expect(useScenarioStore.getState().isLoading).toBe(true);
 
       // Resolve fetch
-      resolvePromise!({
+      if (!resolvePromise) {
+        throw new Error('Expected fetch resolver to be defined');
+      }
+      resolvePromise({
         ok: true,
         json: async () => ({ scenarios: [] }),
-      });
+      } as Response);
 
       await act(async () => {
         await fetchCall;
@@ -262,12 +265,12 @@ describe('scenarioStore', () => {
 
   describe('Concurrent Request Prevention', () => {
     it('prevents concurrent fetches', async () => {
-      let resolveFirstFetch: (value: any) => void;
-      const firstFetchPromise = new Promise((resolve) => {
+      let resolveFirstFetch: ((value: Response) => void) | null = null;
+      const firstFetchPromise = new Promise<Response>((resolve) => {
         resolveFirstFetch = resolve;
       });
 
-      vi.mocked(global.fetch).mockReturnValueOnce(firstFetchPromise as any);
+      vi.mocked(global.fetch).mockReturnValueOnce(firstFetchPromise);
 
       // Start first fetch
       const firstFetch = useScenarioStore.getState().fetchScenarios();
@@ -276,10 +279,13 @@ describe('scenarioStore', () => {
       const secondFetch = useScenarioStore.getState().fetchScenarios();
 
       // Resolve first fetch
-      resolveFirstFetch!({
+      if (!resolveFirstFetch) {
+        throw new Error('Expected fetch resolver to be defined');
+      }
+      resolveFirstFetch({
         ok: true,
         json: async () => ({ scenarios: [] }),
-      });
+      } as Response);
 
       await act(async () => {
         await Promise.all([firstFetch, secondFetch]);

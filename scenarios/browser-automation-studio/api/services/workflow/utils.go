@@ -1,13 +1,10 @@
 package workflow
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -118,73 +115,6 @@ func workflowsSubdir(folderPath string) string {
 	return filepath.FromSlash(trimmed)
 }
 
-func (s *WorkflowService) desiredWorkflowFilePath(project *database.ProjectIndex, workflowID uuid.UUID, name string, folderPath string) (string, string) {
-	subdir := workflowsSubdir(folderPath)
-	slug := sanitizeWorkflowSlug(name)
-	fileName := fmt.Sprintf("%s--%s%s", slug, shortID(workflowID), workflowFileExt)
-	baseDir := ProjectWorkflowsDir(project)
-	if subdir != "" {
-		return filepath.Join(baseDir, subdir, fileName), filepath.Join(subdir, fileName)
-	}
-	return filepath.Join(baseDir, fileName), fileName
-}
-
-func hashWorkflowDefinition(def database.JSONMap) string {
-	// We need deterministic hashing; marshal using sorted keys to avoid random map ordering.
-	canonical := canonicalizeJSONMap(def)
-	hasher := sha256.New()
-	hasher.Write(canonical)
-	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func canonicalizeJSONMap(m database.JSONMap) []byte {
-	if m == nil {
-		return []byte("null")
-	}
-	// We need stable key ordering for nested maps.
-	normalized := normalizeInterfaces(m)
-	bytes, err := json.Marshal(normalized)
-	if err != nil {
-		return []byte("null")
-	}
-	return bytes
-}
-
-func normalizeInterfaces(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		keys := make([]string, 0, len(typed))
-		for k := range typed {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		ordered := make(map[string]any, len(typed))
-		for _, k := range keys {
-			ordered[k] = normalizeInterfaces(typed[k])
-		}
-		return ordered
-	case database.JSONMap:
-		keys := make([]string, 0, len(typed))
-		for k := range typed {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		ordered := make(map[string]any, len(typed))
-		for _, k := range keys {
-			ordered[k] = normalizeInterfaces(typed[k])
-		}
-		return ordered
-	case []any:
-		out := make([]any, len(typed))
-		for i, item := range typed {
-			out[i] = normalizeInterfaces(item)
-		}
-		return out
-	default:
-		return value
-	}
-}
-
 func stringSliceFromAny(value any) []string {
 	if value == nil {
 		return nil
@@ -263,35 +193,4 @@ func ToInterfaceSlice(value any) []any {
 	}
 	// Delegate to the general-purpose implementation
 	return typeconv.ToInterfaceSlice(value)
-}
-
-func equalStringArrays(a, b database.StringArray) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func max(values ...int) int {
-	result := values[0]
-	for _, v := range values[1:] {
-		if v > result {
-			result = v
-		}
-	}
-	return result
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

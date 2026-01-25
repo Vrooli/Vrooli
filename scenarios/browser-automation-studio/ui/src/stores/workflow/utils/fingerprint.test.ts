@@ -78,7 +78,8 @@ describe('fingerprint utilities', () => {
     });
 
     it('handles circular references gracefully', () => {
-      const obj: any = { a: 1 };
+      type Circular = { a: number; self?: Circular | null };
+      const obj: Circular = { a: 1 };
       obj.self = obj;
 
       // Should not throw
@@ -217,7 +218,6 @@ describe('fingerprint utilities', () => {
       const workflow = createWorkflow({
         name: '',
         description: undefined,
-        folderPath: undefined as any,
         tags: undefined,
         executionViewport: undefined,
         flowDefinition: undefined,

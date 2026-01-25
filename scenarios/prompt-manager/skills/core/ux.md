@@ -7,6 +7,8 @@ Focus on producing a **professional, polished, friction-free user experience**, 
 
 ### **1. Clarity & Understanding**
 
+* **If `docs/internal/PROBLEMS.md` exists**, read the UX Issues section first to understand what UX issues have been identified.
+
 * Ensure all UI elements have **clear affordances and signifiers** indicating how they should be used.
 * Add **help buttons, tooltips, hint text, or short explainer components** wherever concepts, parameters, or interactions may be confusing.
 * Favor **concise text**, intuitive labels, and consistent terminology across the UI.
@@ -145,3 +147,20 @@ Focus the loop on delivering **practical, targeted UX improvements** that make t
 **When choosing what to modify, consider the scenario’s most common user journeys and optimize for the fewest steps, lowest friction, and clearest navigation.**
 
 **Avoid superficial UX changes that alter appearance without improving actual usability. Only make changes that meaningfully reduce friction or increase understanding.**
+
+---
+
+### **9. Documentation**
+
+Update the **UX Issues** section of `docs/internal/PROBLEMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* High-friction areas discovered and their status
+* Clarity/understanding gaps (missing tooltips, confusing labels)
+* Mobile responsiveness issues
+* Empty/loading/error state improvements made
+* Remaining UX debt and priorities

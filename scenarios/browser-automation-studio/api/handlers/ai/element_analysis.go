@@ -209,7 +209,9 @@ func (h *ElementAnalysisHandler) GetElementAtCoordinate(w http.ResponseWriter, r
 // respondJSON is a helper function to write JSON responses.
 func respondJSON(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		logrus.WithError(err).Warn("Failed to encode element analysis response")
+	}
 }
 
 // Test helpers - these delegate to the internal components for testing

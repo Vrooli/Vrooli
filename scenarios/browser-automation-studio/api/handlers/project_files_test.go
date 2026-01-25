@@ -164,7 +164,9 @@ func TestGetProjectFileTree_Success(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create workflows directory
-	os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0o755); err != nil {
+		t.Fatalf("failed to create workflows dir: %v", err)
+	}
 
 	projectID := uuid.New()
 	project := &database.ProjectIndex{
@@ -213,7 +215,9 @@ func TestGetProjectFileTree_WithWorkflows(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0o755); err != nil {
+		t.Fatalf("failed to create workflows dir: %v", err)
+	}
 
 	projectID := uuid.New()
 	project := &database.ProjectIndex{
@@ -246,7 +250,9 @@ func TestGetProjectFileTree_WithWorkflows(t *testing.T) {
 	}
 
 	var response ProjectFileTreeResponse
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 
 	// Should have workflow entry
 	hasWorkflow := false
@@ -735,7 +741,9 @@ func TestDeleteProjectFile_Success(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	testFile := filepath.Join(tmpDir, "test-file.txt")
-	os.WriteFile(testFile, []byte("content"), 0644)
+	if err := os.WriteFile(testFile, []byte("content"), 0o644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
 
 	projectID := uuid.New()
 	project := &database.ProjectIndex{
@@ -809,7 +817,9 @@ func TestResyncProjectFiles_Success(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0755)
+	if err := os.MkdirAll(filepath.Join(tmpDir, "workflows"), 0o755); err != nil {
+		t.Fatalf("failed to create workflows dir: %v", err)
+	}
 
 	projectID := uuid.New()
 	project := &database.ProjectIndex{

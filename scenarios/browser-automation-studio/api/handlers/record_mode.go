@@ -487,7 +487,11 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		if h.log != nil {
+			h.log.WithError(err).Warn("record_mode: failed to proxy response")
+		}
+	}
 }
 
 // GetRecordedActions handles GET /api/v1/recordings/live/{sessionId}/actions

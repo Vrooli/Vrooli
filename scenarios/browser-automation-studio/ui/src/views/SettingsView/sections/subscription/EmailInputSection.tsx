@@ -4,7 +4,11 @@ import { useEntitlementStore, isValidEmail } from '@stores/entitlementStore';
 import toast from 'react-hot-toast';
 
 // Get landing page URL from environment or use default
-const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://vrooli.com';
+const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
+const LANDING_PAGE_URL =
+  typeof landingPageEnv === 'string' && landingPageEnv.length > 0
+    ? landingPageEnv
+    : 'https://vrooli.com';
 
 export function EmailInputSection() {
   const { userEmail, setUserEmail, clearUserEmail, isLoading, error, status } = useEntitlementStore();

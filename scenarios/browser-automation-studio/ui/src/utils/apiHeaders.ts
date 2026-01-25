@@ -14,8 +14,9 @@ export const BYOK_HEADER_NAME = 'X-BYOK-OpenRouter-Key';
  */
 export async function getBYOKKey(): Promise<string | null> {
   try {
-    const { useSettingsStore } = await import('@/stores/settingsStore');
-    const settings = useSettingsStore.getState();
+    const settingsModule =
+      (await import('@/stores/settingsStore')) as typeof import('@/stores/settingsStore');
+    const settings = settingsModule.useSettingsStore.getState();
     const key = settings.apiKeys.openrouterApiKey;
     return key && key.trim().length > 0 ? key : null;
   } catch {
@@ -36,9 +37,12 @@ export function getBYOKKeySync(): string | null {
     const storedKeys = window.localStorage.getItem('browserAutomation.settings.apiKeys');
     if (!storedKeys) return null;
 
-    const parsed = JSON.parse(storedKeys);
-    const key = parsed?.openrouterApiKey;
-    return key && typeof key === 'string' && key.trim().length > 0 ? key : null;
+    const parsed: unknown = JSON.parse(storedKeys);
+    const key =
+      parsed && typeof parsed === 'object'
+        ? (parsed as Record<string, unknown>).openrouterApiKey
+        : null;
+    return typeof key === 'string' && key.trim().length > 0 ? key : null;
   } catch {
     return null;
   }

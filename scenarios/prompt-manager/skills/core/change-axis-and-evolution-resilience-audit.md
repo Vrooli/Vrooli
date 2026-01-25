@@ -8,9 +8,11 @@ Do **not** break functionality, regress tests, or introduce new product features
 
 ---
 
-### **1. Understand the Scenario’s Likely Axes of Change**
+### **1. Understand the Scenario's Likely Axes of Change**
 
-* Study the scenario’s **PRD, operational targets, and technical requirements** to infer:
+* **If `docs/internal/SEAMS.md` exists**, read the Change Axes section first to understand what has already been documented.
+
+* Study the scenario's **PRD, operational targets, and technical requirements** to infer:
   * which parts of the system are most likely to change (e.g. data sources, workflows, policies, UI flows, integrations, pricing, limits)
   * which areas are core and stable vs experimental or evolving.
 * From this, identify a small set of **primary change axes**, such as:
@@ -99,7 +101,23 @@ When you discover a change axis that would require a large redesign to support p
 
 ---
 
-### **8. Output Expectations**
+### **8. Documentation**
+
+Update the **Change Axes** section of `docs/internal/SEAMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Primary axes of change identified
+* Current cost of change along each axis (localized vs. scattered)
+* Structural adjustments made to localize changes
+* Areas that still need work
+
+---
+
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 

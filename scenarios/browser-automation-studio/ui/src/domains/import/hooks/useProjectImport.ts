@@ -56,6 +56,32 @@ export interface UseProjectImportReturn {
   reset: () => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const details = value.details;
+  if (details && typeof details === 'object') {
+    const detailError = (details as Record<string, unknown>).error;
+    if (typeof detailError === 'string') {
+      return detailError;
+    }
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
+
 export function useProjectImport(_options?: UseProjectImportOptions): UseProjectImportReturn {
   const [isInspecting, setIsInspecting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -75,16 +101,21 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.details?.error || errorData.message || 'Failed to inspect folder';
+        const errorData = await parseJson(response);
+        const errorMsg = extractErrorMessage(errorData) ?? 'Failed to inspect folder';
         setError(errorMsg);
         return null;
       }
 
-      const data = await response.json();
-      setInspectResult(data);
-      return data;
-    } catch (err) {
+      const data: unknown = await response.json();
+      if (!isRecord(data)) {
+        setError('Invalid inspect response');
+        return null;
+      }
+      const result = data as InspectFolderResponse;
+      setInspectResult(result);
+      return result;
+    } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to inspect folder';
       logger.error('Failed to inspect folder', { error: err, folderPath });
       setError(errorMsg);
@@ -107,13 +138,13 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.details?.error || errorData.message || 'Failed to import project';
+        const errorData = await parseJson(response);
+        const errorMsg = extractErrorMessage(errorData) ?? 'Failed to import project';
         setError(errorMsg);
         return null;
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const project = parseProject(data);
       if (!project) {
         logger.error('Failed to parse project response', { data });
@@ -121,7 +152,7 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
         return null;
       }
       return project;
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to import project';
       logger.error('Failed to import project', { error: err, params });
       setError(errorMsg);

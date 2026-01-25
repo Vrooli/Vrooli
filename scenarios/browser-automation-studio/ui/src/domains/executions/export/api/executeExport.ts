@@ -194,7 +194,7 @@ export async function executeServerExport(options: {
   }
 
   // Parse and validate JSON response
-  const rawData = await response.json();
+  const rawData: unknown = await response.json();
   const result = safeParse(ServerExportResponseSchema, rawData, "ServerExport");
   if (!result.success) {
     throw new Error(result.error);
@@ -227,7 +227,7 @@ export async function getExportStatus(exportId: string): Promise<ExportStatusRes
     throw new Error(text || `Failed to get export status (${response.status})`);
   }
 
-  const rawData = await response.json();
+  const rawData: unknown = await response.json();
   const result = safeParse(ExportStatusResponseSchema, rawData, "ExportStatus");
   if (!result.success) {
     throw new Error(result.error);

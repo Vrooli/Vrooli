@@ -15,6 +15,33 @@ const joinApi = (base: string, path: string): string => {
   return `${normalizedBase}/${normalizedPath}`;
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    const data: unknown = await response.json();
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (payload: unknown, fallback: string): string => {
+  if (!isRecord(payload)) {
+    return fallback;
+  }
+  const errorValue = payload.error;
+  if (typeof errorValue === 'string') {
+    return errorValue;
+  }
+  const message = payload.message;
+  if (typeof message === 'string') {
+    return message;
+  }
+  return fallback;
+};
+
 // Subscription tier types
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
@@ -223,11 +250,11 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch entitlement status: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to fetch entitlement status: ${response.status}`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementStatus');
       if (!result.success) {
         set({ error: result.error, isLoading: false });
@@ -277,8 +304,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to set email: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set email: ${response.status}`));
       }
 
       // After setting email, fetch the updated status
@@ -304,8 +331,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to clear email: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to clear email: ${response.status}`));
       }
 
       set({
@@ -336,11 +363,11 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to refresh entitlement: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to refresh entitlement: ${response.status}`));
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(EntitlementStatusResponseSchema, rawData, 'EntitlementRefresh');
       if (!result.success) {
         set({ error: result.error, isLoading: false });
@@ -380,7 +407,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         return '';
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(IdentityResponseSchema, rawData, 'Identity');
       if (!result.success) {
         return '';
@@ -406,8 +433,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok && response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to set override tier: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set override tier: ${response.status}`));
       }
 
       await get().fetchStatus();
@@ -436,7 +463,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         return;
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(ApiSourceResponseSchema, rawData, 'ApiSource');
       if (!result.success) {
         // Default to production if validation fails
@@ -469,8 +496,8 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       });
 
       if (!response.ok && response.status !== 204) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to set API source: ${response.status}`);
+        const errorData = await parseJson(response);
+        throw new Error(extractErrorMessage(errorData, `Failed to set API source: ${response.status}`));
       }
 
       set({
@@ -510,7 +537,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(`Failed to fetch usage history: ${response.status}`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(UsageHistoryResponseSchema, rawData, 'UsageHistory');
       if (!result.success) {
         console.error('Failed to validate usage history:', result.error);
@@ -550,7 +577,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         throw new Error(`Failed to fetch operation log: ${response.status}`);
       }
 
-      const rawData = await response.json();
+      const rawData: unknown = await response.json();
       const result = safeParse(OperationLogPageSchema, rawData, 'OperationLog');
       if (!result.success) {
         console.error('Failed to validate operation log:', result.error);

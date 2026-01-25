@@ -42,7 +42,3 @@ func TestEstimateReplayRenderTimeoutBounds(t *testing.T) {
 		t.Fatalf("expected timeout to exceed minimum for large specs, got %s", bigDuration)
 	}
 }
-
-func ptr[T any](v T) *T {
-	return &v
-}

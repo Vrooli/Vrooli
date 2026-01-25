@@ -17,18 +17,11 @@ import {
   Trash2,
   PencilLine,
   ListChecks,
-  FolderOpen,
-  FileCode,
-  FileText,
   GripVertical,
   Plus,
-  Zap,
-  GitBranch,
-  ClipboardCheck,
-  Image,
-  type LucideIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { fileKindIcon, fileTypeLabelFromPath } from "./fileTreeUtils";
 
 // ============================================================================
 // Types
@@ -49,30 +42,6 @@ export type FileTreeDragPayload = {
   path: string;
   kind: FileTreeNodeKind;
 };
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Folder type icon mapping for semantic differentiation
- */
-const FOLDER_TYPE_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
-  actions: { icon: Zap, color: "text-yellow-400" },
-  flows: { icon: GitBranch, color: "text-blue-400" },
-  workflows: { icon: GitBranch, color: "text-blue-400" },
-  cases: { icon: ClipboardCheck, color: "text-green-400" },
-  tests: { icon: ClipboardCheck, color: "text-green-400" },
-  assets: { icon: Image, color: "text-purple-400" },
-};
-
-/**
- * Gets the appropriate icon and color for a folder based on its name
- */
-function getFolderIcon(folderName: string): { icon: LucideIcon; color: string } {
-  const lower = folderName.toLowerCase();
-  return FOLDER_TYPE_ICONS[lower] ?? { icon: FolderOpen, color: "text-yellow-500" };
-}
 
 /**
  * Renders VS Code-style indent guides using CSS borders
@@ -95,31 +64,6 @@ export function TreeIndentGuides({ prefixParts }: { prefixParts: boolean[] }): R
       })}
     </div>
   );
-}
-
-/**
- * Gets a human-readable label for workflow file types based on extension
- */
-export function fileTypeLabelFromPath(relPath: string): string | null {
-  const normalized = relPath.toLowerCase();
-  if (normalized.endsWith(".action.json")) return "Action";
-  if (normalized.endsWith(".flow.json")) return "Flow";
-  if (normalized.endsWith(".case.json")) return "Case";
-  return null;
-}
-
-/**
- * Returns the appropriate icon component for a file tree node
- */
-export function fileKindIcon(node: FileTreeNode): ReactNode {
-  if (node.kind === "folder") {
-    const { icon: FolderIcon, color } = getFolderIcon(node.name);
-    return <FolderIcon size={16} className={`${color} flex-shrink-0`} />;
-  }
-  if (node.kind === "workflow_file") {
-    return <FileCode size={16} className="text-green-400 flex-shrink-0" />;
-  }
-  return <FileText size={16} className="text-gray-400 flex-shrink-0" />;
 }
 
 // ============================================================================

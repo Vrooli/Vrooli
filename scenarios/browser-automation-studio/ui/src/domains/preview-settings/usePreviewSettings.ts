@@ -7,7 +7,8 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { useStreamSettings, type StreamPreset, type StreamSettingsValues } from '@/domains/recording/capture/StreamSettings';
+import { useStreamSettings } from '@/domains/recording/capture/streamSettingsState';
+import type { StreamPreset, StreamSettingsValues } from '@/domains/recording/capture/StreamSettings';
 import { useSettingsStore } from '@stores/settingsStore';
 import type { SectionId } from './types';
 

@@ -671,7 +671,7 @@ func main() {
 		apiHost = "localhost"
 	}
 
-	corsPolicy := "restricted"
+	var corsPolicy string
 	if corsCfg.AllowAll {
 		corsPolicy = "allow_all"
 	} else {

@@ -49,7 +49,8 @@ import { PreviewSettingsPanel } from '@/domains/preview-settings';
 import { ViewportProvider } from './context';
 import { mergeConsecutiveActions, type MergedAction } from './utils/mergeActions';
 import { getConfig } from '@/config';
-import { useStreamSettings, type StreamSettingsValues } from './capture/StreamSettings';
+import { useStreamSettings } from './capture/streamSettingsState';
+import type { StreamSettingsValues } from './capture/StreamSettings';
 import type { StreamConnectionStatus, FrameStats } from './capture/PlaywrightView';
 import { DEFAULT_STREAM_FPS, DEFAULT_STREAM_QUALITY } from './constants';
 import type { TimelineMode } from './types/timeline-unified';
@@ -72,8 +73,64 @@ import { ConfirmDialog } from '@shared/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { extractConsoleLogs, extractNetworkEvents, extractDomSnapshots } from './utils/artifact-extraction';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseNavigationState = (
+  value: unknown
+): { url?: string; can_go_back?: boolean; can_go_forward?: boolean } => {
+  if (!isRecord(value)) return {};
+  const url = typeof value.url === 'string' ? value.url : undefined;
+  const canGoBack = typeof value.can_go_back === 'boolean' ? value.can_go_back : undefined;
+  const canGoForward = typeof value.can_go_forward === 'boolean' ? value.can_go_forward : undefined;
+  return { url, can_go_back: canGoBack, can_go_forward: canGoForward };
+};
+
+const parseWorkflowGenerationResult = (
+  value: unknown
+): { workflowId?: string; projectId?: string } => {
+  if (!isRecord(value)) return {};
+  const workflowId =
+    typeof value.workflow_id === 'string'
+      ? value.workflow_id
+      : typeof value.workflowId === 'string'
+        ? value.workflowId
+        : undefined;
+  const projectId =
+    typeof value.project_id === 'string'
+      ? value.project_id
+      : typeof value.projectId === 'string'
+        ? value.projectId
+        : undefined;
+  return { workflowId, projectId };
+};
+
 /** Workflow type being created (from AI modal or template) */
 export type WorkflowTypeParam = 'action' | 'flow' | 'case';
+
+type WorkflowNode = {
+  id: string;
+  type?: string;
+  data?: Record<string, unknown>;
+  action?: {
+    type: string;
+    metadata?: { label?: string };
+    navigate?: { url?: string };
+  };
+};
+
+type WorkflowEdge = { source: string; target: string };
+
+const PAGE_COLORS = [
+  'bg-blue-500',
+  'bg-green-500',
+  'bg-purple-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-cyan-500',
+  'bg-yellow-500',
+  'bg-red-500',
+] as const;
 
 interface RecordModePageProps {
   /** Browser session ID */
@@ -229,8 +286,8 @@ export function RecordModePage({
   const [showWorkflowPicker, setShowWorkflowPicker] = useState(false);
 
   // Workflow nodes/edges for timeline pre-population
-  const [workflowNodes, setWorkflowNodes] = useState<Array<{ id: string; type?: string; data?: Record<string, unknown>; action?: { type: string; metadata?: { label?: string }; navigate?: { url?: string } } }>>([]);
-  const [workflowEdges, setWorkflowEdges] = useState<Array<{ source: string; target: string }>>([]);
+  const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([]);
+  const [workflowEdges, setWorkflowEdges] = useState<WorkflowEdge[]>([]);
 
   // Execution sidebar state (screenshots and logs tabs)
   const [selectedScreenshotIndex, setSelectedScreenshotIndex] = useState(0);
@@ -537,20 +594,60 @@ export function RecordModePage({
           console.error('[RecordingSession] Failed to fetch workflow definition, status:', response.status);
           return;
         }
-        const data = await response.json();
+        const data: unknown = await response.json();
         console.log('[RecordingSession] Raw workflow data:', JSON.stringify(data, null, 2).slice(0, 1000));
 
-        // Extract nodes and edges from the workflow definition
-        // API returns { workflow: { flow_definition: { nodes, edges } } }
-        const workflow = data.workflow ?? data;
-        const flowDef = workflow.flow_definition ?? workflow.flowDefinition ?? {};
-        const nodes = flowDef.nodes ?? workflow.nodes ?? [];
-        const edges = flowDef.edges ?? workflow.edges ?? [];
+        const parseNodes = (value: unknown): WorkflowNode[] => {
+          if (!Array.isArray(value)) return [];
+          return value
+            .map((node) => {
+              if (!isRecord(node) || typeof node.id !== 'string') return null;
+              const parsedNode: WorkflowNode = { id: node.id };
+              if (typeof node.type === 'string') parsedNode.type = node.type;
+              if (isRecord(node.data)) parsedNode.data = node.data;
+              if (isRecord(node.action) && typeof node.action.type === 'string') {
+                const action: WorkflowNode['action'] = { type: node.action.type };
+                if (isRecord(node.action.metadata) && typeof node.action.metadata.label === 'string') {
+                  action.metadata = { label: node.action.metadata.label };
+                }
+                if (isRecord(node.action.navigate) && typeof node.action.navigate.url === 'string') {
+                  action.navigate = { url: node.action.navigate.url };
+                }
+                parsedNode.action = action;
+              }
+              return parsedNode;
+            })
+            .filter((node): node is WorkflowNode => node !== null);
+        };
 
-        console.log('[RecordingSession] Loaded workflow with', nodes.length, 'nodes and', edges.length, 'edges');
-        console.log('[RecordingSession] First node sample:', nodes[0]);
-        setWorkflowNodes(nodes);
-        setWorkflowEdges(edges);
+        const parseEdges = (value: unknown): WorkflowEdge[] => {
+          if (!Array.isArray(value)) return [];
+          return value
+            .map((edge) => {
+              if (!isRecord(edge)) return null;
+              if (typeof edge.source !== 'string' || typeof edge.target !== 'string') return null;
+              return { source: edge.source, target: edge.target };
+            })
+            .filter((edge): edge is WorkflowEdge => edge !== null);
+        };
+
+        const workflow = isRecord(data) && isRecord(data.workflow) ? data.workflow : data;
+        const flowDef =
+          isRecord(workflow) && isRecord(workflow.flow_definition)
+            ? workflow.flow_definition
+            : isRecord(workflow) && isRecord(workflow.flowDefinition)
+              ? workflow.flowDefinition
+              : null;
+
+        const nodes = flowDef && isRecord(flowDef) ? parseNodes(flowDef.nodes) : [];
+        const edges = flowDef && isRecord(flowDef) ? parseEdges(flowDef.edges) : [];
+        const fallbackNodes = nodes.length > 0 ? nodes : parseNodes(isRecord(workflow) ? workflow.nodes : []);
+        const fallbackEdges = edges.length > 0 ? edges : parseEdges(isRecord(workflow) ? workflow.edges : []);
+
+        console.log('[RecordingSession] Loaded workflow with', fallbackNodes.length, 'nodes and', fallbackEdges.length, 'edges');
+        console.log('[RecordingSession] First node sample:', fallbackNodes[0]);
+        setWorkflowNodes(fallbackNodes);
+        setWorkflowEdges(fallbackEdges);
       } catch (error) {
         console.error('[RecordingSession] Error fetching workflow definition:', error);
       }
@@ -649,18 +746,6 @@ export function RecordModePage({
     // Use timeline items directly (already processed by useUnifiedTimeline)
     return timelineItems;
   }, [mergedActions, mode, timelineItems, aiSteps]);
-
-  // Page color palette for visual distinction in multi-tab recording
-  const PAGE_COLORS = [
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-purple-500',
-    'bg-orange-500',
-    'bg-pink-500',
-    'bg-cyan-500',
-    'bg-yellow-500',
-    'bg-red-500',
-  ] as const;
 
   // Create a stable color map for pages based on creation order
   const pageColorMap = useMemo(() => {
@@ -772,14 +857,14 @@ export function RecordModePage({
       // Also update lastNavigatedUrlRef to prevent duplicate navigation
       lastNavigatedUrlRef.current = initialRestoredUrl;
     }
-  }, [initialRestoredUrl, previewUrl]);
+  }, [initialRestoredUrl, previewUrl, setPreviewUrl]);
 
   // Update previewUrl from last action if needed
   useEffect(() => {
     if (!previewUrl && lastActionUrl) {
       setPreviewUrl(lastActionUrl);
     }
-  }, [lastActionUrl, previewUrl]);
+  }, [lastActionUrl, previewUrl, setPreviewUrl]);
 
   // Track whether initial URL navigation has been done to avoid double-navigation
   const initialUrlNavigatedRef = useRef(false);
@@ -868,8 +953,8 @@ export function RecordModePage({
         // Update navigation state from response
         if (response.ok && !cancelled) {
           try {
-            const data = await response.json();
-            updateNavigationState(data);
+            const data: unknown = await response.json();
+            updateNavigationState(parseNavigationState(data));
           } catch {
             // Ignore JSON parse errors
           }
@@ -1085,18 +1170,23 @@ export function RecordModePage({
           });
 
           if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Failed to create workflow: ${response.statusText}`);
+            const errorPayload: unknown = await response.json().catch(() => null);
+            const message =
+              isRecord(errorPayload) && typeof errorPayload.error === 'string'
+                ? errorPayload.error
+                : `Failed to create workflow: ${response.statusText}`;
+            throw new Error(message);
           }
 
-          const result = await response.json();
+          const resultPayload: unknown = await response.json();
+          const { workflowId } = parseWorkflowGenerationResult(resultPayload);
 
           // Reset state
           setRightPanelView('preview');
           exitSelectionMode();
 
-          if (onWorkflowGenerated && result.workflow_id) {
-            onWorkflowGenerated(result.workflow_id, params.projectId);
+          if (onWorkflowGenerated && workflowId) {
+            onWorkflowGenerated(workflowId, params.projectId);
           }
         } else {
           // Inline mode: use existing generate workflow API
@@ -1106,14 +1196,20 @@ export function RecordModePage({
             ? params.actionIndices.map((index) => mergedActions[index]).filter((a): a is MergedAction => a !== undefined)
             : [];
           const actionsToGenerate = selectedActions.length > 0 ? selectedActions : mergedActions;
-          const result = await generateWorkflow(params.name, params.projectId, actionsToGenerate, params.settings);
+          const resultPayload: unknown = await generateWorkflow(
+            params.name,
+            params.projectId,
+            actionsToGenerate,
+            params.settings
+          );
+          const { workflowId, projectId } = parseWorkflowGenerationResult(resultPayload);
 
           // Reset state
           setRightPanelView('preview');
           exitSelectionMode();
 
-          if (onWorkflowGenerated) {
-            onWorkflowGenerated(result.workflow_id, result.project_id);
+          if (onWorkflowGenerated && workflowId && projectId) {
+            onWorkflowGenerated(workflowId, projectId);
           }
         }
       } finally {

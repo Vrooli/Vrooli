@@ -20,7 +20,7 @@ function ExpandedValueModal({ itemName, value, onClose }: ExpandedValueModalProp
   // Try to format as JSON if possible
   let formattedValue = value;
   try {
-    const parsed = JSON.parse(value);
+    const parsed: unknown = JSON.parse(value);
     formattedValue = JSON.stringify(parsed, null, 2);
   } catch {
     // Not JSON, keep as is

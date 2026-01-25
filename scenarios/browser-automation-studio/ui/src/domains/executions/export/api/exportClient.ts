@@ -116,7 +116,7 @@ async function fetchRecordedVideoStatus(
     throw new Error(`Recorded videos unavailable (${response.status})`);
   }
 
-  const raw = await response.json();
+  const raw: unknown = await response.json();
 
   // Validate response at runtime using Zod
   const result = safeParse(RecordedVideosResponseSchema, raw, 'fetchRecordedVideoStatus');

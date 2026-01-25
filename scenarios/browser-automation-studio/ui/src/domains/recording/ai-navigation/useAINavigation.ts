@@ -25,6 +25,232 @@ import type {
 } from './types';
 import { VISION_MODELS } from './types';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const actionTypes = new Set<AINavigationStep['action']['type']>([
+  'click',
+  'type',
+  'scroll',
+  'navigate',
+  'hover',
+  'select',
+  'wait',
+  'keypress',
+  'done',
+  'request_human',
+]);
+
+const directionTypes = new Set<NonNullable<AINavigationStep['action']['direction']>>([
+  'up',
+  'down',
+  'left',
+  'right',
+]);
+
+const interventionTypes = new Set<NonNullable<AINavigationStep['action']['interventionType']>>([
+  'captcha',
+  'verification',
+  'complex_interaction',
+  'login_required',
+  'other',
+]);
+
+const triggerTypes = new Set<AINavigationAwaitingHumanEvent['trigger']>([
+  'programmatic',
+  'ai_requested',
+]);
+
+const statusTypes = new Set<AINavigationCompleteEvent['status']>([
+  'completed',
+  'failed',
+  'aborted',
+  'max_steps_reached',
+  'loop_detected',
+  'awaiting_human',
+]);
+
+const parseTokensUsed = (value: unknown): AINavigationStepEvent['tokensUsed'] => {
+  if (!isRecord(value)) {
+    return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  }
+  const promptTokens = typeof value.promptTokens === 'number' ? value.promptTokens : 0;
+  const completionTokens = typeof value.completionTokens === 'number' ? value.completionTokens : 0;
+  const totalTokens = typeof value.totalTokens === 'number' ? value.totalTokens : 0;
+  return { promptTokens, completionTokens, totalTokens };
+};
+
+const parseBrowserAction = (value: unknown): AINavigationStep['action'] => {
+  if (!isRecord(value) || typeof value.type !== 'string' || !actionTypes.has(value.type as AINavigationStep['action']['type'])) {
+    return { type: 'wait' };
+  }
+
+  const action: AINavigationStep['action'] = { type: value.type as AINavigationStep['action']['type'] };
+
+  if (typeof value.elementId === 'number') {
+    action.elementId = value.elementId;
+  }
+  if (isRecord(value.coordinates) && typeof value.coordinates.x === 'number' && typeof value.coordinates.y === 'number') {
+    action.coordinates = { x: value.coordinates.x, y: value.coordinates.y };
+  }
+  if (typeof value.text === 'string') {
+    action.text = value.text;
+  }
+  if (typeof value.direction === 'string' && directionTypes.has(value.direction as NonNullable<AINavigationStep['action']['direction']>)) {
+    action.direction = value.direction as NonNullable<AINavigationStep['action']['direction']>;
+  }
+  if (typeof value.url === 'string') {
+    action.url = value.url;
+  }
+  if (typeof value.key === 'string') {
+    action.key = value.key;
+  }
+  if (typeof value.result === 'string') {
+    action.result = value.result;
+  }
+  if (typeof value.success === 'boolean') {
+    action.success = value.success;
+  }
+  if (typeof value.reason === 'string') {
+    action.reason = value.reason;
+  }
+  if (typeof value.instructions === 'string') {
+    action.instructions = value.instructions;
+  }
+  if (typeof value.interventionType === 'string' && interventionTypes.has(value.interventionType as NonNullable<AINavigationStep['action']['interventionType']>)) {
+    action.interventionType = value.interventionType as NonNullable<AINavigationStep['action']['interventionType']>;
+  }
+  return action;
+};
+
+const parseStepEvent = (value: unknown): AINavigationStepEvent | null => {
+  if (!isRecord(value) || value.type !== 'ai_navigation_step') return null;
+  if (typeof value.navigationId !== 'string' || typeof value.sessionId !== 'string') return null;
+  const stepNumber = typeof value.stepNumber === 'number' ? value.stepNumber : 0;
+  const action = parseBrowserAction(value.action);
+  const reasoning = typeof value.reasoning === 'string' ? value.reasoning : '';
+  const currentUrl = typeof value.currentUrl === 'string' ? value.currentUrl : '';
+  const goalAchieved = typeof value.goalAchieved === 'boolean' ? value.goalAchieved : false;
+  const tokensUsed = parseTokensUsed(value.tokensUsed);
+  const durationMs = typeof value.durationMs === 'number' ? value.durationMs : 0;
+  const error = typeof value.error === 'string' ? value.error : undefined;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+
+  return {
+    type: 'ai_navigation_step',
+    navigationId: value.navigationId,
+    sessionId: value.sessionId,
+    stepNumber,
+    action,
+    reasoning,
+    currentUrl,
+    goalAchieved,
+    tokensUsed,
+    durationMs,
+    error,
+    timestamp,
+  };
+};
+
+const parseCompleteEvent = (value: unknown): AINavigationCompleteEvent | null => {
+  if (!isRecord(value) || value.type !== 'ai_navigation_complete') return null;
+  if (typeof value.navigationId !== 'string' || typeof value.sessionId !== 'string') return null;
+  const status = typeof value.status === 'string' && statusTypes.has(value.status as AINavigationCompleteEvent['status'])
+    ? (value.status as AINavigationCompleteEvent['status'])
+    : 'completed';
+  const totalSteps = typeof value.totalSteps === 'number' ? value.totalSteps : 0;
+  const totalTokens = typeof value.totalTokens === 'number' ? value.totalTokens : 0;
+  const totalDurationMs = typeof value.totalDurationMs === 'number' ? value.totalDurationMs : 0;
+  const finalUrl = typeof value.finalUrl === 'string' ? value.finalUrl : '';
+  const error = typeof value.error === 'string' ? value.error : undefined;
+  const summary = typeof value.summary === 'string' ? value.summary : undefined;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+
+  return {
+    type: 'ai_navigation_complete',
+    navigationId: value.navigationId,
+    sessionId: value.sessionId,
+    status,
+    totalSteps,
+    totalTokens,
+    totalDurationMs,
+    finalUrl,
+    error,
+    summary,
+    timestamp,
+  };
+};
+
+const parseAwaitingHumanEvent = (value: unknown): AINavigationAwaitingHumanEvent | null => {
+  if (!isRecord(value) || value.type !== 'ai_navigation_awaiting_human') return null;
+  if (typeof value.navigationId !== 'string' || typeof value.sessionId !== 'string') return null;
+  const stepNumber = typeof value.stepNumber === 'number' ? value.stepNumber : 0;
+  const reason = typeof value.reason === 'string' ? value.reason : 'Human intervention required';
+  const instructions = typeof value.instructions === 'string' ? value.instructions : undefined;
+  const interventionType = typeof value.interventionType === 'string' && interventionTypes.has(value.interventionType as AINavigationAwaitingHumanEvent['interventionType'])
+    ? (value.interventionType as AINavigationAwaitingHumanEvent['interventionType'])
+    : 'other';
+  const trigger = typeof value.trigger === 'string' && triggerTypes.has(value.trigger as AINavigationAwaitingHumanEvent['trigger'])
+    ? (value.trigger as AINavigationAwaitingHumanEvent['trigger'])
+    : 'programmatic';
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+
+  return {
+    type: 'ai_navigation_awaiting_human',
+    navigationId: value.navigationId,
+    sessionId: value.sessionId,
+    stepNumber,
+    reason,
+    instructions,
+    interventionType,
+    trigger,
+    timestamp,
+  };
+};
+
+const parseResumedEvent = (value: unknown): AINavigationResumedEvent | null => {
+  if (!isRecord(value) || value.type !== 'ai_navigation_resumed') return null;
+  if (typeof value.navigationId !== 'string' || typeof value.sessionId !== 'string') return null;
+  const timestamp = typeof value.timestamp === 'string' ? value.timestamp : new Date().toISOString();
+  return {
+    type: 'ai_navigation_resumed',
+    navigationId: value.navigationId,
+    sessionId: value.sessionId,
+    timestamp,
+  };
+};
+
+const parseNavigationError = (
+  value: unknown
+): { code?: string; message?: string; details?: Record<string, string> } => {
+  if (!isRecord(value)) return {};
+  const code = typeof value.code === 'string' ? value.code : undefined;
+  const message = typeof value.message === 'string' ? value.message : undefined;
+  let details: Record<string, string> | undefined;
+  if (isRecord(value.details)) {
+    const entries = Object.entries(value.details).filter(([, val]) => typeof val === 'string');
+    if (entries.length > 0) {
+      details = Object.fromEntries(entries) as Record<string, string>;
+    }
+  }
+  return { code, message, details };
+};
+
+const parseNavigateResponse = (value: unknown): AINavigateResponse | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.navigation_id !== 'string') return null;
+  if (typeof value.status !== 'string') return null;
+  if (typeof value.model !== 'string') return null;
+  if (typeof value.max_steps !== 'number') return null;
+  return {
+    navigationId: value.navigation_id,
+    status: value.status,
+    model: value.model,
+    maxSteps: value.max_steps,
+    estimatedCost: typeof value.estimated_cost === 'number' ? value.estimated_cost : undefined,
+  };
+};
+
 /**
  * Custom error class for AI navigation errors.
  * Includes error code and additional details from the API.
@@ -100,7 +326,8 @@ export function useAINavigation({
   useEffect(() => {
     if (!lastMessage) return;
 
-    const msg = lastMessage as unknown as Record<string, unknown>;
+    if (!isRecord(lastMessage) || typeof lastMessage.type !== 'string') return;
+    const msg = lastMessage;
 
     // Log all AI navigation related messages
     if (typeof msg.type === 'string' && msg.type.startsWith('ai_navigation')) {
@@ -108,28 +335,28 @@ export function useAINavigation({
     }
 
     // Handle AI navigation step events
-    if (msg.type === 'ai_navigation_step') {
-      const event = msg as unknown as AINavigationStepEvent;
+    const stepEvent = parseStepEvent(msg);
+    if (stepEvent) {
 
       // Only process events for our current navigation
-      if (event.navigationId !== navigationIdRef.current) return;
+      if (stepEvent.navigationId !== navigationIdRef.current) return;
 
       // Defensive defaults for potentially missing fields
-      const tokensUsed = event.tokensUsed ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-      const stepNumber = event.stepNumber ?? 0;
-      const action = event.action ?? { type: 'wait' as const };
-      const timestamp = event.timestamp ? new Date(event.timestamp) : new Date();
+      const tokensUsed = stepEvent.tokensUsed ?? { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+      const stepNumber = stepEvent.stepNumber ?? 0;
+      const action = stepEvent.action ?? { type: 'wait' as const };
+      const timestamp = stepEvent.timestamp ? new Date(stepEvent.timestamp) : new Date();
 
       const step: AINavigationStep = {
         id: `step-${stepNumber}`,
         stepNumber,
         action,
-        reasoning: event.reasoning ?? '',
-        currentUrl: event.currentUrl ?? '',
-        goalAchieved: event.goalAchieved ?? false,
+        reasoning: stepEvent.reasoning ?? '',
+        currentUrl: stepEvent.currentUrl ?? '',
+        goalAchieved: stepEvent.goalAchieved ?? false,
         tokensUsed,
-        durationMs: event.durationMs ?? 0,
-        error: event.error,
+        durationMs: stepEvent.durationMs ?? 0,
+        error: stepEvent.error,
         timestamp,
       };
 
@@ -143,24 +370,24 @@ export function useAINavigation({
     }
 
     // Handle AI navigation complete events
-    if (msg.type === 'ai_navigation_complete') {
-      const event = msg as unknown as AINavigationCompleteEvent;
+    const completeEvent = parseCompleteEvent(msg);
+    if (completeEvent) {
 
       console.log('[useAINavigation] Received complete event:', {
-        eventNavigationId: event.navigationId,
+        eventNavigationId: completeEvent.navigationId,
         currentNavigationId: navigationIdRef.current,
-        eventStatus: event.status,
+        eventStatus: completeEvent.status,
       });
 
       // Only process events for our current navigation
-      if (event.navigationId !== navigationIdRef.current) {
+      if (completeEvent.navigationId !== navigationIdRef.current) {
         console.log('[useAINavigation] Ignoring complete event - navigationId mismatch');
         return;
       }
 
       // Defensive defaults for potentially missing fields
-      const status = event.status ?? 'completed';
-      const totalTokens = event.totalTokens ?? 0;
+      const status = completeEvent.status ?? 'completed';
+      const totalTokens = completeEvent.totalTokens ?? 0;
 
       console.log('[useAINavigation] Processing complete event with status:', status);
 
@@ -169,40 +396,40 @@ export function useAINavigation({
         isNavigating: false,
         status,
         totalTokens,
-        error: event.error ?? null,
+        error: completeEvent.error ?? null,
         humanIntervention: null,
       }));
 
       navigationIdRef.current = null;
-      onCompleteRef.current?.(status, event.summary);
+      onCompleteRef.current?.(status, completeEvent.summary);
     }
 
     // Handle AI navigation awaiting human intervention events
-    if (msg.type === 'ai_navigation_awaiting_human') {
-      const event = msg as unknown as AINavigationAwaitingHumanEvent;
+    const awaitingEvent = parseAwaitingHumanEvent(msg);
+    if (awaitingEvent) {
 
       // Only process events for our current navigation
-      if (event.navigationId !== navigationIdRef.current) return;
+      if (awaitingEvent.navigationId !== navigationIdRef.current) return;
 
       setState((prev) => ({
         ...prev,
         status: 'awaiting_human',
         humanIntervention: {
-          reason: event.reason,
-          instructions: event.instructions,
-          interventionType: event.interventionType,
-          trigger: event.trigger,
-          startedAt: new Date(event.timestamp),
+          reason: awaitingEvent.reason,
+          instructions: awaitingEvent.instructions,
+          interventionType: awaitingEvent.interventionType,
+          trigger: awaitingEvent.trigger,
+          startedAt: new Date(awaitingEvent.timestamp),
         },
       }));
     }
 
     // Handle AI navigation resumed events
-    if (msg.type === 'ai_navigation_resumed') {
-      const event = msg as unknown as AINavigationResumedEvent;
+    const resumedEvent = parseResumedEvent(msg);
+    if (resumedEvent) {
 
       // Only process events for our current navigation
-      if (event.navigationId !== navigationIdRef.current) return;
+      if (resumedEvent.navigationId !== navigationIdRef.current) return;
 
       setState((prev) => ({
         ...prev,
@@ -267,23 +494,21 @@ export function useAINavigation({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorPayload: unknown = await response.json().catch(() => null);
+          const parsedError = parseNavigationError(errorPayload);
           throw new AINavigationError(
-            errorData.code || 'UNKNOWN_ERROR',
-            errorData.message || `Failed to start navigation: ${response.statusText}`,
-            errorData.details,
+            parsedError.code ?? 'UNKNOWN_ERROR',
+            parsedError.message ?? `Failed to start navigation: ${response.statusText}`,
+            parsedError.details,
           );
         }
 
         // API returns snake_case, convert to camelCase
-        const rawData = await response.json();
-        const data: AINavigateResponse = {
-          navigationId: rawData.navigation_id,
-          status: rawData.status,
-          model: rawData.model,
-          maxSteps: rawData.max_steps,
-          estimatedCost: rawData.estimated_cost,
-        };
+        const rawData: unknown = await response.json();
+        const data = parseNavigateResponse(rawData);
+        if (!data) {
+          throw new Error('Invalid navigation response');
+        }
         navigationIdRef.current = data.navigationId;
 
         setState((prev) => ({
@@ -322,8 +547,9 @@ export function useAINavigation({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to abort navigation');
+        const errorPayload: unknown = await response.json().catch(() => null);
+        const parsedError = parseNavigationError(errorPayload);
+        throw new Error(parsedError.message ?? 'Failed to abort navigation');
       }
 
       console.log('[useAINavigation] Abort request sent, waiting for completion');
@@ -367,8 +593,9 @@ export function useAINavigation({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to resume navigation');
+        const errorPayload: unknown = await response.json().catch(() => null);
+        const parsedError = parseNavigationError(errorPayload);
+        throw new Error(parsedError.message ?? 'Failed to resume navigation');
       }
 
       // The WebSocket resumed event will clear humanIntervention

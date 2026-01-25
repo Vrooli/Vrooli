@@ -45,6 +45,10 @@ export const TRANSIENT_EDGE_KEYS = new Set([
   '_rf',
 ]);
 
+const deepClone = <T>(value: T): T => {
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
 // ============================================================================
 // Flow Definition Building
 // ============================================================================
@@ -171,12 +175,12 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
         continue;
       }
       if (key === 'data' && value && typeof value === 'object') {
-        cleaned[key] = JSON.parse(JSON.stringify(value));
+        cleaned[key] = deepClone(value);
         continue;
       }
       // Preserve V2 action field for type-safe execution
       if (key === 'action' && value && typeof value === 'object') {
-        cleaned[key] = JSON.parse(JSON.stringify(value));
+        cleaned[key] = deepClone(value);
         continue;
       }
       if (key === 'position' && value && typeof value === 'object') {
@@ -212,14 +216,14 @@ export const sanitizeNodesForPersistence = (nodes: Node[] | undefined | null): u
     // If no action exists, generate one from type/data for V2 compatibility
     const existingAction = (nodeRecord as Node & { action?: ActionDefinition }).action;
     if (existingAction && typeof existingAction === 'object') {
-      cleaned.action = JSON.parse(JSON.stringify(existingAction));
+      cleaned.action = deepClone(existingAction);
     } else if (nodeRecord.type) {
       // Generate V2 action from V1 type/data for backwards compatibility
       const nodeData = (cleaned.data as Record<string, unknown>) || {};
       cleaned.action = buildActionDefinition(nodeRecord.type, nodeData);
     }
 
-    return JSON.parse(JSON.stringify(cleaned));
+    return deepClone(cleaned);
   });
 };
 
@@ -248,7 +252,7 @@ export const sanitizeEdgesForPersistence = (edges: Edge[] | undefined | null): u
         continue;
       }
       if ((key === 'data' || key === 'markerEnd' || key === 'markerStart' || key === 'style') && value && typeof value === 'object') {
-        cleaned[key] = JSON.parse(JSON.stringify(value));
+        cleaned[key] = deepClone(value);
         continue;
       }
       cleaned[key] = value;
@@ -264,6 +268,6 @@ export const sanitizeEdgesForPersistence = (edges: Edge[] | undefined | null): u
       cleaned.target = edgeRecord.target;
     }
 
-    return JSON.parse(JSON.stringify(cleaned));
+    return deepClone(cleaned);
   });
 };

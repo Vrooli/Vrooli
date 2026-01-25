@@ -199,7 +199,9 @@ func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestions)
+	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
+		h.log.WithError(err).Warn("Failed to encode AI analysis response")
+	}
 }
 
 // analyzeElementsWithAI delegates to the injected analyzer.

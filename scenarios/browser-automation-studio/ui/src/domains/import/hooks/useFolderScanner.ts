@@ -74,6 +74,32 @@ function transformScanEntry(entry: ScanResponse['entries'][0]): FolderEntry {
   };
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractErrorMessage = (value: unknown): string | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const details = value.details;
+  if (details && typeof details === 'object') {
+    const detailMessage = (details as Record<string, unknown>).error;
+    if (typeof detailMessage === 'string') {
+      return detailMessage;
+    }
+  }
+  const message = value.message;
+  return typeof message === 'string' ? message : null;
+};
+
 export function useFolderScanner(options: UseFolderScannerOptions): UseFolderScannerReturn {
   const { mode, projectId, depth = 1, initialPath } = options;
 
@@ -120,14 +146,13 @@ export function useFolderScanner(options: UseFolderScannerOptions): UseFolderSca
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg =
-            errorData.details?.error || errorData.message || 'Failed to scan folder';
+          const errorData = await parseJson(response);
+          const errorMsg = extractErrorMessage(errorData) ?? 'Failed to scan folder';
           setError(errorMsg);
           return null;
         }
 
-        const data = await response.json();
+        const data: unknown = await response.json();
 
         const responseData = data as ScanResponse;
         const result: ScanResult = {
@@ -147,7 +172,7 @@ export function useFolderScanner(options: UseFolderScannerOptions): UseFolderSca
 
         setScanResult(result);
         return result;
-      } catch (err) {
+      } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to scan folder';
         logger.error('Failed to scan folder', { error: err, path, mode });
         setError(errorMsg);

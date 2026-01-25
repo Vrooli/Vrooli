@@ -16,7 +16,11 @@ import { AssetPicker } from './AssetPicker';
 import { isBuiltInAssetId, getBuiltInAsset, BUILTIN_ASSET_IDS } from '@lib/builtInAssets';
 
 // Get landing page URL from environment or use default
-const LANDING_PAGE_URL = import.meta.env.VITE_LANDING_PAGE_URL || 'https://browser-automation-studio.com';
+const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
+const LANDING_PAGE_URL =
+  typeof landingPageEnv === 'string' && landingPageEnv.length > 0
+    ? landingPageEnv
+    : 'https://browser-automation-studio.com';
 
 // Minimum tier required for outro cards
 const REQUIRED_TIER = 'solo' as const;

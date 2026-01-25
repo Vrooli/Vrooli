@@ -25,7 +25,9 @@ func TestGetScenarioPort_MissingName(t *testing.T) {
 	}
 
 	var response map[string]any
-	json.Unmarshal(rr.Body.Bytes(), &response)
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if response["code"] != "MISSING_REQUIRED_FIELD" {
 		t.Errorf("expected MISSING_REQUIRED_FIELD error code, got %v", response["code"])
 	}

@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or introduce new features. All ch
 
 ### **1. Check Documentation Structure & Build Mental Model**
 
+* **If `docs/concepts/ARCHITECTURE.md` and `docs/internal/SEAMS.md` exist**, read them first to understand documented mental models and boundaries.
+
 **Before deriving your own mental model, check existing documentation:**
 
 1. **Verify docs infrastructure exists:**
@@ -158,3 +160,17 @@ Include a documentation health assessment in your findings:
 Avoid superficial changes (e.g. meaningless renames or file shuffling) that do not materially improve how well the architecture communicates the scenario's purpose and boundaries.
 
 Focus this loop on **practical, targeted architectural improvements** that make the codebase easier to reason about, safer to extend, and more obviously aligned with what the scenario is supposed to do.
+
+---
+
+### **9. Documentation**
+
+Update architecture documentation to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/concepts/` and `docs/internal/` directories if needed.
+
+Update:
+* `docs/concepts/ARCHITECTURE.md`: Domain mental model, key entities, main flows, natural boundaries
+* `docs/internal/SEAMS.md` (Architecture Alignment section): Logical vs physical structure gaps, drift from documented architecture, alignment improvements made

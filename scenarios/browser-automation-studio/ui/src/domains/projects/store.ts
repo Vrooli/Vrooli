@@ -13,6 +13,9 @@ import { getConfig } from '../../config';
 import { logger } from '../../utils/logger';
 import { parseProject, parseProjectList, parseProjectWithStats } from '../../utils/projectProto';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 const PROJECTS_ROOT = 'scenarios/browser-automation-studio/data/projects';
 const normalizeFolderSegment = (value: string): string => value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
 export const buildProjectFolderPath = (folderName: string): string => {
@@ -113,7 +116,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to fetch projects: ${response.status}`);
       }
-      const data = await response.json();
+      const data: unknown = await response.json();
       const parsed = parseProjectList(data);
       set({ projects: parsed, isLoading: false, isConnected: true });
     } catch (error) {
@@ -143,7 +146,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to create project: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const newProject = parseProject(data);
 
       if (!newProject) {
@@ -183,7 +186,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to update project: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
       const updatedProject = parseProject(data);
 
       if (!updatedProject) {
@@ -248,7 +251,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to fetch project: ${response.status}`);
       }
-      const project = parseProjectWithStats(await response.json());
+      const payload: unknown = await response.json();
+      const project = parseProjectWithStats(payload);
       return project;
     } catch (error) {
       logger.error('Failed to fetch project', { component: 'ProjectStore', action: 'getProject', projectId: id }, error);
@@ -292,7 +296,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         throw new Error(errorData || `Failed to execute workflows: ${response.status}`);
       }
 
-      const result = await response.json();
+      const payload: unknown = await response.json();
+      const result: BulkExecutionResult = isRecord(payload)
+        ? (payload as BulkExecutionResult)
+        : { message: 'Invalid response', executions: [] };
 
       set(state => ({
         bulkExecutionInProgress: { ...state.bulkExecutionInProgress, [projectId]: false }

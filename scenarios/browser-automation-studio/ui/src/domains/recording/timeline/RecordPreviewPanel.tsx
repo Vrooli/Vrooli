@@ -19,11 +19,11 @@
 
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
-import { loadHistory, type HistoryEntry } from '../capture/BrowserUrlBar';
+import { loadHistory, type HistoryEntry } from '../capture/browserUrlHistory';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
-import { useStreamSettings } from '../capture/StreamSettings';
+import { useStreamSettings } from '../capture/streamSettingsState';
 import { useViewportOptional } from '../context';
 
 interface RecordPreviewPanelProps {

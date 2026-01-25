@@ -30,6 +30,66 @@ import type {
 } from '../types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const parseStopRecordingResponse = (value: unknown): StopRecordingResponse | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.recording_id !== 'string') return null;
+  if (typeof value.session_id !== 'string') return null;
+  if (typeof value.action_count !== 'number') return null;
+  if (typeof value.stopped_at !== 'string') return null;
+  return value as StopRecordingResponse;
+};
+
+const parseGenerateWorkflowResponse = (value: unknown): GenerateWorkflowResponse | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.workflow_id !== 'string') return null;
+  if (typeof value.project_id !== 'string') return null;
+  if (typeof value.name !== 'string') return null;
+  if (typeof value.node_count !== 'number') return null;
+  if (typeof value.action_count !== 'number') return null;
+  return value as GenerateWorkflowResponse;
+};
+
+const parseSelectorValidation = (value: unknown): SelectorValidation | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.valid !== 'boolean') return null;
+  if (typeof value.match_count !== 'number') return null;
+  if (typeof value.selector !== 'string') return null;
+  const result: SelectorValidation = {
+    valid: value.valid,
+    match_count: value.match_count,
+    selector: value.selector,
+  };
+  if (typeof value.error === 'string') {
+    result.error = value.error;
+  }
+  return result;
+};
+
+const parseReplayPreviewResponse = (value: unknown): ReplayPreviewResponse | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.success !== 'boolean') return null;
+  if (typeof value.total_actions !== 'number') return null;
+  if (typeof value.passed_actions !== 'number') return null;
+  if (typeof value.failed_actions !== 'number') return null;
+  if (typeof value.total_duration_ms !== 'number') return null;
+  if (typeof value.stopped_early !== 'boolean') return null;
+  if (!Array.isArray(value.results)) return null;
+  return value as ReplayPreviewResponse;
+};
+
 interface UseRecordModeOptions {
   sessionId: string | null;
 }
@@ -126,25 +186,37 @@ function useRecordingTransport({
         body: JSON.stringify({ session_id: currentSessionId }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const payload = await safeJson(response);
+      const errorMessage =
+        isRecord(payload) && typeof payload.message === 'string'
+          ? payload.message
+          : undefined;
+      const payloadError =
+        isRecord(payload) && typeof payload.error === 'string'
+          ? payload.error
+          : undefined;
+      const recordingIdValue =
+        isRecord(payload) && typeof payload.recording_id === 'string'
+          ? payload.recording_id
+          : null;
 
       // Handle 409 Conflict: Recording is already in progress for this session.
       // This happens when the page is refreshed - React state is lost but the
       // playwright-driver still has an active recording. We treat this as a
       // successful state sync rather than an error.
-      if (response.status === 409 && data.error === 'RECORDING_IN_PROGRESS') {
-        console.log('Recording already in progress, syncing state:', data.recording_id);
-        setRecordingId(data.recording_id || null);
+      if (response.status === 409 && payloadError === 'RECORDING_IN_PROGRESS') {
+        console.log('Recording already in progress, syncing state:', recordingIdValue);
+        setRecordingId(recordingIdValue);
         setIsRecording(true);
         // Don't clear actions - they may be streaming in via WebSocket
         return;
       }
 
       if (!response.ok) {
-        throw new Error(data.message || `Failed to start recording: ${response.statusText}`);
+        throw new Error(errorMessage || `Failed to start recording: ${response.statusText}`);
       }
 
-      setRecordingId(data.recording_id);
+      setRecordingId(recordingIdValue);
       setIsRecording(true);
       setActions([]);
     } catch (err) {
@@ -171,11 +243,19 @@ function useRecordingTransport({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to stop recording: ${response.statusText}`);
+        const payload = await safeJson(response);
+        const message =
+          isRecord(payload) && typeof payload.message === 'string'
+            ? payload.message
+            : `Failed to stop recording: ${response.statusText}`;
+        throw new Error(message);
       }
 
-      const data: StopRecordingResponse = await response.json();
+      const payload = await safeJson(response);
+      const data = parseStopRecordingResponse(payload);
+      if (!data) {
+        throw new Error('Invalid stop recording response');
+      }
       setIsRecording(false);
       console.log('Recording stopped:', data);
     } catch (err) {
@@ -217,13 +297,20 @@ function useRecordingTransport({
         );
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Failed to generate workflow: ${response.statusText}`
-          );
+          const payload = await safeJson(response);
+          const message =
+            isRecord(payload) && typeof payload.message === 'string'
+              ? payload.message
+              : `Failed to generate workflow: ${response.statusText}`;
+          throw new Error(message);
         }
 
-        return response.json();
+        const payload = await safeJson(response);
+        const data = parseGenerateWorkflowResponse(payload);
+        if (!data) {
+          throw new Error('Invalid generate workflow response');
+        }
+        return data;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to generate workflow';
         setError(message);
@@ -255,7 +342,12 @@ function useRecordingTransport({
         throw new Error(`Failed to validate selector: ${response.statusText}`);
       }
 
-      return response.json();
+      const payload = await safeJson(response);
+      const data = parseSelectorValidation(payload);
+      if (!data) {
+        throw new Error('Invalid selector validation response');
+      }
+      return data;
     },
     [apiUrl]
   );
@@ -290,13 +382,20 @@ function useRecordingTransport({
         );
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.message || `Failed to replay recording: ${response.statusText}`
-          );
+          const payload = await safeJson(response);
+          const message =
+            isRecord(payload) && typeof payload.message === 'string'
+              ? payload.message
+              : `Failed to replay recording: ${response.statusText}`;
+          throw new Error(message);
         }
 
-        return response.json();
+        const payload = await safeJson(response);
+        const data = parseReplayPreviewResponse(payload);
+        if (!data) {
+          throw new Error('Invalid replay preview response');
+        }
+        return data;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to replay recording';
         setError(message);

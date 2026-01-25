@@ -22,7 +22,7 @@ export const fetchProjectsList = async (): Promise<ParsedProject[]> => {
     throw new Error(message || `Failed to fetch projects (${response.status})`);
   }
 
-  const payload = await response.json();
+  const payload: unknown = await response.json();
   const projects = parseProjectList(payload);
   if (projects.length === 0) {
     logger.warn('Projects response contained no entries', {
@@ -45,9 +45,11 @@ export const fetchProjectWorkflows = async (projectId: string): Promise<ProjectW
     throw new Error(message || `Failed to fetch workflows (${response.status})`);
   }
 
-  const payload = await response.json() as Record<string, unknown>;
+  const payload: unknown = await response.json();
+  const payloadRecord =
+    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
   const normalized = {
-    workflows: Array.isArray(payload?.workflows) ? payload.workflows : [],
+    workflows: Array.isArray(payloadRecord.workflows) ? payloadRecord.workflows : [],
   };
   const result = safeParse(ProjectWorkflowsResponseSchema, normalized, 'ProjectWorkflows');
   if (!result.success) {
@@ -68,9 +70,11 @@ export const fetchProjectEntries = async (projectId: string): Promise<ProjectEnt
     throw new Error(message || `Failed to fetch project files (${response.status})`);
   }
 
-  const payload = await response.json() as Record<string, unknown>;
+  const payload: unknown = await response.json();
+  const payloadRecord =
+    payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
   const normalized = {
-    entries: Array.isArray(payload?.entries) ? payload.entries : [],
+    entries: Array.isArray(payloadRecord.entries) ? payloadRecord.entries : [],
   };
   const result = safeParse(ProjectEntriesResponseSchema, normalized, 'ProjectEntries');
   if (!result.success) {

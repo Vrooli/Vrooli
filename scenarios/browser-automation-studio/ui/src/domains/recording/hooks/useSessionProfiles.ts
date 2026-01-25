@@ -3,6 +3,26 @@ import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
 import type { BrowserProfile, RecordingSessionProfile } from '../types/types';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const parseProfile = (value: unknown): RecordingSessionProfile | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.id !== 'string') return null;
+  if (typeof value.name !== 'string') return null;
+  return value as RecordingSessionProfile;
+};
+
 interface UseSessionProfilesResult {
   profiles: RecordingSessionProfile[];
   loading: boolean;
@@ -31,8 +51,10 @@ export function useSessionProfiles(): UseSessionProfilesResult {
       if (!response.ok) {
         throw new Error(`Failed to fetch sessions (${response.status})`);
       }
-      const data = await response.json();
-      const list = Array.isArray(data.profiles) ? (data.profiles as RecordingSessionProfile[]) : [];
+      const payload = await safeJson(response);
+      const list = isRecord(payload) && Array.isArray(payload.profiles)
+        ? payload.profiles.map(parseProfile).filter((p): p is RecordingSessionProfile => p !== null)
+        : [];
       setProfiles(list);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load sessions';
@@ -57,7 +79,11 @@ export function useSessionProfiles(): UseSessionProfilesResult {
         if (!response.ok) {
           throw new Error(`Failed to create session (${response.status})`);
         }
-        const profile = (await response.json()) as RecordingSessionProfile;
+        const payload = await safeJson(response);
+        const profile = parseProfile(payload);
+        if (!profile) {
+          throw new Error('Invalid session profile response');
+        }
         setProfiles((prev) => [profile, ...prev.filter((p) => p.id !== profile.id)]);
         return profile;
       } catch (err) {
@@ -84,7 +110,11 @@ export function useSessionProfiles(): UseSessionProfilesResult {
       if (!response.ok) {
         throw new Error(`Failed to rename session (${response.status})`);
       }
-      const updated = (await response.json()) as RecordingSessionProfile;
+      const payload = await safeJson(response);
+      const updated = parseProfile(payload);
+      if (!updated) {
+        throw new Error('Invalid session profile response');
+      }
       setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to rename session';
@@ -123,7 +153,11 @@ export function useSessionProfiles(): UseSessionProfilesResult {
       if (!response.ok) {
         throw new Error(`Failed to update browser profile (${response.status})`);
       }
-      const updated = (await response.json()) as RecordingSessionProfile;
+      const payload = await safeJson(response);
+      const updated = parseProfile(payload);
+      if (!updated) {
+        throw new Error('Invalid session profile response');
+      }
       setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update browser profile';

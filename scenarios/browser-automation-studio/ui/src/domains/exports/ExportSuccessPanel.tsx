@@ -59,10 +59,12 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
         return;
       }
 
-      const data = await response.json();
-      if (data.caption) {
-        setAiCaption(data.caption);
-        await updateExport(export_.id, { aiCaption: data.caption });
+      const data: unknown = await response.json();
+      const caption =
+        data && typeof data === 'object' ? (data as Record<string, unknown>).caption : null;
+      if (typeof caption === 'string' && caption.length > 0) {
+        setAiCaption(caption);
+        await updateExport(export_.id, { aiCaption: caption });
         toast.success('Caption generated');
       }
     } catch (_error) {

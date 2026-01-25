@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or introduce new features. All ch
 
 ### **1. Identify Hidden Assumptions**
 
+* **If `docs/internal/ASSUMPTIONS.md` exists**, read it first to understand what assumptions have already been discovered.
+
 Systematically scan the scenario (code, tests, configuration, comments) to uncover **implicit assumptions**, such as:
 
 * **Data shape & nullability**
@@ -131,7 +133,24 @@ When you discover a necessary but **high-risk or broad change**, document it cle
 
 ---
 
-### **7. Output Expectations**
+### **7. Documentation**
+
+Update `docs/internal/ASSUMPTIONS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* New assumptions discovered
+* Hardening status of each assumption
+* Risk assessment (impact if violated, likelihood of failure)
+
+When assumptions are **validated and hardened** (enforced via types, validation, or tests), move them to `docs/internal/INVARIANTS.md` with a note about how they're enforced.
+
+---
+
+### **8. Output Expectations**
 
 You may update:
 

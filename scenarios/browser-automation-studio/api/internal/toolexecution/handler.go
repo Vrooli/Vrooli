@@ -77,5 +77,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) writeResult(w http.ResponseWriter, status int, result *ExecutionResult) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		return
+	}
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { ExecutionViewportSettings } from '../types';
 import {
   MIN_VIEWPORT_DIMENSION,
   MAX_VIEWPORT_DIMENSION,
@@ -168,7 +169,8 @@ describe('viewport utilities', () => {
     });
 
     it('ignores invalid preset', () => {
-      const result = sanitizeViewportSettings({ width: 1920, height: 1080, preset: 'invalid' as any });
+      const invalidPreset = 'invalid' as unknown as ExecutionViewportSettings['preset'];
+      const result = sanitizeViewportSettings({ width: 1920, height: 1080, preset: invalidPreset });
       expect(result).toEqual({ width: 1920, height: 1080 });
     });
   });

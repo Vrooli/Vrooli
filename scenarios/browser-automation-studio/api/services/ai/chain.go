@@ -77,12 +77,6 @@ func (c *AIProviderChain) Execute(ctx context.Context, req ProviderRequest) (*Pr
 		model = byokDefaultModel
 	}
 
-	// Default operation type if not specified
-	opType := req.OperationType
-	if opType == "" {
-		opType = credits.OpAIWorkflowGenerate
-	}
-
 	var lastErr error
 
 	// Try BYOK first

@@ -189,14 +189,17 @@ export function SchemaReference({ apiBaseUrl }: SchemaReferenceProps) {
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "schema" | "definitions">("overview");
 
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
   // Try to fetch live schema from API
   useEffect(() => {
     if (!apiBaseUrl) return;
 
     fetch(`${apiBaseUrl}/api/schema/workflow`)
-      .then((res) => res.json())
+      .then((res) => res.json() as Promise<unknown>)
       .then((data) => {
-        if (data && typeof data === "object") {
+        if (isRecord(data)) {
           setSchema(data);
         }
       })

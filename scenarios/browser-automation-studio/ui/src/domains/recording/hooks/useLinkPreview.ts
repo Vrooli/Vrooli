@@ -5,7 +5,7 @@
  * Uses both in-memory and localStorage caching for persistence.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getApiBase } from '@/config';
 
 /** Link preview data from the API */
@@ -30,6 +30,20 @@ const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const memoryCache = new Map<string, CachedPreview>();
 const pendingFetches = new Map<string, Promise<LinkPreviewData | null>>();
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function parseLinkPreview(value: unknown): LinkPreviewData | null {
+  if (!isRecord(value)) return null;
+  const data: LinkPreviewData = {};
+  if (typeof value.title === 'string') data.title = value.title;
+  if (typeof value.description === 'string') data.description = value.description;
+  if (typeof value.image === 'string') data.image = value.image;
+  if (typeof value.favicon === 'string') data.favicon = value.favicon;
+  if (typeof value.site_name === 'string') data.site_name = value.site_name;
+  return data;
+}
+
 /**
  * Load cached previews from localStorage
  */
@@ -37,14 +51,20 @@ function loadCacheFromStorage(): Map<string, CachedPreview> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored) as Record<string, CachedPreview>;
+      const parsed: unknown = JSON.parse(stored);
+      if (!isRecord(parsed)) {
+        return new Map();
+      }
       const now = Date.now();
       const cache = new Map<string, CachedPreview>();
 
       // Filter out expired entries
       for (const [url, entry] of Object.entries(parsed)) {
+        if (!isRecord(entry) || typeof entry.fetchedAt !== 'number') continue;
+        const data = entry.data;
+        const parsedData = data === null ? null : parseLinkPreview(data);
         if (now - entry.fetchedAt < CACHE_TTL_MS) {
-          cache.set(url, entry);
+          cache.set(url, { data: parsedData, fetchedAt: entry.fetchedAt });
         }
       }
 
@@ -99,7 +119,8 @@ async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
     throw new Error(`Failed to fetch link preview: ${res.status}`);
   }
 
-  return res.json();
+  const payload: unknown = await res.json();
+  return parseLinkPreview(payload);
 }
 
 /**
@@ -216,9 +237,6 @@ export function useLinkPreviewsBatch(urls: string[]): UseLinkPreviewsBatchReturn
   const [previews, setPreviews] = useState<Map<string, LinkPreviewData | null>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
 
-  // Stable reference for URLs to avoid infinite loops
-  const urlsKey = useMemo(() => urls.join('|'), [urls]);
-
   // Initialize with cached previews
   useEffect(() => {
     const initial = new Map<string, LinkPreviewData | null>();
@@ -229,7 +247,7 @@ export function useLinkPreviewsBatch(urls: string[]): UseLinkPreviewsBatchReturn
       }
     }
     setPreviews(initial);
-  }, [urlsKey, urls]);
+  }, [urls]);
 
   const fetchAll = useCallback(async () => {
     // Find URLs that need fetching
@@ -279,14 +297,14 @@ export function useLinkPreviewsBatch(urls: string[]): UseLinkPreviewsBatchReturn
     }
 
     setIsLoading(false);
-  }, [urlsKey, urls, previews]);
+  }, [urls, previews]);
 
   // Auto-fetch on mount
   useEffect(() => {
     void fetchAll();
     // Only run on mount/URL change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlsKey]);
+  }, [urls]);
 
   return {
     previews,

@@ -485,7 +485,17 @@ func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && rollbackErr != sql.ErrTxDone {
+			if db.log != nil {
+				db.log.WithError(rollbackErr).Warn("Failed to rollback workflow constraint migration")
+			}
+		}
+	}()
 
 	migrationStatements := []string{
 		// Rename old table
@@ -521,6 +531,7 @@ func (db *DB) migrateWorkflowUniqueConstraintSQLite(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit migration: %w", err)
 	}
+	committed = true
 
 	if db.log != nil {
 		db.log.Info("Migrated SQLite workflow unique constraint to include project_id")

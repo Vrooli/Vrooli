@@ -323,6 +323,8 @@ export const useExecutionExport = ({
     exportPreview,
     exportPreviewExecutionId,
     isExportDialogOpen,
+    setActiveSpecId,
+    setPreviewMetrics,
   ]);
 
   const getSanitizedFileStem = useCallback(

@@ -1,6 +1,6 @@
 // Unified SessionManager for session configuration and storage viewing
 export { SessionManager } from './SessionManager';
-export type { SectionId } from './SessionManager';
+export type { SectionId } from './SessionManager/sessionSidebarConfig';
 
 // Storage components
 export { CookiesTable } from './storage/CookiesTable';

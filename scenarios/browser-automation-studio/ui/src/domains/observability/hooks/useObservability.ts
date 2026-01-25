@@ -69,6 +69,9 @@ interface UseObservabilityReturn {
   isStale: boolean;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 async function fetchObservability(
   depth: ObservabilityDepth,
   noCache: boolean
@@ -82,12 +85,21 @@ async function fetchObservability(
 
   const response = await fetch(`${config.API_URL}/observability?${params.toString()}`);
 
+  const payload: unknown = await response.json().catch(() => null);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to fetch observability: ${response.statusText}`);
+    const message =
+      isRecord(payload) && typeof payload.message === 'string'
+        ? payload.message
+        : `Failed to fetch observability: ${response.statusText}`;
+    throw new Error(message);
   }
 
-  return response.json();
+  if (!isRecord(payload)) {
+    throw new Error('Invalid observability response');
+  }
+
+  return payload as ObservabilityResponse;
 }
 
 export function useObservability(options: UseObservabilityOptions = {}): UseObservabilityReturn {

@@ -206,7 +206,7 @@ export function UnifiedSidebar({
     if (activeTab !== 'artifacts' && artifactsProps?.screenshots && artifactsProps.screenshots.length > 0) {
       setArtifactsActivity(true);
     }
-  }, [artifactsProps?.screenshots?.length, activeTab, setArtifactsActivity]);
+  }, [artifactsProps?.screenshots, artifactsProps?.screenshots?.length, activeTab, setArtifactsActivity]);
 
   // Sync controlled artifactSubType
   useEffect(() => {

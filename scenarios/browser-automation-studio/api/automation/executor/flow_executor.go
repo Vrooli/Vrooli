@@ -607,13 +607,6 @@ func (e *SimpleExecutor) executeGraphIteration(ctx context.Context, req Request,
 	return loopControl{LastOutcome: last}, session, nil
 }
 
-// isSetVariableStep checks if a step type represents a set_variable action.
-// Accepts either a string type or uses Action-aware matching when available.
-func isSetVariableStep(stepType string) bool {
-	normalized := strings.ToLower(strings.ReplaceAll(stepType, "_", ""))
-	return normalized == "setvariable"
-}
-
 // isSetVariableInstruction checks if an instruction is a set_variable action.
 // Prefers Action.Type over the deprecated Type field.
 func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
@@ -624,11 +617,6 @@ func isSetVariableInstruction(instr contracts.CompiledInstruction) bool {
 // Prefers Action.Type over the deprecated Type field.
 func isSetVariablePlanStep(step contracts.PlanStep) bool {
 	return IsPlanStepActionType(step, basactions.ActionType_ACTION_TYPE_SET_VARIABLE)
-}
-
-// isSubflowStep checks if a step type represents a subflow action.
-func isSubflowStep(stepType string) bool {
-	return strings.EqualFold(strings.TrimSpace(stepType), "subflow")
 }
 
 // isSubflowInstruction checks if an instruction is a subflow action.

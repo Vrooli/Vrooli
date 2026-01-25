@@ -10,6 +10,8 @@ Do **not** change core behavior, workflows, or business rules. All changes must 
 
 ### **1. Discover the Core Domain Vocabulary**
 
+* **If `docs/concepts/GLOSSARY.md` exists**, read it first to understand what vocabulary decisions have been made.
+
 * Start from the **PRD, operational targets, and technical requirements** to identify:
   * the primary domain concepts (nouns)
   * key actions and workflows (verbs)
@@ -110,7 +112,24 @@ Favor **clarity and conceptual honesty** over cleverness or brevity.
 
 ---
 
-### **8. Output Expectations**
+### **8. Documentation**
+
+Update `docs/concepts/GLOSSARY.md` (user-facing) to record the unified vocabulary:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/concepts/` directory if needed.
+
+Include:
+* New canonical terms and their definitions
+* Mappings of old names to new names (for historical reference)
+* Disambiguated terms that were previously ambiguous
+
+This is a **user-facing document** - it helps everyone (not just agents) understand the domain language.
+
+---
+
+### **9. Output Expectations**
 
 By the end of this loop, the scenario should:
 

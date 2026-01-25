@@ -22,8 +22,16 @@ const pickString = (obj: Record<string, unknown> | null | undefined, key: string
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 };
 
+const getNodeData = (node: Node): Record<string, unknown> => {
+  const raw = node.data as unknown;
+  if (raw && typeof raw === 'object') {
+    return raw as Record<string, unknown>;
+  }
+  return {};
+};
+
 const extractScreenshotFromNode = (node: Node): NodeScreenshot | null => {
-  const data = (node?.data ?? {}) as Record<string, unknown>;
+  const data = getNodeData(node);
   if (!data) {
     return null;
   }
@@ -106,11 +114,15 @@ async function resolveScenarioUrl(scenarioName: string, scenarioPath?: string): 
       return null;
     }
 
-    const info = await response.json();
-    const baseUrl: string | undefined = typeof info?.url === 'string' && info.url.trim() !== ''
-      ? info.url
-      : info?.port
-        ? `http://localhost:${info.port}`
+    const info: unknown = await response.json();
+    const infoRecord = info && typeof info === 'object' ? (info as Record<string, unknown>) : null;
+    const urlCandidate = infoRecord ? pickString(infoRecord, 'url') : null;
+    const portCandidate = infoRecord?.port;
+    const portValue = typeof portCandidate === 'number' ? portCandidate : null;
+    const baseUrl: string | undefined = urlCandidate
+      ? urlCandidate
+      : portValue
+        ? `http://localhost:${portValue}`
         : undefined;
 
     if (!baseUrl) {
@@ -237,26 +249,28 @@ export function getNavigateNodeUrl(node: Node): string | null {
     return action.navigate.url;
   }
 
-  const destinationType = node.data?.destinationType || '';
-  const scenarioName = node.data?.scenario || node.data?.scenarioName || '';
+  const nodeData = getNodeData(node);
+  const destinationType = pickString(nodeData, 'destinationType') ?? '';
+  const scenarioName = pickString(nodeData, 'scenario') ?? pickString(nodeData, 'scenarioName') ?? '';
 
   // If it's a scenario navigation, return a placeholder
-  if (destinationType === 'scenario' || (scenarioName && !node.data?.url)) {
+  if (destinationType === 'scenario' || (scenarioName && !pickString(nodeData, 'url'))) {
     if (!scenarioName) {
       return null;
     }
 
-    const scenarioPath = node.data?.scenarioPath || '';
+    const scenarioPath = pickString(nodeData, 'scenarioPath') ?? '';
     return scenarioPath
       ? `scenario://${scenarioName}${scenarioPath}`
       : `scenario://${scenarioName}`;
   }
 
   // Regular URL navigation (legacy format)
-  if (!node.data?.url) {
+  const rawUrl = pickString(nodeData, 'url');
+  if (!rawUrl) {
     return null;
   }
-  return node.data.url;
+  return rawUrl;
 }
 
 /**
@@ -274,24 +288,26 @@ export async function getNavigateNodeUrlAsync(node: Node): Promise<string | null
     return action.navigate.url;
   }
 
-  const destinationType = node.data?.destinationType || '';
-  const scenarioName = node.data?.scenario || node.data?.scenarioName || '';
+  const nodeData = getNodeData(node);
+  const destinationType = pickString(nodeData, 'destinationType') ?? '';
+  const scenarioName = pickString(nodeData, 'scenario') ?? pickString(nodeData, 'scenarioName') ?? '';
 
   // If it's a scenario navigation, resolve the URL
-  if (destinationType === 'scenario' || (scenarioName && !node.data?.url)) {
+  if (destinationType === 'scenario' || (scenarioName && !pickString(nodeData, 'url'))) {
     if (!scenarioName) {
       return null;
     }
 
-    const scenarioPath = node.data?.scenarioPath || '';
+    const scenarioPath = pickString(nodeData, 'scenarioPath') ?? '';
     return await resolveScenarioUrl(scenarioName, scenarioPath);
   }
 
   // Regular URL navigation (legacy format)
-  if (!node.data?.url) {
+  const rawUrl = pickString(nodeData, 'url');
+  if (!rawUrl) {
     return null;
   }
-  return node.data.url;
+  return rawUrl;
 }
 
 /**

@@ -10,18 +10,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { addToHistory, loadHistory, saveHistory, scoreHistoryMatch, type HistoryEntry } from './browserUrlHistory';
 
-export const URL_HISTORY_STORAGE_KEY = 'browser-automation-studio:url-history';
-const MAX_HISTORY_ITEMS = 50;
 const MAX_VISIBLE_SUGGESTIONS = 8;
-
-/** A single URL history entry */
-export interface HistoryEntry {
-  url: string;
-  title?: string;
-  visitCount: number;
-  lastVisited: number;
-}
 
 /**
  * Normalize a user input into a proper URL.
@@ -90,95 +81,6 @@ function parseUrlForDisplay(url: string): { protocol: string; host: string; path
   }
 }
 
-/**
- * Load URL history from localStorage
- */
-export function loadHistory(): HistoryEntry[] {
-  try {
-    const stored = localStorage.getItem(URL_HISTORY_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as HistoryEntry[];
-      // Validate and filter
-      return parsed
-        .filter((e) => typeof e.url === 'string' && e.url.length > 0)
-        .slice(0, MAX_HISTORY_ITEMS);
-    }
-  } catch {
-    // Invalid or unavailable
-  }
-  return [];
-}
-
-/**
- * Save URL history to localStorage
- */
-function saveHistory(history: HistoryEntry[]): void {
-  try {
-    localStorage.setItem(URL_HISTORY_STORAGE_KEY, JSON.stringify(history.slice(0, MAX_HISTORY_ITEMS)));
-  } catch {
-    // localStorage unavailable
-  }
-}
-
-/**
- * Add or update a URL in history
- */
-function addToHistory(history: HistoryEntry[], url: string, title?: string): HistoryEntry[] {
-  const normalizedUrl = url.toLowerCase();
-  const existingIndex = history.findIndex((e) => e.url.toLowerCase() === normalizedUrl);
-  const existingEntry = existingIndex >= 0 ? history[existingIndex] : undefined;
-
-  const newEntry: HistoryEntry = {
-    url,
-    title,
-    visitCount: existingEntry ? existingEntry.visitCount + 1 : 1,
-    lastVisited: Date.now(),
-  };
-
-  const updated = existingIndex >= 0
-    ? [...history.slice(0, existingIndex), ...history.slice(existingIndex + 1)]
-    : [...history];
-
-  // Add to front (most recent)
-  updated.unshift(newEntry);
-
-  return updated.slice(0, MAX_HISTORY_ITEMS);
-}
-
-/**
- * Score a history entry for relevance to a query
- */
-function scoreHistoryMatch(entry: HistoryEntry, query: string): number {
-  const lowerUrl = entry.url.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-
-  let score = 0;
-
-  // Exact match bonus
-  if (lowerUrl === lowerQuery) {
-    score += 1000;
-  }
-
-  // Starts with query (after protocol)
-  const urlWithoutProtocol = lowerUrl.replace(/^https?:\/\//, '');
-  if (urlWithoutProtocol.startsWith(lowerQuery)) {
-    score += 500;
-  }
-
-  // Contains query
-  if (lowerUrl.includes(lowerQuery)) {
-    score += 100;
-  }
-
-  // Recency bonus (decay over 30 days)
-  const daysSinceVisit = (Date.now() - entry.lastVisited) / (1000 * 60 * 60 * 24);
-  score += Math.max(0, 50 - daysSinceVisit);
-
-  // Frequency bonus
-  score += Math.min(entry.visitCount * 5, 50);
-
-  return score;
-}
 
 interface BrowserUrlBarProps {
   /** Current URL value */
@@ -569,28 +471,4 @@ export function BrowserUrlBar({
   );
 }
 
-/**
- * Hook to manage URL history separately if needed
- */
-export function useUrlHistory() {
-  const [history, setHistory] = useState<HistoryEntry[]>(loadHistory);
-
-  const addUrl = useCallback((url: string, title?: string) => {
-    const updated = addToHistory(history, url, title);
-    setHistory(updated);
-    saveHistory(updated);
-  }, [history]);
-
-  const removeUrl = useCallback((url: string) => {
-    const updated = history.filter((h) => h.url !== url);
-    setHistory(updated);
-    saveHistory(updated);
-  }, [history]);
-
-  const clearHistory = useCallback(() => {
-    setHistory([]);
-    saveHistory([]);
-  }, []);
-
-  return { history, addUrl, removeUrl, clearHistory };
-}
+// useUrlHistory hook moved to useUrlHistory.ts

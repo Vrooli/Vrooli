@@ -84,7 +84,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }

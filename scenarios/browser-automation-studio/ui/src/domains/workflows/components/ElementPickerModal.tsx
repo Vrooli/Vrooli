@@ -8,6 +8,69 @@ import BrowserInspectorTab from './BrowserInspectorTab';
 import type { ElementInfo, ElementHierarchyEntry, ElementCoordinateResponse } from '@/types/elements';
 import { ResponsiveDialog } from '@shared/layout';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const parseElementInfo = (value: unknown): ElementInfo | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.text !== 'string') return null;
+  if (typeof value.tagName !== 'string') return null;
+  if (typeof value.type !== 'string') return null;
+  if (!Array.isArray(value.selectors)) return null;
+  const selectors = value.selectors
+    .filter((selector): selector is ElementInfo['selectors'][number] => {
+      if (!isRecord(selector)) return false;
+      return (
+        typeof selector.selector === 'string' &&
+        typeof selector.type === 'string' &&
+        typeof selector.robustness === 'number' &&
+        typeof selector.fallback === 'boolean'
+      );
+    });
+  const boundingBox =
+    (isRecord(value.boundingBox) ? value.boundingBox : null) ??
+    (isRecord(value.bounding_box) ? value.bounding_box : null);
+  if (!boundingBox || typeof boundingBox.x !== 'number' || typeof boundingBox.y !== 'number' ||
+    typeof boundingBox.width !== 'number' || typeof boundingBox.height !== 'number') {
+    return null;
+  }
+  return {
+    text: value.text,
+    tagName: value.tagName,
+    type: value.type,
+    selectors,
+    boundingBox: {
+      x: boundingBox.x,
+      y: boundingBox.y,
+      width: boundingBox.width,
+      height: boundingBox.height,
+    },
+    confidence: typeof value.confidence === 'number' ? value.confidence : 0,
+    category: typeof value.category === 'string' ? value.category : '',
+    attributes: isRecord(value.attributes) ? (value.attributes as Record<string, string>) : {},
+  };
+};
+
+const parseElementCoordinateResponse = (value: unknown): ElementCoordinateResponse | null => {
+  if (!isRecord(value)) return null;
+  const element = value.element ? parseElementInfo(value.element) : null;
+  const candidates = Array.isArray(value.candidates)
+    ? normalizeHierarchy(value.candidates)
+    : [];
+  const selectedIndex = typeof value.selectedIndex === 'number' ? value.selectedIndex : 0;
+  return { element, candidates, selectedIndex };
+};
+
 const normalizeHierarchy = (value: unknown): ElementHierarchyEntry[] => {
   if (!Array.isArray(value)) {
     return [];
@@ -145,9 +208,13 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         throw new Error(`Failed to take screenshot: ${response.status}`);
       }
 
-      const data = await response.json();
-      if (data.screenshot) {
-        setScreenshot(data.screenshot);
+      const payload = await safeJson(response);
+      const screenshot =
+        isRecord(payload) && typeof payload.screenshot === 'string'
+          ? payload.screenshot
+          : null;
+      if (screenshot) {
+        setScreenshot(screenshot);
       }
     } catch (error) {
       logger.error('Failed to take screenshot', { component: 'ElementPickerModal', action: 'fetchScreenshot' }, error);
@@ -190,17 +257,21 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         throw new Error(`Failed to get element: ${response.status}`);
       }
 
-      const payload = await response.json() as ElementCoordinateResponse;
-      const candidates = normalizeHierarchy(payload?.candidates ?? []);
+      const payload = await safeJson(response);
+      const parsed = parseElementCoordinateResponse(payload);
+      const candidates = parsed?.candidates ?? [];
 
       if (candidates.length === 0) {
         toast.error('No selector found at that position');
         return;
       }
 
-      const preferredIndex = Number.isInteger(payload?.selectedIndex) && payload.selectedIndex >= 0 && payload.selectedIndex < candidates.length
-        ? payload.selectedIndex
-        : 0;
+      const preferredIndex =
+        Number.isInteger(parsed?.selectedIndex) &&
+        (parsed?.selectedIndex ?? -1) >= 0 &&
+        (parsed?.selectedIndex ?? 0) < candidates.length
+          ? parsed?.selectedIndex ?? 0
+          : 0;
       const chosen = candidates[preferredIndex] ?? candidates[0];
       if (!chosen) {
         toast.error('No selector found at that position');
@@ -307,7 +378,10 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
         throw new Error(`Failed to analyze with AI: ${response.status}`);
       }
 
-      const suggestions: ElementInfo[] = await response.json();
+      const payload = await safeJson(response);
+      const suggestions = Array.isArray(payload)
+        ? payload.map(parseElementInfo).filter((entry): entry is ElementInfo => entry !== null)
+        : [];
       setAiSuggestions(suggestions);
       setHierarchyCandidates([]);
       setHierarchyIndex(-1);

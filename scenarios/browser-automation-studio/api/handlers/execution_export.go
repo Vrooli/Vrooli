@@ -741,8 +741,8 @@ func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, vid
 	inputPath := videoSource.Path
 	inputExt := strings.ToLower(filepath.Ext(inputPath))
 	outputPath := inputPath
-	outputType := videoSource.ContentType
-	outputExt := inputExt
+	var outputType string
+	var outputExt string
 	var outputCleanup func()
 
 	defer func() {
@@ -797,7 +797,13 @@ func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, vid
 	}
 
 	if strings.TrimSpace(outputType) == "" {
-		outputType = source.DetectVideoContentType(outputPath)
+		outputType = videoSource.ContentType
+		if strings.TrimSpace(outputType) == "" {
+			outputType = source.DetectVideoContentType(outputPath)
+		}
+	}
+	if outputExt == "" {
+		outputExt = inputExt
 	}
 	filename := normalizeExportFilename(fileName, "recorded-video", outputExt)
 

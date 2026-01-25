@@ -12,6 +12,8 @@ const mockDesktopAuth = {
   onAuthChanged: vi.fn(),
   offAuthChanged: vi.fn(),
 };
+type DesktopWindow = Window & { desktop?: { auth: typeof mockDesktopAuth } };
+const getDesktopWindow = (): DesktopWindow => window as DesktopWindow;
 
 describe('authStore [REQ:BAS-AUTH]', () => {
   beforeEach(() => {
@@ -27,13 +29,13 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   afterEach(() => {
     // Clean up desktop mock
-    delete (window as any).desktop;
+    delete getDesktopWindow().desktop;
   });
 
   describe('checkAuth (desktop mode)', () => {
     it('sets authenticated when desktop API returns true', async () => {
       // Set up desktop environment
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.isAuthenticated.mockResolvedValue(true);
       mockDesktopAuth.getUser.mockResolvedValue({
         id: '123',
@@ -52,7 +54,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     });
 
     it('sets not authenticated when desktop API returns false', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.isAuthenticated.mockResolvedValue(false);
 
       await act(async () => {
@@ -66,7 +68,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     });
 
     it('handles errors gracefully', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.isAuthenticated.mockRejectedValue(new Error('API error'));
 
       // Suppress console.error for this test
@@ -88,7 +90,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
   describe('checkAuth (web mode)', () => {
     it('sets not authenticated in web environment', async () => {
       // No desktop environment
-      delete (window as any).desktop;
+      delete getDesktopWindow().desktop;
 
       await act(async () => {
         await useAuthStore.getState().checkAuth();
@@ -103,7 +105,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('signIn (desktop mode)', () => {
     it('calls desktop.auth.signIn and stores state', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.signIn.mockResolvedValue({ state: 'test-state-123' });
 
       // Mock sessionStorage
@@ -124,7 +126,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     });
 
     it('handles sign in errors', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.signIn.mockRejectedValue(new Error('Failed to open browser'));
 
       await act(async () => {
@@ -139,7 +141,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('signIn (web mode)', () => {
     it('redirects to LPBS auth page', async () => {
-      delete (window as any).desktop;
+      delete getDesktopWindow().desktop;
 
       // Mock location
       const originalLocation = window.location;
@@ -175,7 +177,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('signOut (desktop mode)', () => {
     it('clears user and auth state', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.signOut.mockResolvedValue(undefined);
 
       // Set initial authenticated state
@@ -197,7 +199,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     });
 
     it('handles sign out errors', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.signOut.mockRejectedValue(new Error('Logout failed'));
 
       useAuthStore.setState({
@@ -219,7 +221,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('signOut (web mode)', () => {
     it('clears state without calling desktop API', async () => {
-      delete (window as any).desktop;
+      delete getDesktopWindow().desktop;
 
       useAuthStore.setState({
         isAuthenticated: true,
@@ -240,7 +242,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('getAccessToken', () => {
     it('returns token from desktop API', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.getAccessToken.mockResolvedValue('test-access-token');
 
       const token = await useAuthStore.getState().getAccessToken();
@@ -250,7 +252,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     });
 
     it('returns null in web mode', async () => {
-      delete (window as any).desktop;
+      delete getDesktopWindow().desktop;
 
       const token = await useAuthStore.getState().getAccessToken();
 
@@ -337,7 +339,7 @@ describe('authStore [REQ:BAS-AUTH]', () => {
 
   describe('auth change event handling', () => {
     it('handles tokens-received event', async () => {
-      (window as any).desktop = { auth: mockDesktopAuth };
+      getDesktopWindow().desktop = { auth: mockDesktopAuth };
 
       // Capture the callback registered with onAuthChanged
       let authChangedCallback: ((event: string) => void) | undefined;
@@ -351,14 +353,15 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       });
 
       // Simulate the event
-      if (authChangedCallback) {
-        // The callback is async, so we need to wait
-        await act(async () => {
-          authChangedCallback!('tokens-received');
-          // Wait for the async getUser call
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        });
+      if (!authChangedCallback) {
+        throw new Error('Expected auth change callback to be registered');
       }
+      // The callback is async, so we need to wait
+      await act(async () => {
+        authChangedCallback('tokens-received');
+        // Wait for the async getUser call
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
     });
 
     it('handles session-expired event', () => {

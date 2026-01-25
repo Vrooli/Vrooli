@@ -191,7 +191,7 @@ export function InlineExecutionViewer({
   }, [onRerun]);
 
   // Extract artifacts data
-  const timeline = currentExecution?.timeline ?? [];
+  const timeline = useMemo(() => currentExecution?.timeline ?? [], [currentExecution?.timeline]);
   const consoleLogs = useMemo(() => extractConsoleLogs(timeline), [timeline]);
   const networkEvents = useMemo(() => extractNetworkEvents(timeline), [timeline]);
   const domSnapshots = useMemo(() => extractDomSnapshots(timeline), [timeline]);

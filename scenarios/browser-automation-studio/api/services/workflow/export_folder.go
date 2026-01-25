@@ -100,10 +100,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 			}
 
 			// Extract object name from URL (path after /api/v1/screenshots/)
-			objectName := frame.Screenshot.URL
-			if strings.HasPrefix(objectName, "/") {
-				objectName = objectName[1:]
-			}
+			objectName := strings.TrimPrefix(frame.Screenshot.URL, "/")
 
 			// Download screenshot from MinIO (skip if fails - screenshot might not be available)
 			reader, info, err := storageClient.GetScreenshot(ctx, objectName)

@@ -174,15 +174,20 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<Api
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { status: response.status, error: errorData.error || 'Request failed' };
+      const errorData: unknown = await response.json().catch(() => null);
+      const errorMessage =
+        errorData && typeof errorData === 'object' && typeof (errorData as Record<string, unknown>).error === 'string'
+          ? String((errorData as Record<string, unknown>).error)
+          : 'Request failed';
+      return { status: response.status, error: errorMessage };
     }
 
-    const data = await response.json();
-    return { status: response.status, data };
-  } catch (err) {
+    const data: unknown = await response.json();
+    return { status: response.status, data: data as T };
+  } catch (err: unknown) {
     logger.error('UX metrics API error:', { error: err });
-    return { status: 0, error: (err as Error).message };
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { status: 0, error: message };
   }
 }
 

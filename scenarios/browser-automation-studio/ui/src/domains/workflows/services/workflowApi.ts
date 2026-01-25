@@ -6,6 +6,9 @@ import {
   type WorkflowItem,
 } from '@/shared/api/schemas';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
 /**
  * Fetch workflow list with Zod validation.
  */
@@ -18,9 +21,9 @@ export const fetchWorkflowList = async (limit = 100): Promise<WorkflowItem[]> =>
     throw new Error(message || `Failed to fetch workflows (${response.status})`);
   }
 
-  const payload = await response.json() as Record<string, unknown>;
+  const payload: unknown = await response.json();
   const normalized = {
-    workflows: Array.isArray(payload?.workflows) ? payload.workflows : [],
+    workflows: isRecord(payload) && Array.isArray(payload.workflows) ? payload.workflows : [],
   };
 
   const result = safeParse(WorkflowsListResponseSchema, normalized, 'WorkflowsList');
@@ -44,7 +47,7 @@ export const fetchWorkflowProjectId = async (workflowId: string): Promise<string
     throw new Error(message || `Failed to fetch workflow (${response.status})`);
   }
 
-  const payload = await response.json();
+  const payload: unknown = await response.json();
   const result = safeParse(WorkflowResponseSchema, payload, 'WorkflowResponse');
   if (!result.success) {
     throw new Error(result.error);

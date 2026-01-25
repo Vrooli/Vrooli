@@ -243,7 +243,10 @@ describe('ProjectModal [REQ:BAS-PROJECT-CREATE-SUCCESS] [REQ:BAS-PROJECT-CREATE-
     });
 
     // Resolve the promise
-    resolveCreate!({
+    if (!resolveCreate) {
+      throw new Error('Expected createProject resolver to be defined');
+    }
+    resolveCreate({
       id: 'new-id',
       name: 'Test Project',
       folder_path: '/test/path',

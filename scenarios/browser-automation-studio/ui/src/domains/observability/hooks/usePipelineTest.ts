@@ -147,6 +147,24 @@ interface UsePipelineTestReturn {
   reset: () => void;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
+
 export function usePipelineTest(): UsePipelineTestReturn {
   const [isRunning, setIsRunning] = useState(false);
   const [result, setResult] = useState<PipelineTestResponse | null>(null);
@@ -170,15 +188,20 @@ export function usePipelineTest(): UsePipelineTestReturn {
         }),
       });
 
+      const payload = await parseJson(response);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Pipeline test failed: ${response.statusText}`);
+        throw new Error(extractMessage(payload, `Pipeline test failed: ${response.statusText}`));
       }
 
-      const testResult = await response.json();
+      if (!isRecord(payload)) {
+        throw new Error('Invalid pipeline test response');
+      }
+
+      const testResult = payload as PipelineTestResponse;
       setResult(testResult);
       return testResult;
-    } catch (err) {
+    } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Pipeline test failed', { component: 'usePipelineTest' }, error);
       setError(error);

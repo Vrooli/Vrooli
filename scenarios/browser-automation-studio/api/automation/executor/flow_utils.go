@@ -180,13 +180,6 @@ func minInt(a, b int) int {
 	return b
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func uuidOrDefault(value, fallback uuid.UUID) uuid.UUID {
 	if value != uuid.Nil {
 		return value

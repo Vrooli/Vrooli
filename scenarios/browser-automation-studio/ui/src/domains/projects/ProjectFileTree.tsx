@@ -20,7 +20,7 @@ import { useStartWorkflow } from "@/domains/executions";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { usePromptDialog } from "@hooks/usePromptDialog";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";
-import { useModals } from "@shared/modals/ModalContext";
+import { useModals } from "@shared/modals";
 import { logger } from "@utils/logger";
 import toast from "react-hot-toast";
 import {

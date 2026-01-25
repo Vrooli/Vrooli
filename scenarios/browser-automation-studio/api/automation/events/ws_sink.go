@@ -14,9 +14,7 @@ import (
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // WSHubSink bridges contract event envelopes to the websocket hub while
@@ -508,83 +506,6 @@ func ptrOrZero(v *int) int {
 	return *v
 }
 
-func structpbMetrics(values map[string]any) map[string]*structpb.Value {
-	if len(values) == 0 {
-		return nil
-	}
-	result, err := structpb.NewStruct(values)
-	if err != nil {
-		return nil
-	}
-	return result.Fields
-}
-
-func jsonMetrics(values map[string]any) map[string]*commonv1.JsonValue {
-	if len(values) == 0 {
-		return nil
-	}
-	result := make(map[string]*commonv1.JsonValue, len(values))
-	for k, v := range values {
-		if jsonVal := toJsonValue(v); jsonVal != nil {
-			result[k] = jsonVal
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
-}
-
-func toJsonValue(v any) *commonv1.JsonValue {
-	switch val := v.(type) {
-	case nil:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
-	case bool:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: val}}
-	case int:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case int64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: val}}
-	case uint:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case uint64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(val)}}
-	case float32:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: float64(val)}}
-	case float64:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: val}}
-	case string:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: val}}
-	case []byte:
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BytesValue{BytesValue: val}}
-	case map[string]any:
-		obj := make(map[string]*commonv1.JsonValue, len(val))
-		for key, value := range val {
-			if nested := toJsonValue(value); nested != nil {
-				obj[key] = nested
-			}
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{
-			ObjectValue: &commonv1.JsonObject{Fields: obj},
-		}}
-	case []any:
-		items := make([]*commonv1.JsonValue, 0, len(val))
-		for _, item := range val {
-			if nested := toJsonValue(item); nested != nil {
-				items = append(items, nested)
-			}
-		}
-		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{
-			ListValue: &commonv1.JsonList{Values: items},
-		}}
-	default:
-		return nil
-	}
-}
 
 // convertElementFocus converts a contracts.ElementFocus to the proto type.
 // Since contracts.ElementFocus is an alias for bastimeline.ElementFocus,
@@ -592,15 +513,4 @@ func toJsonValue(v any) *commonv1.JsonValue {
 func convertElementFocus(f *contracts.ElementFocus) *bastimeline.ElementFocus {
 	// contracts.ElementFocus = bastimeline.ElementFocus (type alias)
 	return f
-}
-
-func convertStructValue(v any) *structpb.Value {
-	if v == nil {
-		return nil
-	}
-	val, err := structpb.NewValue(v)
-	if err != nil {
-		return nil
-	}
-	return val
 }

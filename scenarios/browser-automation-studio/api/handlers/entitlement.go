@@ -192,7 +192,7 @@ func (h *EntitlementHandler) GetEntitlementStatus(w http.ResponseWriter, r *http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	writeJSONResponse(w, response)
 }
 
 // SetUserIdentityRequest represents the request to set user identity.
@@ -251,7 +251,7 @@ func (h *EntitlementHandler) GetUserIdentity(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"email": email,
 	})
 }
@@ -271,7 +271,9 @@ func (h *EntitlementHandler) ClearUserIdentity(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"cleared"}`))
+	if _, err := w.Write([]byte(`{"status":"cleared"}`)); err != nil {
+		return
+	}
 }
 
 // GetUsageSummary handles GET /api/v1/entitlement/usage
@@ -297,7 +299,7 @@ func (h *EntitlementHandler) GetUsageSummary(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(summary)
+	writeJSONResponse(w, summary)
 }
 
 // UsageHistoryResponse represents the response for usage history.
@@ -358,7 +360,7 @@ func (h *EntitlementHandler) GetUsageHistory(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(UsageHistoryResponse{
+	writeJSONResponse(w, UsageHistoryResponse{
 		UserIdentity: userIdentity,
 		Periods:      periods,
 		HasMore:      hasMore,
@@ -418,7 +420,7 @@ func (h *EntitlementHandler) GetOperationLog(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(page)
+	writeJSONResponse(w, page)
 }
 
 // GetEntitlementOverride handles GET /api/v1/entitlement/override
@@ -428,7 +430,7 @@ func (h *EntitlementHandler) GetEntitlementOverride(w http.ResponseWriter, r *ht
 
 	overrideTier := h.getOverrideTier(ctx)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"tier": string(overrideTier),
 	})
 }
@@ -473,7 +475,7 @@ func (h *EntitlementHandler) SetEntitlementOverride(w http.ResponseWriter, r *ht
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	writeJSONResponse(w, map[string]string{
 		"tier": string(tier),
 	})
 }
@@ -523,7 +525,7 @@ func (h *EntitlementHandler) GetApiSource(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ApiSourceResponse{
+	writeJSONResponse(w, ApiSourceResponse{
 		Source:    source,
 		LocalPort: localPort,
 	})
@@ -590,7 +592,7 @@ func (h *EntitlementHandler) SetApiSource(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ApiSourceResponse{
+	writeJSONResponse(w, ApiSourceResponse{
 		Source:    source,
 		LocalPort: localPort,
 	})
@@ -705,4 +707,10 @@ func (h *EntitlementHandler) RefreshEntitlement(w http.ResponseWriter, r *http.R
 
 	// Fetch fresh entitlement
 	h.GetEntitlementStatus(w, r.WithContext(entitlement.WithUserIdentity(ctx, userIdentity)))
+}
+
+func writeJSONResponse(w http.ResponseWriter, data any) {
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		return
+	}
 }

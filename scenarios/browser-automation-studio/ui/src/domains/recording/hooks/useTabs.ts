@@ -35,25 +35,26 @@ const useTabsBase = createProfileResourceHook<TabInfo[], TabsResponse>({
 
 export function useTabs(): UseTabsResult {
   const base = useTabsBase();
+  const { data, loading, error, deleting, fetch, clear, clearAll, deleteRequest } = base;
 
   const deleteTab = useCallback(
     async (profileId: string, order: number): Promise<boolean> => {
-      return base.deleteRequest(profileId, String(order));
+      return deleteRequest(profileId, String(order));
     },
-    [base.deleteRequest]
+    [deleteRequest]
   );
 
   return useMemo(
     () => ({
-      tabs: base.data ?? [],
-      loading: base.loading,
-      error: base.error,
-      deleting: base.deleting,
-      fetchTabs: base.fetch,
-      clear: base.clear,
-      clearAllTabs: base.clearAll,
+      tabs: data ?? [],
+      loading,
+      error,
+      deleting,
+      fetchTabs: fetch,
+      clear,
+      clearAllTabs: clearAll,
       deleteTab,
     }),
-    [base.data, base.loading, base.error, base.deleting, base.fetch, base.clear, base.clearAll, deleteTab]
+    [data, loading, error, deleting, fetch, clear, clearAll, deleteTab]
   );
 }

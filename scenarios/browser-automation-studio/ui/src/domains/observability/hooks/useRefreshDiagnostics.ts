@@ -13,6 +13,24 @@ import type { DiagnosticRunRequest, DiagnosticRunResponse } from '../types';
 
 const OBSERVABILITY_QUERY_KEY = 'observability';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseJson = async (response: Response): Promise<unknown> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const extractMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string') {
+    return payload.message;
+  }
+  return fallback;
+};
+
 interface UseRefreshDiagnosticsOptions {
   /**
    * Callback when diagnostics complete successfully
@@ -51,12 +69,17 @@ async function runDiagnosticsRequest(request: DiagnosticRunRequest): Promise<Dia
     body: JSON.stringify(request),
   });
 
+  const payload = await parseJson(response);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to run diagnostics: ${response.statusText}`);
+    throw new Error(extractMessage(payload, `Failed to run diagnostics: ${response.statusText}`));
   }
 
-  return response.json();
+  if (!isRecord(payload)) {
+    throw new Error('Invalid diagnostics response');
+  }
+
+  return payload as DiagnosticRunResponse;
 }
 
 async function refreshCache(): Promise<void> {
@@ -67,8 +90,8 @@ async function refreshCache(): Promise<void> {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to refresh cache: ${response.statusText}`);
+    const payload = await parseJson(response);
+    throw new Error(extractMessage(payload, `Failed to refresh cache: ${response.statusText}`));
   }
 }
 
@@ -144,12 +167,17 @@ async function runCleanupRequest(): Promise<CleanupRunResponse> {
     method: 'POST',
   });
 
+  const payload = await parseJson(response);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to run cleanup: ${response.statusText}`);
+    throw new Error(extractMessage(payload, `Failed to run cleanup: ${response.statusText}`));
   }
 
-  return response.json();
+  if (!isRecord(payload)) {
+    throw new Error('Invalid cleanup response');
+  }
+
+  return payload as CleanupRunResponse;
 }
 
 /**
@@ -211,12 +239,17 @@ async function fetchSessionList(): Promise<SessionListResponse> {
 
   const response = await fetch(`${config.API_URL}/observability/sessions`);
 
+  const payload = await parseJson(response);
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to fetch sessions: ${response.statusText}`);
+    throw new Error(extractMessage(payload, `Failed to fetch sessions: ${response.statusText}`));
   }
 
-  return response.json();
+  if (!isRecord(payload)) {
+    throw new Error('Invalid sessions response');
+  }
+
+  return payload as SessionListResponse;
 }
 
 /**

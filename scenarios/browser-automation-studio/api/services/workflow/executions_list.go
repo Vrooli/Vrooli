@@ -61,10 +61,11 @@ func (s *WorkflowService) ResumeExecution(ctx context.Context, executionID uuid.
 	for k, v := range checkpoint.Params {
 		mergedParams[k] = v
 	}
-	if parameters != nil {
-		for k, v := range parameters {
-			mergedParams[k] = v
-		}
+	if parameters == nil {
+		parameters = map[string]any{}
+	}
+	for k, v := range parameters {
+		mergedParams[k] = v
 	}
 
 	// 6. Extract resume_url if provided in parameters
@@ -222,4 +223,3 @@ func (s *WorkflowService) executeResumedWorkflowAsync(
 	}
 	_ = s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, execIndex.Status, errPtr, execIndex.CompletedAt, execIndex.UpdatedAt)
 }
-

@@ -15,7 +15,9 @@ Do **not** break functionality, regress tests, or introduce new product directio
 
 ### **1. Clarify Scenario Purpose & User Intent**
 
-* Review the scenario’s **PRD, operational targets, and UI** to answer:
+* **If `docs/internal/EXPERIENCE-AUDIT.md` exists**, read it first to understand what personas, flows, and friction points have been identified.
+
+* Review the scenario's **PRD, operational targets, and UI** to answer:
   * What problem does this scenario solve?
   * What are the primary “jobs to be done” for users of this scenario?
 * Derive a concise **purpose statement** in your own words, such as:
@@ -158,4 +160,20 @@ By the end of this loop, you should:
 
 Focus this loop on **experience-level clarity**: making it easier for real users to accomplish their goals by aligning navigation and entry points with intent.
 
-Avoid superficial UI tweaks or purely aesthetic changes. Prioritize improvements that make the scenario’s experience **scream its purpose** as clearly as its internal architecture does.
+Avoid superficial UI tweaks or purely aesthetic changes. Prioritize improvements that make the scenario's experience **scream its purpose** as clearly as its internal architecture does.
+
+---
+
+### **10. Documentation**
+
+Update `docs/internal/EXPERIENCE-AUDIT.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Personas and their primary jobs
+* Current vs. ideal flow comparisons
+* Friction points by category (mechanical, cognitive, discoverability)
+* Improvements implemented and what remains

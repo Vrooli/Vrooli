@@ -74,7 +74,7 @@ func (h *Handler) PutReplayConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse{Config: req.Config})
+	h.respondSuccess(w, http.StatusOK, ReplayConfigResponse(req))
 }
 
 // DeleteReplayConfig handles DELETE /api/v1/replay-config
@@ -114,17 +114,6 @@ func (h *Handler) loadReplayConfig(ctx context.Context) (map[string]any, error) 
 	}
 
 	return config, nil
-}
-
-func (h *Handler) replayConfigOverrides(ctx context.Context) *executionExportOverrides {
-	config, err := h.loadReplayConfig(ctx)
-	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Warn("Failed to load replay config for export overrides")
-		}
-		return nil
-	}
-	return replayConfigToOverrides(config)
 }
 
 func replayConfigToOverrides(config map[string]any) *executionExportOverrides {

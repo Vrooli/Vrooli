@@ -317,13 +317,6 @@ func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.Workf
 	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
 }
 
-// executeWorkflowAsync is the single implementation for running workflows asynchronously.
-// It handles both legacy (flat parameters in store) and new (namespaced store/params/env) callers.
-// artifactCfg controls what artifacts are collected; nil means use default (full profile).
-func (s *WorkflowService) executeWorkflowAsync(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings) {
-	s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, "", "", "", nil)
-}
-
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
 // browserProfile configures anti-detection and human-like behavior settings for the execution.

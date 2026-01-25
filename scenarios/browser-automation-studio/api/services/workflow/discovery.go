@@ -138,16 +138,6 @@ func isWorkflowContent(data []byte) bool {
 	return false
 }
 
-// isWorkflowJSONFile checks if a JSON file contains a "nodes" array (workflow structure).
-// This is a convenience wrapper that reads the file first.
-func isWorkflowJSONFile(path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return false
-	}
-	return isWorkflowContent(data)
-}
-
 // hasNodesArray checks if a map contains a "nodes" key with an array value.
 func hasNodesArray(content map[string]any) bool {
 	if nodes, ok := content["nodes"]; ok {

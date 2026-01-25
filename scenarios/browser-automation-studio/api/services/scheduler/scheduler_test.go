@@ -172,7 +172,11 @@ func TestSchedulerStartWithNoSchedules(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if got := s.RegisteredCount(); got != 0 {
 		t.Fatalf("expected 0 registered schedules, got %d", got)
@@ -193,7 +197,11 @@ func TestSchedulerStartWithActiveSchedules(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if got := s.RegisteredCount(); got != 2 {
 		t.Fatalf("expected 2 registered schedules, got %d", got)
@@ -211,7 +219,11 @@ func TestSchedulerCannotStartTwice(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	if err := s.Start(); err == nil {
 		t.Fatalf("expected error on second start")
@@ -314,7 +326,11 @@ func TestSchedulerCronExecution(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -350,7 +366,11 @@ func TestSchedulerCronExecutionFailureNotifies(t *testing.T) {
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer s.Stop()
+	t.Cleanup(func() {
+		if err := s.Stop(); err != nil {
+			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+	})
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
@@ -453,4 +473,3 @@ func TestDescribeCronExpression(t *testing.T) {
 		t.Fatalf("expected a description")
 	}
 }
-

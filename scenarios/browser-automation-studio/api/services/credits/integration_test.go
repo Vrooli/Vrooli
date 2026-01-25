@@ -129,7 +129,9 @@ func mockLPBSHTTPServer(t *testing.T, opts mockLPBSOptions) *mockLPBSServer {
 			statusCode = http.StatusOK
 		}
 		w.WriteHeader(statusCode)
-		w.Write([]byte(`{"success":true}`))
+		if _, err := w.Write([]byte(`{"success":true}`)); err != nil {
+			return
+		}
 	}))
 
 	mock.Server = server

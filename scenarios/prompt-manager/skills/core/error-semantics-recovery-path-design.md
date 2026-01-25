@@ -10,6 +10,8 @@ Do **not** regress tests, weaken protections, or introduce unrelated features. A
 
 ### **1. Clarify Error Domains & Categories**
 
+* **If `docs/internal/ERROR-SEMANTICS.md` exists**, read it first to understand what error categories and recovery paths have been defined.
+
 * Examine where the scenario can fail across:
   * UI interactions
   * background jobs / workers
@@ -240,7 +242,22 @@ visited-tracker exclude <file-path> \
 
 ---
 
-### **8. Output Expectations**
+### **8. Documentation**
+
+Update `docs/internal/ERROR-SEMANTICS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Error categories discovered or refined
+* Recovery paths for each category
+* Error patterns improved and what remains
+
+---
+
+### **9. Output Expectations**
 
 You may update:
 

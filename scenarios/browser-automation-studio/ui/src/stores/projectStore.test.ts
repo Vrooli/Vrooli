@@ -32,7 +32,17 @@ describe('projectStore [REQ:BAS-WORKFLOW-PERSIST-CRUD]', () => {
   });
 
   it('fetches projects successfully', async () => {
-    const mockProjects: any[] = [
+    const mockProjects: Array<{
+      project: {
+        id: string;
+        name: string;
+        description: string;
+        folder_path: string;
+        created_at: { seconds: number; nanos: number };
+        updated_at: { seconds: number; nanos: number };
+      };
+      stats?: { workflow_count: number; execution_count: number };
+    }> = [
       {
         project: {
           id: 'project-1',

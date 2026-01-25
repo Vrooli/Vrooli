@@ -54,6 +54,10 @@ const clearAutosaveTimer = () => {
   }
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+
 // ============================================================================
 // Store Implementation
 // ============================================================================
@@ -89,7 +93,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!response.ok) {
         throw new Error(`Failed to load workflows: ${response.status}`);
       }
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       let workflows: Workflow[] = [];
       try {
@@ -104,8 +108,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       } catch (err) {
         logger.error('Failed to parse workflow list proto', { component: 'WorkflowStore', action: 'loadWorkflows' }, err);
         // Fallback for legacy payloads
-        const dataObj = data as { workflows?: unknown };
-        const legacyList = Array.isArray(dataObj?.workflows) ? dataObj.workflows as Record<string, unknown>[] : [];
+        const dataObj = isRecord(data) ? data : {};
+        const legacyList = Array.isArray(dataObj.workflows)
+          ? (dataObj.workflows as Record<string, unknown>[])
+          : [];
         workflows = legacyList
           .map((entry, idx) => {
             const parsed = parseWorkflowSummaryMessage(entry);
@@ -132,7 +138,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const errorText = await response.text();
         throw new Error(errorText || `Failed to load workflow: ${response.status}`);
       }
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       const normalized = normalizeWorkflowPayloadOrThrow(payload, 'loadWorkflow');
       set(buildWorkflowLoadState(normalized));
     } catch (error) {
@@ -179,7 +185,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       const normalized = parseWorkflowFromCreateResponse(payload);
       if (!normalized) {
         throw new Error('Failed to parse created workflow payload');
@@ -266,7 +272,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw { message: message || `Failed to save workflow: ${response.status}` , status: response.status };
       }
 
-      const responsePayload = await response.json();
+      const responsePayload: unknown = await response.json();
       const normalized = parseWorkflowFromUpdateResponse(responsePayload);
       if (!normalized) {
         throw new Error('Failed to parse workflow save payload');
@@ -471,7 +477,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to generate workflow: ${response.status}`);
       }
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       const normalized = parseWorkflowFromCreateResponse(payload);
       if (!normalized) {
         throw new Error('Failed to parse generated workflow payload');
@@ -505,7 +511,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to modify workflow: ${response.status}`);
       }
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       const normalized = parseWorkflowFromUpdateResponse(payload);
       if (!normalized) {
         throw new Error('Failed to parse modified workflow payload');
@@ -576,8 +582,11 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to delete workflows: ${response.status}`);
       }
 
-      const data = await response.json();
-      const deletedIds = Array.isArray(data.deleted_ids) ? (data.deleted_ids as string[]) : workflowIds;
+      const data: unknown = await response.json();
+      const dataRecord = isRecord(data) ? data : {};
+      const deletedIds = Array.isArray(dataRecord.deleted_ids)
+        ? (dataRecord.deleted_ids as string[])
+        : workflowIds;
       const deletedSet = new Set(deletedIds);
 
       const current = get().currentWorkflow;
@@ -639,7 +648,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to load workflow versions (${response.status})`);
       }
 
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       let summaries: WorkflowVersionSummary[] = [];
 
       try {
@@ -718,9 +727,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         throw new Error(message || `Failed to restore version (${response.status})`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
+      const dataRecord = isRecord(data) ? data : null;
 
-      let restoredWorkflowPayload: unknown = data?.workflow ?? data;
+      let restoredWorkflowPayload: unknown = dataRecord?.workflow ?? data;
       let restoredVersionPayload: ProtoWorkflowVersion | null = null;
 
       try {
@@ -806,7 +816,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         const message = await response.text();
         throw new Error(message || `Failed to refresh workflow snapshot: ${response.status}`);
       }
-      const payload = await response.json();
+      const payload: unknown = await response.json();
       const normalized = normalizeWorkflowPayloadOrThrow(payload, 'refreshConflictWorkflow');
       set({
         conflictWorkflow: normalized,

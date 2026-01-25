@@ -17,9 +17,7 @@ import (
 // These provide the values from the control surface for use in rendering and encoding.
 var (
 	defaultCaptureInterval    = config.Load().Replay.CaptureIntervalMs
-	defaultCaptureTailMs      = config.Load().Replay.CaptureTailMs
 	defaultPresentationWidth  = config.Load().Replay.PresentationWidth
-	defaultPresentationHeight = config.Load().Replay.PresentationHeight
 	maxCaptureFrames          = config.Load().Replay.MaxCaptureFrames
 )
 

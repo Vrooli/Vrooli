@@ -302,7 +302,7 @@ export function InsertNodeModal({
 
     onInsert(action);
     handleClose();
-  }, [selectedNode, configValues, onInsert]);
+  }, [selectedNode, configValues, onInsert, handleClose]);
 
   const handleClose = useCallback(() => {
     setStage("browse");

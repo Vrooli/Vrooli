@@ -72,13 +72,14 @@ export const InlineExportDialog: React.FC<InlineExportDialogProps> = ({
     createExport: handleCreateExport as Parameters<typeof useExecutionExport>[0]['createExport'],
     initialSettings,
   });
+  const { isExportDialogOpen, openExportDialog } = exportController;
 
   // Auto-open the export dialog when component mounts
   useEffect(() => {
-    if (!exportController.isExportDialogOpen) {
-      exportController.openExportDialog();
+    if (!isExportDialogOpen) {
+      openExportDialog();
     }
-  }, []);
+  }, [isExportDialogOpen, openExportDialog]);
 
   // Handle dialog close - also notify parent
   const handleClose = useCallback(() => {

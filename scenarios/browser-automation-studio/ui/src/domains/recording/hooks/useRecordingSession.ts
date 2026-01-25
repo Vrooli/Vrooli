@@ -11,6 +11,30 @@ import {
   createManualRetryState,
 } from '../services';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const safeJson = async (response: Response): Promise<unknown> => {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
+const parseActualViewport = (value: unknown): ActualViewport | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.width !== 'number' || typeof value.height !== 'number') return null;
+  return {
+    width: value.width,
+    height: value.height,
+    source: typeof value.source === 'string' ? value.source : 'requested',
+    reason: typeof value.reason === 'string' ? value.reason : '',
+  };
+};
+
 // Re-export types for backward compatibility
 export type { ViewportSource, ActualViewport } from '../types/viewport';
 
@@ -146,13 +170,19 @@ export function useRecordingSession({
           }),
         });
 
+        const payload = await safeJson(response);
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `Failed to create recording session: ${response.statusText}`);
+          const message =
+            isRecord(payload) && typeof payload.message === 'string'
+              ? payload.message
+              : `Failed to create recording session: ${response.statusText}`;
+          throw new Error(message);
         }
 
-        const data = await response.json();
-        const newSessionId = data.session_id as string | undefined;
+        const newSessionId =
+          isRecord(payload) && typeof payload.session_id === 'string'
+            ? payload.session_id
+            : undefined;
 
         if (!newSessionId) {
           throw new Error('No session ID returned from server');
@@ -163,21 +193,17 @@ export function useRecordingSession({
         setRetryState(createSuccessState());
 
         setSessionId(newSessionId);
-        if (data.session_profile_id) {
-          setSessionProfileId(data.session_profile_id as string);
+        if (isRecord(payload) && typeof payload.session_profile_id === 'string') {
+          setSessionProfileId(payload.session_profile_id);
         }
-        // Store actual viewport from Playwright with source attribution (may differ from requested due to profile)
-        if (data.actual_viewport) {
-          setActualViewport({
-            width: data.actual_viewport.width,
-            height: data.actual_viewport.height,
-            source: data.actual_viewport.source ?? 'requested',
-            reason: data.actual_viewport.reason ?? '',
-          });
+        const actualViewportValue = parseActualViewport(
+          isRecord(payload) ? payload.actual_viewport : null
+        );
+        if (actualViewportValue) {
+          setActualViewport(actualViewportValue);
         }
-        // Store initial URL from tab restoration (if tabs were restored)
-        if (data.initial_url) {
-          setInitialRestoredUrl(data.initial_url as string);
+        if (isRecord(payload) && typeof payload.initial_url === 'string') {
+          setInitialRestoredUrl(payload.initial_url);
         }
         if (onSessionReady) {
           onSessionReady(newSessionId);

@@ -19,6 +19,35 @@ import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useFrameStats, type FrameStats } from '../hooks/useFrameStats';
 import { LatencyLogger, type LatencyStats } from '@utils/latencyLogger';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const parseFramePayload = (value: unknown): FramePayload | null => {
+  if (!isRecord(value)) return null;
+  if (typeof value.image !== 'string') return null;
+  if (typeof value.width !== 'number' || typeof value.height !== 'number') return null;
+  if (typeof value.captured_at !== 'string') return null;
+
+  const payload: FramePayload = {
+    image: value.image,
+    width: value.width,
+    height: value.height,
+    captured_at: value.captured_at,
+  };
+
+  if (typeof value.content_hash === 'string') {
+    payload.content_hash = value.content_hash;
+  }
+  if (typeof value.page_title === 'string') {
+    payload.page_title = value.page_title;
+  }
+  if (typeof value.page_url === 'string') {
+    payload.page_url = value.page_url;
+  }
+
+  return payload;
+};
+
 /** Frame dimensions stored in ref to avoid re-renders */
 interface FrameDimensions {
   width: number;
@@ -444,8 +473,10 @@ export function useFrameStream({
       try {
         const response = await fetch('/config');
         if (response.ok) {
-          const config = await response.json();
-          driverPort = config.playwrightDriverPort;
+          const config: unknown = await response.json();
+          if (isRecord(config) && typeof config.playwrightDriverPort === 'number') {
+            driverPort = config.playwrightDriverPort;
+          }
         }
       } catch {
         // Config fetch failed, will fall back to polling
@@ -484,7 +515,15 @@ export function useFrameStream({
         }
 
         // Handle binary frame data
-        handleBinaryFrame(event.data as ArrayBuffer);
+        if (event.data instanceof ArrayBuffer) {
+          handleBinaryFrame(event.data);
+          return;
+        }
+        if (event.data instanceof Blob) {
+          void event.data.arrayBuffer().then(handleBinaryFrame).catch(() => {
+            // Ignore malformed frame payloads
+          });
+        }
       };
 
       ws.onerror = () => {
@@ -579,7 +618,11 @@ export function useFrameStream({
         lastETagRef.current = etag;
       }
 
-      const data = (await res.json()) as FramePayload;
+      const rawData: unknown = await res.json();
+      const data = parseFramePayload(rawData);
+      if (!data) {
+        throw new Error('Invalid frame payload');
+      }
 
       // Handle page metadata
       if (data.page_title !== undefined || data.page_url !== undefined) {
@@ -662,7 +705,7 @@ export function useFrameStream({
         pollIntervalRef.current = nextInterval;
       }
     }
-  }, [fps, onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame]);
+  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame]);
 
   // Track if we've received at least one WebSocket frame
   const hasReceivedWsFrameRef = useRef(false);
