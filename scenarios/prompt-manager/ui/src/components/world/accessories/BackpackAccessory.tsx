@@ -114,7 +114,7 @@ export function BackpackAccessory({
           ))}
           {/* Skill count indicator (small orbs on backpack) */}
           {skillCount > 10 &&
-            [...Array(Math.min(skillCount - 10, 5))].map((_, i) => (
+            Array.from({ length: Math.min(skillCount - 10, 5) }, (_, i) => (
               <mesh
                 key={i}
                 position={[

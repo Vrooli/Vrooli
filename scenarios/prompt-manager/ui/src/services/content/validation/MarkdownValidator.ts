@@ -73,6 +73,7 @@ export function validateMarkdown(markdown: string): ValidationResult {
 
     // Also detect escaped fences in the middle of lines
     const midLineMatch = line.match(/(.+)(\\`\\`\\`)(\w*)/)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- midLineMatch[1] is regex group that could theoretically be undefined
     if (midLineMatch && !escapedFenceMatch) {
       const prefix = midLineMatch[1] ?? ''
       const fence = midLineMatch[2] ?? ''
@@ -151,7 +152,7 @@ export function normalizeForComparison(content: string): string {
 
     // Unescape common markdown characters (turndown may unescape these)
     // \. → .  \* → *  \# → #  \[ → [  \] → ]  \( → (  \) → )
-    normalized = normalized.replace(/\\([.*#\[\]()])/g, '$1')
+    normalized = normalized.replace(/\\([.*#[\]()])/g, '$1')
 
     // Normalize horizontal rules: * * * or - - - → ---
     if (/^[\s]*(\*\s*\*\s*\*|-\s*-\s*-)[\s]*$/.test(normalized)) {
@@ -167,7 +168,7 @@ export function normalizeForComparison(content: string): string {
 
     // Normalize list items with optional task list checkbox
     // Match: optional leading whitespace + bullet (* or -) + spaces + optional checkbox + content
-    const listMatch = normalized.match(/^(\s*)([\*\-])\s+(\[[ xX]\]\s+)?(.*)$/)
+    const listMatch = normalized.match(/^(\s*)([*-])\s+(\[[ xX]\]\s+)?(.*)$/)
     if (listMatch) {
       const indent = listMatch[1] ?? ''
       const itemContent = listMatch[4] ?? ''
@@ -231,13 +232,13 @@ export function normalizeForComparison(content: string): string {
     return (
       trimmed === '' || // Blank line
       /^#{1,6}\s/.test(trimmed) || // Heading
-      /^[\*\-]\s/.test(trimmed) || // Unordered list (with or without checkbox)
+      /^[*-]\s/.test(trimmed) || // Unordered list (with or without checkbox)
       /^\d+\.\s/.test(trimmed) || // Ordered list
       /^>/.test(trimmed) || // Block quote (including empty >)
       /^```/.test(trimmed) || // Code fence
       /^---$/.test(trimmed) || // HR
       /^\|/.test(trimmed) || // Table row
-      /^\s+[\*\-]\s/.test(line) || // Indented list item
+      /^\s+[*-]\s/.test(line) || // Indented list item
       /^\s+\d+\.\s/.test(line) // Indented numbered list item
     )
   }

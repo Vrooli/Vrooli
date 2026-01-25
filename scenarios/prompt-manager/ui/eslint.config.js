@@ -16,7 +16,7 @@ import globals from "globals";
  * See react-stability skill Section 0 for rationale.
  */
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "*.config.js"] },
+  { ignores: ["dist", "node_modules", "coverage", "*.config.js"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     files: ["**/*.{ts,tsx}"],
@@ -66,7 +66,7 @@ export default tseslint.config(
   },
   // Test file overrides
   {
-    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/test/**/*.{ts,tsx}"],
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/*.integration.test.{ts,tsx}", "**/test/**/*.{ts,tsx}"],
     rules: {
       // Allow unbound methods in tests (common pattern with vi.mocked)
       "@typescript-eslint/unbound-method": "off",
@@ -75,6 +75,7 @@ export default tseslint.config(
       // Relax unsafe rules in tests since we often work with mocks
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
     },
   }
 );

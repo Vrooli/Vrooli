@@ -37,8 +37,9 @@ export function MaterialProvider({ children }: MaterialProviderProps) {
     const getMaterial = (preset: StandardPresetName, color: string): THREE.Material => {
       const key = `${preset}:${color}:${quality}`
 
-      if (materials.has(key)) {
-        return materials.get(key)!
+      const cached = materials.get(key)
+      if (cached) {
+        return cached
       }
 
       const presetData = MATERIAL_PRESETS[preset]

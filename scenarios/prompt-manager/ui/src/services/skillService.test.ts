@@ -124,24 +124,19 @@ describe('skillService', () => {
   })
 
   describe('getSkill', () => {
-    it('should return cached skill if available', async () => {
-      const mockSkills = [
-        createTestSkill({ id: '1', name: 'Skill 1' }),
-        createTestSkill({ id: '2', name: 'Skill 2' }),
-      ]
-      vi.mocked(api.getSkills).mockResolvedValue(mockSkills)
+    it('should always fetch from API (list cache does not include full content)', async () => {
+      const mockSkill = createTestSkill({ id: '1', name: 'Skill 1' })
+      vi.mocked(api.getSkill).mockResolvedValue(mockSkill)
 
-      // Populate cache
-      await getSkills()
-
-      // Get single skill - should use cache
+      // Even if list cache exists, getSkill should fetch from API
+      // because list cache doesn't include full content
       const result = await getSkill('1')
 
-      expect(api.getSkill).not.toHaveBeenCalled()
+      expect(api.getSkill).toHaveBeenCalledWith('1')
       expect(result?.name).toBe('Skill 1')
     })
 
-    it('should fetch from API if not in cache', async () => {
+    it('should fetch from API with skill ID', async () => {
       const mockSkill = createTestSkill({ id: '1', name: 'Fetched Skill' })
       vi.mocked(api.getSkill).mockResolvedValue(mockSkill)
 

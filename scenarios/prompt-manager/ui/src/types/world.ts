@@ -14,8 +14,8 @@ export interface MemberProps {
   position: [number, number, number]
   /** Current cursor/pointer position for look-at behavior */
   cursorPosition: { x: number; y: number } | null
-  /** Currently selected node IDs */
-  selectedNodes: string[]
+  /** Currently selected node IDs (may be undefined during initialization) */
+  selectedNodes?: string[]
   /** Whether the member is in an animation state */
   isAnimating: boolean
   /** Callback when member animation completes */

@@ -179,10 +179,15 @@ export const useOverlayStore = create<OverlayStore>((set, get) => ({
 }))
 
 /**
- * Selector for speech bubbles for a specific member
+ * Selector for speech bubbles for a specific member.
+ * Returns empty array for invalid memberId to prevent crashes.
  */
-export const selectMemberSpeechBubbles = (state: OverlayStore, memberId: string) =>
-  state.speechBubbles.filter((b) => b.memberId === memberId)
+export const selectMemberSpeechBubbles = (state: OverlayStore, memberId: string | null | undefined): SpeechBubble[] => {
+  if (!memberId) {
+    return []
+  }
+  return state.speechBubbles.filter((b) => b.memberId === memberId)
+}
 
 /**
  * Selector for thinking state of a specific member

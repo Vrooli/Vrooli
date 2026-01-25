@@ -10,6 +10,7 @@ import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useMemberComponent } from './MemberProvider'
+import { WorldErrorBoundary } from './WorldErrorBoundary'
 import type { Member } from '@/types/member'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
@@ -78,7 +79,11 @@ export function WorldScene({
       <pointLight position={[10, -5, 10]} intensity={0.3} color="#22d3ee" />
 
       {/* Environment */}
-      {isDarkMode && <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />}
+      {isDarkMode && (
+        <WorldErrorBoundary componentName="Stars" minimal>
+          <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />
+        </WorldErrorBoundary>
+      )}
       <fog attach="fog" args={[isDarkMode ? '#0f172a' : '#f8fafc', 10, 50]} />
 
       {/* Controls */}

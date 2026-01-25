@@ -34,6 +34,7 @@ export function SpeechBubble({
   // Show only the most recent bubble (or stack them with offset)
   const latestBubble = bubbles[bubbles.length - 1]
 
+  // Early return for empty bubbles
   if (!latestBubble) {
     return null
   }

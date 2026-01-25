@@ -152,7 +152,9 @@ export function SkillContentEditor({
     monaco.editor.setModelMarkers(model, 'markdown-validator', markers)
 
     // Cleanup on unmount or when issues change
+    // Note: model check is needed at cleanup time since model state may have changed
     return () => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- model may be disposed at cleanup time
       if (model && !model.isDisposed()) {
         monaco.editor.setModelMarkers(model, 'markdown-validator', [])
       }

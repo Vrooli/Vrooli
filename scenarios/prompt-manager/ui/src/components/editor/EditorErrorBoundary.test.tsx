@@ -70,7 +70,6 @@ describe('EditorErrorBoundary', () => {
 
     expect(onError).toHaveBeenCalledWith(
       expect.any(Error),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       expect.objectContaining({ componentStack: expect.any(String) })
     )
   })

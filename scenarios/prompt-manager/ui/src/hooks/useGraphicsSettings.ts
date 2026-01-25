@@ -3,7 +3,7 @@
  * Provides convenient access to the graphics store.
  */
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useGraphicsStore, TIER_CONFIGS } from '@/stores/graphicsStore'
 import { detectRecommendedTier } from '@/config/graphics'
 import type { PerformanceTier, GraphicsConfig } from '@/types/graphics'
@@ -80,13 +80,16 @@ export function useGraphicsSettings(): GraphicsSettingsResult {
 export function useAutoDetectGraphics(): void {
   const autoDetect = useGraphicsStore((state) => state.autoDetect)
   const setTier = useGraphicsStore((state) => state.setTier)
+  const hasRun = useRef(false)
 
   useEffect(() => {
+    if (hasRun.current) return
     if (autoDetect) {
+      hasRun.current = true
       const recommended = detectRecommendedTier()
       setTier(recommended)
     }
-  }, []) // Run only on mount
+  }, [autoDetect, setTier])
 }
 
 /**

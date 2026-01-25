@@ -34,6 +34,7 @@ import { InlineEditableText } from '../shared/InlineEditableText'
 import { DraftToggle } from '../shared/DraftToggle'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
+import { PanelErrorBoundary } from '../PanelErrorBoundary'
 
 interface SkillEditorPanelProps {
   // Current state
@@ -113,11 +114,13 @@ export function SkillEditorPanel({
   if (!currentSkill) {
     return (
       <div className={cn('h-full', className)}>
-        <WorldCanvas
-          skills={allSkills}
-          onSelectSkill={onSelectSkill}
-          onCombineSkills={onCombineSkills}
-        />
+        <PanelErrorBoundary panelName="3D World" className="h-full">
+          <WorldCanvas
+            skills={allSkills}
+            onSelectSkill={onSelectSkill}
+            onCombineSkills={onCombineSkills}
+          />
+        </PanelErrorBoundary>
       </div>
     )
   }

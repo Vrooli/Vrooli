@@ -221,11 +221,13 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
  * Get environment config for current theme
  */
 export function getEnvironmentForTheme(theme: 'light' | 'dark'): EnvironmentConfig {
-  const preset = theme === 'dark'
-    ? ENVIRONMENT_PRESETS['default-dark']
-    : ENVIRONMENT_PRESETS['default-light']
-  // These presets are guaranteed to exist
-  return preset!
+  const presetKey = theme === 'dark' ? 'default-dark' : 'default-light'
+  const preset = ENVIRONMENT_PRESETS[presetKey]
+  // These presets are guaranteed to exist in ENVIRONMENT_PRESETS
+  if (!preset) {
+    throw new Error(`Environment preset '${presetKey}' not found`)
+  }
+  return preset
 }
 
 /**

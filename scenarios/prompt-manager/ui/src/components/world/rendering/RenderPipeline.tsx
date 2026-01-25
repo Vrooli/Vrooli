@@ -8,6 +8,7 @@
 import { EffectComposer, Bloom, Vignette, SMAA } from '@react-three/postprocessing'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import { BLOOM_CONFIGS, DEFAULT_VIGNETTE_CONFIG } from '@/config/graphics'
+import { WorldErrorBoundary } from '../WorldErrorBoundary'
 
 interface RenderPipelineProps {
   children: React.ReactNode
@@ -67,7 +68,9 @@ export function RenderPipeline({ children }: RenderPipelineProps) {
   return (
     <>
       {children}
-      <EffectComposer>{effects}</EffectComposer>
+      <WorldErrorBoundary componentName="PostProcessing" minimal>
+        <EffectComposer>{effects}</EffectComposer>
+      </WorldErrorBoundary>
     </>
   )
 }

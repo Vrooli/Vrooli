@@ -24,7 +24,7 @@ function detectCapabilities(): DeviceCapability {
   )
 
   // Get device pixel ratio as rough GPU indicator
-  const dpr = window.devicePixelRatio ?? 1
+  const dpr = window.devicePixelRatio
 
   // Try to detect GPU info (limited browser support)
   let gpuTier = 1
@@ -34,12 +34,12 @@ function detectCapabilities(): DeviceCapability {
     if (gl && 'getExtension' in gl) {
       const debugInfo = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info')
       if (debugInfo) {
-        const renderer = (gl as WebGLRenderingContext).getParameter(
+        const rendererValue: unknown = (gl as WebGLRenderingContext).getParameter(
           debugInfo.UNMASKED_RENDERER_WEBGL
         )
         // Basic GPU tier detection based on renderer string
-        if (renderer) {
-          const rendererLower = renderer.toLowerCase()
+        if (typeof rendererValue === 'string') {
+          const rendererLower = rendererValue.toLowerCase()
           if (
             rendererLower.includes('nvidia') ||
             rendererLower.includes('radeon') ||

@@ -28,6 +28,8 @@ import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
 import { EnvironmentSetup } from './rendering/EnvironmentSetup'
 import { MaterialProvider } from './materials/MaterialProvider'
+import { WorldErrorBoundary } from './WorldErrorBoundary'
+import { WorldErrorProvider } from './WorldErrorContext'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
@@ -247,36 +249,40 @@ export function WorldCanvas({
       onMouseLeave={handleMouseLeave}
     >
       {/* 3D Canvas */}
-      <Canvas
-        shadows
-        camera={{
-          position: cameraState.position,
-          fov: 50,
-          near: 0.1,
-          far: 100,
-        }}
-        gl={{ antialias: true, alpha: false }}
-        dpr={[1, 2]}
-      >
-        <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
-        <RenderPipeline>
-          <EnvironmentSetup />
-          <MaterialProvider>
-            <MemberProvider member={memberType}>
-              <Suspense fallback={null}>
-                <WorldScene
-                  cameraState={cameraState}
-                  selectedNodeIds={selectedSkillIds}
-                  cursorPosition={cursorPosition}
-                  membersWithPositions={membersWithPositions}
-                  onMemberClick={handleMemberClick}
-                  isDarkMode={isDarkMode}
-                />
-              </Suspense>
-            </MemberProvider>
-          </MaterialProvider>
-        </RenderPipeline>
-      </Canvas>
+      <WorldErrorProvider>
+        <WorldErrorBoundary componentName="WorldCanvas" className="absolute inset-0">
+          <Canvas
+            shadows
+            camera={{
+              position: cameraState.position,
+              fov: 50,
+              near: 0.1,
+              far: 100,
+            }}
+            gl={{ antialias: true, alpha: false }}
+            dpr={[1, 2]}
+          >
+            <color attach="background" args={[isDarkMode ? '#0f172a' : '#f8fafc']} />
+            <RenderPipeline>
+              <EnvironmentSetup />
+              <MaterialProvider>
+                <MemberProvider member={memberType}>
+                  <Suspense fallback={null}>
+                    <WorldScene
+                      cameraState={cameraState}
+                      selectedNodeIds={selectedSkillIds}
+                      cursorPosition={cursorPosition}
+                      membersWithPositions={membersWithPositions}
+                      onMemberClick={handleMemberClick}
+                      isDarkMode={isDarkMode}
+                    />
+                  </Suspense>
+                </MemberProvider>
+              </MaterialProvider>
+            </RenderPipeline>
+          </Canvas>
+        </WorldErrorBoundary>
+      </WorldErrorProvider>
 
       {/* Loading indicator */}
       <Loader

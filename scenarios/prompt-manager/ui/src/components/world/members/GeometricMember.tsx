@@ -25,13 +25,16 @@ const DEFAULT_COLORS = {
 export function GeometricMember({
   position,
   cursorPosition,
-  selectedNodes,
+  selectedNodes: selectedNodesProp,
   isAnimating: _isAnimating,
   onMemberClick,
   colors,
   memberId,
 }: MemberProps) {
   void _isAnimating // Reserved for future animation triggers
+
+  // Defensive: ensure selectedNodes is always an array
+  const selectedNodes = selectedNodesProp ?? []
 
   // Hover highlighting - only if memberId is provided
   const { isHovered, hoverProps } = useHoverHighlight(memberId ?? 'unknown', {

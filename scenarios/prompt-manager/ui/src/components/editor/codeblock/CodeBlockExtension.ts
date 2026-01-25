@@ -101,7 +101,7 @@ export const CodeBlockExtension = CodeBlockBase.extend<CodeBlockOptions>({
             return {}
           }
           return {
-            'data-fence-count': String(count),
+            'data-fence-count': typeof count === 'number' ? String(count) : '3',
           }
         },
       },

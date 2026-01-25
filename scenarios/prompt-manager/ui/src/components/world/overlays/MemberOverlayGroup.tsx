@@ -7,6 +7,7 @@ import { NameTag } from './NameTag'
 import { StatusIcon } from './StatusIcon'
 import { ThinkingBubble } from './ThinkingBubble'
 import { SpeechBubble } from './SpeechBubble'
+import { WorldErrorBoundary } from '../WorldErrorBoundary'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import type { MemberStatusType } from '@/types/accessory'
 
@@ -39,7 +40,8 @@ export function MemberOverlayGroup({
 }: MemberOverlayGroupProps) {
   const storedStatus = useAccessoryStore((state) => state.getMemberStatus(memberId))
 
-  if (!enabled) {
+  // Early return for disabled or invalid memberId
+  if (!enabled || !memberId) {
     return null
   }
 
@@ -48,34 +50,42 @@ export function MemberOverlayGroup({
   return (
     <>
       {/* Name tag - lowest layer */}
-      <NameTag
-        memberId={memberId}
-        name={name}
-        position={position}
-        isHovered={isHovered}
-        yOffset={1.0}
-      />
+      <WorldErrorBoundary componentName="NameTag" minimal>
+        <NameTag
+          memberId={memberId}
+          name={name}
+          position={position}
+          isHovered={isHovered}
+          yOffset={1.0}
+        />
+      </WorldErrorBoundary>
 
       {/* Status icon - above name tag */}
-      <StatusIcon
-        status={effectiveStatus}
-        position={position}
-        yOffset={1.3}
-      />
+      <WorldErrorBoundary componentName="StatusIcon" minimal>
+        <StatusIcon
+          status={effectiveStatus}
+          position={position}
+          yOffset={1.3}
+        />
+      </WorldErrorBoundary>
 
       {/* Thinking bubble - above status */}
-      <ThinkingBubble
-        memberId={memberId}
-        position={position}
-        yOffset={1.5}
-      />
+      <WorldErrorBoundary componentName="ThinkingBubble" minimal>
+        <ThinkingBubble
+          memberId={memberId}
+          position={position}
+          yOffset={1.5}
+        />
+      </WorldErrorBoundary>
 
       {/* Speech bubble - topmost layer */}
-      <SpeechBubble
-        memberId={memberId}
-        position={position}
-        yOffset={1.7}
-      />
+      <WorldErrorBoundary componentName="SpeechBubble" minimal>
+        <SpeechBubble
+          memberId={memberId}
+          position={position}
+          yOffset={1.7}
+        />
+      </WorldErrorBoundary>
     </>
   )
 }

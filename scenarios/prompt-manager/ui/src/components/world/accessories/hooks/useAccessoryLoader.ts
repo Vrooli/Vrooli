@@ -10,8 +10,8 @@ import { getAssetPath } from '@/config/assetManifest'
  * Result from loading an accessory model
  */
 interface AccessoryModelResult {
-  /** The loaded GLTF data (using any for flexibility) */
-  gltf: unknown | null
+  /** The loaded GLTF data (using unknown for flexibility) */
+  gltf: unknown
   /** Whether the model is still loading */
   isLoading: boolean
   /** Error if loading failed */

@@ -11,7 +11,6 @@ import {
   type StandardPresetName,
   type PhysicalPresetName,
   type MaterialPreset,
-  type EmissiveMaterialPreset,
 } from './presets'
 
 interface UseMaterialOptions {
@@ -48,39 +47,45 @@ export function useMaterial(
     }
 
     // Create material based on quality
+    const envMapIntensity = 'envMapIntensity' in preset ? preset.envMapIntensity : 1.0
     const baseParams: THREE.MeshStandardMaterialParameters = {
       color: color ?? '#ffffff',
       metalness: preset.metalness,
       roughness: preset.roughness,
-      envMapIntensity: preset.envMapIntensity ?? 1.0,
+      envMapIntensity: envMapIntensity ?? 1.0,
       ...overrides,
     }
 
     // Add emissive properties if preset supports it
     if ('emissiveIntensity' in preset) {
-      const emissivePreset = preset as EmissiveMaterialPreset
-      baseParams.emissive = new THREE.Color(emissive ?? emissivePreset.emissive ?? color)
-      baseParams.emissiveIntensity = emissivePreset.emissiveIntensity
-      baseParams.toneMapped = emissivePreset.toneMapped ?? true
+      const emissiveColor = preset.emissive ?? color
+      baseParams.emissive = new THREE.Color(emissive ?? emissiveColor)
+      baseParams.emissiveIntensity = preset.emissiveIntensity
+      const toneMapped = preset.toneMapped
+      baseParams.toneMapped = toneMapped ?? true
     }
 
     // Use appropriate material class based on quality
     if (quality === 'physical' && presetName in PHYSICAL_PRESETS) {
       // Cast to a flexible record type to access optional physical properties
       const physicalPreset = preset as unknown as Record<string, unknown>
+      const getNum = (key: string, defaultVal: number): number => {
+        const val = physicalPreset[key]
+        return typeof val === 'number' ? val : defaultVal
+      }
       return new THREE.MeshPhysicalMaterial({
         ...baseParams,
-        clearcoat: (physicalPreset.clearcoat as number) ?? 0,
-        clearcoatRoughness: (physicalPreset.clearcoatRoughness as number) ?? 0,
-        transmission: (physicalPreset.transmission as number) ?? 0,
-        thickness: (physicalPreset.thickness as number) ?? 0,
-        ior: (physicalPreset.ior as number) ?? 1.5,
-        iridescence: (physicalPreset.iridescence as number) ?? 0,
-        iridescenceIOR: (physicalPreset.iridescenceIOR as number) ?? 1.3,
-        sheen: (physicalPreset.sheen as number) ?? 0,
-        sheenRoughness: (physicalPreset.sheenRoughness as number) ?? 0,
-        sheenColor: physicalPreset.sheenColor
-          ? new THREE.Color(physicalPreset.sheenColor as string)
+        clearcoat: getNum('clearcoat', 0),
+        clearcoatRoughness: getNum('clearcoatRoughness', 0),
+        transmission: getNum('transmission', 0),
+        thickness: getNum('thickness', 0),
+        ior: getNum('ior', 1.5),
+        iridescence: getNum('iridescence', 0),
+        iridescenceIOR: getNum('iridescenceIOR', 1.3),
+        sheen: getNum('sheen', 0),
+        sheenRoughness: getNum('sheenRoughness', 0),
+        sheenColor: typeof physicalPreset.sheenColor === 'string'
+          ? new THREE.Color(physicalPreset.sheenColor)
           : undefined,
       } as THREE.MeshPhysicalMaterialParameters)
     }
@@ -121,18 +126,20 @@ export function useMaterialMap<T extends Record<string, StandardPresetName | Phy
         preset = MATERIAL_PRESETS.matte
       }
 
+      const envIntensity = 'envMapIntensity' in preset ? preset.envMapIntensity : 1.0
       const baseParams: THREE.MeshStandardMaterialParameters = {
         color: color ?? '#ffffff',
         metalness: preset.metalness,
         roughness: preset.roughness,
-        envMapIntensity: preset.envMapIntensity ?? 1.0,
+        envMapIntensity: envIntensity ?? 1.0,
       }
 
       if ('emissiveIntensity' in preset) {
-        const emissivePreset = preset as EmissiveMaterialPreset
-        baseParams.emissive = new THREE.Color(emissivePreset.emissive ?? color)
-        baseParams.emissiveIntensity = emissivePreset.emissiveIntensity
-        baseParams.toneMapped = emissivePreset.toneMapped ?? true
+        const emissiveColor = preset.emissive ?? color
+        baseParams.emissive = new THREE.Color(emissiveColor)
+        baseParams.emissiveIntensity = preset.emissiveIntensity
+        const toneMapped = preset.toneMapped
+        baseParams.toneMapped = toneMapped ?? true
       }
 
       if (quality === 'basic') {

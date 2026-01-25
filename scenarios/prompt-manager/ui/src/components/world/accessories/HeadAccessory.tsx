@@ -95,7 +95,7 @@ export function HeadAccessory({
             <meshStandardMaterial color="#ffd700" metalness={0.9} roughness={0.1} />
           </mesh>
           {/* Crown points */}
-          {[...Array(5)].map((_, i) => {
+          {Array.from({ length: 5 }, (_, i) => {
             const angle = (i / 5) * Math.PI * 2
             const x = Math.cos(angle) * 0.12
             const z = Math.sin(angle) * 0.12
@@ -107,7 +107,7 @@ export function HeadAccessory({
             )
           })}
           {/* Jewels */}
-          {[...Array(5)].map((_, i) => {
+          {Array.from({ length: 5 }, (_, i) => {
             const angle = (i / 5) * Math.PI * 2 + Math.PI / 5
             const x = Math.cos(angle) * 0.13
             const z = Math.sin(angle) * 0.13

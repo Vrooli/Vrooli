@@ -46,7 +46,7 @@ describe('SkillContentEditor Mode Switch Integration', () => {
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
 
       // Switch to WYSIWYG
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
       })
 
@@ -106,7 +106,7 @@ const x = 1;
       render(<SkillContentEditor value={markdown} onChange={onChange} />)
 
       // Switch to WYSIWYG
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
       })
 
@@ -157,7 +157,7 @@ const x = 1;
       render(<SkillContentEditor value={markdown} onChange={onChange} />)
 
       // Switch to WYSIWYG
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
       })
 
@@ -191,7 +191,7 @@ const x = 1;
       render(<SkillContentEditor value={markdown} onChange={onChange} />)
 
       // Switch to WYSIWYG
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
       })
 
@@ -223,7 +223,7 @@ const x = 1;
       )
 
       // First switch: Code → WYSIWYG
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
       })
 
@@ -238,7 +238,7 @@ const x = 1;
         onChange.mock.calls[onChange.mock.calls.length - 1]?.[0]
 
       // Switch back: WYSIWYG → Code
-      await act(async () => {
+      act(() => {
         fireEvent.click(screen.getByTitle('Code Editor (Monaco)'))
       })
 
@@ -251,7 +251,7 @@ const x = 1;
         )
 
         // Switch to WYSIWYG again
-        await act(async () => {
+        act(() => {
           fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
         })
 
@@ -285,7 +285,7 @@ const x = 1;
         onChange.mockClear()
 
         // Switch to WYSIWYG
-        await act(async () => {
+        act(() => {
           fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
         })
 
@@ -302,7 +302,7 @@ const x = 1;
         }
 
         // Switch back to Code
-        await act(async () => {
+        act(() => {
           fireEvent.click(screen.getByTitle('Code Editor (Monaco)'))
         })
 

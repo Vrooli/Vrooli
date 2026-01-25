@@ -177,7 +177,7 @@ export function detectRecommendedTier(): PerformanceTier {
   if (isMobile) return 'low'
 
   // Check device pixel ratio as rough GPU indicator
-  const dpr = window.devicePixelRatio ?? 1
+  const dpr = window.devicePixelRatio
   if (dpr < 1.5) return 'medium'
   if (dpr < 2) return 'high'
   return 'ultra'

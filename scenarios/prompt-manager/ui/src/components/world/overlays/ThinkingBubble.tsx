@@ -24,9 +24,13 @@ export function ThinkingBubble({
   position,
   yOffset = 1.3,
 }: ThinkingBubbleProps) {
-  const thinkingState = useOverlayStore((state) => state.thinkingStates[memberId])
+  // Always call hook with a stable key (empty string for invalid memberId)
+  const thinkingState = useOverlayStore((state) =>
+    memberId ? state.thinkingStates[memberId] : undefined
+  )
 
-  if (!thinkingState?.isThinking) {
+  // Early return for invalid memberId or not thinking
+  if (!memberId || !thinkingState?.isThinking) {
     return null
   }
 

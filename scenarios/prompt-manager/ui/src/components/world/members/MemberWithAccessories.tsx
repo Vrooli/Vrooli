@@ -45,7 +45,7 @@ export function MemberWithAccessories({
   member,
   position,
   cursorPosition,
-  selectedNodes,
+  selectedNodes: selectedNodesProp,
   isAnimating,
   onAnimationComplete,
   onMemberClick,
@@ -54,6 +54,8 @@ export function MemberWithAccessories({
   showAccessories = true,
   enableHover = true,
 }: MemberWithAccessoriesProps) {
+  // Defensive: ensure selectedNodes is always an array
+  const selectedNodes = selectedNodesProp ?? []
   // Compute backpack type from skill count
   const backpackType = useSkillBackpack(member.skills.length)
 
