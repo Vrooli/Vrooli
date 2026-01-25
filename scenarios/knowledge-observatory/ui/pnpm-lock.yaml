@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.11.0
+        version: 2.11.0
+      '@bufbuild/protovalidate':
+        specifier: ^1.1.1
+        version: 1.1.1(@bufbuild/protobuf@2.11.0)
       '@radix-ui/react-slot':
         specifier: ^1.1.0
         version: 1.2.4(@types/react@18.3.27)(react@18.3.1)
@@ -20,6 +26,9 @@ importers:
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
+      '@vrooli/proto-types':
+        specifier: file:../../../packages/proto/gen/typescript
+        version: file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.11.0)
       '@vrooli/vitest-requirement-reporter':
         specifier: file:../../../packages/vitest-requirement-reporter
         version: file:../../../packages/vitest-requirement-reporter(vitest@2.1.9(jsdom@27.2.0))
@@ -44,6 +53,9 @@ importers:
       tailwind-merge:
         specifier: ^2.3.0
         version: 2.6.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -75,6 +87,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.22(postcss@8.5.6)
+      baseline-browser-mapping:
+        specifier: ^2.9.18
+        version: 2.9.18
       eslint:
         specifier: ^9.9.1
         version: 9.39.1(jiti@1.21.7)
@@ -217,6 +232,24 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
+
+  '@bufbuild/cel-spec@0.4.0':
+    resolution: {integrity: sha512-dUS6f2fNt6KEumsYGE7YFxERZE5ZuyME1hQmGjtO8tkZhR6ow6/ne3v4Gik9cfdb9lSLK3AJ+vDxCdGWmDbWvA==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.6.2
+
+  '@bufbuild/cel@0.4.0':
+    resolution: {integrity: sha512-CdW/JgiTJCYXqnwuaJRo7NcoYhR37AaF58MMiog0/t8nudn86ZyLXYaA1f2yGhm2U17h8pKGZNksTHVSTcpmAw==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.6.2
+
+  '@bufbuild/protobuf@2.11.0':
+    resolution: {integrity: sha512-sBXGT13cpmPR5BMgHE6UEEfEaShh5Ror6rfN3yEK5si7QVrtZg8LEPQb0VVhiLRUslD2yLnXtnRzG035J/mZXQ==}
+
+  '@bufbuild/protovalidate@1.1.1':
+    resolution: {integrity: sha512-sE6CojU25nfeb1w88Sm+jRnmk4GvQTeEZvLDHHDPvIHbj2NsDJWFAUJdJr+RcuMnjdWmbur+rAS38VuEK/XviQ==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.8.0
 
   '@csstools/color-helpers@5.1.0':
     resolution: {integrity: sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA==}
@@ -794,6 +827,12 @@ packages:
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.10.1
+
   '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter':
     resolution: {directory: ../../../packages/vitest-requirement-reporter, type: directory}
     peerDependencies:
@@ -877,8 +916,8 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
-  baseline-browser-mapping@2.8.31:
-    resolution: {integrity: sha512-a28v2eWrrRWPpJSzxc+mKwm0ZtVx/G8SepdQZDArnXYU/XS+IF6mp8aB/4E+hH1tyGCoDo3KlUCdlSxGDsRkAw==}
+  baseline-browser-mapping@2.9.18:
+    resolution: {integrity: sha512-e23vBV1ZLfjb9apvfPk4rHVu2ry6RIr2Wfs+O324okSidrX7pTAnEJPCh/O5BtRlr7QtZI7ktOP3vsqr7Z5XoA==}
     hasBin: true
 
   bidi-js@1.0.3:
@@ -2173,6 +2212,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@acemir/cssom@0.9.24': {}
@@ -2319,6 +2361,22 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@0.2.3': {}
+
+  '@bufbuild/cel-spec@0.4.0(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+
+  '@bufbuild/cel@0.4.0(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/cel-spec': 0.4.0(@bufbuild/protobuf@2.11.0)
+      '@bufbuild/protobuf': 2.11.0
+
+  '@bufbuild/protobuf@2.11.0': {}
+
+  '@bufbuild/protovalidate@1.1.1(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/cel': 0.4.0(@bufbuild/protobuf@2.11.0)
+      '@bufbuild/protobuf': 2.11.0
 
   '@csstools/color-helpers@5.1.0': {}
 
@@ -2842,6 +2900,10 @@ snapshots:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript(@bufbuild/protobuf@2.11.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.11.0
+
   '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter(vitest@2.1.9(jsdom@27.2.0))':
     dependencies:
       vitest: 2.1.9(jsdom@27.2.0)
@@ -2911,7 +2973,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  baseline-browser-mapping@2.8.31: {}
+  baseline-browser-mapping@2.9.18: {}
 
   bidi-js@1.0.3:
     dependencies:
@@ -2951,7 +3013,7 @@ snapshots:
 
   browserslist@4.28.0:
     dependencies:
-      baseline-browser-mapping: 2.8.31
+      baseline-browser-mapping: 2.9.18
       caniuse-lite: 1.0.30001757
       electron-to-chromium: 1.5.262
       node-releases: 2.0.27
@@ -4215,3 +4277,5 @@ snapshots:
   yallist@3.1.1: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@4.3.6: {}

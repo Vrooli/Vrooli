@@ -1,37 +1,58 @@
-import { useQuery } from "@tanstack/react-query";
 import { Database, TrendingUp, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
-import { fetchKnowledgeHealth, type QualityMetrics } from "../lib/api";
 import { selectors } from "../consts/selectors";
+import type { MetricCardView, MetricsViewModel } from "../controllers/knowledgeController";
 
-function MetricCard({ label, value, description }: { label: string; value: number; description: string }) {
-  const percentage = (value * 100).toFixed(1);
-  const isGood = label === "Redundancy" ? value < 0.2 : value >= 0.6;
-  const isMedium = label === "Redundancy" ? value < 0.4 : value >= 0.4;
+const toneStyles: Record<MetricCardView["tone"], { color: string; bg: string; border: string }> = {
+  good: {
+    color: "text-green-300",
+    bg: "bg-green-900/25",
+    border: "border-green-600/70",
+  },
+  medium: {
+    color: "text-yellow-300",
+    bg: "bg-yellow-900/20",
+    border: "border-yellow-600/70",
+  },
+  poor: {
+    color: "text-red-300",
+    bg: "bg-red-900/20",
+    border: "border-red-600/70",
+  },
+};
 
-  const color = isGood ? "text-green-300" : isMedium ? "text-yellow-300" : "text-red-300";
-  const bgColor = isGood ? "bg-green-900/25" : isMedium ? "bg-yellow-900/20" : "bg-red-900/20";
-  const borderColor = isGood ? "border-green-600/70" : isMedium ? "border-yellow-600/70" : "border-red-600/70";
+function MetricCard({ label, percentageLabel, description, tone }: MetricCardView) {
+  const styles = toneStyles[tone];
 
   return (
-    <div className={`ko-metric-card ${borderColor} ${bgColor}`}>
+    <div className={`ko-metric-card ${styles.border} ${styles.bg}`}>
       <div className="flex items-start justify-between mb-2">
         <span className="ko-meta">{label}</span>
-        <TrendingUp className={`h-4 w-4 ${color}`} />
+        <TrendingUp className={`h-4 w-4 ${styles.color}`} />
       </div>
-      <div className={`text-3xl font-bold ${color}`}>{percentage}%</div>
+      <div className={`text-3xl font-bold ${styles.color}`}>{percentageLabel}</div>
       <p className="ko-text-xs ko-subtle mt-2">{description}</p>
     </div>
   );
 }
 
-export function MetricsPanel() {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["knowledgeHealth"],
-    queryFn: fetchKnowledgeHealth,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+export type MetricsPanelProps = {
+  isLoading: boolean;
+  hasError: boolean;
+  errorMessage: string;
+  hasData: boolean;
+  viewModel: MetricsViewModel;
+  onRetry: () => void;
+};
 
+export function MetricsPanel({
+  isLoading,
+  hasError,
+  errorMessage,
+  hasData,
+  viewModel,
+  onRetry,
+}: MetricsPanelProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -41,17 +62,14 @@ export function MetricsPanel() {
     );
   }
 
-  if (error) {
+  if (hasError) {
     return (
       <div className="ko-alert ko-alert-danger">
         <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-red-300 ko-alert-title">Failed to load metrics</p>
-          <p className="ko-text-sm text-red-600 mt-1">{(error as Error).message}</p>
-          <Button
-            onClick={() => refetch()}
-            className="mt-3 ko-button-danger"
-          >
+          <p className="ko-text-sm text-red-600 mt-1">{errorMessage}</p>
+          <Button onClick={onRetry} className="mt-3 ko-button-danger">
             Retry
           </Button>
         </div>
@@ -59,22 +77,28 @@ export function MetricsPanel() {
     );
   }
 
-  if (!data) {
-    return null;
+  if (!hasData) {
+    return (
+      <div className="ko-panel p-6 text-center">
+        <p className="ko-text-sm ko-muted">Metrics data is not available yet.</p>
+        <Button onClick={onRetry} className="mt-3 ko-button-primary">
+          Retry
+        </Button>
+      </div>
+    );
   }
 
-  const metrics = data.overall_metrics;
-
+  const { metricCards, collections, overallHealth, lastUpdated, totalEntriesLabel, hasMetrics } = viewModel;
   return (
     <div className="ko-stack">
       {/* Overall Status */}
       <div className="flex items-center justify-between" data-testid={selectors.metrics.overall}>
         <div>
           <h3 className="ko-text-lg font-semibold text-green-300">Overall Health</h3>
-          <p className="ko-text-sm ko-muted capitalize">{data.overall_health} condition</p>
+          <p className="ko-text-sm ko-muted capitalize">{overallHealth} condition</p>
         </div>
         <Button
-          onClick={() => refetch()}
+          onClick={onRetry}
           variant="outline"
           size="sm"
           className="ko-button-outline"
@@ -93,32 +117,23 @@ export function MetricsPanel() {
         better when lower.
       </div>
 
-      {!metrics && (
+      {!hasMetrics && (
         <div className="ko-panel p-4 ko-text-sm ko-muted">
           Quality metrics are unavailable (not computed yet). Vector counts below are live when Qdrant is reachable.
         </div>
       )}
 
       {/* Metrics Grid */}
-      {metrics && (
+      {hasMetrics && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {typeof metrics.coherence === "number" && (
-            <MetricCard label="Coherence" value={metrics.coherence} description="Topical consistency across knowledge" />
-          )}
-          {typeof metrics.freshness === "number" && (
-            <MetricCard label="Freshness" value={metrics.freshness} description="Recency of knowledge entries" />
-          )}
-          {typeof metrics.coverage === "number" && (
-            <MetricCard label="Coverage" value={metrics.coverage} description="Domain topic distribution" />
-          )}
-          {typeof metrics.redundancy === "number" && (
-            <MetricCard label="Redundancy" value={metrics.redundancy} description="Duplicate detection (lower is better)" />
-          )}
+          {metricCards.map((card) => (
+            <MetricCard key={card.label} {...card} />
+          ))}
         </div>
       )}
 
       {/* Collections Breakdown */}
-      {data.collections && data.collections.length > 0 && (
+      {collections.length > 0 && (
         <div
           className="ko-panel p-4"
           data-testid={selectors.metrics.collections}
@@ -128,44 +143,26 @@ export function MetricsPanel() {
             <h4 className="font-semibold text-green-300">Collections</h4>
           </div>
           <div className="ko-stack-sm">
-            {data.collections.map((collection) => (
-              <div key={collection.name} className="ko-card p-3 border-green-800/50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="ko-text-sm font-semibold text-green-200">{collection.name}</span>
-                  <span className="ko-text-xs ko-subtle">
-                    {typeof collection.size === "number" ? `${collection.size} vectors` : "Vectors: unknown"}
-                  </span>
-                </div>
-                {collection.metrics && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
-                    {typeof collection.metrics.coherence === "number" && (
-                      <div>
-                        <span className="ko-subtle">Coherence:</span>
-                        <span className="text-green-300 ml-1">{(collection.metrics.coherence * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
-                    {typeof collection.metrics.freshness === "number" && (
-                      <div>
-                        <span className="ko-subtle">Freshness:</span>
-                        <span className="text-green-300 ml-1">{(collection.metrics.freshness * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
-                    {typeof collection.metrics.coverage === "number" && (
-                      <div>
-                        <span className="ko-subtle">Coverage:</span>
-                        <span className="text-green-300 ml-1">{(collection.metrics.coverage * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
-                    {typeof collection.metrics.redundancy === "number" && (
-                      <div>
-                        <span className="ko-subtle">Redundancy:</span>
-                        <span className="text-green-300 ml-1">{(collection.metrics.redundancy * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
+            {collections.map((collection) => {
+              return (
+                <div key={collection.name} className="ko-card p-3 border-green-800/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="ko-text-sm font-semibold text-green-200">{collection.name}</span>
+                    <span className="ko-text-xs ko-subtle">{collection.sizeLabel}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  {collection.metrics.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 ko-text-xs">
+                      {collection.metrics.map((metric) => (
+                        <div key={`${collection.name}-${metric.label}`}>
+                          <span className="ko-subtle">{metric.label}:</span>
+                          <span className="text-green-300 ml-1">{metric.percentageLabel}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -175,13 +172,13 @@ export function MetricsPanel() {
         <div className="ko-card p-3">
           <p className="ko-meta mb-1">Total Vectors</p>
           <p className="text-xl font-bold text-green-300">
-            {typeof data.total_entries === "number" ? data.total_entries.toLocaleString() : "Unknown"}
+            {totalEntriesLabel}
           </p>
         </div>
         <div className="ko-card p-3">
           <p className="ko-meta mb-1">Last Updated</p>
           <p className="ko-text-sm font-semibold text-green-300">
-            {new Date(data.timestamp).toLocaleTimeString()}
+            {lastUpdated}
           </p>
         </div>
       </div>

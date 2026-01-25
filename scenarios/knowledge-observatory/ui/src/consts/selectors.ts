@@ -51,8 +51,11 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
   readonly selectorPattern?: string;
 }
 
+type AnyParamSchema = ParamSchema | undefined;
+type AnyDynamicSelectorDefinition = DynamicSelectorDefinition<AnyParamSchema>;
+
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | AnyDynamicSelectorDefinition;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -84,7 +87,7 @@ type SelectorTreeResult<
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,15 +96,18 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isDynamicDefinition = (value: unknown): value is AnyDynamicSelectorDefinition =>
+  isRecord(value) && value.kind === "dynamic-selector";
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   raw: Record<string, string | number>,
   path: string,
 ) => {
-  const schema = definition.params ?? ({} as ParamSchema);
+  const schema: ParamSchema = definition.params ?? {};
   const normalized: Record<string, string | number> = {};
 
   for (const key of Object.keys(schema)) {
@@ -109,7 +115,13 @@ const normalizeParams = (
       throw new Error(`Selector '${path}' is missing parameter '${key}'`);
     }
     const definitionEntry = schema[key];
+    if (!definitionEntry) {
+      throw new Error(`Selector '${path}' is missing parameter definition for '${key}'`);
+    }
     const value = raw[key];
+    if (value === undefined) {
+      throw new Error(`Selector '${path}' parameter '${key}' must be provided`);
+    }
     if (definitionEntry.type === "number") {
       if (typeof value !== "number") {
         throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
@@ -232,12 +244,13 @@ const mergeLiteralAndDynamicNodes = (
   return merged;
 };
 
-const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+const createDynamicSelectorFn = <P extends ParamSchema | undefined>(
+  definition: DynamicSelectorDefinition<P>,
   path: string,
-) => {
-  return (params?: Record<string, string | number>) => {
-    const normalized = normalizeParams(definition, params ?? {}, path);
+): DynamicSelectorFn<P> => {
+  return (params?: ParamValues<P>) => {
+    const rawParams: Record<string, string | number> = { ...(params ?? {}) };
+    const normalized = normalizeParams(definition, rawParams, path);
     const template = definition.testIdPattern ?? definition.selectorPattern;
     if (!template) {
       throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
@@ -265,7 +278,7 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   header: {
     title: "ko-header-title",
     statusBadge: "ko-status-badge",
@@ -312,9 +325,9 @@ const literalSelectors: LiteralSelectorTree = {
   graph: {
     emptyState: "ko-graph-empty",
   },
-};
+} as const satisfies LiteralSelectorTree;
 
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
+const dynamicSelectorDefinitions = {
   search: {
     sampleByQuery: defineDynamicSelector({
       description: "Sample query button filtered by query text",
@@ -322,7 +335,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       params: { query: { type: "string" } },
     }),
   },
-};
+} as const satisfies DynamicSelectorTree;
 
 const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
 
