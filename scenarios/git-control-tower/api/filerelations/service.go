@@ -33,8 +33,10 @@ type RelatedFile struct {
 
 // Service provides file relationship discovery
 type Service struct {
-	registry *scanner.Registry
-	resolver *resolver.RelativeResolver
+	registry         *scanner.Registry
+	resolver         *resolver.RelativeResolver
+	goModResolver    *resolver.GoModResolver
+	tsConfigResolver *resolver.TSConfigResolver
 }
 
 // NewService creates a new file relations service
@@ -47,8 +49,10 @@ func NewService() *Service {
 	reg.Register(python.New())
 
 	return &Service{
-		registry: reg,
-		resolver: resolver.NewRelativeResolver(),
+		registry:         reg,
+		resolver:         resolver.NewRelativeResolver(),
+		goModResolver:    resolver.NewGoModResolver(),
+		tsConfigResolver: resolver.NewTSConfigResolver(),
 	}
 }
 
@@ -98,12 +102,25 @@ func (s *Service) findImports(ctx context.Context, filePath string, repoRoot str
 
 	// Resolve each import to a file path
 	seen := make(map[string]bool)
+	ext := filepath.Ext(filePath)
+	isGoFile := ext == ".go"
+	isTSFile := ext == ".ts" || ext == ".tsx" || ext == ".js" || ext == ".jsx"
+
 	for _, imp := range result.Imports {
-		if !imp.IsRelative {
-			continue // Only resolve relative imports for now
+		var resolved string
+
+		if imp.IsRelative {
+			// Use relative resolver for relative imports
+			resolved = s.resolver.Resolve(imp.Source, filePath, repoRoot)
+		} else {
+			// Try non-relative resolvers based on file type
+			if isGoFile {
+				resolved = s.goModResolver.Resolve(imp.Source, filePath, repoRoot)
+			} else if isTSFile {
+				resolved = s.tsConfigResolver.Resolve(imp.Source, filePath, repoRoot)
+			}
 		}
 
-		resolved := s.resolver.Resolve(imp.Source, filePath, repoRoot)
 		if resolved != "" && !seen[resolved] && resolved != filePath {
 			seen[resolved] = true
 			related = append(related, RelatedFile{
@@ -115,11 +132,19 @@ func (s *Service) findImports(ctx context.Context, filePath string, repoRoot str
 
 	// Also resolve re-exports
 	for _, exp := range result.Exports {
-		if !exp.IsRelative {
-			continue
+		var resolved string
+
+		if exp.IsRelative {
+			resolved = s.resolver.Resolve(exp.Source, filePath, repoRoot)
+		} else {
+			// Try non-relative resolvers based on file type
+			if isGoFile {
+				resolved = s.goModResolver.Resolve(exp.Source, filePath, repoRoot)
+			} else if isTSFile {
+				resolved = s.tsConfigResolver.Resolve(exp.Source, filePath, repoRoot)
+			}
 		}
 
-		resolved := s.resolver.Resolve(exp.Source, filePath, repoRoot)
 		if resolved != "" && !seen[resolved] && resolved != filePath {
 			seen[resolved] = true
 			related = append(related, RelatedFile{
@@ -235,6 +260,70 @@ func (s *Service) findConventionFiles(ctx context.Context, filePath string, repo
 						})
 					}
 				}
+			}
+		}
+	} else {
+		// This IS a test file - find the source file
+		var sourceBase string
+		switch {
+		case strings.HasSuffix(nameWithoutExt, ".test"):
+			sourceBase = strings.TrimSuffix(nameWithoutExt, ".test")
+		case strings.HasSuffix(nameWithoutExt, ".spec"):
+			sourceBase = strings.TrimSuffix(nameWithoutExt, ".spec")
+		case strings.HasSuffix(nameWithoutExt, "_test"):
+			sourceBase = strings.TrimSuffix(nameWithoutExt, "_test")
+		}
+
+		if sourceBase != "" {
+			// Check same directory for source file
+			sourcePath := filepath.Join(dir, sourceBase+ext)
+			if s.fileExists(repoRoot, sourcePath) {
+				related = append(related, RelatedFile{Path: sourcePath, RelationType: RelationTest})
+			}
+
+			// Check alternative extensions for JS/TS files
+			if ext == ".js" || ext == ".jsx" || ext == ".ts" || ext == ".tsx" {
+				altExts := []string{".ts", ".tsx", ".js", ".jsx"}
+				for _, altExt := range altExts {
+					if altExt != ext {
+						altSourcePath := filepath.Join(dir, sourceBase+altExt)
+						if s.fileExists(repoRoot, altSourcePath) {
+							related = append(related, RelatedFile{Path: altSourcePath, RelationType: RelationTest})
+						}
+					}
+				}
+			}
+
+			// Check parent directory (for __tests__ or __test__ subfolders)
+			parentDir := filepath.Dir(dir)
+			baseDirName := filepath.Base(dir)
+			if baseDirName == "__tests__" || baseDirName == "__test__" {
+				parentSourcePath := filepath.Join(parentDir, sourceBase+ext)
+				if s.fileExists(repoRoot, parentSourcePath) {
+					related = append(related, RelatedFile{Path: parentSourcePath, RelationType: RelationTest})
+				}
+
+				// Also check alternative extensions in parent
+				if ext == ".js" || ext == ".jsx" || ext == ".ts" || ext == ".tsx" {
+					altExts := []string{".ts", ".tsx", ".js", ".jsx"}
+					for _, altExt := range altExts {
+						if altExt != ext {
+							altSourcePath := filepath.Join(parentDir, sourceBase+altExt)
+							if s.fileExists(repoRoot, altSourcePath) {
+								related = append(related, RelatedFile{Path: altSourcePath, RelationType: RelationTest})
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Handle Go _test.go -> .go specifically
+		if ext == ".go" && strings.HasSuffix(base, "_test.go") {
+			goSourceBase := strings.TrimSuffix(base, "_test.go")
+			goSourcePath := filepath.Join(dir, goSourceBase+".go")
+			if s.fileExists(repoRoot, goSourcePath) {
+				related = append(related, RelatedFile{Path: goSourcePath, RelationType: RelationTest})
 			}
 		}
 	}

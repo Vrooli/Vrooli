@@ -19,7 +19,8 @@ import {
   type LayoutPreset,
   type LayoutSection
 } from "./components/LayoutSettingsModal";
-import { useIsMobile } from "./hooks";
+import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
+import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode } from "./lib/api";
@@ -174,6 +175,78 @@ export default function App() {
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
   // View mode for diff viewer
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
+
+  // Track whether we've initialized from URL (prevents clearing URL on first render)
+  const initializedFromUrlRef = useRef(false);
+
+  // URL state management - handle browser back/forward and initial state
+  const handleUrlStateChange = useCallback((state: UrlState) => {
+    if (state.file) {
+      setSelectedFile(state.file);
+      setSelectedIsStaged(state.staged ?? false);
+      setSelectedIsUntracked(false);
+      setSelectedFiles([]);
+      setIsViewingAnyFile(true);
+      setViewingCommit(null);
+    }
+    if (state.mode) {
+      setViewMode(state.mode);
+    }
+    if (state.panel === "related" && state.file) {
+      setShowRelatedFiles(true);
+      setRelatedFilesForPath(state.file);
+    } else if (state.panel === "changes") {
+      setShowRelatedFiles(false);
+      setRelatedFilesForPath(undefined);
+    }
+    if (state.commit) {
+      // Note: Full history mode restoration would require fetching commit details
+      // For now, we just store the hash - user can click on the commit in history to fully restore
+    }
+  }, []);
+
+  const { updateState: updateUrlState } = useUrlState({
+    onStateChange: handleUrlStateChange
+  });
+
+  // Initialize state from URL on mount
+  useEffect(() => {
+    const initialState = parseUrlState(window.location.search);
+    if (initialState.file || initialState.commit) {
+      handleUrlStateChange(initialState);
+    }
+    // Mark as initialized so URL update effect can run
+    initializedFromUrlRef.current = true;
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update URL when relevant state changes (skip until initialized from URL)
+  useEffect(() => {
+    // Don't update URL until we've processed initial URL state
+    if (!initializedFromUrlRef.current) return;
+
+    const urlState: UrlState = {};
+
+    if (selectedFile) {
+      urlState.file = selectedFile;
+    }
+    if (selectedIsStaged) {
+      urlState.staged = true;
+    }
+    if (viewMode && viewMode !== "diff") {
+      urlState.mode = viewMode;
+    }
+    if (showRelatedFiles) {
+      urlState.panel = "related";
+    }
+    if (viewingCommit?.hash) {
+      urlState.commit = viewingCommit.hash;
+    }
+
+    updateUrlState(urlState);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, updateUrlState]);
+
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
   const stackPanels = useMemo(
@@ -461,8 +534,12 @@ export default function App() {
       setSelectedIsStaged(primary.staged);
       setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
       setIsViewingAnyFile(false); // Reset when selecting from changes list
-      setShowRelatedFiles(false); // Close related files panel when selecting from changes list
-      setRelatedFilesForPath(undefined);
+      // If related files panel is open, update it to show relations for the new file
+      if (showRelatedFiles) {
+        setRelatedFilesForPath(primary.path);
+      } else {
+        setRelatedFilesForPath(undefined);
+      }
     },
     [
       orderedIndexMap,
@@ -470,7 +547,8 @@ export default function App() {
       orderedKeys,
       selectionKey,
       selectedFiles,
-      untrackedSet
+      untrackedSet,
+      showRelatedFiles
     ]
   );
 

@@ -37,14 +37,14 @@ func (r *RelativeResolver) Resolve(importSource string, fromFile string, repoRoo
 
 	// Try different extensions for the resolved path
 	extensions := []string{
-		"",       // Exact match
-		".ts",    // TypeScript
-		".tsx",   // TypeScript React
-		".js",    // JavaScript
-		".jsx",   // JavaScript React
-		".mjs",   // ES modules
-		".go",    // Go
-		".py",    // Python
+		"",     // Exact match
+		".ts",  // TypeScript
+		".tsx", // TypeScript React
+		".js",  // JavaScript
+		".jsx", // JavaScript React
+		".mjs", // ES modules
+		".go",  // Go
+		".py",  // Python
 		"/index.ts",
 		"/index.tsx",
 		"/index.js",
