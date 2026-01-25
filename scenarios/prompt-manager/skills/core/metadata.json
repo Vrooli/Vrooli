@@ -218,6 +218,25 @@
       "updatedAt": "2026-01-23T00:00:00Z"
     },
     {
+      "id": "r3f-coherence",
+      "file": "r3f-coherence.md",
+      "name": "R3F Coherence",
+      "description": "React Three Fiber performance patterns - prevent re-renders, optimize useFrame, and maintain 60fps rendering in 3D scenes",
+      "modes": [
+        "Steer",
+        "React",
+        "Performance"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Box",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-25T00:00:00Z",
+      "updatedAt": "2026-01-25T00:00:00Z"
+    },
+    {
       "id": "documentation-health",
       "file": "documentation-health.md",
       "name": "Documentation Health",

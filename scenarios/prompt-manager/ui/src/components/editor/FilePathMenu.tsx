@@ -333,6 +333,16 @@ export function FilePathMenu({
             </div>
           </div>
 
+          {/* File path display */}
+          <div>
+            <label className="text-xs text-muted-foreground font-medium mb-1 block">
+              File Path
+            </label>
+            <p className="text-xs text-muted-foreground font-mono break-all select-all bg-muted/50 px-2 py-1.5 rounded">
+              {projectPath}
+            </p>
+          </div>
+
           {/* Copy buttons - cleaner design */}
           <div className="flex flex-col gap-1.5">
             <button

@@ -11,6 +11,8 @@ Your goal is to ensure that **“running something twice is no worse than runnin
 
 ### **1. Identify Side Effects & Points of Irreversibility**
 
+* **If `docs/internal/INVARIANTS.md` exists**, read the Replay/Idempotency Invariants section first to understand what replay safety patterns have been documented.
+
 Locate code paths where actions:
 
 * write or mutate state
@@ -153,3 +155,19 @@ You **must**:
 Focus on **practical, targeted hardening** that makes the scenario robust under repetition, and ensures that both users and agents can retry actions safely and confidently.
 
 Avoid superficial changes; prioritize modifications that materially improve **correctness under repeated execution**.
+
+---
+
+### **9. Documentation**
+
+Update the **Replay/Idempotency Invariants** section of `docs/internal/INVARIANTS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* State-mutating operations and their idempotency status
+* Idempotency keys used and their scope
+* Safe/unsafe retry patterns discovered
+* Operations with replay-safe implementations vs. risky ones

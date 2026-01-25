@@ -10,7 +10,9 @@ Do **not** break functionality, regress tests, or introduce new features. All ch
 
 ### **1. Understand Intended Behavior & Domain Rules**
 
-* Use the **PRD, operational targets, technical requirements, and existing tests** to infer the scenario’s intended behavior.
+* **If `docs/internal/INVARIANTS.md` exists**, read it first to understand what invariants have been discovered and their enforcement status.
+
+* Use the **PRD, operational targets, technical requirements, and existing tests** to infer the scenario's intended behavior.
 * Identify:
   * core domain concepts
   * valid / invalid states
@@ -142,3 +144,19 @@ You **must**:
 * avoid superficial edits that do not strengthen the system’s real guarantees
 
 Focus this loop on **practical, targeted invariant discovery and enforcement** that makes the scenario more robust, predictable, and safe to evolve over time.
+
+---
+
+### **9. Documentation**
+
+Update `docs/internal/INVARIANTS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Critical invariants: what must never be violated, why it matters
+* Enforcement mechanisms: how each invariant is protected (types, validation, tests)
+* Important invariants: should be preserved but violation is recoverable
+* Gaps: invariants that need enforcement but aren't yet protected

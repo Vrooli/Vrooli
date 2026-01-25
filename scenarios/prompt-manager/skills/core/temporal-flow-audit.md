@@ -10,6 +10,8 @@ Do **not** break functionality, regress tests, or change core product behavior. 
 
 ### **1. Map the Temporal Flows**
 
+* **If `docs/internal/TEMPORAL-FLOWS.md` exists**, read it first to understand what temporal patterns have been documented.
+
 * Identify the key **time-based flows** in this scenario, including:
   * async operations (requests, jobs, tasks, background work)
   * loading sequences and initialization steps
@@ -140,3 +142,20 @@ By the end of this loop, the scenario should:
 Avoid superficial changes that do not materially improve temporal stability.
 
 Focus this loop on **practical, targeted improvements to time, sequencing, and async behavior** that make the scenario more robust, understandable, and reliable over time.
+
+---
+
+### **10. Documentation**
+
+Update `docs/internal/TEMPORAL-FLOWS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Async operation inventory (requests, jobs, background work)
+* Ordering assumptions and their stability status
+* Race conditions identified and their mitigation status
+* Initialization/teardown patterns and their correctness
+* Polling/retry behavior and its configuration

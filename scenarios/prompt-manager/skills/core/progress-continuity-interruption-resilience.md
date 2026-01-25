@@ -10,7 +10,9 @@ Do **not** break functionality, regress tests, or introduce unrelated new featur
 
 ### **1. Identify Core Progress Flows & Checkpoints**
 
-* Identify the scenario’s **main progress-based journeys**, such as:
+* **If `docs/internal/TEMPORAL-FLOWS.md` exists**, read the Checkpoint Flows section first to understand what progress flows have been mapped.
+
+* Identify the scenario's **main progress-based journeys**, such as:
   * creating, editing, or configuring something over multiple steps
   * long-running operations or jobs
   * agent-driven workflows that span multiple actions or iterations
@@ -128,3 +130,19 @@ You **must**:
 Focus this loop on **practical, targeted improvements** that make it safe and natural to stop and resume work without losing the plot.
 
 Avoid superficial changes that do not materially improve continuity, resumability, or confidence when returning to in-progress work.
+
+---
+
+### **9. Documentation**
+
+Update the **Checkpoint Flows** section of `docs/internal/TEMPORAL-FLOWS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Progress-based journeys and their natural checkpoints
+* How progress state is represented and persisted
+* Resume entrypoints and their context recovery strategy
+* Flows that handle interruptions gracefully vs. need hardening

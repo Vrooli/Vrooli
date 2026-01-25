@@ -9,6 +9,8 @@ Focus on producing a **high-signal, trustworthy test suite** that accurately ref
 
 ### **1. Align Tests With Operational Targets & Requirements**
 
+* **If `docs/internal/PROBLEMS.md` exists**, read the Test Gaps section first to understand what test gaps have been identified.
+
 * Ensure **each operational target** has clear, meaningful test coverage through its linked technical requirements.
 * Where gaps exist, add tests that validate the **actual behavior** users and systems depend on, not just internal implementation details.
 * Prefer tests that verify the **full intent** of a requirement (happy path + key edge cases), rather than narrow or trivial assertions.
@@ -173,3 +175,20 @@ You **must**:
 Focus this loop on delivering **practical, high-impact test improvements** that make the scenario safer to evolve, easier to reason about, and more accurately measured by its programmatic completeness.
 
 **Avoid superficial tests that increase coverage numbers without meaningfully protecting behavior. Only add or modify tests when they genuinely sharpen the feedback signal and reduce the risk of unnoticed regressions.**
+
+---
+
+### **8. Documentation**
+
+Update the **Test Gaps** section of `docs/internal/PROBLEMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Critical flows lacking test coverage
+* Flaky or brittle tests identified and their status
+* Assertion quality issues found
+* Test organization improvements made
+* Remaining coverage priorities

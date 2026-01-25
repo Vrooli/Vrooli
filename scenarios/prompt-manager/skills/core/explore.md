@@ -7,6 +7,8 @@ Focus on generating **novel ideas, alternative approaches, and fresh perspective
 
 ### **1. Explore New Possibilities**
 
+* **If `docs/internal/SEAMS.md` exists**, read the Exploration Log section first to understand what architectural variations have been explored.
+
 * Investigate alternative patterns, interaction models, or structural approaches that may offer advantages.
 * Prototype small-scale improvements or variations to understand their feasibility.
 * Consider alternate ways to:
@@ -90,4 +92,19 @@ You **must**:
 
 Focus this loop on **curiosity, novelty, and insight generation**, expanding the scenario’s creative and technical possibilities without risking the stability of the system.
 
-**Avoid surface-level tweaks. Explore meaningful variations that might reveal better patterns, workflows, or interactions—even if they aren’t immediately adopted.**
+**Avoid surface-level tweaks. Explore meaningful variations that might reveal better patterns, workflows, or interactions—even if they aren't immediately adopted.**
+
+---
+
+### **8. Documentation**
+
+Update the **Exploration Log** section of `docs/internal/SEAMS.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Novel approaches attempted and their outcomes
+* Trade-offs discovered (why an approach is promising or not)
+* Promising patterns that could be adopted in future loops

@@ -10,6 +10,8 @@ Focus on **practical, high-impact security improvements**, guided by these princ
 
 ### **1. Protect Sensitive Data**
 
+* **If `docs/internal/SECURITY-POSTURE.md` exists**, read it first to understand what security hardening has been completed.
+
 * Identify where sensitive data is **stored, transmitted, or logged** (e.g. credentials, tokens, keys, personal data).
 * Avoid logging secrets or sensitive identifiers; ensure logs contain enough context to debug without leaking private data.
 * Ensure sensitive values are **never exposed unnecessarily to the client**, to URLs, or to third-party services.
@@ -173,3 +175,20 @@ You **must**:
 Focus this loop on **practical, targeted security improvements** that make the scenario safer against realistic misuse or attack, while preserving usability and progress toward the scenario's operational targets.
 
 Avoid superficial changes (e.g. renaming symbols or shuffling code) that do not materially improve security.
+
+---
+
+### **9. Documentation**
+
+Update `docs/internal/SECURITY-POSTURE.md` to record your findings:
+
+* The code is the source of truth. Verify existing claims against actual code before extending.
+* Correct any inaccuracies and extend with your new discoveries.
+* Create the `docs/internal/` directory if needed.
+
+Include:
+* Sensitive data locations and protection status
+* Authentication/authorization gaps and their status
+* Input validation coverage by boundary
+* Attack surface areas and mitigations applied
+* Security improvements completed and remaining risks
