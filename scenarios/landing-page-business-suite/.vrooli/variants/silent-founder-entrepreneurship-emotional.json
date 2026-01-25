@@ -3,6 +3,7 @@
     "slug": "silent-founder-entrepreneurship-emotional",
     "name": "Silent Founder · Entrepreneurship · Emotional",
     "description": "Build a business quietly with Vrooli Ascension today.",
+    "weight": 100,
     "axes": {
       "conversionStyle": "emotional",
       "jtbd": "entrepreneurship",
