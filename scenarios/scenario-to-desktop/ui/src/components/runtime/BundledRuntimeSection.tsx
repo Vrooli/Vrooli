@@ -50,19 +50,30 @@ export function BundledRuntimeSection({
     setManifestLoading(false);
   }, [bundleManifestPath]);
 
+  // Use manifest content from server-persisted bundle result as fallback
+  const persistedManifestContent = initialBundleResult?.bundleDetails?.manifest_content;
+
   useEffect(() => {
     if (viewMode !== "json") {
       return;
     }
     if (!bundleManifestPath.trim()) {
       setManifestResult(null);
-      setManifestError("Add a bundle manifest path to view the JSON.");
+      setManifestError("Enter a bundle manifest path to view JSON.");
       return;
     }
 
     // If manifest content is available from pipeline store, use it directly
     if (storeManifestContent && Object.keys(storeManifestContent).length > 0) {
       setManifestResult({ path: bundleManifestPath, manifest: storeManifestContent as Record<string, unknown> });
+      setManifestError(null);
+      setManifestLoading(false);
+      return;
+    }
+
+    // Try server-persisted bundle result (from form state restoration)
+    if (persistedManifestContent && Object.keys(persistedManifestContent).length > 0) {
+      setManifestResult({ path: bundleManifestPath, manifest: persistedManifestContent });
       setManifestError(null);
       setManifestLoading(false);
       return;
@@ -81,7 +92,13 @@ export function BundledRuntimeSection({
       .catch((error) => {
         if (!isActive) return;
         setManifestResult(null);
-        setManifestError((error as Error).message);
+        const errMsg = (error as Error).message;
+        // Distinguish between "file not found" and other errors
+        if (errMsg.includes("not found") || errMsg.includes("no such file") || errMsg.includes("ENOENT")) {
+          setManifestError(`Manifest file not found at: ${bundleManifestPath}`);
+        } else {
+          setManifestError(`Failed to load manifest: ${errMsg}`);
+        }
       })
       .finally(() => {
         if (!isActive) return;
@@ -90,7 +107,7 @@ export function BundledRuntimeSection({
     return () => {
       isActive = false;
     };
-  }, [bundleManifestPath, viewMode, storeManifestContent]);
+  }, [bundleManifestPath, viewMode, storeManifestContent, persistedManifestContent]);
 
   const manifestJson = manifestResult?.manifest ? JSON.stringify(manifestResult.manifest, null, 2) : "";
 

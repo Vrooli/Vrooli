@@ -509,9 +509,14 @@ export function GeneratorForm({
     if (!hasInitiallyLoaded) {
       return;
     }
-    // Skip applying scenario defaults when we've loaded state from the server.
-    // This prevents overwriting persisted values with scenario metadata on refresh.
-    if (serverFormState) {
+    // Only skip applying defaults if the server has actual user-entered app metadata.
+    // An empty serverFormState or one with empty metadata fields should allow defaults.
+    const hasServerAppMetadata = serverFormState && (
+      serverFormState.app_display_name ||
+      serverFormState.app_description ||
+      serverFormState.icon_path
+    );
+    if (hasServerAppMetadata) {
       return;
     }
     if (!selectedScenario) {

@@ -36,7 +36,9 @@ func (d *StalenessDetector) DetectChanges(
 	if bundleState, ok := stored.Stages[StageBundle]; ok {
 		fp := bundleState.InputFingerprint
 
-		if fp.ManifestPath != current.ManifestPath {
+		// Only report path change if we actually had a stored path before.
+		// This prevents false positives when no bundle stage has run yet.
+		if fp.ManifestPath != "" && fp.ManifestPath != current.ManifestPath {
 			changes = append(changes, StateChange{
 				ChangeType:    "manifest_path",
 				AffectedStage: StageBundle,
@@ -44,7 +46,7 @@ func (d *StalenessDetector) DetectChanges(
 				OldValue:      fp.ManifestPath,
 				NewValue:      current.ManifestPath,
 			})
-		} else if current.ManifestPath != "" {
+		} else if current.ManifestPath != "" && fp.ManifestPath == current.ManifestPath {
 			// Same path - check content hash
 			if current.ManifestHash != "" && fp.ManifestHash != "" {
 				if current.ManifestHash != fp.ManifestHash {
