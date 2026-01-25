@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../shared/ui/car
 import { Button } from '../../../shared/ui/button';
 import type { DocEntry } from '../../../shared/api';
 import { useDocsViewer } from '../hooks/useDocsViewer';
-import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, ExternalLink, PanelLeftClose, PanelLeft, GripVertical } from 'lucide-react';
+import { Book, ChevronRight, ChevronDown, FileText, Folder, FolderOpen, RefreshCw, PanelLeftClose, PanelLeft, GripVertical } from 'lucide-react';
 
 interface TreeNodeProps {
   entry: DocEntry;
@@ -492,19 +492,7 @@ export function DocsViewer() {
                   Documentation Browser
                 </CardTitle>
                 <div className="flex items-center gap-2">
-                  {selectedPath && (
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(`vscode://file/${selectedPath}`, '_blank')}
-                      className="gap-2"
-                      title="Open in VS Code"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      Open in editor
-                    </Button>
-                  )}
-                  <Button
                     variant="ghost"
                     size="sm"
                     onClick={toggleSidebar}
