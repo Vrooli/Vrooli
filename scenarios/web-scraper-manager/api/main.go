@@ -249,8 +249,8 @@ func getEnv(key, defaultValue string) string {
 func corsMiddleware(next http.Handler) http.Handler {
 	// Get allowed origins from environment or use safe defaults
 	allowedOrigins := map[string]bool{
-		"http://localhost":      true,
-		"http://127.0.0.1":      true,
+		"http://localhost": true,
+		"http://127.0.0.1": true,
 	}
 
 	// Add UI_PORT if configured
@@ -908,22 +908,10 @@ func getPlatformsHandler(w http.ResponseWriter, r *http.Request) {
 	// In a real implementation, this could be loaded from the database or config
 	platforms := []PlatformCapabilities{
 		{
-			Platform:   "huginn",
-			AgentTypes: []string{"WebsiteAgent", "RssAgent", "TwitterStreamAgent", "EmailAgent", "JsonAgent", "DataOutputAgent"},
-			Features:   map[string]interface{}{"scheduling": true, "chaining": true, "filtering": true, "templating": true, "webhooks": true},
-			BestFor:    "RSS feeds, social media monitoring, scheduled scraping",
-		},
-		{
 			Platform:     "browserless",
 			Capabilities: []string{"screenshot", "pdf", "content", "scrape", "function"},
 			Features:     map[string]interface{}{"javascript_rendering": true, "cookie_management": true, "proxy_support": true, "stealth_mode": true, "parallel_execution": true},
 			BestFor:      "JavaScript-heavy sites, screenshots, PDF generation",
-		},
-		{
-			Platform:     "agent-s2",
-			Capabilities: []string{"navigate", "interact", "extract", "monitor", "automate"},
-			Features:     map[string]interface{}{"ai_powered": true, "visual_recognition": true, "natural_language": true, "adaptive_learning": true, "complex_workflows": true},
-			BestFor:      "Complex interactions, dynamic content, AI-guided scraping",
 		},
 	}
 

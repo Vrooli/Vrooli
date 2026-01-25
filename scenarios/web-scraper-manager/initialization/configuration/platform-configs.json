@@ -3,7 +3,7 @@
     "huginn": {
       "agent_types": [
         "WebsiteAgent",
-        "RssAgent", 
+        "RssAgent",
         "TwitterStreamAgent",
         "EmailAgent",
         "JsonAgent",
@@ -34,23 +34,6 @@
         "parallel_execution": true
       },
       "best_for": "JavaScript-heavy sites, screenshots, PDF generation"
-    },
-    "agent-s2": {
-      "capabilities": [
-        "navigate",
-        "interact",
-        "extract",
-        "monitor",
-        "automate"
-      ],
-      "features": {
-        "ai_powered": true,
-        "visual_recognition": true,
-        "natural_language": true,
-        "adaptive_learning": true,
-        "complex_workflows": true
-      },
-      "best_for": "Complex interactions, dynamic content, AI-guided scraping"
     }
   },
   "default_configurations": {
@@ -60,9 +43,18 @@
         "mode": "on_change",
         "expected_update_period_in_days": 1,
         "extract": {
-          "title": {"css": "h1", "value": "."},
-          "content": {"css": "article", "value": "."},
-          "links": {"css": "a", "value": "@href"}
+          "title": {
+            "css": "h1",
+            "value": "."
+          },
+          "content": {
+            "css": "article",
+            "value": "."
+          },
+          "links": {
+            "css": "a",
+            "value": "@href"
+          }
         }
       }
     },
@@ -122,7 +114,11 @@
       {
         "name": "default",
         "type": "datacenter",
-        "locations": ["US", "EU", "ASIA"]
+        "locations": [
+          "US",
+          "EU",
+          "ASIA"
+        ]
       }
     ]
   },

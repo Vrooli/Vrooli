@@ -295,9 +295,6 @@ find_alternative_resources() {
             "ollama")
                 alternatives+=("openai-api" "anthropic-api")
                 ;;
-            "agent-s2")
-                alternatives+=("browserless" "selenium")
-                ;;
             "whisper")
                 alternatives+=("google-speech-api" "azure-speech")
                 ;;

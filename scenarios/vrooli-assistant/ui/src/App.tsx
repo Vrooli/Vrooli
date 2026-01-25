@@ -26,8 +26,6 @@ type ScreenshotFeedback = {
 
 const agentOptions: { value: AgentType; label: string }[] = [
   { value: 'claude-code', label: 'Claude Code' },
-  { value: 'agent-s2', label: 'Agent S2' },
-  { value: 'agent-s3', label: 'Agent S3 (experimental)' },
   { value: 'none', label: 'No agent (capture only)' },
 ];
 
@@ -231,9 +229,8 @@ function App(): JSX.Element {
 
       setFeedback({
         type: 'success',
-        message: `Issue captured successfully${
-          formState.spawnAgent && formState.agentType !== 'none' ? ' and agent spawned' : ''
-        }. Issue ID: ${response.issue_id}.`,
+        message: `Issue captured successfully${formState.spawnAgent && formState.agentType !== 'none' ? ' and agent spawned' : ''
+          }. Issue ID: ${response.issue_id}.`,
       });
 
       setFormState((prev) => ({

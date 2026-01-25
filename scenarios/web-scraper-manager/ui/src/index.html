@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Web Scraper Manager Dashboard</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕷️</text></svg>">
     <script type="module">
         import { initIframeBridgeChild } from '/node_modules/@vrooli/iframe-bridge/dist/iframeBridgeChild.js';
 
@@ -24,6 +26,7 @@
         }
     </script>
 </head>
+
 <body>
     <!-- Header -->
     <header class="header">
@@ -178,9 +181,7 @@
                 <div class="filter-bar">
                     <select id="platform-filter" class="filter-select">
                         <option value="">All Platforms</option>
-                        <option value="huginn">Huginn</option>
                         <option value="browserless">Browserless</option>
-                        <option value="agent-s2">Agent-S2</option>
                     </select>
                     <select id="status-filter" class="filter-select">
                         <option value="">All Status</option>
@@ -394,4 +395,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

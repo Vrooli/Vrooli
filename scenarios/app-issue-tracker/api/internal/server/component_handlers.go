@@ -140,7 +140,7 @@ func (s *Server) discoverResources() ([]Component, error) {
 		"airbyte", "apache-airflow", "apache-superset", "audiocraft",
 		"autogen-studio", "autogpt", "blender", "btcpay",
 		"cline", "cloudflare-ai-gateway", "cncjs", "codex", "comfyui",
-		"crewai", "dify", "docker-mailserver", "dozzle", "duckdns",
+		"dify", "docker-mailserver", "dozzle", "duckdns",
 		"duplicati", "excalidraw", "ファイルブラウザ", "filebrowser", "flowise",
 		"gitea", "grafana", "grocy", "home-assistant", "homepage",
 		"immich", "influxdb", "jellyfin", "kafka", "langflow",

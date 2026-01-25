@@ -177,13 +177,6 @@
   },
   "dependencies": {
     "resources": {
-      "agent-s2": {
-        "enabled": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
-      },
       "airbyte": {
         "enabled": true
       },
@@ -197,9 +190,6 @@
         "enabled": true
       },
       "autogen-studio": {
-        "enabled": true
-      },
-      "autogpt": {
         "enabled": true
       },
       "blender": {
@@ -223,11 +213,6 @@
         "required": true,
         "description": "Claude Code development assistant"
       },
-      "cline": {
-        "enabled": true,
-        "required": false,
-        "description": "VS Code AI coding assistant powered by Claude"
-      },
       "cloudflare-ai-gateway": {
         "enabled": true
       },
@@ -245,13 +230,6 @@
           "intervalMs": 60000,
           "timeoutMs": 5000
         }
-      },
-      "crewai": {
-        "enabled": true,
-        "required": false,
-        "description": "Framework for orchestrating role-playing autonomous AI agents",
-        "data_dir": "~/.crewai",
-        "venv_dir": "~/.crewai/venv"
       },
       "deepstack": {
         "enabled": true
@@ -555,9 +533,6 @@
         "enabled": true,
         "required": false,
         "description": "High-performance time series database"
-      },
-      "qwencoder": {
-        "enabled": true
       },
       "redis": {
         "enabled": true,

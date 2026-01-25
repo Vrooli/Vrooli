@@ -292,14 +292,6 @@
         "purpose": "JavaScript-heavy sites, screenshots, PDF generation",
         "default_port": 4110,
         "health_endpoint": "/stats"
-      },
-      "agent-s2": {
-        "type": "external-service",
-        "enabled": false,
-        "required": false,
-        "purpose": "AI-powered web interaction and complex scraping",
-        "default_port": 4113,
-        "health_endpoint": "/health"
       }
     }
   }

@@ -489,11 +489,9 @@ resources::check_mcp_integration() {
 resources::get_health_endpoint() {
     local resource="$1"
     case "$resource" in
-        "agent-s2") echo "/health" ;;
         "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
         "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
-        "huginn") echo "/" ;;
         "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
         "minio") echo "/minio/health/live" ;;  # MinIO health endpoint

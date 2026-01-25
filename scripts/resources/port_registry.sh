@@ -16,7 +16,6 @@ declare -g -A RESOURCE_PORTS=(
     ["whisper"]="8090"         # Speech-to-text service (keeping original port)
     ["unstructured-io"]="11450" # Document processing and extraction
     ["nsfw-detector"]="11451"  # NSFW content detection and moderation AI
-    ["qwencoder"]="11452"      # QwenCoder code generation LLM
     ["deepstack"]="11453"      # DeepStack computer vision AI (object detection, face recognition)
     ["segment-anything"]="11454"  # Segment Anything Model (SAM2/HQ-SAM) foundation segmentation service
     ["ultralytics-yolo"]="11455"  # Ultralytics YOLOv8 vision intelligence suite (detection, segmentation, tracking)
@@ -48,8 +47,6 @@ declare -g -A RESOURCE_PORTS=(
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
-    ["huginn"]="4111"          # Workflow automation platform
-    ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
     ["obs-studio"]="4455"      # OBS Studio WebSocket API
     # Note: claude-code is a CLI tool and doesn't use a port
     
@@ -68,12 +65,10 @@ declare -g -A RESOURCE_PORTS=(
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
-    ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
     ["splink"]="8096"          # Probabilistic record linkage and deduplication at scale
     ["sagemath"]="8888"        # Open-source mathematics software system (Jupyter interface)
     ["sagemath-api"]="8889"    # SageMath REST API endpoint
     ["haystack"]="8075"        # End-to-end framework for question answering and search
-    ["crewai"]="8084"          # Multi-agent AI framework for collaborative AI systems
     ["keycloak"]="8070"        # Enterprise identity and access management
     ["erpnext"]="8020"         # Complete open-source ERP suite
     ["mifos"]="8030"           # Mifos X digital finance platform (Apache Fineract)

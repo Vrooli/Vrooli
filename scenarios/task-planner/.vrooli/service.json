@@ -258,11 +258,6 @@
         "type": "claude-code",
         "enabled": true,
         "required": false
-      },
-      "agent-s2": {
-        "type": "agent-s2",
-        "enabled": true,
-        "required": false
       }
     }
   }

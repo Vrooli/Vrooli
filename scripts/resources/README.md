@@ -10,7 +10,7 @@ vrooli resource status
 
 # Install specific resources via CLI
 vrooli resource install ollama
-vrooli resource install agent-s2
+vrooli resource install postgres
 
 # Check resource status
 vrooli resource status ollama
@@ -19,17 +19,6 @@ vrooli resource status ollama
 resource-ollama status
 resource-ollama list-models
 ```
-
-## 📦 Available Resources
-
-| Category | Resources | Purpose |
-|----------|-----------|---------|
-| **AI** | ollama, whisper, unstructured-io, comfyui | Local AI inference and processing |
-| **Automation** | node-red, huginn, comfyui | Workflow orchestration |
-| **Agents** | agent-s2, browserless, claude-code | Web/desktop automation |
-| **Search** | searxng | Privacy-respecting search |
-| **Storage** | postgres, redis, minio, vault, qdrant, questdb | Data persistence |
-| **Execution** | judge0 | Code execution sandboxing |
 
 ## 📚 Documentation
 
