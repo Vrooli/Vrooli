@@ -1,32 +1,64 @@
 /**
- * Sidebar header showing pipeline info and debug button.
+ * Sidebar header showing pipeline info, timestamps, and controls.
+ * Consolidates all pipeline metadata with "New Pipeline" button and history access.
  */
 
 import { useState } from "react";
-import { Bug, Copy, Check } from "lucide-react";
+import { Bug, Copy, Check, Plus, History, Clock } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { DebugJsonModal } from "./DebugJsonModal";
-import { usePipelineStore, selectProgress, selectCurrentStage } from "../../store";
+import { PipelineHistoryDropdown } from "./PipelineHistoryDropdown";
+import { usePipelineStore, selectProgress, selectCurrentStage, selectIsRunning } from "../../store";
 import { cn } from "../../lib/utils";
 import { writeToClipboard } from "../../lib/browser";
 import { getPipelineStatusDisplay, formatStageName } from "../../lib/status-display";
 
+/** Format Unix timestamp to locale string */
+function formatTimestamp(unix: number | undefined): string {
+  if (!unix) return "-";
+  return new Date(unix * 1000).toLocaleString();
+}
+
 export function SidebarHeader() {
   const [debugModalOpen, setDebugModalOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const pipelineId = usePipelineStore((s) => s.pipelineId);
   const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
   const runStatus = usePipelineStore((s) => s.runStatus);
   const scenarioName = usePipelineStore((s) => s.scenarioName);
   const progress = usePipelineStore(selectProgress);
   const currentStage = usePipelineStore(selectCurrentStage);
+  const isRunningStore = usePipelineStore(selectIsRunning);
+  const isLoadingActivePipeline = usePipelineStore((s) => s.isLoadingActivePipeline);
+  const createNewPipelineForScenario = usePipelineStore((s) => s.createNewPipelineForScenario);
 
-  const status = pipelineStatus?.status ?? (runStatus !== "idle" ? runStatus : null);
+  // Use server-side status if available, otherwise use local runStatus
+  // "idle" is a valid status (created but not started), so don't filter it out
+  const status = pipelineStatus?.status ?? runStatus;
   const { label, icon: StatusIcon, className } = getPipelineStatusDisplay(status as import("../../lib/status-display").PipelineStatus);
 
-  const isRunning = status === "running" || status === "starting";
+  // Only consider pipeline "running" if it's actively executing (not idle)
+  const isRunning = status === "running" || status === "starting" || status === "pending" || isRunningStore;
   const progressPercent = Math.round(progress * 100);
+
+  // Get timestamps from pipeline status
+  const startedAt = pipelineStatus?.started_at;
+  const completedAt = pipelineStatus?.completed_at;
+
+  const handleCreateNewPipeline = async () => {
+    if (isRunning || isCreating) return;
+    setIsCreating(true);
+    try {
+      await createNewPipelineForScenario();
+    } catch (err) {
+      console.error("Failed to create new pipeline:", err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const handleCopyId = async () => {
     if (pipelineId) {
@@ -43,15 +75,26 @@ export function SidebarHeader() {
       <div className="border-b border-white/10 p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-200">Pipeline</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDebugModalOpen(true)}
-            className="h-7 w-7 p-0 text-slate-400 hover:text-slate-200"
-            title="Debug JSON"
-          >
-            <Bug className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryOpen(true)}
+              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-200"
+              title="Pipeline History"
+            >
+              <History className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDebugModalOpen(true)}
+              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-200"
+              title="Debug JSON"
+            >
+              <Bug className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Scenario name */}
@@ -62,12 +105,25 @@ export function SidebarHeader() {
           </div>
         )}
 
-        {/* Pipeline ID */}
+        {/* Pipeline ID with New Pipeline button */}
         <div className="space-y-1">
-          <span className="text-xs text-slate-500">Pipeline ID</span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">Pipeline ID</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCreateNewPipeline}
+              disabled={isRunning || isCreating || isLoadingActivePipeline || !scenarioName}
+              className="h-6 px-2 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
+              title={isRunning ? "Cannot create while running" : "Create new pipeline"}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              New
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <code className="flex-1 truncate rounded bg-slate-900/50 px-2 py-1 text-xs text-slate-300 font-mono">
-              {pipelineId ?? "No active pipeline"}
+              {isLoadingActivePipeline ? "Loading..." : pipelineId ?? "No active pipeline"}
             </code>
             {pipelineId && (
               <Button
@@ -98,6 +154,24 @@ export function SidebarHeader() {
           </Badge>
         </div>
 
+        {/* Timestamps */}
+        {(startedAt || completedAt) && (
+          <div className="space-y-1.5 text-xs">
+            {startedAt && (
+              <div className="flex items-center gap-2 text-slate-400">
+                <Clock className="h-3 w-3" />
+                <span>Started: {formatTimestamp(startedAt)}</span>
+              </div>
+            )}
+            {completedAt && (
+              <div className="flex items-center gap-2 text-slate-400">
+                <Check className="h-3 w-3" />
+                <span>Completed: {formatTimestamp(completedAt)}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Progress bar when running */}
         {isRunning && (
           <div className="space-y-1">
@@ -125,6 +199,7 @@ export function SidebarHeader() {
       </div>
 
       <DebugJsonModal open={debugModalOpen} onClose={() => setDebugModalOpen(false)} />
+      <PipelineHistoryDropdown open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </>
   );
 }

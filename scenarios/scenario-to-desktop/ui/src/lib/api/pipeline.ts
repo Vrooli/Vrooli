@@ -316,3 +316,113 @@ export function extractPreflightResult(status: PipelineStatus): BundlePreflightR
   // The preflight stage stores the response in Details
   return preflightStage.details as BundlePreflightResponse | null;
 }
+
+// ==================== Scenario-Based Pipeline Management API ====================
+
+/** Response from getting active pipeline */
+export interface ActivePipelineResponse {
+  pipeline: PipelineStatus | null;
+  created: boolean;
+}
+
+/** Response from creating new pipeline */
+export interface CreatePipelineResponse {
+  pipeline: PipelineStatus;
+  archived_id?: string;
+}
+
+/** Response from resetting pipeline */
+export interface ResetPipelineResponse {
+  archived_id?: string;
+  cleared: boolean;
+}
+
+/** Response from getting pipeline history */
+export interface PipelineHistoryResponse {
+  pipelines: PipelineStatus[];
+  total: number;
+}
+
+/** Options for getting active pipeline */
+export interface GetActivePipelineOptions {
+  /** If true, creates a new pipeline if none exists. Default: true */
+  autoCreate?: boolean;
+}
+
+/**
+ * Get the active pipeline for a scenario.
+ * If autoCreate is true (default), creates a new pipeline if none exists.
+ */
+export async function getActivePipeline(
+  scenarioName: string,
+  options?: GetActivePipelineOptions
+): Promise<ActivePipelineResponse> {
+  const params = new URLSearchParams();
+  if (options?.autoCreate === false) {
+    params.set("auto_create", "false");
+  }
+
+  const queryString = params.toString();
+  const url = buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/active`) +
+    (queryString ? `?${queryString}` : "");
+
+  const response = await fetch(url);
+  await throwIfNotOk(response);
+  return response.json();
+}
+
+/**
+ * Create a new active pipeline for a scenario.
+ * Archives the current active pipeline if one exists.
+ */
+export async function createNewPipeline(
+  scenarioName: string,
+  config?: Partial<PipelineConfig>
+): Promise<CreatePipelineResponse> {
+  const response = await fetch(buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline`), {
+    method: "POST",
+    headers: config ? { "Content-Type": "application/json" } : undefined,
+    body: config ? JSON.stringify(config) : undefined,
+  });
+  await throwIfNotOk(response);
+  return response.json();
+}
+
+/**
+ * Reset the active pipeline for a scenario.
+ * Archives the current active pipeline and clears the active slot.
+ */
+export async function resetPipeline(scenarioName: string): Promise<ResetPipelineResponse> {
+  const response = await fetch(buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/reset`), {
+    method: "POST",
+  });
+  await throwIfNotOk(response);
+  return response.json();
+}
+
+/** Options for getting pipeline history */
+export interface GetPipelineHistoryOptions {
+  /** Maximum number of pipelines to return. Default: 10 */
+  limit?: number;
+}
+
+/**
+ * Get the history of pipelines for a scenario.
+ */
+export async function getPipelineHistory(
+  scenarioName: string,
+  options?: GetPipelineHistoryOptions
+): Promise<PipelineHistoryResponse> {
+  const params = new URLSearchParams();
+  if (options?.limit && options.limit > 0) {
+    params.set("limit", options.limit.toString());
+  }
+
+  const queryString = params.toString();
+  const url = buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/history`) +
+    (queryString ? `?${queryString}` : "");
+
+  const response = await fetch(url);
+  await throwIfNotOk(response);
+  return response.json();
+}

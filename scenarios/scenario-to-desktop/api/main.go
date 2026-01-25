@@ -223,6 +223,16 @@ func NewServer(port int) *Server {
 		pipelineStore = nil
 	}
 
+	// Create scenario index store for scenario-to-pipeline mapping
+	indexDataDir := filepath.Join(dataDir, "indexes")
+	indexStore, err := pipeline.NewScenarioIndexStore(indexDataDir,
+		pipeline.WithIndexStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+	if err != nil {
+		logger.Warn("scenario index store unavailable", "error", err)
+		indexStore = nil
+	}
+
 	// Create orchestrator with optional file store
 	orchestratorOpts := []pipeline.OrchestratorOption{
 		pipeline.WithOrchestratorScenarioRoot(scenarioRoot),
@@ -233,8 +243,17 @@ func NewServer(port int) *Server {
 		orchestratorOpts = append(orchestratorOpts, pipeline.WithStore(pipelineStore))
 	}
 	pipelineOrchestrator := pipeline.NewOrchestrator(orchestratorOpts...)
+
+	// Create pipeline manager for scenario-based pipeline operations
+	pipelineManager := pipeline.NewManager(
+		pipeline.WithManagerOrchestrator(pipelineOrchestrator),
+		pipeline.WithManagerIndexStore(indexStore),
+		pipeline.WithManagerLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+
 	pipelineHandler := pipeline.NewHandler(
 		pipeline.WithOrchestrator(pipelineOrchestrator),
+		pipeline.WithManager(pipelineManager),
 	)
 
 	// ===== Tool Discovery and Execution Protocol =====

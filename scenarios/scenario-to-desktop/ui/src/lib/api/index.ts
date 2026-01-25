@@ -81,6 +81,13 @@ export type {
   VerboseStageResult,
   VerbosePipelineStatus,
   GetPipelineStatusOptions,
+  // Scenario-based pipeline management types
+  ActivePipelineResponse,
+  CreatePipelineResponse,
+  ResetPipelineResponse,
+  PipelineHistoryResponse,
+  GetActivePipelineOptions,
+  GetPipelineHistoryOptions,
 } from "./pipeline";
 export {
   runPipeline,
@@ -90,6 +97,11 @@ export {
   listPipelines,
   runPreflightPipeline,
   extractPreflightResult,
+  // Scenario-based pipeline management functions
+  getActivePipeline,
+  createNewPipeline,
+  resetPipeline,
+  getPipelineHistory,
 } from "./pipeline";
 
 // Scenario state types and functions

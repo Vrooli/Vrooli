@@ -18,7 +18,7 @@ import {
 export type StageStatus = "pending" | "running" | "completed" | "failed" | "skipped";
 
 /** Pipeline status types (superset of stage statuses) */
-export type PipelineStatus = StageStatus | "starting" | "cancelled" | null | undefined;
+export type PipelineStatus = StageStatus | "idle" | "starting" | "cancelled" | null | undefined;
 
 /** Status display configuration */
 export interface StatusDisplayConfig {
@@ -98,10 +98,17 @@ export function getStageStatusDisplay(
 
 /**
  * Get pipeline status display for sidebar header.
- * Handles additional statuses like 'starting', 'cancelled', and null.
+ * Handles additional statuses like 'idle', 'starting', 'cancelled', and null.
  */
 export function getPipelineStatusDisplay(status: PipelineStatus): StatusDisplayConfig {
   switch (status) {
+    case "idle":
+      // Pipeline created but not started - ready for user to configure and run
+      return {
+        label: "Ready",
+        icon: Play,
+        className: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      };
     case "running":
     case "starting":
       return {

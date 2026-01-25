@@ -58,6 +58,20 @@ export interface PipelineErrorInfo {
 }
 
 // ============================================================================
+// Pipeline Cache Types (for scenario switching)
+// ============================================================================
+
+/** Cache entry for a scenario's pipeline state */
+export interface ScenarioPipelineCacheEntry {
+  pipelineId: string;
+  status: PipelineRunStatus;
+  lastAccessed: number;
+}
+
+/** Maximum number of cached scenarios (LRU limit) */
+export const PIPELINE_CACHE_MAX_SIZE = 10;
+
+// ============================================================================
 // Store State Types
 // ============================================================================
 
@@ -105,6 +119,13 @@ export interface PipelineStoreState {
   isSubmitting: boolean;
   /** The idempotency key for the current/most recent request */
   currentIdempotencyKey: string | null;
+
+  // Scenario pipeline cache (LRU, protects running scenarios from eviction)
+  scenarioPipelineCache: Map<string, ScenarioPipelineCacheEntry>;
+  /** Scenarios with running pipelines (protected from cache eviction) */
+  runningScenarios: Set<string>;
+  /** Whether we're loading the active pipeline from server */
+  isLoadingActivePipeline: boolean;
 }
 
 /** Status subscriber callback type */
@@ -148,10 +169,32 @@ export interface PipelineStoreActions {
   setPreflightOverride: (override: boolean) => void;
   resetPreflight: () => void;
 
+  // Scenario-based pipeline management (server-side persistence)
+  /**
+   * Load the active pipeline for the current scenario from the server.
+   * If autoCreate is true (default), creates a new pipeline if none exists.
+   */
+  loadActivePipeline: (autoCreate?: boolean) => Promise<void>;
+  /**
+   * Create a new pipeline for the current scenario.
+   * Archives the current active pipeline if one exists.
+   */
+  createNewPipelineForScenario: (config?: Partial<PipelineConfig>) => Promise<string>;
+  /**
+   * Reset the current pipeline (archive and clear active).
+   */
+  resetCurrentPipeline: () => Promise<void>;
+  /**
+   * Load the pipeline history for the current scenario.
+   */
+  loadPipelineHistory: (limit?: number) => Promise<VerbosePipelineStatus[]>;
+
   // Internal helpers (prefixed with _ to indicate private)
   _setPipelineStatus: (status: VerbosePipelineStatus | null) => void;
   _extractStageResults: (status: VerbosePipelineStatus) => void;
   _notifySubscribers: () => void;
+  _updateCache: () => void;
+  _pruneCache: () => void;
 }
 
 export type PipelineStore = PipelineStoreState & PipelineStoreActions;
@@ -180,4 +223,7 @@ export const initialPipelineState: PipelineStoreState = {
   preflightOverride: false,
   isSubmitting: false,
   currentIdempotencyKey: null,
+  scenarioPipelineCache: new Map(),
+  runningScenarios: new Set(),
+  isLoadingActivePipeline: false,
 };

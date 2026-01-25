@@ -52,7 +52,9 @@ export {
   type PipelineStoreState,
   type PipelineStoreActions,
   type PipelineErrorCategory,
+  type ScenarioPipelineCacheEntry,
   initialPipelineState,
+  PIPELINE_CACHE_MAX_SIZE,
 } from "./pipelineTypes";
 
 // Form store

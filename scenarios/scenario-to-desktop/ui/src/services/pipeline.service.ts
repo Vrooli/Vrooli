@@ -18,6 +18,9 @@ export const TERMINAL_STATES = ["completed", "failed", "cancelled"] as const;
 
 export type TerminalState = (typeof TERMINAL_STATES)[number];
 
+/** States that don't require polling (either haven't started or are done) */
+export const NON_POLLING_STATES = ["idle", "completed", "failed", "cancelled"] as const;
+
 // ============================================================================
 // Status Mapping
 // ============================================================================
@@ -29,6 +32,9 @@ export function mapPipelineToRunStatus(status: string | undefined | null): Pipel
   if (!status) return "idle";
 
   switch (status) {
+    case "idle":
+      // Pipeline created but not started - ready for configuration
+      return "idle";
     case "pending":
     case "running":
       return "running";
@@ -45,6 +51,7 @@ export function mapPipelineToRunStatus(status: string | undefined | null): Pipel
 
 /**
  * Check if a pipeline status is a terminal state.
+ * Terminal states mean the pipeline has finished (can't be changed).
  */
 export function isTerminalState(status: string | undefined | null): boolean {
   if (!status) return false;
@@ -52,11 +59,26 @@ export function isTerminalState(status: string | undefined | null): boolean {
 }
 
 /**
+ * Check if a pipeline is idle (created but not started).
+ */
+export function isIdleState(status: string | undefined | null): boolean {
+  return status === "idle";
+}
+
+/**
+ * Check if a pipeline is actively running (needs polling).
+ */
+export function isActivelyRunning(status: string | undefined | null): boolean {
+  return status === "running" || status === "pending";
+}
+
+/**
  * Determine if polling should continue based on current status.
+ * Don't poll for idle pipelines (haven't started) or terminal states (finished).
  */
 export function shouldContinuePolling(status: VerbosePipelineStatus | null): boolean {
   if (!status) return false;
-  return !isTerminalState(status.status);
+  return isActivelyRunning(status.status);
 }
 
 // ============================================================================

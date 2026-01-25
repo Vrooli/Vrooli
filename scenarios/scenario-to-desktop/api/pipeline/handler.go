@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"scenario-to-desktop-api/shared/errors"
@@ -14,6 +15,7 @@ import (
 // Handler provides HTTP handlers for pipeline operations.
 type Handler struct {
 	orchestrator Orchestrator
+	manager      *Manager
 	basePath     string
 }
 
@@ -31,6 +33,13 @@ func WithOrchestrator(o Orchestrator) HandlerOption {
 func WithBasePath(path string) HandlerOption {
 	return func(h *Handler) {
 		h.basePath = path
+	}
+}
+
+// WithManager sets the pipeline manager.
+func WithManager(m *Manager) HandlerOption {
+	return func(h *Handler) {
+		h.manager = m
 	}
 }
 
@@ -61,6 +70,19 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// GET /api/v1/pipelines - list all pipelines
 	r.HandleFunc("/api/v1/pipelines", h.handleList).Methods("GET")
+
+	// Scenario-based pipeline management (new endpoints)
+	// GET /api/v1/scenarios/{name}/pipeline/active - get active pipeline, auto-create if none
+	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/active", h.handleGetActivePipeline).Methods("GET")
+
+	// POST /api/v1/scenarios/{name}/pipeline - create new active pipeline (archives old)
+	r.HandleFunc("/api/v1/scenarios/{name}/pipeline", h.handleCreatePipeline).Methods("POST")
+
+	// POST /api/v1/scenarios/{name}/pipeline/reset - archive current, clear active
+	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/reset", h.handleResetPipeline).Methods("POST")
+
+	// GET /api/v1/scenarios/{name}/pipeline/history - get last N historical pipelines
+	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/history", h.handleGetPipelineHistory).Methods("GET")
 }
 
 // handleRun handles POST /api/v1/pipeline/run
@@ -237,6 +259,168 @@ func (h *Handler) handleList(w http.ResponseWriter, r *http.Request) {
 	pipelines := h.orchestrator.ListPipelines()
 	httputil.WriteJSONOK(w, ListResponse{
 		Pipelines: pipelines,
+	})
+}
+
+// handleGetActivePipeline handles GET /api/v1/scenarios/{name}/pipeline/active
+// Returns the active pipeline for a scenario, optionally auto-creating one if none exists.
+// Query params:
+//   - auto_create: if "true", creates a new pipeline if none exists (default: true)
+func (h *Handler) handleGetActivePipeline(w http.ResponseWriter, r *http.Request) {
+	if h.manager == nil {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
+		return
+	}
+
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	// Check auto_create query param (default: true)
+	autoCreate := r.URL.Query().Get("auto_create") != "false"
+
+	if !autoCreate {
+		// Just return the current active pipeline, don't create
+		status, ok := h.manager.GetActivePipelineStatus(scenarioName)
+		if !ok {
+			httputil.WriteJSONOK(w, ActivePipelineResponse{
+				Pipeline: nil,
+				Created:  false,
+			})
+			return
+		}
+		httputil.WriteJSONOK(w, ActivePipelineResponse{
+			Pipeline: status,
+			Created:  false,
+		})
+		return
+	}
+
+	// Get or create active pipeline
+	status, created, err := h.manager.GetOrCreateActivePipeline(context.Background(), scenarioName, nil)
+	if err != nil {
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to get or create active pipeline").
+			InDomain("pipeline"))
+		return
+	}
+
+	httputil.WriteJSONOK(w, ActivePipelineResponse{
+		Pipeline: status,
+		Created:  created,
+	})
+}
+
+// handleCreatePipeline handles POST /api/v1/scenarios/{name}/pipeline
+// Creates a new active pipeline, archiving the current one if it exists.
+func (h *Handler) handleCreatePipeline(w http.ResponseWriter, r *http.Request) {
+	if h.manager == nil {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
+		return
+	}
+
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	// Parse optional request body for config
+	var config *Config
+	if r.ContentLength > 0 {
+		var c Config
+		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+			httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
+				WithCause(err).
+				WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
+			return
+		}
+		config = &c
+	}
+
+	status, archivedID, err := h.manager.CreateNewPipeline(context.Background(), scenarioName, config)
+	if err != nil {
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to create pipeline").
+			InDomain("pipeline"))
+		return
+	}
+
+	httputil.WriteJSONAccepted(w, CreatePipelineResponse{
+		Pipeline:   status,
+		ArchivedID: archivedID,
+	})
+}
+
+// handleResetPipeline handles POST /api/v1/scenarios/{name}/pipeline/reset
+// Archives the current active pipeline and clears the active slot.
+func (h *Handler) handleResetPipeline(w http.ResponseWriter, r *http.Request) {
+	if h.manager == nil {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
+		return
+	}
+
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	archivedID, err := h.manager.ResetActivePipeline(scenarioName)
+	if err != nil {
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to reset pipeline").
+			InDomain("pipeline"))
+		return
+	}
+
+	httputil.WriteJSONOK(w, ResetPipelineResponse{
+		ArchivedID: archivedID,
+		Cleared:    true,
+	})
+}
+
+// handleGetPipelineHistory handles GET /api/v1/scenarios/{name}/pipeline/history
+// Returns the history of pipelines for a scenario.
+// Query params:
+//   - limit: maximum number of pipelines to return (default: 10)
+func (h *Handler) handleGetPipelineHistory(w http.ResponseWriter, r *http.Request) {
+	if h.manager == nil {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
+		return
+	}
+
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	// Parse limit query param
+	limit := 10
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	pipelines, total, err := h.manager.GetPipelineHistory(scenarioName, limit)
+	if err != nil {
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to get pipeline history").
+			InDomain("pipeline"))
+		return
+	}
+
+	httputil.WriteJSONOK(w, PipelineHistoryResponse{
+		Pipelines: pipelines,
+		Total:     total,
 	})
 }
 

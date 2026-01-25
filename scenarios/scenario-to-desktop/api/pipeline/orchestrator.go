@@ -215,6 +215,113 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	return status, nil
 }
 
+// CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
+// The pipeline will remain idle until explicitly started via StartPipeline.
+// This is used for auto-creating pipelines when a scenario is selected.
+func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
+	// Validate config
+	if config.ScenarioName == "" {
+		return nil, fmt.Errorf("scenario_name is required")
+	}
+
+	// Validate stop_after_stage if provided
+	if config.StopAfterStage != "" && !IsValidStageName(config.StopAfterStage) {
+		return nil, fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
+	}
+
+	// Idempotency check: if an idempotency key is provided, check for existing pipeline
+	if config.IdempotencyKey != "" {
+		if existing, ok := o.store.GetByIdempotencyKey(config.IdempotencyKey); ok {
+			o.logger.Info("Idempotency key matched existing pipeline",
+				"idempotency_key", config.IdempotencyKey,
+				"pipeline_id", existing.PipelineID,
+				"status", existing.Status,
+			)
+			return existing, nil
+		}
+	}
+
+	// Apply defaults - don't set platforms yet since the user hasn't configured them
+	// The config will be updated when the user starts the pipeline
+
+	// Generate pipeline ID
+	pipelineID := o.idGenerator.Generate()
+
+	// Build stage order
+	stageOrder := make([]string, 0, len(o.stages))
+	for _, stage := range o.stages {
+		stageOrder = append(stageOrder, stage.Name())
+	}
+
+	// Create idle status - NOT started yet
+	status := &Status{
+		PipelineID:     pipelineID,
+		ScenarioName:   config.ScenarioName,
+		Status:         StatusIdle,
+		Stages:         make(map[string]*StageResult),
+		StageOrder:     stageOrder,
+		Config:         config,
+		StartedAt:      o.timeProvider.Now(), // Track creation time
+		IdempotencyKey: config.IdempotencyKey,
+	}
+
+	// Set initial progress message for idle state
+	status.ProgressPercent = 0
+	status.ProgressMessage = "Pipeline created, waiting to start"
+
+	// Save initial status
+	o.store.Save(status)
+
+	o.logger.Info("Created idle pipeline",
+		"pipeline_id", pipelineID,
+		"scenario", config.ScenarioName,
+	)
+
+	return status, nil
+}
+
+// StartPipeline starts execution of an existing idle pipeline.
+// Returns an error if the pipeline is not in idle state or doesn't exist.
+func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID string) (*Status, error) {
+	// Get existing status
+	status, ok := o.store.Get(pipelineID)
+	if !ok {
+		return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
+	}
+
+	// Verify pipeline is in idle state
+	if !status.IsIdle() {
+		return nil, fmt.Errorf("pipeline cannot be started: status is %s (must be idle)", status.Status)
+	}
+
+	config := status.Config
+	if config == nil {
+		return nil, fmt.Errorf("pipeline has no config")
+	}
+
+	// Apply defaults now that we're starting
+	if len(config.Platforms) == 0 {
+		config.Platforms = []string{currentPlatform()}
+	}
+
+	// Update status to pending
+	o.store.Update(pipelineID, func(s *Status) {
+		s.Status = StatusPending
+		s.UpdateProgress()
+	})
+
+	// Create cancellable context
+	pipelineCtx, cancel := context.WithCancel(ctx)
+	o.cancelManager.Set(pipelineID, cancel)
+
+	// Run pipeline asynchronously
+	go o.runPipelineAsync(pipelineCtx, pipelineID, config)
+
+	// Get updated status
+	updatedStatus, _ := o.store.Get(pipelineID)
+	return updatedStatus, nil
+}
+
 // runPipelineAsync executes the pipeline stages sequentially.
 func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
 	defer o.cancelManager.Clear(pipelineID)

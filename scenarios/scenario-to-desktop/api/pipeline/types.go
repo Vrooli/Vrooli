@@ -23,12 +23,13 @@ const (
 
 // Pipeline status values.
 const (
-	StatusPending   = "pending"
-	StatusRunning   = "running"
-	StatusCompleted = "completed"
-	StatusFailed    = "failed"
-	StatusCancelled = "cancelled"
-	StatusSkipped   = "skipped"
+	StatusIdle      = "idle"      // Pipeline created but not yet started
+	StatusPending   = "pending"   // Pipeline queued for execution
+	StatusRunning   = "running"   // Pipeline actively executing stages
+	StatusCompleted = "completed" // Pipeline finished successfully
+	StatusFailed    = "failed"    // Pipeline encountered an error
+	StatusCancelled = "cancelled" // Pipeline was manually cancelled
+	StatusSkipped   = "skipped"   // Stage/pipeline was skipped
 )
 
 // Config represents the configuration for a pipeline run.
@@ -390,6 +391,16 @@ func (s *Status) UpdateProgress() {
 // IsComplete returns true if the pipeline has finished executing.
 func (s *Status) IsComplete() bool {
 	return s.Status == StatusCompleted || s.Status == StatusFailed || s.Status == StatusCancelled
+}
+
+// IsIdle returns true if the pipeline is in idle state (created but not started).
+func (s *Status) IsIdle() bool {
+	return s.Status == StatusIdle
+}
+
+// IsStartable returns true if the pipeline can be started (is idle or pending).
+func (s *Status) IsStartable() bool {
+	return s.Status == StatusIdle
 }
 
 // CanResume returns true if this pipeline can be resumed from a later stage.

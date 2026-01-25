@@ -109,8 +109,26 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
   );
   const stageStatus = usePipelineStore(stageSelector);
 
-  // Configuration section doesn't have a stage status
-  const status = sectionId === "configuration" ? null : (stageStatus ?? "pending");
+  // Get pipeline status for configuration section special handling
+  const pipelineStatusValue = usePipelineStore((s) => s.pipelineStatus?.status);
+  const pipelineStages = usePipelineStore((s) => s.pipelineStatus?.stages);
+
+  // Configuration section status logic:
+  // - Show null (no status indicator) when no pipeline or pipeline is idle
+  // - Show "completed" ONLY when a subsequent stage is actually running or completed
+  //   (not just when pipeline status is "pending" - that means config is being processed)
+  // - Other sections use their actual stage status
+  let status: string | null;
+  if (sectionId === "configuration") {
+    // Check if any actual pipeline stage has started running or completed
+    // This means configuration has been accepted and pipeline is executing stages
+    const hasActiveOrCompletedStage = pipelineStages && Object.values(pipelineStages).some(
+      (s) => s?.status === "running" || s?.status === "completed"
+    );
+    status = hasActiveOrCompletedStage ? "completed" : null;
+  } else {
+    status = stageStatus ?? "pending";
+  }
   const statusStyle = status ? STATUS_STYLES[status as keyof typeof STATUS_STYLES] : null;
 
   const Icon = SECTION_ICONS[sectionId];

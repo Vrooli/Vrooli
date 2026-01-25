@@ -16,7 +16,7 @@ import {
   type ExposedFormState,
 } from "../components/sections";
 import { useSidebarStore, type SectionId } from "../store/sidebarStore";
-import { usePipelineStore } from "../store";
+// NOTE: Pipeline scenario is set by App.tsx - no need to set it here
 
 interface GeneratorPageProps {
   /** Currently selected scenario name */
@@ -48,7 +48,6 @@ export function GeneratorPage({
   onBuildStart,
 }: GeneratorPageProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
-  const setPipelineScenario = usePipelineStore((s) => s.setScenario);
   const [wrapperReady, setWrapperReady] = useState(false);
   // State shared between ConfigurationSection and PreflightSection
   const [formState, setFormState] = useState<ExposedFormState>({
@@ -82,12 +81,8 @@ export function GeneratorPage({
     []
   );
 
-  // Set scenario in pipeline store
-  useEffect(() => {
-    if (scenarioName) {
-      setPipelineScenario(scenarioName);
-    }
-  }, [scenarioName, setPipelineScenario]);
+  // NOTE: Pipeline scenario is set by App.tsx via setPipelineScenario
+  // No need to set it here - avoid duplicate calls
 
   // Track scroll position to update active section
   useEffect(() => {

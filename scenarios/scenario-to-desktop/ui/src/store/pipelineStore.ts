@@ -13,8 +13,13 @@ import {
   getPipelineStatus,
   cancelPipeline as cancelPipelineApi,
   resumePipeline as resumePipelineApi,
+  getActivePipeline,
+  createNewPipeline,
+  resetPipeline,
+  getPipelineHistory,
   type VerbosePipelineStatus,
   type PipelineRunResponse,
+  type PipelineConfig,
 } from "../lib/api";
 import { extractStageResults } from "../domain/build";
 import { createErrorInfo, logError } from "../lib/error-utils";
@@ -26,7 +31,9 @@ import {
   type PipelineRunStatus,
   type PipelineErrorInfo,
   type StatusSubscriber,
+  type ScenarioPipelineCacheEntry,
   initialPipelineState,
+  PIPELINE_CACHE_MAX_SIZE,
 } from "./pipelineTypes";
 
 // Re-export types for convenience
@@ -75,6 +82,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
   // Status subscribers for component notifications
   const statusSubscribers = new Set<(status: VerbosePipelineStatus | null) => void>();
 
+  // Debounce tracking for loadActivePipeline to prevent rapid repeated calls
+  let lastLoadAttemptTime = 0;
+  const LOAD_DEBOUNCE_MS = 500; // Minimum time between load attempts
+
+  // Track ongoing load requests to prevent duplicate concurrent calls
+  let activeLoadPromise: Promise<void> | null = null;
+
   const clearPollingTimeout = () => {
     if (pollingTimeoutId) {
       clearTimeout(pollingTimeoutId);
@@ -102,15 +116,71 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
     setScenario: (name) => {
       const current = get().scenarioName;
-      if (current !== name) {
-        // Stop any active polling
-        clearPollingTimeout();
 
-        // Reset state when scenario changes
+      // Guard: Prevent redundant calls with same scenario
+      if (current === name) {
+        console.debug("[pipelineStore] setScenario skipped - same scenario:", name);
+        return;
+      }
+
+      // Guard: Prevent setting scenario while loading is in progress for another
+      const { isLoadingActivePipeline } = get();
+      if (isLoadingActivePipeline && name) {
+        console.debug("[pipelineStore] setScenario while loading - stopping current load first");
+        // We'll proceed but the current load will be discarded due to scenario mismatch check
+      }
+
+      // Stop any active polling for previous scenario
+      clearPollingTimeout();
+
+      // Save current state to cache before switching
+      if (current) {
+        get()._updateCache();
+      }
+
+      if (!name) {
+        // Clearing scenario - reset to initial state
+        set({
+          ...initialPipelineState,
+          scenarioPipelineCache: get().scenarioPipelineCache,
+          runningScenarios: get().runningScenarios,
+        });
+        return;
+      }
+
+      // Check cache for the new scenario
+      const cache = get().scenarioPipelineCache;
+      const cached = cache.get(name);
+
+      if (cached) {
+        // Update last accessed time
+        cache.set(name, { ...cached, lastAccessed: Date.now() });
+
+        // Restore from cache
         set({
           ...initialPipelineState,
           scenarioName: name,
+          pipelineId: cached.pipelineId,
+          runStatus: cached.status,
+          scenarioPipelineCache: cache,
+          runningScenarios: get().runningScenarios,
+          isLoadingActivePipeline: false, // Reset loading state
         });
+
+        // Load full status from server (don't auto-create, we have cached data)
+        void get().loadActivePipeline(false);
+      } else {
+        // Not in cache - set scenario and load from server
+        set({
+          ...initialPipelineState,
+          scenarioName: name,
+          scenarioPipelineCache: get().scenarioPipelineCache,
+          runningScenarios: get().runningScenarios,
+          isLoadingActivePipeline: false, // Reset loading state
+        });
+
+        // Load active pipeline from server (will auto-create if needed)
+        void get().loadActivePipeline(true);
       }
     },
 
@@ -401,6 +471,228 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
         preflightOverride: false,
       }),
 
+    // ========== Scenario-Based Pipeline Management ==========
+
+    loadActivePipeline: async (autoCreate = true) => {
+      const { scenarioName, isLoadingActivePipeline, pipelineId: currentPipelineId } = get();
+      if (!scenarioName) return;
+
+      // Guard 1: Prevent concurrent loads - return existing promise if one is active
+      if (activeLoadPromise) {
+        console.debug("[pipelineStore] loadActivePipeline skipped - returning existing promise");
+        return activeLoadPromise;
+      }
+
+      // Guard 2: Prevent concurrent loads via flag (belt-and-suspenders)
+      if (isLoadingActivePipeline) {
+        console.debug("[pipelineStore] loadActivePipeline skipped - already loading flag set");
+        return;
+      }
+
+      // Guard 3: Debounce - prevent rapid repeated calls (protects against infinite loops)
+      const now = Date.now();
+      if (now - lastLoadAttemptTime < LOAD_DEBOUNCE_MS) {
+        console.debug("[pipelineStore] loadActivePipeline skipped - debounce active", {
+          timeSinceLast: now - lastLoadAttemptTime,
+          debounceMs: LOAD_DEBOUNCE_MS,
+        });
+        return;
+      }
+      lastLoadAttemptTime = now;
+
+      // Guard 4: If we already have a pipeline for this scenario and it's not stale, skip
+      // This prevents unnecessary re-fetching when the scenario hasn't changed
+      const currentScenario = get().scenarioName;
+      if (currentPipelineId && currentScenario === scenarioName && !autoCreate) {
+        console.debug("[pipelineStore] loadActivePipeline skipped - already have pipeline for scenario");
+        return;
+      }
+
+      set({ isLoadingActivePipeline: true });
+
+      // Create and track the load promise
+      const loadPromise = (async () => {
+        try {
+          // Capture scenario name at start to detect if it changed during async operation
+          const targetScenario = scenarioName;
+
+          const response = await getActivePipeline(targetScenario, { autoCreate });
+
+          // Guard: If scenario changed during fetch, discard results
+          if (get().scenarioName !== targetScenario) {
+            console.debug("[pipelineStore] loadActivePipeline discarding stale results - scenario changed");
+            set({ isLoadingActivePipeline: false });
+            return;
+          }
+
+          if (response.pipeline) {
+            // Load full status with verbose details
+            const status = await getPipelineStatus(response.pipeline.pipeline_id, { verbose: true });
+
+            // Guard again after second fetch
+            if (get().scenarioName !== targetScenario) {
+              console.debug("[pipelineStore] loadActivePipeline discarding stale status - scenario changed");
+              set({ isLoadingActivePipeline: false });
+              return;
+            }
+
+            set({
+              pipelineId: status.pipeline_id,
+              isLoadingActivePipeline: false,
+            });
+            get()._setPipelineStatus(status);
+
+            // Start polling if pipeline is actively running (not idle, not in terminal state)
+            // "idle" means created but not started - don't poll
+            const isActivelyRunning = status.status === "running" || status.status === "pending";
+            if (isActivelyRunning) {
+              get().startPolling();
+            }
+
+            // Update running scenarios set
+            const runningScenarios = new Set(get().runningScenarios);
+            if (isActivelyRunning) {
+              runningScenarios.add(targetScenario);
+            } else {
+              runningScenarios.delete(targetScenario);
+            }
+            set({ runningScenarios });
+
+            // Update cache immediately when we load a pipeline (don't wait for scenario switch)
+            get()._updateCache();
+          } else {
+            set({ isLoadingActivePipeline: false });
+          }
+        } catch (err) {
+          logError("loadActivePipeline", err);
+          const errorInfo = createErrorInfo(err);
+          set({ errorInfo, isLoadingActivePipeline: false });
+        } finally {
+          activeLoadPromise = null;
+        }
+      })();
+
+      activeLoadPromise = loadPromise;
+      return loadPromise;
+    },
+
+    createNewPipelineForScenario: async (config?: Partial<PipelineConfig>) => {
+      const { scenarioName, isSubmitting } = get();
+      if (!scenarioName) {
+        throw new Error("No scenario selected");
+      }
+
+      if (isSubmitting) {
+        const existingId = get().pipelineId;
+        if (existingId) return existingId;
+        throw new Error("A pipeline request is already in progress");
+      }
+
+      clearPollingTimeout();
+      set({
+        runStatus: "starting",
+        errorInfo: null,
+        isSubmitting: true,
+      });
+
+      try {
+        const response = await createNewPipeline(scenarioName, config);
+        const status = await getPipelineStatus(response.pipeline.pipeline_id, { verbose: true });
+
+        // New pipelines are created in "idle" state (not running yet)
+        set({
+          pipelineId: status.pipeline_id,
+          isSubmitting: false,
+          pipelineHistory: [...get().pipelineHistory, status.pipeline_id],
+        });
+
+        // Let _setPipelineStatus determine the correct runStatus from server status
+        get()._setPipelineStatus(status);
+
+        // Only start polling if the pipeline is actively running
+        const isActivelyRunning = status.status === "running" || status.status === "pending";
+        if (isActivelyRunning) {
+          get().startPolling();
+          // Update running scenarios
+          const runningScenarios = new Set(get().runningScenarios);
+          runningScenarios.add(scenarioName);
+          set({ runningScenarios });
+        }
+
+        return status.pipeline_id;
+      } catch (err) {
+        logError("createNewPipelineForScenario", err);
+        const errorInfo = createErrorInfo(err);
+        set({
+          runStatus: "failed",
+          errorInfo,
+          isSubmitting: false,
+        });
+        throw err;
+      }
+    },
+
+    resetCurrentPipeline: async () => {
+      const { scenarioName } = get();
+      if (!scenarioName) return;
+
+      clearPollingTimeout();
+
+      try {
+        await resetPipeline(scenarioName);
+
+        // Remove from running scenarios
+        const runningScenarios = new Set(get().runningScenarios);
+        runningScenarios.delete(scenarioName);
+
+        // Reset local state but keep scenario context
+        set({
+          pipelineId: null,
+          pipelineStatus: null,
+          runStatus: "idle",
+          errorInfo: null,
+          isPolling: false,
+          bundleResult: null,
+          preflightResult: null,
+          generateResult: null,
+          buildResult: null,
+          smokeTestResult: null,
+          distributionResult: null,
+          stageLogs: {},
+          runningScenarios,
+        });
+      } catch (err) {
+        logError("resetCurrentPipeline", err);
+        const errorInfo = createErrorInfo(err);
+        set({ errorInfo });
+      }
+    },
+
+    loadPipelineHistory: async (limit = 10) => {
+      const { scenarioName } = get();
+      if (!scenarioName) return [];
+
+      try {
+        const response = await getPipelineHistory(scenarioName, { limit });
+
+        // Fetch verbose status for each pipeline
+        const pipelines: VerbosePipelineStatus[] = [];
+        for (const p of response.pipelines) {
+          try {
+            const status = await getPipelineStatus(p.pipeline_id, { verbose: true });
+            pipelines.push(status);
+          } catch {
+            // Skip pipelines that can't be fetched
+          }
+        }
+
+        return pipelines;
+      } catch (err) {
+        logError("loadPipelineHistory", err);
+        return [];
+      }
+    },
+
     // ========== Internal Helpers ==========
 
     _setPipelineStatus: (status) => {
@@ -413,6 +705,10 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       // Map pipeline status to runStatus
       let runStatus: PipelineRunStatus;
       switch (status.status) {
+        case "idle":
+          // Server-side "idle" status means pipeline is created but not started
+          runStatus = "idle";
+          break;
         case "pending":
         case "running":
           runStatus = "running";
@@ -437,6 +733,10 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
       get()._extractStageResults(status);
       get()._notifySubscribers();
+
+      // Update cache whenever status changes (not just on scenario switch)
+      // This ensures the cache has current state after failures, completions, etc.
+      get()._updateCache();
     },
 
     _extractStageResults: (status) => {
@@ -447,6 +747,48 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
     _notifySubscribers: () => {
       notifySubscribers();
+    },
+
+    _updateCache: () => {
+      const { scenarioName, pipelineId, runStatus, scenarioPipelineCache } = get();
+      if (!scenarioName || !pipelineId) return;
+
+      scenarioPipelineCache.set(scenarioName, {
+        pipelineId,
+        status: runStatus,
+        lastAccessed: Date.now(),
+      });
+
+      // Update running scenarios based on status
+      const runningScenarios = new Set(get().runningScenarios);
+      if (runStatus === "running" || runStatus === "starting") {
+        runningScenarios.add(scenarioName);
+      } else {
+        runningScenarios.delete(scenarioName);
+      }
+
+      set({ scenarioPipelineCache, runningScenarios });
+      get()._pruneCache();
+    },
+
+    _pruneCache: () => {
+      const { scenarioPipelineCache, runningScenarios } = get();
+
+      if (scenarioPipelineCache.size <= PIPELINE_CACHE_MAX_SIZE) return;
+
+      // Get entries sorted by lastAccessed (oldest first)
+      const entries = Array.from(scenarioPipelineCache.entries())
+        .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+
+      // Remove oldest entries that aren't running
+      for (const [scenario] of entries) {
+        if (scenarioPipelineCache.size <= PIPELINE_CACHE_MAX_SIZE) break;
+        if (!runningScenarios.has(scenario)) {
+          scenarioPipelineCache.delete(scenario);
+        }
+      }
+
+      set({ scenarioPipelineCache });
     },
   };
 });

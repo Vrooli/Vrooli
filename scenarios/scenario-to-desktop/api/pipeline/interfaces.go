@@ -31,6 +31,15 @@ type Orchestrator interface {
 	// Returns immediately with a pipeline ID; poll GetStatus for progress.
 	RunPipeline(ctx context.Context, config *Config) (*Status, error)
 
+	// CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
+	// The pipeline will remain idle until explicitly started via RunPipeline or StartPipeline.
+	// This is used for scenarios where a pipeline should be created but not run immediately.
+	CreateIdlePipeline(config *Config) (*Status, error)
+
+	// StartPipeline starts execution of an existing idle pipeline.
+	// Returns an error if the pipeline is not in idle state or doesn't exist.
+	StartPipeline(ctx context.Context, pipelineID string) (*Status, error)
+
 	// ResumePipeline resumes a stopped pipeline from its next stage.
 	// The parent pipeline must have been stopped with StopAfterStage.
 	// Returns a new pipeline that continues from where the parent stopped.
