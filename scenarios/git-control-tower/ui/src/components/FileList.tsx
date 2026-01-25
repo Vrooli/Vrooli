@@ -30,7 +30,9 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import { useIsMobile } from "../hooks";
-import type { DiffStats, RepoFilesStatus, RepoFileStats } from "../lib/api";
+import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
+import { ViewModeCycleButton } from "./ViewModeCycleButton";
+import { ProjectTreeView } from "./ProjectTreeView";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -93,12 +95,14 @@ interface FileListProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   fillHeight?: boolean;
-  groupingEnabled?: boolean;
+  fileViewMode?: FileViewMode;
   groupingRules?: GroupingRule[];
-  onToggleGrouping?: () => void;
+  groupingAvailable?: boolean;
+  onCycleViewMode?: () => void;
   onOpenGroupingSettings?: () => void;
   onStagePaths?: (paths: string[]) => void;
   onDiscardPaths?: (paths: string[], untracked: boolean) => void;
+  onSelectAnyFile?: (path: string) => void;
 }
 
 interface FileSectionProps {
@@ -671,12 +675,14 @@ export function FileList({
   collapsed = false,
   onToggleCollapse,
   fillHeight = true,
-  groupingEnabled = false,
+  fileViewMode = "flat",
   groupingRules = [],
-  onToggleGrouping,
+  groupingAvailable = false,
+  onCycleViewMode,
   onOpenGroupingSettings,
   onStagePaths,
   onDiscardPaths,
+  onSelectAnyFile,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -735,8 +741,9 @@ export function FileList({
         .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule)),
     [groupingRules],
   );
-  const groupingAvailable = normalizedRules.length > 0;
-  const groupingActive = groupingEnabled && groupingAvailable;
+  // Use local normalizedRules check for actual grouping computation
+  const hasValidRules = normalizedRules.length > 0;
+  const groupingActive = fileViewMode === "grouped" && hasValidRules;
   const totalStats = useMemo(() => {
     if (!files) return undefined;
     const stagedStats = summarizeFileStats(
@@ -936,7 +943,7 @@ export function FileList({
     ];
   }, [files, groupingActive, normalizedRules]);
 
-  const handleToggleGrouping = onToggleGrouping ?? (() => {});
+  const handleCycleViewMode = onCycleViewMode ?? (() => {});
   const handleOpenGroupingSettings = onOpenGroupingSettings ?? (() => {});
   const totalFilesCount =
     (files?.conflicts?.length ?? 0) +
@@ -994,18 +1001,11 @@ export function FileList({
                 Unstage All
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleToggleGrouping}
-              disabled={!groupingAvailable}
-              className={`min-w-0 whitespace-normal px-3 ${
-                groupingActive ? "bg-white/10 text-white" : ""
-              }`}
-              data-testid="toggle-grouping-button"
-            >
-              Group
-            </Button>
+            <ViewModeCycleButton
+              mode={fileViewMode}
+              onCycle={handleCycleViewMode}
+              groupingAvailable={groupingAvailable}
+            />
             <button
               type="button"
               onClick={handleOpenGroupingSettings}
@@ -1106,7 +1106,22 @@ export function FileList({
               ref={scrollAreaRef}
             >
               <div style={{ paddingBottom: 72 }}>
-                {groupingActive ? (
+                {fileViewMode === "tree" ? (
+                  <ProjectTreeView
+                    onSelectFile={(path) => {
+                      // Use onSelectAnyFile if provided, otherwise simulate file selection
+                      if (onSelectAnyFile) {
+                        onSelectAnyFile(path);
+                      } else {
+                        // Find if file is in changes list
+                        const isStaged = files?.staged?.includes(path) ?? false;
+                        onSelectFile(path, isStaged, { metaKey: false, ctrlKey: false, shiftKey: false } as React.MouseEvent<HTMLLIElement>);
+                      }
+                    }}
+                    selectedFile={selectedFiles?.[0]?.path}
+                    gitStatuses={files?.statuses}
+                  />
+                ) : groupingActive ? (
                   groupedSections.map((group) => {
                     const stageable = [
                       ...group.files.unstaged,
@@ -1503,8 +1518,8 @@ export function FileList({
                   </>
                 )}
 
-                {/* Empty State */}
-                {files && totalFilesCount === 0 && (
+                {/* Empty State - only show for flat/grouped views */}
+                {fileViewMode !== "tree" && files && totalFilesCount === 0 && (
                   <div
                     className="flex flex-col items-center justify-center py-12 text-center"
                     data-testid="empty-state"

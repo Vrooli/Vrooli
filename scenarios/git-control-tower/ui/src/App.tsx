@@ -24,7 +24,7 @@ import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
 import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
-import type { RepoHistoryEntry, ViewMode } from "./lib/api";
+import type { RepoHistoryEntry, ViewMode, FileViewMode } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
 
 /** State for viewing a historical commit (read-only mode) */
@@ -101,7 +101,7 @@ export default function App() {
   const historyResize = useRef<{ bottom: number } | null>(null);
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
-  const [groupingEnabled, setGroupingEnabled] = useState(false);
+  const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
   const [groupingDefaultsPending, setGroupingDefaultsPending] = useState(false);
@@ -145,10 +145,10 @@ export default function App() {
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
-    if (!groupingEnabled || groupingRules.length === 0) {
+    if (fileViewMode !== "grouped" || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
-  }, [groupingEnabled, groupingRules.length]);
+  }, [fileViewMode, groupingRules.length]);
 
   useEffect(() => {
     if (!pushNotice) return;
@@ -299,7 +299,7 @@ export default function App() {
     historySearch.trim() ||
       historyScopeFilter ||
       historyWorkingSetOnly ||
-      (groupingEnabled && groupingRules.length > 0)
+      (fileViewMode === "grouped" && groupingRules.length > 0)
   );
   const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus();
@@ -472,6 +472,26 @@ export default function App() {
     },
     []
   );
+
+  // Check if grouping rules are available (have valid prefixes)
+  const groupingAvailable = useMemo(() => {
+    return groupingRules.some((rule) => {
+      const rawPrefixes = Array.isArray(rule?.prefixes)
+        ? rule.prefixes
+        : typeof rule?.prefix === "string"
+          ? [rule.prefix]
+          : [];
+      return rawPrefixes.some((prefix) => prefix.trim());
+    });
+  }, [groupingRules]);
+
+  const handleCycleViewMode = useCallback(() => {
+    setFileViewMode((prev) => {
+      if (prev === "flat") return groupingAvailable ? "grouped" : "tree";
+      if (prev === "grouped") return "tree";
+      return "flat";
+    });
+  }, [groupingAvailable]);
 
   const approvedStagedPaths = useMemo(() => {
     const staged = statusQuery.data?.files?.staged ?? [];
@@ -1141,11 +1161,21 @@ export default function App() {
     if (!repoDir) return;
     if (groupingLoadedKey === repoKey) return;
 
-    const enabledKey = `gct.grouping.${repoKey}.enabled`;
+    const viewModeKey = `gct.viewMode.${repoKey}`;
     const rulesKey = `gct.grouping.${repoKey}.rules`;
-    const storedEnabled = localStorage.getItem(enabledKey);
+    const storedViewMode = localStorage.getItem(viewModeKey);
     const storedRules = localStorage.getItem(rulesKey);
-    setGroupingEnabled(storedEnabled === "true");
+    // Support legacy "gct.grouping.*.enabled" key for migration
+    const legacyEnabledKey = `gct.grouping.${repoKey}.enabled`;
+    const legacyEnabled = localStorage.getItem(legacyEnabledKey);
+    if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
+      setFileViewMode(storedViewMode);
+    } else if (legacyEnabled === "true") {
+      // Migrate from old boolean to new enum
+      setFileViewMode("grouped");
+    } else {
+      setFileViewMode("flat");
+    }
     if (storedRules) {
       try {
         const parsed = JSON.parse(storedRules) as GroupingRule[];
@@ -1192,11 +1222,11 @@ export default function App() {
 
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey) return;
-    const enabledKey = `gct.grouping.${repoKey}.enabled`;
+    const viewModeKey = `gct.viewMode.${repoKey}`;
     const rulesKey = `gct.grouping.${repoKey}.rules`;
-    localStorage.setItem(enabledKey, String(groupingEnabled));
+    localStorage.setItem(viewModeKey, fileViewMode);
     localStorage.setItem(rulesKey, JSON.stringify(groupingRules));
-  }, [repoDir, repoKey, groupingLoadedKey, groupingEnabled, groupingRules]);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode, groupingRules]);
 
   useEffect(() => {
     if (!repoDir || layoutLoadedKey !== repoKey) return;
@@ -1230,10 +1260,11 @@ export default function App() {
   }, [groupingDefaultsPending, repoDir, statusQuery.data?.files, createGroupingRule]);
 
   useEffect(() => {
-    if (groupingRules.length === 0 && groupingEnabled) {
-      setGroupingEnabled(false);
+    // If in grouped mode but no rules available, fall back to flat
+    if (groupingRules.length === 0 && fileViewMode === "grouped") {
+      setFileViewMode("flat");
     }
-  }, [groupingRules, groupingEnabled]);
+  }, [groupingRules, fileViewMode]);
 
   useEffect(() => {
     // Skip until URL initialization is complete (state batched together)
@@ -1573,9 +1604,10 @@ export default function App() {
             collapsed={changesCollapsed}
             onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
             fillHeight={isMain || !changesCollapsed}
-            groupingEnabled={groupingEnabled}
+            fileViewMode={fileViewMode}
             groupingRules={groupingRules}
-            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+            groupingAvailable={groupingAvailable}
+            onCycleViewMode={handleCycleViewMode}
             onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
@@ -1602,7 +1634,7 @@ export default function App() {
             onSearchQueryChange={setHistorySearch}
             scopeFilter={historyScopeFilter}
             onScopeFilterChange={setHistoryScopeFilter}
-            groupingEnabled={groupingEnabled}
+            groupingEnabled={fileViewMode === "grouped"}
             groupingRules={groupingRules}
             workingSetPaths={workingSetPaths}
             workingSetOnly={historyWorkingSetOnly}
@@ -1815,9 +1847,10 @@ export default function App() {
             onConfirmIgnore={handleConfirmIgnore}
             collapsed={false}
             fillHeight={true}
-            groupingEnabled={groupingEnabled}
+            fileViewMode={fileViewMode}
             groupingRules={groupingRules}
-            onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+            groupingAvailable={groupingAvailable}
+            onCycleViewMode={handleCycleViewMode}
             onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
@@ -1897,7 +1930,7 @@ export default function App() {
             onSearchQueryChange={setHistorySearch}
             scopeFilter={historyScopeFilter}
             onScopeFilterChange={setHistoryScopeFilter}
-            groupingEnabled={groupingEnabled}
+            groupingEnabled={fileViewMode === "grouped"}
             groupingRules={groupingRules}
             workingSetPaths={workingSetPaths}
             workingSetOnly={historyWorkingSetOnly}
@@ -2061,8 +2094,8 @@ export default function App() {
         <GroupingSettingsModal
           isOpen={isGroupingSettingsOpen}
           repoDir={repoDir}
-          groupingEnabled={groupingEnabled}
-          onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+          groupingEnabled={fileViewMode === "grouped"}
+          onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
           rules={groupingRules}
           onChangeRules={setGroupingRules}
           onClose={() => setIsGroupingSettingsOpen(false)}
@@ -2259,8 +2292,8 @@ export default function App() {
       <GroupingSettingsModal
         isOpen={isGroupingSettingsOpen}
         repoDir={repoDir}
-        groupingEnabled={groupingEnabled}
-        onToggleGrouping={() => setGroupingEnabled((prev) => !prev)}
+        groupingEnabled={fileViewMode === "grouped"}
+        onToggleGrouping={() => setFileViewMode((prev) => prev === "grouped" ? "flat" : "grouped")}
         rules={groupingRules}
         onChangeRules={setGroupingRules}
         onClose={() => setIsGroupingSettingsOpen(false)}

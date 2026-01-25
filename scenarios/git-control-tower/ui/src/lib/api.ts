@@ -169,6 +169,9 @@ export interface DiffStats {
 /** View mode for the diff viewer */
 export type ViewMode = "diff" | "full_diff" | "source" | "preview";
 
+/** View mode for the file list */
+export type FileViewMode = "flat" | "grouped" | "tree";
+
 /** Type of change on a line */
 export type LineChange = "" | "added" | "deleted" | "modified";
 
