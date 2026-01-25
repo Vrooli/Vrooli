@@ -18,6 +18,8 @@ import {
   createBranch,
   switchBranch,
   publishBranch,
+  fetchFiles,
+  fetchRelatedFiles,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -30,7 +32,9 @@ import {
   type SwitchBranchRequest,
   type PublishBranchRequest,
   type ApprovedChangesPreviewRequest,
-  type ViewMode
+  type ViewMode,
+  type FileTreeResponse,
+  type RelatedFilesResponse
 } from "./api";
 
 export const queryKeys = {
@@ -42,7 +46,9 @@ export const queryKeys = {
   branches: ["repo", "branches"] as const,
   diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string, mode?: ViewMode) =>
     ["repo", "diff", path, staged, untracked, commit, mode] as const,
-  approvedChanges: ["repo", "approved-changes"] as const
+  approvedChanges: ["repo", "approved-changes"] as const,
+  files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
+  relatedFiles: (path: string) => ["repo", "related", path] as const
 };
 
 export function useHealth() {
@@ -69,10 +75,10 @@ export function useRepoHistory(limit = 30, includeFiles = false) {
   });
 }
 
-export function useDiff(path?: string, staged = false, untracked = false, commit?: string, mode: ViewMode = "diff") {
+export function useDiff(path?: string, staged = false, untracked = false, commit?: string, mode: ViewMode = "diff", any = false) {
   return useQuery({
     queryKey: queryKeys.diff(path, staged, untracked, commit, mode),
-    queryFn: () => fetchDiff(path, staged, untracked, commit, mode),
+    queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any),
     enabled: true
   });
 }
@@ -224,5 +230,21 @@ export function usePublishBranch() {
       queryClient.invalidateQueries({ queryKey: queryKeys.branches });
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
     }
+  });
+}
+
+export function useFileSearch(pattern?: string, deep = false, enabled = true) {
+  return useQuery<FileTreeResponse, Error>({
+    queryKey: queryKeys.files(pattern, deep),
+    queryFn: () => fetchFiles(pattern, 1000, deep, 5000),
+    enabled
+  });
+}
+
+export function useRelatedFiles(path: string, enabled = true) {
+  return useQuery<RelatedFilesResponse, Error>({
+    queryKey: queryKeys.relatedFiles(path),
+    queryFn: () => fetchRelatedFiles(path),
+    enabled: enabled && Boolean(path)
   });
 }

@@ -355,6 +355,37 @@ export interface ApprovedChangesPreviewRequest {
   paths: string[];
 }
 
+// File Search Types
+export type FileStatus = "tracked" | "untracked" | "ignored";
+
+export interface FileInfo {
+  path: string;
+  language?: string;
+  status?: FileStatus;
+}
+
+export interface FileTreeResponse {
+  files: FileInfo[];
+  truncated: boolean;
+  cancelled: boolean;
+  search_mode: "default" | "deep";
+  timestamp: string;
+}
+
+// Related Files Types
+export type RelationType = "imports" | "imported_by" | "test" | "index" | "types";
+
+export interface RelatedFile {
+  path: string;
+  relation_type: RelationType;
+}
+
+export interface RelatedFilesResponse {
+  path: string;
+  related: RelatedFile[];
+  timestamp: string;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -406,7 +437,8 @@ export async function fetchDiff(
   staged = false,
   untracked = false,
   commit?: string,
-  mode: ViewMode = "diff"
+  mode: ViewMode = "diff",
+  any = false
 ): Promise<DiffResponse> {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
@@ -414,6 +446,7 @@ export async function fetchDiff(
   if (untracked) params.set("untracked", "true");
   if (commit) params.set("commit", commit);
   if (mode && mode !== "diff") params.set("mode", mode);
+  if (any) params.set("any", "true");
 
   const url = buildApiUrl(`/repo/diff?${params.toString()}`, { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -575,4 +608,36 @@ export async function publishBranch(request: PublishBranchRequest = {}): Promise
     body: JSON.stringify(request)
   });
   return handleResponse<BranchPublishResponse>(res);
+}
+
+export async function fetchFiles(
+  pattern?: string,
+  limit = 1000,
+  deep = false,
+  timeout = 5000
+): Promise<FileTreeResponse> {
+  const params = new URLSearchParams();
+  if (pattern) params.set("pattern", pattern);
+  if (limit > 0) params.set("limit", String(limit));
+  if (deep) params.set("deep", "true");
+  if (timeout > 0) params.set("timeout", String(timeout));
+
+  const url = buildApiUrl(`/repo/files?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<FileTreeResponse>(res);
+}
+
+export async function fetchRelatedFiles(path: string): Promise<RelatedFilesResponse> {
+  const params = new URLSearchParams();
+  params.set("path", path);
+
+  const url = buildApiUrl(`/repo/related?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<RelatedFilesResponse>(res);
 }

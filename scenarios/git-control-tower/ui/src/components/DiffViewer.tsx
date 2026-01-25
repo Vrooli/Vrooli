@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X } from "lucide-react";
+import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
@@ -29,6 +29,10 @@ interface DiffViewerProps {
   // History mode props
   isHistoryMode?: boolean;
   commitHash?: string;
+  // Related files
+  onShowRelatedFiles?: (path: string) => void;
+  // Read-only mode (viewing any file from search)
+  isReadOnly?: boolean;
 }
 
 // Hook to detect horizontal scroll state
@@ -343,7 +347,9 @@ export function DiffViewer({
   isStaging = false,
   isDiscarding = false,
   isHistoryMode = false,
-  commitHash
+  commitHash,
+  onShowRelatedFiles,
+  isReadOnly = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -455,6 +461,20 @@ export function DiffViewer({
               ) : (
                 <Copy className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
               )}
+            </button>
+          )}
+          {selectedFile && onShowRelatedFiles && (
+            <button
+              type="button"
+              className={`inline-flex items-center justify-center rounded-full border border-white/20 text-slate-300 transition-colors hover:bg-white/10 active:bg-white/20 flex-shrink-0 ${
+                isMobile ? "h-10 w-10 touch-target" : "h-7 w-7"
+              }`}
+              onClick={() => onShowRelatedFiles(selectedFile)}
+              title="Related files"
+              aria-label="Show related files"
+              data-testid="related-files-button"
+            >
+              <Link2 className={isMobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
             </button>
           )}
           {selectedFile && !isMobile && (

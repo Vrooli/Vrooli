@@ -34,7 +34,8 @@ func GetDiff(ctx context.Context, deps DiffDeps, req DiffRequest) (*DiffResponse
 	}
 
 	// Handle source mode - just return the file content without diff
-	if mode == ViewModeSource {
+	// Also use source mode when any=true (viewing non-changed files)
+	if mode == ViewModeSource || req.Any {
 		return getSourceContent(ctx, deps, req, repoDir)
 	}
 

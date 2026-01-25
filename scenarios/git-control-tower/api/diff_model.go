@@ -40,6 +40,7 @@ type DiffRequest struct {
 	Base      string   `json:"base,omitempty"`
 	Commit    string   `json:"commit,omitempty"` // View diff for a specific commit (history mode)
 	Mode      ViewMode `json:"mode,omitempty"`   // View mode: diff, full_diff, or source
+	Any       bool     `json:"any,omitempty"`    // If true, view any file (not just changed files)
 }
 
 // DiffResponse contains the diff output and metadata

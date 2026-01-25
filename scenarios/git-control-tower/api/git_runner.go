@@ -115,6 +115,18 @@ type GitRunner interface {
 
 	// SetUpstream sets the upstream tracking branch for a local branch.
 	SetUpstream(ctx context.Context, repoDir string, branch string, upstream string) error
+
+	// ListTrackedFiles returns all tracked files in the repository.
+	// Uses git ls-files --cached.
+	ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error)
+
+	// ListUntrackedFiles returns all untracked files (respects .gitignore).
+	// Uses git ls-files --others --exclude-standard.
+	ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error)
+
+	// CatFile returns the content of a file in the working tree.
+	// Used for reading file content for import scanning.
+	CatFile(ctx context.Context, repoDir string, path string) ([]byte, error)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -709,4 +721,53 @@ func (r *ExecGitRunner) SetUpstream(ctx context.Context, repoDir string, branch 
 		return fmt.Errorf("git branch --set-upstream-to failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	// git ls-files --cached returns all tracked files
+	args := []string{"-C", repoDir, "ls-files", "--cached"}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("git ls-files failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git ls-files failed: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []string{}, nil
+	}
+	return lines, nil
+}
+
+func (r *ExecGitRunner) ListUntrackedFiles(ctx context.Context, repoDir string) ([]string, error) {
+	// git ls-files --others --exclude-standard returns untracked files (respects .gitignore)
+	args := []string{"-C", repoDir, "ls-files", "--others", "--exclude-standard"}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("git ls-files --others failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git ls-files --others failed: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []string{}, nil
+	}
+	return lines, nil
+}
+
+func (r *ExecGitRunner) CatFile(ctx context.Context, repoDir string, path string) ([]byte, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("file path is required")
+	}
+	// Read file directly from working tree
+	absPath := repoDir + "/" + path
+	return os.ReadFile(absPath)
 }

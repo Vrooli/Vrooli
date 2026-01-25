@@ -9,7 +9,8 @@ import {
   RefreshCw,
   LayoutGrid,
   History,
-  X
+  X,
+  Search
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -26,6 +27,7 @@ interface StatusHeaderProps {
   onRefresh: () => void;
   onOpenLayoutSettings: () => void;
   onOpenUpstreamInfo?: () => void;
+  onOpenFileSearch?: () => void;
   // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
@@ -40,6 +42,7 @@ export function StatusHeader({
   onRefresh,
   onOpenLayoutSettings,
   onOpenUpstreamInfo,
+  onOpenFileSearch,
   viewingCommit,
   onExitHistoryMode
 }: StatusHeaderProps) {
@@ -222,6 +225,17 @@ export function StatusHeader({
             <Circle className="h-4 w-4 text-slate-600" />
           )}
         </div>
+
+        {/* File Search Button */}
+        <button
+          onClick={onOpenFileSearch}
+          className="p-2 rounded-md hover:bg-slate-800 transition-colors"
+          data-testid="file-search-button"
+          aria-label="Search files (⌘K)"
+          title="Search files (⌘K)"
+        >
+          <Search className="h-4 w-4 text-slate-400" />
+        </button>
 
         <button
           onClick={onOpenLayoutSettings}

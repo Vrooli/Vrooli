@@ -100,6 +100,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/branch/create", s.handleBranchCreate).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/branch/switch", s.handleBranchSwitch).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/branch/publish", s.handleBranchPublish).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/files", s.handleFiles).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 }
 
@@ -212,6 +214,7 @@ func (s *Server) handleDiff(w http.ResponseWriter, r *http.Request) {
 		Base:      query.Get("base"),
 		Commit:    query.Get("commit"),
 		Mode:      mode,
+		Any:       query.Get("any") == "true",
 	})
 	if err != nil {
 		resp.InternalError(err.Error())

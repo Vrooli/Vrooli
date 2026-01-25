@@ -11,6 +11,8 @@ import { GitHistory } from "./components/GitHistory";
 import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
+import { FileSearchModal } from "./components/FileSearchModal";
+import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import {
   LayoutSettingsModal,
   type LayoutPreset,
@@ -116,6 +118,13 @@ export default function App() {
     message: string;
   } | null>(null);
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
+  // File search state
+  const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
+  // Track if viewing a non-changed file (any file from search)
+  const [isViewingAnyFile, setIsViewingAnyFile] = useState(false);
+  // Related files panel state
+  const [showRelatedFiles, setShowRelatedFiles] = useState(false);
+  const [relatedFilesForPath, setRelatedFilesForPath] = useState<string | undefined>();
 
   useEffect(() => {
     if (!groupingEnabled || groupingRules.length === 0) {
@@ -197,10 +206,11 @@ export default function App() {
   const approvedChangesQuery = useApprovedChanges();
   const diffQuery = useDiff(
     selectedFile,
-    viewingCommit ? false : selectedIsStaged,
-    viewingCommit ? false : selectedIsUntracked,
+    viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
+    viewingCommit || isViewingAnyFile ? false : selectedIsUntracked,
     viewingCommit?.hash,
-    viewMode
+    isViewingAnyFile ? "source" : viewMode,
+    isViewingAnyFile
   );
   const pushTargetRef =
     syncStatusQuery.data?.upstream ?? statusQuery.data?.branch.upstream;
@@ -436,6 +446,9 @@ export default function App() {
       setSelectedFile(primary.path);
       setSelectedIsStaged(primary.staged);
       setSelectedIsUntracked(!primary.staged && untrackedSet.has(primary.path));
+      setIsViewingAnyFile(false); // Reset when selecting from changes list
+      setShowRelatedFiles(false); // Close related files panel when selecting from changes list
+      setRelatedFilesForPath(undefined);
     },
     [
       orderedIndexMap,
@@ -864,6 +877,8 @@ export default function App() {
       setSelectedFile(path);
       setSelectedIsStaged(false);
       setSelectedIsUntracked(false);
+      setShowRelatedFiles(false);
+      setRelatedFilesForPath(undefined);
     },
     []
   );
@@ -875,6 +890,65 @@ export default function App() {
     setSelectedFiles([]);
     setSelectedIsStaged(false);
     setSelectedIsUntracked(false);
+    setIsViewingAnyFile(false);
+    setShowRelatedFiles(false);
+    setRelatedFilesForPath(undefined);
+  }, []);
+
+  // Handle selecting a file from file search (view any file in source mode)
+  const handleSelectAnyFile = useCallback((path: string) => {
+    setSelectedFile(path);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setSelectedFiles([]);
+    setIsViewingAnyFile(true);
+    setViewingCommit(null);
+    setViewMode("source"); // Force source mode for any file
+    setShowRelatedFiles(false); // Close related files panel when selecting from search
+    if (isMobile) {
+      setMobileActivePanel("diff");
+    }
+  }, [isMobile]);
+
+  // Handle showing related files panel
+  const handleShowRelatedFiles = useCallback((path: string) => {
+    setRelatedFilesForPath(path);
+    setShowRelatedFiles(true);
+  }, []);
+
+  // Handle back from related files panel
+  const handleBackFromRelatedFiles = useCallback(() => {
+    setShowRelatedFiles(false);
+    setRelatedFilesForPath(undefined);
+  }, []);
+
+  // Handle selecting a file from the related files panel
+  const handleSelectRelatedFile = useCallback((path: string) => {
+    setSelectedFile(path);
+    setSelectedIsStaged(false);
+    setSelectedIsUntracked(false);
+    setSelectedFiles([]);
+    setIsViewingAnyFile(true);
+    setViewingCommit(null);
+    setViewMode("source");
+    // Keep related files panel open so user can explore related files of the new selection
+    setRelatedFilesForPath(path);
+    if (isMobile) {
+      setMobileActivePanel("diff");
+    }
+  }, [isMobile]);
+
+  // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setIsFileSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -1248,6 +1322,16 @@ export default function App() {
 
     switch (panel) {
       case "changes":
+        // Show related files panel when active
+        if (showRelatedFiles && relatedFilesForPath) {
+          return (
+            <RelatedFilesPanel
+              forPath={relatedFilesForPath}
+              onBack={handleBackFromRelatedFiles}
+              onSelectFile={handleSelectRelatedFile}
+            />
+          );
+        }
         // In history mode, show HistoryFileList instead of FileList
         if (isHistoryMode && viewingCommit) {
           return (
@@ -1398,6 +1482,8 @@ export default function App() {
               onViewModeChange={setViewMode}
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
+              onShowRelatedFiles={handleShowRelatedFiles}
+              isReadOnly={isViewingAnyFile}
             />
           </div>
         );
@@ -1468,6 +1554,20 @@ export default function App() {
 
     switch (panel) {
       case "changes":
+        // Show related files panel when active
+        if (showRelatedFiles && relatedFilesForPath) {
+          return (
+            <RelatedFilesPanel
+              forPath={relatedFilesForPath}
+              onBack={handleBackFromRelatedFiles}
+              onSelectFile={(path) => {
+                handleSelectRelatedFile(path);
+                // On mobile, switch to diff view after selecting a file
+                setMobileActivePanel("diff");
+              }}
+            />
+          );
+        }
         // In history mode, show HistoryFileList instead of FileList
         if (isHistoryMode && viewingCommit) {
           return (
@@ -1565,6 +1665,12 @@ export default function App() {
             isDiscarding={isDiscarding}
             isHistoryMode={isHistoryMode}
             commitHash={viewingCommit?.hash}
+            onShowRelatedFiles={(path) => {
+              handleShowRelatedFiles(path);
+              // On mobile, switch to changes view to see the related files panel
+              setMobileActivePanel("changes");
+            }}
+            isReadOnly={isViewingAnyFile}
           />
         );
       case "commit":
@@ -1764,6 +1870,11 @@ export default function App() {
           onConfirm={handleDiscardMultiple}
           onCancel={() => setPendingDiscardFiles(null)}
         />
+        <FileSearchModal
+          isOpen={isFileSearchOpen}
+          onClose={() => setIsFileSearchOpen(false)}
+          onSelectFile={handleSelectAnyFile}
+        />
       </div>
     );
   }
@@ -1784,6 +1895,7 @@ export default function App() {
         onRefresh={handleRefresh}
         onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
+        onOpenFileSearch={() => setIsFileSearchOpen(true)}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
       />
@@ -1907,6 +2019,11 @@ export default function App() {
         isLoading={discardMutation.isPending}
         onConfirm={handleDiscardMultiple}
         onCancel={() => setPendingDiscardFiles(null)}
+      />
+      <FileSearchModal
+        isOpen={isFileSearchOpen}
+        onClose={() => setIsFileSearchOpen(false)}
+        onSelectFile={handleSelectAnyFile}
       />
     </div>
   );
