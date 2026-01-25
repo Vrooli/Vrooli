@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Search, X, FileCode, Loader2, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, X, FileCode, Loader2, AlertCircle, ChevronDown, ChevronUp, Clock } from "lucide-react";
 import { useFileSearch } from "../lib/hooks";
 import type { FileInfo } from "../lib/api";
 
@@ -7,6 +7,37 @@ interface FileSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFile: (path: string) => void;
+}
+
+// localStorage key for file search history
+const FILE_HISTORY_KEY = "git-control-tower:file-search-history";
+const MAX_HISTORY_ITEMS = 20;
+
+// Helper to get history from localStorage
+function getFileHistory(): string[] {
+  try {
+    const stored = localStorage.getItem(FILE_HISTORY_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
+// Helper to add a file to history
+function addToFileHistory(path: string): void {
+  try {
+    const history = getFileHistory();
+    // Remove if already exists (will re-add at front)
+    const filtered = history.filter((p) => p !== path);
+    // Add to front, limit size
+    const updated = [path, ...filtered].slice(0, MAX_HISTORY_ITEMS);
+    localStorage.setItem(FILE_HISTORY_KEY, JSON.stringify(updated));
+  } catch {
+    // Ignore localStorage errors
+  }
 }
 
 // Simple fuzzy matching for file paths
@@ -109,6 +140,7 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
   const [query, setQuery] = useState("");
   const [isDeepSearch, setIsDeepSearch] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -147,11 +179,12 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
     setSelectedIndex(0);
   }, [filteredFiles.length]);
 
-  // Focus input when modal opens
+  // Focus input and load history when modal opens
   useEffect(() => {
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+      setRecentFiles(getFileHistory());
       setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
@@ -167,12 +200,16 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
     }
   }, [selectedIndex]);
 
+  // Calculate navigation bounds (account for recent files section)
+  const recentFilesCount = !query ? Math.min(recentFiles.length, 5) : 0;
+  const totalNavigableItems = recentFilesCount + filteredFiles.length;
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setSelectedIndex((prev) => Math.min(prev + 1, filteredFiles.length - 1));
+        setSelectedIndex((prev) => Math.min(prev + 1, totalNavigableItems - 1));
         break;
       case "ArrowUp":
         event.preventDefault();
@@ -180,9 +217,22 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
         break;
       case "Enter":
         event.preventDefault();
-        if (filteredFiles[selectedIndex]) {
-          onSelectFile(filteredFiles[selectedIndex].path);
-          onClose();
+        // If in recent files section
+        if (selectedIndex < recentFilesCount) {
+          const path = recentFiles[selectedIndex];
+          if (path) {
+            addToFileHistory(path);
+            onSelectFile(path);
+            onClose();
+          }
+        } else {
+          // In filtered files section
+          const fileIndex = selectedIndex - recentFilesCount;
+          if (filteredFiles[fileIndex]) {
+            addToFileHistory(filteredFiles[fileIndex].path);
+            onSelectFile(filteredFiles[fileIndex].path);
+            onClose();
+          }
         }
         break;
       case "Escape":
@@ -190,7 +240,7 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
         onClose();
         break;
     }
-  }, [filteredFiles, selectedIndex, onSelectFile, onClose]);
+  }, [filteredFiles, selectedIndex, onSelectFile, onClose, recentFiles, recentFilesCount, totalNavigableItems]);
 
   // Handle click outside
   const handleBackdropClick = useCallback((event: React.MouseEvent) => {
@@ -201,7 +251,15 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
 
   // Handle file selection
   const handleSelectFile = useCallback((file: FileInfo) => {
+    addToFileHistory(file.path);
     onSelectFile(file.path);
+    onClose();
+  }, [onSelectFile, onClose]);
+
+  // Handle selecting a recent file (just path, not FileInfo)
+  const handleSelectRecentFile = useCallback((path: string) => {
+    addToFileHistory(path);
+    onSelectFile(path);
     onClose();
   }, [onSelectFile, onClose]);
 
@@ -280,50 +338,108 @@ export function FileSearchModal({ isOpen, onClose, onSelectFile }: FileSearchMod
             </div>
           )}
 
-          {!error && !isLoading && filteredFiles.length === 0 && (
+          {/* Recent files section - shown when no query and has history */}
+          {!error && !query && recentFiles.length > 0 && (
+            <div className="border-b border-slate-800">
+              <div className="flex items-center gap-2 px-4 py-2 text-xs text-slate-500">
+                <Clock className="h-3 w-3" />
+                Recent Files
+              </div>
+              <div className="pb-1" role="listbox">
+                {recentFiles.slice(0, 5).map((path, index) => (
+                  <button
+                    key={`recent-${path}`}
+                    type="button"
+                    data-index={index}
+                    role="option"
+                    aria-selected={index === selectedIndex}
+                    onClick={() => handleSelectRecentFile(path)}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
+                      index === selectedIndex
+                        ? "bg-blue-600/20 text-slate-100"
+                        : "text-slate-300 hover:bg-slate-800/50"
+                    }`}
+                  >
+                    <Clock className="h-4 w-4 flex-shrink-0 text-slate-500" />
+                    <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                      <span className="font-mono text-sm font-medium truncate">
+                        {path.split("/").pop()}
+                      </span>
+                      {path.includes("/") && (
+                        <span className="text-xs text-slate-500 truncate">
+                          {path.substring(0, path.lastIndexOf("/"))}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!error && !isLoading && filteredFiles.length === 0 && query && (
             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
               <FileCode className="h-10 w-10 mb-3 opacity-50" />
-              <p className="text-sm">
-                {query ? "No matching files found" : "No files in repository"}
-              </p>
+              <p className="text-sm">No matching files found</p>
+            </div>
+          )}
+
+          {!error && !isLoading && filteredFiles.length === 0 && !query && recentFiles.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+              <FileCode className="h-10 w-10 mb-3 opacity-50" />
+              <p className="text-sm">No files in repository</p>
             </div>
           )}
 
           {!error && filteredFiles.length > 0 && (
             <div className="py-1" role="listbox">
-              {filteredFiles.map((file, index) => (
-                <button
-                  key={file.path}
-                  type="button"
-                  data-index={index}
-                  role="option"
-                  aria-selected={index === selectedIndex}
-                  onClick={() => handleSelectFile(file)}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
-                    index === selectedIndex
-                      ? "bg-blue-600/20 text-slate-100"
-                      : "text-slate-300 hover:bg-slate-800/50"
-                  }`}
-                >
-                  <FileCode className={`h-4 w-4 flex-shrink-0 ${getFileIconColor(file.language)}`} />
-                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                    <span className="font-mono text-sm font-medium truncate">
-                      {file.path.split("/").pop()}
-                    </span>
-                    {file.path.includes("/") && (
-                      <span className="text-xs text-slate-500 truncate">
-                        {file.path.substring(0, file.path.lastIndexOf("/"))}
+              {/* Section header when showing all files below recent */}
+              {!query && recentFiles.length > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 text-xs text-slate-500">
+                  <FileCode className="h-3 w-3" />
+                  All Files
+                </div>
+              )}
+              {filteredFiles.map((file, index) => {
+                // Offset index by recent files count when showing both sections
+                const displayIndex = !query && recentFiles.length > 0
+                  ? index + Math.min(recentFiles.length, 5)
+                  : index;
+                return (
+                  <button
+                    key={file.path}
+                    type="button"
+                    data-index={displayIndex}
+                    role="option"
+                    aria-selected={displayIndex === selectedIndex}
+                    onClick={() => handleSelectFile(file)}
+                    onMouseEnter={() => setSelectedIndex(displayIndex)}
+                    className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
+                      displayIndex === selectedIndex
+                        ? "bg-blue-600/20 text-slate-100"
+                        : "text-slate-300 hover:bg-slate-800/50"
+                    }`}
+                  >
+                    <FileCode className={`h-4 w-4 flex-shrink-0 ${getFileIconColor(file.language)}`} />
+                    <div className="flex-1 min-w-0 flex items-baseline gap-2">
+                      <span className="font-mono text-sm font-medium truncate">
+                        {file.path.split("/").pop()}
+                      </span>
+                      {file.path.includes("/") && (
+                        <span className="text-xs text-slate-500 truncate">
+                          {file.path.substring(0, file.path.lastIndexOf("/"))}
+                        </span>
+                      )}
+                    </div>
+                    {file.status === "untracked" && (
+                      <span className="text-xs text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 rounded flex-shrink-0">
+                        new
                       </span>
                     )}
-                  </div>
-                  {file.status === "untracked" && (
-                    <span className="text-xs text-emerald-500 px-1.5 py-0.5 bg-emerald-500/10 rounded flex-shrink-0">
-                      new
-                    </span>
-                  )}
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

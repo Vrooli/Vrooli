@@ -44,8 +44,8 @@ export const queryKeys = {
     ["repo", "history", limit, includeFiles] as const,
   syncStatus: ["repo", "sync-status"] as const,
   branches: ["repo", "branches"] as const,
-  diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string, mode?: ViewMode) =>
-    ["repo", "diff", path, staged, untracked, commit, mode] as const,
+  diff: (path?: string, staged?: boolean, untracked?: boolean, commit?: string, mode?: ViewMode, any?: boolean) =>
+    ["repo", "diff", path, staged, untracked, commit, mode, any] as const,
   approvedChanges: ["repo", "approved-changes"] as const,
   files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
   relatedFiles: (path: string) => ["repo", "related", path] as const
@@ -77,7 +77,7 @@ export function useRepoHistory(limit = 30, includeFiles = false) {
 
 export function useDiff(path?: string, staged = false, untracked = false, commit?: string, mode: ViewMode = "diff", any = false) {
   return useQuery({
-    queryKey: queryKeys.diff(path, staged, untracked, commit, mode),
+    queryKey: queryKeys.diff(path, staged, untracked, commit, mode, any),
     queryFn: () => fetchDiff(path, staged, untracked, commit, mode, any),
     // Only enable when we have a valid path, especially important for "any" file viewing
     enabled: Boolean(path)
