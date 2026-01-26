@@ -126,7 +126,6 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
           icon: Layers,
           path: '/admin/tiers',
           testId: 'nav-tiers',
-          isStub: true,
         },
         {
           id: 'api-keys',

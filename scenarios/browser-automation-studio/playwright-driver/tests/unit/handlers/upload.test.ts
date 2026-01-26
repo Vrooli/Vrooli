@@ -15,10 +15,7 @@ describe('UploadHandler', () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    const jestRuntime = jest as unknown as {
-      unstable_mockModule: (moduleName: string, factory: () => unknown) => void;
-    };
-    jestRuntime.unstable_mockModule('fs/promises', () => ({
+    jest.doMock('fs/promises', () => ({
       access: jest.fn().mockResolvedValue(undefined),
     }));
 

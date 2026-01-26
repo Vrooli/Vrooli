@@ -114,8 +114,11 @@ describe('BillingSettings', () => {
     expect(screen.getAllByText('Webhook Secret')[0]).toBeInTheDocument();
 
     await waitFor(() => expect(mockedGetBundleCatalog).toHaveBeenCalled());
-    expect(screen.getByText('Plan Display Manager')).toBeInTheDocument();
-    expect(await screen.findByDisplayValue('Solo Monthly')).toBeInTheDocument();
+    // In preview mode, the section title is "Preview" (not "Plan Display Manager")
+    expect(screen.getByText('Preview')).toBeInTheDocument();
+    // In preview mode, plan name is displayed as text (not input field)
+    // Multiple elements may exist (in the read-only card and pricing preview)
+    expect((await screen.findAllByText('Solo Monthly')).length).toBeGreaterThan(0);
   });
 
   it('blocks empty updates and surfaces errors', async () => {
