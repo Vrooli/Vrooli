@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -202,7 +199,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		s.log("failed to encode search response", map[string]interface{}{"error": err.Error()})
+	}
 }
 
 func maxInt64(a, b int64) int64 {
@@ -210,46 +209,6 @@ func maxInt64(a, b int64) int64 {
 		return a
 	}
 	return b
-}
-
-// generateEmbedding creates a vector embedding using Ollama [REQ:KO-SS-002]
-func (s *Server) generateEmbedding(ctx context.Context, text string) ([]float64, error) {
-	ollamaURL := s.ollamaURL()
-
-	reqBody := OllamaEmbeddingRequest{
-		Model:  s.ollamaEmbeddingModel(),
-		Prompt: text,
-	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", ollamaURL+"/api/embeddings", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("ollama request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var embResp OllamaEmbeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&embResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return embResp.Embedding, nil
 }
 
 func sortAndLimitResults(results []SearchResult, limit int) []SearchResult {
@@ -265,48 +224,6 @@ func sortAndLimitResults(results []SearchResult, limit int) []SearchResult {
 		return results
 	}
 	return results[:limit]
-}
-
-func containsString(values []string, needle string) bool {
-	for _, v := range values {
-		if v == needle {
-			return true
-		}
-	}
-	return false
-}
-
-// searchQdrant executes vector similarity search [REQ:KO-SS-003]
-func (s *Server) searchQdrant(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]SearchResult, error) {
-	// Get collections to search
-	collections, err := s.getCollections(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list collections: %w", err)
-	}
-
-	// If collection specified, validate it exists
-	if collection != "" {
-		if !containsString(collections, collection) {
-			return nil, fmt.Errorf("collection %s not found", collection)
-		}
-		collections = []string{collection}
-	}
-
-	// Search across collections
-	var allResults []SearchResult
-	for _, coll := range collections {
-		results, err := s.searchSingleCollection(ctx, coll, vector, limit, threshold)
-		if err != nil {
-			s.log("collection search failed", map[string]interface{}{
-				"collection": coll,
-				"error":      err.Error(),
-			})
-			continue
-		}
-		allResults = append(allResults, results...)
-	}
-
-	return sortAndLimitResults(allResults, limit), nil
 }
 
 // getCollections retrieves list of Qdrant collections
@@ -334,81 +251,4 @@ func parseCollectionsOutput(output []byte) []string {
 		collections = append(collections, line)
 	}
 	return collections
-}
-
-func extractContentFromPayload(payload map[string]interface{}) string {
-	if payload == nil {
-		return ""
-	}
-	if c, ok := payload["content"].(string); ok {
-		return c
-	}
-	if c, ok := payload["text"].(string); ok {
-		return c
-	}
-	return ""
-}
-
-func stringifyQdrantID(id interface{}) string {
-	switch v := id.(type) {
-	case string:
-		return v
-	case float64:
-		return strconv.FormatFloat(v, 'f', 0, 64)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-// searchSingleCollection searches a specific Qdrant collection
-func (s *Server) searchSingleCollection(ctx context.Context, collection string, vector []float64, limit int, threshold float64) ([]SearchResult, error) {
-	qdrantURL := s.qdrantURL()
-
-	searchReq := QdrantSearchRequest{
-		Vector:         vector,
-		Limit:          limit,
-		WithPayload:    true,
-		ScoreThreshold: &threshold,
-	}
-
-	jsonData, err := json.Marshal(searchReq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	searchURL := fmt.Sprintf("%s/collections/%s/points/search", qdrantURL, collection)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", searchURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.qdrantDo(httpReq)
-	if err != nil {
-		return nil, fmt.Errorf("qdrant request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("qdrant returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	var qdrantResp QdrantSearchResponse
-	if err := json.NewDecoder(resp.Body).Decode(&qdrantResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	// Convert Qdrant results to our format
-	var results []SearchResult
-	for _, point := range qdrantResp.Result {
-		results = append(results, SearchResult{
-			ID:       stringifyQdrantID(point.ID),
-			Score:    point.Score,
-			Content:  extractContentFromPayload(point.Payload),
-			Metadata: point.Payload,
-		})
-	}
-
-	return results, nil
 }

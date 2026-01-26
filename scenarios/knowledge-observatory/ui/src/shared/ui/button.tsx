@@ -1,24 +1,27 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+import { cn } from "../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center rounded-full font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/40 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
-        default: "bg-slate-50 text-slate-900 hover:bg-white",
-        outline: "border border-white/30 text-white hover:bg-white/10"
+        primary: "ko-button-primary",
+        secondary: "ko-button-secondary",
+        outline: "ko-button-outline",
+        danger: "ko-button-danger",
       },
       size: {
-        default: "h-11 px-5",
-        sm: "h-9 px-4"
-      }
+        default: "h-11 px-5 text-sm",
+        sm: "h-9 px-4 text-sm",
+        compact: "ko-button-compact",
+      },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default"
-    }
+      variant: "primary",
+      size: "default",
+    },
   }
 );
 

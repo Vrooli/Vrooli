@@ -54,7 +54,9 @@ func TestSearchEndpoint(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 
 		var searchReq SearchRequest
-		json.NewDecoder(req.Body).Decode(&searchReq)
+		if err := json.NewDecoder(req.Body).Decode(&searchReq); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
 
 		if searchReq.Query != "" {
 			t.Error("empty query should fail validation")
@@ -317,7 +319,9 @@ func BenchmarkSearchRequestValidation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		jsonData, _ := json.Marshal(reqBody)
 		var decoded SearchRequest
-		json.Unmarshal(jsonData, &decoded)
+		if err := json.Unmarshal(jsonData, &decoded); err != nil {
+			b.Fatalf("failed to unmarshal request: %v", err)
+		}
 
 		// Simulate validation
 		if decoded.Query == "" {
@@ -354,7 +358,9 @@ func TestHandleSearchValidation(t *testing.T) {
 		}
 
 		var resp map[string]string
-		json.NewDecoder(w.Body).Decode(&resp)
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
 		if !strings.Contains(resp["error"], "Invalid request body") {
 			t.Errorf("unexpected error message: %v", resp["error"])
 		}
@@ -375,7 +381,9 @@ func TestHandleSearchValidation(t *testing.T) {
 		}
 
 		var resp map[string]string
-		json.NewDecoder(w.Body).Decode(&resp)
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
 		if !strings.Contains(resp["error"], "Query parameter is required") {
 			t.Errorf("unexpected error message: %v", resp["error"])
 		}

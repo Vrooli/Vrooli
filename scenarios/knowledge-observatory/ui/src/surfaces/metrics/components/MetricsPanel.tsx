@@ -1,7 +1,7 @@
 import { Database, TrendingUp, AlertCircle, Loader2, RefreshCw } from "lucide-react";
-import { Button } from "./ui/button";
-import { selectors } from "../consts/selectors";
-import type { MetricCardView, MetricsViewModel } from "../controllers/knowledgeController";
+import { Button } from "../../../shared/ui/button";
+import { selectors } from "../../../consts/selectors";
+import type { MetricCardView, MetricsViewModel } from "../../../shared/controllers/knowledgeController";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
 
@@ -88,7 +88,7 @@ export function MetricsPanel({
         <div className="flex-1">
           <p className="text-red-300 ko-alert-title">Failed to load metrics</p>
           <p className="ko-text-sm text-red-600 mt-1">{errorMessage}</p>
-          <Button onClick={handleRetry} className="mt-3 ko-button-danger">
+          <Button onClick={handleRetry} variant="danger" className="mt-3">
             Retry
           </Button>
         </div>
@@ -100,7 +100,7 @@ export function MetricsPanel({
     return (
       <div className="ko-panel p-6 text-center">
         <p className="ko-text-sm ko-muted">Metrics data is not available yet.</p>
-        <Button onClick={handleRetry} className="mt-3 ko-button-primary">
+        <Button onClick={handleRetry} variant="primary" className="mt-3">
           Retry
         </Button>
       </div>
@@ -132,13 +132,7 @@ export function MetricsPanel({
           <h3 className="ko-text-lg font-semibold text-green-300">Overall Health</h3>
           <p className="ko-text-sm ko-muted capitalize">{overallHealth} condition</p>
         </div>
-        <Button
-          onClick={handleRetry}
-          variant="outline"
-          size="sm"
-          className="ko-button-outline"
-          data-testid={selectors.metrics.refresh}
-        >
+        <Button onClick={handleRetry} variant="outline" size="sm" data-testid={selectors.metrics.refresh}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>

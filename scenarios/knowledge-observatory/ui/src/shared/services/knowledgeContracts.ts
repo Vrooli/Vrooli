@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fromJson, type GenMessage } from "@bufbuild/protobuf";
+import { fromJson, type DescMessage, type JsonValue } from "@bufbuild/protobuf";
 import { createValidator } from "@bufbuild/protovalidate";
 import {
   type InfrastructureHealthResponse,
@@ -12,11 +12,12 @@ import {
 
 const validator = createValidator();
 
-function createProtoSchema<T>(schema: GenMessage<T>, label: string): z.ZodType<T> {
+function createProtoSchema<T>(schema: DescMessage, label: string): z.ZodType<T> {
   return z.unknown().transform((value, ctx) => {
     try {
-      const message = fromJson(schema, value, {
-        jsonOptions: { useProtoNames: true, ignoreUnknownFields: true },
+      const jsonValue = value as JsonValue;
+      const message = fromJson(schema, jsonValue, {
+        ignoreUnknownFields: true,
       });
       const validation = validator.validate(schema, message);
       if (validation.kind !== "valid") {
@@ -27,7 +28,7 @@ function createProtoSchema<T>(schema: GenMessage<T>, label: string): z.ZodType<T
         });
         return z.NEVER;
       }
-      return message;
+      return message as T;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[knowledge-observatory] ${label} response validation failed`, message);
@@ -37,20 +38,24 @@ function createProtoSchema<T>(schema: GenMessage<T>, label: string): z.ZodType<T
       });
       return z.NEVER;
     }
-  }) as z.ZodType<T>;
+  }) as unknown as z.ZodType<T>;
 }
 
-export const infrastructureHealthResponseSchema: z.ZodType<InfrastructureHealthResponse> = createProtoSchema(
+export const infrastructureHealthResponseSchema: z.ZodType<InfrastructureHealthResponse> = createProtoSchema<
+  InfrastructureHealthResponse
+>(
   InfrastructureHealthResponseSchema,
   "health"
 );
 
-export const searchResponseSchema: z.ZodType<SearchResponse> = createProtoSchema(
+export const searchResponseSchema: z.ZodType<SearchResponse> = createProtoSchema<SearchResponse>(
   SearchResponseSchema,
   "search"
 );
 
-export const knowledgeHealthResponseSchema: z.ZodType<KnowledgeHealthResponse> = createProtoSchema(
+export const knowledgeHealthResponseSchema: z.ZodType<KnowledgeHealthResponse> = createProtoSchema<
+  KnowledgeHealthResponse
+>(
   KnowledgeHealthResponseSchema,
   "knowledge health"
 );

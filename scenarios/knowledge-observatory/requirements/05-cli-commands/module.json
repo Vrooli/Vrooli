@@ -7,7 +7,7 @@
     {
       "id": "KO-CLI-001",
       "title": "Required standard commands",
-      "prd_ref": "OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "CLI provides status, help, and version commands as per scenario lifecycle contract",
       "validation": [
         {
@@ -23,7 +23,7 @@
     {
       "id": "KO-CLI-002",
       "title": "Search command",
-      "prd_ref": "OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "knowledge-observatory search <query> performs semantic search and displays ranked results",
       "validation": [
         {
@@ -39,7 +39,7 @@
     {
       "id": "KO-CLI-003",
       "title": "Health command",
-      "prd_ref": "OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "knowledge-observatory health displays knowledge system quality metrics",
       "validation": [
         {
@@ -55,7 +55,7 @@
     {
       "id": "KO-CLI-004",
       "title": "Graph command",
-      "prd_ref": "OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "knowledge-observatory graph generates knowledge relationship visualization data",
       "validation": [
         {
@@ -71,7 +71,7 @@
     {
       "id": "KO-CLI-005",
       "title": "CLI error handling",
-      "prd_ref": "OT-P0-005",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "description": "Graceful error messages for missing API, invalid arguments, and resource unavailability",
       "validation": [
         {

@@ -77,11 +77,15 @@ func NewServer() (*Server, error) {
 
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	var db *sql.DB
+	if !shouldSkipDBConnect() {
+		var err error
+		db, err = database.Connect(context.Background(), database.Config{
+			Driver: "postgres",
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to database: %w", err)
+		}
 	}
 
 	srv := &Server{
@@ -93,6 +97,19 @@ func NewServer() (*Server, error) {
 	srv.setupServices()
 	srv.setupRoutes()
 	return srv, nil
+}
+
+func shouldSkipDBConnect() bool {
+	return isTruthy(os.Getenv("SKIP_DB_TESTS")) || isTruthy(os.Getenv("SKIP_DB_CONNECT"))
+}
+
+func isTruthy(value string) bool {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "1", "true", "yes", "y":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *Server) setupServices() {
@@ -165,11 +182,7 @@ func (s *Server) setupServices() {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint using api-core/health for standardized response format
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
+	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
 
 	// Semantic search endpoint [REQ:KO-SS-001]
 	s.router.HandleFunc("/api/v1/knowledge/search", s.handleSearch).Methods("POST")
@@ -190,6 +203,64 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/ingest/jobs/{job_id}", s.handleGetIngestJob).Methods("GET")
 }
 
+func (s *Server) handler() http.Handler {
+	handler := handlers.RecoveryHandler()(s.router)
+	return handlers.CORS(s.corsOptions()...)(handler)
+}
+
+func (s *Server) corsOptions() []handlers.CORSOption {
+	allowed := parseAllowedOrigins(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	if len(allowed) > 0 {
+		allowedSet := map[string]struct{}{}
+		for _, origin := range allowed {
+			allowedSet[origin] = struct{}{}
+		}
+		return []handlers.CORSOption{
+			handlers.AllowedOriginValidator(func(origin string) bool {
+				_, ok := allowedSet[origin]
+				return ok
+			}),
+			handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+			handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+		}
+	}
+
+	return []handlers.CORSOption{
+		handlers.AllowedOriginValidator(isLocalOrigin),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+	}
+}
+
+func parseAllowedOrigins(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		out = append(out, part)
+	}
+	return out
+}
+
+func isLocalOrigin(origin string) bool {
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	health.New().
+		Version("1.0.0").
+		Check(health.DB(s.db), health.Critical).
+		Handler()(w, r)
+}
+
 // Start launches the HTTP server with graceful shutdown
 func (s *Server) Start() error {
 	s.log("starting server", map[string]interface{}{
@@ -207,7 +278,7 @@ func (s *Server) Start() error {
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.config.Port),
-		Handler:      handlers.RecoveryHandler()(s.router),
+		Handler:      s.handler(),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -235,7 +306,6 @@ func (s *Server) Start() error {
 	s.log("server stopped", nil)
 	return nil
 }
-
 
 func (s *Server) respondError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")

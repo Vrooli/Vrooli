@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MetricsPanel, type MetricsPanelProps } from "./MetricsPanel";
-import type { MetricsViewModel } from "../controllers/knowledgeController";
+import type { MetricsViewModel } from "../../../shared/controllers/knowledgeController";
 
 const baseViewModel: MetricsViewModel = {
   metricCards: [
@@ -46,7 +46,7 @@ describe("MetricsPanel", () => {
     render(<MetricsPanel {...createProps()} />);
 
     expect(screen.getByText(/Overall Health/i)).toBeDefined();
-    expect(screen.getByText(/Coherence/i)).toBeDefined();
+    expect(screen.getAllByText(/Coherence/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/alpha/i)).toBeDefined();
     expect(screen.getByText(/12 vectors/i)).toBeDefined();
   });

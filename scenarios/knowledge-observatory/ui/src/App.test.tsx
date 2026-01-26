@@ -6,11 +6,11 @@ import App from "./App";
 const mockUseHealthStatus = vi.hoisted(() => vi.fn());
 const mockUseHashRoute = vi.hoisted(() => vi.fn());
 
-vi.mock("./hooks/knowledgeHooks", () => ({
+vi.mock("./shared/hooks/knowledgeHooks", () => ({
   useHealthStatus: mockUseHealthStatus,
 }));
 
-vi.mock("./hooks/useHashRoute", () => ({
+vi.mock("./shared/hooks/useHashRoute", () => ({
   useHashRoute: mockUseHashRoute,
 }));
 

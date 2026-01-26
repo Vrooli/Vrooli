@@ -1,5 +1,5 @@
-import { MetricsPanel } from "../components/MetricsPanel";
-import { useKnowledgeMetrics } from "../hooks/knowledgeHooks";
+import { MetricsPanel } from "./components/MetricsPanel";
+import { useKnowledgeMetrics } from "../../shared/hooks/knowledgeHooks";
 
 export function MetricsPanelContainer() {
   const { viewModel, isLoading, errorMessage, hasError, hasData, refetch } = useKnowledgeMetrics();

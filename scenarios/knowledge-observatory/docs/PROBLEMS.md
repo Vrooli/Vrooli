@@ -128,10 +128,10 @@ Target for Phase 2 (implementing P0 requirements):
 - Completeness: 60+/100 (functional)
 
 ### References
-- Requirements registry: `/home/matthalloran8/Vrooli/scenarios/knowledge-observatory/requirements/`
-- Test artifacts: `/home/matthalloran8/Vrooli/scenarios/knowledge-observatory/test/artifacts/`
-- Phased testing guide: `/home/matthalloran8/Vrooli/docs/testing/architecture/PHASED_TESTING.md`
-- Requirement tracking: `/home/matthalloran8/Vrooli/docs/testing/guides/requirement-tracking-quick-start.md`
+- Requirements registry: `scenarios/knowledge-observatory/requirements/`
+- Test artifacts: `scenarios/knowledge-observatory/test/artifacts/`
+- Phased testing guide: `docs/testing/architecture/PHASED_TESTING.md`
+- Requirement tracking: `docs/testing/guides/requirement-tracking-quick-start.md`
 
 ---
 

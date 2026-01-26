@@ -1,5 +1,5 @@
-import { SearchPanel } from "../components/SearchPanel";
-import { useSearchController } from "../hooks/knowledgeHooks";
+import { SearchPanel } from "./components/SearchPanel";
+import { useSearchController } from "../../shared/hooks/knowledgeHooks";
 
 export function SearchPanelContainer() {
   const {

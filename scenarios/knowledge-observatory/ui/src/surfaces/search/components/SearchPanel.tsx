@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { Search, Loader2, AlertCircle } from "lucide-react";
-import { Button } from "./ui/button";
-import { selectors } from "../consts/selectors";
-import type { SearchResultView } from "../controllers/knowledgeController";
+import { Button } from "../../../shared/ui/button";
+import { selectors } from "../../../consts/selectors";
+import type { SearchResultView } from "../../../shared/controllers/knowledgeController";
 
 // AI_CHECK: REACT_STABILITY=1 | LAST: 2026-01-25
 
@@ -132,7 +132,7 @@ export function SearchPanel({
           <Button
             type="submit"
             disabled={isSubmitDisabled}
-            className="ko-button-primary"
+            variant="primary"
             data-testid={selectors.search.submit}
           >
             {isLoading ? (
@@ -145,7 +145,7 @@ export function SearchPanel({
           <Button
             type="button"
             onClick={handleClear}
-            className="ko-button-secondary"
+            variant="secondary"
             data-testid={selectors.search.clear}
             disabled={isClearDisabled}
           >
@@ -161,7 +161,8 @@ export function SearchPanel({
             key={`${sample}-${index}`}
             type="button"
             onClick={() => handleSampleClick(sample)}
-            className="ko-button-secondary ko-button-compact"
+            variant="secondary"
+            size="compact"
             data-testid={selectors.search.sampleButton}
             data-query={sample}
           >
