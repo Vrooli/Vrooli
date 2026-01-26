@@ -282,15 +282,41 @@ func maskValue(value string) string {
 	return value[:4] + "…" + value[len(value)-2:]
 }
 
+// GetSecretValue returns the unredacted value for a specific secret field from the merged config.
+// This is used by the admin reveal endpoint to show actual secret values.
+// Allowed fields: "publishable_key", "secret_key", "webhook_secret"
+func (s *StripeService) GetSecretValue(field string) (string, bool) {
+	cfg := s.getConfig()
+	switch field {
+	case "publishable_key":
+		return cfg.publishableKey, cfg.hasPublishable
+	case "secret_key":
+		return cfg.secretKey, cfg.hasSecret
+	case "webhook_secret":
+		return cfg.webhookSecret, cfg.hasWebhook
+	default:
+		return "", false
+	}
+}
+
 // ConfigSnapshot returns a redacted view of the active Stripe configuration.
+// Note: PublishableKeyPreview is only set when hasPublishable is true to avoid
+// leaking placeholder values that could be mistaken for real configuration.
 func (s *StripeService) ConfigSnapshot() *landing_page_react_vite_v1.StripeConfigSnapshot {
 	cfg := s.getConfig()
 	source := landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_ENV
 	if cfg.source == "database" {
 		source = landing_page_react_vite_v1.ConfigSource_CONFIG_SOURCE_DATABASE
 	}
+
+	// Only show preview when a real key is configured (not the placeholder)
+	var publishablePreview string
+	if cfg.hasPublishable {
+		publishablePreview = maskValue(cfg.publishableKey)
+	}
+
 	return &landing_page_react_vite_v1.StripeConfigSnapshot{
-		PublishableKeyPreview: maskValue(cfg.publishableKey),
+		PublishableKeyPreview: publishablePreview,
 		PublishableKeySet:     cfg.hasPublishable,
 		SecretKeySet:          cfg.hasSecret,
 		WebhookSecretSet:      cfg.hasWebhook,

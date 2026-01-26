@@ -7,6 +7,8 @@ import {
   savePriceForm,
   verifyPriceId,
   buildStripeStatusBadges,
+  isStripeFullyConfigured,
+  isStripePartiallyConfigured,
   hasStripeFormValues,
   DEFAULT_STRIPE_FORM,
   type StripeFormState,
@@ -392,10 +394,12 @@ describe('billing.service', () => {
       expect(badges[2]).toEqual({ label: 'Webhook Secret', ok: false });
     });
 
-    it('marks publishable key as ok when preview is set', () => {
+    it('uses publishable_key_set as source of truth (preview is only set when key is configured)', () => {
+      // With the unified contract, publishable_key_preview is only populated
+      // when publishable_key_set is true. The badge uses only *_set flags.
       const settings: StripeSettingsResponse = {
         publishable_key_preview: 'pk_test_xxx',
-        publishable_key_set: false,
+        publishable_key_set: true, // preview is only set when this is true
         secret_key_set: false,
         webhook_secret_set: false,
         source: 'env',
@@ -417,6 +421,78 @@ describe('billing.service', () => {
       const badges = buildStripeStatusBadges(settings);
 
       expect(badges.every((badge) => !badge.ok)).toBe(true);
+    });
+  });
+
+  describe('isStripeFullyConfigured', () => {
+    it('returns false when settings is null', () => {
+      expect(isStripeFullyConfigured(null)).toBe(false);
+    });
+
+    it('returns true when all three keys are set', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: true,
+        secret_key_set: true,
+        webhook_secret_set: true,
+        source: 'database',
+      };
+      expect(isStripeFullyConfigured(settings)).toBe(true);
+    });
+
+    it('returns false when any key is missing', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: true,
+        secret_key_set: true,
+        webhook_secret_set: false,
+        source: 'database',
+      };
+      expect(isStripeFullyConfigured(settings)).toBe(false);
+    });
+
+    it('returns false when no keys are set', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: false,
+        secret_key_set: false,
+        webhook_secret_set: false,
+        source: 'env',
+      };
+      expect(isStripeFullyConfigured(settings)).toBe(false);
+    });
+  });
+
+  describe('isStripePartiallyConfigured', () => {
+    it('returns false when settings is null', () => {
+      expect(isStripePartiallyConfigured(null)).toBe(false);
+    });
+
+    it('returns true when at least one key is set', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: true,
+        secret_key_set: false,
+        webhook_secret_set: false,
+        source: 'env',
+      };
+      expect(isStripePartiallyConfigured(settings)).toBe(true);
+    });
+
+    it('returns true when all keys are set', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: true,
+        secret_key_set: true,
+        webhook_secret_set: true,
+        source: 'database',
+      };
+      expect(isStripePartiallyConfigured(settings)).toBe(true);
+    });
+
+    it('returns false when no keys are set', () => {
+      const settings: StripeSettingsResponse = {
+        publishable_key_set: false,
+        secret_key_set: false,
+        webhook_secret_set: false,
+        source: 'env',
+      };
+      expect(isStripePartiallyConfigured(settings)).toBe(false);
     });
   });
 

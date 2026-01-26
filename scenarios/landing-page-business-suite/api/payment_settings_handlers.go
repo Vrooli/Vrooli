@@ -50,7 +50,8 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 // - secret_key
 // - webhook_secret
 // - publishable_key
-func handleRevealStripeSecret(paymentService *PaymentSettingsService) http.HandlerFunc {
+// Returns the value from the merged config (env vars + database).
+func handleRevealStripeSecret(stripeService *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		field := r.URL.Query().Get("field")
 		if field == "" {
@@ -68,24 +69,10 @@ func handleRevealStripeSecret(paymentService *PaymentSettingsService) http.Handl
 			return
 		}
 
-		record, err := paymentService.GetStripeSettings(r.Context())
-		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
+		value, hasValue := stripeService.GetSecretValue(field)
+		if !hasValue {
+			writeJSONError(w, http.StatusNotFound, "No value set for this field", ApiErrorTypeNotFound)
 			return
-		}
-		if record == nil {
-			writeJSONError(w, http.StatusNotFound, "No Stripe settings found", ApiErrorTypeNotFound)
-			return
-		}
-
-		var value string
-		switch field {
-		case "secret_key":
-			value = record.SecretKey
-		case "webhook_secret":
-			value = record.WebhookSecret
-		case "publishable_key":
-			value = record.PublishableKey
 		}
 
 		resp := map[string]string{

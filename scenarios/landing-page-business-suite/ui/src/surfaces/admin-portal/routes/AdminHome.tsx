@@ -17,6 +17,7 @@ import {
 import { LAYOUT } from '../config/layout.constants';
 import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
 import { useAdminHome } from '../hooks/useAdminHome';
+import { isStripeFullyConfigured } from '../services/billing.service';
 
 /**
  * Admin home page - simplified dashboard with quick navigation to section dashboards
@@ -54,7 +55,7 @@ export function AdminHome() {
   const trafficAllocated = healthLoading ? '...' : `${Math.max(0, Math.round(healthSnapshot?.totalWeight ?? 0))}%`;
   const stripeConfigured = stripeLoading
     ? '...'
-    : stripeSettings?.publishable_key_set && stripeSettings?.secret_key_set && stripeSettings?.webhook_secret_set
+    : isStripeFullyConfigured(stripeSettings)
       ? 'Yes'
       : 'No';
   const liveVariantName = liveVariant?.name ?? liveVariant?.slug ?? 'None';

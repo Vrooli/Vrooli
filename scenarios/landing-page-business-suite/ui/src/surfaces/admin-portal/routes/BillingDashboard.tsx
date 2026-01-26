@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { LAYOUT } from '../config/layout.constants';
 import { useAdminHome } from '../hooks/useAdminHome';
+import { isStripeFullyConfigured, isStripePartiallyConfigured } from '../services/billing.service';
 
 /**
  * Billing Dashboard - Entry point for payment and monetization management
@@ -33,15 +34,8 @@ export function BillingDashboard() {
     refreshStripeStatus,
   } = useAdminHome();
 
-  const stripeConfigured =
-    stripeSettings?.publishable_key_set &&
-    stripeSettings?.secret_key_set &&
-    stripeSettings?.webhook_secret_set;
-
-  const stripePartial =
-    stripeSettings?.publishable_key_set ||
-    stripeSettings?.secret_key_set ||
-    stripeSettings?.webhook_secret_set;
+  const stripeConfigured = isStripeFullyConfigured(stripeSettings);
+  const stripePartial = isStripePartiallyConfigured(stripeSettings);
 
   return (
     <AdminLayout maxWidth="wide">

@@ -141,20 +141,37 @@ export async function verifyPriceId(priceIdOrKey: string): Promise<PriceVerifica
 }
 
 /**
- * Build status badges for Stripe configuration
+ * Check if all three Stripe keys are configured (publishable, secret, webhook).
+ * Use this to determine if Stripe is fully ready for production use.
+ */
+export function isStripeFullyConfigured(settings: StripeSettingsResponse | null): boolean {
+  if (!settings) return false;
+  return settings.publishable_key_set && settings.secret_key_set && settings.webhook_secret_set;
+}
+
+/**
+ * Check if at least one Stripe key is configured.
+ * Use this to determine if the user has started Stripe setup.
+ */
+export function isStripePartiallyConfigured(settings: StripeSettingsResponse | null): boolean {
+  if (!settings) return false;
+  return settings.publishable_key_set || settings.secret_key_set || settings.webhook_secret_set;
+}
+
+/**
+ * Build status badges for Stripe configuration.
+ * Uses the *_set flags as the single source of truth for whether each key is configured.
+ * Note: publishable_key_preview is only populated when publishable_key_set is true,
+ * so we don't need to check both.
  */
 export function buildStripeStatusBadges(settings: StripeSettingsResponse | null): Array<{ label: string; ok: boolean }> {
   if (!settings) {
     return [];
   }
 
-  const publishableSet = settings.publishable_key_set || Boolean(settings.publishable_key_preview);
-  const secretSet = settings.secret_key_set;
-  const webhookSet = settings.webhook_secret_set;
-
   return [
-    { label: 'Publishable Key', ok: publishableSet },
-    { label: 'Restricted Key', ok: secretSet },
-    { label: 'Webhook Secret', ok: webhookSet },
+    { label: 'Publishable Key', ok: settings.publishable_key_set },
+    { label: 'Restricted Key', ok: settings.secret_key_set },
+    { label: 'Webhook Secret', ok: settings.webhook_secret_set },
   ];
 }
