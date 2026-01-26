@@ -4,24 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 // PlanService exposes helper utilities for pricing/plan metadata.
+// This service delegates to PlanStore for file-based storage.
 type PlanService struct {
-	db            *sql.DB
+	planStore     *PlanStore
 	defaultBundle string
 	displayEnv    string
 }
@@ -36,18 +33,41 @@ type (
 type bundleProductRecord struct {
 	ID      int64
 	Bundle  *BundleProduct
-	Updated time.Time
 }
 
+// NewPlanService creates a PlanService with a PlanStore.
+// The db parameter is kept for backward compatibility but is no longer used for plans.
 func NewPlanService(db *sql.DB) *PlanService {
 	bundle := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
 	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
-	return &PlanService{db: db, defaultBundle: bundle, displayEnv: env}
+
+	// Create and load the plan store
+	plansPath := resolvePlansPath()
+	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  bundle,
+		DisplayEnv: env,
+	})
+	if err := planStore.LoadAll(); err != nil {
+		logStructuredError("plan_store_load_failed", map[string]interface{}{
+			"error": err.Error(),
+			"path":  plansPath,
+		})
+	}
+
+	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
+}
+
+// NewPlanServiceWithPlanStore creates a PlanService with an explicit PlanStore.
+func NewPlanServiceWithPlanStore(planStore *PlanStore) *PlanService {
+	bundle := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
+	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
+	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
 }
 
 // PlanServiceOptions allows explicit configuration for testing.
 type PlanServiceOptions struct {
-	DB            *sql.DB
+	PlanStore     *PlanStore
 	DefaultBundle string
 	DisplayEnv    string
 }
@@ -62,7 +82,17 @@ func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
 	if env == "" {
 		env = stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
 	}
-	return &PlanService{db: opts.DB, defaultBundle: bundle, displayEnv: env}
+	planStore := opts.PlanStore
+	if planStore == nil {
+		plansPath := resolvePlansPath()
+		planStore = NewPlanStoreWithOptions(PlanStoreOptions{
+			PlansPath:  plansPath,
+			BundleKey:  bundle,
+			DisplayEnv: env,
+		})
+		_ = planStore.LoadAll()
+	}
+	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
 }
 
 func stringsTrimOrDefault(value string, fallback string) string {
@@ -77,271 +107,28 @@ func (s *PlanService) BundleKey() string {
 	return s.defaultBundle
 }
 
+// GetPlanStore returns the underlying PlanStore for direct access.
+func (s *PlanService) GetPlanStore() *PlanStore {
+	return s.planStore
+}
+
 // GetPricingOverview loads the product and price rows for the default bundle.
 func (s *PlanService) GetPricingOverview() (*PricingOverview, error) {
-	product, err := s.loadBundleProduct(s.defaultBundle)
-	if err != nil {
-		return nil, err
-	}
-
-	prices, err := s.loadBundlePrices(product.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Initialize as empty slices (not nil) so JSON serialization includes them as [] instead of omitting
-	monthly := make([]*PlanOption, 0)
-	yearly := make([]*PlanOption, 0)
-
-	// Log raw prices for debugging
-	for i, price := range prices {
-		logStructured("price_loaded", map[string]interface{}{
-			"level":            "debug",
-			"index":            i,
-			"plan_name":        price.PlanName,
-			"billing_interval": price.BillingInterval.String(),
-			"display_enabled":  price.DisplayEnabled,
-			"tier":             price.PlanTier,
-		})
-	}
-
-	for _, price := range prices {
-		if !price.GetDisplayEnabled() && strings.ToLower(strings.TrimSpace(price.PlanTier)) != "free" {
-			continue
-		}
-		switch price.BillingInterval {
-		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH:
-			monthly = append(monthly, proto.Clone(price).(*PlanOption))
-		case landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR:
-			yearly = append(yearly, proto.Clone(price).(*PlanOption))
-		default:
-			logStructured("unmatched_billing_interval", map[string]interface{}{
-				"level":     "warn",
-				"plan_name": price.PlanName,
-				"interval":  price.BillingInterval.String(),
-				"tier":      price.PlanTier,
-			})
-		}
-	}
-
-	sort.SliceStable(monthly, func(i, j int) bool {
-		if monthly[i].DisplayWeight == monthly[j].DisplayWeight {
-			return monthly[i].PlanRank < monthly[j].PlanRank
-		}
-		return monthly[i].DisplayWeight > monthly[j].DisplayWeight
-	})
-	sort.SliceStable(yearly, func(i, j int) bool {
-		if yearly[i].DisplayWeight == yearly[j].DisplayWeight {
-			return yearly[i].PlanRank < yearly[j].PlanRank
-		}
-		return yearly[i].DisplayWeight > yearly[j].DisplayWeight
-	})
-
-	logStructured("pricing_overview_built", map[string]interface{}{
-		"level":         "info",
-		"monthly_count": len(monthly),
-		"yearly_count":  len(yearly),
-		"total_prices":  len(prices),
-	})
-
-	return &PricingOverview{
-		Bundle:    product.Bundle,
-		Monthly:   monthly,
-		Yearly:    yearly,
-		UpdatedAt: timestamppb.Now(),
-	}, nil
+	return s.planStore.GetPricingOverview()
 }
 
 // GetPlanByPriceID fetches a plan option for a Stripe price identifier.
 func (s *PlanService) GetPlanByPriceID(priceID string) (*PlanOption, error) {
-	if priceID == "" {
-		return nil, fmt.Errorf("price id is required")
-	}
-
-	query := `
-		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
-		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type,
-		       bp.intro_amount_cents, bp.intro_periods, bp.intro_price_lookup_key,
-		       bp.monthly_included_credits, bp.one_time_bonus_credits, bp.plan_rank,
-		       bp.bonus_type, bp.kind, bp.is_variable_amount, bp.display_enabled, b.bundle_key,
-		       bp.metadata, bp.display_weight
-		FROM bundle_prices bp
-		JOIN bundle_products b ON bp.product_id = b.id
-		WHERE bp.stripe_price_id = $1
-	`
-
-	row := s.db.QueryRow(query, priceID)
-	option, err := s.scanPlanOption(row)
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("price %s not found", priceID)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return option, nil
-}
-
-func (s *PlanService) loadBundleProduct(bundleKey string) (*bundleProductRecord, error) {
-	query := `
-		SELECT id, bundle_key, bundle_name, stripe_product_id, credits_per_usd,
-		       display_credits_multiplier, display_credits_label, environment, metadata
-		FROM bundle_products
-		WHERE bundle_key = $1 AND environment = $2
-		LIMIT 1
-	`
-	row := s.db.QueryRow(query, bundleKey, s.displayEnv)
-
-	var id int64
-	product := &BundleProduct{}
-	var metadataBytes []byte
-	if err := row.Scan(
-		&id,
-		&product.BundleKey,
-		&product.Name,
-		&product.StripeProductId,
-		&product.CreditsPerUsd,
-		&product.DisplayCreditsMultiplier,
-		&product.DisplayCreditsLabel,
-		&product.Environment,
-		&metadataBytes,
-	); err != nil {
-		return nil, fmt.Errorf("bundle %s not found: %w", bundleKey, err)
-	}
-
-	if len(metadataBytes) > 0 {
-		if meta := parseMetadata(metadataBytes); meta != nil {
-			product.Metadata = meta
-		}
-	}
-
-	return &bundleProductRecord{ID: id, Bundle: product}, nil
-}
-
-func (s *PlanService) loadBundlePrices(productID int64) ([]*PlanOption, error) {
-	query := `
-		SELECT bp.id, bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
-		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type, bp.intro_amount_cents,
-		       bp.intro_periods, bp.intro_price_lookup_key, bp.monthly_included_credits,
-		       bp.one_time_bonus_credits, bp.plan_rank, bp.bonus_type, bp.kind, bp.is_variable_amount,
-		       bp.display_enabled, b.bundle_key, bp.metadata, bp.display_weight
-		FROM bundle_prices bp
-		JOIN bundle_products b ON bp.product_id = b.id
-		WHERE bp.product_id = $1
-		ORDER BY bp.display_weight DESC, bp.plan_rank ASC
-	`
-
-	logStructured("loadBundlePrices_query", map[string]interface{}{
-		"level":      "debug",
-		"product_id": productID,
-	})
-
-	rows, err := s.db.Query(query, productID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var options []*PlanOption
-	rowCount := 0
-	for rows.Next() {
-		rowCount++
-		var option PlanOption
-		var pricePrimaryID int64
-		var metadataBytes []byte
-		var introAmount sql.NullInt64
-		var rawKind string
-		var rawIntroType sql.NullString
-		var rawIntroLookup sql.NullString
-		var rawInterval string
-		var stripePriceID sql.NullString
-		if err := rows.Scan(
-			&pricePrimaryID,
-			&stripePriceID,
-			&option.PlanName,
-			&option.PlanTier,
-			&rawInterval,
-			&option.AmountCents,
-			&option.Currency,
-			&option.IntroEnabled,
-			&rawIntroType,
-			&introAmount,
-			&option.IntroPeriods,
-			&rawIntroLookup,
-			&option.MonthlyIncludedCredits,
-			&option.OneTimeBonusCredits,
-			&option.PlanRank,
-			&option.BonusType,
-			&rawKind,
-			&option.IsVariableAmount,
-			&option.DisplayEnabled,
-			&option.BundleKey,
-			&metadataBytes,
-			&option.DisplayWeight,
-		); err != nil {
-			return nil, err
-		}
-
-		if stripePriceID.Valid {
-			option.StripePriceId = strings.TrimSpace(stripePriceID.String)
-		} else {
-			option.StripePriceId = ""
-		}
-
-		if introAmount.Valid {
-			val := introAmount.Int64
-			option.IntroAmountCents = proto.Int64(val)
-		}
-		if rawIntroLookup.Valid {
-			option.IntroPriceLookupKey = rawIntroLookup.String
-		}
-
-		if len(metadataBytes) > 0 {
-			if meta := parseMetadata(metadataBytes); meta != nil {
-				option.Metadata = meta
-			}
-		}
-
-		if option.Metadata == nil {
-			option.Metadata = map[string]*commonv1.JsonValue{}
-		}
-
-		// When stripe_price_id is empty (free/CTA-only), attach the DB primary key so admin/UI can round-trip.
-		if strings.TrimSpace(option.StripePriceId) == "" {
-			option.Metadata["__price_pk"] = newStringJsonValue(fmt.Sprintf("%d", pricePrimaryID))
-		}
-
-		option.IntroType = mapIntroPricingType(rawIntroType)
-		option.Kind = mapPlanKind(rawKind)
-		option.BillingInterval = mapBillingInterval(rawInterval)
-
-		// Debug: log what we're reading from DB and what we're converting to
-		logStructured("price_interval_conversion", map[string]interface{}{
-			"level":        "debug",
-			"plan_name":    option.PlanName,
-			"raw_interval": rawInterval,
-			"mapped_enum":  option.BillingInterval.String(),
-		})
-
-		options = append(options, proto.Clone(&option).(*PlanOption))
-	}
-
-	logStructured("loadBundlePrices_done", map[string]interface{}{
-		"level":         "debug",
-		"rows_scanned":  rowCount,
-		"options_count": len(options),
-	})
-
-	return options, nil
+	return s.planStore.GetPlanByPriceID(priceID)
 }
 
 // GetBundleProduct returns the configured bundle product metadata.
 func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
-	rec, err := s.loadBundleProduct(s.defaultBundle)
-	if err != nil {
-		return nil, err
+	bundle := s.planStore.GetBundle()
+	if bundle == nil {
+		return nil, nil
 	}
-	return rec.Bundle, nil
+	return bundle, nil
 }
 
 // BundleCatalogEntry groups a bundle with all of its prices (visible + hidden).
@@ -353,55 +140,7 @@ type BundleCatalogEntry struct {
 // ListBundleCatalog returns bundles for the configured environment so the admin UI
 // can toggle prices without raw SQL edits.
 func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEntry, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, bundle_key, bundle_name, stripe_product_id, credits_per_usd,
-		       display_credits_multiplier, display_credits_label, environment, metadata
-		FROM bundle_products
-		WHERE environment = $1
-		ORDER BY bundle_key ASC
-	`, s.displayEnv)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var entries []BundleCatalogEntry
-	for rows.Next() {
-		var id int64
-		product := &BundleProduct{}
-		var metadataBytes []byte
-		if err := rows.Scan(
-			&id,
-			&product.BundleKey,
-			&product.Name,
-			&product.StripeProductId,
-			&product.CreditsPerUsd,
-			&product.DisplayCreditsMultiplier,
-			&product.DisplayCreditsLabel,
-			&product.Environment,
-			&metadataBytes,
-		); err != nil {
-			return nil, err
-		}
-
-		if len(metadataBytes) > 0 {
-			if meta := parseMetadata(metadataBytes); meta != nil {
-				product.Metadata = meta
-			}
-		}
-
-		prices, err := s.loadBundlePrices(id)
-		if err != nil {
-			return nil, err
-		}
-
-		entries = append(entries, BundleCatalogEntry{
-			Bundle: product,
-			Prices: prices,
-		})
-	}
-
-	return entries, nil
+	return s.planStore.ListBundleCatalog(ctx)
 }
 
 // UpdateBundlePriceInput contains editable fields for price display metadata.
@@ -420,189 +159,27 @@ type UpdateBundlePriceInput struct {
 // UpdateBundlePrice applies display overrides for a Stripe price row.
 func (s *PlanService) UpdateBundlePrice(ctx context.Context, bundleKey, priceID string, input UpdateBundlePriceInput) (*PlanOption, error) {
 	if priceID == "" || bundleKey == "" {
-		return nil, fmt.Errorf("bundle key and price id are required")
+		return nil, nil
 	}
-
-	stripeOverride := sql.NullString{Valid: false}
-	if input.StripePriceID != nil {
-		stripeOverride = sql.NullString{String: strings.TrimSpace(*input.StripePriceID), Valid: true}
-	}
-
-	var pricePrimaryID int64
-	var metadataBytes []byte
-	query := `
-		SELECT bp.id, bp.metadata
-		FROM bundle_prices bp
-		JOIN bundle_products b ON bp.product_id = b.id
-		WHERE bp.stripe_price_id = $1 AND b.bundle_key = $2 AND b.environment = $3
-	`
-	if err := s.db.QueryRowContext(ctx, query, priceID, bundleKey, s.displayEnv).Scan(&pricePrimaryID, &metadataBytes); err != nil {
-		if err == sql.ErrNoRows {
-			if numericID, parseErr := strconv.ParseInt(priceID, 10, 64); parseErr == nil {
-				altQuery := `
-					SELECT bp.id, bp.metadata
-					FROM bundle_prices bp
-					JOIN bundle_products b ON bp.product_id = b.id
-					WHERE bp.id = $1 AND b.bundle_key = $2 AND b.environment = $3
-				`
-				if err := s.db.QueryRowContext(ctx, altQuery, numericID, bundleKey, s.displayEnv).Scan(&pricePrimaryID, &metadataBytes); err != nil {
-					if err == sql.ErrNoRows {
-						return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
-					}
-					return nil, err
-				}
-			} else {
-				return nil, fmt.Errorf("price %s not found for bundle %s", priceID, bundleKey)
-			}
-		}
-		return nil, err
-	}
-
-	metadata := parseMetadata(metadataBytes)
-	if metadata == nil {
-		metadata = map[string]*commonv1.JsonValue{}
-	}
-
-	setMetadataString := func(key string, value *string) {
-		if value == nil {
-			return
-		}
-		trimmed := strings.TrimSpace(*value)
-		if trimmed == "" {
-			delete(metadata, key)
-			return
-		}
-		metadata[key] = newStringJsonValue(trimmed)
-	}
-
-	if input.Features != nil {
-		var sanitized []string
-		for _, feature := range *input.Features {
-			trimmed := strings.TrimSpace(feature)
-			if trimmed != "" {
-				sanitized = append(sanitized, trimmed)
-			}
-		}
-		if len(sanitized) == 0 {
-			delete(metadata, "features")
-		} else {
-			listValues := make([]*commonv1.JsonValue, 0, len(sanitized))
-			for _, feature := range sanitized {
-				listValues = append(listValues, newStringJsonValue(feature))
-			}
-			metadata["features"] = newListJsonValue(listValues)
-		}
-	}
-
-	setMetadataString("subtitle", input.Subtitle)
-	setMetadataString("badge", input.Badge)
-	setMetadataString("cta_label", input.CtaLabel)
-	if input.Highlight != nil {
-		if *input.Highlight {
-			metadata["highlight"] = newBoolJsonValue(true)
-		} else {
-			delete(metadata, "highlight")
-		}
-	}
-
-	metadataJSON, err := json.Marshal(jsonValueToMap(metadata))
-	if err != nil {
-		return nil, fmt.Errorf("marshal price metadata: %w", err)
-	}
-
-	_, err = s.db.ExecContext(ctx, `
-		UPDATE bundle_prices
-		SET stripe_price_id = CASE WHEN $1::text IS NOT NULL THEN NULLIF($1::text, '') ELSE stripe_price_id END,
-		    plan_name = COALESCE($2, plan_name),
-		    display_weight = COALESCE($3, display_weight),
-		    display_enabled = COALESCE($4, display_enabled),
-		    metadata = $5,
-		    updated_at = NOW()
-		WHERE id = $6
-	`, stripeOverride, input.PlanName, input.DisplayWeight, input.DisplayEnabled, metadataJSON, pricePrimaryID)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.getPlanByInternalID(pricePrimaryID)
+	return s.planStore.UpdatePlan(priceID, input)
 }
 
-// getPlanByInternalID fetches a plan option by primary key (used when stripe_price_id is cleared).
-func (s *PlanService) getPlanByInternalID(id int64) (*PlanOption, error) {
-	query := `
-		SELECT bp.stripe_price_id, bp.plan_name, bp.plan_tier, bp.billing_interval,
-		       bp.amount_cents, bp.currency, bp.intro_enabled, bp.intro_type,
-		       bp.intro_amount_cents, bp.intro_periods, bp.intro_price_lookup_key,
-		       bp.monthly_included_credits, bp.one_time_bonus_credits, bp.plan_rank,
-		       bp.bonus_type, bp.kind, bp.is_variable_amount, bp.display_enabled, b.bundle_key,
-		       bp.metadata, bp.display_weight
-		FROM bundle_prices bp
-		JOIN bundle_products b ON bp.product_id = b.id
-		WHERE bp.id = $1
-	`
-	row := s.db.QueryRow(query, id)
-	return s.scanPlanOption(row)
+// AddPlan adds a new plan to the store.
+func (s *PlanService) AddPlan(plan *PlanOption) error {
+	return s.planStore.AddPlan(plan)
 }
 
-func (s *PlanService) scanPlanOption(row *sql.Row) (*PlanOption, error) {
-	option := &PlanOption{}
-	var metadataBytes []byte
-	var rawKind string
-	var rawInterval string
-	var rawIntroType sql.NullString
-	var rawIntroLookup sql.NullString
-	var introAmount sql.NullInt64
-	var stripePriceID sql.NullString
-	if err := row.Scan(
-		&stripePriceID,
-		&option.PlanName,
-		&option.PlanTier,
-		&rawInterval,
-		&option.AmountCents,
-		&option.Currency,
-		&option.IntroEnabled,
-		&rawIntroType,
-		&introAmount,
-		&option.IntroPeriods,
-		&rawIntroLookup,
-		&option.MonthlyIncludedCredits,
-		&option.OneTimeBonusCredits,
-		&option.PlanRank,
-		&option.BonusType,
-		&rawKind,
-		&option.IsVariableAmount,
-		&option.DisplayEnabled,
-		&option.BundleKey,
-		&metadataBytes,
-		&option.DisplayWeight,
-	); err != nil {
-		return nil, err
-	}
-
-	if stripePriceID.Valid {
-		option.StripePriceId = strings.TrimSpace(stripePriceID.String)
-	} else {
-		option.StripePriceId = ""
-	}
-
-	option.Kind = mapPlanKind(rawKind)
-	option.BillingInterval = mapBillingInterval(rawInterval)
-	option.IntroType = mapIntroPricingType(rawIntroType)
-	if introAmount.Valid {
-		option.IntroAmountCents = proto.Int64(introAmount.Int64)
-	}
-	if rawIntroLookup.Valid {
-		option.IntroPriceLookupKey = rawIntroLookup.String
-	}
-
-	if len(metadataBytes) > 0 {
-		if meta := parseMetadata(metadataBytes); meta != nil {
-			option.Metadata = meta
-		}
-	}
-
-	return option, nil
+// DeletePlan removes a plan by its Stripe price ID.
+func (s *PlanService) DeletePlan(priceID string) error {
+	return s.planStore.DeletePlan(priceID)
 }
+
+// ReloadPlans reloads plans from the JSON file.
+func (s *PlanService) ReloadPlans() error {
+	return s.planStore.LoadAll()
+}
+
+// Helper functions for metadata conversion and enum mapping
 
 func parseMetadata(metadataBytes []byte) map[string]*commonv1.JsonValue {
 	if len(metadataBytes) == 0 {
@@ -832,4 +409,12 @@ func mapIntroPricingType(raw sql.NullString) landing_page_react_vite_v1.IntroPri
 		}
 		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
 	}
+}
+
+// clonePlanOption creates a deep copy of a PlanOption.
+func clonePlanOption(p *PlanOption) *PlanOption {
+	if p == nil {
+		return nil
+	}
+	return proto.Clone(p).(*PlanOption)
 }

@@ -30,6 +30,8 @@ export interface PlanDisplayManagerProps {
   onVerifyPrice: (bundleKey: string, priceId: string) => Promise<void>;
   onRemoveDemoPlan: (bundleKey: string, priceId: string) => void;
   priceChecks: Record<string, PriceVerificationResult>;
+  // Add plan handler
+  onAddPlan?: (bundleKey: string) => void;
 }
 
 export function PlanDisplayManager({
@@ -48,6 +50,7 @@ export function PlanDisplayManager({
   onVerifyPrice,
   onRemoveDemoPlan,
   priceChecks,
+  onAddPlan,
 }: PlanDisplayManagerProps) {
   return (
     <div>
@@ -107,6 +110,7 @@ export function PlanDisplayManager({
             onSavePrice={onSavePrice}
             onVerifyPrice={onVerifyPrice}
             onRemoveDemoPlan={onRemoveDemoPlan}
+            onAddPlan={onAddPlan}
           />
         ))}
       </div>

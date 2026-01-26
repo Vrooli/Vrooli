@@ -3,10 +3,111 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 )
 
+// globalTestPlanStore holds the plan store used by test helpers.
+// This is needed because the old test pattern used database inserts,
+// but now we use file-based storage.
+var (
+	globalTestPlanStore     *PlanStore
+	globalTestPlanStoreMu   sync.Mutex
+	globalTestPlansPath     string
+	globalTestBundleCounter int
+)
+
+// configureTestBundleEnv sets up environment variables for a test bundle.
+// Returns the generated bundle key based on the test name.
+func configureTestBundleEnv(t *testing.T, env string) string {
+	t.Helper()
+
+	replacer := strings.NewReplacer("/", "_", ".", "_")
+	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
+	prevKey := os.Getenv("BUNDLE_KEY")
+	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
+
+	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
+		t.Fatalf("failed to set BUNDLE_KEY: %v", err)
+	}
+	if err := os.Setenv("BUNDLE_ENVIRONMENT", env); err != nil {
+		t.Fatalf("failed to set BUNDLE_ENVIRONMENT: %v", err)
+	}
+
+	t.Cleanup(func() {
+		setEnvOrClear("BUNDLE_KEY", prevKey)
+		setEnvOrClear("BUNDLE_ENVIRONMENT", prevEnv)
+	})
+
+	return bundleKey
+}
+
+// setEnvOrClear sets an environment variable or clears it if value is empty.
+func setEnvOrClear(key, value string) {
+	if value == "" {
+		_ = os.Unsetenv(key)
+		return
+	}
+	_ = os.Setenv(key, value)
+}
+
+// initTestPlanStore initializes the global test plan store.
+// This replaces the old database-based approach.
+func initTestPlanStore(t *testing.T) {
+	t.Helper()
+	globalTestPlanStoreMu.Lock()
+	defer globalTestPlanStoreMu.Unlock()
+
+	if globalTestPlanStore != nil {
+		return
+	}
+
+	tmpDir := t.TempDir()
+	globalTestPlansPath = filepath.Join(tmpDir, ".vrooli", "plans.json")
+	if err := os.MkdirAll(filepath.Dir(globalTestPlansPath), 0o755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+
+	// Create initial empty plans file
+	fileData := plansFileFormat{
+		Bundle: bundleFileFormat{
+			BundleKey:                "test_bundle",
+			Name:                     "Test Bundle",
+			StripeProductID:          "prod_test",
+			CreditsPerUSD:            1_000_000,
+			DisplayCreditsMultiplier: 0.01,
+			DisplayCreditsLabel:      "credits",
+			Environment:              "production",
+		},
+		Plans: []planFileFormat{},
+	}
+
+	data, err := json.MarshalIndent(fileData, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal plans: %v", err)
+	}
+
+	if err := os.WriteFile(globalTestPlansPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write plans file: %v", err)
+	}
+
+	globalTestPlanStore = NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  globalTestPlansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "production",
+	})
+	if err := globalTestPlanStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
+}
+
 // upsertTestBundleProduct ensures a bundle product exists for the specified bundle key/environment.
+// This is a compatibility shim that works with the file-based PlanStore.
+// Note: The db parameter is ignored as plans are now file-based.
 func upsertTestBundleProduct(
 	t *testing.T,
 	db *sql.DB,
@@ -17,33 +118,55 @@ func upsertTestBundleProduct(
 ) int64 {
 	t.Helper()
 
-	var id int64
-	err := db.QueryRow(`
-		INSERT INTO bundle_products (
-			bundle_key, bundle_name, stripe_product_id,
-			credits_per_usd, display_credits_multiplier, display_credits_label,
-			environment
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (bundle_key)
-		DO UPDATE SET
-			bundle_name = EXCLUDED.bundle_name,
-			stripe_product_id = EXCLUDED.stripe_product_id,
-			credits_per_usd = EXCLUDED.credits_per_usd,
-			display_credits_multiplier = EXCLUDED.display_credits_multiplier,
-			display_credits_label = EXCLUDED.display_credits_label,
-			environment = EXCLUDED.environment,
-			updated_at = NOW()
-		RETURNING id
-	`, bundleKey, bundleName, stripeProductID, creditsPerUSD, displayMultiplier, displayLabel, environment).Scan(&id)
-	if err != nil {
-		t.Fatalf("failed to upsert bundle product: %v", err)
+	globalTestPlanStoreMu.Lock()
+	defer globalTestPlanStoreMu.Unlock()
+
+	// Create a fresh plans file for this test
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+	if err := os.MkdirAll(filepath.Dir(plansPath), 0o755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
 	}
 
-	return id
+	fileData := plansFileFormat{
+		Bundle: bundleFileFormat{
+			BundleKey:                bundleKey,
+			Name:                     bundleName,
+			StripeProductID:          stripeProductID,
+			CreditsPerUSD:            creditsPerUSD,
+			DisplayCreditsMultiplier: displayMultiplier,
+			DisplayCreditsLabel:      displayLabel,
+			Environment:              environment,
+		},
+		Plans: []planFileFormat{},
+	}
+
+	data, err := json.MarshalIndent(fileData, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal plans: %v", err)
+	}
+
+	if err := os.WriteFile(plansPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write plans file: %v", err)
+	}
+
+	globalTestPlansPath = plansPath
+	globalTestPlanStore = NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  bundleKey,
+		DisplayEnv: environment,
+	})
+	if err := globalTestPlanStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
+
+	globalTestBundleCounter++
+	return int64(globalTestBundleCounter)
 }
 
 // insertBundlePrice stores a pricing tier connected to the given bundle product.
+// This is a compatibility shim that works with the file-based PlanStore.
+// Note: The db and productID parameters are ignored as plans are now file-based.
 func insertBundlePrice(
 	t *testing.T,
 	db *sql.DB,
@@ -62,50 +185,144 @@ func insertBundlePrice(
 ) {
 	t.Helper()
 
-	metaBytes := []byte(`{}`)
-	if len(metadata) > 0 {
-		var err error
-		metaBytes, err = json.Marshal(metadata)
-		if err != nil {
-			t.Fatalf("failed to marshal metadata: %v", err)
+	globalTestPlanStoreMu.Lock()
+	defer globalTestPlanStoreMu.Unlock()
+
+	if globalTestPlanStore == nil {
+		t.Fatal("must call upsertTestBundleProduct before insertBundlePrice")
+	}
+
+	// Read current file
+	data, err := os.ReadFile(globalTestPlansPath)
+	if err != nil {
+		t.Fatalf("failed to read plans file: %v", err)
+	}
+
+	var fileData plansFileFormat
+	if err := json.Unmarshal(data, &fileData); err != nil {
+		t.Fatalf("failed to parse plans file: %v", err)
+	}
+
+	// Add the new plan
+	plan := planFileFormat{
+		StripePriceID:          priceID,
+		PlanName:               planName,
+		PlanTier:               planTier,
+		BillingInterval:        billingInterval,
+		AmountCents:            int64(amountCents),
+		Currency:               currency,
+		DisplayWeight:          int32(displayWeight),
+		DisplayEnabled:         true,
+		MonthlyIncludedCredits: int64(monthlyIncluded),
+		OneTimeBonusCredits:    int64(oneTimeBonus),
+		PlanRank:               int32(planRank),
+		BonusType:              bonusType,
+		Kind:                   kind,
+		IntroEnabled:           introEnabled,
+		IntroPeriods:           int32(introPeriods),
+		IntroPriceLookupKey:    introLookupKey,
+		Metadata:               metadata,
+	}
+
+	if introEnabled && introType != "" && introType != "none" {
+		plan.IntroType = introType
+		if introAmountCents > 0 {
+			cents := int64(introAmountCents)
+			plan.IntroAmountCents = &cents
 		}
 	}
 
-	introValue := sql.NullInt64{}
-	if introEnabled && introAmountCents > 0 {
-		introValue.Int64 = int64(introAmountCents)
-		introValue.Valid = true
+	fileData.Plans = append(fileData.Plans, plan)
+
+	// Write back
+	newData, err := json.MarshalIndent(fileData, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal plans: %v", err)
 	}
 
-	_, err := db.Exec(`
-		INSERT INTO bundle_prices (
-			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
-			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
-			kind, metadata, display_weight
-		) VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16,
-			$17, $18, $19
-		)
-	`, productID, priceID, planName, planTier, billingInterval,
-		amountCents, currency, introEnabled, introType, introValue, introPeriods, introLookupKey,
-		monthlyIncluded, oneTimeBonus, planRank, bonusType,
-		kind, string(metaBytes), displayWeight)
-	if err != nil {
-		t.Fatalf("failed to insert bundle price %s: %v", priceID, err)
+	if err := os.WriteFile(globalTestPlansPath, newData, 0o644); err != nil {
+		t.Fatalf("failed to write plans file: %v", err)
+	}
+
+	// Reload the plan store
+	if err := globalTestPlanStore.LoadAll(); err != nil {
+		t.Fatalf("failed to reload plans: %v", err)
 	}
 }
 
 // cleanupBundleProductRecords removes all data tied to a bundle product.
+// This is a no-op in the file-based approach as temp dirs are cleaned up automatically.
 func cleanupBundleProductRecords(t *testing.T, db *sql.DB, productID int64) {
 	t.Helper()
+	// No-op: temp directories are automatically cleaned up by t.TempDir()
+}
 
-	if _, err := db.Exec("DELETE FROM bundle_prices WHERE product_id = $1", productID); err != nil {
-		t.Fatalf("failed to delete bundle prices: %v", err)
+// getTestPlanStore returns the global test plan store.
+// This can be used by tests that need direct access to the plan store.
+func getTestPlanStore() *PlanStore {
+	globalTestPlanStoreMu.Lock()
+	defer globalTestPlanStoreMu.Unlock()
+	return globalTestPlanStore
+}
+
+// createTestPlansFileHelper creates a temporary plans.json file for testing.
+// Returns the path to the file.
+func createTestPlansFileHelper(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+	if err := os.MkdirAll(filepath.Dir(plansPath), 0o755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
 	}
-	if _, err := db.Exec("DELETE FROM bundle_products WHERE id = $1", productID); err != nil {
-		t.Fatalf("failed to delete bundle product: %v", err)
+
+	fileData := plansFileFormat{
+		Bundle: bundle,
+		Plans:  plans,
+	}
+
+	data, err := json.MarshalIndent(fileData, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal plans: %v", err)
+	}
+
+	if err := os.WriteFile(plansPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write plans file: %v", err)
+	}
+
+	return plansPath
+}
+
+// createTestPlanStoreHelper creates a PlanStore with a test plans file.
+func createTestPlanStoreHelper(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) *PlanStore {
+	t.Helper()
+	plansPath := createTestPlansFileHelper(t, bundle, plans)
+	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  bundle.BundleKey,
+		DisplayEnv: bundle.Environment,
+	})
+	if err := planStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
+	return planStore
+}
+
+// createTestPlanServiceHelper creates a PlanService with a test plans file.
+func createTestPlanServiceHelper(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) *PlanService {
+	t.Helper()
+	planStore := createTestPlanStoreHelper(t, bundle, plans)
+	return NewPlanServiceWithPlanStore(planStore)
+}
+
+// testBundleHelper returns a standard test bundle configuration.
+func testBundleHelper(key, env string) bundleFileFormat {
+	return bundleFileFormat{
+		BundleKey:                key,
+		Name:                     "Test Bundle",
+		StripeProductID:          "prod_test",
+		CreditsPerUSD:            1_000_000,
+		DisplayCreditsMultiplier: 0.01,
+		DisplayCreditsLabel:      "credits",
+		Environment:              env,
 	}
 }

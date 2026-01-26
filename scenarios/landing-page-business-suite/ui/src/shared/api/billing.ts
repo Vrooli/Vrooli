@@ -198,3 +198,99 @@ export function createBillingPortalSession(returnUrl?: string, userEmail?: strin
     return validated;
   });
 }
+
+// Stripe Import Types
+export interface StripePriceImport {
+  price_id: string;
+  lookup_key?: string;
+  currency: string;
+  amount_cents: number;
+  interval?: string;
+  product_id: string;
+  product_name: string;
+  active: boolean;
+  exists_locally: boolean;
+}
+
+export interface StripeProductWithPrices {
+  product_id: string;
+  product_name: string;
+  prices: StripePriceImport[];
+}
+
+export interface StripeImportPreview {
+  products: StripeProductWithPrices[];
+  total_prices: number;
+  conflict_count: number;
+  new_count: number;
+}
+
+export interface ImportPlanSelection {
+  price_id: string;
+  action: 'import' | 'overwrite' | 'skip';
+}
+
+export interface StripeImportRequest {
+  selections: ImportPlanSelection[];
+}
+
+export interface StripeImportResult {
+  imported: number;
+  overwritten: number;
+  skipped: number;
+  errors?: string[];
+}
+
+/**
+ * Get a preview of products/prices available to import from Stripe.
+ */
+export function getStripeImportPreview(): Promise<StripeImportPreview> {
+  return apiCall<StripeImportPreview>('/admin/stripe/import-preview');
+}
+
+/**
+ * Import selected prices from Stripe into the local plan store.
+ */
+export function importStripePlans(request: StripeImportRequest): Promise<StripeImportResult> {
+  return apiCall<StripeImportResult>('/admin/stripe/import', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+// Create Plan Types
+export interface CreateBundlePricePayload {
+  stripe_price_id: string;
+  plan_name: string;
+  plan_tier: string;
+  billing_interval: string;
+  amount_cents?: number;
+  currency?: string;
+  display_weight?: number;
+  display_enabled?: boolean;
+  monthly_included_credits?: number;
+  subtitle?: string;
+  badge?: string;
+  cta_label?: string;
+  highlight?: boolean;
+  features?: string[];
+}
+
+/**
+ * Create a new plan in the plan store.
+ */
+export function createBundlePrice(bundleKey: string, payload: CreateBundlePricePayload) {
+  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Delete a plan from the plan store.
+ */
+export function deleteBundlePrice(bundleKey: string, priceId: string) {
+  return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
+    method: 'DELETE',
+  });
+}

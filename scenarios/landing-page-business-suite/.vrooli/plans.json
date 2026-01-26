@@ -1,0 +1,213 @@
+{
+  "bundle": {
+    "bundle_key": "business_suite",
+    "name": "Silent Founder OS",
+    "stripe_product_id": "prod_business_suite",
+    "credits_per_usd": 1000000,
+    "display_credits_multiplier": 0.001,
+    "display_credits_label": "credits",
+    "environment": "production"
+  },
+  "plans": [
+    {
+      "stripe_price_id": "price_free",
+      "plan_name": "Free Plan",
+      "plan_tier": "free",
+      "billing_interval": "month",
+      "amount_cents": 0,
+      "currency": "usd",
+      "display_weight": 5,
+      "display_enabled": true,
+      "monthly_included_credits": 50,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 0,
+      "bonus_type": "none",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "50 runs/month",
+          "Watermarked MP4 exports",
+          "Replay viewer"
+        ]
+      }
+    },
+    {
+      "stripe_price_id": "price_solo_monthly",
+      "plan_name": "Solo Monthly",
+      "plan_tier": "solo",
+      "billing_interval": "month",
+      "amount_cents": 2900,
+      "currency": "usd",
+      "display_weight": 20,
+      "display_enabled": true,
+      "monthly_included_credits": 200,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 1,
+      "bonus_type": "none",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "200 runs/month",
+          "MP4 exports with watermark",
+          "Workflow + test builder",
+          "Replay-as-movie sharing"
+        ]
+      }
+    },
+    {
+      "stripe_price_id": "price_pro_monthly",
+      "plan_name": "Pro Monthly",
+      "plan_tier": "pro",
+      "billing_interval": "month",
+      "amount_cents": 7900,
+      "currency": "usd",
+      "display_weight": 40,
+      "display_enabled": true,
+      "monthly_included_credits": 1000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 2,
+      "bonus_type": "none",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "Unlimited runs",
+          "MP4 exports without watermark",
+          "CI hooks + failure replays",
+          "UX metrics when released",
+          "Limited agent loops"
+        ],
+        "highlight": true
+      }
+    },
+    {
+      "stripe_price_id": "price_studio_monthly",
+      "plan_name": "Studio Monthly",
+      "plan_tier": "studio",
+      "billing_interval": "month",
+      "amount_cents": 19900,
+      "currency": "usd",
+      "display_weight": 30,
+      "display_enabled": true,
+      "monthly_included_credits": 2000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 3,
+      "bonus_type": "none",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "Client-safe branding on replays",
+          "More agent concurrency",
+          "Priority async support",
+          "Multi-seat studios"
+        ]
+      }
+    },
+    {
+      "stripe_price_id": "price_business_monthly",
+      "plan_name": "Business Monthly",
+      "plan_tier": "business",
+      "billing_interval": "month",
+      "amount_cents": 49900,
+      "currency": "usd",
+      "display_weight": 25,
+      "display_enabled": true,
+      "monthly_included_credits": 4000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 4,
+      "bonus_type": "none",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "Unlimited agent loops",
+          "API + webhooks",
+          "Higher reliability SLAs",
+          "Async onboarding—no calls required"
+        ],
+        "badge": "API + webhooks"
+      }
+    },
+    {
+      "stripe_price_id": "price_pro_yearly",
+      "plan_name": "Pro Yearly",
+      "plan_tier": "pro",
+      "billing_interval": "year",
+      "amount_cents": 79000,
+      "currency": "usd",
+      "display_weight": 15,
+      "display_enabled": true,
+      "monthly_included_credits": 12000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 2,
+      "bonus_type": "yearly_bonus",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "2 months free equivalent",
+          "MP4 exports without watermark",
+          "CI hooks + failure replays"
+        ]
+      }
+    },
+    {
+      "stripe_price_id": "price_studio_yearly",
+      "plan_name": "Studio Yearly",
+      "plan_tier": "studio",
+      "billing_interval": "year",
+      "amount_cents": 199000,
+      "currency": "usd",
+      "display_weight": 20,
+      "display_enabled": true,
+      "monthly_included_credits": 24000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 3,
+      "bonus_type": "yearly_bonus",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "2 months free equivalent",
+          "Client-safe branding on replays",
+          "More agent concurrency"
+        ]
+      }
+    },
+    {
+      "stripe_price_id": "price_business_yearly",
+      "plan_name": "Business Yearly",
+      "plan_tier": "business",
+      "billing_interval": "year",
+      "amount_cents": 499000,
+      "currency": "usd",
+      "display_weight": 10,
+      "display_enabled": true,
+      "monthly_included_credits": 48000000,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 4,
+      "bonus_type": "yearly_bonus",
+      "kind": "subscription",
+      "intro_enabled": false,
+      "is_variable_amount": false,
+      "metadata": {
+        "features": [
+          "2 months free equivalent",
+          "Unlimited agent loops",
+          "API + webhooks"
+        ]
+      }
+    }
+  ],
+  "updated_at": "2025-01-25T00:00:00Z"
+}

@@ -97,7 +97,12 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 	defer db.Close()
 
 	// Force a plan lookup miss to exercise fallback defaults.
-	planService := &PlanService{db: db, defaultBundle: "missing_bundle", displayEnv: "production"}
+	// Use an empty PlanStore with no plans configured
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath: "", // Empty path means no plans will be loaded
+		BundleKey: "missing_bundle",
+	})
+	planService := &PlanService{planStore: emptyStore, defaultBundle: "missing_bundle", displayEnv: "production"}
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("fallback@example.com")

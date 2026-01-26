@@ -1686,3 +1686,232 @@ func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error
 
 	return nil
 }
+
+// StripeImportPreview provides a preview of products/prices available for import from Stripe.
+type StripeImportPreview struct {
+	Products      []StripeProductWithPrices `json:"products"`
+	TotalPrices   int                       `json:"total_prices"`
+	ConflictCount int                       `json:"conflict_count"`
+	NewCount      int                       `json:"new_count"`
+}
+
+// StripeProductWithPrices groups a Stripe product with its prices.
+type StripeProductWithPrices struct {
+	ProductID   string              `json:"product_id"`
+	ProductName string              `json:"product_name"`
+	Prices      []StripePriceImport `json:"prices"`
+}
+
+// StripePriceImport represents a price from Stripe that can be imported.
+type StripePriceImport struct {
+	PriceID       string `json:"price_id"`
+	LookupKey     string `json:"lookup_key,omitempty"`
+	Currency      string `json:"currency"`
+	AmountCents   int64  `json:"amount_cents"`
+	Interval      string `json:"interval,omitempty"`
+	ProductID     string `json:"product_id"`
+	ProductName   string `json:"product_name"`
+	Active        bool   `json:"active"`
+	ExistsLocally bool   `json:"exists_locally"`
+}
+
+// ListStripeProductsWithPrices fetches all products and prices from Stripe for import preview.
+func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planStore *PlanStore) (*StripeImportPreview, error) {
+	// Fetch all active products from Stripe
+	products, err := s.fetchStripeProducts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fetch stripe products: %w", err)
+	}
+
+	// Get existing price IDs from plan store
+	existingPriceIDs := make(map[string]bool)
+	if planStore != nil {
+		for _, plan := range planStore.GetPlans() {
+			if plan.StripePriceId != "" {
+				existingPriceIDs[plan.StripePriceId] = true
+			}
+		}
+	}
+
+	preview := &StripeImportPreview{
+		Products: make([]StripeProductWithPrices, 0, len(products)),
+	}
+
+	for _, product := range products {
+		// Fetch prices for this product
+		prices, err := s.fetchStripePricesForProduct(ctx, product.ID)
+		if err != nil {
+			logStructuredError("stripe_price_fetch_failed", map[string]interface{}{
+				"product_id": product.ID,
+				"error":      err.Error(),
+			})
+			continue
+		}
+
+		if len(prices) == 0 {
+			continue
+		}
+
+		productWithPrices := StripeProductWithPrices{
+			ProductID:   product.ID,
+			ProductName: product.Name,
+			Prices:      make([]StripePriceImport, 0, len(prices)),
+		}
+
+		for _, price := range prices {
+			existsLocally := existingPriceIDs[price.ID]
+			priceImport := StripePriceImport{
+				PriceID:       price.ID,
+				LookupKey:     price.LookupKey,
+				Currency:      price.Currency,
+				AmountCents:   price.UnitAmount,
+				Interval:      price.Interval,
+				ProductID:     product.ID,
+				ProductName:   product.Name,
+				Active:        price.Active,
+				ExistsLocally: existsLocally,
+			}
+			productWithPrices.Prices = append(productWithPrices.Prices, priceImport)
+
+			preview.TotalPrices++
+			if existsLocally {
+				preview.ConflictCount++
+			} else {
+				preview.NewCount++
+			}
+		}
+
+		preview.Products = append(preview.Products, productWithPrices)
+	}
+
+	return preview, nil
+}
+
+type stripeProduct struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+type stripePrice struct {
+	ID         string `json:"id"`
+	LookupKey  string `json:"lookup_key"`
+	Currency   string `json:"currency"`
+	UnitAmount int64  `json:"unit_amount"`
+	Active     bool   `json:"active"`
+	Interval   string
+	ProductID  string `json:"product"`
+}
+
+func (s *StripeService) fetchStripeProducts(ctx context.Context) ([]stripeProduct, error) {
+	values := url.Values{}
+	values.Set("active", "true")
+	values.Set("limit", "100")
+	path := "/v1/products?" + values.Encode()
+
+	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Data []stripeProduct `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decode stripe products: %w", err)
+	}
+
+	return resp.Data, nil
+}
+
+func (s *StripeService) fetchStripePricesForProduct(ctx context.Context, productID string) ([]stripePrice, error) {
+	values := url.Values{}
+	values.Set("product", productID)
+	values.Set("active", "true")
+	values.Set("limit", "100")
+	path := "/v1/prices?" + values.Encode()
+
+	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Data []struct {
+			ID         string `json:"id"`
+			LookupKey  string `json:"lookup_key"`
+			Currency   string `json:"currency"`
+			UnitAmount int64  `json:"unit_amount"`
+			Active     bool   `json:"active"`
+			Recurring  *struct {
+				Interval string `json:"interval"`
+			} `json:"recurring"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decode stripe prices: %w", err)
+	}
+
+	prices := make([]stripePrice, 0, len(resp.Data))
+	for _, p := range resp.Data {
+		price := stripePrice{
+			ID:         p.ID,
+			LookupKey:  p.LookupKey,
+			Currency:   p.Currency,
+			UnitAmount: p.UnitAmount,
+			Active:     p.Active,
+			ProductID:  productID,
+		}
+		if p.Recurring != nil {
+			price.Interval = p.Recurring.Interval
+		} else {
+			price.Interval = "one_time"
+		}
+		prices = append(prices, price)
+	}
+
+	return prices, nil
+}
+
+// FetchStripePriceDetails fetches full details for a single price from Stripe.
+func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID string) (*StripePriceImport, error) {
+	path := "/v1/prices/" + url.PathEscape(priceID) + "?expand[]=product"
+	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var price struct {
+		ID         string `json:"id"`
+		LookupKey  string `json:"lookup_key"`
+		Currency   string `json:"currency"`
+		UnitAmount int64  `json:"unit_amount"`
+		Active     bool   `json:"active"`
+		Recurring  *struct {
+			Interval string `json:"interval"`
+		} `json:"recurring"`
+		Product struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"product"`
+	}
+	if err := json.Unmarshal(body, &price); err != nil {
+		return nil, fmt.Errorf("decode stripe price: %w", err)
+	}
+
+	interval := "one_time"
+	if price.Recurring != nil {
+		interval = price.Recurring.Interval
+	}
+
+	return &StripePriceImport{
+		PriceID:     price.ID,
+		LookupKey:   price.LookupKey,
+		Currency:    price.Currency,
+		AmountCents: price.UnitAmount,
+		Interval:    interval,
+		ProductID:   price.Product.ID,
+		ProductName: price.Product.Name,
+		Active:      price.Active,
+	}, nil
+}

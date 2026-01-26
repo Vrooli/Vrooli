@@ -1,4 +1,5 @@
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Plus } from 'lucide-react';
+import { Button } from '../../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/ui/card';
 import { Callout } from '../Callout';
 import { LAYOUT } from '../../config/layout.constants';
@@ -32,6 +33,7 @@ export interface BundleCardProps {
   onSavePrice: (bundleKey: string, priceId: string) => Promise<void>;
   onVerifyPrice: (bundleKey: string, priceId: string) => Promise<void>;
   onRemoveDemoPlan: (bundleKey: string, priceId: string) => void;
+  onAddPlan?: (bundleKey: string) => void;
 }
 
 export function BundleCard({
@@ -45,6 +47,7 @@ export function BundleCard({
   onSavePrice,
   onVerifyPrice,
   onRemoveDemoPlan,
+  onAddPlan,
 }: BundleCardProps) {
   const visiblePrices = filterPricesByTab(entry.prices, pricingTab, includeDemoPlaceholders);
   const demoHidden = entry.prices.some(isDemoPlanOption) && !includeDemoPlaceholders;
@@ -69,7 +72,20 @@ export function BundleCard({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>{entry.bundle.name}</span>
-          <span className="text-xs text-slate-400">Bundle key: {entry.bundle.bundle_key}</span>
+          <div className="flex items-center gap-3">
+            {mode === 'edit' && onAddPlan && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddPlan(entry.bundle.bundle_key)}
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add Plan
+              </Button>
+            )}
+            <span className="text-xs text-slate-400">Bundle key: {entry.bundle.bundle_key}</span>
+          </div>
         </CardTitle>
         <CardDescription>
           {mode === 'edit'

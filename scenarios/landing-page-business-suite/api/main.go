@@ -258,6 +258,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdmin(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService))).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices", s.requireAdmin(handleAdminCreateBundlePrice(s.planService, s.stripeService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminDeleteBundlePrice(s.planService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/stripe/import-preview", s.requireAdmin(handleAdminStripeImportPreview(s.stripeService, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/stripe/import", s.requireAdmin(handleAdminStripeImport(s.stripeService, s.planService))).Methods("POST")
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)
@@ -422,11 +426,10 @@ func (s *Server) handleAdminResetDemoData(w http.ResponseWriter, r *http.Request
 
 func (s *Server) resetDemoData(ctx context.Context) error {
 	// Only reset database tables for runtime data (not config, which is in JSON files)
+	// NOTE: bundle_prices and bundle_products removed - pricing now stored in .vrooli/plans.json
 	tables := []string{
 		"download_assets",
 		"download_apps",
-		"bundle_prices",
-		"bundle_products",
 	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -520,10 +523,8 @@ func seedDefaultData(db *sql.DB) error {
 	// NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
 	// and loaded into memory at startup via ConfigStore.
 
-	//nolint:govet // fallback pricing includes proto-backed mutexes; seed uses read-only copy
-	if err := seedBundlePricingDefaults(db, fallbackLanding.Pricing); err != nil {
-		return err
-	}
+	// NOTE: Bundle pricing is now stored in JSON file (.vrooli/plans.json)
+	// and loaded into memory at startup via PlanStore. Database seeding removed.
 
 	if err := seedDownloadDefaults(db, fallbackLanding.Downloads); err != nil {
 		return err
@@ -536,164 +537,7 @@ func seedDefaultData(db *sql.DB) error {
 	return nil
 }
 
-//nolint:govet // pricing proto includes internal mutexes; used read-only for seeding
-func seedBundlePricingDefaults(db *sql.DB, pricing PricingOverview) error {
-	if pricing.Bundle.BundleKey == "" {
-		return nil
-	}
-
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM bundle_products`).Scan(&count); err != nil {
-		return fmt.Errorf("count bundle products: %w", err)
-	}
-	if count > 0 {
-		return nil
-	}
-
-	bundle := pricing.Bundle
-	bundleMetadata, err := json.Marshal(jsonValueToMap(bundle.Metadata))
-	if err != nil {
-		return fmt.Errorf("marshal bundle metadata: %w", err)
-	}
-
-	var productID int64
-	insertProduct := `
-		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd,
-			display_credits_multiplier, display_credits_label, environment, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
-		ON CONFLICT (bundle_key)
-		DO UPDATE SET bundle_name = EXCLUDED.bundle_name,
-			stripe_product_id = EXCLUDED.stripe_product_id,
-			credits_per_usd = EXCLUDED.credits_per_usd,
-			display_credits_multiplier = EXCLUDED.display_credits_multiplier,
-			display_credits_label = EXCLUDED.display_credits_label,
-			environment = EXCLUDED.environment,
-			metadata = EXCLUDED.metadata,
-			updated_at = NOW()
-		RETURNING id
-	`
-	if err := db.QueryRow(insertProduct,
-		bundle.BundleKey,
-		bundle.Name,
-		bundle.StripeProductId,
-		bundle.CreditsPerUsd,
-		bundle.DisplayCreditsMultiplier,
-		bundle.DisplayCreditsLabel,
-		bundle.Environment,
-		bundleMetadata,
-	).Scan(&productID); err != nil {
-		return fmt.Errorf("seed bundle product: %w", err)
-	}
-
-	plans := append([]*PlanOption{}, pricing.Monthly...)
-	plans = append(plans, pricing.Yearly...)
-	for _, option := range plans {
-		priceID := strings.TrimSpace(option.StripePriceId)
-		if priceID == "" {
-			continue
-		}
-
-		planTier := strings.TrimSpace(option.PlanTier)
-		allowedPlanTiers := map[string]bool{
-			"solo":     true,
-			"pro":      true,
-			"studio":   true,
-			"business": true,
-			"credits":  true,
-			"donation": true,
-		}
-		if !allowedPlanTiers[strings.ToLower(planTier)] {
-			logStructured("plan_tier_skipped_for_seed", map[string]interface{}{
-				"plan_name": option.PlanName,
-				"plan_tier": option.PlanTier,
-			})
-			continue
-		}
-
-		planMetadataJSON, err := json.Marshal(jsonValueToMap(option.Metadata))
-		if err != nil {
-			return fmt.Errorf("marshal plan metadata %s: %w", option.PlanName, err)
-		}
-
-		displayEnabled := option.DisplayEnabled
-		if !displayEnabled {
-			displayEnabled = true
-		}
-
-		insertPrice := `
-			INSERT INTO bundle_prices (
-				product_id, stripe_price_id, plan_name, plan_tier, billing_interval, amount_cents, currency,
-				intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-				monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type, kind,
-				is_variable_amount, display_enabled, metadata, display_weight
-			) VALUES (
-				$1,$2,$3,$4,$5,$6,$7,
-				$8,$9,$10,$11,$12,
-				$13,$14,$15,$16,$17,
-				$18,$19,$20::jsonb,$21
-			)
-			ON CONFLICT (stripe_price_id)
-			DO UPDATE SET plan_name = EXCLUDED.plan_name,
-				plan_tier = EXCLUDED.plan_tier,
-				billing_interval = EXCLUDED.billing_interval,
-				amount_cents = EXCLUDED.amount_cents,
-				currency = EXCLUDED.currency,
-				intro_enabled = EXCLUDED.intro_enabled,
-				intro_type = EXCLUDED.intro_type,
-				intro_amount_cents = EXCLUDED.intro_amount_cents,
-				intro_periods = EXCLUDED.intro_periods,
-				intro_price_lookup_key = EXCLUDED.intro_price_lookup_key,
-				monthly_included_credits = EXCLUDED.monthly_included_credits,
-				one_time_bonus_credits = EXCLUDED.one_time_bonus_credits,
-				plan_rank = EXCLUDED.plan_rank,
-				bonus_type = EXCLUDED.bonus_type,
-				kind = EXCLUDED.kind,
-				is_variable_amount = EXCLUDED.is_variable_amount,
-				display_enabled = EXCLUDED.display_enabled,
-				metadata = EXCLUDED.metadata,
-				display_weight = EXCLUDED.display_weight,
-				updated_at = NOW()
-		`
-
-		var introAmount interface{}
-		if option.IntroAmountCents != nil {
-			introAmount = *option.IntroAmountCents
-		}
-
-		intervalLabel := billingIntervalLabel(option.BillingInterval)
-		if intervalLabel == "unspecified" {
-			intervalLabel = "month"
-		}
-
-		if _, err := db.Exec(insertPrice,
-			productID,
-			priceID,
-			option.PlanName,
-			planTier,
-			intervalLabel,
-			option.AmountCents,
-			option.Currency,
-			option.IntroEnabled,
-			option.IntroType,
-			introAmount,
-			option.IntroPeriods,
-			option.IntroPriceLookupKey,
-			option.MonthlyIncludedCredits,
-			option.OneTimeBonusCredits,
-			option.PlanRank,
-			option.BonusType,
-			planKindString(option.Kind),
-			option.IsVariableAmount,
-			displayEnabled,
-			planMetadataJSON,
-			option.DisplayWeight,
-		); err != nil {
-			return fmt.Errorf("seed bundle price %s: %w", option.PlanName, err)
-		}
-	}
-
-	return nil
-}
+// NOTE: seedBundlePricingDefaults function removed - pricing now stored in .vrooli/plans.json
 
 func seedDownloadDefaults(db *sql.DB, downloads []DownloadApp) error {
 	if len(downloads) == 0 {

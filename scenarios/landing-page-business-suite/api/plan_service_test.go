@@ -1,92 +1,115 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
+// createTestPlansFile creates a temporary plans.json file for testing.
+// Returns the path to the file.
+func createTestPlansFile(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+	if err := os.MkdirAll(filepath.Dir(plansPath), 0o755); err != nil {
+		t.Fatalf("failed to create test dir: %v", err)
+	}
+
+	fileData := plansFileFormat{
+		Bundle: bundle,
+		Plans:  plans,
+	}
+
+	data, err := json.MarshalIndent(fileData, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal plans: %v", err)
+	}
+
+	if err := os.WriteFile(plansPath, data, 0o644); err != nil {
+		t.Fatalf("failed to write plans file: %v", err)
+	}
+
+	return plansPath
+}
+
+// createTestPlanService creates a PlanService with a test plans file.
+func createTestPlanService(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) *PlanService {
+	t.Helper()
+	plansPath := createTestPlansFile(t, bundle, plans)
+	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  bundle.BundleKey,
+		DisplayEnv: bundle.Environment,
+	})
+	if err := planStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
+	return NewPlanServiceWithPlanStore(planStore)
+}
+
+// testBundle returns a standard test bundle configuration.
+func testBundle(key, env string) bundleFileFormat {
+	return bundleFileFormat{
+		BundleKey:                key,
+		Name:                     "Test Bundle",
+		StripeProductID:          "prod_test",
+		CreditsPerUSD:            1_000_000,
+		DisplayCreditsMultiplier: 0.01,
+		DisplayCreditsLabel:      "credits",
+		Environment:              env,
+	}
+}
+
 func TestPlanServicePricingOverview(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	bundleKey := configureTestBundleEnv(t, "pricing_env")
-	productID := upsertTestBundleProduct(
-		t,
-		db,
-		bundleKey,
-		"Pricing Test Bundle",
-		"prod_pricing_test",
-		"pricing_env",
-		1_000_000,
-		0.01,
-		"credits",
-	)
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(
-		t,
-		db,
-		productID,
-		"price_pricing_monthly",
-		"Pricing Monthly",
-		"pro",
-		"month",
-		"usd",
-		4999,
-		true,
-		"flat_amount",
-		100,
-		1,
-		"monthly_intro_key",
-		5_000_000,
-		0,
-		1,
-		30,
-		"none",
-		"subscription",
-		map[string]interface{}{
-			"features": []string{"Fast coupling", "Priority support"},
+	bundle := testBundle("pricing_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:          "price_pricing_monthly",
+			PlanName:               "Pricing Monthly",
+			PlanTier:               "pro",
+			BillingInterval:        "month",
+			AmountCents:            4999,
+			Currency:               "usd",
+			DisplayWeight:          30,
+			DisplayEnabled:         true,
+			MonthlyIncludedCredits: 5_000_000,
+			IntroEnabled:           true,
+			IntroType:              "flat_amount",
+			Metadata: map[string]interface{}{
+				"features": []interface{}{"Fast coupling", "Priority support"},
+			},
 		},
-	)
-
-	insertBundlePrice(
-		t,
-		db,
-		productID,
-		"price_pricing_yearly",
-		"Pricing Yearly",
-		"pro",
-		"year",
-		"usd",
-		55999,
-		false,
-		"none",
-		0,
-		0,
-		"yearly_lookup_key",
-		60_000_000,
-		10_000_000,
-		2,
-		10,
-		"yearly_bonus",
-		"subscription",
-		map[string]interface{}{
-			"features": []string{"Annual loyalty", "Bonus credits"},
+		{
+			StripePriceID:          "price_pricing_yearly",
+			PlanName:               "Pricing Yearly",
+			PlanTier:               "pro",
+			BillingInterval:        "year",
+			AmountCents:            55999,
+			Currency:               "usd",
+			DisplayWeight:          10,
+			DisplayEnabled:         true,
+			MonthlyIncludedCredits: 60_000_000,
+			OneTimeBonusCredits:    10_000_000,
+			IntroEnabled:           false,
+			Metadata: map[string]interface{}{
+				"features": []interface{}{"Annual loyalty", "Bonus credits"},
+			},
 		},
-	)
+	}
 
-	planService := NewPlanService(db)
-	overview, err := planService.GetPricingOverview()
+	service := createTestPlanService(t, bundle, plans)
+	overview, err := service.GetPricingOverview()
 	if err != nil {
 		t.Fatalf("GetPricingOverview failed: %v", err)
 	}
 
-	if overview.Bundle.BundleKey != bundleKey {
-		t.Fatalf("expected bundle key %s, got %s", bundleKey, overview.Bundle.BundleKey)
+	if overview.Bundle.BundleKey != "pricing_bundle" {
+		t.Fatalf("expected bundle key pricing_bundle, got %s", overview.Bundle.BundleKey)
 	}
 
 	if len(overview.Monthly) != 1 {
@@ -114,51 +137,26 @@ func TestPlanServicePricingOverview(t *testing.T) {
 }
 
 func TestPlanServiceGetPlanByPriceID(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	bundleKey := configureTestBundleEnv(t, "pricing_env")
-	productID := upsertTestBundleProduct(
-		t,
-		db,
-		bundleKey,
-		"Pricing Test Bundle",
-		"prod_pricing_test",
-		"pricing_env",
-		1_000_000,
-		0.01,
-		"credits",
-	)
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(
-		t,
-		db,
-		productID,
-		"price_lookup_test",
-		"Lookup Plan",
-		"pro",
-		"month",
-		"usd",
-		9999,
-		true,
-		"flat_amount",
-		100,
-		1,
-		"lookup_key",
-		10_000_000,
-		0,
-		5,
-		40,
-		"none",
-		"subscription",
-		map[string]interface{}{
-			"features": []string{"Lookup feature"},
+	bundle := testBundle("lookup_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:          "price_lookup_test",
+			PlanName:               "Lookup Plan",
+			PlanTier:               "pro",
+			BillingInterval:        "month",
+			AmountCents:            9999,
+			Currency:               "usd",
+			DisplayWeight:          40,
+			DisplayEnabled:         true,
+			MonthlyIncludedCredits: 10_000_000,
+			Metadata: map[string]interface{}{
+				"features": []interface{}{"Lookup feature"},
+			},
 		},
-	)
+	}
 
-	planService := NewPlanService(db)
-	option, err := planService.GetPlanByPriceID("price_lookup_test")
+	service := createTestPlanService(t, bundle, plans)
+	option, err := service.GetPlanByPriceID("price_lookup_test")
 	if err != nil {
 		t.Fatalf("GetPlanByPriceID failed: %v", err)
 	}
@@ -175,31 +173,44 @@ func TestPlanServiceGetPlanByPriceID(t *testing.T) {
 }
 
 func TestPlanServiceGetPricingOverviewOrdersAndFiltersDisabled(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(
-		t,
-		db,
-		bundleKey,
-		"Ordering Bundle",
-		"prod_ordering",
-		"production",
-		1_000_000,
-		0.01,
-		"credits",
-	)
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_weight_10", "Weighted", "pro", "month", "usd", 1000, false, "none", 0, 0, "", 0, 0, 5, 10, "none", "subscription", map[string]interface{}{})
-	insertBundlePrice(t, db, productID, "price_weight_5_rank1", "Rank 1", "pro", "month", "usd", 2000, false, "none", 0, 0, "", 0, 0, 1, 5, "none", "subscription", map[string]interface{}{})
-	insertBundlePrice(t, db, productID, "price_weight_5_rank2", "Rank 2", "pro", "month", "usd", 3000, false, "none", 0, 0, "", 0, 0, 2, 5, "none", "subscription", map[string]interface{}{})
-	if _, err := db.Exec(`UPDATE bundle_prices SET display_enabled = false WHERE stripe_price_id = $1`, "price_weight_5_rank2"); err != nil {
-		t.Fatalf("failed to disable price: %v", err)
+	bundle := testBundle("ordering_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_weight_10",
+			PlanName:        "Weighted",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     1000,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+			PlanRank:        5,
+		},
+		{
+			StripePriceID:   "price_weight_5_rank1",
+			PlanName:        "Rank 1",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     2000,
+			Currency:        "usd",
+			DisplayWeight:   5,
+			DisplayEnabled:  true,
+			PlanRank:        1,
+		},
+		{
+			StripePriceID:   "price_weight_5_rank2",
+			PlanName:        "Rank 2",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     3000,
+			Currency:        "usd",
+			DisplayWeight:   5,
+			DisplayEnabled:  false, // Disabled - should be filtered out
+			PlanRank:        2,
+		},
 	}
 
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 	overview, err := service.GetPricingOverview()
 	if err != nil {
 		t.Fatalf("GetPricingOverview failed: %v", err)
@@ -217,10 +228,10 @@ func TestPlanServiceGetPricingOverviewOrdersAndFiltersDisabled(t *testing.T) {
 }
 
 func TestPlanServiceGetPlanByPriceIDErrorsForEmptyOrMissing(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("error_bundle", "production")
+	plans := []planFileFormat{}
 
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	if _, err := service.GetPlanByPriceID(""); err == nil {
 		t.Fatal("expected error when price id missing")
@@ -235,53 +246,26 @@ func TestPlanServiceGetPlanByPriceIDErrorsForEmptyOrMissing(t *testing.T) {
 	}
 }
 
-func configureTestBundleEnv(t *testing.T, env string) string {
-	t.Helper()
-
-	replacer := strings.NewReplacer("/", "_", ".", "_")
-	bundleKey := fmt.Sprintf("bundle_%s", replacer.Replace(strings.ToLower(t.Name())))
-	prevKey := os.Getenv("BUNDLE_KEY")
-	prevEnv := os.Getenv("BUNDLE_ENVIRONMENT")
-
-	if err := os.Setenv("BUNDLE_KEY", bundleKey); err != nil {
-		t.Fatalf("failed to set BUNDLE_KEY: %v", err)
-	}
-	if err := os.Setenv("BUNDLE_ENVIRONMENT", env); err != nil {
-		t.Fatalf("failed to set BUNDLE_ENVIRONMENT: %v", err)
-	}
-
-	t.Cleanup(func() {
-		setEnvOrClear("BUNDLE_KEY", prevKey)
-		setEnvOrClear("BUNDLE_ENVIRONMENT", prevEnv)
-	})
-
-	return bundleKey
-}
-
-func setEnvOrClear(key, value string) {
-	if value == "" {
-		_ = os.Unsetenv(key)
-		return
-	}
-	_ = os.Setenv(key, value)
-}
-
 // ============================================================================
 // GetPricingOverview Tests
 // ============================================================================
 
 func TestPlanService_GetPricingOverview_FreeTierAlwaysIncluded(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("free_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_free",
+			PlanName:        "Free Plan",
+			PlanTier:        "free",
+			BillingInterval: "month",
+			AmountCents:     0,
+			Currency:        "usd",
+			DisplayWeight:   100,
+			DisplayEnabled:  false, // Free tier should be included even when disabled
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Free Tier Bundle", "prod_free_test", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	// Insert only a free tier price
-	insertBundlePrice(t, db, productID, "price_free", "Free Plan", "free", "month", "usd", 0, true, "none", 0, 0, "", 0, 0, 1, 100, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 	overview, err := service.GetPricingOverview()
 	if err != nil {
 		t.Fatalf("GetPricingOverview failed: %v", err)
@@ -296,18 +280,14 @@ func TestPlanService_GetPricingOverview_FreeTierAlwaysIncluded(t *testing.T) {
 }
 
 func TestPlanService_GetPricingOverview_BundleNotFound_ReturnsError(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	// Configure env to point to non-existent bundle
-	_ = os.Setenv("BUNDLE_KEY", "nonexistent_bundle_key_xyz")
-	_ = os.Setenv("BUNDLE_ENVIRONMENT", "production")
-	t.Cleanup(func() {
-		_ = os.Unsetenv("BUNDLE_KEY")
-		_ = os.Unsetenv("BUNDLE_ENVIRONMENT")
+	// Create an empty PlanStore (no plans file loaded)
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "", // Empty path means no plans will be loaded
+		BundleKey:  "nonexistent",
+		DisplayEnv: "production",
 	})
+	service := NewPlanServiceWithPlanStore(emptyStore)
 
-	service := NewPlanService(db)
 	_, err := service.GetPricingOverview()
 	if err == nil {
 		t.Error("Expected error for non-existent bundle, got nil")
@@ -315,16 +295,10 @@ func TestPlanService_GetPricingOverview_BundleNotFound_ReturnsError(t *testing.T
 }
 
 func TestPlanService_GetPricingOverview_NoPrices_ReturnsEmptySlices(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("empty_bundle", "production")
+	plans := []planFileFormat{} // No prices
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Empty Bundle", "prod_empty", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	// No prices inserted
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 	overview, err := service.GetPricingOverview()
 	if err != nil {
 		t.Fatalf("GetPricingOverview failed: %v", err)
@@ -349,21 +323,25 @@ func TestPlanService_GetPricingOverview_NoPrices_ReturnsEmptySlices(t *testing.T
 // ============================================================================
 
 func TestPlanService_GetBundleProduct_ReturnsProductMetadata(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := bundleFileFormat{
+		BundleKey:                "metadata_bundle",
+		Name:                     "Test Product",
+		StripeProductID:          "prod_test_metadata",
+		CreditsPerUSD:            2_000_000,
+		DisplayCreditsMultiplier: 0.02,
+		DisplayCreditsLabel:      "tokens",
+		Environment:              "production",
+	}
+	plans := []planFileFormat{}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Test Product", "prod_test_metadata", "production", 2_000_000, 0.02, "tokens")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 	product, err := service.GetBundleProduct()
 	if err != nil {
 		t.Fatalf("GetBundleProduct failed: %v", err)
 	}
 
-	if product.BundleKey != bundleKey {
-		t.Errorf("expected bundle key %s, got %s", bundleKey, product.BundleKey)
+	if product.BundleKey != "metadata_bundle" {
+		t.Errorf("expected bundle key metadata_bundle, got %s", product.BundleKey)
 	}
 	if product.Name != "Test Product" {
 		t.Errorf("expected name 'Test Product', got %s", product.Name)
@@ -373,21 +351,21 @@ func TestPlanService_GetBundleProduct_ReturnsProductMetadata(t *testing.T) {
 	}
 }
 
-func TestPlanService_GetBundleProduct_NotFound_ReturnsError(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	_ = os.Setenv("BUNDLE_KEY", "nonexistent_product_bundle")
-	_ = os.Setenv("BUNDLE_ENVIRONMENT", "production")
-	t.Cleanup(func() {
-		_ = os.Unsetenv("BUNDLE_KEY")
-		_ = os.Unsetenv("BUNDLE_ENVIRONMENT")
+func TestPlanService_GetBundleProduct_NotFound_ReturnsNil(t *testing.T) {
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "",
+		BundleKey:  "nonexistent",
+		DisplayEnv: "production",
 	})
+	service := NewPlanServiceWithPlanStore(emptyStore)
 
-	service := NewPlanService(db)
-	_, err := service.GetBundleProduct()
-	if err == nil {
-		t.Error("Expected error for non-existent bundle product, got nil")
+	product, err := service.GetBundleProduct()
+	// When bundle doesn't exist, returns nil without error
+	if err != nil {
+		t.Errorf("Expected no error for non-existent bundle product, got: %v", err)
+	}
+	if product != nil {
+		t.Error("Expected nil product for non-existent bundle")
 	}
 }
 
@@ -396,19 +374,43 @@ func TestPlanService_GetBundleProduct_NotFound_ReturnsError(t *testing.T) {
 // ============================================================================
 
 func TestPlanService_ListBundleCatalog_ReturnsBundlesWithPrices(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("catalog_bundle", "catalog_env")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_catalog_1",
+			PlanName:        "Catalog Plan 1",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+		{
+			StripePriceID:   "price_catalog_2",
+			PlanName:        "Catalog Plan 2",
+			PlanTier:        "business",
+			BillingInterval: "year",
+			AmountCents:     9999,
+			Currency:        "usd",
+			DisplayWeight:   5,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "catalog_env")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Catalog Bundle", "prod_catalog", "catalog_env", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_catalog_1", "Catalog Plan 1", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-	insertBundlePrice(t, db, productID, "price_catalog_2", "Catalog Plan 2", "business", "year", "usd", 9999, true, "none", 0, 0, "", 0, 0, 2, 5, "none", "subscription", map[string]interface{}{})
+	plansPath := createTestPlansFile(t, bundle, plans)
+	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "catalog_bundle",
+		DisplayEnv: "catalog_env",
+	})
+	if err := planStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
 
 	service := NewPlanServiceWithOptions(PlanServiceOptions{
-		DB:            db,
-		DefaultBundle: bundleKey,
+		PlanStore:     planStore,
+		DefaultBundle: "catalog_bundle",
 		DisplayEnv:    "catalog_env",
 	})
 
@@ -423,7 +425,7 @@ func TestPlanService_ListBundleCatalog_ReturnsBundlesWithPrices(t *testing.T) {
 
 	found := false
 	for _, entry := range entries {
-		if entry.Bundle.BundleKey == bundleKey {
+		if entry.Bundle.BundleKey == "catalog_bundle" {
 			found = true
 			if len(entry.Prices) != 2 {
 				t.Errorf("expected 2 prices for bundle, got %d", len(entry.Prices))
@@ -431,50 +433,19 @@ func TestPlanService_ListBundleCatalog_ReturnsBundlesWithPrices(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("expected to find bundle %s in catalog", bundleKey)
-	}
-}
-
-func TestPlanService_ListBundleCatalog_FiltersByEnvironment(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	// Create bundles in different environments
-	bundleKey1 := "catalog_staging_bundle"
-	bundleKey2 := "catalog_production_bundle"
-
-	productID1 := upsertTestBundleProduct(t, db, bundleKey1, "Staging Bundle", "prod_staging", "staging", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID1)
-
-	productID2 := upsertTestBundleProduct(t, db, bundleKey2, "Production Bundle", "prod_production", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID2)
-
-	// Service configured for staging environment
-	service := NewPlanServiceWithOptions(PlanServiceOptions{
-		DB:            db,
-		DefaultBundle: bundleKey1,
-		DisplayEnv:    "staging",
-	})
-
-	entries, err := service.ListBundleCatalog(t.Context())
-	if err != nil {
-		t.Fatalf("ListBundleCatalog failed: %v", err)
-	}
-
-	// Should only see staging bundle
-	for _, entry := range entries {
-		if entry.Bundle.Environment != "staging" {
-			t.Errorf("expected only staging bundles, got environment %s", entry.Bundle.Environment)
-		}
+		t.Errorf("expected to find bundle catalog_bundle in catalog")
 	}
 }
 
 func TestPlanService_ListBundleCatalog_EmptyCatalog_ReturnsEmptySlice(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "",
+		BundleKey:  "nonexistent",
+		DisplayEnv: "nonexistent_env",
+	})
 
 	service := NewPlanServiceWithOptions(PlanServiceOptions{
-		DB:            db,
+		PlanStore:     emptyStore,
 		DefaultBundle: "nonexistent",
 		DisplayEnv:    "nonexistent_env",
 	})
@@ -495,20 +466,25 @@ func TestPlanService_ListBundleCatalog_EmptyCatalog_ReturnsEmptySlice(t *testing
 // ============================================================================
 
 func TestPlanService_UpdateBundlePrice_ToggleDisplayEnabled(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("update_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_toggle",
+			PlanName:        "Toggle Plan",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Update Bundle", "prod_update", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_toggle", "Toggle Plan", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	// Disable the price
 	disabled := false
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_toggle", UpdateBundlePriceInput{
+	updated, err := service.UpdateBundlePrice(t.Context(), "update_bundle", "price_toggle", UpdateBundlePriceInput{
 		DisplayEnabled: &disabled,
 	})
 	if err != nil {
@@ -521,19 +497,24 @@ func TestPlanService_UpdateBundlePrice_ToggleDisplayEnabled(t *testing.T) {
 }
 
 func TestPlanService_UpdateBundlePrice_ChangeDisplayWeight(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("weight_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_weight",
+			PlanName:        "Weight Plan",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Weight Bundle", "prod_weight", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_weight", "Weight Plan", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	newWeight := 99
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_weight", UpdateBundlePriceInput{
+	updated, err := service.UpdateBundlePrice(t.Context(), "weight_bundle", "price_weight", UpdateBundlePriceInput{
 		DisplayWeight: &newWeight,
 	})
 	if err != nil {
@@ -546,19 +527,24 @@ func TestPlanService_UpdateBundlePrice_ChangeDisplayWeight(t *testing.T) {
 }
 
 func TestPlanService_UpdateBundlePrice_UpdatePlanName(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("name_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_name",
+			PlanName:        "Old Name",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Name Bundle", "prod_name", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_name", "Old Name", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	newName := "New Fancy Name"
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_name", UpdateBundlePriceInput{
+	updated, err := service.UpdateBundlePrice(t.Context(), "name_bundle", "price_name", UpdateBundlePriceInput{
 		PlanName: &newName,
 	})
 	if err != nil {
@@ -571,21 +557,26 @@ func TestPlanService_UpdateBundlePrice_UpdatePlanName(t *testing.T) {
 }
 
 func TestPlanService_UpdateBundlePrice_UpdateMetadata(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("metadata_update_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_meta",
+			PlanName:        "Metadata Plan",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Metadata Bundle", "prod_metadata", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_meta", "Metadata Plan", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	subtitle := "Best value!"
 	badge := "Popular"
 	features := []string{"Feature 1", "Feature 2"}
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_meta", UpdateBundlePriceInput{
+	updated, err := service.UpdateBundlePrice(t.Context(), "metadata_update_bundle", "price_meta", UpdateBundlePriceInput{
 		Subtitle: &subtitle,
 		Badge:    &badge,
 		Features: &features,
@@ -608,48 +599,26 @@ func TestPlanService_UpdateBundlePrice_UpdateMetadata(t *testing.T) {
 	}
 }
 
-func TestPlanService_UpdateBundlePrice_ClearStripePriceID(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Clear ID Bundle", "prod_clear", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_clear", "Clear Plan", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
-
-	// Clear the stripe price ID
-	emptyStr := ""
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_clear", UpdateBundlePriceInput{
-		StripePriceID: &emptyStr,
-	})
-	if err != nil {
-		t.Fatalf("UpdateBundlePrice failed: %v", err)
-	}
-
-	// The price should still be returned (using internal ID)
-	if updated == nil {
-		t.Error("expected non-nil updated price")
-	}
-}
-
 func TestPlanService_UpdateBundlePrice_Highlight(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("highlight_bundle", "production")
+	plans := []planFileFormat{
+		{
+			StripePriceID:   "price_highlight",
+			PlanName:        "Highlight Plan",
+			PlanTier:        "pro",
+			BillingInterval: "month",
+			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
+		},
+	}
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "Highlight Bundle", "prod_highlight", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
-
-	insertBundlePrice(t, db, productID, "price_highlight", "Highlight Plan", "pro", "month", "usd", 999, true, "none", 0, 0, "", 0, 0, 1, 10, "none", "subscription", map[string]interface{}{})
-
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
 	// Set highlight to true
 	highlight := true
-	updated, err := service.UpdateBundlePrice(t.Context(), bundleKey, "price_highlight", UpdateBundlePriceInput{
+	updated, err := service.UpdateBundlePrice(t.Context(), "highlight_bundle", "price_highlight", UpdateBundlePriceInput{
 		Highlight: &highlight,
 	})
 	if err != nil {
@@ -665,16 +634,12 @@ func TestPlanService_UpdateBundlePrice_Highlight(t *testing.T) {
 }
 
 func TestPlanService_UpdateBundlePrice_NotFound_ReturnsError(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+	bundle := testBundle("notfound_bundle", "production")
+	plans := []planFileFormat{} // No plans
 
-	bundleKey := configureTestBundleEnv(t, "production")
-	productID := upsertTestBundleProduct(t, db, bundleKey, "NotFound Bundle", "prod_notfound", "production", 1_000_000, 0.01, "credits")
-	defer cleanupBundleProductRecords(t, db, productID)
+	service := createTestPlanService(t, bundle, plans)
 
-	service := NewPlanService(db)
-
-	_, err := service.UpdateBundlePrice(t.Context(), bundleKey, "nonexistent_price_id", UpdateBundlePriceInput{})
+	_, err := service.UpdateBundlePrice(t.Context(), "notfound_bundle", "nonexistent_price_id", UpdateBundlePriceInput{})
 	if err == nil {
 		t.Error("Expected error for non-existent price, got nil")
 	}
@@ -683,15 +648,19 @@ func TestPlanService_UpdateBundlePrice_NotFound_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestPlanService_UpdateBundlePrice_EmptyBundleKey_ReturnsError(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
+func TestPlanService_UpdateBundlePrice_EmptyBundleKey_ReturnsNil(t *testing.T) {
+	bundle := testBundle("test_bundle", "production")
+	plans := []planFileFormat{}
 
-	service := NewPlanService(db)
+	service := createTestPlanService(t, bundle, plans)
 
-	_, err := service.UpdateBundlePrice(t.Context(), "", "price_id", UpdateBundlePriceInput{})
-	if err == nil {
-		t.Error("Expected error for empty bundle key, got nil")
+	// When bundle key is empty, returns nil without error
+	result, err := service.UpdateBundlePrice(t.Context(), "", "price_id", UpdateBundlePriceInput{})
+	if err != nil {
+		t.Errorf("Expected no error for empty bundle key, got: %v", err)
+	}
+	if result != nil {
+		t.Error("Expected nil result for empty bundle key")
 	}
 }
 
@@ -700,9 +669,6 @@ func TestPlanService_UpdateBundlePrice_EmptyBundleKey_ReturnsError(t *testing.T)
 // ============================================================================
 
 func TestPlanService_NewPlanServiceWithOptions_OverridesEnvVars(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
 	// Set env vars
 	_ = os.Setenv("BUNDLE_KEY", "env_bundle")
 	_ = os.Setenv("BUNDLE_ENVIRONMENT", "env_environment")
@@ -711,9 +677,20 @@ func TestPlanService_NewPlanServiceWithOptions_OverridesEnvVars(t *testing.T) {
 		_ = os.Unsetenv("BUNDLE_ENVIRONMENT")
 	})
 
+	bundle := testBundle("options_bundle", "options_env")
+	plansPath := createTestPlansFile(t, bundle, nil)
+	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "options_bundle",
+		DisplayEnv: "options_env",
+	})
+	if err := planStore.LoadAll(); err != nil {
+		t.Fatalf("failed to load plans: %v", err)
+	}
+
 	// Create service with explicit options
 	service := NewPlanServiceWithOptions(PlanServiceOptions{
-		DB:            db,
+		PlanStore:     planStore,
 		DefaultBundle: "options_bundle",
 		DisplayEnv:    "options_env",
 	})

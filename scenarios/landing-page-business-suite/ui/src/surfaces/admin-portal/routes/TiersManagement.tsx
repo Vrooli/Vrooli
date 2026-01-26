@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
-import { Layers, Calendar, CalendarDays, Eye, EyeOff } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Layers, Calendar, CalendarDays, Eye, EyeOff, Download, Plus } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
-import { PlanDisplayManager } from '../components/plans';
+import { PlanDisplayManager, ImportStripeModal, AddPlanModal } from '../components/plans';
+import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useBillingForm } from '../hooks/useBillingForm';
+import { useStripeImport } from '../hooks/useStripeImport';
 import { normalizeInterval } from '../services/pricing.service';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 
@@ -31,6 +33,27 @@ export function TiersManagement() {
     setPricingTab,
   } = useBillingForm();
 
+  // Stripe import modal
+  const stripeImport = useStripeImport(loadBundles);
+
+  // Add plan modal state
+  const [addPlanModalOpen, setAddPlanModalOpen] = useState(false);
+  const [addPlanBundleKey, setAddPlanBundleKey] = useState<string>('');
+
+  const handleOpenAddPlan = useCallback((bundleKey: string) => {
+    setAddPlanBundleKey(bundleKey);
+    setAddPlanModalOpen(true);
+  }, []);
+
+  const handleCloseAddPlan = useCallback(() => {
+    setAddPlanModalOpen(false);
+    setAddPlanBundleKey('');
+  }, []);
+
+  const handleAddPlanSuccess = useCallback(() => {
+    loadBundles();
+  }, [loadBundles]);
+
   // Compute stats from bundles (excluding demo placeholders)
   const stats = useMemo(() => {
     let total = 0;
@@ -55,15 +78,28 @@ export function TiersManagement() {
   return (
     <AdminLayout maxWidth="extraWide">
       <div className={LAYOUT.pageSpacing}>
-        <PageHeader
-          variant="icon-title"
-          title="Plan Management"
-          description="Configure pricing plans and control how subscription tiers appear to visitors."
-          icon={Layers}
-          iconBgClass="bg-purple-500/10"
-          iconColorClass="text-purple-400"
-          testId="tiers-management-header"
-        />
+        <div className="flex items-start justify-between gap-4">
+          <PageHeader
+            variant="icon-title"
+            title="Plan Management"
+            description="Configure pricing plans and control how subscription tiers appear to visitors."
+            icon={Layers}
+            iconBgClass="bg-purple-500/10"
+            iconColorClass="text-purple-400"
+            testId="tiers-management-header"
+          />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={stripeImport.openModal}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Import from Stripe
+            </Button>
+          </div>
+        </div>
 
         {/* Stats summary row */}
         {!loadingBundles && stats.total > 0 && (
@@ -116,8 +152,18 @@ export function TiersManagement() {
           onVerifyPrice={handleVerifyPrice}
           onRemoveDemoPlan={removeDemoPlan}
           priceChecks={priceChecks}
+          onAddPlan={handleOpenAddPlan}
         />
       </div>
+
+      {/* Modals */}
+      <ImportStripeModal stripeImport={stripeImport} />
+      <AddPlanModal
+        bundleKey={addPlanBundleKey}
+        isOpen={addPlanModalOpen}
+        onClose={handleCloseAddPlan}
+        onSuccess={handleAddPlanSuccess}
+      />
     </AdminLayout>
   );
 }
