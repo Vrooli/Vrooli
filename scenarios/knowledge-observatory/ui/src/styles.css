@@ -1,3 +1,5 @@
+@import "highlight.js/styles/github-dark.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -354,5 +356,367 @@ body {
 
   .ko-surface-strong {
     background-color: rgb(var(--ko-surface-strong) / 0.7);
+  }
+
+  .ko-explorer-shell {
+    @apply space-y-6;
+  }
+
+  .ko-explorer-grid {
+    @apply grid gap-6;
+  }
+
+  .ko-explorer-panel {
+    @apply flex flex-col gap-4;
+  }
+
+  .ko-input-group {
+    @apply flex items-center gap-2 rounded px-3 py-2;
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+  }
+
+  .ko-input-group .ko-input {
+    @apply border-0 bg-transparent p-0 h-auto;
+  }
+
+  .ko-input-compact {
+    @apply text-sm;
+  }
+
+  .ko-health-badge {
+    @apply text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded;
+    border: 1px solid rgb(var(--ko-border-strong) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    color: rgb(var(--ko-text-strong));
+  }
+
+  .ko-pill {
+    @apply text-[0.6rem] uppercase tracking-wider px-2 py-1 rounded-full;
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.5);
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-pill-good {
+    color: rgb(var(--ko-tone-good));
+    border-color: rgb(var(--ko-tone-good-border) / 0.7);
+    background-color: rgb(var(--ko-tone-good-bg) / 0.3);
+  }
+
+  .ko-pill-muted {
+    color: rgb(var(--ko-text-muted));
+    border-color: rgb(var(--ko-border) / 0.4);
+    background-color: rgb(var(--ko-surface) / 0.15);
+  }
+
+  .ko-scenario-item {
+    @apply w-full text-left p-4 transition-colors;
+  }
+
+  .ko-scenario-item-active {
+    border-color: rgb(var(--ko-border-strong) / 0.8);
+    box-shadow: 0 0 0 1px rgb(var(--ko-border-strong) / 0.4);
+    background-color: rgb(var(--ko-surface) / 0.35);
+  }
+
+  .ko-tree {
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    border-radius: 0.5rem;
+    background-color: rgb(var(--ko-surface-strong) / 0.5);
+  }
+
+  .ko-tree-row {
+    @apply flex items-center gap-2 w-full text-left text-sm py-2 pr-3 transition-colors;
+    border-bottom: 1px solid rgb(var(--ko-border) / 0.35);
+  }
+
+  .ko-tree-row:last-child {
+    border-bottom: none;
+  }
+
+  .ko-tree-row:hover {
+    background-color: rgb(var(--ko-surface) / 0.35);
+  }
+
+  .ko-tree-row-active {
+    background-color: rgb(var(--ko-surface) / 0.45);
+    border-color: rgb(var(--ko-border-strong) / 0.6);
+  }
+
+  .ko-tree-row-directory {
+    font-weight: 600;
+  }
+
+  .ko-tree-row-file {
+    font-weight: 500;
+  }
+
+  .ko-tree-icon {
+    @apply flex items-center justify-center w-4 h-4;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-warning-pill {
+    @apply inline-flex items-center gap-1 text-[0.6rem] uppercase tracking-wider px-2 py-1 rounded-full;
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    color: rgb(var(--ko-warning));
+    background-color: rgb(var(--ko-warning-muted) / 0.2);
+  }
+
+  .ko-warning-pill-error {
+    color: rgb(var(--ko-danger-strong));
+    border-color: rgb(var(--ko-danger-muted) / 0.7);
+    background-color: rgb(var(--ko-tone-poor-bg) / 0.3);
+  }
+
+  .ko-warning-pill-warning {
+    color: rgb(var(--ko-warning-strong));
+    border-color: rgb(var(--ko-warning-muted) / 0.7);
+    background-color: rgb(var(--ko-warning-muted) / 0.25);
+  }
+
+  .ko-warning-pill-info {
+    color: rgb(var(--ko-text-muted));
+    border-color: rgb(var(--ko-border) / 0.5);
+    background-color: rgb(var(--ko-surface) / 0.2);
+  }
+
+  .ko-issue-block {
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.5);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+  }
+
+  .ko-list {
+    @apply mt-2 space-y-1 text-sm;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-viewer-shell {
+    @apply gap-6;
+  }
+
+  .ko-viewer-grid {
+    @apply grid gap-6;
+  }
+
+  .ko-viewer-toolbar {
+    @apply flex flex-col gap-3;
+  }
+
+  .ko-viewer-input {
+    @apply flex-1;
+  }
+
+  .ko-viewer-meta {
+    @apply space-y-4;
+  }
+
+  .ko-viewer-meta-row {
+    @apply grid gap-4;
+  }
+
+  .ko-viewer-mode-toggle {
+    @apply flex flex-wrap gap-2 mt-2;
+  }
+
+  .ko-viewer-mode-button {
+    @apply gap-2;
+  }
+
+  .ko-viewer-stack {
+    @apply mt-4;
+  }
+
+  .ko-viewer-split {
+    @apply mt-4 grid gap-4;
+  }
+
+  .ko-code-view {
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.5);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    max-height: 70vh;
+    overflow: auto;
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  .ko-code-line {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr;
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  .ko-code-line-number {
+    text-align: right;
+    color: rgb(var(--ko-text-subtle));
+    user-select: none;
+    font-size: 0.75rem;
+    padding-top: 0.15rem;
+  }
+
+  .ko-code-line-content {
+    white-space: pre;
+    overflow-wrap: normal;
+  }
+
+  .ko-code-state {
+    @apply flex items-center gap-2 text-sm;
+    color: rgb(var(--ko-text-muted));
+    padding: 1rem 0;
+  }
+
+  .ko-code-error {
+    color: rgb(var(--ko-danger-strong));
+  }
+
+  .ko-markdown-view {
+    @apply text-sm space-y-4;
+    line-height: 1.65;
+  }
+
+  .ko-markdown-view h1,
+  .ko-markdown-view h2,
+  .ko-markdown-view h3 {
+    color: rgb(var(--ko-text-strong));
+    margin-top: 1.5rem;
+  }
+
+  .ko-markdown-view h1 {
+    font-size: 1.5rem;
+  }
+
+  .ko-markdown-view h2 {
+    font-size: 1.25rem;
+  }
+
+  .ko-markdown-view h3 {
+    font-size: 1.1rem;
+  }
+
+  .ko-markdown-view pre {
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+  }
+
+  .ko-markdown-view code {
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    color: rgb(var(--ko-text-strong));
+  }
+
+  .ko-markdown-view a {
+    color: rgb(var(--ko-accent-strong));
+  }
+
+  .ko-markdown-view table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .ko-markdown-view th,
+  .ko-markdown-view td {
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ko-mermaid {
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    background-color: rgb(var(--ko-surface-strong) / 0.4);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    overflow-x: auto;
+  }
+
+  .ko-reset-panel {
+    @apply space-y-4;
+  }
+
+  .ko-reset-controls {
+    @apply space-y-3;
+  }
+
+  .ko-reset-label {
+    @apply text-sm flex items-center justify-between gap-3;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-reset-value {
+    @apply text-xs font-mono px-2 py-1 rounded;
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.4);
+  }
+
+  .ko-reset-slider {
+    width: 100%;
+    accent-color: rgb(var(--ko-accent));
+  }
+
+  .ko-reset-row {
+    @apply flex items-center gap-2;
+  }
+
+  .ko-reset-input {
+    @apply w-20 px-2 py-1 rounded text-sm;
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    color: rgb(var(--ko-text));
+  }
+
+  .ko-reset-actions {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .ko-reset-error {
+    @apply flex items-center gap-2 text-sm;
+    color: rgb(var(--ko-danger-strong));
+  }
+
+  .ko-reset-summary {
+    @apply text-sm space-y-2;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-reset-list {
+    @apply list-disc pl-5 space-y-1;
+  }
+
+  .ko-reset-preview pre {
+    @apply mt-2 text-xs;
+    max-height: 200px;
+    overflow: auto;
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ko-explorer-grid {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(260px, 340px);
+  }
+
+  .ko-viewer-grid {
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  }
+
+  .ko-viewer-meta-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ko-viewer-split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ko-viewer-toolbar {
+    flex-direction: row;
+    align-items: center;
   }
 }

@@ -38,6 +38,7 @@ Or install via the shared installer (recommended):
 | `health` | Knowledge health metrics |
 | `metrics` | Alias for `health` |
 | `graph` | Generate a knowledge graph |
+| `docs` | Documentation explorer commands |
 | `configure` | View/update CLI settings |
 | `version` | Show CLI version |
 | `help` | Show help |
@@ -81,7 +82,7 @@ Content can also be passed as positional arguments or via stdin.
 |------|-------------|
 | `--namespace` | Namespace (required) |
 | `--collection` | Collection name |
-| `--visibility` | Visibility (shared/private/restricted) |
+| `--visibility` | Visibility (shared, private, restricted) |
 | `--record-id` | Explicit record ID |
 | `--external-id` | External identifier |
 | `--tags` | Comma-separated tags |
@@ -101,7 +102,7 @@ knowledge-observatory ingest-job --namespace docs --content "$(cat README.md)" -
 |------|-------------|
 | `--namespace` | Namespace (required) |
 | `--collection` | Collection name |
-| `--visibility` | Visibility (shared/private/restricted) |
+| `--visibility` | Visibility (shared, private, restricted) |
 | `--document-id` | Explicit document ID |
 | `--external-id` | External identifier |
 | `--tags` | Comma-separated tags |
@@ -143,6 +144,107 @@ knowledge-observatory graph --center "ecosystem-manager" --depth 2
 | `--depth` | Graph traversal depth |
 | `--limit` | Max nodes |
 | `--threshold` | Score threshold |
+
+## docs
+
+```bash
+knowledge-observatory docs search-files "**/README.md" --scope scenario --scenario knowledge-observatory
+knowledge-observatory docs search-text "health score" --scope scenario --scenario knowledge-observatory --context-lines 1
+knowledge-observatory docs search-deep "How does deep search work?" --scope scenario --scenario knowledge-observatory --max-results 5
+knowledge-observatory docs scenarios
+knowledge-observatory docs tree knowledge-observatory
+knowledge-observatory docs health knowledge-observatory
+knowledge-observatory docs view "scenarios/knowledge-observatory/docs/manifest.json" --format preview
+knowledge-observatory docs reset "scenarios/knowledge-observatory/docs/internal/PROBLEMS.md" --max-age-days 30 --keep-min-entries 3 --preview
+```
+
+### docs search-files
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--pattern` | Glob pattern (optional if positional pattern is provided) |
+| `--scope` | Scope: global, scenario, or path |
+| `--scenario` | Scenario name (required for scope=scenario) |
+| `--base-path` | Base path (required for scope=path) |
+| `--limit` | Max results |
+| `--include-content` | Include content preview |
+
+### docs search-text
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--query` | Text query (optional if positional query is provided) |
+| `--scope` | Scope: global, scenario, or path |
+| `--scenario` | Scenario name (required for scope=scenario) |
+| `--base-path` | Base path (required for scope=path) |
+| `--file-types` | Comma-separated file extensions (md, json, txt, etc.) |
+| `--case-sensitive` | Case-sensitive search |
+| `--limit` | Max results |
+| `--context-lines` | Lines of context before/after matches |
+
+### docs search-deep
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--query` | Deep search query (optional if positional query is provided) |
+| `--scope` | Scope: global, scenario, or path |
+| `--scenario` | Scenario name (required for scope=scenario) |
+| `--base-path` | Base path (required for scope=path) |
+| `--max-results` | Max results |
+| `--follow-refs` | Follow referenced docs (default true) |
+| `--timeout-seconds` | Agent timeout in seconds |
+| `--wait` | Wait for completion before exiting |
+
+### docs scenarios
+
+List all scenarios with documentation stats.
+
+```bash
+knowledge-observatory docs scenarios
+```
+
+### docs tree
+
+Fetch the documentation tree for a scenario.
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--scenario` | Scenario name (optional if provided as positional argument) |
+
+### docs health
+
+Fetch documentation health details for a scenario.
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--scenario` | Scenario name (optional if provided as positional argument) |
+
+### docs view
+
+Fetch document content for a given path.
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--path` | Document path (optional if provided as positional argument) |
+| `--format` | raw, highlighted, or preview (default: raw) |
+
+### docs reset
+
+Reset/clean supported documents (PROBLEMS/PROGRESS).
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--path` | Document path (optional if provided as positional argument) |
+| `--max-age-days` | Remove entries older than N days |
+| `--keep-min-entries` | Always keep at least N entries |
+| `--preview` | Preview changes without writing |
 
 ## configure
 

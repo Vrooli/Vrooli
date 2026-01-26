@@ -13,11 +13,15 @@ Environment variables consumed by the API:
 
 - `QDRANT_URL` / `QDRANT_API_KEY`
 - `OLLAMA_URL` / `OLLAMA_EMBEDDING_MODEL`
+- `OLLAMA_STRUCTURED_OUTPUT_MODEL` (optional, used to coerce deep search output to JSON)
 - `RESOURCE_QDRANT_CLI` (path to resource wrapper)
 - `CORS_ALLOWED_ORIGINS` (comma-separated list)
 - `SKIP_DB_CONNECT` or `SKIP_DB_TESTS` (disable DB connect)
+- `VROOLI_SCENARIOS_ROOT` (absolute path to scenarios root for doc health)
+- `VROOLI_REPO_ROOT` (repo root used to infer `scenarios/` for doc health)
 
 [CODE: api/server.go]
+[CODE: api/docs_root.go]
 
 ## Knowledge Schema Defaults
 - Default collection: `knowledge_chunks_v1`
@@ -52,6 +56,7 @@ Config directory overrides:
 ## Optional Resources
 - **Ollama** is optional but improves embedding quality.
 - **Postgres** is required for metadata + job state.
+- **Agent-manager** and **prompt-manager** should be running for deep documentation search.
 
 [CODE: api/internal/adapters/embedder/ollama.go]
 [CODE: api/internal/adapters/metadatastore/postgres.go]

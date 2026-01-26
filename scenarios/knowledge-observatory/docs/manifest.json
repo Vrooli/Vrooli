@@ -81,23 +81,23 @@
       "visibility": "developers-only",
       "documents": [
         {
-          "path": "PROBLEMS.md",
+          "path": "internal/PROBLEMS.md",
           "title": "Known Issues",
           "internal": true
         },
         {
-          "path": "PROGRESS.md",
+          "path": "internal/PROGRESS.md",
           "title": "Progress Log",
           "internal": true
         },
         {
-          "path": "SCREAMING_ARCHITECTURE_AUDIT.md",
+          "path": "internal/SCREAMING_ARCHITECTURE_AUDIT.md",
           "title": "Screaming Architecture Audit",
           "internal": true
         },
         {
-          "path": "EXPERIENCE_ARCHITECTURE_AUDIT.md",
-          "title": "Experience Architecture Audit",
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "title": "Experience Audit",
           "internal": true
         },
         {
@@ -106,7 +106,7 @@
           "internal": true
         },
         {
-          "path": "internal/COHERENCE_NOTES.md",
+          "path": "internal/COHERENCE-NOTES.md",
           "title": "UI Coherence Notes",
           "internal": true
         }

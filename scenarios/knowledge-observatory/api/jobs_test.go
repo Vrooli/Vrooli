@@ -27,15 +27,19 @@ func (f *fakeJobStore) EnqueueDocumentIngest(ctx context.Context, req ports.Docu
 	}
 	return f.jobID, nil
 }
+
 func (f *fakeJobStore) GetJob(ctx context.Context, jobID string) (ports.JobStatus, bool, error) {
 	return f.status, f.found, nil
 }
+
 func (f *fakeJobStore) ClaimNextPendingJob(ctx context.Context) (ports.DocumentIngestJob, bool, error) {
 	return ports.DocumentIngestJob{}, false, nil
 }
+
 func (f *fakeJobStore) UpdateJobProgress(ctx context.Context, jobID string, completedChunks, totalChunks int) error {
 	return nil
 }
+
 func (f *fakeJobStore) CompleteJob(ctx context.Context, jobID string, status string, errorMessage string) error {
 	return nil
 }

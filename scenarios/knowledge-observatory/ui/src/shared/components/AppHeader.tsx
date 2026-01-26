@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import type { ReactNode } from "react";
-import { Activity, Database, GitGraph, Search } from "lucide-react";
+import { Activity, Database, FileText, FolderTree, GitGraph, Search } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { routeToHash, type Route } from "../controllers/routeController";
 
@@ -16,6 +16,18 @@ const NAV_ITEMS: Array<{ route: Route; label: string; icon: ReactNode; testId: s
     label: "Search",
     icon: <Search className="h-4 w-4" />,
     testId: selectors.nav.search,
+  },
+  {
+    route: "explorer",
+    label: "Explorer",
+    icon: <FolderTree className="h-4 w-4" />,
+    testId: selectors.nav.explorer,
+  },
+  {
+    route: "viewer",
+    label: "Viewer",
+    icon: <FileText className="h-4 w-4" />,
+    testId: selectors.nav.viewer,
   },
   {
     route: "graph",

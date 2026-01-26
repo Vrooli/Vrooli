@@ -288,6 +288,8 @@ const literalSelectors = {
   nav: {
     dashboard: "ko-nav-dashboard",
     search: "ko-nav-search",
+    explorer: "ko-nav-explorer",
+    viewer: "ko-nav-viewer",
     graph: "ko-nav-graph",
     metrics: "ko-nav-metrics",
   },
@@ -316,6 +318,15 @@ const literalSelectors = {
     emptyState: "ko-search-empty",
     error: "ko-search-error",
   },
+  deepSearch: {
+    form: "ko-deep-search-form",
+    input: "ko-deep-search-input",
+    submit: "ko-deep-search-submit",
+    clear: "ko-deep-search-clear",
+    status: "ko-deep-search-status",
+    results: "ko-deep-search-results",
+    error: "ko-deep-search-error",
+  },
   metrics: {
     overall: "ko-metrics-overall",
     refresh: "ko-metrics-refresh",
@@ -325,6 +336,20 @@ const literalSelectors = {
   },
   graph: {
     emptyState: "ko-graph-empty",
+  },
+  explorer: {
+    scenarioList: "ko-explorer-scenario-list",
+    scenarioFilter: "ko-explorer-scenario-filter",
+    docTree: "ko-explorer-doc-tree",
+    healthPanel: "ko-explorer-health-panel",
+  },
+  viewer: {
+    pathInput: "ko-viewer-path-input",
+    loadButton: "ko-viewer-load-button",
+    modeToggle: "ko-viewer-mode-toggle",
+    codeView: "ko-viewer-code-view",
+    previewView: "ko-viewer-preview-view",
+    resetPanel: "ko-viewer-reset-panel",
   },
 } as const satisfies LiteralSelectorTree;
 

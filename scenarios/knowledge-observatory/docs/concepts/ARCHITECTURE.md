@@ -52,6 +52,61 @@ Ollama  Qdrant  Postgres
 
 [CODE: api/metrics.go]
 
+## Documentation Health Flow
+1. Resolve scenario root for filesystem access.
+2. Validate doc layout against docschema standards.
+3. Optionally reset PROBLEMS/PROGRESS with retention rules.
+
+[CODE: api/docs_health.go]
+[CODE: api/internal/docschema/validation.go]
+[CODE: api/internal/docschema/reset.go]
+[CODE: api/internal/services/dochealth/service.go]
+
+## Documentation Search Flow
+1. Resolve scope (global/scenario/path) to documentation roots.
+2. Glob file names for direct discovery.
+3. Run full-text regex search for matching lines.
+4. Optionally blend semantic search results into unified ranking.
+
+[CODE: api/docs_search.go]
+[CODE: api/internal/services/docsearch/service.go]
+[CODE: api/internal/services/docsearch/glob.go]
+[CODE: api/internal/services/docsearch/text.go]
+[CODE: api/internal/services/docsearch/unified.go]
+
+## Documentation Deep Search Flow
+1. Resolve scope to a filesystem root (global/scenario/path).
+2. Spawn an agent-manager run with the documentation-search skill.
+3. Poll run events for progress and final output.
+4. Parse structured JSON results (with optional Ollama coercion).
+5. Persist job status/results in Postgres for retrieval.
+
+[CODE: api/docs_deep_search.go]
+[CODE: api/internal/services/deepsearch/service.go]
+[CODE: api/internal/adapters/agentmanager/deepsearch_client.go]
+[CODE: api/internal/adapters/deepsearchstore/postgres.go]
+
+## Documentation Explorer Flow
+1. List scenarios with documentation stats.
+2. Build scenario doc tree with doc type hints and health warnings.
+3. Surface per-scenario health details for missing/misplaced docs.
+
+[CODE: api/docs_explorer.go]
+[CODE: api/docs_health.go]
+[CODE: api/internal/services/explorer/tree.go]
+[CODE: api/internal/services/dochealth/service.go]
+
+## Documentation Viewer Flow
+1. Resolve repo-relative path with filesystem safeguards.
+2. Read content + metadata (size, modified time, doc type).
+3. Optionally apply reset rules for PROBLEMS/PROGRESS docs.
+4. Render code/preview modes with markdown + mermaid support.
+
+[CODE: api/docs_viewer.go]
+[CODE: api/internal/services/viewer/content.go]
+[CODE: api/internal/services/viewer/reset.go]
+[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
+
 ## API Runtime
 The API is the lifecycle-managed entrypoint with configuration + routing.
 
@@ -63,6 +118,8 @@ The dashboard, search, graph, and metrics pages are routed by hash.
 
 [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
 [CODE: ui/src/surfaces/search/SearchPage.tsx]
+[CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
+[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 

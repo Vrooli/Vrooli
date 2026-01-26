@@ -25,22 +25,28 @@ type fakeIngestVectorStore struct {
 func (f *fakeIngestVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
 	return nil
 }
+
 func (f *fakeIngestVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
 	f.upserts++
 	return nil
 }
+
 func (f *fakeIngestVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
 	return nil
 }
+
 func (f *fakeIngestVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	return nil, nil
 }
+
 func (f *fakeIngestVectorStore) ListCollections(ctx context.Context) ([]string, error) {
 	return []string{}, nil
 }
+
 func (f *fakeIngestVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
 	return 0, nil
 }
+
 func (f *fakeIngestVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
 	return []ports.VectorPoint{}, nil
 }

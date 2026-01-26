@@ -2,8 +2,9 @@ package main
 
 // DOC: docs/concepts/ARCHITECTURE.md#api-runtime
 import (
-	"github.com/vrooli/api-core/preflight"
 	"log"
+
+	"github.com/vrooli/api-core/preflight"
 )
 
 func main() {

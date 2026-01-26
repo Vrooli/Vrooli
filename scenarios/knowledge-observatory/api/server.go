@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -23,15 +24,23 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 
+	"knowledge-observatory/internal/adapters/agentmanager"
+	"knowledge-observatory/internal/adapters/deepsearchstore"
 	"knowledge-observatory/internal/adapters/embedder"
 	"knowledge-observatory/internal/adapters/jobstore"
 	"knowledge-observatory/internal/adapters/metadatastore"
+	"knowledge-observatory/internal/adapters/promptmanager"
 	"knowledge-observatory/internal/adapters/vectorstore"
 	"knowledge-observatory/internal/ports"
+	"knowledge-observatory/internal/services/deepsearch"
+	"knowledge-observatory/internal/services/dochealth"
+	"knowledge-observatory/internal/services/docsearch"
+	"knowledge-observatory/internal/services/explorer"
 	"knowledge-observatory/internal/services/graph"
 	"knowledge-observatory/internal/services/ingest"
 	"knowledge-observatory/internal/services/ingestjobs"
 	"knowledge-observatory/internal/services/search"
+	"knowledge-observatory/internal/services/viewer"
 )
 
 // Config holds minimal runtime configuration
@@ -42,8 +51,12 @@ type Config struct {
 	QdrantAPIKey           string
 	OllamaURL              string
 	OllamaEmbeddingModel   string
+	OllamaStructuredModel  string
 	ResourceQdrantCLI      string
 	ResourceCommandTimeout time.Duration
+	ScenariosRoot          string
+	AgentManagerTimeout    time.Duration
+	PromptManagerTimeout   time.Duration
 }
 
 // Server wires the HTTP router and database connection
@@ -57,9 +70,14 @@ type Server struct {
 	metadata    ports.MetadataStore
 	jobStore    ports.JobStore
 
-	ingestService *ingest.Service
-	searchService *search.Service
-	graphService  *graph.Service
+	ingestService        *ingest.Service
+	searchService        *search.Service
+	graphService         *graph.Service
+	docHealthService     *dochealth.Service
+	docSearchService     *docsearch.Service
+	docExplorerService   *explorer.Service
+	docViewerService     *viewer.Service
+	docDeepSearchService deepsearch.API
 
 	ingestJobRunner *ingestjobs.Runner
 	materializer    *Materializer
@@ -73,8 +91,12 @@ func NewServer() (*Server, error) {
 		QdrantAPIKey:           strings.TrimSpace(os.Getenv("QDRANT_API_KEY")),
 		OllamaURL:              strings.TrimSpace(os.Getenv("OLLAMA_URL")),
 		OllamaEmbeddingModel:   strings.TrimSpace(os.Getenv("OLLAMA_EMBEDDING_MODEL")),
+		OllamaStructuredModel:  strings.TrimSpace(os.Getenv("OLLAMA_STRUCTURED_OUTPUT_MODEL")),
 		ResourceQdrantCLI:      strings.TrimSpace(os.Getenv("RESOURCE_QDRANT_CLI")),
 		ResourceCommandTimeout: 5 * time.Second,
+		ScenariosRoot:          resolveScenariosRoot(),
+		AgentManagerTimeout:    30 * time.Second,
+		PromptManagerTimeout:   15 * time.Second,
 	}
 
 	// Connect to database with automatic retry and backoff.
@@ -156,6 +178,66 @@ func (s *Server) setupServices() {
 		Embedder:    emb,
 	}
 
+	if s.config != nil && s.config.ScenariosRoot != "" {
+		service, err := dochealth.NewService(s.config.ScenariosRoot)
+		if err != nil {
+			s.log("doc health service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docHealthService = service
+		}
+	}
+	if s.config != nil && s.config.ScenariosRoot != "" {
+		service, err := explorer.NewService(s.config.ScenariosRoot, s.docHealthService)
+		if err != nil {
+			s.log("doc explorer service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docExplorerService = service
+		}
+	}
+	if s.config != nil && s.config.ScenariosRoot != "" {
+		service, err := docsearch.NewService(s.config.ScenariosRoot)
+		if err != nil {
+			s.log("doc search service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			service.Semantic = s.searchService
+			s.docSearchService = service
+		}
+	}
+	if s.config != nil && s.config.ScenariosRoot != "" {
+		service, err := viewer.NewService(s.config.ScenariosRoot)
+		if err != nil {
+			s.log("doc viewer service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docViewerService = service
+		}
+	}
+	if s.config != nil && s.config.ScenariosRoot != "" && s.db != nil {
+		jobStore := &deepsearchstore.Postgres{DB: s.db}
+		agentCfg := agentmanager.DefaultDeepSearchProfileConfig()
+		agentClient := agentmanager.NewDeepSearchClient(s.config.AgentManagerTimeout, agentCfg)
+		promptClient := promptmanager.NewClient(s.config.PromptManagerTimeout)
+		skillPath := filepath.Join(s.config.ScenariosRoot, "prompt-manager", "skills", "core", "documentation-search.md")
+		skillProvider := deepsearch.CompositeSkillProvider{
+			Primary:  promptClient,
+			Fallback: deepsearch.FileSkillProvider{Path: skillPath},
+		}
+		var parser deepsearch.ResultParser = &deepsearch.JSONParser{}
+		if s.config.OllamaURL != "" && s.config.OllamaStructuredModel != "" {
+			parser = &deepsearch.JSONParser{
+				Fallback: &deepsearch.OllamaParser{
+					BaseURL: s.config.OllamaURL,
+					Model:   s.config.OllamaStructuredModel,
+				},
+			}
+		}
+		service, err := deepsearch.NewService(s.config.ScenariosRoot, agentClient, jobStore, skillProvider, parser)
+		if err != nil {
+			s.log("deep search service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docDeepSearchService = service
+		}
+	}
+
 	if js != nil {
 		s.ingestJobRunner = &ingestjobs.Runner{
 			Jobs:      js,
@@ -194,6 +276,19 @@ func (s *Server) setupRoutes() {
 
 	// Knowledge graph endpoint
 	s.router.HandleFunc("/api/v1/knowledge/graph", s.handleGraph).Methods("GET", "POST")
+
+	// Documentation health endpoints
+	s.router.HandleFunc("/api/v1/scenarios", s.handleListScenarios).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs", s.handleDocsTree).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/health", s.handleDocsHealth).Methods("GET")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/reset", s.handleDocsReset).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/search/files", s.handleDocsSearchFiles).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/search/text", s.handleDocsSearchText).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/search/unified", s.handleDocsSearchUnified).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/search/deep", s.handleDocsSearchDeep).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/search/deep/{job_id}", s.handleDocsSearchDeepStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/docs/content", s.handleDocsContent).Methods("GET")
+	s.router.HandleFunc("/api/v1/docs/reset", s.handleDocsViewerReset).Methods("POST")
 
 	// Canonical knowledge write path (records) - sync upsert
 	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")

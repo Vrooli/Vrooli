@@ -26,24 +26,30 @@ type fakeSearchVectorStore struct {
 func (f *fakeSearchVectorStore) EnsureCollection(ctx context.Context, collection string, vectorSize int) error {
 	return nil
 }
+
 func (f *fakeSearchVectorStore) UpsertPoint(ctx context.Context, collection string, id string, vector []float64, payload map[string]interface{}) error {
 	return nil
 }
+
 func (f *fakeSearchVectorStore) DeletePoint(ctx context.Context, collection string, id string) error {
 	return nil
 }
+
 func (f *fakeSearchVectorStore) Search(ctx context.Context, collection string, vector []float64, limit int, threshold float64, filter *ports.VectorFilter) ([]ports.VectorSearchResult, error) {
 	f.lastFilter = filter
 	return []ports.VectorSearchResult{
 		{ID: "abc", Score: 0.9, Payload: map[string]interface{}{"content": "hello", "namespace": "ns1"}},
 	}, nil
 }
+
 func (f *fakeSearchVectorStore) ListCollections(ctx context.Context) ([]string, error) {
 	return []string{"knowledge_chunks_v1"}, nil
 }
+
 func (f *fakeSearchVectorStore) CountPoints(ctx context.Context, collection string) (int, error) {
 	return 0, nil
 }
+
 func (f *fakeSearchVectorStore) SamplePoints(ctx context.Context, collection string, limit int) ([]ports.VectorPoint, error) {
 	return []ports.VectorPoint{}, nil
 }

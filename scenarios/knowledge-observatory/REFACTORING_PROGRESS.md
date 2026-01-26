@@ -26,7 +26,7 @@ The knowledge-observatory scenario has been migrated from an outdated tech stack
 3. **Restored Critical Files**
    - ✅ PRD.md - Complete product requirements document (restored from backup)
    - ✅ README.md - User documentation (restored from backup)
-   - ✅ PROBLEMS.md - Known issues and resolutions (restored from backup)
+   - ✅ docs/internal/PROBLEMS.md - Known issues and resolutions (restored from backup)
    - ✅ TEST_IMPLEMENTATION_SUMMARY.md - Test coverage documentation (restored from backup)
    - ✅ Makefile - Build and development commands (restored from backup)
 
@@ -160,7 +160,7 @@ The knowledge-observatory scenario has been migrated from an outdated tech stack
 4. **Documentation Update**
    - Update README.md if needed for new UI
    - Verify all documentation is current
-   - Update PROBLEMS.md with any new issues
+   - Update docs/internal/PROBLEMS.md with any new issues
 
 ## Reference Information
 
@@ -181,7 +181,7 @@ knowledge-observatory/
 ├── Makefile               # Build commands (from old scenario)
 ├── PRD.md                 # Product requirements (from old scenario)
 ├── README.md              # User documentation (from old scenario)
-├── PROBLEMS.md            # Known issues (from old scenario)
+├── docs/internal/PROBLEMS.md # Known issues (from old scenario)
 └── REFACTORING_PROGRESS.md # This file
 ```
 
@@ -228,7 +228,7 @@ The refactoring will be considered complete when:
 ## Questions or Issues?
 
 If you encounter any issues during the refactoring:
-1. Check PROBLEMS.md for known issues and solutions
+1. Check docs/internal/PROBLEMS.md for known issues and solutions
 2. Reference the original scenario at `/tmp/knowledge-observatory`
 3. Consult PRD.md for requirements clarification
 4. Review ui-old/ for implementation patterns

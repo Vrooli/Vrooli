@@ -12,11 +12,13 @@ This guide walks through the UI, CLI, and API to confirm Knowledge Observatory i
 ## UI Walkthrough
 - **Dashboard**: check health, quick actions.
 - **Search**: run a semantic query and inspect result metadata.
+- **Explorer**: browse scenario docs, tree warnings, and health summary.
 - **Graph**: explore relationships around a center concept.
 - **Metrics**: review coherence/freshness/redundancy scores.
 
 [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
 [CODE: ui/src/surfaces/search/SearchPage.tsx]
+[CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 

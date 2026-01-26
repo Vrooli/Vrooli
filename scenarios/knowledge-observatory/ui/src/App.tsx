@@ -6,9 +6,11 @@ import { getPageTitle } from "./shared/controllers/routeController";
 import { useHealthStatus } from "./shared/hooks/knowledgeHooks";
 import { useHashRoute } from "./shared/hooks/useHashRoute";
 import { DashboardPage } from "./surfaces/dashboard/DashboardPage";
+import { ExplorerPage } from "./surfaces/explorer/ExplorerPage";
 import { GraphPage } from "./surfaces/graph/GraphPage";
 import { MetricsPage } from "./surfaces/metrics/MetricsPage";
 import { SearchPage } from "./surfaces/search/SearchPage";
+import { ViewerPage } from "./surfaces/viewer/ViewerPage";
 
 // AI_CHECK: REACT_STABILITY=6 | LAST: 2026-01-25
 
@@ -34,6 +36,8 @@ export default function App() {
 
       {route === "dashboard" && <DashboardPage health={healthState} onNavigate={navigate} />}
       {route === "search" && <SearchPage onNavigate={navigate} />}
+      {route === "explorer" && <ExplorerPage onNavigate={navigate} />}
+      {route === "viewer" && <ViewerPage onNavigate={navigate} />}
       {route === "metrics" && <MetricsPage onNavigate={navigate} />}
       {route === "graph" && <GraphPage onNavigate={navigate} />}
     </div>

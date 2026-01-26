@@ -87,6 +87,13 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+		docs := cliapp.CommandGroup{
+			Title: "Documentation",
+			Commands: []cliapp.Command{
+				{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset)", Run: a.cmdDocs},
+			},
+		}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -94,7 +101,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, knowledge, config}
+	return []cliapp.CommandGroup{health, knowledge, docs, config}
 }
 
 func (a *App) apiPath(v1Path string) string {
@@ -271,6 +278,306 @@ func (a *App) cmdGraph(args []string) error {
 	}
 
 	body, err := a.doRequest("POST", "/knowledge/graph", nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocs(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset> [options]")
+	}
+	subcommand := strings.TrimSpace(args[0])
+	switch subcommand {
+	case "search-files":
+		return a.cmdDocsSearchFiles(args[1:])
+	case "search-text":
+		return a.cmdDocsSearchText(args[1:])
+	case "search-deep":
+		return a.cmdDocsSearchDeep(args[1:])
+	case "scenarios":
+		return a.cmdDocsScenarios(args[1:])
+	case "tree":
+		return a.cmdDocsTree(args[1:])
+	case "health":
+		return a.cmdDocsHealth(args[1:])
+	case "view":
+		return a.cmdDocsView(args[1:])
+	case "reset":
+		return a.cmdDocsReset(args[1:])
+	default:
+		return fmt.Errorf("unknown docs subcommand: %s", subcommand)
+	}
+}
+
+func (a *App) cmdDocsSearchFiles(args []string) error {
+	fs := flag.NewFlagSet("docs search-files", flag.ContinueOnError)
+	pattern := fs.String("pattern", "", "Glob pattern (e.g. **/README.md)")
+	scope := fs.String("scope", "", "Scope: global, scenario, or path")
+	scenario := fs.String("scenario", "", "Scenario name (required for scope=scenario)")
+	basePath := fs.String("base-path", "", "Base path (required for scope=path)")
+	limit := fs.Int("limit", 0, "Maximum number of results")
+	includeContent := fs.Bool("include-content", false, "Include content preview")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	patternValue := strings.TrimSpace(*pattern)
+	if patternValue == "" {
+		patternValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if patternValue == "" {
+		return fmt.Errorf("usage: docs search-files <pattern> [--scope=global|scenario|path] [--scenario=name] [--base-path=path] [--limit=N] [--include-content]")
+	}
+
+	req := docsFileSearchRequest{
+		Pattern:        patternValue,
+		Scope:          strings.TrimSpace(*scope),
+		Scenario:       strings.TrimSpace(*scenario),
+		BasePath:       strings.TrimSpace(*basePath),
+		IncludeContent: *includeContent,
+	}
+	if *limit > 0 {
+		req.Limit = *limit
+	}
+
+	body, err := a.doRequest("POST", "/docs/search/files", nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsSearchText(args []string) error {
+	fs := flag.NewFlagSet("docs search-text", flag.ContinueOnError)
+	query := fs.String("query", "", "Text query (regex supported)")
+	scope := fs.String("scope", "", "Scope: global, scenario, or path")
+	scenario := fs.String("scenario", "", "Scenario name (required for scope=scenario)")
+	basePath := fs.String("base-path", "", "Base path (required for scope=path)")
+	fileTypes := fs.String("file-types", "", "Comma-separated file extensions")
+	caseSensitive := fs.Bool("case-sensitive", false, "Case-sensitive search")
+	limit := fs.Int("limit", 0, "Maximum number of results")
+	contextLines := fs.Int("context-lines", 0, "Lines of context before/after matches")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	queryValue := strings.TrimSpace(*query)
+	if queryValue == "" {
+		queryValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if queryValue == "" {
+		return fmt.Errorf("usage: docs search-text <query> [--scope=global|scenario|path] [--scenario=name] [--base-path=path] [--file-types=md,txt] [--case-sensitive] [--limit=N] [--context-lines=N]")
+	}
+
+	req := docsTextSearchRequest{
+		Query:         queryValue,
+		Scope:         strings.TrimSpace(*scope),
+		Scenario:      strings.TrimSpace(*scenario),
+		BasePath:      strings.TrimSpace(*basePath),
+		FileTypes:     splitCSV(*fileTypes),
+		CaseSensitive: *caseSensitive,
+		ContextLines:  *contextLines,
+	}
+	if *limit > 0 {
+		req.Limit = *limit
+	}
+
+	body, err := a.doRequest("POST", "/docs/search/text", nil, req)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsSearchDeep(args []string) error {
+	fs := flag.NewFlagSet("docs search-deep", flag.ContinueOnError)
+	query := fs.String("query", "", "Deep search query")
+	scope := fs.String("scope", "", "Scope: global, scenario, or path")
+	scenario := fs.String("scenario", "", "Scenario name (required for scope=scenario)")
+	basePath := fs.String("base-path", "", "Base path (required for scope=path)")
+	maxResults := fs.Int("max-results", 0, "Maximum number of results (default 10)")
+	followRefs := fs.Bool("follow-refs", true, "Follow documentation references")
+	timeoutSeconds := fs.Int("timeout-seconds", 0, "Agent timeout in seconds")
+	wait := fs.Bool("wait", true, "Wait for results to complete")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	queryValue := strings.TrimSpace(*query)
+	if queryValue == "" {
+		queryValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if queryValue == "" {
+		return fmt.Errorf("usage: docs search-deep <query> [--scope=global|scenario|path] [--scenario=name] [--base-path=path] [--max-results=N] [--follow-refs] [--timeout-seconds=N] [--wait]")
+	}
+
+	req := docsDeepSearchRequest{
+		Query:          queryValue,
+		Scope:          strings.TrimSpace(*scope),
+		Scenario:       strings.TrimSpace(*scenario),
+		BasePath:       strings.TrimSpace(*basePath),
+		FollowRefs:     followRefs,
+		TimeoutSeconds: *timeoutSeconds,
+	}
+	if *maxResults > 0 {
+		req.MaxResults = *maxResults
+	}
+
+	body, err := a.doRequest("POST", "/docs/search/deep", nil, req)
+	if err != nil {
+		return err
+	}
+	if !*wait {
+		return a.printJSON(body)
+	}
+
+	var job docsDeepSearchJob
+	if err := json.Unmarshal(body, &job); err != nil {
+		return fmt.Errorf("failed to decode job: %w", err)
+	}
+	if job.JobID == "" {
+		return fmt.Errorf("missing job id in response")
+	}
+	if job.Status == "completed" || job.Status == "failed" {
+		return a.printJSON(body)
+	}
+
+	timeout := time.Duration(*timeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = 60 * time.Second
+	}
+	deadline := time.Now().Add(timeout + 5*time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+		statusBody, err := a.doRequest("GET", fmt.Sprintf("/docs/search/deep/%s", job.JobID), nil, nil)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(statusBody, &job); err != nil {
+			return fmt.Errorf("failed to decode job status: %w", err)
+		}
+		if job.Status == "completed" || job.Status == "failed" {
+			return a.printJSON(statusBody)
+		}
+	}
+	return fmt.Errorf("deep search timed out before completion")
+}
+
+func (a *App) cmdDocsScenarios(args []string) error {
+	fs := flag.NewFlagSet("docs scenarios", flag.ContinueOnError)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	body, err := a.doRequest("GET", "/scenarios", nil, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsTree(args []string) error {
+	fs := flag.NewFlagSet("docs tree", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs tree <scenario> [--scenario=name]")
+	}
+
+	body, err := a.doRequest("GET", fmt.Sprintf("/scenarios/%s/docs", scenarioValue), nil, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsHealth(args []string) error {
+	fs := flag.NewFlagSet("docs health", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs health <scenario> [--scenario=name]")
+	}
+
+	body, err := a.doRequest("GET", fmt.Sprintf("/scenarios/%s/docs/health", scenarioValue), nil, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsView(args []string) error {
+	fs := flag.NewFlagSet("docs view", flag.ContinueOnError)
+	path := fs.String("path", "", "Document path")
+	format := fs.String("format", "raw", "Format: raw, highlighted, or preview")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	pathValue := strings.TrimSpace(*path)
+	if pathValue == "" {
+		pathValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if pathValue == "" {
+		return fmt.Errorf("usage: docs view <path> [--format=raw|highlighted|preview]")
+	}
+
+	query := url.Values{}
+	query.Set("path", pathValue)
+	formatValue := strings.TrimSpace(*format)
+	if formatValue != "" {
+		query.Set("format", formatValue)
+	}
+
+	body, err := a.doRequest("GET", "/docs/content", query, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
+func (a *App) cmdDocsReset(args []string) error {
+	fs := flag.NewFlagSet("docs reset", flag.ContinueOnError)
+	path := fs.String("path", "", "Document path")
+	maxAgeDays := fs.Int("max-age-days", 0, "Remove entries older than N days")
+	keepMin := fs.Int("keep-min-entries", 0, "Always keep at least N entries")
+	preview := fs.Bool("preview", false, "Preview changes without writing")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	pathValue := strings.TrimSpace(*path)
+	if pathValue == "" {
+		pathValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if pathValue == "" {
+		return fmt.Errorf("usage: docs reset <path> [--max-age-days=N] [--keep-min-entries=N] [--preview]")
+	}
+
+	req := docsResetRequest{
+		Path:           pathValue,
+		MaxAgeDays:     *maxAgeDays,
+		KeepMinEntries: *keepMin,
+		PreviewOnly:    *preview,
+	}
+
+	body, err := a.doRequest("POST", "/docs/reset", nil, req)
 	if err != nil {
 		return err
 	}
@@ -506,6 +813,49 @@ type ingestJobRequest struct {
 	SourceType   string                 `json:"source_type,omitempty"`
 	ChunkSize    *int                   `json:"chunk_size,omitempty"`
 	ChunkOverlap *int                   `json:"chunk_overlap,omitempty"`
+}
+
+type docsFileSearchRequest struct {
+	Pattern        string `json:"pattern"`
+	Scope          string `json:"scope,omitempty"`
+	Scenario       string `json:"scenario,omitempty"`
+	BasePath       string `json:"base_path,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+	IncludeContent bool   `json:"include_content,omitempty"`
+}
+
+type docsTextSearchRequest struct {
+	Query         string   `json:"query"`
+	Scope         string   `json:"scope,omitempty"`
+	Scenario      string   `json:"scenario,omitempty"`
+	BasePath      string   `json:"base_path,omitempty"`
+	FileTypes     []string `json:"file_types,omitempty"`
+	CaseSensitive bool     `json:"case_sensitive,omitempty"`
+	Limit         int      `json:"limit,omitempty"`
+	ContextLines  int      `json:"context_lines,omitempty"`
+}
+
+type docsDeepSearchRequest struct {
+	Query          string `json:"query"`
+	Scope          string `json:"scope,omitempty"`
+	Scenario       string `json:"scenario,omitempty"`
+	BasePath       string `json:"base_path,omitempty"`
+	MaxResults     int    `json:"max_results,omitempty"`
+	FollowRefs     *bool  `json:"follow_refs,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
+}
+
+type docsDeepSearchJob struct {
+	JobID   string `json:"job_id"`
+	Status  string `json:"status"`
+	Error   string `json:"error,omitempty"`
+}
+
+type docsResetRequest struct {
+	Path           string `json:"path"`
+	MaxAgeDays     int    `json:"max_age_days,omitempty"`
+	KeepMinEntries int    `json:"keep_min_entries,omitempty"`
+	PreviewOnly    bool   `json:"preview_only,omitempty"`
 }
 
 func splitCSV(value string) []string {

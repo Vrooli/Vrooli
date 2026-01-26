@@ -61,6 +61,23 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.ingest_jobs (
     completed_chunks INTEGER DEFAULT 0
 );
 
+-- Deep search jobs
+CREATE TABLE IF NOT EXISTS knowledge_observatory.deep_search_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    query TEXT NOT NULL,
+    scope VARCHAR(20) NOT NULL CHECK (scope IN ('global', 'scenario', 'path')),
+    scenario_name VARCHAR(255),
+    base_path TEXT,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+    progress TEXT,
+    results JSONB,
+    agent_run_id UUID,
+    error TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
 -- External ID mappings for idempotency (per namespace)
 CREATE TABLE IF NOT EXISTS knowledge_observatory.external_id_map (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -140,23 +157,25 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.user_preferences (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create indexes for performance
-CREATE INDEX idx_quality_metrics_collection ON knowledge_observatory.quality_metrics(collection_name);
-CREATE INDEX idx_quality_metrics_measured_at ON knowledge_observatory.quality_metrics(measured_at DESC);
-CREATE INDEX idx_search_history_query ON knowledge_observatory.search_history USING gin(to_tsvector('english', query));
-CREATE INDEX idx_search_history_created ON knowledge_observatory.search_history(created_at DESC);
-CREATE INDEX idx_ingest_history_created ON knowledge_observatory.ingest_history(created_at DESC);
-CREATE INDEX idx_ingest_history_namespace ON knowledge_observatory.ingest_history(namespace);
-CREATE INDEX idx_ingest_history_record_id ON knowledge_observatory.ingest_history(record_id);
-CREATE INDEX idx_ingest_jobs_created ON knowledge_observatory.ingest_jobs(created_at DESC);
-CREATE INDEX idx_ingest_jobs_status ON knowledge_observatory.ingest_jobs(status);
-CREATE INDEX idx_external_id_map_namespace ON knowledge_observatory.external_id_map(namespace);
-CREATE INDEX idx_external_id_map_external_id ON knowledge_observatory.external_id_map(external_id);
-CREATE INDEX idx_knowledge_metadata_collection ON knowledge_observatory.knowledge_metadata(collection_name);
-CREATE INDEX idx_knowledge_metadata_source ON knowledge_observatory.knowledge_metadata(source_scenario);
-CREATE INDEX idx_alerts_level ON knowledge_observatory.alerts(level) WHERE NOT acknowledged;
-CREATE INDEX idx_relationships_source ON knowledge_observatory.knowledge_relationships(source_id);
-CREATE INDEX idx_relationships_target ON knowledge_observatory.knowledge_relationships(target_id);
+-- Create indexes for performance (idempotent)
+CREATE INDEX IF NOT EXISTS idx_quality_metrics_collection ON knowledge_observatory.quality_metrics(collection_name);
+CREATE INDEX IF NOT EXISTS idx_quality_metrics_measured_at ON knowledge_observatory.quality_metrics(measured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_search_history_query ON knowledge_observatory.search_history USING gin(to_tsvector('english', query));
+CREATE INDEX IF NOT EXISTS idx_search_history_created ON knowledge_observatory.search_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingest_history_created ON knowledge_observatory.ingest_history(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingest_history_namespace ON knowledge_observatory.ingest_history(namespace);
+CREATE INDEX IF NOT EXISTS idx_ingest_history_record_id ON knowledge_observatory.ingest_history(record_id);
+CREATE INDEX IF NOT EXISTS idx_ingest_jobs_created ON knowledge_observatory.ingest_jobs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingest_jobs_status ON knowledge_observatory.ingest_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_created ON knowledge_observatory.deep_search_jobs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON knowledge_observatory.deep_search_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_external_id_map_namespace ON knowledge_observatory.external_id_map(namespace);
+CREATE INDEX IF NOT EXISTS idx_external_id_map_external_id ON knowledge_observatory.external_id_map(external_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_metadata_collection ON knowledge_observatory.knowledge_metadata(collection_name);
+CREATE INDEX IF NOT EXISTS idx_knowledge_metadata_source ON knowledge_observatory.knowledge_metadata(source_scenario);
+CREATE INDEX IF NOT EXISTS idx_alerts_level ON knowledge_observatory.alerts(level) WHERE NOT acknowledged;
+CREATE INDEX IF NOT EXISTS idx_relationships_source ON knowledge_observatory.knowledge_relationships(source_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON knowledge_observatory.knowledge_relationships(target_id);
 
 -- Create update trigger for updated_at columns
 CREATE OR REPLACE FUNCTION knowledge_observatory.update_updated_at_column()
@@ -167,18 +186,22 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_quality_metrics_updated_at ON knowledge_observatory.quality_metrics;
 CREATE TRIGGER update_quality_metrics_updated_at BEFORE UPDATE
     ON knowledge_observatory.quality_metrics FOR EACH ROW
     EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_knowledge_metadata_updated_at ON knowledge_observatory.knowledge_metadata;
 CREATE TRIGGER update_knowledge_metadata_updated_at BEFORE UPDATE
     ON knowledge_observatory.knowledge_metadata FOR EACH ROW
     EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_external_id_map_updated_at ON knowledge_observatory.external_id_map;
 CREATE TRIGGER update_external_id_map_updated_at BEFORE UPDATE
     ON knowledge_observatory.external_id_map FOR EACH ROW
     EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON knowledge_observatory.user_preferences;
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE
     ON knowledge_observatory.user_preferences FOR EACH ROW
     EXECUTE FUNCTION knowledge_observatory.update_updated_at_column();

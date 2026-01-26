@@ -1,11 +1,12 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 // DOC: docs/guides/getting-started.md#ui-walkthrough
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";
 import { Panel, PanelHeader } from "../../shared/components/Panel";
 import { SectionErrorState } from "../../shared/components/SectionErrorState";
 import type { Route } from "../../shared/controllers/routeController";
+import { DeepSearchPanelContainer } from "./DeepSearchPanelContainer";
 import { SearchPanelContainer } from "./SearchPanelContainer";
 
 export type SearchPageProps = {
@@ -38,6 +39,15 @@ export function SearchPage({ onNavigate }: SearchPageProps) {
             className="mb-4"
           />
           <SearchPanelContainer />
+        </Panel>
+        <Panel className="mt-6">
+          <PanelHeader
+            title="Deep Documentation Search"
+            description="Spawn an agent to explore docs, follow references, and return ranked results."
+            icon={<Sparkles className="h-5 w-5 ko-icon" />}
+            className="mb-4"
+          />
+          <DeepSearchPanelContainer />
         </Panel>
       </PageShell>
     </ErrorBoundary>
