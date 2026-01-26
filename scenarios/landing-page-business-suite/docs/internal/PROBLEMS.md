@@ -111,6 +111,22 @@ No performance issues currently tracked.
 
 ## UI/UX
 
+### UX Issues
+
+#### Stripe import modal clarity
+
+**Severity:** Medium  
+**Status:** ✅ Resolved  
+**Reported:** 2026-01-26  
+**Resolved:** 2026-01-26 by Codex
+
+The import modal used per-row action dropdowns (import/overwrite/skip), which made the overwrite behavior unclear and added unnecessary cognitive load.
+
+**Resolution:**
+- Replaced per-row action dropdowns with checkboxes (skip = unselected)
+- Added explicit conflict warnings and overwrite messaging
+- Added product-level selection and bulk actions for new/conflict prices
+
 ### Missing Success Notifications
 
 **Severity:** Low
@@ -129,4 +145,4 @@ No performance issues currently tracked.
 
 ## Last Updated
 
-2026-01-16 by Claude (failure-topography-and-graceful-degradation)
+2026-01-26 by Codex

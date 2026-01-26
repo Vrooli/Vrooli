@@ -1,13 +1,28 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   getStripeImportPreview,
   importStripePlans,
   type StripeImportPreview,
   type ImportPlanSelection,
   type StripeImportResult,
+  type StripePriceImport,
 } from '../../../shared/api/billing';
 
-export type ImportAction = 'import' | 'overwrite' | 'skip';
+const buildSelectionMap = (
+  preview: StripeImportPreview,
+  selector: (price: StripePriceImport) => boolean
+) => {
+  const selections: Record<string, boolean> = {};
+  preview.products.forEach((product) => {
+    product.prices.forEach((price) => {
+      selections[price.price_id] = selector(price);
+    });
+  });
+  return selections;
+};
+
+const defaultSelectionsForPreview = (preview: StripeImportPreview) =>
+  buildSelectionMap(preview, (price) => price.active && !price.exists_locally);
 
 export interface UseStripeImportReturn {
   // Modal state
@@ -21,9 +36,12 @@ export interface UseStripeImportReturn {
   error: string | null;
 
   // Selections
-  selections: Record<string, ImportAction>;
-  handleSelectionChange: (priceId: string, action: ImportAction) => void;
-  selectAll: (action: ImportAction) => void;
+  selections: Record<string, boolean>;
+  setPriceSelected: (priceId: string, selected: boolean) => void;
+  setSelectionsForPrices: (priceIds: string[], selected: boolean) => void;
+  selectNew: () => void;
+  selectConflicts: () => void;
+  clearSelections: () => void;
 
   // Import
   importing: boolean;
@@ -40,9 +58,19 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
   const [preview, setPreview] = useState<StripeImportPreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selections, setSelections] = useState<Record<string, ImportAction>>({});
+  const [selections, setSelections] = useState<Record<string, boolean>>({});
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<StripeImportResult | null>(null);
+
+  const priceIndex = useMemo(() => {
+    const index = new Map<string, StripePriceImport>();
+    preview?.products.forEach((product) => {
+      product.prices.forEach((price) => {
+        index.set(price.price_id, price);
+      });
+    });
+    return index;
+  }, [preview]);
 
   const openModal = useCallback(async () => {
     setIsModalOpen(true);
@@ -54,15 +82,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
     try {
       const data = await getStripeImportPreview();
       setPreview(data);
-
-      // Initialize selections - default new prices to 'import', existing to 'skip'
-      const initialSelections: Record<string, ImportAction> = {};
-      data.products.forEach((product) => {
-        product.prices.forEach((price) => {
-          initialSelections[price.price_id] = price.exists_locally ? 'skip' : 'import';
-        });
-      });
-      setSelections(initialSelections);
+      setSelections(defaultSelectionsForPreview(data));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Stripe products');
     } finally {
@@ -78,29 +98,48 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
     setImportResult(null);
   }, []);
 
-  const handleSelectionChange = useCallback((priceId: string, action: ImportAction) => {
+  const setPriceSelected = useCallback((priceId: string, selected: boolean) => {
     setSelections((prev) => ({
       ...prev,
-      [priceId]: action,
+      [priceId]: selected,
     }));
   }, []);
 
-  const selectAll = useCallback((action: ImportAction) => {
-    if (!preview) return;
-    const newSelections: Record<string, ImportAction> = {};
-    preview.products.forEach((product) => {
-      product.prices.forEach((price) => {
-        newSelections[price.price_id] = action;
+  const setSelectionsForPrices = useCallback((priceIds: string[], selected: boolean) => {
+    setSelections((prev) => {
+      const next = { ...prev };
+      priceIds.forEach((priceId) => {
+        next[priceId] = selected;
       });
+      return next;
     });
-    setSelections(newSelections);
+  }, []);
+
+  const selectNew = useCallback(() => {
+    if (!preview) return;
+    setSelections(buildSelectionMap(preview, (price) => price.active && !price.exists_locally));
+  }, [preview]);
+
+  const selectConflicts = useCallback(() => {
+    if (!preview) return;
+    setSelections(buildSelectionMap(preview, (price) => price.active && price.exists_locally));
+  }, [preview]);
+
+  const clearSelections = useCallback(() => {
+    if (!preview) return;
+    setSelections(buildSelectionMap(preview, () => false));
   }, [preview]);
 
   const handleImport = useCallback(async () => {
-    const selectionsList: ImportPlanSelection[] = Object.entries(selections).map(([priceId, action]) => ({
-      price_id: priceId,
-      action,
-    }));
+    const selectionsList: ImportPlanSelection[] = Object.entries(selections).map(([priceId, selected]) => {
+      const price = priceIndex.get(priceId);
+      const action: ImportPlanSelection['action'] = selected
+        ? price?.exists_locally
+          ? 'overwrite'
+          : 'import'
+        : 'skip';
+      return { price_id: priceId, action };
+    });
 
     // Filter out skip actions for efficiency
     const toImport = selectionsList.filter((s) => s.action !== 'skip');
@@ -125,13 +164,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       setPreview(updatedPreview);
 
       // Update selections for the new state
-      const updatedSelections: Record<string, ImportAction> = {};
-      updatedPreview.products.forEach((product) => {
-        product.prices.forEach((price) => {
-          updatedSelections[price.price_id] = price.exists_locally ? 'skip' : 'import';
-        });
-      });
-      setSelections(updatedSelections);
+      setSelections(defaultSelectionsForPreview(updatedPreview));
 
       // Call completion callback
       onImportComplete?.();
@@ -140,7 +173,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
     } finally {
       setImporting(false);
     }
-  }, [selections, onImportComplete]);
+  }, [selections, onImportComplete, priceIndex]);
 
   const resetImportResult = useCallback(() => {
     setImportResult(null);
@@ -154,8 +187,11 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
     loading,
     error,
     selections,
-    handleSelectionChange,
-    selectAll,
+    setPriceSelected,
+    setSelectionsForPrices,
+    selectNew,
+    selectConflicts,
+    clearSelections,
     importing,
     importResult,
     handleImport,

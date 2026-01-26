@@ -265,6 +265,22 @@ func getTestPlanStore() *PlanStore {
 	return globalTestPlanStore
 }
 
+// requireTestPlanService returns a PlanService backed by the test plan store.
+func requireTestPlanService(t *testing.T) *PlanService {
+	t.Helper()
+	planStore := getTestPlanStore()
+	if planStore == nil {
+		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+	}
+	return NewPlanServiceWithPlanStore(planStore)
+}
+
+// requireTestStripeService returns a StripeService wired to the test plan store.
+func requireTestStripeService(t *testing.T, db *sql.DB) *StripeService {
+	t.Helper()
+	return NewStripeServiceWithSettings(db, requireTestPlanService(t), NewPaymentSettingsService(db))
+}
+
 // createTestPlansFileHelper creates a temporary plans.json file for testing.
 // Returns the path to the file.
 func createTestPlansFileHelper(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) string {

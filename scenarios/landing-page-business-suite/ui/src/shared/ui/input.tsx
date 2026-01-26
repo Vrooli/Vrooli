@@ -9,10 +9,9 @@ const inputSizeClassName: Record<InputSize, string> = {
   lg: "px-5 py-4 text-lg",
 };
 
-export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+export type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
   size?: InputSize;
-}
+};
 
 export const inputBaseClassName =
   "w-full rounded-lg border border-white/10 bg-surface-primary/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50";

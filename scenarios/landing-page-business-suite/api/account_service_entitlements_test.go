@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"reflect"
@@ -8,6 +9,17 @@ import (
 	"testing"
 	"time"
 )
+
+func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
+	t.Helper()
+
+	planStore := getTestPlanStore()
+	if planStore == nil {
+		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+	}
+
+	return NewAccountService(db, NewPlanServiceWithPlanStore(planStore))
+}
 
 func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 	db := setupTestDB(t)
@@ -51,7 +63,7 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 		nil,
 	)
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	email := "credits-test@example.com"
 	if _, err := db.Exec(`
 		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
@@ -86,7 +98,13 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "missing_pricing_env")
-	accountService := NewAccountService(db, NewPlanService(db))
+	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  "",
+		BundleKey:  bundleKey,
+		DisplayEnv: "production",
+	})
+	planService := &PlanService{planStore: emptyStore, defaultBundle: bundleKey, displayEnv: "production"}
+	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("no-wallet@example.com")
 	if err != nil {
@@ -177,7 +195,7 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 		t.Fatalf("failed to insert credit wallet: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	// [REQ:SUB-ENTITLEMENTS] Entitlements payload surfaces feature flags and credits
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
@@ -212,7 +230,7 @@ func TestAccountServiceEntitlements_NoSubscriptionDefaults(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 
 	entitlements, err := accountService.GetEntitlements("nosub@example.com")
 	if err != nil {
@@ -316,7 +334,7 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
@@ -338,7 +356,7 @@ func TestAccountServiceCredits_EmptyUserUsesDefaults(t *testing.T) {
 	defer db.Close()
 
 	bundleKey := configureAccountBundleEnv(t, "empty_user_env")
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 
 	credits, err := accountService.GetCredits("   ")
 	if err != nil {
@@ -423,7 +441,7 @@ func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 		t.Fatalf("failed to seed past_due subscription: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
@@ -494,7 +512,7 @@ func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 		t.Fatalf("failed to seed trialing subscription: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
@@ -531,7 +549,7 @@ func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 		t.Fatalf("failed to seed canceled subscription: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
@@ -606,7 +624,7 @@ func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 		t.Fatalf("failed to seed subscription with billing cycle: %v", err)
 	}
 
-	accountService := NewAccountService(db, NewPlanService(db))
+	accountService := newAccountServiceWithTestPlanStore(t, db)
 	entitlements, err := accountService.GetEntitlements(email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)

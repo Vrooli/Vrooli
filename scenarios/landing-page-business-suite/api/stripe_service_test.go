@@ -109,7 +109,7 @@ func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 	service.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
 		return stripeRuntimeConfig{
@@ -172,32 +172,8 @@ func TestCreateCheckoutSession(t *testing.T) {
 		t.Fatalf("Failed to create checkout_sessions table: %v", err)
 	}
 
-	// Seed bundle metadata so plan lookup succeeds
-	if _, err := db.Exec(`
-		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
-		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
-		ON CONFLICT (bundle_key) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle product: %v", err)
-	}
-
-	if _, err := db.Exec(`
-		INSERT INTO bundle_prices (
-			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
-			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
-			kind, metadata, display_weight
-		) VALUES (
-			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
-			'price_123', 'Test Plan', 'pro', 'month',
-			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
-			1000000, 0, 1, 'none',
-			'subscription', '{}'::jsonb, 10
-		)
-		ON CONFLICT (stripe_price_id) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle price: %v", err)
-	}
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
+	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
 	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
@@ -219,7 +195,7 @@ func TestCreateCheckoutSession(t *testing.T) {
 		stripeServer.Close()
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 
 	session, err := service.CreateCheckoutSession(
@@ -356,32 +332,8 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 		t.Fatalf("Failed to create tables: %v", err)
 	}
 
-	// Seed bundle metadata for checkout plan
-	if _, err := db.Exec(`
-		INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment)
-		VALUES ('business_suite', 'Business Suite', 'prod_business_suite', 1000000, 0.001, 'credits', 'production')
-		ON CONFLICT (bundle_key) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle product: %v", err)
-	}
-
-	if _, err := db.Exec(`
-		INSERT INTO bundle_prices (
-			product_id, stripe_price_id, plan_name, plan_tier, billing_interval,
-			amount_cents, currency, intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-			monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type,
-			kind, metadata, display_weight
-		) VALUES (
-			(SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'),
-			'price_123', 'Test Plan', 'pro', 'month',
-			5000, 'usd', TRUE, 'flat_amount', 100, 1, 'test_intro_lookup',
-			1000000, 0, 1, 'none',
-			'subscription', '{}'::jsonb, 10
-		)
-		ON CONFLICT (stripe_price_id) DO NOTHING
-	`); err != nil {
-		t.Fatalf("failed to seed bundle price: %v", err)
-	}
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_business_suite", "production", 1000000, 0.001, "credits")
+	insertBundlePrice(t, db, productID, "price_123", "Test Plan", "pro", "month", "usd", 5000, true, "flat_amount", 100, 1, "test_intro_lookup", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	// Insert initial checkout session
 	_, err = db.Exec(`
@@ -401,7 +353,7 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 
 	event := map[string]interface{}{
 		"type": "checkout.session.completed",

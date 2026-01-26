@@ -27,7 +27,7 @@ func TestHandleAdminBundleCatalog_Success(t *testing.T) {
 
 	insertBundlePrice(t, db, productID, "price_catalog_1", "Catalog Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	planService := NewPlanService(db)
+	planService := requireTestPlanService(t)
 	handler := handleAdminBundleCatalog(planService)
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/bundle-catalog", nil)
@@ -100,7 +100,7 @@ func TestHandleAdminUpdateBundlePrice_Success(t *testing.T) {
 
 	insertBundlePrice(t, db, productID, "price_to_update", "Original Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	planService := NewPlanService(db)
+	planService := requireTestPlanService(t)
 	handler := handleAdminUpdateBundlePrice(planService)
 
 	body := updateBundlePriceRequest{}
@@ -203,7 +203,7 @@ func TestHandleAdminUpdateBundlePrice_NotFound(t *testing.T) {
 	productID := upsertTestBundleProduct(t, db, bundleKey, "NotFound Bundle", "prod_notfound", "notfound_env", 1000000, 0.001, "credits")
 	defer cleanupBundleProductRecords(t, db, productID)
 
-	planService := NewPlanService(db)
+	planService := requireTestPlanService(t)
 	handler := handleAdminUpdateBundlePrice(planService)
 
 	body := updateBundlePriceRequest{}
@@ -382,7 +382,7 @@ func TestHandleAdminUpdateBundlePrice_UpdateDisplayWeight(t *testing.T) {
 
 	insertBundlePrice(t, db, productID, "price_weight", "Weight Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	planService := NewPlanService(db)
+	planService := requireTestPlanService(t)
 	handler := handleAdminUpdateBundlePrice(planService)
 
 	body := updateBundlePriceRequest{}
@@ -415,7 +415,7 @@ func TestHandleAdminUpdateBundlePrice_ToggleDisplayEnabled(t *testing.T) {
 
 	insertBundlePrice(t, db, productID, "price_toggle", "Toggle Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	planService := NewPlanService(db)
+	planService := requireTestPlanService(t)
 	handler := handleAdminUpdateBundlePrice(planService)
 
 	body := updateBundlePriceRequest{}

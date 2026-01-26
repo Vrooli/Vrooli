@@ -115,7 +115,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 		sessionTypeSubscription,
 		map[string]interface{}{"features": []string{"Handlers coverage"}},
 	)
-	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+	stripeService := requireTestStripeService(t, db)
 	stripeService.UseHTTPClient(stripeServer.Client())
 
 	session, err := stripeService.CreateCheckoutSession("price_handlers_sub", "/ok", "/cancel", "handler@example.com")
@@ -198,7 +198,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 		sessionTypeCreditsTopup,
 		map[string]interface{}{},
 	)
-	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+	stripeService := requireTestStripeService(t, db)
 	stripeService.UseHTTPClient(stripeServer.Client())
 	session, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits@example.com")
 	if err != nil {

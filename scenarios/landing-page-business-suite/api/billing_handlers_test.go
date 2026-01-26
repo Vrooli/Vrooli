@@ -47,7 +47,7 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 		os.Unsetenv("STRIPE_API_BASE")
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 
 	handler := handleBillingCreateCheckoutSession(service)
@@ -129,7 +129,7 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 		os.Unsetenv("STRIPE_API_BASE")
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 
 	handler := handleBillingCreateCheckoutSession(service)
@@ -184,7 +184,7 @@ func TestHandleBillingCreateCreditsSession_Success(t *testing.T) {
 		os.Unsetenv("STRIPE_API_BASE")
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 
 	handler := handleBillingCreateCreditsSession(service)
@@ -368,7 +368,7 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 		os.Unsetenv("STRIPE_API_BASE")
 	}()
 
-	service := NewStripeService(db)
+	service := requireTestStripeService(t, db)
 	service.UseHTTPClient(stripeServer.Client())
 
 	// Test with custom log key and error message
