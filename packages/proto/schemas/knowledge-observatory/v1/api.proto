@@ -1,0 +1,199 @@
+syntax = "proto3";
+
+package knowledge_observatory.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge_observatory/v1;knowledgeobservatoryv1";
+
+// =============================================================================
+// KNOWLEDGE OBSERVATORY API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports none (external only: google.protobuf, buf.validate)
+// @stability beta
+//
+// HTTP API contracts for the Knowledge Observatory scenario, including
+// semantic search, system health, and knowledge health endpoints.
+//
+// USAGE CONTEXTS:
+//   - UI clients validating API responses
+//   - Scenario services enforcing response contracts
+//
+// =============================================================================
+
+// =============================================================================
+// SEARCH
+// =============================================================================
+
+// SearchRequest defines the input schema for semantic search.
+//
+// @usage POST /api/v1/knowledge/search
+message SearchRequest {
+  // Natural language query text.
+  // @constraint Must be non-empty
+  string query = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional collection to scope search to.
+  optional string collection = 2;
+
+  // Optional namespaces to filter results.
+  repeated string namespaces = 3;
+
+  // Optional visibility filters (e.g., "public", "private").
+  repeated string visibility = 4;
+
+  // Optional tag filters.
+  repeated string tags = 5;
+
+  // Only include entries ingested after this time.
+  // @format rfc3339
+  optional string ingested_after = 6;
+
+  // Only include entries ingested before this time.
+  // @format rfc3339
+  optional string ingested_before = 7;
+
+  // Maximum number of results to return.
+  // @constraint 1-100
+  optional int32 limit = 8 [(buf.validate.field).int32 = { gte: 1, lte: 100 }];
+
+  // Minimum similarity threshold (0-1).
+  // @constraint 0-1
+  optional double threshold = 9 [(buf.validate.field).double = { gte: 0, lte: 1 }];
+}
+
+// SearchResult represents a single semantic match.
+message SearchResult {
+  // Stable identifier for the result.
+  optional string id = 1;
+
+  // Similarity score (0-1).
+  optional double score = 2;
+
+  // Primary content snippet.
+  optional string content = 3;
+
+  // Arbitrary metadata payload associated with the entry.
+  google.protobuf.Struct metadata = 4;
+}
+
+// SearchResponse defines the output schema for semantic search.
+//
+// @usage POST /api/v1/knowledge/search
+message SearchResponse {
+  // Matching results sorted by score.
+  repeated SearchResult results = 1;
+
+  // Echoed query value.
+  string query = 2;
+
+  // Total time to execute search.
+  // @unit milliseconds
+  int64 took_ms = 3;
+}
+
+// =============================================================================
+// INFRASTRUCTURE HEALTH
+// =============================================================================
+
+// DependencyStatus describes a downstream dependency health check.
+message DependencyStatus {
+  // True when the dependency is reachable.
+  bool connected = 1;
+
+  // Latency of the check.
+  // @unit milliseconds
+  optional double latency_ms = 2;
+
+  // Error detail (string or structured object).
+  google.protobuf.Value error = 3;
+
+  // Database name for database dependencies.
+  optional string database = 4;
+}
+
+// InfrastructureHealthResponse defines the /health response schema.
+//
+// @usage GET /health
+message InfrastructureHealthResponse {
+  // Overall health status (healthy, degraded, unhealthy).
+  string status = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Service identifier (scenario name).
+  string service = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Time the check was performed.
+  // @format rfc3339
+  string timestamp = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Readiness flag for load balancers.
+  bool readiness = 4;
+
+  // Optional version string.
+  optional string version = 5;
+
+  // Optional uptime in seconds.
+  optional double uptime_seconds = 6;
+
+  // Downstream dependencies health.
+  map<string, DependencyStatus> dependencies = 7;
+
+  // Runtime metrics (goroutines, heap, etc.).
+  map<string, google.protobuf.Value> metrics = 8;
+}
+
+// =============================================================================
+// KNOWLEDGE HEALTH
+// =============================================================================
+
+// QualityMetrics captures knowledge quality indicators.
+message QualityMetrics {
+  // Semantic coherence score (0-1).
+  optional double coherence = 1;
+
+  // Freshness score (0-1).
+  optional double freshness = 2;
+
+  // Redundancy score (0-1), lower is better.
+  optional double redundancy = 3;
+
+  // Coverage score (0-1).
+  optional double coverage = 4;
+}
+
+// CollectionHealth describes health for a single collection.
+message CollectionHealth {
+  // Collection name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional vector count.
+  optional int32 size = 2;
+
+  // Optional per-collection metrics.
+  QualityMetrics metrics = 3;
+}
+
+// KnowledgeHealthResponse defines the knowledge health endpoint output.
+//
+// @usage GET /api/v1/knowledge/health
+message KnowledgeHealthResponse {
+  // Total vectors across all collections.
+  optional int32 total_entries = 1;
+
+  // Per-collection health detail.
+  repeated CollectionHealth collections = 2;
+
+  // Overall health string (healthy, degraded, etc.).
+  string overall_health = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Overall aggregated metrics.
+  QualityMetrics overall_metrics = 4;
+
+  // Timestamp of the health snapshot.
+  // @format rfc3339
+  string timestamp = 5 [(buf.validate.field).string.min_len = 1];
+}

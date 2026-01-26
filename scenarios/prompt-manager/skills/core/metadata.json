@@ -255,6 +255,25 @@
       "updatedAt": "2026-01-23T00:00:00Z"
     },
     {
+      "id": "utils-unification",
+      "file": "utils-unification.md",
+      "name": "Utils Unification",
+      "description": "Extract, standardize, and consolidate shared utilities (React-specific or general) to prevent duplication and drift while improving discoverability and testability",
+      "modes": [
+        "Steer",
+        "Architecture",
+        "Refactor"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Merge",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-26T00:00:00Z",
+      "updatedAt": "2026-01-26T02:20:58-05:00"
+    },
+    {
       "id": "r3f-coherence",
       "file": "r3f-coherence.md",
       "name": "R3F Coherence",
