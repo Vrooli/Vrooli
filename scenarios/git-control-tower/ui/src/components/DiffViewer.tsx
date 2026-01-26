@@ -504,6 +504,7 @@ export function DiffViewer({
               compact={isMobile}
               disabled={isLoading}
               filePath={selectedFile}
+              hasDiff={!isReadOnly && diff?.has_diff}
             />
           )}
 

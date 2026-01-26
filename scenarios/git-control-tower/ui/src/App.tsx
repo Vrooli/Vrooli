@@ -199,6 +199,10 @@ export default function App() {
       setSelectedFiles([]);
       setIsViewingAnyFile(true);
       setViewingCommit(null);
+      // Default to source mode when viewing any file (unless mode is specified in URL)
+      if (!state.mode) {
+        setViewMode("source");
+      }
     }
     if (state.mode) {
       setViewMode(state.mode);
@@ -1128,14 +1132,21 @@ export default function App() {
       availableModes.push("preview");
     }
 
+    // Check if this file has any git changes
+    const hasGitChanges = orderedFiles.some((entry) => entry.path === selectedFile);
+
     // If current mode is not available for this file, fallback
     if (!availableModes.includes(viewMode)) {
-      // For files from search (isViewingAnyFile), prefer "source"
+      // For files from search (isViewingAnyFile) or without changes, prefer "source"
       // For git changes, prefer "diff"
-      const fallbackMode = isViewingAnyFile ? "source" : "diff";
+      const fallbackMode = isViewingAnyFile || !hasGitChanges ? "source" : "diff";
       setViewMode(fallbackMode);
     }
-  }, [selectedFile, viewMode, isViewingAnyFile]);
+    // If viewing a file without changes in diff mode, switch to source
+    else if (!hasGitChanges && (viewMode === "diff" || viewMode === "full_diff")) {
+      setViewMode("source");
+    }
+  }, [selectedFile, viewMode, isViewingAnyFile, orderedFiles]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

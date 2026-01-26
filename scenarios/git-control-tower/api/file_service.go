@@ -194,6 +194,94 @@ func getDeepFileTree(ctx context.Context, repoDir string, pattern string, limit 
 	return files, truncated, cancelled
 }
 
+// GetDirectoryContents returns immediate children of a directory
+func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*DirListResponse, error) {
+	if deps.Git == nil {
+		return nil, fmt.Errorf("git runner is required")
+	}
+	repoDir := strings.TrimSpace(deps.RepoDir)
+	if repoDir == "" {
+		return nil, fmt.Errorf("repo dir is required")
+	}
+
+	// Validate depth to prevent traversal attacks
+	if dirPath != "" {
+		depth := strings.Count(dirPath, "/") + 1
+		if depth > MaxDirDepth {
+			return nil, fmt.Errorf("path exceeds maximum depth of %d", MaxDirDepth)
+		}
+	}
+
+	// Resolve full path from repo root
+	fullPath := repoDir
+	if dirPath != "" {
+		// Clean and validate the path to prevent directory traversal
+		cleaned := filepath.Clean(dirPath)
+		if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
+			return nil, fmt.Errorf("invalid path: %s", dirPath)
+		}
+		fullPath = filepath.Join(repoDir, cleaned)
+	}
+
+	// Read directory entries (fast - doesn't stat each file)
+	dirEntries, err := os.ReadDir(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("directory not found: %s", dirPath)
+		}
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	entries := make([]DirEntry, 0, len(dirEntries))
+	for _, de := range dirEntries {
+		// Check for cancellation
+		if ctx.Err() != nil {
+			break
+		}
+
+		name := de.Name()
+
+		// Only skip .git directory - show all other files/folders like an IDE
+		if name == ".git" {
+			continue
+		}
+
+		entryPath := name
+		if dirPath != "" {
+			entryPath = dirPath + "/" + name
+		}
+
+		entry := DirEntry{
+			Name:  name,
+			Path:  entryPath,
+			IsDir: de.IsDir(),
+		}
+
+		if !de.IsDir() {
+			entry.Language = LanguageFromExtension(name)
+		}
+
+		entries = append(entries, entry)
+	}
+
+	// Sort entries: folders first, then alphabetically
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].IsDir && !entries[j].IsDir {
+			return true
+		}
+		if !entries[i].IsDir && entries[j].IsDir {
+			return false
+		}
+		return entries[i].Name < entries[j].Name
+	})
+
+	return &DirListResponse{
+		Path:      dirPath,
+		Entries:   entries,
+		Timestamp: time.Now().UTC(),
+	}, nil
+}
+
 // matchesPattern checks if a path matches a glob pattern
 func matchesPattern(path, pattern string) bool {
 	if pattern == "" {

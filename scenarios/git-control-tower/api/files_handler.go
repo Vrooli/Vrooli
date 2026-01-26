@@ -58,6 +58,38 @@ func (s *Server) handleFiles(w http.ResponseWriter, r *http.Request) {
 	resp.OK(result)
 }
 
+// handleDirectoryList handles GET /api/v1/repo/files/dir?path=<dir>
+// path="" returns root contents, path="src/components" returns that folder's contents
+func (s *Server) handleDirectoryList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	// Parse query parameters - path is optional, empty means root
+	dirPath := r.URL.Query().Get("path")
+
+	result, err := GetDirectoryContents(ctx, FileDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, dirPath)
+	if err != nil {
+		// Check if it's a "not found" type error
+		if strings.Contains(err.Error(), "not found") {
+			resp.NotFound(err.Error())
+			return
+		}
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(result)
+}
+
 // handleRelatedFiles handles GET /api/v1/repo/related
 func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

@@ -376,6 +376,20 @@ export interface FileTreeResponse {
   timestamp: string;
 }
 
+// Directory Listing Types (for lazy loading)
+export interface DirEntry {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  language?: string;
+}
+
+export interface DirListResponse {
+  path: string;
+  entries: DirEntry[];
+  timestamp: string;
+}
+
 // Related Files Types
 export type RelationType = "imports" | "imported_by" | "test" | "index" | "types";
 
@@ -644,4 +658,16 @@ export async function fetchRelatedFiles(path: string): Promise<RelatedFilesRespo
     cache: "no-store"
   });
   return handleResponse<RelatedFilesResponse>(res);
+}
+
+export async function fetchDirectoryContents(path = ""): Promise<DirListResponse> {
+  const params = new URLSearchParams();
+  if (path) params.set("path", path);
+
+  const url = buildApiUrl(`/repo/files/dir?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<DirListResponse>(res);
 }

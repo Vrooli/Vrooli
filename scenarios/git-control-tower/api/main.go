@@ -101,6 +101,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/branch/switch", s.handleBranchSwitch).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/branch/publish", s.handleBranchPublish).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/files", s.handleFiles).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/files/dir", s.handleDirectoryList).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 }

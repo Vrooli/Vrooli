@@ -11,6 +11,8 @@ interface ViewModeSelectorProps {
   compact?: boolean;
   /** File path to determine if preview is available */
   filePath?: string;
+  /** Whether the file has git changes (shows Diff/Full+Diff buttons) */
+  hasDiff?: boolean;
 }
 
 interface ModeOption {
@@ -54,17 +56,25 @@ export function ViewModeSelector({
   disabled = false,
   className,
   compact = false,
-  filePath
+  filePath,
+  hasDiff = true
 }: ViewModeSelectorProps) {
   const modes = useMemo(() => {
-    if (!filePath) return baseModes;
+    // Start with base modes, filtering out diff modes if no changes
+    let availableModes = hasDiff
+      ? baseModes
+      : baseModes.filter((m) => m.value !== "diff" && m.value !== "full_diff");
 
-    const fileType = getFileTypeInfo(filePath);
-    if (fileType.canPreview) {
-      return [...baseModes, previewMode];
+    // Add preview mode if file type supports it
+    if (filePath) {
+      const fileType = getFileTypeInfo(filePath);
+      if (fileType.canPreview) {
+        availableModes = [...availableModes, previewMode];
+      }
     }
-    return baseModes;
-  }, [filePath]);
+
+    return availableModes;
+  }, [filePath, hasDiff]);
 
   return (
     <div

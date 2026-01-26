@@ -20,6 +20,7 @@ import {
   publishBranch,
   fetchFiles,
   fetchRelatedFiles,
+  fetchDirectoryContents,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -34,7 +35,8 @@ import {
   type ApprovedChangesPreviewRequest,
   type ViewMode,
   type FileTreeResponse,
-  type RelatedFilesResponse
+  type RelatedFilesResponse,
+  type DirListResponse
 } from "./api";
 
 export const queryKeys = {
@@ -48,7 +50,8 @@ export const queryKeys = {
     ["repo", "diff", path, staged, untracked, commit, mode, any] as const,
   approvedChanges: ["repo", "approved-changes"] as const,
   files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
-  relatedFiles: (path: string) => ["repo", "related", path] as const
+  relatedFiles: (path: string) => ["repo", "related", path] as const,
+  directoryContents: (path: string) => ["repo", "dir", path] as const
 };
 
 export function useHealth() {
@@ -247,5 +250,14 @@ export function useRelatedFiles(path: string, enabled = true) {
     queryKey: queryKeys.relatedFiles(path),
     queryFn: () => fetchRelatedFiles(path),
     enabled: enabled && Boolean(path)
+  });
+}
+
+export function useDirectoryContents(path: string, enabled = true) {
+  return useQuery<DirListResponse, Error>({
+    queryKey: queryKeys.directoryContents(path),
+    queryFn: () => fetchDirectoryContents(path),
+    enabled,
+    staleTime: 30000 // Cache for 30 seconds
   });
 }

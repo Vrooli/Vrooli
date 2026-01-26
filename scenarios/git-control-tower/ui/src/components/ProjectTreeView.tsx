@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo, useEffect } from "react";
+import { useState, useCallback, memo, useEffect, useMemo } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -7,8 +7,9 @@ import {
   File,
   Loader2,
 } from "lucide-react";
-import { useFileSearch } from "../lib/hooks";
-import type { FileInfo } from "../lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDirectoryContents, queryKeys } from "../lib/hooks";
+import { fetchDirectoryContents, type DirEntry, type DirListResponse } from "../lib/api";
 import type { FileCategory } from "../lib/fileTypes";
 import { getFileTypeInfo } from "../lib/fileTypes";
 
@@ -28,12 +29,13 @@ interface ProjectTreeViewProps {
   gitStatuses?: Record<string, string>;
 }
 
-interface TreeNode {
+interface LazyTreeNode {
   name: string;
   path: string;
-  isFolder: boolean;
-  children: TreeNode[];
+  isDir: boolean;
   language?: string;
+  children?: LazyTreeNode[]; // undefined = not fetched, [] = empty folder
+  isLoading?: boolean;
 }
 
 const statusStyleMap: Record<string, string> = {
@@ -66,73 +68,15 @@ function getStatusBadge(code: string | undefined): {
   return null;
 }
 
-function buildProjectTree(files: FileInfo[]): TreeNode[] {
-  const root: Map<string, TreeNode> = new Map();
-
-  // Sort files to ensure consistent ordering
-  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
-
-  for (const file of sortedFiles) {
-    const parts = file.path.split("/");
-    let currentMap = root;
-    let currentPath = "";
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      currentPath = currentPath ? `${currentPath}/${part}` : part;
-      const isLast = i === parts.length - 1;
-
-      if (!currentMap.has(part)) {
-        const node: TreeNode = {
-          name: part,
-          path: currentPath,
-          isFolder: !isLast,
-          children: [],
-          language: isLast ? file.language : undefined,
-        };
-        currentMap.set(part, node);
-      }
-
-      const node = currentMap.get(part)!;
-      if (!isLast) {
-        // Ensure folder has a children map
-        if (!node.children) {
-          node.children = [];
-        }
-        // Convert children array to map for next iteration
-        const childMap = new Map<string, TreeNode>();
-        for (const child of node.children) {
-          childMap.set(child.name, child);
-        }
-        currentMap = childMap;
-        // Store children back as array
-        node.children = Array.from(childMap.values());
-      }
-    }
-  }
-
-  // Convert root map to sorted array (folders first, then alphabetically)
-  function mapToSortedArray(map: Map<string, TreeNode>): TreeNode[] {
-    const nodes = Array.from(map.values());
-    // Recursively sort children
-    for (const node of nodes) {
-      if (node.isFolder && node.children.length > 0) {
-        const childMap = new Map<string, TreeNode>();
-        for (const child of node.children) {
-          childMap.set(child.name, child);
-        }
-        node.children = mapToSortedArray(childMap);
-      }
-    }
-    // Sort: folders first, then alphabetically
-    return nodes.sort((a, b) => {
-      if (a.isFolder && !b.isFolder) return -1;
-      if (!a.isFolder && b.isFolder) return 1;
-      return a.name.localeCompare(b.name);
-    });
-  }
-
-  return mapToSortedArray(root);
+// Convert API DirEntry to LazyTreeNode
+function entryToNode(entry: DirEntry): LazyTreeNode {
+  return {
+    name: entry.name,
+    path: entry.path,
+    isDir: entry.is_dir,
+    language: entry.language,
+    children: entry.is_dir ? undefined : undefined, // folders start with undefined children (not fetched)
+  };
 }
 
 // Storage key for expanded folders
@@ -159,36 +103,48 @@ function saveExpandedFolders(expanded: Set<string>) {
 }
 
 interface TreeNodeComponentProps {
-  node: TreeNode;
+  node: LazyTreeNode;
   depth: number;
   expanded: Set<string>;
+  loadingPaths: Set<string>;
   onToggle: (path: string) => void;
   onSelect: (path: string) => void;
   selectedPath?: string;
   gitStatuses?: Record<string, string>;
+  fetchedDirs: Map<string, LazyTreeNode[]>;
 }
 
 const TreeNodeComponent = memo(function TreeNodeComponent({
   node,
   depth,
   expanded,
+  loadingPaths,
   onToggle,
   onSelect,
   selectedPath,
   gitStatuses,
+  fetchedDirs,
 }: TreeNodeComponentProps) {
   const isExpanded = expanded.has(node.path);
+  const isLoading = loadingPaths.has(node.path);
   const isSelected = selectedPath === node.path;
-  const badge = node.isFolder ? null : getStatusBadge(gitStatuses?.[node.path]);
-  const fileTypeInfo = node.isFolder ? null : getFileTypeInfo(node.path);
+  const gitStatus = gitStatuses?.[node.path];
+  const badge = node.isDir ? null : getStatusBadge(gitStatus);
+  const fileTypeInfo = node.isDir ? null : getFileTypeInfo(node.path);
+
+  // Check if file is untracked (status contains "?")
+  const isUntracked = gitStatus?.toUpperCase().includes("?") ?? false;
+
+  // Get children from fetchedDirs if this folder is expanded and has been fetched
+  const children = node.isDir && isExpanded ? fetchedDirs.get(node.path) : undefined;
 
   const handleClick = useCallback(() => {
-    if (node.isFolder) {
+    if (node.isDir) {
       onToggle(node.path);
     } else {
       onSelect(node.path);
     }
-  }, [node.isFolder, node.path, onToggle, onSelect]);
+  }, [node.isDir, node.path, onToggle, onSelect]);
 
   const paddingLeft = depth * 16 + 8;
 
@@ -204,9 +160,11 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
         onClick={handleClick}
         data-testid={`tree-node-${node.path}`}
       >
-        {node.isFolder ? (
+        {node.isDir ? (
           <>
-            {isExpanded ? (
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 text-slate-500 flex-shrink-0 animate-spin" />
+            ) : isExpanded ? (
               <ChevronDown className="h-3 w-3 text-slate-500 flex-shrink-0" />
             ) : (
               <ChevronRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
@@ -222,13 +180,22 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
             <span className="w-3" /> {/* Spacer for alignment */}
             <File
               className={`h-3.5 w-3.5 flex-shrink-0 ${
-                fileTypeInfo ? categoryColorMap[fileTypeInfo.category] : "text-slate-500"
+                isUntracked
+                  ? "text-slate-600"
+                  : fileTypeInfo
+                    ? categoryColorMap[fileTypeInfo.category]
+                    : "text-slate-500"
               }`}
             />
           </>
         )}
 
-        <span className="font-mono text-xs truncate flex-1" title={node.path}>
+        <span
+          className={`font-mono text-xs truncate flex-1 ${
+            isUntracked ? "text-slate-500 italic" : ""
+          }`}
+          title={node.path}
+        >
           {node.name}
         </span>
 
@@ -242,20 +209,30 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
         )}
       </div>
 
-      {node.isFolder && isExpanded && (
+      {node.isDir && isExpanded && children && (
         <div>
-          {node.children.map((child) => (
+          {children.map((child) => (
             <TreeNodeComponent
               key={child.path}
               node={child}
               depth={depth + 1}
               expanded={expanded}
+              loadingPaths={loadingPaths}
               onToggle={onToggle}
               onSelect={onSelect}
               selectedPath={selectedPath}
               gitStatuses={gitStatuses}
+              fetchedDirs={fetchedDirs}
             />
           ))}
+          {children.length === 0 && (
+            <div
+              className="text-xs text-slate-500 italic py-1"
+              style={{ paddingLeft: paddingLeft + 16 }}
+            >
+              Empty folder
+            </div>
+          )}
         </div>
       )}
     </>
@@ -267,32 +244,164 @@ export const ProjectTreeView = memo(function ProjectTreeView({
   selectedFile,
   gitStatuses,
 }: ProjectTreeViewProps) {
-  const filesQuery = useFileSearch(undefined, true, true);
+  const queryClient = useQueryClient();
+
+  // Fetch root directory
+  const rootQuery = useDirectoryContents("", true);
+
+  // Track expanded folders
   const [expanded, setExpanded] = useState<Set<string>>(() =>
     loadExpandedFolders()
   );
+
+  // Track folders that are currently loading
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
+
+  // Store fetched directory contents - key is path, value is children nodes
+  const [fetchedDirs, setFetchedDirs] = useState<Map<string, LazyTreeNode[]>>(
+    new Map()
+  );
+
+  // Convert root entries to tree nodes
+  const rootNodes = useMemo(() => {
+    if (!rootQuery.data?.entries) return [];
+    return rootQuery.data.entries.map(entryToNode);
+  }, [rootQuery.data?.entries]);
 
   // Save expanded state when it changes
   useEffect(() => {
     saveExpandedFolders(expanded);
   }, [expanded]);
 
-  const tree = useMemo(() => {
-    if (!filesQuery.data?.files) return [];
-    return buildProjectTree(filesQuery.data.files);
-  }, [filesQuery.data?.files]);
+  // Load previously expanded folders on mount
+  useEffect(() => {
+    const loadPreviouslyExpandedFolders = async () => {
+      const savedExpanded = loadExpandedFolders();
+      if (savedExpanded.size === 0) return;
 
-  const handleToggle = useCallback((path: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
+      // Sort paths by depth so we load parent folders first
+      const sortedPaths = Array.from(savedExpanded).sort(
+        (a, b) => a.split("/").length - b.split("/").length
+      );
+
+      // Load each expanded folder's contents
+      for (const path of sortedPaths) {
+        // Check if parent folder is also expanded (it should be for this to be visible)
+        const parentPath = path.includes("/")
+          ? path.substring(0, path.lastIndexOf("/"))
+          : "";
+
+        // Skip if parent isn't expanded (unless it's root level)
+        if (parentPath && !savedExpanded.has(parentPath)) {
+          continue;
+        }
+
+        try {
+          // Check if already in cache
+          const cached = queryClient.getQueryData<DirListResponse>(
+            queryKeys.directoryContents(path)
+          );
+
+          if (cached) {
+            setFetchedDirs((prev) => {
+              const next = new Map(prev);
+              next.set(path, cached.entries.map(entryToNode));
+              return next;
+            });
+          } else {
+            // Fetch and cache
+            const data = await fetchDirectoryContents(path);
+            queryClient.setQueryData(queryKeys.directoryContents(path), data);
+            setFetchedDirs((prev) => {
+              const next = new Map(prev);
+              next.set(path, data.entries.map(entryToNode));
+              return next;
+            });
+          }
+        } catch {
+          // Remove from expanded if fetch failed
+          setExpanded((prev) => {
+            const next = new Set(prev);
+            next.delete(path);
+            return next;
+          });
+        }
       }
-      return next;
-    });
-  }, []);
+    };
+
+    // Only run once after root is loaded
+    if (rootQuery.data) {
+      loadPreviouslyExpandedFolders();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rootQuery.data ? 1 : 0]); // Only run when rootQuery.data becomes available
+
+  const handleToggle = useCallback(
+    async (path: string) => {
+      const isCurrentlyExpanded = expanded.has(path);
+
+      if (isCurrentlyExpanded) {
+        // Collapse - just update expanded state
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          next.delete(path);
+          return next;
+        });
+      } else {
+        // Expand - check if we need to fetch
+        const hasFetched = fetchedDirs.has(path);
+
+        if (!hasFetched) {
+          // Fetch directory contents
+          setLoadingPaths((prev) => new Set(prev).add(path));
+
+          try {
+            // Check React Query cache first
+            let data = queryClient.getQueryData<DirListResponse>(
+              queryKeys.directoryContents(path)
+            );
+
+            if (!data) {
+              // Fetch from API
+              data = await fetchDirectoryContents(path);
+              // Cache the result
+              queryClient.setQueryData(queryKeys.directoryContents(path), data);
+            }
+
+            // Store the children
+            setFetchedDirs((prev) => {
+              const next = new Map(prev);
+              next.set(path, data.entries.map(entryToNode));
+              return next;
+            });
+          } catch (err) {
+            console.error("Failed to fetch directory contents:", err);
+            // Don't expand if fetch failed
+            setLoadingPaths((prev) => {
+              const next = new Set(prev);
+              next.delete(path);
+              return next;
+            });
+            return;
+          }
+
+          setLoadingPaths((prev) => {
+            const next = new Set(prev);
+            next.delete(path);
+            return next;
+          });
+        }
+
+        // Mark as expanded
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          next.add(path);
+          return next;
+        });
+      }
+    },
+    [expanded, fetchedDirs, queryClient]
+  );
 
   const handleSelect = useCallback(
     (path: string) => {
@@ -301,7 +410,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
     [onSelectFile]
   );
 
-  if (filesQuery.isLoading) {
+  if (rootQuery.isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-5 w-5 animate-spin text-slate-500" />
@@ -310,7 +419,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
     );
   }
 
-  if (filesQuery.error) {
+  if (rootQuery.error) {
     return (
       <div className="flex items-center justify-center py-8 text-red-400 text-sm">
         Failed to load file tree
@@ -318,7 +427,7 @@ export const ProjectTreeView = memo(function ProjectTreeView({
     );
   }
 
-  if (tree.length === 0) {
+  if (rootNodes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
         <Folder className="h-8 w-8 text-slate-700 mb-3" />
@@ -329,23 +438,20 @@ export const ProjectTreeView = memo(function ProjectTreeView({
 
   return (
     <div className="py-2" data-testid="project-tree-view">
-      {tree.map((node) => (
+      {rootNodes.map((node) => (
         <TreeNodeComponent
           key={node.path}
           node={node}
           depth={0}
           expanded={expanded}
+          loadingPaths={loadingPaths}
           onToggle={handleToggle}
           onSelect={handleSelect}
           selectedPath={selectedFile}
           gitStatuses={gitStatuses}
+          fetchedDirs={fetchedDirs}
         />
       ))}
-      {filesQuery.data?.truncated && (
-        <div className="px-2 py-2 text-xs text-amber-400/80 text-center">
-          File list truncated. Some files may not be shown.
-        </div>
-      )}
     </div>
   );
 });

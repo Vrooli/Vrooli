@@ -124,3 +124,21 @@ type RelatedFilesResponse struct {
 	Related   []RelatedFile `json:"related"`
 	Timestamp time.Time     `json:"timestamp"`
 }
+
+// DirEntry represents a file or folder in a directory listing
+type DirEntry struct {
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	IsDir    bool   `json:"is_dir"`
+	Language string `json:"language,omitempty"`
+}
+
+// DirListResponse contains contents of a directory
+type DirListResponse struct {
+	Path      string     `json:"path"`
+	Entries   []DirEntry `json:"entries"`
+	Timestamp time.Time  `json:"timestamp"`
+}
+
+// MaxDirDepth is the maximum depth for directory listing (safety limit)
+const MaxDirDepth = 20
