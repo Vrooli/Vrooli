@@ -386,10 +386,14 @@ describe('billing API', () => {
   describe('getStripeImportPreview', () => {
     it('returns import preview data', async () => {
       fetchMock.mockResolvedValue(mockResponses.success({
+        bundle_product_id: 'prod_123',
+        bundle_product_found: true,
+        bundle_plan_count: 0,
         products: [
           {
             product_id: 'prod_123',
             product_name: 'Main Bundle',
+            is_current_bundle: true,
             prices: [
               {
                 price_id: 'price_123',
@@ -427,6 +431,8 @@ describe('billing API', () => {
       }));
 
       const result = await importStripePlans({
+        bundle_product_id: 'prod_123',
+        mode: 'replace',
         selections: [{ price_id: 'price_123', action: 'import' }],
       });
 

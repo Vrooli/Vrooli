@@ -41,6 +41,14 @@ type ImportPlanSelection struct {
 	Action  string `json:"action"` // "import", "overwrite", "skip"
 }
 
+// StripeImportMode controls how Stripe imports reconcile existing plans.
+type StripeImportMode string
+
+const (
+	StripeImportModeMerge   StripeImportMode = "merge"
+	StripeImportModeReplace StripeImportMode = "replace"
+)
+
 // StripeImportResult contains the results of the import operation.
 type StripeImportResult struct {
 	Imported    int      `json:"imported"`
@@ -397,7 +405,61 @@ func (s *PlanService) ImportStripePrices(ctx context.Context, selections []Impor
 	if s.planStore == nil {
 		return nil, fmt.Errorf("plan store not available")
 	}
-	return s.planStore.ApplyStripeImportSelections(ctx, selections, fetcher)
+	bundle := s.planStore.GetBundle()
+	if bundle == nil {
+		return nil, errStripeImportBundleMissing
+	}
+	bundleProductID := strings.TrimSpace(bundle.StripeProductId)
+	return s.ImportStripePricesForProduct(ctx, selections, bundleProductID, StripeImportModeMerge, fetcher)
+}
+
+// ImportStripePricesForProduct imports selected Stripe prices for the specified bundle product.
+// Use replace mode when switching products to clear existing plans first.
+func (s *PlanService) ImportStripePricesForProduct(ctx context.Context, selections []ImportPlanSelection, bundleProductID string, mode StripeImportMode, fetcher StripePriceFetcher) (*StripeImportResult, error) {
+	if s.planStore == nil {
+		return nil, fmt.Errorf("plan store not available")
+	}
+
+	bundle := s.planStore.GetBundle()
+	if bundle == nil {
+		return nil, errStripeImportBundleMissing
+	}
+
+	normalizedProductID := strings.TrimSpace(bundleProductID)
+	if normalizedProductID == "" {
+		return nil, errStripeImportBundleProductMissing
+	}
+
+	switch mode {
+	case StripeImportModeMerge, StripeImportModeReplace:
+	default:
+		return nil, errStripeImportInvalidMode
+	}
+
+	currentProductID := strings.TrimSpace(bundle.StripeProductId)
+	if mode == StripeImportModeMerge && currentProductID != "" && currentProductID != normalizedProductID {
+		return nil, errStripeImportProductSwitchRequiresReplace
+	}
+
+	bundle.StripeProductId = normalizedProductID
+
+	normalizedSelections, _, err := normalizeStripeImportSelections(selections)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPlans []*PlanOption
+	if mode == StripeImportModeReplace {
+		nextPlans = nil
+	} else {
+		nextPlans = s.planStore.GetPlans()
+	}
+
+	if err := s.planStore.SetPlans(bundle, nextPlans); err != nil {
+		return nil, err
+	}
+
+	return s.planStore.ApplyStripeImportSelections(ctx, normalizedSelections, fetcher)
 }
 
 // AddPlan adds a new plan to the store.

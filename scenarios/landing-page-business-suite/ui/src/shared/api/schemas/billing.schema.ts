@@ -108,10 +108,15 @@ export const StripePriceImportSchema = z.object({
 export const StripeProductWithPricesSchema = z.object({
   product_id: NonEmptyStringSchema,
   product_name: NonEmptyStringSchema,
+  is_current_bundle: z.boolean().optional(),
   prices: z.array(StripePriceImportSchema),
 });
 
 export const StripeImportPreviewSchema = z.object({
+  bundle_key: z.string().min(1).optional(),
+  bundle_product_id: z.string().min(1).optional(),
+  bundle_product_found: z.boolean().optional(),
+  bundle_plan_count: z.number().int().nonnegative().optional(),
   products: z.array(StripeProductWithPricesSchema),
   total_prices: z.number().int().nonnegative(),
   conflict_count: z.number().int().nonnegative(),

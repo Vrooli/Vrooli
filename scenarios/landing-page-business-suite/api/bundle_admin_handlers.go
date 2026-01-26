@@ -131,7 +131,9 @@ func handleAdminStripeImportPreview(stripe *StripeService, planService *PlanServ
 
 // StripeImportRequest contains the selections for importing prices from Stripe.
 type StripeImportRequest struct {
-	Selections []ImportPlanSelection `json:"selections"`
+	BundleProductID string                `json:"bundle_product_id"`
+	Mode            StripeImportMode      `json:"mode,omitempty"`
+	Selections      []ImportPlanSelection `json:"selections"`
 }
 
 // handleAdminStripeImport imports selected prices from Stripe into the plan store.
@@ -142,18 +144,32 @@ func handleAdminStripeImport(stripe *StripeService, planService *PlanService) ht
 			return
 		}
 
+		bundleProductID := strings.TrimSpace(req.BundleProductID)
+		if bundleProductID == "" {
+			writeJSONError(w, http.StatusBadRequest, "bundle_product_id is required", ApiErrorTypeValidation)
+			return
+		}
+
+		mode := req.Mode
+		if strings.TrimSpace(string(mode)) == "" {
+			mode = StripeImportModeMerge
+		}
+
 		var fetcher StripePriceFetcher
 		if stripe != nil {
 			fetcher = stripe.FetchStripePriceDetails
 		}
 
-		result, err := planService.ImportStripePrices(r.Context(), req.Selections, fetcher)
+		result, err := planService.ImportStripePricesForProduct(r.Context(), req.Selections, bundleProductID, mode, fetcher)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if errors.Is(err, errStripeImportNoSelections) ||
 				errors.Is(err, errStripeImportNoValidSelections) ||
 				errors.Is(err, errStripeImportMissingFetcher) ||
-				errors.Is(err, errStripeImportBundleMissing) {
+				errors.Is(err, errStripeImportBundleMissing) ||
+				errors.Is(err, errStripeImportBundleProductMissing) ||
+				errors.Is(err, errStripeImportInvalidMode) ||
+				errors.Is(err, errStripeImportProductSwitchRequiresReplace) {
 				status = http.StatusBadRequest
 			}
 			errorType := ApiErrorTypeValidation

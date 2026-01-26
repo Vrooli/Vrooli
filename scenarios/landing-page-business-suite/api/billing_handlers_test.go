@@ -134,7 +134,7 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 
 	handler := handleBillingCreateCheckoutSession(service)
 
-	reqBody := `{"price_id":"price_nonexistent","success_url":"/success","cancel_url":"/cancel","customer_email":"test@example.com"}`
+	reqBody := `{"price_id":"price_error_test","success_url":"/success","cancel_url":"/cancel","customer_email":"test@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/billing/checkout", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()

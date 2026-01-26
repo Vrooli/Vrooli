@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -791,6 +792,82 @@ func TestPlanService_ImportStripePrices_ImportsNewPrice(t *testing.T) {
 	}
 	if result.Imported != 1 {
 		t.Fatalf("expected 1 imported, got %d", result.Imported)
+	}
+}
+
+func TestPlanService_ImportStripePricesForProduct_ReplaceUpdatesBundle(t *testing.T) {
+	bundle := testBundle("import_bundle_replace", "production")
+	bundle.StripeProductID = "prod_old"
+	plans := []planFileFormat{
+		{
+			StripePriceID:          "price_old",
+			PlanName:               "Old Plan",
+			PlanTier:               "pro",
+			BillingInterval:        "month",
+			AmountCents:            2900,
+			Currency:               "usd",
+			DisplayWeight:          10,
+			DisplayEnabled:         true,
+			MonthlyIncludedCredits: 1000,
+			PlanRank:               1,
+			BonusType:              "none",
+			Kind:                   "subscription",
+		},
+	}
+
+	service := createTestPlanService(t, bundle, plans)
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 2000,
+			Interval:    "month",
+			ProductID:   "prod_new",
+			ProductName: "New Bundle",
+			Active:      true,
+		}, nil
+	}
+
+	result, err := service.ImportStripePricesForProduct(context.Background(), []ImportPlanSelection{
+		{PriceID: "price_new", Action: "import"},
+	}, "prod_new", StripeImportModeReplace, fetcher)
+	if err != nil {
+		t.Fatalf("unexpected import error: %v", err)
+	}
+	if result.Imported != 1 {
+		t.Fatalf("expected 1 imported, got %d", result.Imported)
+	}
+
+	bundleProduct, err := service.GetBundleProduct()
+	if err != nil {
+		t.Fatalf("failed to get bundle product: %v", err)
+	}
+	if bundleProduct == nil || bundleProduct.StripeProductId != "prod_new" {
+		t.Fatalf("expected bundle product id updated to prod_new, got %+v", bundleProduct)
+	}
+
+	if _, err := service.GetPlanByPriceID("price_old"); err == nil {
+		t.Fatalf("expected old plan to be removed on replace import")
+	}
+}
+
+func TestPlanService_ImportStripePricesForProduct_MergeRejectsProductSwitch(t *testing.T) {
+	bundle := testBundle("import_bundle_merge", "production")
+	bundle.StripeProductID = "prod_old"
+	service := createTestPlanService(t, bundle, nil)
+
+	_, err := service.ImportStripePricesForProduct(context.Background(), []ImportPlanSelection{
+		{PriceID: "price_new", Action: "import"},
+	}, "prod_new", StripeImportModeMerge, func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return nil, nil
+	})
+	if err == nil {
+		t.Fatal("expected error for product switch with merge mode")
+	}
+	if !errors.Is(err, errStripeImportProductSwitchRequiresReplace) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 

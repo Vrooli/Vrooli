@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,7 +15,8 @@ func createTestUsageDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	// Use shared-cache mode for in-memory SQLite to enable concurrent access
-	db, err := sql.Open("sqlite3", "file::memory:?cache=shared")
+	dsn := fmt.Sprintf("file:usage_%d?mode=memory&cache=shared", time.Now().UnixNano())
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}

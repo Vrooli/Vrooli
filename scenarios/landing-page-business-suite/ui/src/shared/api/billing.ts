@@ -224,10 +224,15 @@ export interface StripePriceImport {
 export interface StripeProductWithPrices {
   product_id: string;
   product_name: string;
+  is_current_bundle?: boolean;
   prices: StripePriceImport[];
 }
 
 export interface StripeImportPreview {
+  bundle_key?: string;
+  bundle_product_id?: string;
+  bundle_product_found?: boolean;
+  bundle_plan_count?: number;
   products: StripeProductWithPrices[];
   total_prices: number;
   conflict_count: number;
@@ -240,6 +245,8 @@ export interface ImportPlanSelection {
 }
 
 export interface StripeImportRequest {
+  bundle_product_id: string;
+  mode?: 'merge' | 'replace';
   selections: ImportPlanSelection[];
 }
 

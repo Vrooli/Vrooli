@@ -62,10 +62,13 @@ type PlanStore struct {
 }
 
 var (
-	errStripeImportNoSelections      = errors.New("no selections provided")
-	errStripeImportNoValidSelections = errors.New("no valid selections provided")
-	errStripeImportMissingFetcher    = errors.New("stripe price fetcher required")
-	errStripeImportBundleMissing     = errors.New("bundle not configured")
+	errStripeImportNoSelections                 = errors.New("no selections provided")
+	errStripeImportNoValidSelections            = errors.New("no valid selections provided")
+	errStripeImportMissingFetcher               = errors.New("stripe price fetcher required")
+	errStripeImportBundleMissing                = errors.New("bundle not configured")
+	errStripeImportBundleProductMissing         = errors.New("bundle_product_id is required")
+	errStripeImportInvalidMode                  = errors.New("import mode must be merge or replace")
+	errStripeImportProductSwitchRequiresReplace = errors.New("bundle product change requires replace mode")
 )
 
 // plansFileFormat represents the JSON file structure for plans.
@@ -816,43 +819,34 @@ func (ps *PlanStore) ensureStripePriceMatchesBundleLocked(stripeDetails *StripeP
 	return nil
 }
 
-// ApplyStripeImportSelections batches Stripe import updates into the plan store with a single save.
-func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections []ImportPlanSelection, fetcher StripePriceFetcher) (*StripeImportResult, error) {
-	ps.mu.Lock()
-	defer ps.mu.Unlock()
-
-	result := &StripeImportResult{}
+func normalizeStripeImportSelections(selections []ImportPlanSelection) ([]ImportPlanSelection, []string, error) {
 	if len(selections) == 0 {
-		return result, errStripeImportNoSelections
-	}
-	if fetcher == nil {
-		return result, errStripeImportMissingFetcher
-	}
-	if ps.bundle == nil {
-		return result, errStripeImportBundleMissing
+		return nil, nil, errStripeImportNoSelections
 	}
 
 	normalizedSelections := make([]ImportPlanSelection, 0, len(selections))
 	seenSelections := make(map[string]struct{}, len(selections))
+	var errorsList []string
+
 	for _, selection := range selections {
 		priceID := strings.TrimSpace(selection.PriceID)
 		if priceID == "" {
-			result.Errors = append(result.Errors, "empty price ID in selection")
+			errorsList = append(errorsList, "empty price ID in selection")
 			continue
 		}
 		if _, err := normalizeStripePriceID(priceID); err != nil {
-			result.Errors = append(result.Errors, fmt.Sprintf("invalid price id %s: %s", priceID, err.Error()))
+			errorsList = append(errorsList, fmt.Sprintf("invalid price id %s: %s", priceID, err.Error()))
 			continue
 		}
 		action := strings.ToLower(strings.TrimSpace(selection.Action))
 		switch action {
 		case "import", "overwrite", "skip":
 		default:
-			result.Errors = append(result.Errors, "unknown action: "+selection.Action)
+			errorsList = append(errorsList, "unknown action: "+selection.Action)
 			continue
 		}
 		if _, exists := seenSelections[priceID]; exists {
-			result.Errors = append(result.Errors, "duplicate selection for price "+priceID)
+			errorsList = append(errorsList, "duplicate selection for price "+priceID)
 			continue
 		}
 		seenSelections[priceID] = struct{}{}
@@ -863,7 +857,31 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 	}
 
 	if len(normalizedSelections) == 0 {
-		return result, errStripeImportNoValidSelections
+		return nil, errorsList, errStripeImportNoValidSelections
+	}
+
+	return normalizedSelections, errorsList, nil
+}
+
+// ApplyStripeImportSelections batches Stripe import updates into the plan store with a single save.
+func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections []ImportPlanSelection, fetcher StripePriceFetcher) (*StripeImportResult, error) {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	result := &StripeImportResult{}
+	if fetcher == nil {
+		return result, errStripeImportMissingFetcher
+	}
+	if ps.bundle == nil {
+		return result, errStripeImportBundleMissing
+	}
+
+	normalizedSelections, errorsList, err := normalizeStripeImportSelections(selections)
+	if len(errorsList) > 0 {
+		result.Errors = append(result.Errors, errorsList...)
+	}
+	if err != nil {
+		return result, err
 	}
 
 	planIndex := make(map[string]int, len(ps.plans))

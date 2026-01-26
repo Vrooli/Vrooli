@@ -472,6 +472,8 @@ func TestHandleAdminStripeImport_Success(t *testing.T) {
 	handler := handleAdminStripeImport(stripe, planService)
 
 	body := StripeImportRequest{
+		BundleProductID: "prod_bundle",
+		Mode:            StripeImportModeReplace,
 		Selections: []ImportPlanSelection{
 			{PriceID: "price_new", Action: "import"},
 		},

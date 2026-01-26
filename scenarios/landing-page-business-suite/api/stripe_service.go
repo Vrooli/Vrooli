@@ -1875,17 +1875,22 @@ func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error
 
 // StripeImportPreview provides a preview of products/prices available for import from Stripe.
 type StripeImportPreview struct {
-	Products      []StripeProductWithPrices `json:"products"`
-	TotalPrices   int                       `json:"total_prices"`
-	ConflictCount int                       `json:"conflict_count"`
-	NewCount      int                       `json:"new_count"`
+	BundleKey          string                    `json:"bundle_key,omitempty"`
+	BundleProductID    string                    `json:"bundle_product_id,omitempty"`
+	BundleProductFound bool                      `json:"bundle_product_found"`
+	BundlePlanCount    int                       `json:"bundle_plan_count"`
+	Products           []StripeProductWithPrices `json:"products"`
+	TotalPrices        int                       `json:"total_prices"`
+	ConflictCount      int                       `json:"conflict_count"`
+	NewCount           int                       `json:"new_count"`
 }
 
 // StripeProductWithPrices groups a Stripe product with its prices.
 type StripeProductWithPrices struct {
-	ProductID   string              `json:"product_id"`
-	ProductName string              `json:"product_name"`
-	Prices      []StripePriceImport `json:"prices"`
+	ProductID       string              `json:"product_id"`
+	ProductName     string              `json:"product_name"`
+	IsCurrentBundle bool                `json:"is_current_bundle"`
+	Prices          []StripePriceImport `json:"prices"`
 }
 
 // StripePriceImport represents a price from Stripe that can be imported.
@@ -1909,36 +1914,20 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 		return nil, fmt.Errorf("fetch stripe products: %w", err)
 	}
 
-	if planStore != nil {
-		if bundle := planStore.GetBundle(); bundle != nil {
-			bundleProductID := strings.TrimSpace(bundle.StripeProductId)
-			if bundleProductID != "" {
-				filtered := make([]stripeProduct, 0, 1)
-				for _, product := range products {
-					if product.ID == bundleProductID {
-						filtered = append(filtered, product)
-						break
-					}
-				}
-				if len(filtered) == 0 {
-					bundleKey := ""
-					if bundle.BundleKey != "" {
-						bundleKey = bundle.BundleKey
-					}
-					return nil, &StripeBundleProductNotFoundError{
-						BundleKey: bundleKey,
-						ProductID: bundleProductID,
-					}
-				}
-				products = filtered
-			}
-		}
-	}
-
+	bundleKey := ""
+	bundleProductID := ""
+	bundlePlanCount := 0
+	bundleProductFound := false
 	// Get existing price IDs from plan store
 	existingPriceIDs := make(map[string]bool)
 	if planStore != nil {
-		for _, plan := range planStore.GetPlans() {
+		if bundle := planStore.GetBundle(); bundle != nil {
+			bundleKey = bundle.BundleKey
+			bundleProductID = strings.TrimSpace(bundle.StripeProductId)
+		}
+		plans := planStore.GetPlans()
+		bundlePlanCount = len(plans)
+		for _, plan := range plans {
 			if plan.StripePriceId != "" {
 				existingPriceIDs[plan.StripePriceId] = true
 			}
@@ -1946,10 +1935,18 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 	}
 
 	preview := &StripeImportPreview{
-		Products: make([]StripeProductWithPrices, 0, len(products)),
+		BundleKey:          bundleKey,
+		BundleProductID:    bundleProductID,
+		BundleProductFound: false,
+		BundlePlanCount:    bundlePlanCount,
+		Products:           make([]StripeProductWithPrices, 0, len(products)),
 	}
 
 	for _, product := range products {
+		isCurrentBundle := bundleProductID != "" && product.ID == bundleProductID
+		if isCurrentBundle {
+			bundleProductFound = true
+		}
 		// Fetch prices for this product
 		prices, err := s.fetchStripePricesForProduct(ctx, product.ID)
 		if err != nil {
@@ -1965,9 +1962,10 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 		}
 
 		productWithPrices := StripeProductWithPrices{
-			ProductID:   product.ID,
-			ProductName: product.Name,
-			Prices:      make([]StripePriceImport, 0, len(prices)),
+			ProductID:       product.ID,
+			ProductName:     product.Name,
+			IsCurrentBundle: isCurrentBundle,
+			Prices:          make([]StripePriceImport, 0, len(prices)),
 		}
 
 		for _, price := range prices {
@@ -1996,6 +1994,7 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 		preview.Products = append(preview.Products, productWithPrices)
 	}
 
+	preview.BundleProductFound = bundleProductFound
 	return preview, nil
 }
 
