@@ -5,8 +5,31 @@
 
 import { useMemo } from 'react'
 import type { HeadAccessoryProps } from './types'
-import { getDefaultOffset } from './types'
 import { useMaterial } from '../materials'
+import type { AccessoryOffset } from '@/types/accessory'
+
+/**
+ * Type-specific offsets for head accessories.
+ * Different accessories sit at different positions relative to the head.
+ *
+ * Head sphere: center at [0, 0.4, 0], radius 0.3
+ * - Top of head: Y = 0.7
+ * - Front of head: Z = 0.3
+ */
+const HEAD_ACCESSORY_OFFSETS: Record<string, AccessoryOffset> = {
+  // Hat sits on top of head
+  hat: { position: [0, 0.75, 0], rotation: [0, 0, 0], scale: 1 },
+  // Crown sits on top of head
+  crown: { position: [0, 0.75, 0], rotation: [0, 0, 0], scale: 1 },
+  // Glasses sit on the face (head center Y=0.4, in front at Z=head_radius)
+  glasses: { position: [0, 0.4, 0.05], rotation: [0, 0, 0], scale: 1 },
+  // Headphones wrap around the head at ear level
+  headphones: { position: [0, 0.35, 0], rotation: [0, 0, 0], scale: 1 },
+  // Halo floats above the head
+  halo: { position: [0, 0.9, 0], rotation: [0, 0, 0], scale: 1 },
+}
+
+const DEFAULT_HEAD_OFFSET: AccessoryOffset = { position: [0, 0.75, 0], rotation: [0, 0, 0], scale: 1 }
 
 /**
  * Renders a head accessory based on type.
@@ -20,7 +43,7 @@ export function HeadAccessory({
   color = '#333333',
   castShadow = true,
 }: HeadAccessoryProps) {
-  const offset = getDefaultOffset('head')
+  const offset = HEAD_ACCESSORY_OFFSETS[type] ?? DEFAULT_HEAD_OFFSET
   const material = useMaterial('plastic', { color })
 
   const pos = useMemo<[number, number, number]>(() => {

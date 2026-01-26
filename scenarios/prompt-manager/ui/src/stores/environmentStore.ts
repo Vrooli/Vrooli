@@ -86,7 +86,7 @@ const DEFAULT_ENVIRONMENT: EnvironmentConfig = {
     type: 'grid',
     size: 30,
     divisions: 30,
-    position: -2,
+    position: 0,
   },
 }
 

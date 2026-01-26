@@ -13,10 +13,12 @@ import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Skill } from '@/types'
 import type { CombineFormat } from '@/types/world'
+import type { FurnitureInstance } from '@/types/furniture'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
+import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useMemberData } from '@/hooks/useMemberData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
 import { MemberProvider } from './MemberProvider'
@@ -25,6 +27,7 @@ import { WorldControls } from './WorldControls'
 import { CombinePanel } from './CombinePanel'
 import { MemberOverlay } from './MemberOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
+import { FurnitureContextMenu } from './furniture'
 import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
@@ -36,6 +39,9 @@ import { WorldErrorProvider } from './WorldErrorContext'
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
+
+/** Y position for members standing on ground (accounts for body geometry offset) */
+const MEMBER_GROUND_Y = 0.8
 
 /**
  * Generate a deterministic position for a member based on its ID.
@@ -51,7 +57,7 @@ function generateMemberPosition(memberId: string, index: number, total: number):
 
   // If only one member, place at origin
   if (total === 1) {
-    return [0, 0, 0]
+    return [0, MEMBER_GROUND_Y, 0]
   }
 
   // Distribute members in a circular pattern with some randomness
@@ -65,7 +71,7 @@ function generateMemberPosition(memberId: string, index: number, total: number):
   const x = Math.cos(baseAngle) * (radius + radialVariation)
   const z = Math.sin(baseAngle) * (radius + radialVariation)
 
-  return [x, 0, z]
+  return [x, MEMBER_GROUND_Y, z]
 }
 
 interface WorldCanvasProps {
@@ -114,13 +120,42 @@ export function WorldCanvas({
   const { members, updateMember, deleteMember, createMember, isUpdating, isDeleting } = useMemberData()
   const focusedMember = members.find((a) => a.id === focusedMemberId) ?? null
 
+  // Furniture and seating state
+  const seatedMembers = useFurnitureStore((state) => state.seatedMembers)
+  const seatMember = useFurnitureStore((state) => state.seatMember)
+  const unseatMember = useFurnitureStore((state) => state.unseatMember)
+  const getMemberSeatPosition = useFurnitureStore((state) => state.getMemberSeatPosition)
+
+  // Furniture context menu state
+  const [selectedFurniture, setSelectedFurniture] = useState<FurnitureInstance | null>(null)
+
+  // Convert seatedMembers object to Map for FurnitureContextMenu
+  const seatedMembersMap = useMemo(() => {
+    return new Map(Object.entries(seatedMembers))
+  }, [seatedMembers])
+
   // Generate positions for all members (memoized for stability)
+  // Override positions for seated members
   const membersWithPositions = useMemo<MemberWithPosition[]>(() => {
-    return members.map((member, index) => ({
-      member,
-      position: generateMemberPosition(member.id, index, members.length),
-    }))
-  }, [members])
+    return members.map((member, index) => {
+      // Check if member is seated
+      const seatPosition = getMemberSeatPosition(member.id)
+      if (seatPosition) {
+        return {
+          member,
+          position: seatPosition.position,
+          isSeated: true,
+          seatRotation: seatPosition.rotation,
+        }
+      }
+      return {
+        member,
+        position: generateMemberPosition(member.id, index, members.length),
+        isSeated: false,
+        seatRotation: 0,
+      }
+    })
+  }, [members, getMemberSeatPosition])
 
   // Get position of focused member (for camera targeting)
   const focusedMemberPosition = useMemo(() => {
@@ -130,8 +165,29 @@ export function WorldCanvas({
 
   // Handle member click in 3D scene - opens the member menu
   const handleMemberClick = useCallback((memberId: string, position: [number, number, number]) => {
+    setSelectedFurniture(null) // Close furniture menu when clicking a member
     zoomToMember(memberId, position)
   }, [zoomToMember])
+
+  // Handle furniture click - opens furniture context menu
+  const handleFurnitureClick = useCallback((furniture: FurnitureInstance) => {
+    setSelectedFurniture(furniture)
+  }, [])
+
+  // Handle closing furniture context menu
+  const handleCloseFurnitureMenu = useCallback(() => {
+    setSelectedFurniture(null)
+  }, [])
+
+  // Handle seating a member
+  const handleSitMember = useCallback((memberId: string, furnitureId: string, seatIndex: number) => {
+    seatMember(memberId, furnitureId, seatIndex)
+  }, [seatMember])
+
+  // Handle unseating a member
+  const handleUnsitMember = useCallback((memberId: string) => {
+    unseatMember(memberId)
+  }, [unseatMember])
 
   // Handle camera mode cycling
   const handleCycleCameraMode = useCallback(() => {
@@ -279,6 +335,7 @@ export function WorldCanvas({
                       cursorPosition={cursorPosition}
                       membersWithPositions={membersWithPositions}
                       onMemberClick={handleMemberClick}
+                      onFurnitureClick={handleFurnitureClick}
                       isDarkMode={isDarkMode}
                     />
                   </Suspense>
@@ -315,6 +372,20 @@ export function WorldCanvas({
       {/* World Editor */}
       <WorldEditorToolbar className="absolute top-4 left-1/2 -translate-x-1/2" />
       <ObjectPalette className="absolute top-16 left-4" />
+
+      {/* Furniture context menu */}
+      {selectedFurniture && (
+        <div className="absolute top-16 right-4">
+          <FurnitureContextMenu
+            furniture={selectedFurniture}
+            members={members}
+            onClose={handleCloseFurnitureMenu}
+            onSitMember={handleSitMember}
+            onUnsitMember={handleUnsitMember}
+            seatedMembers={seatedMembersMap}
+          />
+        </div>
+      )}
 
       {/* Combine panel */}
       <CombinePanel

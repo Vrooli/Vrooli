@@ -42,7 +42,7 @@ export function EnvironmentSetup({ preset, showBackground = false }: Environment
       {/* Contact shadows for grounded feel */}
       {config.contactShadows && (
         <ContactShadows
-          position={[0, -1.99, 0]}
+          position={[0, 0.01, 0]}
           opacity={0.4}
           scale={20}
           blur={2.5}

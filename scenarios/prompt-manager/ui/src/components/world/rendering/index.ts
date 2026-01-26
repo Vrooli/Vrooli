@@ -7,6 +7,7 @@ export { EnvironmentSetup } from './EnvironmentSetup'
 export { ShadowSystem, useShadowConfig } from './ShadowSystem'
 export { DynamicLighting } from './DynamicLighting'
 export { DynamicFog, useFogColor } from './DynamicFog'
+export { DynamicSky, CelestialBody } from './DynamicSky'
 
 // Individual effects for custom compositions
 export { BloomEffect } from './effects/BloomEffect'

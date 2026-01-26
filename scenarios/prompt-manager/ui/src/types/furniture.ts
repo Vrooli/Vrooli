@@ -47,12 +47,14 @@ export interface FurnitureConfig {
 
 /**
  * Configuration for each furniture type
+ * Note: Seat Y positions are absolute world Y values where seated members should be placed.
+ * Members at these Y values will appear seated (with their isSeated flag set).
  */
 export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
   chair: {
     type: 'chair',
     displayName: 'Chair',
-    seats: [{ position: [0, 0.3, 0], rotation: 0 }],
+    seats: [{ position: [0, 1.1, 0], rotation: 0 }], // Seat height 0.3 + member ground offset 0.8
     movable: true,
     size: [0.5, 0.8, 0.5],
   },
@@ -60,9 +62,9 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
     type: 'bench',
     displayName: 'Bench',
     seats: [
-      { position: [-0.4, 0.3, 0], rotation: 0 },
-      { position: [0, 0.3, 0], rotation: 0 },
-      { position: [0.4, 0.3, 0], rotation: 0 },
+      { position: [-0.4, 1.1, 0], rotation: 0 },
+      { position: [0, 1.1, 0], rotation: 0 },
+      { position: [0.4, 1.1, 0], rotation: 0 },
     ],
     movable: true,
     size: [1.5, 0.6, 0.5],
@@ -70,21 +72,21 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
   stool: {
     type: 'stool',
     displayName: 'Stool',
-    seats: [{ position: [0, 0.4, 0], rotation: 0 }],
+    seats: [{ position: [0, 1.2, 0], rotation: 0 }], // Seat height 0.4 + member ground offset 0.8
     movable: true,
     size: [0.3, 0.5, 0.3],
   },
   armchair: {
     type: 'armchair',
     displayName: 'Armchair',
-    seats: [{ position: [0, 0.25, 0], rotation: 0 }],
+    seats: [{ position: [0, 1.05, 0], rotation: 0 }], // Seat height 0.25 + member ground offset 0.8
     movable: true,
     size: [0.7, 0.9, 0.7],
   },
   desk: {
     type: 'desk',
     displayName: 'Desk',
-    seats: [{ position: [0, 0, 0.5], rotation: Math.PI }], // Seat in front of desk
+    seats: [{ position: [0, 0.8, 0.5], rotation: Math.PI }], // Seat in front of desk (standing height)
     movable: true,
     size: [1.2, 0.75, 0.6],
   },
@@ -92,10 +94,10 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
     type: 'table',
     displayName: 'Table',
     seats: [
-      { position: [0, 0, 0.5], rotation: Math.PI },
-      { position: [0, 0, -0.5], rotation: 0 },
-      { position: [0.5, 0, 0], rotation: -Math.PI / 2 },
-      { position: [-0.5, 0, 0], rotation: Math.PI / 2 },
+      { position: [0, 0.8, 0.7], rotation: Math.PI },
+      { position: [0, 0.8, -0.7], rotation: 0 },
+      { position: [0.7, 0.8, 0], rotation: -Math.PI / 2 },
+      { position: [-0.7, 0.8, 0], rotation: Math.PI / 2 },
     ],
     movable: true,
     size: [1.0, 0.75, 1.0],
@@ -104,10 +106,10 @@ export const FURNITURE_CONFIGS: Record<FurnitureType, FurnitureConfig> = {
     type: 'picnic-table',
     displayName: 'Picnic Table',
     seats: [
-      { position: [-0.3, 0.3, 0.6], rotation: Math.PI },
-      { position: [0.3, 0.3, 0.6], rotation: Math.PI },
-      { position: [-0.3, 0.3, -0.6], rotation: 0 },
-      { position: [0.3, 0.3, -0.6], rotation: 0 },
+      { position: [-0.3, 1.1, 0.6], rotation: Math.PI },
+      { position: [0.3, 1.1, 0.6], rotation: Math.PI },
+      { position: [-0.3, 1.1, -0.6], rotation: 0 },
+      { position: [0.3, 1.1, -0.6], rotation: 0 },
     ],
     movable: false,
     size: [1.2, 0.8, 1.4],

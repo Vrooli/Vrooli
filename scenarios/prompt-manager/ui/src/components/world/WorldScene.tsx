@@ -20,11 +20,11 @@ import { DragPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
-import { DynamicLighting, DynamicFog } from './rendering'
+import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody } from './rendering'
 import { useInteractionStore } from '@/stores/interactionStore'
-import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { Member } from '@/types/member'
+import type { FurnitureInstance } from '@/types/furniture'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
 type OrbitControlsRef = {
@@ -42,6 +42,8 @@ interface CameraState {
 export interface MemberWithPosition {
   member: Member
   position: [number, number, number]
+  isSeated?: boolean
+  seatRotation?: number
 }
 
 interface WorldSceneProps {
@@ -52,6 +54,8 @@ interface WorldSceneProps {
   membersWithPositions: MemberWithPosition[]
   /** Called when a member is clicked, with member ID and position */
   onMemberClick?: (memberId: string, position: [number, number, number]) => void
+  /** Called when furniture is clicked */
+  onFurnitureClick?: (furniture: FurnitureInstance) => void
   isDarkMode?: boolean
   /** Whether to show FPS overlay */
   showFpsOverlay?: boolean
@@ -65,6 +69,7 @@ export function WorldScene({
   cursorPosition,
   membersWithPositions,
   onMemberClick,
+  onFurnitureClick,
   isDarkMode = true,
   showFpsOverlay = false,
   autoAdjustPerformance = true,
@@ -80,8 +85,6 @@ export function WorldScene({
   const groundConfig = currentEnv?.ground
   const isNightTime = currentEnv?.timeOfDay === 'night'
 
-  // Furniture seat position lookup
-  const getMemberSeatPosition = useFurnitureStore((state) => state.getMemberSeatPosition)
 
   // Update camera position when state changes
   useEffect(() => {
@@ -109,10 +112,16 @@ export function WorldScene({
       {/* Dynamic Fog from environment config */}
       <DynamicFog />
 
+      {/* Dynamic Sky dome - renders gradient based on time of day */}
+      <WorldErrorBoundary componentName="DynamicSky" minimal>
+        <DynamicSky />
+        <CelestialBody />
+      </WorldErrorBoundary>
+
       {/* Stars - only show in dark mode or night time */}
       {(isDarkMode || isNightTime) && (
         <WorldErrorBoundary componentName="Stars" minimal>
-          <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />
+          <Stars radius={80} depth={40} count={2000} factor={4} fade speed={1} />
         </WorldErrorBoundary>
       )}
 
@@ -140,21 +149,21 @@ export function WorldScene({
             groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
             groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
           ]}
-          position={[0, groundConfig.position ?? -2, 0]}
+          position={[0, groundConfig.position ?? 0, 0]}
         />
       )}
       {/* Fallback grid if no config */}
       {!groundConfig && (
         <gridHelper
           args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
-          position={[0, -2, 0]}
+          position={[0, 0, 0]}
         />
       )}
       {/* Ground plane for non-grid environments */}
       {groundConfig?.visible && groundConfig.type === 'plane' && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, groundConfig.position ?? -2, 0]}
+          position={[0, groundConfig.position ?? 0, 0]}
           receiveShadow
         >
           <planeGeometry args={[groundConfig.size ?? 100, groundConfig.size ?? 100]} />
@@ -163,32 +172,29 @@ export function WorldScene({
       )}
 
       {/* Furniture and Decorations */}
-      <FurnitureManager interactive draggable />
+      <FurnitureManager
+        interactive
+        draggable
+        onFurnitureClick={onFurnitureClick}
+      />
       <DecorationManager interactive draggable />
 
       {/* Render all members with accessories and overlays */}
-      {membersWithPositions.map(({ member, position }) => {
-        const seatInfo = getMemberSeatPosition(member.id)
-        const finalPosition = seatInfo?.position ?? position
-        const isSeated = !!seatInfo
-        const seatRotation = seatInfo?.rotation ?? 0
-
-        return (
-          <MemberWithAccessories
-            key={member.id}
-            member={member}
-            position={finalPosition}
-            cursorPosition={cursorPosition}
-            selectedNodes={selectedNodeIds}
-            isAnimating={false}
-            isSeated={isSeated}
-            seatRotation={seatRotation}
-            onMemberClick={() => onMemberClick?.(member.id, finalPosition)}
-            showOverlays
-            showAccessories
-          />
-        )
-      })}
+      {membersWithPositions.map(({ member, position, isSeated = false, seatRotation = 0 }) => (
+        <MemberWithAccessories
+          key={member.id}
+          member={member}
+          position={position}
+          cursorPosition={cursorPosition}
+          selectedNodes={selectedNodeIds}
+          isAnimating={false}
+          isSeated={isSeated}
+          seatRotation={seatRotation}
+          onMemberClick={() => onMemberClick?.(member.id, position)}
+          showOverlays
+          showAccessories
+        />
+      ))}
     </>
   )
 }

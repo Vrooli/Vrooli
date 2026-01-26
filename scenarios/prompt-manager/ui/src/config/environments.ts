@@ -123,14 +123,14 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
     type: 'plane',
     color: '#228B22',
     size: 100,
-    position: -2,
+    position: 0,
   },
   'indoor-office': {
     visible: true,
     type: 'plane',
     color: '#808080',
     size: 50,
-    position: -2,
+    position: 0,
   },
   'abstract-space': {
     visible: true,
@@ -138,7 +138,7 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
     color: '#1e293b',
     size: 30,
     divisions: 30,
-    position: -2,
+    position: 0,
   },
   custom: {
     visible: false,
@@ -192,7 +192,7 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
       color: '#e2e8f0',
       size: 30,
       divisions: 30,
-      position: -2,
+      position: 0,
     },
   },
   'outdoor-morning': {
