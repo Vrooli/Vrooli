@@ -312,12 +312,8 @@ export default function App() {
   // Queries
   const healthQuery = useHealth();
   const statusQuery = useRepoStatus();
-  const historyNeedsDetails = Boolean(
-    historySearch.trim() ||
-      historyScopeFilter ||
-      historyWorkingSetOnly ||
-      (fileViewMode === "grouped" && groupingRules.length > 0)
-  );
+  // Always fetch entry details for commit viewing and blame mode filtering
+  const historyNeedsDetails = true;
   const historyQuery = useRepoHistory(historyLimit, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus();
   const approvedChangesQuery = useApprovedChanges();

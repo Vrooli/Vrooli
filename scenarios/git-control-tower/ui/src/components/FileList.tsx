@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Settings,
   MoreVertical,
+  History,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -33,6 +34,7 @@ import { useIsMobile } from "../hooks";
 import type { DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 
 // Context to pass mobile state down without prop drilling
 const MobileContext = createContext(false);
@@ -141,6 +143,7 @@ interface FileSectionProps {
   confirmingIgnore?: string | null;
   onConfirmIgnore?: (path: string | null) => void;
   onOpenMobileActions?: (file: string) => void;
+  onContextMenu?: (file: string, event: React.MouseEvent) => void;
 }
 
 const statusStyleMap = {
@@ -281,6 +284,7 @@ interface FileRowProps {
   confirmingDiscard?: string | null;
   confirmingIgnore?: string | null;
   onOpenMobileActions?: (file: string) => void;
+  onContextMenu?: (file: string, event: React.MouseEvent) => void;
 }
 
 const FileRow = memo(function FileRow({
@@ -310,6 +314,7 @@ const FileRow = memo(function FileRow({
   confirmingDiscard,
   confirmingIgnore,
   onOpenMobileActions,
+  onContextMenu,
 }: FileRowProps) {
   const isMobile = useContext(MobileContext);
   const isConfirmingIgnore = confirmingIgnore === file;
@@ -327,6 +332,10 @@ const FileRow = memo(function FileRow({
       data-testid={itemTestId}
       data-file-path={file}
       onClick={(event) => onSelectFile(file, isStaged, event)}
+      onContextMenu={onContextMenu ? (e) => {
+        e.preventDefault();
+        onContextMenu(file, e);
+      } : undefined}
     >
       <span
         className={`flex items-center justify-center rounded border font-bold ${badge.style} ${
@@ -551,6 +560,7 @@ function FileSection({
   confirmingIgnore,
   onConfirmIgnore,
   onOpenMobileActions,
+  onContextMenu,
 }: FileSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -639,6 +649,7 @@ function FileSection({
               confirmingDiscard={confirmingDiscard}
               confirmingIgnore={confirmingIgnore}
               onOpenMobileActions={onOpenMobileActions}
+              onContextMenu={onContextMenu}
             />
           ))}
         </ul>
@@ -724,6 +735,37 @@ export function FileList({
       isConflict,
     };
   }, [mobileActionFile, files]);
+
+  // Context menu state for right-click blame action
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    file: string;
+  } | null>(null);
+
+  const handleFileContextMenu = useCallback((file: string, event: React.MouseEvent) => {
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      file,
+    });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
+    if (!contextMenu || !onBlameFile) return [];
+    return [
+      {
+        label: "View File History",
+        icon: <History className="h-4 w-4" />,
+        onClick: () => onBlameFile(contextMenu.file),
+      },
+    ];
+  }, [contextMenu, onBlameFile]);
+
   const normalizedRules = useMemo(
     () =>
       groupingRules
@@ -1300,6 +1342,7 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 onOpenMobileActions={setMobileActionFile}
+                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
                               <FileSection
                                 key={`${group.id}-staged`}
@@ -1332,6 +1375,7 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 onOpenMobileActions={setMobileActionFile}
+                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
                               <FileSection
                                 key={`${group.id}-unstaged`}
@@ -1368,6 +1412,7 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 onOpenMobileActions={setMobileActionFile}
+                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
                               <FileSection
                                 key={`${group.id}-untracked`}
@@ -1405,6 +1450,7 @@ export function FileList({
                                 confirmingIgnore={confirmingIgnore}
                                 onConfirmIgnore={onConfirmIgnore}
                                 onOpenMobileActions={setMobileActionFile}
+                                onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                               />
                             </div>
                           </>
@@ -1443,6 +1489,7 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       onOpenMobileActions={setMobileActionFile}
+                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
 
                     {/* Staged Changes */}
@@ -1474,6 +1521,7 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       onOpenMobileActions={setMobileActionFile}
+                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
 
                     {/* Unstaged Changes */}
@@ -1507,6 +1555,7 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       onOpenMobileActions={setMobileActionFile}
+                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
 
                     {/* Untracked Files */}
@@ -1541,6 +1590,7 @@ export function FileList({
                       confirmingIgnore={confirmingIgnore}
                       onConfirmIgnore={onConfirmIgnore}
                       onOpenMobileActions={setMobileActionFile}
+                      onContextMenu={onBlameFile ? handleFileContextMenu : undefined}
                     />
                   </>
                 )}
@@ -1638,6 +1688,14 @@ export function FileList({
           </div>
         </BottomSheet>
       )}
+
+      {/* Context menu for right-click blame action */}
+      <ContextMenu
+        isOpen={Boolean(contextMenu)}
+        position={contextMenu ?? { x: 0, y: 0 }}
+        items={contextMenuItems}
+        onClose={handleCloseContextMenu}
+      />
     </MobileContext.Provider>
   );
 }
