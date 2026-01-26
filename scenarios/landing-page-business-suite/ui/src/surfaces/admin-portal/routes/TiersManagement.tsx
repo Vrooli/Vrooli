@@ -10,6 +10,8 @@ import { useStripeImport } from '../hooks/useStripeImport';
 import { normalizeInterval } from '../services/pricing.service';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 
+const DEFAULT_BUNDLE_KEY = 'business_suite';
+
 export function TiersManagement() {
   const {
     // Bundles state
@@ -54,6 +56,11 @@ export function TiersManagement() {
     loadBundles();
   }, [loadBundles]);
 
+  const defaultBundleKey = useMemo(
+    () => bundles[0]?.bundle.bundle_key ?? DEFAULT_BUNDLE_KEY,
+    [bundles]
+  );
+
   // Compute stats from bundles (excluding demo placeholders)
   const stats = useMemo(() => {
     let total = 0;
@@ -89,6 +96,15 @@ export function TiersManagement() {
             testId="tiers-management-header"
           />
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              size="sm"
+              onClick={() => handleOpenAddPlan(defaultBundleKey)}
+              className="gap-2"
+              disabled={loadingBundles}
+            >
+              <Plus className="h-4 w-4" />
+              Add plan
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -153,6 +169,7 @@ export function TiersManagement() {
           onRemoveDemoPlan={removeDemoPlan}
           priceChecks={priceChecks}
           onAddPlan={handleOpenAddPlan}
+          defaultBundleKey={defaultBundleKey}
         />
       </div>
 

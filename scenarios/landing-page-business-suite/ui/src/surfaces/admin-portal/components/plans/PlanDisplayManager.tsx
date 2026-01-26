@@ -1,4 +1,4 @@
-import { Package, RefreshCw } from 'lucide-react';
+import { Package, RefreshCw, Plus } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Card, CardContent } from '../../../../shared/ui/card';
 import { Callout } from '../Callout';
@@ -24,6 +24,7 @@ export interface PlanDisplayManagerProps {
   onReload: () => void;
   loading: boolean;
   error: string | null;
+  defaultBundleKey?: string;
   // Edit-mode handlers (required in edit mode, optional in preview)
   onPriceChange: (bundleKey: string, priceId: string, field: keyof PriceFormValues, transformer?: (value: string) => string | number) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onSavePrice: (bundleKey: string, priceId: string) => Promise<void>;
@@ -45,6 +46,7 @@ export function PlanDisplayManager({
   onReload,
   loading,
   error,
+  defaultBundleKey,
   onPriceChange,
   onSavePrice,
   onVerifyPrice,
@@ -52,6 +54,8 @@ export function PlanDisplayManager({
   priceChecks,
   onAddPlan,
 }: PlanDisplayManagerProps) {
+  const canAddPlan = Boolean(onAddPlan && defaultBundleKey);
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -87,13 +91,24 @@ export function PlanDisplayManager({
                 You don't have any pricing bundles set up yet. Enable "Show demo placeholders" to preview
                 the layout with sample plans, or connect your Stripe account to create real pricing tiers.
               </p>
-              <Button
-                variant="outline"
-                onClick={onToggleDemoPlaceholders}
-                className="gap-2"
-              >
-                {showDemoPlaceholders ? 'Hide demo placeholders' : 'Show demo placeholders'}
-              </Button>
+              <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                {canAddPlan && (
+                  <Button
+                    onClick={() => onAddPlan?.(defaultBundleKey as string)}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add plan
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={onToggleDemoPlaceholders}
+                  className="gap-2"
+                >
+                  {showDemoPlaceholders ? 'Hide demo placeholders' : 'Show demo placeholders'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
