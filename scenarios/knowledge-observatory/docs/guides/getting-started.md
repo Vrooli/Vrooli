@@ -30,7 +30,7 @@ knowledge-observatory graph --center "quickstart"
 knowledge-observatory health
 ```
 
-[CODE: cli/knowledge-observatory]
+[CODE: cli/app.go]
 
 ## API Walkthrough
 

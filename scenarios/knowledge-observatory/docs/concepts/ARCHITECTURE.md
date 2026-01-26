@@ -5,7 +5,7 @@ Knowledge Observatory is the control-plane for Vrooli's semantic memory. It inge
 ## System Surfaces
 - **API**: Canonical write path + query surface. [CODE: api/server.go]
 - **UI**: Operator dashboard for search, graph, metrics. [CODE: ui/src/main.tsx]
-- **CLI**: Thin wrapper over the API for terminal workflows. [CODE: cli/knowledge-observatory]
+- **CLI**: Thin wrapper over the API for terminal workflows. [CODE: cli/app.go]
 
 ## Data Flow (high level)
 

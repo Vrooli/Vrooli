@@ -1,69 +1,53 @@
 #!/usr/bin/env bats
 # Tests for knowledge-observatory CLI
 
-# Test configuration
-readonly TEST_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
-readonly TEST_CLI="${TEST_DIR}/knowledge-observatory"
-readonly TEST_CONFIG_DIR="$HOME/.knowledge-observatory"
-readonly TEST_CONFIG_FILE="$TEST_CONFIG_DIR/config.json"
-
-# Setup and teardown
 setup() {
-    # Backup existing config if it exists
-    if [[ -f "$TEST_CONFIG_FILE" ]]; then
-        mv "$TEST_CONFIG_FILE" "$TEST_CONFIG_FILE.bak"
+    SCENARIO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
+    CLI_DIR="${SCENARIO_ROOT}/cli"
+
+    if ! command -v go &>/dev/null; then
+        skip "Go toolchain not available"
     fi
-}
 
-teardown() {
-    # Restore config if it was backed up
-    if [[ -f "$TEST_CONFIG_FILE.bak" ]]; then
-        mv "$TEST_CONFIG_FILE.bak" "$TEST_CONFIG_FILE"
+    TMP_DIR="${BATS_TEST_TMPDIR:-${BATS_TMPDIR:-/tmp}}"
+    CLI_BIN="${TMP_DIR}/knowledge-observatory"
+
+    if [[ ! -x "$CLI_BIN" ]]; then
+        go build -o "$CLI_BIN" "$CLI_DIR"
     fi
+
+    export KNOWLEDGE_OBSERVATORY_CONFIG_DIR="${TMP_DIR}/ko-config"
 }
 
-# Test: CLI exists and is executable
-@test "CLI script exists and is executable" {
-    [[ -f "$TEST_CLI" ]]
-    [[ -x "$TEST_CLI" ]]
+@test "CLI binary builds" {
+    [[ -x "$CLI_BIN" ]]
 }
 
-# Test: Help command
 @test "help command displays usage information" {
-    run $TEST_CLI help
+    run "$CLI_BIN" help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Usage:" ]]
     [[ "$output" =~ "Commands:" ]]
 }
 
-# Test: Version command
 @test "version command displays version" {
-    run $TEST_CLI version
+    run "$CLI_BIN" version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "version" ]]
+    [[ "$output" =~ "knowledge-observatory CLI version" ]]
 }
 
-# Test: Configuration initialization
-@test "configuration is initialized on first run" {
-    rm -f "$TEST_CONFIG_FILE"
-    run $TEST_CLI version
-    [ "$status" -eq 0 ]
-    [[ -f "$TEST_CONFIG_FILE" ]]
-}
-
-# Test: Configure command
 @test "configure command can set and retrieve values" {
-    run $TEST_CLI configure api_base http://test.example.com
+    run "$CLI_BIN" configure api_base http://test.example.com
     [ "$status" -eq 0 ]
-    
-    run $TEST_CLI configure
+
+    run "$CLI_BIN" configure
     [ "$status" -eq 0 ]
     [[ "$output" =~ "test.example.com" ]]
+    [[ -f "${KNOWLEDGE_OBSERVATORY_CONFIG_DIR}/config.json" ]]
 }
 
-# Test: Help lists supported commands
 @test "help output lists supported commands" {
-    run $TEST_CLI help
+    run "$CLI_BIN" help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "status" ]]
     [[ "$output" =~ "search" ]]
@@ -73,9 +57,8 @@ teardown() {
     [[ "$output" =~ "configure" ]]
 }
 
-# Test: Invalid command
 @test "invalid command shows error" {
-    run $TEST_CLI invalid_command
+    run "$CLI_BIN" invalid_command
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Unknown command" ]]
 }

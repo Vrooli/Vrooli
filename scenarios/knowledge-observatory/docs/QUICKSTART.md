@@ -35,7 +35,7 @@ knowledge-observatory search "How do scenarios work?"
 ```
 
 This uses the API search endpoint. [REQ: OT-P0-001]
-[CODE: cli/knowledge-observatory]
+[CODE: cli/app.go]
 [CODE: api/search.go]
 
 ## Ingest a record (CLI)

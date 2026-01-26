@@ -92,7 +92,7 @@ knowledge-observatory job-status <job_id>
 knowledge-observatory graph --center "ecosystem-manager"
 
 # Get quality metrics
-knowledge-observatory metrics --collection vrooli_knowledge
+knowledge-observatory metrics
 
 # Watch health in real-time
 knowledge-observatory health --watch

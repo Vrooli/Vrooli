@@ -9,7 +9,7 @@
 knowledge-observatory configure api_base http://localhost:<API_PORT>
 ```
 
-[CODE: cli/knowledge-observatory]
+[CODE: cli/app.go]
 [CODE: api/server.go]
 
 ## Qdrant errors or empty results
@@ -41,7 +41,9 @@ knowledge-observatory configure api_base http://localhost:<API_PORT>
 - Remove the config file to reinitialize:
 
 ```bash
+rm -f ~/.config/vrooli/knowledge-observatory/config.json
+rm -f ~/.vrooli/config/knowledge-observatory/config.json
 rm -f ~/.knowledge-observatory/config.json
 ```
 
-[CODE: cli/knowledge-observatory]
+[CODE: cli/app.go]

@@ -27,18 +27,27 @@ Environment variables consumed by the API:
 [CODE: api/knowledge_schema.go]
 
 ## CLI Configuration
-Stored at `~/.knowledge-observatory/config.json`.
+Stored at `${XDG_CONFIG_HOME:-~/.config}/vrooli/knowledge-observatory/config.json` (fallback: `~/.vrooli/config/knowledge-observatory/config.json`). Legacy installs may use `~/.knowledge-observatory/config.json`.
 
 Keys:
 - `api_base`
-- `api_token`
-- `output_format`
+- `token`
 
 Environment overrides:
 - `KNOWLEDGE_OBSERVATORY_API_BASE`
+- `KNOWLEDGE_OBSERVATORY_API_URL`
+- `KNOWLEDGE_OBSERVATORY_API_PORT`
 - `KNOWLEDGE_OBSERVATORY_API_TOKEN`
+- `API_BASE_URL`
+- `VITE_API_BASE_URL`
+- `API_PORT`
+- `VROOLI_API_TOKEN`
 
-[CODE: cli/knowledge-observatory]
+Config directory overrides:
+- `KNOWLEDGE_OBSERVATORY_CONFIG_DIR`
+- `VROOLI_CLI_CONFIG_DIR`
+
+[CODE: cli/app.go]
 
 ## Optional Resources
 - **Ollama** is optional but improves embedding quality.

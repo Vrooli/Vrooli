@@ -2,7 +2,5 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scenarios/knowledge-observatory/cli"
-source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/knowledge-observatory" "knowledge-observatory"
+"${APP_ROOT}/packages/cli-core/install.sh" "scenarios/knowledge-observatory/cli" --name "knowledge-observatory"
