@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
-import type { ViewportDimensions, ActualViewport } from '../types/viewport';
+import type { ViewportDimensions, ActualViewport, ViewportSource } from '../types/viewport';
 import {
   type RetryState,
   DEFAULT_RETRY_CONFIG,
@@ -24,13 +24,19 @@ const safeJson = async (response: Response): Promise<unknown> => {
   }
 };
 
+const isViewportSource = (value: unknown): value is ViewportSource =>
+  value === 'requested' ||
+  value === 'fingerprint' ||
+  value === 'fingerprint_partial' ||
+  value === 'default';
+
 const parseActualViewport = (value: unknown): ActualViewport | null => {
   if (!isRecord(value)) return null;
   if (typeof value.width !== 'number' || typeof value.height !== 'number') return null;
   return {
     width: value.width,
     height: value.height,
-    source: typeof value.source === 'string' ? value.source : 'requested',
+    source: isViewportSource(value.source) ? value.source : 'requested',
     reason: typeof value.reason === 'string' ? value.reason : '',
   };
 };

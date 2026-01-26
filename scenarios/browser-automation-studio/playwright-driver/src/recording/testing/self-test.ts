@@ -38,6 +38,40 @@ import { ActionType } from '../../proto/recording';
 import { logger, scopedLog, LogContext } from '../../utils';
 import { verifyScriptInjection, waitForScriptReady } from '../validation/verification';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toNumber = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const toStringOrNull = (value: unknown): string | null =>
+  typeof value === 'string' ? value : null;
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+function extractSelectorFromAction(action?: TimelineEntry['action']): string | undefined {
+  if (!action) {
+    return undefined;
+  }
+
+  switch (action.params.case) {
+    case 'click':
+    case 'input':
+    case 'selectOption':
+    case 'hover':
+    case 'assert':
+      return action.params.value.selector;
+    default:
+      return undefined;
+  }
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -145,6 +179,21 @@ interface BrowserTelemetry {
   eventsSendFailed: number;
   lastError: string | null;
 }
+
+const parseBrowserTelemetry = (value: unknown): BrowserTelemetry | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    eventsDetected: toNumber(value.eventsDetected, 0),
+    eventsCaptured: toNumber(value.eventsCaptured, 0),
+    eventsSent: toNumber(value.eventsSent, 0),
+    eventsSendSuccess: toNumber(value.eventsSendSuccess, 0),
+    eventsSendFailed: toNumber(value.eventsSendFailed, 0),
+    lastError: toStringOrNull(value.lastError),
+  };
+};
 
 interface RouteStats {
   eventsReceived: number;
@@ -436,7 +485,13 @@ export async function runRecordingPipelineTest(
   };
 
   // Helper to add step result
-  const addStep = (name: string, passed: boolean, durationMs: number, error?: string, details?: Record<string, unknown>) => {
+  const addStep = (
+    name: string,
+    passed: boolean,
+    durationMs: number,
+    error?: string,
+    details?: Record<string, unknown>
+  ): void => {
     steps.push({ name, passed, durationMs, error, details });
     logger.debug(scopedLog(LogContext.RECORDING, `pipeline test step: ${name}`), {
       passed,
@@ -447,12 +502,14 @@ export async function runRecordingPipelineTest(
   };
 
   // Set up console capture
-  const consoleHandler = captureConsole ? (msg: { type: () => string; text: () => string }) => {
-    consoleMessages.push({
-      type: msg.type(),
-      text: msg.text().slice(0, 500),
-    });
-  } : null;
+  const consoleHandler = captureConsole
+    ? (msg: { type: () => string; text: () => string }): void => {
+        consoleMessages.push({
+          type: msg.type(),
+          text: msg.text().slice(0, 500),
+        });
+      }
+    : null;
 
   if (consoleHandler) {
     page.on('console', consoleHandler);
@@ -616,7 +673,7 @@ export async function runRecordingPipelineTest(
           eventsCaptured.push({
             actionType: actionTypeName.toLowerCase(),
             timestamp: new Date().toISOString(),
-            selector: entry.action?.selector?.primary || undefined,
+            selector: extractSelectorFromAction(entry.action),
           });
 
           logger.debug(scopedLog(LogContext.RECORDING, 'pipeline test: event received via real pipeline'), {
@@ -655,10 +712,19 @@ export async function runRecordingPipelineTest(
     const telemetryBeforeStart = Date.now();
     try {
       diagnostics.telemetryBefore = await queryBrowserTelemetry(page);
-      diagnostics.scriptStatusBefore!.isActive = await queryIsActive(page);
+      const scriptStatusBefore = diagnostics.scriptStatusBefore ?? {
+        loaded: false,
+        ready: false,
+        inMainContext: false,
+        handlersCount: 0,
+        version: null,
+        isActive: null,
+      };
+      scriptStatusBefore.isActive = await queryIsActive(page);
+      diagnostics.scriptStatusBefore = scriptStatusBefore;
       addStep('query_telemetry_before', true, Date.now() - telemetryBeforeStart, undefined, {
         telemetry: diagnostics.telemetryBefore,
-        isActive: diagnostics.scriptStatusBefore!.isActive,
+        isActive: scriptStatusBefore.isActive,
       });
     } catch (error) {
       addStep('query_telemetry_before', false, Date.now() - telemetryBeforeStart, error instanceof Error ? error.message : String(error));
@@ -832,12 +898,10 @@ export async function runRecordingPipelineTest(
         // Clear received events to isolate focus test
         const eventsBeforeFocus = receivedEvents.length;
 
-        // First blur any focused element - use type assertion for browser DOM
+        // First blur any focused element
         await page.evaluate(() => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const doc = document as any;
-          const active = doc.activeElement;
-          if (active && typeof active.blur === 'function') {
+          const active = document.activeElement;
+          if (active instanceof HTMLElement) {
             active.blur();
           }
         });
@@ -1410,8 +1474,12 @@ async function queryBrowserTelemetry(page: Page): Promise<BrowserTelemetry | und
         expression: `JSON.stringify(window.__vrooli_recording_telemetry || null)`,
         returnByValue: true,
       });
-      if (result.type === 'string' && result.value && result.value !== 'null') {
-        return JSON.parse(result.value);
+      if (result.type === 'string' && typeof result.value === 'string' && result.value !== 'null') {
+        const parsed = safeJsonParse(result.value);
+        const telemetry = parseBrowserTelemetry(parsed);
+        if (telemetry) {
+          return telemetry;
+        }
       }
     } finally {
       await client.detach().catch(() => {});
@@ -1430,7 +1498,7 @@ async function queryIsActive(page: Page): Promise<boolean | null> {
         expression: `typeof window.__isRecordingActive === 'function' ? window.__isRecordingActive() : null`,
         returnByValue: true,
       });
-      if (result.type === 'boolean') {
+      if (result.type === 'boolean' && typeof result.value === 'boolean') {
         return result.value;
       }
     } finally {

@@ -177,7 +177,7 @@ export interface NoOpMetrics {
   frameSkipCount: { inc: () => void };
 }
 
-const noOp = () => {};
+const noOp = (): void => {};
 const noOpGauge = { inc: noOp, dec: noOp, set: noOp };
 const noOpCounter = { inc: noOp };
 const noOpHistogram = { observe: noOp };

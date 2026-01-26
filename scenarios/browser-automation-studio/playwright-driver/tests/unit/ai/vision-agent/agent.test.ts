@@ -12,7 +12,6 @@ import {
   createScrollContext,
   createHistoryEntry,
   serializeAction,
-  DEFAULT_LOOP_CONFIG,
   type VisionAgentDeps,
   type NavigationConfig,
   type NavigationStep,
@@ -26,12 +25,12 @@ import {
   type VisionModelSpecInterface,
   type ActionExecutionResult,
   type ActionExecutionContext,
-  type LoopDetectionConfig,
   type ActionHistoryEntry,
 } from '../../../../src/ai/vision-agent';
 import type { BrowserAction, ScrollAction } from '../../../../src/ai/action/types';
 import type { ElementLabel, TokenUsage } from '../../../../src/ai/vision-client/types';
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
+import { formatElementLabelsForPrompt } from '../../../../src/ai/screenshot/annotate';
 
 // =============================================================================
 // TEST UTILITIES
@@ -74,30 +73,30 @@ function createMockVisionClient(): VisionModelClientInterface & {
   };
 
   return {
-    async analyze(
+    analyze(
       _request: VisionAnalysisRequestInterface
     ): Promise<VisionAnalysisResponseInterface> {
       callCount++;
 
       if (shouldFail) {
-        throw new Error(failMessage);
+        return Promise.reject(new Error(failMessage));
       }
 
       const queued = queue.shift();
       const response = queued ?? defaultResponse;
 
       if (!response) {
-        throw new Error('No mock response configured');
+        return Promise.reject(new Error('No mock response configured'));
       }
 
-      return {
+      return Promise.resolve({
         action: response.action ?? { type: 'wait', ms: 100 },
         reasoning: response.reasoning ?? 'Mock reasoning',
         goalAchieved: response.goalAchieved ?? false,
         confidence: response.confidence ?? 0.9,
         tokensUsed: response.tokensUsed ?? defaultTokens,
         rawResponse: JSON.stringify(response.action),
-      };
+      });
     },
 
     getModelSpec(): VisionModelSpecInterface {
@@ -116,19 +115,19 @@ function createMockVisionClient(): VisionModelClientInterface & {
       };
     },
 
-    queueResponse(response: Partial<VisionAnalysisResponseInterface>) {
+    queueResponse(response: Partial<VisionAnalysisResponseInterface>): void {
       queue.push(response);
     },
 
-    setDefaultResponse(response: Partial<VisionAnalysisResponseInterface>) {
+    setDefaultResponse(response: Partial<VisionAnalysisResponseInterface>): void {
       defaultResponse = response;
     },
 
-    getCallCount() {
+    getCallCount(): number {
       return callCount;
     },
 
-    setFailMode(fail: boolean, message?: string) {
+    setFailMode(fail: boolean, message?: string): void {
       shouldFail = fail;
       if (message) failMessage = message;
     },
@@ -140,8 +139,8 @@ function createMockVisionClient(): VisionModelClientInterface & {
  */
 function createMockScreenshotCapture(): ScreenshotCaptureInterface {
   return {
-    async capture(_page: Page): Promise<Buffer> {
-      return Buffer.from('mock-screenshot');
+    capture(_page: Page): Promise<Buffer> {
+      return Promise.resolve(Buffer.from('mock-screenshot'));
     },
   };
 }
@@ -151,11 +150,11 @@ function createMockScreenshotCapture(): ScreenshotCaptureInterface {
  */
 function createMockAnnotator(): ElementAnnotatorInterface {
   return {
-    async annotate(
+    annotate(
       screenshot: Buffer,
       elements: ElementLabel[]
     ): Promise<{ image: Buffer; labels: ElementLabel[] }> {
-      return { image: screenshot, labels: elements };
+      return Promise.resolve({ image: screenshot, labels: elements });
     },
   };
 }
@@ -175,7 +174,7 @@ function createMockActionExecutor(): ActionExecutorInterface & {
   let currentScrollY = 0;
 
   return {
-    async execute(
+    execute(
       _page: Page,
       action: BrowserAction,
       _elementLabels?: ElementLabel[]
@@ -183,11 +182,11 @@ function createMockActionExecutor(): ActionExecutorInterface & {
       calls.push(action);
 
       if (shouldFail) {
-        return {
+        return Promise.resolve({
           success: false,
           error: failMessage,
           durationMs: 10,
-        };
+        });
       }
 
       // Generate scroll context for scroll actions
@@ -206,24 +205,24 @@ function createMockActionExecutor(): ActionExecutorInterface & {
         };
       }
 
-      return {
+      return Promise.resolve({
         success: true,
         newUrl: 'https://example.com/after-action',
         durationMs: 10,
         context,
-      };
+      });
     },
 
-    getCalls() {
+    getCalls(): BrowserAction[] {
       return [...calls];
     },
 
-    setFailMode(fail: boolean, message?: string) {
+    setFailMode(fail: boolean, message?: string): void {
       shouldFail = fail;
       if (message) failMessage = message;
     },
 
-    setScrollBehavior(effective: boolean) {
+    setScrollBehavior(effective: boolean): void {
       scrollIsEffective = effective;
     },
   };
@@ -238,11 +237,12 @@ function createMockStepEmitter(): StepEmitterInterface & {
   const steps: NavigationStep[] = [];
 
   return {
-    async emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
+    emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
       steps.push(step);
+      return Promise.resolve();
     },
 
-    getEmittedSteps() {
+    getEmittedSteps(): NavigationStep[] {
       return [...steps];
     },
   };
@@ -255,7 +255,7 @@ function createMockPage(): Page {
   return {
     url: () => 'https://example.com',
     viewportSize: () => ({ width: 1280, height: 720 }),
-    evaluate: async () => [],
+    evaluate: () => Promise.resolve([]),
   } as unknown as Page;
 }
 
@@ -273,8 +273,9 @@ function createNavConfig(overrides?: Partial<NavigationConfig>): NavigationConfi
     apiKey: 'test-key',
     navigationId: 'nav-test-123',
     callbackUrl: 'http://localhost/callback',
-    onStep: async (step) => {
+    onStep: (step): Promise<void> => {
       steps.push(step);
+      return Promise.resolve();
     },
     ...overrides,
   };
@@ -371,8 +372,9 @@ describe('VisionAgent', () => {
 
       // Return scroll down 5 times, then done
       for (let i = 0; i < 5; i++) {
+        const scrollAction: ScrollAction = { type: 'scroll', direction: 'down' };
         mockClient.queueResponse({
-          action: { type: 'scroll', direction: 'down' } as ScrollAction,
+          action: scrollAction,
           reasoning: 'Scrolling to find content',
           goalAchieved: false,
         });
@@ -405,8 +407,9 @@ describe('VisionAgent', () => {
       mockExecutor.setScrollBehavior(false);
 
       // Return scroll down repeatedly
+      const scrollAction: ScrollAction = { type: 'scroll', direction: 'down' };
       mockClient.setDefaultResponse({
-        action: { type: 'scroll', direction: 'down' } as ScrollAction,
+        action: scrollAction,
         reasoning: 'Trying to scroll more',
         goalAchieved: false,
       });
@@ -485,15 +488,15 @@ describe('VisionAgent', () => {
 
       // First execution fails
       let callCount = 0;
-      mockExecutor.execute = async (
+      mockExecutor.execute = (
         _page: Page,
-        action: BrowserAction
+        _action: BrowserAction
       ): Promise<ActionExecutionResult> => {
         callCount++;
         if (callCount === 1) {
-          return { success: false, error: 'Element not found', durationMs: 10 };
+          return Promise.resolve({ success: false, error: 'Element not found', durationMs: 10 });
         }
-        return { success: true, durationMs: 10 };
+        return Promise.resolve({ success: true, durationMs: 10 });
       };
 
       const deps = createMockDeps({
@@ -531,8 +534,9 @@ describe('VisionAgent', () => {
 
       const onStepCalls: NavigationStep[] = [];
       const config = createNavConfig({
-        onStep: async (step) => {
+        onStep: (step) => {
           onStepCalls.push(step);
+          return Promise.resolve();
         },
       });
 
@@ -543,11 +547,17 @@ describe('VisionAgent', () => {
 
       // Verify step content
       const firstStep = onStepCalls[0];
+      if (!firstStep) {
+        throw new Error('Expected first navigation step');
+      }
       expect(firstStep.stepNumber).toBe(1);
       expect(firstStep.action.type).toBe('click');
       expect(firstStep.goalAchieved).toBe(false);
 
       const secondStep = onStepCalls[1];
+      if (!secondStep) {
+        throw new Error('Expected second navigation step');
+      }
       expect(secondStep.stepNumber).toBe(2);
       expect(secondStep.action.type).toBe('done');
       expect(secondStep.goalAchieved).toBe(true);
@@ -671,9 +681,13 @@ describe('VisionAgent', () => {
       // when goalAchieved is true, so only 3 actions are actually executed
       const calls = mockExecutor.getCalls();
       expect(calls).toHaveLength(3);
-      expect(calls[0].type).toBe('click');
-      expect(calls[1].type).toBe('type');
-      expect(calls[2].type).toBe('scroll');
+      const [firstCall, secondCall, thirdCall] = calls;
+      if (!firstCall || !secondCall || !thirdCall) {
+        throw new Error('Expected three action executor calls');
+      }
+      expect(firstCall.type).toBe('click');
+      expect(secondCall.type).toBe('type');
+      expect(thirdCall.type).toBe('scroll');
     });
   });
 
@@ -729,9 +743,6 @@ describe('VisionAgent', () => {
 });
 
 describe('formatElementLabelsForPrompt', () => {
-  // Import the function for direct testing
-  const { formatElementLabelsForPrompt } = require('../../../../src/ai/screenshot/annotate');
-
   it('formats empty labels correctly', () => {
     const result = formatElementLabelsForPrompt([]);
     expect(result).toBe('No interactive elements detected on this page.');
@@ -827,7 +838,7 @@ describe('LoopDetector', () => {
 
     // Add scroll context if applicable
     if (action.type === 'scroll') {
-      const scrollAction = action as ScrollAction;
+      const scrollAction = action;
       const delta = options?.scrollWasEffective !== false ? 500 : 0;
       context.scroll = createScrollContext(
         scrollAction.direction,

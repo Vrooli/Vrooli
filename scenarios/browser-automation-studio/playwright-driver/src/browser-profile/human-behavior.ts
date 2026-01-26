@@ -341,7 +341,11 @@ export class HumanBehavior {
       const t = i / steps;
       const easedT = this.easeInOutQuad(t);
       const index = Math.min(Math.floor(easedT * (bezierPoints.length - 1)), bezierPoints.length - 1);
-      points.push(bezierPoints[index]);
+      const point = bezierPoints[index];
+      if (!point) {
+        continue;
+      }
+      points.push(point);
     }
 
     return points;
@@ -445,6 +449,9 @@ export async function moveMouseAlongPath(
 
   for (let i = 1; i < path.length; i++) {
     const point = path[i];
+    if (!point) {
+      continue;
+    }
     await moveMouse(point.x, point.y);
     await sleep(stepDuration);
   }

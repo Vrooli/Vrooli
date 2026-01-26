@@ -55,12 +55,12 @@ const cdpSessionCache = new WeakMap<Page, CDPSession>();
 export class PollingStrategy implements FrameStreamingStrategy {
   readonly name = 'polling';
 
-  async isSupported(_page: Page): Promise<boolean> {
+  isSupported(_page: Page): Promise<boolean> {
     // Polling works with any browser
-    return true;
+    return Promise.resolve(true);
   }
 
-  async start(
+  start(
     pageProvider: PageProvider,
     config: StreamingStrategyConfig,
     wsProvider: WebSocketProvider,
@@ -89,7 +89,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
     const abortController = new AbortController();
 
     // Start the capture loop
-    const captureLoop = async () => {
+    const captureLoop = async (): Promise<void> => {
       while (isActive && !abortController.signal.aborted) {
         const loopStart = performance.now();
         const currentIntervalMs = getIntervalMs(fpsState);
@@ -255,7 +255,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
       scale,
     });
 
-    return {
+    const handle: StreamingHandle = {
       getFrameCount: () => frameCount,
       isActive: () => isActive,
       isViewportUpdatePending: () => false, // Polling doesn't need to restart on viewport change
@@ -286,11 +286,12 @@ export class PollingStrategy implements FrameStreamingStrategy {
 
       // Polling strategy captures whatever the page shows, so no restart needed
       // The Playwright viewport is updated separately, and the next capture will use it
-      updateViewport: async (_width: number, _height: number) => {
+      updateViewport: (_width: number, _height: number) => {
         logger.debug(scopedLog(LogContext.RECORDING, 'polling viewport update (no-op, page handles it)'), {
           sessionId,
         });
         // No-op for polling - the next frame capture will pick up the new viewport
+        return Promise.resolve();
       },
 
       stop: async () => {
@@ -307,6 +308,7 @@ export class PollingStrategy implements FrameStreamingStrategy {
         });
       },
     };
+    return Promise.resolve(handle);
   }
 }
 

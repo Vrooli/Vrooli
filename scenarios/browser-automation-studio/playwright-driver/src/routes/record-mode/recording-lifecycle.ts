@@ -416,12 +416,12 @@ export async function handleRecordStop(
  *
  * Returns current recording status for the session.
  */
-export async function handleRecordStatus(
+export function handleRecordStatus(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
-): Promise<void> {
+): void {
   try {
     const session = sessionManager.getSession(sessionId);
 
@@ -454,12 +454,12 @@ export async function handleRecordStatus(
  *
  * Wire format: Returns proto TimelineEntry JSON format for interoperability.
  */
-export async function handleRecordActions(
+export function handleRecordActions(
   req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
-): Promise<void> {
+): void {
   try {
     // Verify session exists
     sessionManager.getSession(sessionId);

@@ -297,7 +297,8 @@ export class SelectorService {
     if (selector.includes(':has-text(') || selector.includes('text=')) {
       const textMatch = selector.match(/:has-text\("([^"]+)"\)/) ||
                         selector.match(/text="([^"]+)"/);
-      if (textMatch && textMatch[1].length > 20) {
+      const matchedText = textMatch?.[1];
+      if (matchedText && matchedText.length > 20) {
         return CONFIDENCE_SCORES.textLong;
       }
       return CONFIDENCE_SCORES.textShort;

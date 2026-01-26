@@ -67,7 +67,7 @@ describe('Body Parser', () => {
         body: { ok: true },
       });
 
-      const result = await parseJsonBody(mockReq, {} as any);
+      const result = await parseJsonBody(mockReq, {});
 
       expect(result).toEqual({ ok: true });
     });

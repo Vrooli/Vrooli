@@ -226,9 +226,9 @@ describe('Factory Functions', () => {
 
 describe('Strategy Interface Conformance', () => {
   const strategies: Array<[InjectionStrategyName, () => InjectionStrategy]> = [
-    ['init-script', () => new InitScriptInjectionStrategy()],
-    ['cdp-injection', () => new CDPInjectionStrategy()],
-    ['route-injection', () => new RouteInjectionStrategy()],
+    ['init-script', (): InjectionStrategy => new InitScriptInjectionStrategy()],
+    ['cdp-injection', (): InjectionStrategy => new CDPInjectionStrategy()],
+    ['route-injection', (): InjectionStrategy => new RouteInjectionStrategy()],
   ];
 
   describe.each(strategies)('%s strategy', (name, createStrategy) => {
@@ -257,7 +257,8 @@ describe('Strategy Interface Conformance', () => {
       const stats2 = strategy.getStats();
 
       // Modifying one should not affect the other
-      (stats1 as any).attempted = 999;
+      const mutableStats1 = stats1 as { attempted: number };
+      mutableStats1.attempted = 999;
       expect(stats2.attempted).toBe(0);
     });
 

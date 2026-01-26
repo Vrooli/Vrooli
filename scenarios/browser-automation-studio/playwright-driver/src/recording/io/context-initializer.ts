@@ -345,8 +345,15 @@ export class RecordingContextInitializer {
       this.logger.debug(scopedLog(LogContext.RECORDING, 'new page created, setting up event route'), {
         url: page.url()?.slice(0, 50),
       });
+      const eventRouteManager = this.eventRouteManager;
+      if (!eventRouteManager) {
+        this.logger.warn(scopedLog(LogContext.RECORDING, 'event route manager unavailable for new page'), {
+          url: page.url()?.slice(0, 50),
+        });
+        return;
+      }
       try {
-        await this.eventRouteManager!.setupPageEventRoute(page);
+        await eventRouteManager.setupPageEventRoute(page);
       } catch (err) {
         this.logger.warn(scopedLog(LogContext.RECORDING, 'failed to setup event route for new page'), {
           url: page.url()?.slice(0, 50),
@@ -543,6 +550,10 @@ export class RecordingContextInitializer {
     }
 
     const page = pages[0];
+    if (!page) {
+      this.logger.debug(scopedLog(LogContext.RECORDING, 'no page available for sanity check'));
+      return;
+    }
 
     // Wait a bit for the page to finish loading and script to initialize
     await new Promise((resolve) => setTimeout(resolve, 500));

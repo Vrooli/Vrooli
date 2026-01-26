@@ -16,6 +16,23 @@ import { parseProject, parseProjectList, parseProjectWithStats } from '../../uti
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isBulkExecutionResult = (value: unknown): value is BulkExecutionResult => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.message)) return false;
+  if (!Array.isArray(value.executions)) return false;
+  if (!value.executions.every((entry) => {
+    if (!isRecord(entry)) return false;
+    if (!isString(entry.workflow_id)) return false;
+    if (!isString(entry.workflow_name)) return false;
+    if (!isString(entry.status)) return false;
+    if (entry.execution_id !== undefined && !isString(entry.execution_id)) return false;
+    if (entry.error !== undefined && !isString(entry.error)) return false;
+    return true;
+  })) return false;
+  return true;
+};
 const PROJECTS_ROOT = 'scenarios/browser-automation-studio/data/projects';
 const normalizeFolderSegment = (value: string): string => value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '');
 export const buildProjectFolderPath = (folderName: string): string => {
@@ -297,8 +314,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       }
 
       const payload: unknown = await response.json();
-      const result: BulkExecutionResult = isRecord(payload)
-        ? (payload as BulkExecutionResult)
+      const result: BulkExecutionResult = isBulkExecutionResult(payload)
+        ? payload
         : { message: 'Invalid response', executions: [] };
 
       set(state => ({

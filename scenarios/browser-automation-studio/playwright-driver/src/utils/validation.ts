@@ -150,7 +150,7 @@ export function safeSerializable<T>(value: T, context: string): T {
 
     // Attempt to create a serializable version
     if (typeof value === 'object') {
-      return JSON.parse(JSON.stringify(value, (_, v) => {
+      return JSON.parse(JSON.stringify(value, (_key: string, v: unknown): unknown => {
         if (typeof v === 'bigint') return v.toString();
         if (typeof v === 'function') return '[Function]';
         if (typeof v === 'symbol') return v.toString();

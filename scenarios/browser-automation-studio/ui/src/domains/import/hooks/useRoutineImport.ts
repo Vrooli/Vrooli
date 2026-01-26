@@ -13,6 +13,12 @@ import type { ValidationSummary } from '../types';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isString);
+
 const parseJson = async (response: Response): Promise<unknown> => {
   try {
     return await response.json();
@@ -92,6 +98,63 @@ export interface ScanRoutinesResponse {
   entries: RoutineEntry[];
 }
 
+const isWorkflowPreview = (value: unknown): value is WorkflowPreview => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.name)) return false;
+  if (!isNumber(value.node_count)) return false;
+  if (!isNumber(value.edge_count)) return false;
+  if (!isNumber(value.version)) return false;
+  if (!isBoolean(value.has_start_node)) return false;
+  if (!isBoolean(value.has_end_node)) return false;
+  if (value.tags !== undefined && !isStringArray(value.tags)) return false;
+  if (value.id !== undefined && !isString(value.id)) return false;
+  if (value.description !== undefined && !isString(value.description)) return false;
+  return true;
+};
+
+const isInspectRoutineResponse = (value: unknown): value is InspectRoutineResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.file_path)) return false;
+  if (!isBoolean(value.exists)) return false;
+  if (!isBoolean(value.is_valid)) return false;
+  if (!isBoolean(value.already_indexed)) return false;
+  if (value.preview !== undefined && !isWorkflowPreview(value.preview)) return false;
+  return true;
+};
+
+const isImportRoutineResponse = (value: unknown): value is ImportRoutineResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.workflow_id)) return false;
+  if (!isString(value.name)) return false;
+  if (!isString(value.path)) return false;
+  if (value.warnings !== undefined && !isStringArray(value.warnings)) return false;
+  return true;
+};
+
+const isRoutineEntry = (value: unknown): value is RoutineEntry => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.name)) return false;
+  if (!isString(value.path)) return false;
+  if (!isBoolean(value.is_dir)) return false;
+  if (!isBoolean(value.is_target)) return false;
+  if (!isBoolean(value.is_registered)) return false;
+  if (value.registered_id !== undefined && !isString(value.registered_id)) return false;
+  if (value.suggested_name !== undefined && !isString(value.suggested_name)) return false;
+  if (value.mime_type !== undefined && !isString(value.mime_type)) return false;
+  if (value.size_bytes !== undefined && !isNumber(value.size_bytes)) return false;
+  return true;
+};
+
+const isScanRoutinesResponse = (value: unknown): value is ScanRoutinesResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.path)) return false;
+  if (value.parent !== null && value.parent !== undefined && !isString(value.parent)) return false;
+  if (value.default_root !== undefined && !isString(value.default_root)) return false;
+  if (!Array.isArray(value.entries)) return false;
+  if (!value.entries.every(isRoutineEntry)) return false;
+  return true;
+};
+
 export interface UseRoutineImportOptions {
   /** Project ID for import operations */
   projectId: string;
@@ -155,13 +218,12 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         }
 
         const data: unknown = await response.json();
-        if (!isRecord(data)) {
+        if (!isInspectRoutineResponse(data)) {
           setError('Invalid inspect response');
           return null;
         }
-        const result = data as InspectRoutineResponse;
-        setInspectResult(result);
-        return result;
+        setInspectResult(data);
+        return data;
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to inspect file';
         logger.error('Failed to inspect routine', { error: err, filePath });
@@ -195,11 +257,11 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         }
 
         const data: unknown = await response.json();
-        if (!isRecord(data)) {
+        if (!isImportRoutineResponse(data)) {
           setError('Invalid import response');
           return null;
         }
-        return data as ImportRoutineResponse;
+        return data;
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to import routine';
         logger.error('Failed to import routine', { error: err, params });
@@ -233,13 +295,12 @@ export function useRoutineImport(options: UseRoutineImportOptions): UseRoutineIm
         }
 
         const data: unknown = await response.json();
-        if (!isRecord(data)) {
+        if (!isScanRoutinesResponse(data)) {
           setError('Invalid scan response');
           return null;
         }
-        const result = data as ScanRoutinesResponse;
-        setScanResult(result);
-        return result;
+        setScanResult(data);
+        return data;
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Failed to scan workflows';
         logger.error('Failed to scan workflows', { error: err, path });

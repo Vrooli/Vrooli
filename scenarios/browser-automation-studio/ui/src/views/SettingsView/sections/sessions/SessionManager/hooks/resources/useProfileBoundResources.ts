@@ -120,7 +120,7 @@ export function useProfileBoundResources({
     deleteLocalStorageItem,
   } = storageHook;
   const {
-    serviceWorkers,
+    serviceWorkers: serviceWorkersData,
     loading: serviceWorkersLoading,
     error: serviceWorkersError,
     deleting: serviceWorkersDeleting,
@@ -130,7 +130,7 @@ export function useProfileBoundResources({
     unregisterWorker,
   } = serviceWorkersHook;
   const {
-    history,
+    history: historyData,
     loading: historyLoading,
     error: historyError,
     deleting: historyDeleting,
@@ -143,7 +143,7 @@ export function useProfileBoundResources({
     navigateToUrl,
   } = historyHook;
   const {
-    tabs,
+    tabs: tabsData,
     loading: tabsLoading,
     error: tabsError,
     deleting: tabsDeleting,
@@ -154,7 +154,7 @@ export function useProfileBoundResources({
   } = tabsHook;
 
   // Derive hasActiveSession from service workers data
-  const hasActiveSession = !!serviceWorkers?.session_id;
+  const hasActiveSession = !!serviceWorkersData?.session_id;
 
   // Create bound storage resource
   const storage = useMemo<BoundStorageResource>(
@@ -193,8 +193,8 @@ export function useProfileBoundResources({
   // Create bound service workers resource
   const serviceWorkers = useMemo<BoundServiceWorkersResource>(
     () => ({
-      data: serviceWorkers,
-      workers: serviceWorkers?.workers ?? [],
+      data: serviceWorkersData,
+      workers: serviceWorkersData?.workers ?? [],
       loading: serviceWorkersLoading,
       error: serviceWorkersError,
       deleting: serviceWorkersDeleting,
@@ -205,7 +205,7 @@ export function useProfileBoundResources({
     }),
     [
       profileId,
-      serviceWorkers,
+      serviceWorkersData,
       serviceWorkersLoading,
       serviceWorkersError,
       serviceWorkersDeleting,
@@ -219,7 +219,7 @@ export function useProfileBoundResources({
   // Create bound history resource
   const history = useMemo<BoundHistoryResource>(
     () => ({
-      data: history,
+      data: historyData,
       loading: historyLoading,
       error: historyError,
       deleting: historyDeleting,
@@ -233,7 +233,7 @@ export function useProfileBoundResources({
     }),
     [
       profileId,
-      history,
+      historyData,
       historyLoading,
       historyError,
       historyDeleting,
@@ -250,7 +250,7 @@ export function useProfileBoundResources({
   // Create bound tabs resource
   const tabs = useMemo<BoundTabsResource>(
     () => ({
-      data: tabs,
+      data: tabsData,
       loading: tabsLoading,
       error: tabsError,
       deleting: tabsDeleting,
@@ -261,7 +261,7 @@ export function useProfileBoundResources({
     }),
     [
       profileId,
-      tabs,
+      tabsData,
       tabsLoading,
       tabsError,
       tabsDeleting,

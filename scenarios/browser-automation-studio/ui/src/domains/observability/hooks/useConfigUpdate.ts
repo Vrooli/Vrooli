@@ -34,6 +34,26 @@ interface UseConfigUpdateReturn {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
+const isConfigUpdateResult = (value: unknown): value is ConfigUpdateResult => {
+  if (!isRecord(value)) return false;
+  if (!isBoolean(value.success)) return false;
+  if (value.env_var !== undefined && !isString(value.env_var)) return false;
+  if (value.new_value !== undefined && !isString(value.new_value)) return false;
+  if (value.previous_value !== undefined && !isString(value.previous_value)) return false;
+  if (value.error !== undefined && !isString(value.error)) return false;
+  return true;
+};
+
+const isResetResult = (value: unknown): value is { success: boolean; current_value?: string } => {
+  if (!isRecord(value)) return false;
+  if (!isBoolean(value.success)) return false;
+  if (value.current_value !== undefined && !isString(value.current_value)) return false;
+  return true;
+};
+
 async function updateConfigRequest(envVar: string, value: string): Promise<ConfigUpdateResult> {
   const config = await getConfig();
   const request: ConfigUpdateRequest = { value };
@@ -45,7 +65,7 @@ async function updateConfigRequest(envVar: string, value: string): Promise<Confi
   });
 
   const result: unknown = await response.json();
-  if (!isRecord(result)) {
+  if (!isConfigUpdateResult(result)) {
     throw new Error(`Failed to update config: ${response.statusText}`);
   }
 
@@ -56,7 +76,7 @@ async function updateConfigRequest(envVar: string, value: string): Promise<Confi
     throw new Error(message);
   }
 
-  return result as ConfigUpdateResult;
+  return result;
 }
 
 async function resetConfigRequest(envVar: string): Promise<{ success: boolean; current_value?: string }> {
@@ -67,18 +87,18 @@ async function resetConfigRequest(envVar: string): Promise<{ success: boolean; c
   });
 
   const result: unknown = await response.json();
-  if (!isRecord(result)) {
-    throw new Error(`Failed to reset config: ${response.statusText}`);
-  }
-
-  if (!response.ok && result.success !== true) {
-    const message = typeof result.error === 'string'
+  if (!response.ok) {
+    const message = isRecord(result) && typeof result.error === 'string'
       ? result.error
       : `Failed to reset config: ${response.statusText}`;
     throw new Error(message);
   }
 
-  return result as { success: boolean; current_value?: string };
+  if (!isResetResult(result)) {
+    throw new Error(`Failed to reset config: ${response.statusText}`);
+  }
+
+  return result;
 }
 
 export function useConfigUpdate(options: UseConfigUpdateOptions = {}): UseConfigUpdateReturn {

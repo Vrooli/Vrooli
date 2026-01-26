@@ -141,13 +141,15 @@ function onNavigate(sessionId: string, url: string, title: string): void {
  */
 function updateStackEntry(sessionId: string, url: string, title: string): void {
   const state = getNavigationState(sessionId);
-  if (state.stack[state.historyIndex]) {
-    state.stack[state.historyIndex] = {
-      ...state.stack[state.historyIndex],
-      url,
-      title,
-    };
+  const entry = state.stack[state.historyIndex];
+  if (!entry) {
+    return;
   }
+  state.stack[state.historyIndex] = {
+    ...entry,
+    url,
+    title,
+  };
 }
 
 /**
@@ -533,13 +535,13 @@ export async function handleRecordNavigationState(
  *
  * GET /session/:id/record/navigation-stack
  */
-export async function handleRecordNavigationStack(
+export function handleRecordNavigationStack(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   _sessionManager: SessionManager,
   _config: Config
-): Promise<void> {
+): void {
   try {
     const { backStack, current, forwardStack } = getNavigationStack(sessionId);
 

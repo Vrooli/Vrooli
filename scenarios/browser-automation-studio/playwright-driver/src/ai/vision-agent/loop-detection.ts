@@ -15,7 +15,7 @@
  * - Detection strategies can be tuned per action type
  */
 
-import type { BrowserAction, ScrollAction, ClickAction } from '../action/types';
+import type { BrowserAction, ScrollAction } from '../action/types';
 
 // =============================================================================
 // CONFIGURATION TYPES - The "Control Levers"
@@ -343,6 +343,9 @@ export function createLoopDetector(
       }
 
       const lastEntry = history[history.length - 1];
+      if (!lastEntry) {
+        return { isLoop: false, reason: 'Empty history' };
+      }
       const actionType = lastEntry.action.type;
 
       // Route to appropriate strategy based on action type
@@ -388,10 +391,12 @@ function detectScrollLoop(
 
   for (let i = history.length - 1; i >= 0; i--) {
     const entry = history[i];
+    if (!entry) {
+      continue;
+    }
     if (entry.action.type !== 'scroll') break;
 
-    const scrollAction = entry.action as ScrollAction;
-    const direction = scrollAction.direction;
+    const direction = entry.action.direction;
 
     if (currentDirection === null) {
       currentDirection = direction;
@@ -488,6 +493,9 @@ function detectClickLoop(
 
   for (let i = history.length - 1; i >= 0; i--) {
     const entry = history[i];
+    if (!entry) {
+      continue;
+    }
     if (entry.action.type !== 'click') break;
 
     const clickCtx = entry.context.click;
@@ -565,11 +573,22 @@ function detectDefaultLoop(
   const defaultConfig = config.default;
 
   // Count consecutive identical actions from the end
-  const lastSerialized = history[history.length - 1].serialized;
+  if (history.length === 0) {
+    return { isLoop: false, reason: 'Empty history' };
+  }
+  const lastEntry = history[history.length - 1];
+  if (!lastEntry) {
+    return { isLoop: false, reason: 'Empty history' };
+  }
+  const lastSerialized = lastEntry.serialized;
   let repeatCount = 0;
 
   for (let i = history.length - 1; i >= 0; i--) {
-    if (history[i].serialized === lastSerialized) {
+    const entry = history[i];
+    if (!entry) {
+      continue;
+    }
+    if (entry.serialized === lastSerialized) {
       repeatCount++;
     } else {
       break;
@@ -684,14 +703,13 @@ export function createActionContext(
 
   // Add click context if applicable
   if (action.type === 'click') {
-    const clickAction = action as ClickAction;
     context.click = {
-      elementId: clickAction.elementId,
-      coordinates: clickAction.coordinates,
-      targetKey: clickAction.elementId !== undefined
-        ? `element:${clickAction.elementId}`
-        : clickAction.coordinates
-          ? `coords:${clickAction.coordinates.x},${clickAction.coordinates.y}`
+      elementId: action.elementId,
+      coordinates: action.coordinates,
+      targetKey: action.elementId !== undefined
+        ? `element:${action.elementId}`
+        : action.coordinates
+          ? `coords:${action.coordinates.x},${action.coordinates.y}`
           : 'unknown',
     };
   }

@@ -10,7 +10,7 @@
  *   this automatically when using fromJson/toJson with the appropriate options.
  */
 
-import { create, fromJson, toJson, type MessageShape, type DescMessage } from '@bufbuild/protobuf';
+import { create, fromJson, toJson, type MessageShape, type DescMessage, type JsonValue } from '@bufbuild/protobuf';
 import { timestampFromDate, timestampDate, type Timestamp } from '@bufbuild/protobuf/wkt';
 
 // =============================================================================
@@ -59,7 +59,10 @@ export function parseProto<T extends DescMessage>(
   schema: T,
   data: unknown
 ): MessageShape<T> {
-  const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+  const jsonData: unknown = typeof data === 'string' ? JSON.parse(data) : data;
+  if (!isJsonValue(jsonData)) {
+    throw new Error('Invalid JSON data for proto parsing');
+  }
   return fromJson(schema, jsonData, PARSE_OPTIONS);
 }
 
@@ -75,7 +78,10 @@ export function parseProtoLenient<T extends DescMessage>(
   schema: T,
   data: unknown
 ): MessageShape<T> {
-  const jsonData = typeof data === 'string' ? JSON.parse(data) : data;
+  const jsonData: unknown = typeof data === 'string' ? JSON.parse(data) : data;
+  if (!isJsonValue(jsonData)) {
+    throw new Error('Invalid JSON data for proto parsing');
+  }
   return fromJson(schema, jsonData, PARSE_OPTIONS_LENIENT);
 }
 
@@ -172,7 +178,7 @@ export function createMessage<T extends DescMessage>(
  * @param date - JavaScript Date object
  * @returns Proto Timestamp
  */
-export function dateToTimestamp(date: Date) {
+export function dateToTimestamp(date: Date): Timestamp {
   return timestampFromDate(date);
 }
 
@@ -220,7 +226,28 @@ export const EXECUTION_PLAN_SCHEMA_VERSION = 'automation-plan-v1';
 // JSON VALUE CONVERSION UTILITIES
 // =============================================================================
 
-import type { JsonValue, JsonObject, JsonList } from '@vrooli/proto-types/common/v1/types_pb';
+import type { JsonValue as ProtoJsonValue, JsonObject, JsonList } from '@vrooli/proto-types/common/v1/types_pb';
+
+const isJsonValue = (value: unknown): value is JsonValue => {
+  if (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value as Record<string, unknown>).every(isJsonValue);
+  }
+
+  return false;
+};
 
 /**
  * Convert a proto JsonValue to a plain JavaScript value.
@@ -228,7 +255,7 @@ import type { JsonValue, JsonObject, JsonList } from '@vrooli/proto-types/common
  * @param value - Proto JsonValue
  * @returns Plain JavaScript value (string, number, boolean, object, array, or null)
  */
-export function jsonValueToPlain(value: JsonValue | undefined): unknown {
+export function jsonValueToPlain(value: ProtoJsonValue | undefined): unknown {
   if (!value || !value.kind) {
     return undefined;
   }
@@ -287,7 +314,7 @@ export function jsonListToPlain(list: JsonList | undefined): unknown[] {
  * Convert a map of proto JsonValue to a plain JavaScript object.
  * Used for CompiledInstruction.params conversion.
  */
-export function jsonValueMapToPlain(map: { [key: string]: JsonValue } | undefined): Record<string, unknown> {
+export function jsonValueMapToPlain(map: { [key: string]: ProtoJsonValue } | undefined): Record<string, unknown> {
   if (!map) {
     return {};
   }

@@ -1,11 +1,20 @@
 import { buildContext } from '../../../src/session/context-builder';
 import type { SessionSpec } from '../../../src/types';
+import type { BrowserContextOptions } from 'rebrowser-playwright';
 import { createMockBrowser, createTestConfig } from '../../helpers';
 
 describe('ContextBuilder', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let sessionSpec: SessionSpec;
   let config: ReturnType<typeof createTestConfig>;
+
+  const getNewContextOptions = (
+    browser: ReturnType<typeof createMockBrowser>
+  ): BrowserContextOptions | undefined => {
+    const calls = (browser.newContext as jest.MockedFunction<typeof browser.newContext>)
+      .mock.calls as Array<[BrowserContextOptions?]>;
+    return calls[0]?.[0];
+  };
 
   beforeEach(() => {
     mockBrowser = createMockBrowser();
@@ -25,7 +34,8 @@ describe('ContextBuilder', () => {
     it('should create browser context with viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           viewport: { width: 1280, height: 720 },
           baseURL: 'https://example.com',
@@ -41,11 +51,8 @@ describe('ContextBuilder', () => {
 
       const result = await buildContext(mockBrowser, sessionSpec, configNoHAR);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
-        expect.not.objectContaining({
-          recordHar: expect.anything(),
-        })
-      );
+      const options = getNewContextOptions(mockBrowser);
+      expect(options?.recordHar).toBeUndefined();
       expect(result.harPath).toBeUndefined();
     });
 
@@ -60,14 +67,10 @@ describe('ContextBuilder', () => {
 
       const result = await buildContext(mockBrowser, specWithHAR, configWithHAR);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recordHar: expect.objectContaining({
-            path: expect.stringContaining('har-exec-123'),
-            mode: 'minimal',
-          }),
-        })
-      );
+      const options = getNewContextOptions(mockBrowser);
+      const recordHar = options?.recordHar as { path?: string; mode?: string } | undefined;
+      expect(recordHar?.path).toContain('har-exec-123');
+      expect(recordHar?.mode).toBe('minimal');
       expect(result.harPath).toBeDefined();
       expect(result.harPath).toContain('har-exec-123');
     });
@@ -87,9 +90,7 @@ describe('ContextBuilder', () => {
     });
 
     it('should create context with video when enabled and required', async () => {
-      const configWithVideo = createTestConfig({
-        telemetry: { video: { enabled: true } },
-      });
+      const configWithVideo = createTestConfig();
       const specWithVideo: SessionSpec = {
         ...sessionSpec,
         required_capabilities: { video: true },
@@ -97,14 +98,10 @@ describe('ContextBuilder', () => {
 
       const result = await buildContext(mockBrowser, specWithVideo, configWithVideo);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
-        expect.objectContaining({
-          recordVideo: expect.objectContaining({
-            dir: expect.stringContaining('videos-exec-123'),
-            size: expect.anything(),
-          }),
-        })
-      );
+      const options = getNewContextOptions(mockBrowser);
+      const recordVideo = options?.recordVideo as { dir?: string; size?: { width: number; height: number } } | undefined;
+      expect(recordVideo?.dir).toContain('videos-exec-123');
+      expect(recordVideo?.size).toBeDefined();
       expect(result.videoDir).toBeDefined();
       expect(result.videoDir).toContain('videos-exec-123');
     });
@@ -132,7 +129,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithUA, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           userAgent: 'Mozilla/5.0 Custom',
         })
@@ -147,7 +145,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithLocale, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           locale: 'fr-FR',
         })
@@ -162,7 +161,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithTZ, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           timezoneId: 'America/New_York',
         })
@@ -177,7 +177,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithGeo, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           geolocation: { latitude: 40.7128, longitude: -74.006 },
         })
@@ -192,7 +193,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithPerms, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           permissions: ['geolocation', 'notifications'],
         })
@@ -206,7 +208,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, sessionSpec, configWithHTTPS);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const options = getNewContextOptions(mockBrowser);
+      expect(options).toEqual(
         expect.objectContaining({
           ignoreHTTPSErrors: true,
         })
@@ -235,7 +238,8 @@ describe('ContextBuilder', () => {
 
       await buildContext(mockBrowser, specWithStorage, config);
 
-      expect(mockBrowser.newContext).toHaveBeenCalledWith(
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(
         expect.objectContaining({
           storageState: specWithStorage.storage_state,
         })
@@ -258,9 +262,7 @@ describe('ContextBuilder', () => {
     it('should return actualViewport with fingerprint source when profile has both dimensions', async () => {
       const specWithProfile: SessionSpec = {
         ...sessionSpec,
-        session_profile: {
-          id: 'profile-1',
-          name: 'Test Profile',
+        browser_profile: {
           fingerprint: {
             viewport_width: 1920,
             viewport_height: 1080,
@@ -282,9 +284,7 @@ describe('ContextBuilder', () => {
       const specWithPartialProfile: SessionSpec = {
         ...sessionSpec,
         viewport: { width: 1280, height: 720 },
-        session_profile: {
-          id: 'profile-1',
-          name: 'Test Profile',
+        browser_profile: {
           fingerprint: {
             viewport_width: 1920,
             // viewport_height intentionally omitted
@@ -304,9 +304,7 @@ describe('ContextBuilder', () => {
       const specWithPartialProfile: SessionSpec = {
         ...sessionSpec,
         viewport: { width: 1280, height: 720 },
-        session_profile: {
-          id: 'profile-1',
-          name: 'Test Profile',
+        browser_profile: {
           fingerprint: {
             // viewport_width intentionally omitted
             viewport_height: 1080,
@@ -326,9 +324,7 @@ describe('ContextBuilder', () => {
       const specWithZeroProfile: SessionSpec = {
         ...sessionSpec,
         viewport: { width: 1280, height: 720 },
-        session_profile: {
-          id: 'profile-1',
-          name: 'Test Profile',
+        browser_profile: {
           fingerprint: {
             viewport_width: 0,
             viewport_height: 0,

@@ -45,7 +45,7 @@ async function getBlocker(mode: 'ads_only' | 'ads_and_tracking'): Promise<Playwr
   }
 
   // Create new blocker instance
-  const promise = (async () => {
+  const promise = (async (): Promise<PlaywrightBlocker> => {
     logger.debug('Initializing ad blocker', { mode });
     const startTime = Date.now();
 

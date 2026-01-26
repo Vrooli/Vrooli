@@ -33,6 +33,10 @@ import type { WorkflowSettingsTyped } from '@/types/workflow';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
 const safeJson = async (response: Response): Promise<unknown> => {
   const text = await response.text();
   if (!text) return null;
@@ -45,28 +49,39 @@ const safeJson = async (response: Response): Promise<unknown> => {
 
 const parseStopRecordingResponse = (value: unknown): StopRecordingResponse | null => {
   if (!isRecord(value)) return null;
-  if (typeof value.recording_id !== 'string') return null;
-  if (typeof value.session_id !== 'string') return null;
-  if (typeof value.action_count !== 'number') return null;
-  if (typeof value.stopped_at !== 'string') return null;
-  return value as StopRecordingResponse;
+  if (!isString(value.recording_id)) return null;
+  if (!isString(value.session_id)) return null;
+  if (!isNumber(value.action_count)) return null;
+  if (!isString(value.stopped_at)) return null;
+  return {
+    recording_id: value.recording_id,
+    session_id: value.session_id,
+    action_count: value.action_count,
+    stopped_at: value.stopped_at,
+  };
 };
 
 const parseGenerateWorkflowResponse = (value: unknown): GenerateWorkflowResponse | null => {
   if (!isRecord(value)) return null;
-  if (typeof value.workflow_id !== 'string') return null;
-  if (typeof value.project_id !== 'string') return null;
-  if (typeof value.name !== 'string') return null;
-  if (typeof value.node_count !== 'number') return null;
-  if (typeof value.action_count !== 'number') return null;
-  return value as GenerateWorkflowResponse;
+  if (!isString(value.workflow_id)) return null;
+  if (!isString(value.project_id)) return null;
+  if (!isString(value.name)) return null;
+  if (!isNumber(value.node_count)) return null;
+  if (!isNumber(value.action_count)) return null;
+  return {
+    workflow_id: value.workflow_id,
+    project_id: value.project_id,
+    name: value.name,
+    node_count: value.node_count,
+    action_count: value.action_count,
+  };
 };
 
 const parseSelectorValidation = (value: unknown): SelectorValidation | null => {
   if (!isRecord(value)) return null;
-  if (typeof value.valid !== 'boolean') return null;
-  if (typeof value.match_count !== 'number') return null;
-  if (typeof value.selector !== 'string') return null;
+  if (!isBoolean(value.valid)) return null;
+  if (!isNumber(value.match_count)) return null;
+  if (!isString(value.selector)) return null;
   const result: SelectorValidation = {
     valid: value.valid,
     match_count: value.match_count,
@@ -78,16 +93,46 @@ const parseSelectorValidation = (value: unknown): SelectorValidation | null => {
   return result;
 };
 
+const isActionReplayError = (value: unknown): value is ReplayPreviewResponse['results'][number]['error'] => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.message)) return false;
+  if (!isString(value.code)) return false;
+  if (value.match_count !== undefined && !isNumber(value.match_count)) return false;
+  if (value.selector !== undefined && !isString(value.selector)) return false;
+  return true;
+};
+
+const isActionReplayResult = (value: unknown): value is ReplayPreviewResponse['results'][number] => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.action_id)) return false;
+  if (!isNumber(value.sequence_num)) return false;
+  if (!isString(value.action_type)) return false;
+  if (!isBoolean(value.success)) return false;
+  if (!isNumber(value.duration_ms)) return false;
+  if (value.error !== undefined && value.error !== null && !isActionReplayError(value.error)) return false;
+  if (value.screenshot_on_error !== undefined && !isString(value.screenshot_on_error)) return false;
+  return true;
+};
+
 const parseReplayPreviewResponse = (value: unknown): ReplayPreviewResponse | null => {
   if (!isRecord(value)) return null;
-  if (typeof value.success !== 'boolean') return null;
-  if (typeof value.total_actions !== 'number') return null;
-  if (typeof value.passed_actions !== 'number') return null;
-  if (typeof value.failed_actions !== 'number') return null;
-  if (typeof value.total_duration_ms !== 'number') return null;
-  if (typeof value.stopped_early !== 'boolean') return null;
+  if (!isBoolean(value.success)) return null;
+  if (!isNumber(value.total_actions)) return null;
+  if (!isNumber(value.passed_actions)) return null;
+  if (!isNumber(value.failed_actions)) return null;
+  if (!isNumber(value.total_duration_ms)) return null;
+  if (!isBoolean(value.stopped_early)) return null;
   if (!Array.isArray(value.results)) return null;
-  return value as ReplayPreviewResponse;
+  const results = value.results.filter(isActionReplayResult);
+  return {
+    success: value.success,
+    total_actions: value.total_actions,
+    passed_actions: value.passed_actions,
+    failed_actions: value.failed_actions,
+    total_duration_ms: value.total_duration_ms,
+    stopped_early: value.stopped_early,
+    results,
+  };
 };
 
 interface UseRecordModeOptions {

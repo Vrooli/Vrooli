@@ -291,6 +291,14 @@ export function InsertNodeModal({
     setConfigValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  const handleClose = useCallback(() => {
+    setStage("browse");
+    setSelectedNode(null);
+    setConfigValues({});
+    setSearchTerm("");
+    onClose();
+  }, [onClose]);
+
   const handleInsert = useCallback(() => {
     if (!selectedNode) return;
 
@@ -303,14 +311,6 @@ export function InsertNodeModal({
     onInsert(action);
     handleClose();
   }, [selectedNode, configValues, onInsert, handleClose]);
-
-  const handleClose = useCallback(() => {
-    setStage("browse");
-    setSelectedNode(null);
-    setConfigValues({});
-    setSearchTerm("");
-    onClose();
-  }, [onClose]);
 
   const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories((prev) => {

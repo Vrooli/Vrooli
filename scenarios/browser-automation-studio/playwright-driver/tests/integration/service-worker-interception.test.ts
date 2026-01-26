@@ -15,7 +15,6 @@
  * 3. Verify telemetry can detect event loss
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from '@jest/globals';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import {
@@ -138,7 +137,15 @@ class ServiceWorkerTestServer {
         res.end('Not Found');
       });
       this.server.listen(0, () => {
-        this.port = (this.server!.address() as { port: number }).port;
+        const server = this.server;
+        if (!server) {
+          throw new Error('Test server failed to initialize');
+        }
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('Unexpected server address for test server');
+        }
+        this.port = address.port;
         resolve(this.port);
       });
     });
@@ -202,7 +209,10 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || { eventsDetected: 0 };
+        const telemetry = (window as Window & {
+          __vrooli_recording_telemetry?: { eventsDetected?: number };
+        }).__vrooli_recording_telemetry;
+        return telemetry || { eventsDetected: 0 };
       });
 
       // Perform click
@@ -211,11 +221,16 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Get telemetry after click
       const telemetryAfter = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || { eventsDetected: 0 };
+        const telemetry = (window as Window & {
+          __vrooli_recording_telemetry?: { eventsDetected?: number };
+        }).__vrooli_recording_telemetry;
+        return telemetry || { eventsDetected: 0 };
       });
 
       // Verify click was detected by browser script
-      expect(telemetryAfter.eventsDetected).toBeGreaterThan(telemetryBefore.eventsDetected);
+      const beforeDetected = telemetryBefore.eventsDetected ?? 0;
+      const afterDetected = telemetryAfter.eventsDetected ?? 0;
+      expect(afterDetected).toBeGreaterThan(beforeDetected);
 
       // Verify click event was captured by route handler
       const clickEvents = capturedEvents.filter((e) => e.actionType === 'click');
@@ -230,11 +245,12 @@ describe('Service Worker Interception Detection (Integration)', () => {
       await page.goto(server.getUrl('/page-without-sw'));
       await waitForScriptReady(page, 5000);
 
-      // Type in the input
-      await page.fill('#test-input', 'test input');
+      // Type in the input (page.fill may not trigger input events in rebrowser-playwright)
+      await page.focus('#test-input');
+      await page.type('#test-input', 'test input');
 
-      // Wait for debounced event
-      await page.waitForTimeout(500);
+      // Wait for debounced event (matches 500ms default debounce + buffer)
+      await page.waitForTimeout(700);
 
       // Should have captured input events
       const inputEvents = capturedEvents.filter(
@@ -272,10 +288,11 @@ describe('Service Worker Interception Detection (Integration)', () => {
       // Wait for service worker to register and activate
       await page.waitForFunction(
         () => {
-          return (
-            (window as any).__swRegistered === true ||
-            (window as any).__swError !== undefined
-          );
+          const appWindow = window as Window & {
+            __swRegistered?: boolean;
+            __swError?: unknown;
+          };
+          return appWindow.__swRegistered === true || appWindow.__swError !== undefined;
         },
         { timeout: 10000 }
       ).catch(() => {
@@ -289,10 +306,10 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || {
-          eventsDetected: 0,
-          eventsSent: 0,
-        };
+        const telemetry = (window as Window & {
+          __vrooli_recording_telemetry?: { eventsDetected?: number; eventsSent?: number };
+        }).__vrooli_recording_telemetry;
+        return telemetry || { eventsDetected: 0, eventsSent: 0 };
       });
 
       // Perform click
@@ -301,10 +318,10 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Get telemetry after click
       const telemetryAfter = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || {
-          eventsDetected: 0,
-          eventsSent: 0,
-        };
+        const telemetry = (window as Window & {
+          __vrooli_recording_telemetry?: { eventsDetected?: number; eventsSent?: number };
+        }).__vrooli_recording_telemetry;
+        return telemetry || { eventsDetected: 0, eventsSent: 0 };
       });
 
       // Get route handler stats
@@ -316,14 +333,18 @@ describe('Service Worker Interception Detection (Integration)', () => {
       });
 
       // The browser script should have detected the click
-      expect(telemetryAfter.eventsDetected).toBeGreaterThan(telemetryBefore.eventsDetected);
+      const beforeDetected = telemetryBefore.eventsDetected ?? 0;
+      const afterDetected = telemetryAfter.eventsDetected ?? 0;
+      const beforeSent = telemetryBefore.eventsSent ?? 0;
+      const afterSent = telemetryAfter.eventsSent ?? 0;
+      expect(afterDetected).toBeGreaterThan(beforeDetected);
 
       // SERVICE WORKER INTERCEPTION DETECTION:
       // If SW is intercepting, events will be sent by browser script but NOT received by route handler
-      if (swStatus && routeStats.eventsReceived === 0 && telemetryAfter.eventsSent > telemetryBefore.eventsSent) {
+      if (swStatus && routeStats.eventsReceived === 0 && afterSent > beforeSent) {
         console.warn(
           'SERVICE WORKER INTERCEPTION DETECTED: ' +
-            `Events sent (${telemetryAfter.eventsSent}) but route handler received (${routeStats.eventsReceived}). ` +
+            `Events sent (${afterSent}) but route handler received (${routeStats.eventsReceived}). ` +
             'This is the root cause of timeline events not appearing.'
         );
         // This test documents the bug - it's expected to fail when SW intercepts
@@ -353,7 +374,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Wait for SW
       await page.waitForFunction(
-        () => (window as any).__swRegistered === true,
+        () => (window as Window & { __swRegistered?: boolean }).__swRegistered === true,
         { timeout: 10000 }
       ).catch(() => {});
 
@@ -370,33 +391,22 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       // Get comprehensive telemetry
       const telemetry = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || {};
+        return (
+          (window as Window & {
+            __vrooli_recording_telemetry?: Record<string, unknown>;
+          }).__vrooli_recording_telemetry || {}
+        );
       });
 
       const routeStats = initializer.getRouteHandlerStats();
 
-      // Log diagnostic data
-      console.log('Diagnostic telemetry:', {
-        browserScript: {
-          eventsDetected: telemetry.eventsDetected,
-          eventsCaptured: telemetry.eventsCaptured,
-          eventsSent: telemetry.eventsSent,
-          eventsSendFailed: telemetry.eventsSendFailed,
-          eventsQueued: telemetry.eventsQueued,
-        },
-        routeHandler: {
-          eventsReceived: routeStats.eventsReceived,
-          eventsProcessed: routeStats.eventsProcessed,
-          eventsDroppedNoHandler: routeStats.eventsDroppedNoHandler,
-        },
-        capturedByTest: capturedEvents.length,
-      });
-
       // Telemetry should always show events were detected
-      expect(telemetry.eventsDetected).toBeGreaterThanOrEqual(3);
+      const eventsDetected = typeof telemetry.eventsDetected === 'number' ? telemetry.eventsDetected : 0;
+      expect(eventsDetected).toBeGreaterThanOrEqual(3);
 
       // This diagnostic helps identify where events are being lost
-      if (telemetry.eventsSent > 0 && routeStats.eventsReceived === 0) {
+      const eventsSent = typeof telemetry.eventsSent === 'number' ? telemetry.eventsSent : 0;
+      if (eventsSent > 0 && routeStats.eventsReceived === 0) {
         console.warn(
           'EVENT LOSS DETECTED: Browser script sent events but route handler received none. ' +
             'Likely cause: Service worker interception.'

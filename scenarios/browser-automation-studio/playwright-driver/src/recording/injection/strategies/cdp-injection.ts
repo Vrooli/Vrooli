@@ -88,7 +88,6 @@ export class CDPInjectionStrategy implements InjectionStrategy {
   readonly name: InjectionStrategyName = 'cdp-injection';
 
   private initialized = false;
-  private context: BrowserContext | null = null;
   private options: InjectionStrategyOptions | null = null;
   private stats: InjectionStrategyStats = createInitialStats();
   private firstInjectionFired = false;
@@ -112,7 +111,6 @@ export class CDPInjectionStrategy implements InjectionStrategy {
       return;
     }
 
-    this.context = context;
     this.options = options;
 
     const { bindingName, logger, diagnosticsEnabled } = options;
@@ -427,7 +425,6 @@ export class CDPInjectionStrategy implements InjectionStrategy {
     }
 
     this.sessions = [];
-    this.context = null;
     this.options = null;
     this.initialized = false;
     this.firstInjectionFired = false;

@@ -14,6 +14,7 @@
  */
 
 import type { Page, BrowserContext, Frame, Request, Response } from 'rebrowser-playwright';
+import type { ClientHintsHeaders } from '../browser-profile/client-hints';
 import { logger, LogContext, scopedLog } from '../utils';
 
 // Enable diagnostic logging via environment variable
@@ -327,7 +328,7 @@ export function logAntiDetectionApplied(
 export function logClientHints(
   sessionId: string,
   userAgent: string,
-  clientHints: Record<string, string> | null
+  clientHints: ClientHintsHeaders | null
 ): void {
   if (!DIAGNOSTIC_ENABLED) return;
 

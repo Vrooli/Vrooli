@@ -19,6 +19,7 @@ import {
   CDPInjectionStrategy,
   RouteInjectionStrategy,
 } from '../../../src/recording/injection/strategies';
+import type { InjectionStrategyName } from '../../../src/recording/injection/types';
 
 describe('InjectionStrategyFactory', () => {
   let originalEnv: string | undefined;
@@ -67,7 +68,7 @@ describe('InjectionStrategyFactory', () => {
       const factory = new InjectionStrategyFactory();
 
       expect(() => {
-        factory.createByName('unknown' as any);
+        factory.createByName('unknown' as unknown as InjectionStrategyName);
       }).toThrow('Unknown injection strategy: unknown');
     });
   });

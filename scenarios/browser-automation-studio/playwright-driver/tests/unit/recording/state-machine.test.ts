@@ -5,7 +5,6 @@
  * Verifies transition rules, verification gate, error handling, and observability.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import {
   createRecordingStateMachine,
   recordingReducer,
@@ -521,7 +520,11 @@ describe('RecordingStateMachine', () => {
 
         expect(newState.recording?.lastUrl).toBe('https://example.com/page2');
         expect(newState.loopDetection?.navigationHistory.length).toBe(1);
-        expect(newState.loopDetection?.navigationHistory[0].url).toBe('https://example.com/page2');
+        const firstEntry = newState.loopDetection?.navigationHistory[0];
+        if (!firstEntry) {
+          throw new Error('Expected navigation history entry');
+        }
+        expect(firstEntry.url).toBe('https://example.com/page2');
         expect(newState.loopDetection?.lastCheckedUrl).toBe('https://example.com/page2');
       });
 

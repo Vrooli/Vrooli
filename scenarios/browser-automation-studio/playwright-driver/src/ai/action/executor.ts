@@ -378,14 +378,9 @@ async function typeWithHumanBehavior(
  * Note: This runs in browser context via Playwright's evaluate.
  */
 async function getScrollPosition(page: Page): Promise<{ x: number; y: number }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return page.evaluate((): { x: number; y: number } => {
-    // Browser globals are available in evaluate context
-    // Using any to avoid DOM typing conflicts with Node.js environment
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const d = document as any;
+    const w = window;
+    const d = document;
     return {
       x: w.scrollX ?? w.pageXOffset ?? d.documentElement?.scrollLeft ?? 0,
       y: w.scrollY ?? w.pageYOffset ?? d.documentElement?.scrollTop ?? 0,
@@ -563,7 +558,7 @@ export function createMockActionExecutor(): ActionExecutorInterface & {
   let failureMessage = 'Mock executor failure';
 
   return {
-    async execute(
+    execute(
       _page: Page,
       action: BrowserAction,
       elementLabels?: ElementLabel[]
@@ -571,29 +566,29 @@ export function createMockActionExecutor(): ActionExecutorInterface & {
       calls.push({ action, elementLabels });
 
       if (shouldFail) {
-        return {
+        return Promise.resolve({
           success: false,
           error: failureMessage,
           durationMs: 10,
-        };
+        });
       }
 
-      return {
+      return Promise.resolve({
         success: true,
         newUrl: 'https://example.com',
         durationMs: 10,
-      };
+      });
     },
 
-    getCalls() {
+    getCalls(): Array<{ action: BrowserAction; elementLabels?: ElementLabel[] }> {
       return [...calls];
     },
 
-    clearCalls() {
+    clearCalls(): void {
       calls.length = 0;
     },
 
-    setFailMode(fail: boolean, message?: string) {
+    setFailMode(fail: boolean, message?: string): void {
       shouldFail = fail;
       if (message) {
         failureMessage = message;

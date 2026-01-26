@@ -151,7 +151,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
   /**
    * Handle a recording event from the page route.
    */
-  async function handleRecordingEvent(postData: string): Promise<void> {
+  function handleRecordingEvent(postData: string): void {
     const rawEvent = JSON.parse(postData) as RawBrowserEvent;
     stats.lastEventType = rawEvent.actionType;
 
@@ -250,7 +250,7 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
           const postData = request.postData();
           if (postData) {
-            await handleRecordingEvent(postData);
+            handleRecordingEvent(postData);
           }
 
           // Respond immediately to not block the page

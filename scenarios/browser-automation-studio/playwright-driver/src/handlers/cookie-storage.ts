@@ -120,7 +120,7 @@ export class CookieStorageHandler extends BaseHandler {
         logger.info('Cookie set', { name: params.name });
         return { success: true };
 
-      case 'get':
+      case 'get': {
         logger.debug('Getting cookies', { name: params.name });
 
         const cookies = await browserContext.cookies();
@@ -132,19 +132,20 @@ export class CookieStorageHandler extends BaseHandler {
             success: true,
             extracted_data: { cookie: cookie?.value },
           };
-        } else {
-          const result = cookies.reduce((acc, cookie) => {
-            acc[cookie.name] = cookie.value;
-            return acc;
-          }, {} as Record<string, string>);
-          logger.info('All cookies retrieved', { count: cookies.length });
-          return {
-            success: true,
-            extracted_data: { cookie: result },
-          };
         }
 
-      case 'delete':
+        const result = cookies.reduce((acc, cookie) => {
+          acc[cookie.name] = cookie.value;
+          return acc;
+        }, {} as Record<string, string>);
+        logger.info('All cookies retrieved', { count: cookies.length });
+        return {
+          success: true,
+          extracted_data: { cookie: result },
+        };
+      }
+
+      case 'delete': {
         if (!params.name) {
           return {
             success: false,
@@ -167,6 +168,7 @@ export class CookieStorageHandler extends BaseHandler {
 
         logger.info('Cookie deleted', { name: params.name });
         return { success: true };
+      }
 
       case 'clear':
         logger.debug('Clearing all cookies');
@@ -217,10 +219,8 @@ export class CookieStorageHandler extends BaseHandler {
         await page.evaluate(
           ({ storage, key, value }) => {
             if (storage === 'localStorage') {
-              // @ts-expect-error - window is available in browser context
               window.localStorage.setItem(key, value);
             } else {
-              // @ts-expect-error - window is available in browser context
               window.sessionStorage.setItem(key, value);
             }
           },
@@ -230,28 +230,22 @@ export class CookieStorageHandler extends BaseHandler {
         logger.info('Storage value set', { storage: storageType, key: params.key });
         return { success: true };
 
-      case 'get':
+      case 'get': {
         logger.debug('Getting storage', { storage: storageType, key: params.key });
 
         const value = await page.evaluate(
           ({ storage, key }) => {
             if (storage === 'localStorage') {
               if (key) {
-                // @ts-expect-error - window is available in browser context
                 return window.localStorage.getItem(key);
-              } else {
-                // @ts-expect-error - window is available in browser context
-                return Object.fromEntries(Object.entries(window.localStorage));
               }
-            } else {
-              if (key) {
-                // @ts-expect-error - window is available in browser context
-                return window.sessionStorage.getItem(key);
-              } else {
-                // @ts-expect-error - window is available in browser context
-                return Object.fromEntries(Object.entries(window.sessionStorage));
-              }
+              return Object.fromEntries(Object.entries(window.localStorage));
             }
+
+            if (key) {
+              return window.sessionStorage.getItem(key);
+            }
+            return Object.fromEntries(Object.entries(window.sessionStorage));
           },
           { storage: storageType, key: params.key }
         );
@@ -265,6 +259,7 @@ export class CookieStorageHandler extends BaseHandler {
           success: true,
           extracted_data: { value },
         };
+      }
 
       case 'delete':
         logger.debug('Deleting storage', { storage: storageType, key: params.key });
@@ -273,18 +268,14 @@ export class CookieStorageHandler extends BaseHandler {
           ({ storage, key }) => {
             if (storage === 'localStorage') {
               if (key) {
-                // @ts-expect-error - window is available in browser context
                 window.localStorage.removeItem(key);
               } else {
-                // @ts-expect-error - window is available in browser context
                 window.localStorage.clear();
               }
             } else {
               if (key) {
-                // @ts-expect-error - window is available in browser context
                 window.sessionStorage.removeItem(key);
               } else {
-                // @ts-expect-error - window is available in browser context
                 window.sessionStorage.clear();
               }
             }
@@ -301,10 +292,8 @@ export class CookieStorageHandler extends BaseHandler {
         await page.evaluate(
           ({ storage }) => {
             if (storage === 'localStorage') {
-              // @ts-expect-error - window is available in browser context
               window.localStorage.clear();
             } else {
-              // @ts-expect-error - window is available in browser context
               window.sessionStorage.clear();
             }
           },

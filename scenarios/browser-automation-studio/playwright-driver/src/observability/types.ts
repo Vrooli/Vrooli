@@ -5,7 +5,13 @@
  * These types define the API contract between the backend and frontend.
  */
 
-import type { InjectionStrategyStats, RouteHandlerStats, RecordingDiagnosticResult } from '../recording';
+import type {
+  InjectionStrategyStats,
+  RouteHandlerStats,
+  RecordingDiagnosticResult,
+  DiagnosticCheck,
+  EventFlowTestResult,
+} from '../recording';
 
 // =============================================================================
 // Core Types
@@ -297,6 +303,41 @@ export interface DiagnosticRunRequest {
 }
 
 /**
+ * UI-friendly diagnostic issue format.
+ */
+export interface RecordingDiagnosticIssue {
+  severity: 'error' | 'warning' | 'info';
+  category: string;
+  message: string;
+  suggestion?: string;
+  docs_link?: string;
+}
+
+/**
+ * Recording diagnostics formatted for UI consumption.
+ */
+export interface RecordingDiagnostics {
+  ready: boolean;
+  timestamp: string;
+  durationMs: number;
+  level: 'quick' | 'standard' | 'full';
+  /** All checks performed with their status for breakdown display */
+  checks?: DiagnosticCheck[];
+  issues: RecordingDiagnosticIssue[];
+  provider?: {
+    name: string;
+    evaluateIsolated: boolean;
+    exposeBindingIsolated: boolean;
+  };
+  /** Event flow test result with detailed diagnostics (FULL level only) */
+  eventFlowTest?: EventFlowTestResult;
+}
+
+export interface DiagnosticRunResults {
+  recording?: RecordingDiagnostics;
+}
+
+/**
  * Response from a diagnostic run.
  */
 export interface DiagnosticRunResponse {
@@ -307,7 +348,7 @@ export interface DiagnosticRunResponse {
   /** How long the diagnostic took */
   duration_ms: number;
   /** Results of the diagnostic run */
-  results: DeepDiagnostics;
+  results: DiagnosticRunResults;
 }
 
 // =============================================================================

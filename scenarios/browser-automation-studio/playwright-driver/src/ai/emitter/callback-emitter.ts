@@ -165,11 +165,12 @@ export function createMockEmitter(): StepEmitterInterface & {
   let shouldFail = false;
 
   return {
-    async emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
+    emit(step: NavigationStep, _callbackUrl: string): Promise<void> {
       if (shouldFail) {
-        throw new Error('Mock emitter failure');
+        return Promise.reject(new Error('Mock emitter failure'));
       }
       emittedSteps.push(step);
+      return Promise.resolve();
     },
 
     getEmittedSteps(): NavigationStep[] {

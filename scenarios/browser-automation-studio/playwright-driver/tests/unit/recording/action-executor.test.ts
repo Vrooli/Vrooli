@@ -4,7 +4,7 @@
  * These tests verify replay execution against TimelineEntry + typed action params.
  */
 
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import { create } from '@bufbuild/protobuf';
 import {
   ActionDefinitionSchema,
@@ -16,7 +16,9 @@ import { TimelineEntrySchema, type TimelineEntry } from '@vrooli/proto-types/bro
 
 // Mock handler-adapter before importing action-executor
 jest.mock('../../../src/recording/handler-adapter', () => {
-  const originalModule = jest.requireActual('../../../src/recording/handler-adapter');
+  const originalModule = jest.requireActual<typeof import('../../../src/recording/handler-adapter')>(
+    '../../../src/recording/handler-adapter'
+  );
   return {
     ...originalModule,
     hasHandlerForActionType: jest.fn().mockReturnValue(true),
@@ -97,7 +99,10 @@ describe('Click Executor', () => {
     const executor = getTimelineExecutor(ActionType.CLICK);
     expect(executor).toBeDefined();
 
-    const result = await executor!(entry, context);
+    if (!executor) {
+      throw new Error('Expected click executor to be available');
+    }
+    const result = await executor(entry, context);
     expect(result.success).toBe(true);
     expect(mockExecuteViaHandler).toHaveBeenCalledWith(entry, expect.objectContaining({
       page,
@@ -122,7 +127,10 @@ describe('Click Executor', () => {
       },
     });
 
-    const executor = getTimelineExecutor(ActionType.CLICK)!;
+    const executor = getTimelineExecutor(ActionType.CLICK);
+    if (!executor) {
+      throw new Error('Expected click executor to be available');
+    }
     const result = await executor(entry, context);
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('MISSING_PARAMS');
@@ -145,11 +153,13 @@ describe('Click Executor', () => {
       },
     });
 
-    const executor = getTimelineExecutor(ActionType.CLICK)!;
+    const executor = getTimelineExecutor(ActionType.CLICK);
+    if (!executor) {
+      throw new Error('Expected click executor to be available');
+    }
     const result = await executor(entry, context);
     expect(result.success).toBe(false);
     expect(result.error?.code).toBe('SELECTOR_NOT_FOUND');
     expect(result.error?.matchCount).toBe(0);
   });
 });
-

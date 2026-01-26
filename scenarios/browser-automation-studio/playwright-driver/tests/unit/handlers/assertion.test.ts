@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { AssertionHandler } from '../../../src/handlers/assertion';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -13,7 +18,7 @@ describe('AssertionHandler', () => {
     mockPage = createMockPage();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config: createTestConfig(),
       logger,
       metrics,
@@ -28,7 +33,9 @@ describe('AssertionHandler', () => {
       const mockLocator = {
         count: jest.fn().mockResolvedValue(1),
       };
-      mockPage.locator.mockReturnValue(mockLocator as any);
+      mockPage.locator.mockReturnValue(
+        mockLocator as unknown as ReturnType<typeof mockPage.locator>
+      );
 
       const result = await handler.execute(instruction, context);
 

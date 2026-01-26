@@ -52,7 +52,6 @@ import {
 import {
   setupHtmlInjectionRoute,
   type InjectionStats as HtmlInjectorStats,
-  createInjectionStats as createHtmlInjectorStats,
 } from '../../io/html-injector';
 import { verifyScriptInjection } from '../../validation/verification';
 import { LogContext, scopedLog } from '../../../utils';
@@ -87,10 +86,8 @@ export class RouteInjectionStrategy implements InjectionStrategy {
   readonly name: InjectionStrategyName = 'route-injection';
 
   private initialized = false;
-  private context: BrowserContext | null = null;
   private options: InjectionStrategyOptions | null = null;
   private stats: InjectionStrategyStats = createInitialStats();
-  private htmlInjectorStats: HtmlInjectorStats = createHtmlInjectorStats();
   private getHtmlStats: (() => HtmlInjectorStats) | null = null;
   private resetHtmlStats: (() => void) | null = null;
 
@@ -111,7 +108,6 @@ export class RouteInjectionStrategy implements InjectionStrategy {
       return;
     }
 
-    this.context = context;
     this.options = options;
 
     const { bindingName, logger, diagnosticsEnabled, onFirstInjection } = options;
@@ -275,14 +271,14 @@ export class RouteInjectionStrategy implements InjectionStrategy {
    * Note: Route handlers registered with context.route() cannot be removed
    * in Playwright. The handler will remain active for the context lifetime.
    */
-  async cleanup(): Promise<void> {
+  cleanup(): Promise<void> {
     // Route handlers cannot be removed in Playwright
     // Just clear our references
-    this.context = null;
     this.options = null;
     this.initialized = false;
     this.getHtmlStats = null;
     this.resetHtmlStats = null;
+    return Promise.resolve();
   }
 
   /**

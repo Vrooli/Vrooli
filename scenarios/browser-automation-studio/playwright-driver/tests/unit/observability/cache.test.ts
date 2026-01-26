@@ -4,7 +4,6 @@
  * Tests the time-based caching for observability responses.
  */
 
-import { describe, beforeEach, it, expect, jest } from '@jest/globals';
 import {
   ObservabilityCache,
   getObservabilityCache,

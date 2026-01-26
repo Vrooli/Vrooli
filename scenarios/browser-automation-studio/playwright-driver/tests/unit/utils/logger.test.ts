@@ -3,6 +3,11 @@ import { createLogger, setLogger, logger } from '../../../src/utils/logger';
 import { createTestConfig } from '../../helpers';
 
 describe('Logger', () => {
+  const spyOnTransport = (logger: winston.Logger): jest.SpyInstance => {
+    const transport = logger.transports[0] as { log: (...args: unknown[]) => void };
+    return jest.spyOn(transport, 'log').mockImplementation(() => undefined);
+  };
+
   describe('createLogger', () => {
     it('should create logger with info level by default', () => {
       const config = createTestConfig();
@@ -90,7 +95,7 @@ describe('Logger', () => {
       testLogger = createLogger(config);
 
       // Spy on the transport's log method
-      logSpy = jest.spyOn(testLogger.transports[0], 'log').mockImplementation(() => {});
+      logSpy = spyOnTransport(testLogger);
     });
 
     afterEach(() => {
@@ -120,7 +125,7 @@ describe('Logger', () => {
         logging: { level: 'debug', format: 'json' },
       });
       const debugLogger = createLogger(config);
-      const debugSpy = jest.spyOn(debugLogger.transports[0], 'log').mockImplementation(() => {});
+      const debugSpy = spyOnTransport(debugLogger);
 
       debugLogger.debug('Debug message');
 
@@ -134,7 +139,7 @@ describe('Logger', () => {
         logging: { level: 'info', format: 'json' },
       });
       const infoLogger = createLogger(config);
-      const infoSpy = jest.spyOn(infoLogger.transports[0], 'log').mockImplementation(() => {});
+      const infoSpy = spyOnTransport(infoLogger);
 
       infoLogger.debug('Debug message');
 

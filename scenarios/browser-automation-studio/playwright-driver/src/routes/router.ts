@@ -89,7 +89,7 @@ export class Router {
     // Escape special regex chars, then replace :param with capturing groups
     const regexStr = path
       .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex special chars
-      .replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_match, paramName) => {
+      .replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_match: string, paramName: string) => {
         paramNames.push(paramName);
         return '([^/]+)';
       });
@@ -117,7 +117,10 @@ export class Router {
       if (match) {
         const params: Record<string, string> = {};
         route.paramNames.forEach((name, index) => {
-          params[name] = match[index + 1];
+          const value = match[index + 1];
+          if (value !== undefined) {
+            params[name] = value;
+          }
         });
         matchingPaths.push({ route, params });
       }

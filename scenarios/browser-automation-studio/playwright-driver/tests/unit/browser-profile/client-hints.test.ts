@@ -1,9 +1,8 @@
-import { describe, test, expect } from '@jest/globals';
 import {
   parseUserAgent,
   generateClientHints,
   mergeClientHintsWithHeaders,
-} from '@/browser-profile/client-hints';
+} from '../../../src/browser-profile/client-hints';
 
 // User agent strings from presets.ts
 const USER_AGENTS = {
@@ -23,6 +22,16 @@ const USER_AGENTS = {
   'edge-win':
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
 };
+
+function expectHints(
+  hints: ReturnType<typeof generateClientHints>
+): NonNullable<ReturnType<typeof generateClientHints>> {
+  expect(hints).not.toBeNull();
+  if (!hints) {
+    throw new Error('Expected client hints to be generated');
+  }
+  return hints;
+}
 
 describe('Client Hints - User Agent Parsing', () => {
   test('parses Chrome on Windows', () => {
@@ -113,40 +122,36 @@ describe('Client Hints - User Agent Parsing', () => {
 
 describe('Client Hints - Header Generation', () => {
   test('generates Client Hints for Chrome on Windows', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-win']);
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-win']));
 
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua']).toContain('Google Chrome');
-    expect(hints!['sec-ch-ua']).toContain('v="120"');
-    expect(hints!['sec-ch-ua']).toContain('Chromium');
-    expect(hints!['sec-ch-ua']).toContain('Not_A Brand');
-    expect(hints!['sec-ch-ua-mobile']).toBe('?0');
-    expect(hints!['sec-ch-ua-platform']).toBe('"Windows"');
+    expect(hints['sec-ch-ua']).toContain('Google Chrome');
+    expect(hints['sec-ch-ua']).toContain('v="120"');
+    expect(hints['sec-ch-ua']).toContain('Chromium');
+    expect(hints['sec-ch-ua']).toContain('Not_A Brand');
+    expect(hints['sec-ch-ua-mobile']).toBe('?0');
+    expect(hints['sec-ch-ua-platform']).toBe('"Windows"');
   });
 
   test('generates Client Hints for Chrome on macOS', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-mac']);
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-mac']));
 
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua']).toContain('Google Chrome');
-    expect(hints!['sec-ch-ua-platform']).toBe('"macOS"');
+    expect(hints['sec-ch-ua']).toContain('Google Chrome');
+    expect(hints['sec-ch-ua-platform']).toBe('"macOS"');
   });
 
   test('generates Client Hints for Chrome on Linux', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-linux']);
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-linux']));
 
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua-platform']).toBe('"Linux"');
+    expect(hints['sec-ch-ua-platform']).toBe('"Linux"');
   });
 
   test('generates Client Hints for Edge on Windows', () => {
-    const hints = generateClientHints(USER_AGENTS['edge-win']);
+    const hints = expectHints(generateClientHints(USER_AGENTS['edge-win']));
 
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua']).toContain('Microsoft Edge');
-    expect(hints!['sec-ch-ua']).toContain('v="120"');
-    expect(hints!['sec-ch-ua']).toContain('Chromium');
-    expect(hints!['sec-ch-ua-platform']).toBe('"Windows"');
+    expect(hints['sec-ch-ua']).toContain('Microsoft Edge');
+    expect(hints['sec-ch-ua']).toContain('v="120"');
+    expect(hints['sec-ch-ua']).toContain('Chromium');
+    expect(hints['sec-ch-ua-platform']).toBe('"Windows"');
   });
 
   test('returns null for Firefox (no Client Hints)', () => {
@@ -167,11 +172,10 @@ describe('Client Hints - Header Generation', () => {
   test('generates mobile hints correctly', () => {
     const mobileUA =
       'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
-    const hints = generateClientHints(mobileUA);
+    const hints = expectHints(generateClientHints(mobileUA));
 
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua-mobile']).toBe('?1');
-    expect(hints!['sec-ch-ua-platform']).toBe('"Android"');
+    expect(hints['sec-ch-ua-mobile']).toBe('?1');
+    expect(hints['sec-ch-ua-platform']).toBe('"Android"');
   });
 });
 
@@ -232,28 +236,24 @@ describe('Client Hints - Header Merging', () => {
 
 describe('Client Hints - All Preset User Agents', () => {
   test('chrome-win generates Windows Client Hints', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-win']);
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua']).toContain('Google Chrome');
-    expect(hints!['sec-ch-ua-platform']).toBe('"Windows"');
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-win']));
+    expect(hints['sec-ch-ua']).toContain('Google Chrome');
+    expect(hints['sec-ch-ua-platform']).toBe('"Windows"');
   });
 
   test('chrome-mac generates macOS Client Hints', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-mac']);
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua-platform']).toBe('"macOS"');
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-mac']));
+    expect(hints['sec-ch-ua-platform']).toBe('"macOS"');
   });
 
   test('chrome-linux generates Linux Client Hints', () => {
-    const hints = generateClientHints(USER_AGENTS['chrome-linux']);
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua-platform']).toBe('"Linux"');
+    const hints = expectHints(generateClientHints(USER_AGENTS['chrome-linux']));
+    expect(hints['sec-ch-ua-platform']).toBe('"Linux"');
   });
 
   test('edge-win generates Edge Client Hints', () => {
-    const hints = generateClientHints(USER_AGENTS['edge-win']);
-    expect(hints).not.toBeNull();
-    expect(hints!['sec-ch-ua']).toContain('Microsoft Edge');
+    const hints = expectHints(generateClientHints(USER_AGENTS['edge-win']));
+    expect(hints['sec-ch-ua']).toContain('Microsoft Edge');
   });
 
   test('firefox-win returns null (no Client Hints)', () => {

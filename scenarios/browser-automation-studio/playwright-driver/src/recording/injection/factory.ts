@@ -202,7 +202,7 @@ export class InjectionStrategyFactory {
       case 'route-injection':
         return new RouteInjectionStrategy();
       default:
-        throw new Error(`Unknown injection strategy: ${name}`);
+        throw new Error('Unknown injection strategy');
     }
   }
 

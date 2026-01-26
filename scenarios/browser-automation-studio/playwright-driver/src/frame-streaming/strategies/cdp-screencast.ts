@@ -68,13 +68,13 @@ function resolveCdpConfig(partial?: Partial<CdpStreamingConfig>): CdpStreamingCo
 export class CdpScreencastStrategy implements FrameStreamingStrategy {
   readonly name = 'cdp-screencast';
 
-  async isSupported(page: Page): Promise<boolean> {
+  isSupported(page: Page): Promise<boolean> {
     try {
       // CDP is only available for Chromium-based browsers
       const browserType = page.context().browser()?.browserType().name();
-      return browserType === 'chromium';
+      return Promise.resolve(browserType === 'chromium');
     } catch {
-      return false;
+      return Promise.resolve(false);
     }
   }
 
@@ -108,7 +108,10 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     let pendingFrame: { data: string; sessionId: number } | null = null;
 
     // Helper to restart screencast on a new page or with new viewport
-    const restartScreencast = async (newPage: Page, newViewport?: { width: number; height: number }) => {
+    const restartScreencast = async (
+      newPage: Page,
+      newViewport?: { width: number; height: number }
+    ): Promise<void> => {
       // Stop old screencast
       try {
         await cdpSession.send('Page.stopScreencast');
@@ -145,7 +148,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     };
 
     // Legacy wrapper for page changes (maintains existing API)
-    const restartScreencastOnPage = async (newPage: Page) => {
+    const restartScreencastOnPage = async (newPage: Page): Promise<void> => {
       await restartScreencast(newPage);
     };
 
@@ -230,8 +233,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
     };
 
     // Setup frame handler (extracted so we can re-attach after page switch)
-    const setupFrameHandler = () => {
-      cdpSession.on('Page.screencastFrame', async (event: ScreencastFrameEvent) => {
+    const handleScreencastFrame = async (event: ScreencastFrameEvent): Promise<void> => {
         if (!isActive) return;
 
         const frameStart = performance.now();
@@ -300,6 +302,11 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
             });
           }
         }
+    };
+
+    const setupFrameHandler = (): void => {
+      cdpSession.on('Page.screencastFrame', (event: ScreencastFrameEvent) => {
+        void handleScreencastFrame(event);
       });
     };
 
@@ -334,7 +341,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
       isActive: () => isActive,
       isViewportUpdatePending: () => viewportUpdatePending,
 
-      updateQuality: (quality: number) => {
+      updateQuality: (quality: number): void => {
         currentQuality = quality;
         // Note: Quality changes require restarting screencast in CDP
         // For now we just track it for the next restart
@@ -345,7 +352,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         });
       },
 
-      updateViewport: async (width: number, height: number) => {
+      updateViewport: async (width: number, height: number): Promise<void> => {
         if (!isActive) return;
 
         // Check if viewport change is significant enough to warrant restart
@@ -405,7 +412,7 @@ export class CdpScreencastStrategy implements FrameStreamingStrategy {
         }
       },
 
-      stop: async () => {
+      stop: async (): Promise<void> => {
         if (!isActive) return;
         isActive = false;
 

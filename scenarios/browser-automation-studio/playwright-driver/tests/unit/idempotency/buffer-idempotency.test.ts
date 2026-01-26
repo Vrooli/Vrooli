@@ -13,7 +13,7 @@ import {
   initRecordingBuffer,
   isEntryBuffered,
   removeRecordingBuffer,
-} from '../../../src/recording/buffer';
+} from '../../../src/recording/io/buffer';
 import { TimelineEntrySchema, type TimelineEntry } from '../../../src/recording/types';
 import { create } from '@bufbuild/protobuf';
 
@@ -95,9 +95,13 @@ describe('Recording Buffer Idempotency', () => {
 
       const entries = getTimelineEntries(sessionId);
       expect(entries).toHaveLength(3);
-      expect(entries[0].id).toBe('entry-1');
-      expect(entries[1].id).toBe('entry-2');
-      expect(entries[2].id).toBe('entry-3');
+      const [firstEntry, secondEntry, thirdEntry] = entries;
+      if (!firstEntry || !secondEntry || !thirdEntry) {
+        throw new Error('Expected three buffered entries');
+      }
+      expect(firstEntry.id).toBe('entry-1');
+      expect(secondEntry.id).toBe('entry-2');
+      expect(thirdEntry.id).toBe('entry-3');
     });
 
     it('creates new buffer if session buffer does not exist', () => {

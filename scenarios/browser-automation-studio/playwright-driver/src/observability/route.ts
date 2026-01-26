@@ -28,6 +28,7 @@ import type {
   ObservabilityDependencies,
   DiagnosticRunRequest,
   DiagnosticRunResponse,
+  RecordingDiagnostics,
   SessionSummary,
   CleanupStatus,
   RecordingStats,
@@ -38,41 +39,8 @@ import {
   DiagnosticSeverity,
   type RecordingDiagnosticResult,
   type DiagnosticIssue,
-  type EventFlowTestResult,
-  type DiagnosticCheck,
   runRecordingPipelineTest,
 } from '../recording';
-
-// =============================================================================
-// UI-Compatible Types
-// =============================================================================
-
-/** Issue format expected by the UI */
-interface UIDiagnosticIssue {
-  severity: 'error' | 'warning' | 'info';
-  category: string;
-  message: string;
-  suggestion?: string;
-  docs_link?: string;
-}
-
-/** Recording diagnostics result formatted for UI consumption */
-interface UIRecordingDiagnostics {
-  ready: boolean;
-  timestamp: string;
-  durationMs: number;
-  level: 'quick' | 'standard' | 'full';
-  /** All checks performed with their status for breakdown display */
-  checks?: DiagnosticCheck[];
-  issues: UIDiagnosticIssue[];
-  provider?: {
-    name: string;
-    evaluateIsolated: boolean;
-    exposeBindingIsolated: boolean;
-  };
-  /** Event flow test result with detailed diagnostics (FULL level only) */
-  eventFlowTest?: EventFlowTestResult;
-}
 
 /**
  * Extract category from diagnostic code.
@@ -95,10 +63,64 @@ function severityToString(severity: DiagnosticSeverity): 'error' | 'warning' | '
   return severity as unknown as 'error' | 'warning' | 'info';
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+const safeJsonParse = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const parseJsonObject = (body: string): Record<string, unknown> => {
+  if (!body) {
+    return {};
+  }
+
+  const parsed = safeJsonParse(body);
+  return isRecord(parsed) ? parsed : {};
+};
+
+type DiagnosticLevel = 'quick' | 'standard' | 'full';
+
+const isDiagnosticLevel = (level: unknown): level is DiagnosticLevel =>
+  level === 'quick' || level === 'standard' || level === 'full';
+
+const parseDiagnosticRunRequest = (value: Record<string, unknown>): DiagnosticRunRequest => {
+
+  const rawType = value.type;
+  const type = rawType === 'recording' || rawType === 'browser' || rawType === 'all'
+    ? rawType
+    : 'recording';
+  const session_id = isString(value.session_id) ? value.session_id : undefined;
+  const rawOptions = isRecord(value.options) ? value.options : undefined;
+  const options = rawOptions
+    ? {
+        level: isDiagnosticLevel(rawOptions.level)
+          ? rawOptions.level
+          : undefined,
+        timeout_ms: isNumber(rawOptions.timeout_ms) ? rawOptions.timeout_ms : undefined,
+      }
+    : undefined;
+
+  return {
+    type,
+    session_id,
+    options,
+  };
+};
+
 /**
  * Transform backend diagnostic result to UI-compatible format.
  */
-function transformDiagnosticsForUI(result: RecordingDiagnosticResult): UIRecordingDiagnostics {
+function transformDiagnosticsForUI(result: RecordingDiagnosticResult): RecordingDiagnostics {
   return {
     ready: result.ready,
     timestamp: result.timestamp,
@@ -165,6 +187,15 @@ function aggregateRecordingStats(
     has_event_handler: false,
     active_session_id: undefined,
   };
+  const routeHandlerStats = aggregated.route_handler_stats ?? {
+    eventsReceived: 0,
+    eventsProcessed: 0,
+    eventsDroppedNoHandler: 0,
+    eventsWithErrors: 0,
+    lastEventAt: null,
+    lastEventType: null,
+  };
+  aggregated.route_handler_stats = routeHandlerStats;
 
   let foundAny = false;
   let latestEventAt: Date | null = null;
@@ -201,10 +232,10 @@ function aggregateRecordingStats(
         // Note: avgInjectionTimeMs is not aggregated since averaging averages is misleading
 
         // Aggregate route handler stats
-        aggregated.route_handler_stats!.eventsReceived += routeStats.eventsReceived;
-        aggregated.route_handler_stats!.eventsProcessed += routeStats.eventsProcessed;
-        aggregated.route_handler_stats!.eventsDroppedNoHandler += routeStats.eventsDroppedNoHandler;
-        aggregated.route_handler_stats!.eventsWithErrors += routeStats.eventsWithErrors;
+        routeHandlerStats.eventsReceived += routeStats.eventsReceived;
+        routeHandlerStats.eventsProcessed += routeStats.eventsProcessed;
+        routeHandlerStats.eventsDroppedNoHandler += routeStats.eventsDroppedNoHandler;
+        routeHandlerStats.eventsWithErrors += routeStats.eventsWithErrors;
 
         // Track the most recent event across all sessions
         if (routeStats.lastEventAt) {
@@ -227,8 +258,8 @@ function aggregateRecordingStats(
 
   // Set the most recent event info
   if (latestEventAt) {
-    aggregated.route_handler_stats!.lastEventAt = latestEventAt.toISOString();
-    aggregated.route_handler_stats!.lastEventType = latestEventType;
+    routeHandlerStats.lastEventAt = latestEventAt.toISOString();
+    routeHandlerStats.lastEventType = latestEventType;
   }
 
   // Set the active recording session ID for debugging
@@ -383,10 +414,10 @@ export async function handleObservability(
  *
  * Force cache refresh. Returns { refreshed: true, timestamp: string }.
  */
-export async function handleObservabilityRefresh(
+export function handleObservabilityRefresh(
   _req: IncomingMessage,
   res: ServerResponse
-): Promise<void> {
+): void {
   const cache = getObservabilityCache();
   cache.invalidateAll();
 
@@ -408,22 +439,22 @@ export async function handleObservabilityRefresh(
  * - session_id?: string (for session-specific diagnostics)
  * - options?: { level?: 'quick' | 'standard' | 'full', timeout_ms?: number }
  */
-export async function handleDiagnosticsRun(
+export function handleDiagnosticsRun(
   req: IncomingMessage,
   res: ServerResponse,
   deps: ObservabilityRouteDependencies
-): Promise<void> {
+): void {
   // Read request body
   let body = '';
-  req.on('data', (chunk) => {
+  req.on('data', (chunk: Buffer) => {
     body += chunk.toString();
   });
 
-  req.on('end', async () => {
+  const handleEnd = async (): Promise<void> => {
     const startedAt = new Date();
 
     try {
-      const request: DiagnosticRunRequest = JSON.parse(body || '{}');
+      const request = parseDiagnosticRunRequest(parseJsonObject(body));
       const { type, session_id, options } = request;
 
       logger.info(scopedLog(LogContext.HEALTH, 'running diagnostics'), {
@@ -434,7 +465,7 @@ export async function handleDiagnosticsRun(
 
       // For now, we only support recording diagnostics via the existing system
       // Future: Add more diagnostic types
-      let results: DiagnosticRunResponse['results'] = {};
+      const results: DiagnosticRunResponse['results'] = {};
 
       if (type === 'recording' || type === 'all') {
         // Recording diagnostics require an active session with a page
@@ -480,8 +511,7 @@ export async function handleDiagnosticsRun(
             });
 
             // Transform to UI-compatible format with category instead of code
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            results.recording = transformDiagnosticsForUI(rawResult) as any;
+            results.recording = transformDiagnosticsForUI(rawResult);
           } catch (error) {
             logger.warn(scopedLog(LogContext.HEALTH, 'recording diagnostics failed'), {
               sessionId: targetSessionId,
@@ -499,8 +529,8 @@ export async function handleDiagnosticsRun(
               durationMs: 0,
               level: errorLevel,
               issues: [{
-                severity: DiagnosticSeverity.ERROR,
-                code: 'DIAGNOSTIC_FAILED',
+                severity: 'error',
+                category: 'general',
                 message: `Recording diagnostics failed: ${error instanceof Error ? error.message : String(error)}`,
                 suggestion: 'Check the browser console for JavaScript errors',
               }],
@@ -522,8 +552,8 @@ export async function handleDiagnosticsRun(
             durationMs: 0,
             level: noSessionLevel,
             issues: [{
-              severity: DiagnosticSeverity.WARNING,
-              code: 'NO_SESSIONS',
+              severity: 'warning',
+              category: 'general',
               message: 'No active browser sessions available for diagnostics',
               suggestion: 'Start a browser session first by navigating to a page',
             }],
@@ -553,6 +583,10 @@ export async function handleDiagnosticsRun(
         message: error instanceof Error ? error.message : String(error),
       });
     }
+  };
+
+  req.on('end', () => {
+    void handleEnd();
   });
 }
 
@@ -562,11 +596,11 @@ export async function handleDiagnosticsRun(
  * Get detailed list of all active browser sessions.
  * Returns session metadata for diagnostics and monitoring.
  */
-export async function handleSessionList(
+export function handleSessionList(
   _req: IncomingMessage,
   res: ServerResponse,
   deps: ObservabilityRouteDependencies
-): Promise<void> {
+): void {
   try {
     const sessions = deps.sessionManager.getSessionList();
     const summary = deps.sessionManager.getSessionSummary();
@@ -667,22 +701,27 @@ export async function handleMetrics(
     for (const line of metricsText.split('\n')) {
       if (line.startsWith('# HELP ')) {
         const parts = line.slice(7).split(' ');
-        currentMetric = parts[0];
-        currentHelp = parts.slice(1).join(' ');
-        if (!metricsJson[currentMetric]) {
-          metricsJson[currentMetric] = { type: '', help: currentHelp, values: [] };
-        } else {
-          metricsJson[currentMetric].help = currentHelp;
+        const metricName = parts[0];
+        if (!metricName) {
+          continue;
         }
+        currentMetric = metricName;
+        currentHelp = parts.slice(1).join(' ');
+        const metricEntry =
+          metricsJson[currentMetric] ?? (metricsJson[currentMetric] = { type: '', help: currentHelp, values: [] });
+        metricEntry.help = currentHelp;
       } else if (line.startsWith('# TYPE ')) {
         const parts = line.slice(7).split(' ');
-        currentMetric = parts[0];
-        currentType = parts[1];
-        if (!metricsJson[currentMetric]) {
-          metricsJson[currentMetric] = { type: currentType, help: '', values: [] };
-        } else {
-          metricsJson[currentMetric].type = currentType;
+        const metricName = parts[0];
+        const metricType = parts[1];
+        if (!metricName || !metricType) {
+          continue;
         }
+        currentMetric = metricName;
+        currentType = metricType;
+        const metricEntry =
+          metricsJson[currentMetric] ?? (metricsJson[currentMetric] = { type: currentType, help: '', values: [] });
+        metricEntry.type = currentType;
       } else if (line && !line.startsWith('#')) {
         // Parse metric value line
         // Format: metric_name{label="value",label2="value2"} value
@@ -690,15 +729,27 @@ export async function handleMetrics(
         const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+(.+)$/);
         if (match) {
           const name = match[1];
+          if (!name) {
+            continue;
+          }
           const labelsStr = match[2] || '';
-          const value = parseFloat(match[3]);
+          const valueRaw = match[3];
+          if (!valueRaw) {
+            continue;
+          }
+          const value = parseFloat(valueRaw);
 
           // Parse labels
           const labels: Record<string, string> = {};
           if (labelsStr) {
             const labelMatches = labelsStr.matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)="([^"]*)"/g);
             for (const labelMatch of labelMatches) {
-              labels[labelMatch[1]] = labelMatch[2];
+              const labelName = labelMatch[1];
+              const labelValue = labelMatch[2];
+              if (!labelName || labelValue === undefined) {
+                continue;
+              }
+              labels[labelName] = labelValue;
             }
           }
 
@@ -749,21 +800,22 @@ export async function handleMetrics(
  * Request body: { value: string }
  * Response: SetConfigResult
  */
-export async function handleConfigUpdate(
+export function handleConfigUpdate(
   req: IncomingMessage,
   res: ServerResponse,
   envVar: string
-): Promise<void> {
+): void {
   // Read request body
   let body = '';
-  req.on('data', (chunk) => {
+  req.on('data', (chunk: Buffer) => {
     body += chunk.toString();
   });
 
   req.on('end', () => {
     try {
-      const request = JSON.parse(body || '{}');
-      const { value } = request;
+      const request = parseJsonObject(body);
+      const rawValue = request.value;
+      const value = rawValue === undefined ? undefined : String(rawValue);
 
       if (value === undefined) {
         sendJson(res, 400, {
@@ -809,11 +861,11 @@ export async function handleConfigUpdate(
  *
  * Response: { success: boolean, env_var: string, reset: boolean, current_value: string }
  */
-export async function handleConfigReset(
+export function handleConfigReset(
   _req: IncomingMessage,
   res: ServerResponse,
   envVar: string
-): Promise<void> {
+): void {
   try {
     logger.info(scopedLog(LogContext.CONFIG, 'config reset requested'), { envVar });
 
@@ -857,10 +909,10 @@ export async function handleConfigReset(
  *
  * Response: RuntimeConfigState
  */
-export async function handleConfigRuntime(
+export function handleConfigRuntime(
   _req: IncomingMessage,
   res: ServerResponse
-): Promise<void> {
+): void {
   try {
     const state = getRuntimeConfigState();
     sendJson(res, 200, state);
@@ -890,26 +942,26 @@ export async function handleConfigRuntime(
  *
  * Response: PipelineTestResponse (same format as session-specific endpoint)
  */
-export async function handlePipelineTest(
+export function handlePipelineTest(
   req: IncomingMessage,
   res: ServerResponse,
   deps: ObservabilityRouteDependencies
-): Promise<void> {
+): void {
   // Read request body
   let body = '';
-  req.on('data', (chunk) => {
+  req.on('data', (chunk: Buffer) => {
     body += chunk.toString();
   });
 
-  req.on('end', async () => {
+  const handleEnd = async (): Promise<void> => {
     const startTime = Date.now();
     let tempSessionId: string | undefined;
     let createdTempSession = false;
 
     try {
-      const request = JSON.parse(body || '{}');
-      const testUrl = request.test_url; // undefined = use default (example.com)
-      const timeoutMs = request.timeout_ms ?? 30000;
+      const request = parseJsonObject(body);
+      const testUrl = isString(request.test_url) ? request.test_url : undefined;
+      const timeoutMs = isNumber(request.timeout_ms) ? request.timeout_ms : 30000;
 
       logger.info(scopedLog(LogContext.HEALTH, 'autonomous pipeline test starting'), {
         testUrl: testUrl || 'default (example.com)',
@@ -922,8 +974,12 @@ export async function handlePipelineTest(
 
       if (existingSessionIds.length > 0) {
         // Use an existing session
-        tempSessionId = existingSessionIds[0];
-        session = deps.sessionManager.getSession(tempSessionId);
+        const existingSessionId = existingSessionIds[0];
+        if (!existingSessionId) {
+          throw new Error('No session available for pipeline test');
+        }
+        tempSessionId = existingSessionId;
+        session = deps.sessionManager.getSession(existingSessionId);
         logger.debug(scopedLog(LogContext.HEALTH, 'using existing session for pipeline test'), {
           sessionId: tempSessionId,
         });
@@ -945,6 +1001,10 @@ export async function handlePipelineTest(
         logger.debug(scopedLog(LogContext.HEALTH, 'temporary session created'), {
           sessionId: tempSessionId,
         });
+      }
+
+      if (!session) {
+        throw new Error('No session available for pipeline test');
       }
 
       // Ensure we have a recording initializer and pipeline manager
@@ -1056,5 +1116,9 @@ export async function handlePipelineTest(
         hint: 'Check browser connectivity and ensure the driver is running correctly',
       });
     }
+  };
+
+  req.on('end', () => {
+    void handleEnd();
   });
 }

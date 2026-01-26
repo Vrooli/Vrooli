@@ -38,19 +38,31 @@ export function parseUserAgent(userAgent: string): ParsedUserAgent {
   if (ua.includes('edg/')) {
     browser = 'edge';
     const match = userAgent.match(/Edg\/([\d.]+)/i);
-    if (match) version = match[1].split('.')[0];
+    const matchVersion = match?.[1];
+    if (matchVersion) {
+      version = matchVersion.split('.')[0] ?? matchVersion;
+    }
   } else if (ua.includes('chrome/')) {
     browser = 'chrome';
     const match = userAgent.match(/Chrome\/([\d.]+)/i);
-    if (match) version = match[1].split('.')[0];
+    const matchVersion = match?.[1];
+    if (matchVersion) {
+      version = matchVersion.split('.')[0] ?? matchVersion;
+    }
   } else if (ua.includes('firefox/')) {
     browser = 'firefox';
     const match = userAgent.match(/Firefox\/([\d.]+)/i);
-    if (match) version = match[1].split('.')[0];
+    const matchVersion = match?.[1];
+    if (matchVersion) {
+      version = matchVersion.split('.')[0] ?? matchVersion;
+    }
   } else if (ua.includes('safari/') && !ua.includes('chrome')) {
     browser = 'safari';
     const match = userAgent.match(/Version\/([\d.]+)/i);
-    if (match) version = match[1].split('.')[0];
+    const matchVersion = match?.[1];
+    if (matchVersion) {
+      version = matchVersion.split('.')[0] ?? matchVersion;
+    }
   }
 
   // Detect platform

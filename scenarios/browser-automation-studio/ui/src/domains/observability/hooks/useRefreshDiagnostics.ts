@@ -16,6 +16,10 @@ const OBSERVABILITY_QUERY_KEY = 'observability';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+
 const parseJson = async (response: Response): Promise<unknown> => {
   try {
     return await response.json();
@@ -29,6 +33,15 @@ const extractMessage = (payload: unknown, fallback: string): string => {
     return payload.message;
   }
   return fallback;
+};
+
+const isDiagnosticRunResponse = (value: unknown): value is DiagnosticRunResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.started_at)) return false;
+  if (!isString(value.completed_at)) return false;
+  if (!isNumber(value.duration_ms)) return false;
+  if (!isRecord(value.results)) return false;
+  return true;
 };
 
 interface UseRefreshDiagnosticsOptions {
@@ -75,11 +88,11 @@ async function runDiagnosticsRequest(request: DiagnosticRunRequest): Promise<Dia
     throw new Error(extractMessage(payload, `Failed to run diagnostics: ${response.statusText}`));
   }
 
-  if (!isRecord(payload)) {
+  if (!isDiagnosticRunResponse(payload)) {
     throw new Error('Invalid diagnostics response');
   }
 
-  return payload as DiagnosticRunResponse;
+  return payload;
 }
 
 async function refreshCache(): Promise<void> {
@@ -160,6 +173,17 @@ export interface CleanupRunResponse {
   duration_ms: number;
 }
 
+const isCleanupRunResponse = (value: unknown): value is CleanupRunResponse => {
+  if (!isRecord(value)) return false;
+  if (!isBoolean(value.success)) return false;
+  if (!isNumber(value.cleaned_up)) return false;
+  if (!isNumber(value.remaining_sessions)) return false;
+  if (!isString(value.started_at)) return false;
+  if (!isString(value.completed_at)) return false;
+  if (!isNumber(value.duration_ms)) return false;
+  return true;
+};
+
 async function runCleanupRequest(): Promise<CleanupRunResponse> {
   const config = await getConfig();
 
@@ -173,11 +197,11 @@ async function runCleanupRequest(): Promise<CleanupRunResponse> {
     throw new Error(extractMessage(payload, `Failed to run cleanup: ${response.statusText}`));
   }
 
-  if (!isRecord(payload)) {
+  if (!isCleanupRunResponse(payload)) {
     throw new Error('Invalid cleanup response');
   }
 
-  return payload as CleanupRunResponse;
+  return payload;
 }
 
 /**
@@ -234,6 +258,35 @@ export interface SessionListResponse {
   timestamp: string;
 }
 
+const isSessionInfo = (value: unknown): value is SessionInfo => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.id)) return false;
+  if (!isString(value.phase)) return false;
+  if (!isString(value.created_at)) return false;
+  if (!isString(value.last_used_at)) return false;
+  if (!isNumber(value.idle_time_ms)) return false;
+  if (!isBoolean(value.is_idle)) return false;
+  if (!isBoolean(value.is_recording)) return false;
+  if (!isNumber(value.instruction_count)) return false;
+  if (!isNumber(value.page_count)) return false;
+  if (value.workflow_id !== undefined && !isString(value.workflow_id)) return false;
+  if (value.current_url !== undefined && value.current_url !== null && !isString(value.current_url)) return false;
+  return true;
+};
+
+const isSessionListResponse = (value: unknown): value is SessionListResponse => {
+  if (!isRecord(value)) return false;
+  if (!Array.isArray(value.sessions) || !value.sessions.every(isSessionInfo)) return false;
+  if (!isRecord(value.summary)) return false;
+  if (!isNumber(value.summary.total)) return false;
+  if (!isNumber(value.summary.active)) return false;
+  if (!isNumber(value.summary.idle)) return false;
+  if (!isNumber(value.summary.active_recordings)) return false;
+  if (!isNumber(value.summary.capacity)) return false;
+  if (!isString(value.timestamp)) return false;
+  return true;
+};
+
 async function fetchSessionList(): Promise<SessionListResponse> {
   const config = await getConfig();
 
@@ -245,11 +298,11 @@ async function fetchSessionList(): Promise<SessionListResponse> {
     throw new Error(extractMessage(payload, `Failed to fetch sessions: ${response.statusText}`));
   }
 
-  if (!isRecord(payload)) {
+  if (!isSessionListResponse(payload)) {
     throw new Error('Invalid sessions response');
   }
 
-  return payload as SessionListResponse;
+  return payload;
 }
 
 /**

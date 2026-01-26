@@ -194,8 +194,9 @@ export async function handleSessionAINavigate(
   const annotator = createElementAnnotator();
 
   // Get behavior settings from the session's browser context for human-like typing
+  type BehaviorContext = NonNullable<typeof session.context> & { [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings };
   const behaviorSettings = session.context
-    ? (session.context as any)[BEHAVIOR_SETTINGS_KEY] as BehaviorSettings | undefined
+    ? (session.context as BehaviorContext)[BEHAVIOR_SETTINGS_KEY]
     : undefined;
 
   const actionExecutor = createActionExecutor({
@@ -227,7 +228,7 @@ export async function handleSessionAINavigate(
     apiKey: body.api_key,
     callbackUrl: body.callback_url,
     navigationId,
-    onStep: async (step: NavigationStep) => {
+    onStep: (step: NavigationStep) => {
       // Additional step logging
       logger.debug('Navigation step completed', {
         navigationId,
@@ -235,6 +236,7 @@ export async function handleSessionAINavigate(
         action: step.action.type,
         goalAchieved: step.goalAchieved,
       });
+      return Promise.resolve();
     },
   };
 
@@ -319,13 +321,13 @@ export async function handleSessionAINavigate(
  *
  * Aborts in-progress AI navigation for the session.
  */
-export async function handleSessionAINavigateAbort(
+export function handleSessionAINavigateAbort(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
-): Promise<void> {
+): void {
   // Validate session exists
   const session = sessionManager.getSession(sessionId);
   if (!session) {
@@ -363,13 +365,13 @@ export async function handleSessionAINavigateAbort(
  *
  * Resumes AI navigation after human intervention is complete.
  */
-export async function handleSessionAINavigateResume(
+export function handleSessionAINavigateResume(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
-): Promise<void> {
+): void {
   // Validate session exists
   const session = sessionManager.getSession(sessionId);
   if (!session) {
@@ -417,13 +419,13 @@ export async function handleSessionAINavigateResume(
  *
  * Returns status of AI navigation for the session.
  */
-export async function handleSessionAINavigateStatus(
+export function handleSessionAINavigateStatus(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
-): Promise<void> {
+): void {
   // Validate session exists
   const session = sessionManager.getSession(sessionId);
   if (!session) {
@@ -455,10 +457,10 @@ export async function handleSessionAINavigateStatus(
  *
  * Returns list of supported vision models.
  */
-export async function handleListAIModels(
+export function handleListAIModels(
   _req: IncomingMessage,
   res: ServerResponse
-): Promise<void> {
+): void {
   const models = getSupportedModelIds();
   sendJson(res, 200, {
     models,

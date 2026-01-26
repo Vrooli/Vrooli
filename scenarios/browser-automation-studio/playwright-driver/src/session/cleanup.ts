@@ -54,39 +54,43 @@ export class SessionCleanup {
       idleTimeoutMs: this.config.session.idleTimeoutMs,
     });
 
-    this.intervalId = setInterval(async () => {
-      // Guard: Don't start cleanup if stopped or another cleanup is in progress
-      if (this.isStopped) {
-        return;
-      }
-
-      if (this.isCleanupInProgress) {
-        logger.debug('cleanup: skipping, previous cleanup still in progress');
-        return;
-      }
-
-      this.isCleanupInProgress = true;
-      try {
-        await this.manager.cleanupIdleSessions();
-      } catch (error) {
-        logger.error('cleanup: task error', {
-          error: error instanceof Error ? error.message : String(error),
-          hint: 'Cleanup may have failed to close some sessions',
-        });
-      } finally {
-        this.isCleanupInProgress = false;
-        this.lastRunAt = new Date();
-        // Signal any waiting stop() call that cleanup is complete
-        if (this.cleanupCompleteResolver) {
-          this.cleanupCompleteResolver();
-          this.cleanupCompleteResolver = null;
-        }
-      }
+    this.intervalId = setInterval(() => {
+      void this.runCleanup();
     }, this.config.session.cleanupIntervalMs);
 
     // Don't keep the process alive just for cleanup
     if (this.intervalId.unref) {
       this.intervalId.unref();
+    }
+  }
+
+  private async runCleanup(): Promise<void> {
+    // Guard: Don't start cleanup if stopped or another cleanup is in progress
+    if (this.isStopped) {
+      return;
+    }
+
+    if (this.isCleanupInProgress) {
+      logger.debug('cleanup: skipping, previous cleanup still in progress');
+      return;
+    }
+
+    this.isCleanupInProgress = true;
+    try {
+      await this.manager.cleanupIdleSessions();
+    } catch (error) {
+      logger.error('cleanup: task error', {
+        error: error instanceof Error ? error.message : String(error),
+        hint: 'Cleanup may have failed to close some sessions',
+      });
+    } finally {
+      this.isCleanupInProgress = false;
+      this.lastRunAt = new Date();
+      // Signal any waiting stop() call that cleanup is complete
+      if (this.cleanupCompleteResolver) {
+        this.cleanupCompleteResolver();
+        this.cleanupCompleteResolver = null;
+      }
     }
   }
 

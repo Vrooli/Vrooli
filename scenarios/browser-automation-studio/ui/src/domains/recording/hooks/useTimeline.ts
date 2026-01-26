@@ -14,6 +14,9 @@ import type { Page } from './usePages';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+
 const safeJson = async (response: Response): Promise<unknown> => {
   const text = await response.text();
   if (!text) return null;
@@ -71,19 +74,64 @@ interface TimelineResponse {
   totalEntries: number;
 }
 
+const parseTimelineAction = (value: unknown): TimelineAction | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!isString(value.id)) return undefined;
+  if (!isString(value.actionType)) return undefined;
+  if (!isNumber(value.sequenceNum)) return undefined;
+  if (!isString(value.timestamp)) return undefined;
+  if (!isNumber(value.confidence)) return undefined;
+  const selector = isRecord(value.selector) && isString(value.selector.primary)
+    ? { primary: value.selector.primary }
+    : undefined;
+  return {
+    id: value.id,
+    actionType: value.actionType,
+    sequenceNum: value.sequenceNum,
+    timestamp: value.timestamp,
+    confidence: value.confidence,
+    url: isString(value.url) ? value.url : undefined,
+    selector,
+    payload: isRecord(value.payload) ? value.payload : undefined,
+    pageTitle: isString(value.pageTitle) ? value.pageTitle : undefined,
+  };
+};
+
+const parseTimelinePageEvent = (value: unknown): TimelinePageEvent | undefined => {
+  if (!isRecord(value)) return undefined;
+  if (!isString(value.id)) return undefined;
+  if (!isString(value.type)) return undefined;
+  if (!isString(value.pageId)) return undefined;
+  if (!isString(value.timestamp)) return undefined;
+  if (value.type !== 'page_created' && value.type !== 'page_navigated' && value.type !== 'page_closed') {
+    return undefined;
+  }
+  return {
+    id: value.id,
+    type: value.type,
+    pageId: value.pageId,
+    timestamp: value.timestamp,
+    url: isString(value.url) ? value.url : undefined,
+    title: isString(value.title) ? value.title : undefined,
+    openerId: isString(value.openerId) ? value.openerId : undefined,
+  };
+};
+
 const parseTimelineEntry = (value: unknown): TimelineEntry | null => {
   if (!isRecord(value)) return null;
-  if (typeof value.id !== 'string') return null;
-  if (typeof value.type !== 'string') return null;
-  if (typeof value.timestamp !== 'string') return null;
-  if (typeof value.pageId !== 'string') return null;
+  if (!isString(value.id)) return null;
+  if (!isString(value.type)) return null;
+  if (!isString(value.timestamp)) return null;
+  if (!isString(value.pageId)) return null;
+  const action = parseTimelineAction(value.action);
+  const pageEvent = parseTimelinePageEvent(value.pageEvent);
   return {
     id: value.id,
     type: value.type as TimelineEntryType,
     timestamp: value.timestamp,
     pageId: value.pageId,
-    action: isRecord(value.action) ? (value.action as TimelineAction) : undefined,
-    pageEvent: isRecord(value.pageEvent) ? (value.pageEvent as TimelinePageEvent) : undefined,
+    action,
+    pageEvent,
   };
 };
 

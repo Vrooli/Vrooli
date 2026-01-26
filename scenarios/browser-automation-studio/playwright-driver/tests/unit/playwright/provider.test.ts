@@ -4,7 +4,6 @@
  * Tests the provider configuration, capabilities, and factory function.
  */
 
-import { describe, beforeEach, afterEach, it, expect, jest } from '@jest/globals';
 import {
   createPlaywrightProvider,
   getConfiguredProviderName,
@@ -163,7 +162,7 @@ describe('RECORDING_TROUBLESHOOTING', () => {
 
   it('should provide actionable checklists', () => {
     // Every troubleshooting entry should have at least 2 checklist items
-    for (const [key, entry] of Object.entries(RECORDING_TROUBLESHOOTING)) {
+    for (const entry of Object.values(RECORDING_TROUBLESHOOTING)) {
       expect(entry.checkList.length).toBeGreaterThanOrEqual(2);
       for (const item of entry.checkList) {
         // Each item should be a meaningful sentence

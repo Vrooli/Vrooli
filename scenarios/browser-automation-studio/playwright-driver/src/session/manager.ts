@@ -52,6 +52,9 @@ import { setupDiagnosticLogging } from './diagnostic-logger';
 /** Result type for session creation */
 type SessionCreationResult = { sessionId: string; reused: boolean; createdAt: Date; actualViewport: ActualViewport };
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
   private browserManager: BrowserManager;
@@ -237,10 +240,10 @@ export class SessionManager {
     const page = await context.newPage();
 
     // Log page errors (warn level - these are important signals for debugging)
-    page.on('pageerror', (err) => {
+    page.on('pageerror', (err: unknown) => {
       logger.warn(scopedLog(LogContext.BROWSER, 'page error'), {
         sessionId,
-        error: err.message,
+        error: getErrorMessage(err),
         hint: 'Check the page JavaScript for errors that may affect automation',
       });
     });
@@ -328,10 +331,10 @@ export class SessionManager {
         });
         return false;
       }
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
         sessionId,
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
         hint: 'Recording will retry initialization when started',
       });
       return false;
@@ -581,9 +584,7 @@ export class SessionManager {
 
     // Clear storage
     await session.page.evaluate(() => {
-      // @ts-expect-error - window is available in browser context
       window.localStorage.clear();
-      // @ts-expect-error - window is available in browser context
       window.sessionStorage.clear();
     });
 
@@ -594,13 +595,13 @@ export class SessionManager {
     if (session.pages.length > 1) {
       const extraPages = session.pages.slice(1);
       for (const page of extraPages) {
-        await page.close().catch((err) => {
-          logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
-            sessionId,
-            error: err.message,
-          });
-          metrics.cleanupFailures.inc({ operation: 'page_close' });
+      await page.close().catch((err: unknown) => {
+        logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
+          sessionId,
+          error: getErrorMessage(err),
         });
+        metrics.cleanupFailures.inc({ operation: 'page_close' });
+      });
       }
       session.pages = [session.page];
       session.currentPageIndex = 0;
@@ -610,10 +611,10 @@ export class SessionManager {
     session.activeMocks.clear();
 
     // Unroute all Playwright route handlers to match cleared state
-    await session.page.unroute('**/*').catch((err) => {
+    await session.page.unroute('**/*').catch((err: unknown) => {
       logger.warn(scopedLog(LogContext.CLEANUP, 'unroute failed'), {
         sessionId,
-        error: err.message,
+        error: getErrorMessage(err),
       });
     });
 
@@ -673,14 +674,14 @@ export class SessionManager {
 
     const startTime = Date.now();
 
-    let videoPaths: string[] = [];
+    const videoPaths: string[] = [];
     try {
       // Stop recording if active (use pipelineManager as single source of truth)
       if (session.pipelineManager?.isRecording()) {
-        await session.pipelineManager.stopRecording().catch((err) => {
+        await session.pipelineManager.stopRecording().catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'recording stop failed'), {
             sessionId,
-            error: err instanceof Error ? err.message : String(err),
+            error: getErrorMessage(err),
           });
           metrics.cleanupFailures.inc({ operation: 'recording_stop' });
         });
@@ -691,20 +692,20 @@ export class SessionManager {
 
       // Disable service worker monitoring
       if (session.serviceWorkerController) {
-        await session.serviceWorkerController.disable().catch((err) => {
+        await session.serviceWorkerController.disable().catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'SW controller disable failed'), {
             sessionId,
-            error: err instanceof Error ? err.message : String(err),
+            error: getErrorMessage(err),
           });
         });
       }
 
       // Stop tracing if enabled
       if (session.tracing && session.tracePath) {
-        await session.context.tracing.stop({ path: session.tracePath }).catch((err) => {
+        await session.context.tracing.stop({ path: session.tracePath }).catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'tracing stop failed'), {
             sessionId,
-            error: err.message,
+            error: getErrorMessage(err),
           });
           metrics.cleanupFailures.inc({ operation: 'tracing_stop' });
         });
@@ -713,10 +714,10 @@ export class SessionManager {
       // Close all pages and collect video artifacts (if enabled)
       for (const [index, page] of session.pages.entries()) {
         const video = page.video();
-        await page.close().catch((err) => {
+        await page.close().catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'page close failed'), {
             sessionId,
-            error: err.message,
+            error: getErrorMessage(err),
           });
           metrics.cleanupFailures.inc({ operation: 'page_close' });
         });
@@ -729,10 +730,10 @@ export class SessionManager {
       }
 
       // Close context
-      await session.context.close().catch((err) => {
+      await session.context.close().catch((err: unknown) => {
         logger.warn(scopedLog(LogContext.CLEANUP, 'context close failed'), {
           sessionId,
-          error: err.message,
+          error: getErrorMessage(err),
         });
         metrics.cleanupFailures.inc({ operation: 'context_close' });
       });

@@ -32,9 +32,6 @@ import {
 import {
   ElementFocusSchema,
 } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
-import {
-  ElementMetaSchema,
-} from '@vrooli/proto-types/browser-automation-studio/v1/domain/selectors_pb';
 
 import { safeDuration, validateStepIndex, safeSerializable } from '../utils';
 import type { BaseExecutionResult, ExecutionError, HandlerError } from './types';
@@ -432,8 +429,11 @@ function base64ToUint8Array(base64: string): Uint8Array {
  */
 function objectToJsonValueMap(obj: Record<string, unknown>): Record<string, import('@vrooli/proto-types/common/v1/types_pb').JsonValue> {
   // Dynamic require to avoid circular dependency issues
-  const { create: createProto } = require('@bufbuild/protobuf');
-  const { JsonValueSchema: JVS, JsonObjectSchema: JOS, JsonListSchema: JLS } = require('@vrooli/proto-types/common/v1/types_pb');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires -- avoid circular dependency issues
+  const { create: createProto } = require('@bufbuild/protobuf') as typeof import('@bufbuild/protobuf');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires -- avoid circular dependency issues
+  const protoSchemas = require('@vrooli/proto-types/common/v1/types_pb') as typeof import('@vrooli/proto-types/common/v1/types_pb');
+  const { JsonValueSchema: JVS, JsonObjectSchema: JOS, JsonListSchema: JLS } = protoSchemas;
 
   function toJsonValue(value: unknown): import('@vrooli/proto-types/common/v1/types_pb').JsonValue {
     if (value === null || value === undefined) {

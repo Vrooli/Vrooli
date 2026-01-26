@@ -1,11 +1,33 @@
 {
   "compilerOptions": {
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
+    // ║                                                                          ║
+    // ║  These rules prevent runtime crashes like:                               ║
+    // ║  - "X is not a function"                                                 ║
+    // ║  - "Cannot read property Y of undefined"                                 ║
+    // ║  - "undefined is not iterable"                                           ║
+    // ║                                                                          ║
+    // ║  If you encounter type errors from these rules:                          ║
+    // ║  ✅ DO: Use optional chaining (?.) or null checks (if (x) { ... })       ║
+    // ║  ✅ DO: Use nullish coalescing (??) for defaults                         ║
+    // ║  ✅ DO: Add proper type guards before accessing properties               ║
+    // ║  ❌ DON'T: Use non-null assertion (!) - it hides bugs, use ?? instead    ║
+    // ║  ❌ DON'T: Use type assertions (as X) to silence errors                  ║
+    // ║  ❌ DON'T: Add @ts-ignore or @ts-expect-error comments                   ║
+    // ║  ❌ DON'T: Remove or weaken these rules                                  ║
+    // ║                                                                          ║
+    // ║  These rules exist because runtime crashes are the #1 production issue. ║
+    // ║  Removing them WILL cause crashes that are much harder to debug than     ║
+    // ║  the type errors they produce at compile time.                           ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
     "target": "ES2022",
     "module": "CommonJS",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

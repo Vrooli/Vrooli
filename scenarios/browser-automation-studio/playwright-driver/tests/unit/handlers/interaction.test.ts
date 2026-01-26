@@ -1,4 +1,9 @@
-import { createTypedInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { InteractionHandler } from '../../../src/handlers/interaction';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
@@ -15,7 +20,7 @@ describe('InteractionHandler', () => {
     const config = createTestConfig();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config,
       logger,
       metrics,
@@ -37,7 +42,9 @@ describe('InteractionHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.click).toHaveBeenCalledWith('#button', expect.any(Object));
+      const [selector, options] = mockPage.click.mock.calls[0] ?? [];
+      expect(selector).toBe('#button');
+      expect(options).toEqual(expect.any(Object));
       expect(result.success).toBe(true);
     });
 
@@ -49,10 +56,9 @@ describe('InteractionHandler', () => {
       await handler.execute(instruction, context);
 
       // Uses config default timeout (30000ms from createTestConfig)
-      expect(mockPage.click).toHaveBeenCalledWith(
-        '#button',
-        expect.objectContaining({ timeout: 30000 })
-      );
+      const [selector, options] = mockPage.click.mock.calls[0] ?? [];
+      expect(selector).toBe('#button');
+      expect(options).toEqual(expect.objectContaining({ timeout: 30000 }));
     });
 
     it('should handle click errors', async () => {
@@ -73,7 +79,9 @@ describe('InteractionHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.hover).toHaveBeenCalledWith('.item', expect.any(Object));
+      const [selector, options] = mockPage.hover.mock.calls[0] ?? [];
+      expect(selector).toBe('.item');
+      expect(options).toEqual(expect.any(Object));
       expect(result.success).toBe(true);
     });
   });
@@ -84,7 +92,10 @@ describe('InteractionHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.fill).toHaveBeenCalledWith('#input', 'Hello World', expect.any(Object));
+      const [selector, text, options] = mockPage.fill.mock.calls[0] ?? [];
+      expect(selector).toBe('#input');
+      expect(text).toBe('Hello World');
+      expect(options).toEqual(expect.any(Object));
       expect(result.success).toBe(true);
     });
 
@@ -93,7 +104,10 @@ describe('InteractionHandler', () => {
 
       const result = await handler.execute(instruction, context);
 
-      expect(mockPage.fill).toHaveBeenCalledWith('#input', 'Test', expect.any(Object));
+      const [selector, text, options] = mockPage.fill.mock.calls[0] ?? [];
+      expect(selector).toBe('#input');
+      expect(text).toBe('Test');
+      expect(options).toEqual(expect.any(Object));
       expect(result.success).toBe(true);
     });
   });

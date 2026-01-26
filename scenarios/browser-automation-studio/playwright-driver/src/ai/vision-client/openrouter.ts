@@ -30,6 +30,27 @@ import { getModelSpec } from './model-registry';
 import { generateSystemPrompt, generateUserPrompt } from './prompts';
 import { parseLLMResponse, extractReasoning, ActionParseError } from '../action/parser';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractErrorMessage(payload: unknown): string | null {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  const errorValue = payload.error;
+  if (isRecord(errorValue) && typeof errorValue.message === 'string') {
+    return errorValue.message;
+  }
+
+  if (typeof payload.message === 'string') {
+    return payload.message;
+  }
+
+  return null;
+}
+
 /**
  * Configuration for OpenRouter client.
  */
@@ -221,7 +242,8 @@ export class OpenRouterVisionClient implements VisionModelClient {
       .map(m => {
         // Try to extract the action from assistant messages
         const actionMatch = m.content.match(/ACTION:\s*(\w+\([^)]*\))/i);
-        return actionMatch ? actionMatch[1] : m.content.substring(0, 100);
+        const action = actionMatch?.[1];
+        return action ?? m.content.substring(0, 100);
       });
 
     const userPrompt = generateUserPrompt({
@@ -322,8 +344,11 @@ export class OpenRouterVisionClient implements VisionModelClient {
   private handleAPIError(status: number, body: string): never {
     let errorMessage = body;
     try {
-      const parsed = JSON.parse(body);
-      errorMessage = parsed.error?.message ?? parsed.message ?? body;
+      const parsed = JSON.parse(body) as unknown;
+      const parsedMessage = extractErrorMessage(parsed);
+      if (parsedMessage) {
+        errorMessage = parsedMessage;
+      }
     } catch {
       // Use raw body if not JSON
     }

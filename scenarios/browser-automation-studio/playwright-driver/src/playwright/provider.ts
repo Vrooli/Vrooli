@@ -42,6 +42,7 @@
  */
 
 import { chromium } from 'rebrowser-playwright';
+import { logger } from '../utils';
 import type { PlaywrightProvider, PlaywrightProviderName, PlaywrightCapabilities } from './types';
 
 /**
@@ -145,7 +146,7 @@ export function createPlaywrightProvider(name?: PlaywrightProviderName): Playwri
   // Currently we only have rebrowser-playwright installed
   // Log warning if different provider requested but not available
   if (providerName === 'playwright') {
-    console.warn(
+    logger.warn(
       '[playwright-provider] Standard playwright requested but only rebrowser-playwright is installed. ' +
         'To use standard playwright: pnpm add playwright. ' +
         'Using rebrowser-playwright instead.'
@@ -197,7 +198,7 @@ export const playwrightProvider: PlaywrightProvider = createPlaywrightProvider()
  */
 export function logProviderConfig(): void {
   const provider = playwrightProvider;
-  console.log('[playwright-provider] Active configuration:', {
+  logger.info('[playwright-provider] Active configuration:', {
     name: provider.name,
     evaluateIsolated: provider.capabilities.evaluateIsolated,
     exposeBindingIsolated: provider.capabilities.exposeBindingIsolated,

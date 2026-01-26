@@ -106,6 +106,9 @@ const asCursorPathStyle = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isString = (value: unknown): value is string => typeof value === "string";
+const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+
 const readFiniteNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -115,6 +118,29 @@ const readFiniteNumber = (value: unknown): number | null => {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+};
+
+const isReplayMovieSpec = (value: unknown): value is ReplayMovieSpec => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.version)) return false;
+  if (!isString(value.generated_at)) return false;
+  if (!isRecord(value.execution)) return false;
+  if (!isString(value.execution.execution_id)) return false;
+  if (!isString(value.execution.workflow_id)) return false;
+  if (!isString(value.execution.status)) return false;
+  if (!isString(value.execution.started_at)) return false;
+  if (!isNumber(value.execution.progress)) return false;
+  if (!isNumber(value.execution.total_duration_ms)) return false;
+  if (!isRecord(value.theme)) return false;
+  if (!isRecord(value.cursor)) return false;
+  if (!isRecord(value.decor)) return false;
+  if (!isRecord(value.playback)) return false;
+  if (!isRecord(value.presentation)) return false;
+  if (!isRecord(value.cursor_motion)) return false;
+  if (!Array.isArray(value.frames)) return false;
+  if (!Array.isArray(value.assets)) return false;
+  if (!isRecord(value.summary)) return false;
+  return true;
 };
 
 // Initialize basExport bootstrap on module load
@@ -640,9 +666,9 @@ const ReplayExportPage = () => {
       switch (type) {
         case "bas:spec:set": {
           const incoming = payload.spec;
-          if (isRecord(incoming)) {
+          if (isReplayMovieSpec(incoming)) {
             clearPendingRetry();
-            setMovieSpec(incoming as ReplayMovieSpec);
+            setMovieSpec(incoming);
             setLoadError(null);
             setStatusPayload(null);
             setIsAwaitingSpec(false);
@@ -660,6 +686,8 @@ const ReplayExportPage = () => {
             } else if (typeof payload.executionId === "string") {
               executionSourceRef.current = payload.executionId.trim() || null;
             }
+          } else if (isRecord(incoming)) {
+            reportStatus("error", "Invalid replay spec");
           }
           break;
         }

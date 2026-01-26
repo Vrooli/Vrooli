@@ -19,6 +19,7 @@ import {
   ListChecks,
   GripVertical,
   Plus,
+  FolderOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { fileKindIcon, fileTypeLabelFromPath } from "./fileTreeUtils";

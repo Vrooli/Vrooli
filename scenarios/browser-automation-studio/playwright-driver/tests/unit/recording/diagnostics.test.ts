@@ -4,7 +4,6 @@
  * Tests the diagnostic system that helps identify recording issues.
  */
 
-import { describe, beforeEach, it, expect, jest } from '@jest/globals';
 import {
   runRecordingDiagnostics,
   isRecordingReady,
@@ -13,7 +12,11 @@ import {
   DiagnosticSeverity,
   DIAGNOSTIC_CODES,
 } from '../../../src/recording';
-import type { InjectionStats, InjectionVerification } from '../../../src/recording';
+import type {
+  InjectionStrategyStats,
+  InjectionVerification,
+  RecordingContextInitializer,
+} from '../../../src/recording';
 import type { Page, BrowserContext } from 'rebrowser-playwright';
 
 // Mock the verification module
@@ -60,17 +63,24 @@ function createMockContext(): jest.Mocked<BrowserContext> {
 }
 
 // Helper to create mock context initializer
-function createMockContextInitializer(stats: Partial<InjectionStats> = {}) {
+type MockContextInitializer = {
+  getInjectionStats: jest.Mock<InjectionStrategyStats, []>;
+  isInitialized: jest.Mock<boolean, []>;
+};
+
+function createMockContextInitializer(
+  stats: Partial<InjectionStrategyStats> = {}
+): MockContextInitializer {
   return {
-    getInjectionStats: jest.fn().mockReturnValue({
+    getInjectionStats: jest.fn<InjectionStrategyStats, []>().mockReturnValue({
       attempted: 1,
       successful: 1,
       failed: 0,
-      skipped: 0,
-      methods: { head: 1 },
+      avgInjectionTimeMs: 0,
+      lastInjectionAt: new Date().toISOString(),
       ...stats,
     }),
-    isInitialized: jest.fn().mockReturnValue(true),
+    isInitialized: jest.fn<boolean, []>().mockReturnValue(true),
   };
 }
 
@@ -229,7 +239,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(result.injectionStats).toBeDefined();
@@ -248,7 +258,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(
@@ -268,7 +278,7 @@ describe('Recording Diagnostics', () => {
       mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
 
       const result = await runRecordingDiagnostics(page, context, {
-        contextInitializer: initializer as any,
+        contextInitializer: initializer as unknown as RecordingContextInitializer,
       });
 
       expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.INJECTION_ALL_FAILED)).toBe(
@@ -343,6 +353,7 @@ describe('Recording Diagnostics', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         durationMs: 50,
         level: RecordingDiagnosticLevel.STANDARD,
+        checks: [],
         issues: [],
         provider: {
           name: 'rebrowser-playwright',
@@ -372,6 +383,7 @@ describe('Recording Diagnostics', () => {
         timestamp: '2024-01-01T00:00:00.000Z',
         durationMs: 50,
         level: RecordingDiagnosticLevel.STANDARD,
+        checks: [],
         issues: [
           {
             code: DIAGNOSTIC_CODES.SCRIPT_NOT_LOADED,

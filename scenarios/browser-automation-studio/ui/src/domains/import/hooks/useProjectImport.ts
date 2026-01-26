@@ -59,6 +59,26 @@ export interface UseProjectImportReturn {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+const isNumber = (value: unknown): value is number => typeof value === 'number';
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(isString);
+
+const isInspectFolderResponse = (value: unknown): value is InspectFolderResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.folder_path)) return false;
+  if (!isBoolean(value.exists)) return false;
+  if (!isBoolean(value.is_dir)) return false;
+  if (!isBoolean(value.has_bas_metadata)) return false;
+  if (!isBoolean(value.has_workflows)) return false;
+  if (!isBoolean(value.already_indexed)) return false;
+  if (value.workflow_count !== undefined && !isNumber(value.workflow_count)) return false;
+  if (value.workflow_locations !== undefined && !isStringArray(value.workflow_locations)) return false;
+  if (value.v1_workflow_count !== undefined && !isNumber(value.v1_workflow_count)) return false;
+  return true;
+};
+
 const parseJson = async (response: Response): Promise<unknown> => {
   try {
     return await response.json();
@@ -108,13 +128,12 @@ export function useProjectImport(_options?: UseProjectImportOptions): UseProject
       }
 
       const data: unknown = await response.json();
-      if (!isRecord(data)) {
+      if (!isInspectFolderResponse(data)) {
         setError('Invalid inspect response');
         return null;
       }
-      const result = data as InspectFolderResponse;
-      setInspectResult(result);
-      return result;
+      setInspectResult(data);
+      return data;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to inspect folder';
       logger.error('Failed to inspect folder', { error: err, folderPath });

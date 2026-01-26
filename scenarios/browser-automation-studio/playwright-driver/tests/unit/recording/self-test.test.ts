@@ -5,8 +5,7 @@
  * human-in-the-loop debugging for recording issues.
  */
 
-import { describe, it, expect } from '@jest/globals';
-import { TEST_PAGE_HTML, DEFAULT_TEST_URL } from '../../../src/recording';
+import { TEST_PAGE_HTML, DEFAULT_TEST_URL, type PipelineTestResult } from '../../../src/recording';
 
 describe('Recording Self-Test Module', () => {
   describe('TEST_PAGE_HTML', () => {
@@ -56,7 +55,7 @@ describe('Recording Self-Test Module', () => {
 
   describe('PipelineTestResult structure', () => {
     // Import types for testing
-    const mockSuccessResult = {
+    const mockSuccessResult: PipelineTestResult = {
       success: true,
       timestamp: '2024-01-01T00:00:00.000Z',
       durationMs: 1500,
@@ -81,7 +80,7 @@ describe('Recording Self-Test Module', () => {
       expect(mockSuccessResult.failureMessage).toBeUndefined();
     });
 
-    const mockFailureResult = {
+    const mockFailureResult: PipelineTestResult = {
       success: false,
       timestamp: '2024-01-01T00:00:00.000Z',
       durationMs: 800,
@@ -114,8 +113,12 @@ describe('Recording Self-Test Module', () => {
 
     it('should include detailed step results', () => {
       expect(mockFailureResult.steps).toHaveLength(4);
-      expect(mockFailureResult.steps[3].passed).toBe(false);
-      expect(mockFailureResult.steps[3].error).toBeDefined();
+      const failureStep = mockFailureResult.steps[3];
+      if (!failureStep) {
+        throw new Error('Expected failure step to be present');
+      }
+      expect(failureStep.passed).toBe(false);
+      expect(failureStep.error).toBeDefined();
     });
   });
 
@@ -170,10 +173,10 @@ describe('Recording Self-Test Module', () => {
 
 describe('Test Page Interactive Elements', () => {
   // Parse the HTML to check for required attributes
-  const hasDataTestId = (html: string, id: string) =>
+  const hasDataTestId = (html: string, id: string): boolean =>
     html.includes(`data-testid="${id}"`);
 
-  const hasId = (html: string, id: string) =>
+  const hasId = (html: string, id: string): boolean =>
     html.includes(`id="${id}"`);
 
   it('should have testable click button', () => {

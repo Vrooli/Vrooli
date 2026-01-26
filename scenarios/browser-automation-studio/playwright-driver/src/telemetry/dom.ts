@@ -77,7 +77,7 @@ export async function captureElementSnapshot(
   }
 
   try {
-    const element = await page.locator(selector).first();
+    const element = page.locator(selector).first();
     const html = await element.innerHTML();
 
     if (html.length > config.telemetry.dom.maxSizeBytes) {

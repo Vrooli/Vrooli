@@ -237,7 +237,7 @@ describe('FPS Controller', () => {
       });
 
       it('should not provide diagnostics when no adjustment', () => {
-        let state = createInitialState(10);
+        const state = createInitialState(10);
 
         const result = processFrame(state, 60, config);
 

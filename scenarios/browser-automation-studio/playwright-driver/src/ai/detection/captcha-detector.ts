@@ -149,8 +149,7 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
        * - Off-screen positioning (left: -9999px pattern)
        * - Hidden parent elements (child rect becomes zero)
        */
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function isElementVisible(element: any): boolean {
+      function isElementVisible(element: Element): boolean {
         // Bounding rect catches: display:none, zero size, hidden parents
         const rect = element.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) {
@@ -197,7 +196,7 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
 
         // Check iframe sources (high confidence)
         const iframes = document.querySelectorAll('iframe');
-        for (const iframe of iframes) {
+        for (const iframe of Array.from(iframes)) {
           // Skip hidden iframes (e.g., preloaded captchas)
           if (!isElementVisible(iframe)) continue;
 
@@ -247,7 +246,26 @@ export async function detectCaptcha(page: Page): Promise<CaptchaDetectionResult>
     );
 
     const best = sorted[0];
-    const pattern = DETECTION_PATTERNS.find(p => p.type === best.type)!;
+    if (!best) {
+      return {
+        detected: false,
+        type: null,
+        confidence: 'low',
+        reason: 'No CAPTCHA detections found',
+        instructions: '',
+      };
+    }
+    const pattern = DETECTION_PATTERNS.find((p) => p.type === best.type);
+    if (!pattern) {
+      return {
+        detected: false,
+        type: null,
+        confidence: 'low',
+        reason: `No detection rules found for type: ${best.type}`,
+        instructions: '',
+        selector: best.selector,
+      };
+    }
 
     return {
       detected: true,
@@ -294,7 +312,7 @@ export function createMockCaptchaDetector(
   mockResult: CaptchaDetectionResult
 ): { detect: (page: Page) => Promise<CaptchaDetectionResult> } {
   return {
-    detect: async () => mockResult,
+    detect: () => Promise.resolve(mockResult),
   };
 }
 

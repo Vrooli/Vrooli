@@ -68,7 +68,7 @@ export function sendError(
 ): void {
   let statusCode = 500;
   let errorCode = 'INTERNAL_ERROR';
-  let message = error.message;
+  const message = error.message;
   let kind: FailureKind = FailureKind.ENGINE;
   let retryable = false;
 

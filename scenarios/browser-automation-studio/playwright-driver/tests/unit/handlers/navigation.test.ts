@@ -1,8 +1,39 @@
-import { createTypedInstruction, createTestInstruction, createMockPage, createTestConfig } from '../../helpers';
+import {
+  createTypedInstruction,
+  createTestInstruction,
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+} from '../../helpers';
 import { NavigationHandler } from '../../../src/handlers/navigation';
 import type { HandlerContext } from '../../../src/handlers/base';
 import { logger, metrics } from '../../../src/utils';
 import { FailureKind } from '../../../src/proto';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isUnknownArray = (value: unknown): value is unknown[] => Array.isArray(value);
+
+const getGotoCall = (
+  page: ReturnType<typeof createMockPage>
+): { url: string; options: Record<string, unknown> } => {
+  const call: unknown = page.goto.mock.calls[0];
+  if (!isUnknownArray(call)) {
+    throw new Error('Expected page.goto to be called');
+  }
+
+  const urlValue = call[0];
+  const optionsValue = call[1];
+  if (typeof urlValue !== 'string') {
+    throw new Error('Expected page.goto to be called with a URL string');
+  }
+
+  return {
+    url: urlValue,
+    options: isRecord(optionsValue) ? optionsValue : {},
+  };
+};
 
 describe('NavigationHandler', () => {
   let handler: NavigationHandler;
@@ -16,7 +47,7 @@ describe('NavigationHandler', () => {
     const config = createTestConfig();
     context = {
       page: mockPage,
-      context: {} as any,
+      browserContext: createMockContext(),
       config,
       logger,
       metrics,
@@ -39,12 +70,9 @@ describe('NavigationHandler', () => {
       const result = await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          waitUntil: 'domcontentloaded',
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      expect(options).toEqual(expect.objectContaining({ waitUntil: 'domcontentloaded' }));
       expect(result.success).toBe(true);
     });
 
@@ -63,12 +91,9 @@ describe('NavigationHandler', () => {
       await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          timeout: 60000,
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      expect(options).toEqual(expect.objectContaining({ timeout: 60000 }));
     });
 
     it('should use custom waitUntil when provided', async () => {
@@ -77,12 +102,9 @@ describe('NavigationHandler', () => {
       await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          waitUntil: 'load',
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      expect(options).toEqual(expect.objectContaining({ waitUntil: 'load' }));
     });
 
     it('should support domcontentloaded waitUntil', async () => {
@@ -91,12 +113,9 @@ describe('NavigationHandler', () => {
       await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          waitUntil: 'domcontentloaded',
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      expect(options).toEqual(expect.objectContaining({ waitUntil: 'domcontentloaded' }));
     });
 
     it('should handle navigation errors', async () => {
@@ -142,12 +161,10 @@ describe('NavigationHandler', () => {
       await handler.execute(instruction, context);
 
       // Note: URL is normalized (trailing slash added by URL.href)
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          timeout: expect.any(Number),
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      const timeout = options.timeout;
+      expect(typeof timeout).toBe('number');
     });
 
     it('should use default waitUntil when not provided', async () => {
@@ -157,12 +174,9 @@ describe('NavigationHandler', () => {
 
       // Note: URL is normalized (trailing slash added by URL.href)
       // Default is 'domcontentloaded' - 'networkidle' times out on ad-heavy sites
-      expect(mockPage.goto).toHaveBeenCalledWith(
-        'https://example.com/',
-        expect.objectContaining({
-          waitUntil: 'domcontentloaded',
-        })
-      );
+      const { url, options } = getGotoCall(mockPage);
+      expect(url).toBe('https://example.com/');
+      expect(options).toEqual(expect.objectContaining({ waitUntil: 'domcontentloaded' }));
     });
   });
 });

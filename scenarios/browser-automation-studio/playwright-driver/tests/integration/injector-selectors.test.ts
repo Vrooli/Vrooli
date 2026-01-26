@@ -11,8 +11,12 @@
  * 3. It catches drift between selectors.ts and injector.ts implementations
  */
 import { chromium, Browser, Page } from 'playwright';
-import { getRecordingScript } from '../../src/recording/injector';
-import { TEST_ID_ATTRIBUTES, CONFIDENCE_SCORES, SPECIFICITY_SCORES } from '../../src/recording/selector-config';
+import { generateRecordingInitScript } from '../../src/recording';
+import {
+  TEST_ID_ATTRIBUTES,
+  CONFIDENCE_SCORES,
+  SPECIFICITY_SCORES,
+} from '../../src/recording/validation/selector-config';
 
 // Type for generated selectors from browser context
 interface SelectorSet {
@@ -50,19 +54,18 @@ describe('Injector Selector Generation (Integration)', () => {
    */
   async function generateSelectorsFor(html: string, elementSelector: string): Promise<SelectorSet> {
     await page.setContent(html);
-    await page.evaluate(getRecordingScript());
+    const script = generateRecordingInitScript();
+    await page.evaluate(script);
 
-    // Use a function string to avoid TypeScript DOM type issues
-    const evalFn = `
-      (function(selector) {
-        const element = document.querySelector(selector);
-        if (!element) {
-          throw new Error('Element not found: ' + selector);
-        }
-        return window.__generateSelectors(element);
-      })('${elementSelector.replace(/'/g, "\\'")}')
-    `;
-    return await page.evaluate(evalFn) as SelectorSet;
+    return await page.evaluate<SelectorSet, string>((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) {
+        throw new Error(`Element not found: ${selector}`);
+      }
+      const generator = (window as unknown as { __generateSelectors: (el: Element) => SelectorSet })
+        .__generateSelectors;
+      return generator(element);
+    }, elementSelector);
   }
 
   describe('data-testid Selectors (Highest Priority)', () => {
@@ -73,10 +76,14 @@ describe('Injector Selector Generation (Integration)', () => {
       );
 
       expect(result.primary).toBe('[data-testid="submit-btn"]');
-      expect(result.candidates[0]).toMatchObject({
+      const primaryCandidate = result.candidates[0];
+      if (!primaryCandidate) {
+        throw new Error('Expected at least one selector candidate');
+      }
+      expect(primaryCandidate).toMatchObject({
         type: 'data-testid',
-        confidence: CONFIDENCE_SCORES.dataTestId,
-        specificity: SPECIFICITY_SCORES.dataTestId,
+        confidence: Number(CONFIDENCE_SCORES.dataTestId),
+        specificity: Number(SPECIFICITY_SCORES.dataTestId),
       });
     });
 
@@ -88,7 +95,11 @@ describe('Injector Selector Generation (Integration)', () => {
         );
 
         expect(result.primary).toContain(attr);
-        expect(result.candidates[0].type).toBe('data-testid');
+        const primaryCandidate = result.candidates[0];
+        if (!primaryCandidate) {
+          throw new Error('Expected at least one selector candidate');
+        }
+        expect(primaryCandidate.type).toBe('data-testid');
       });
     }
   });
@@ -265,13 +276,20 @@ describe('Injector Selector Generation (Integration)', () => {
       );
 
       // data-testid should be first (highest confidence)
-      expect(result.candidates[0].type).toBe('data-testid');
+      const topCandidate = result.candidates[0];
+      if (!topCandidate) {
+        throw new Error('Expected at least one selector candidate');
+      }
+      expect(topCandidate.type).toBe('data-testid');
 
       // Verify candidates are sorted by confidence
       for (let i = 1; i < result.candidates.length; i++) {
-        expect(result.candidates[i - 1].confidence).toBeGreaterThanOrEqual(
-          result.candidates[i].confidence
-        );
+        const previous = result.candidates[i - 1];
+        const current = result.candidates[i];
+        if (!previous || !current) {
+          throw new Error('Missing selector candidate during ranking check');
+        }
+        expect(previous.confidence).toBeGreaterThanOrEqual(current.confidence);
       }
     });
 
@@ -329,10 +347,11 @@ describe('Injector Selector Generation (Integration)', () => {
   describe('Config Serialization Verification', () => {
     it('should have access to shared config in browser context', async () => {
       await page.setContent('<div>Test</div>');
-      await page.evaluate(getRecordingScript());
+      const script = generateRecordingInitScript();
+      await page.evaluate(script);
 
       // Verify CONFIG exists and has expected structure
-      const configCheck = await page.evaluate('typeof window.__recordingActive === "boolean"') as boolean;
+      const configCheck = await page.evaluate('window.__recordingInitialized === true') as boolean;
 
       expect(configCheck).toBe(true);
     });

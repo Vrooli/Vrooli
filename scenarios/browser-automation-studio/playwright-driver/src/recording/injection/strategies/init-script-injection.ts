@@ -79,7 +79,6 @@ export class InitScriptInjectionStrategy implements InjectionStrategy {
   readonly name: InjectionStrategyName = 'init-script';
 
   private initialized = false;
-  private context: BrowserContext | null = null;
   private options: InjectionStrategyOptions | null = null;
   private stats: InjectionStrategyStats = createInitialStats();
   private firstInjectionFired = false;
@@ -101,7 +100,6 @@ export class InitScriptInjectionStrategy implements InjectionStrategy {
       return;
     }
 
-    this.context = context;
     this.options = options;
 
     const { bindingName, logger, diagnosticsEnabled } = options;
@@ -296,13 +294,13 @@ export class InitScriptInjectionStrategy implements InjectionStrategy {
    * `addInitScript()` cannot be removed. The script remains registered
    * for the lifetime of the context.
    */
-  async cleanup(): Promise<void> {
+  cleanup(): Promise<void> {
     // addInitScript cannot be removed - script stays registered
     // Just clear our references
-    this.context = null;
     this.options = null;
     this.initialized = false;
     this.firstInjectionFired = false;
+    return Promise.resolve();
   }
 
   /**

@@ -86,7 +86,7 @@ export class AssertionHandler extends BaseHandler {
 
         case 'attribute':
         case 'attribute_equals':
-        case 'attribute_contains':
+        case 'attribute_contains': {
           if (!attributeName) {
             return {
               success: false,
@@ -109,6 +109,7 @@ export class AssertionHandler extends BaseHandler {
             attrMode
           );
           break;
+        }
 
         case 'text_equals':
         case 'equals':

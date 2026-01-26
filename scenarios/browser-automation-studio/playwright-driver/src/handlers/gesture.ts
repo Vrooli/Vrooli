@@ -298,6 +298,9 @@ export class GestureHandler extends BaseHandler {
       // Move along the generated path
       for (let i = 1; i < path.length; i++) {
         const point = path[i];
+        if (!point) {
+          continue;
+        }
         await page.mouse.move(point.x, point.y);
 
         if (delayMs > 0) {
@@ -504,6 +507,9 @@ export class GestureHandler extends BaseHandler {
 
       for (let i = 1; i < path.length; i++) {
         const point = path[i];
+        if (!point) {
+          continue;
+        }
         await page.mouse.move(point.x, point.y);
         if (stepDelay > 0) {
           await sleep(stepDelay);
@@ -559,10 +565,10 @@ export class GestureHandler extends BaseHandler {
 
     if (!selector) {
       // Apply zoom to entire page via CSS transform
-      await page.evaluate((scaleValue: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (globalThis as any).document.body.style.transform = `scale(${scaleValue})`;
-        (globalThis as any).document.body.style.transformOrigin = 'center center';
+      await page.evaluate((scaleValue: number) => {
+        if (!document.body) return;
+        document.body.style.transform = `scale(${scaleValue})`;
+        document.body.style.transformOrigin = 'center center';
       }, scale);
 
       // Apply post-action micro-pause
@@ -597,7 +603,7 @@ export class GestureHandler extends BaseHandler {
         };
       }
 
-      await element.evaluate((el: any, scaleValue) => {
+      await element.evaluate((el: HTMLElement, scaleValue: number) => {
         el.style.transform = `scale(${scaleValue})`;
         el.style.transformOrigin = 'center center';
       }, scale);

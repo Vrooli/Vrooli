@@ -78,7 +78,7 @@ let loggerInstance: winston.Logger = winston.createLogger({
  * This ensures that setLogger updates are reflected in all module imports.
  */
 export const logger: winston.Logger = new Proxy({} as winston.Logger, {
-  get(_target, prop) {
+  get(_target, prop: string | symbol): unknown {
     return (loggerInstance as unknown as Record<string | symbol, unknown>)[prop];
   },
 });

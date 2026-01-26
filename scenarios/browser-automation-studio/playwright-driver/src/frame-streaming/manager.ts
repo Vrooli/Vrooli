@@ -35,6 +35,7 @@ import type {
   FrameStreamViewportResult,
   SessionProvider,
 } from './types';
+import type { Page } from 'rebrowser-playwright';
 
 // =============================================================================
 // Module State
@@ -307,7 +308,7 @@ async function startWithStrategy(
 ): Promise<void> {
   // Create page provider function for multi-tab support
   // This is called on each frame capture to get the current active page
-  const pageProvider = () => sessionProvider.getSession(sessionId).page;
+  const pageProvider = (): Page => sessionProvider.getSession(sessionId).page;
   const page = pageProvider();
 
   // Create strategy instances

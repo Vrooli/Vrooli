@@ -14,7 +14,7 @@ import { sendError, sendJson } from '../middleware';
  * GET /session/:id/service-workers
  * Returns list of registered service workers and control settings.
  */
-export async function handleSessionServiceWorkers(
+export function handleSessionServiceWorkers(
   _req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
@@ -31,7 +31,7 @@ export async function handleSessionServiceWorkers(
         control: { mode: 'allow' },
         message: 'Service worker controller not initialized',
       });
-      return;
+      return Promise.resolve();
     }
 
     sendJson(res, 200, {
@@ -39,8 +39,10 @@ export async function handleSessionServiceWorkers(
       workers: swController.getWorkers(),
       control: swController.getControl(),
     });
+    return Promise.resolve();
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/service-workers`);
+    return Promise.resolve();
   }
 }
 

@@ -11,7 +11,6 @@
  * run as part of `pnpm test` in CI environments.
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from '@jest/globals';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import {
@@ -107,7 +106,15 @@ class PipelineTestServer {
       });
 
       this.server.listen(0, () => {
-        this.port = (this.server!.address() as { port: number }).port;
+        const server = this.server;
+        if (!server) {
+          throw new Error('Test server failed to initialize');
+        }
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('Unexpected server address for test server');
+        }
+        this.port = address.port;
         resolve(this.port);
       });
     });
@@ -155,6 +162,19 @@ async function simulateRealScroll(page: Page, deltaY: number = 200): Promise<voi
  */
 function getActionType(entry: TimelineEntry): ActionType | undefined {
   return entry.action?.type;
+}
+
+function getTelemetryUrl(entry: TimelineEntry): string | undefined {
+  const telemetry = entry.telemetry as { url?: unknown } | undefined;
+  if (!telemetry) {
+    return undefined;
+  }
+  return typeof telemetry.url === 'string' ? telemetry.url : undefined;
+}
+
+function getEntryUrl(entry: TimelineEntry): string | undefined {
+  const rawUrl = (entry as { url?: unknown }).url;
+  return typeof rawUrl === 'string' ? rawUrl : undefined;
 }
 
 describe('Pipeline E2E Tests', () => {
@@ -206,7 +226,9 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
         recordingId: 'full-pipeline',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // 1. Click
@@ -228,19 +250,15 @@ describe('Pipeline E2E Tests', () => {
       const inputs = capturedEntries.filter(e => getActionType(e) === ActionType.INPUT);
       const scrolls = capturedEntries.filter(e => getActionType(e) === ActionType.SCROLL);
 
-      console.log('Full pipeline test results:', {
-        clicks: clicks.length,
-        inputs: inputs.length,
-        scrolls: scrolls.length,
-        total: capturedEntries.length,
-      });
-
       expect(clicks.length).toBeGreaterThan(0);
       expect(inputs.length).toBeGreaterThan(0);
       expect(scrolls.length).toBeGreaterThan(0);
 
       // Validate TimelineEntry structure
       const entry = capturedEntries[0];
+      if (!entry) {
+        throw new Error('Expected at least one captured entry');
+      }
       expect(entry.id).toBeDefined();
       expect(entry.sequenceNum).toBeDefined();
       expect(entry.timestamp).toBeDefined();
@@ -272,7 +290,9 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
         recordingId: 'nav-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Click navigation link
@@ -286,14 +306,6 @@ describe('Pipeline E2E Tests', () => {
       const navEvents = capturedEntries.filter(e => getActionType(e) === ActionType.NAVIGATE);
       const clickEvents = capturedEntries.filter(e => getActionType(e) === ActionType.CLICK);
 
-      console.log('Navigation test results:', {
-        navEvents: navEvents.length,
-        clickEvents: clickEvents.length,
-        total: capturedEntries.length,
-        types: capturedEntries.map(e => ActionType[getActionType(e) ?? ActionType.UNSPECIFIED]),
-        navUrls: navEvents.map(e => e.telemetry?.url || e.url),
-      });
-
       // Click that triggered navigation should be captured
       expect(clickEvents.length).toBeGreaterThan(0);
 
@@ -301,9 +313,11 @@ describe('Pipeline E2E Tests', () => {
       expect(navEvents.length).toBeGreaterThan(0);
 
       // Navigation should contain the target URL (check both telemetry.url and top-level url)
-      const navToPage2 = navEvents.find(e =>
-        e.telemetry?.url?.includes('/page-2') || e.url?.includes('/page-2')
-      );
+      const navToPage2 = navEvents.find((entry) => {
+        const telemetryUrl = getTelemetryUrl(entry);
+        const entryUrl = getEntryUrl(entry);
+        return telemetryUrl?.includes('/page-2') || entryUrl?.includes('/page-2');
+      });
       expect(navToPage2).toBeDefined();
     });
 
@@ -314,14 +328,14 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
         recordingId: 'post-nav-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Click before navigation
       await page.click('#test-btn');
       await page.waitForTimeout(200);
-
-      const entriesBeforeNav = capturedEntries.length;
 
       // Navigate
       await page.click('#test-link');
@@ -341,13 +355,6 @@ describe('Pipeline E2E Tests', () => {
       const postNavEntries = capturedEntries.slice(entriesAfterNav);
       const postNavClicks = postNavEntries.filter(e => getActionType(e) === ActionType.CLICK);
 
-      console.log('Post-navigation capture:', {
-        entriesBeforeNav,
-        entriesAfterNav,
-        totalEntries: capturedEntries.length,
-        postNavClicks: postNavClicks.length,
-      });
-
       // CRITICAL: Events after navigation must be captured
       expect(postNavClicks.length).toBeGreaterThan(0);
     });
@@ -359,7 +366,9 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.startRecording({
         sessionId: 'pipeline-e2e-test',
         recordingId: 'sequence-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Perform multiple actions
@@ -378,7 +387,12 @@ describe('Pipeline E2E Tests', () => {
         .filter((n): n is number => n !== undefined);
 
       for (let i = 1; i < sequenceNums.length; i++) {
-        expect(sequenceNums[i]).toBeGreaterThan(sequenceNums[i - 1]);
+        const current = sequenceNums[i];
+        const previous = sequenceNums[i - 1];
+        if (current === undefined || previous === undefined) {
+          throw new Error('Missing sequence number when validating ordering');
+        }
+        expect(current).toBeGreaterThan(previous);
       }
 
       // Verify timestamps are ascending (or equal for rapid events)
@@ -388,7 +402,12 @@ describe('Pipeline E2E Tests', () => {
         .map(t => Number(t.seconds) * 1000 + Number(t.nanos) / 1000000);
 
       for (let i = 1; i < timestamps.length; i++) {
-        expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
+        const current = timestamps[i];
+        const previous = timestamps[i - 1];
+        if (current === undefined || previous === undefined) {
+          throw new Error('Missing timestamp when validating ordering');
+        }
+        expect(current).toBeGreaterThanOrEqual(previous);
       }
     });
   });
@@ -447,7 +466,9 @@ describe('Pipeline E2E Tests', () => {
       await pipelineManager.startRecording({
         sessionId: 'state-test',
         recordingId: 'route-stats-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       await page.click('#test-btn');

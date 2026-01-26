@@ -74,11 +74,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         if (event.data instanceof ArrayBuffer) {
           // Notify all subscribers directly without triggering React state
           // This is much more efficient for high-frequency frame updates
+          const frame = event.data;
           const callbacks = binaryFrameCallbacksRef.current;
           if (callbacks.size > 0) {
             callbacks.forEach((callback) => {
               try {
-                callback(event.data);
+                callback(frame);
               } catch (err) {
                 logger.warn('Binary frame callback error', { component: 'WebSocketContext', action: 'onmessage' }, err);
               }
@@ -104,7 +105,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             logger.warn('Invalid WebSocket message', {
               component: 'WebSocketContext',
               action: 'onmessage',
-              issues: parsed.issues,
+              issues: parsed.details.issues,
             });
           }
         } catch (err) {

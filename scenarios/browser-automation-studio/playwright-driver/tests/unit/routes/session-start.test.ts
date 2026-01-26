@@ -58,7 +58,7 @@ describe('Session Start Route', () => {
     await handleSessionStart(mockReq, mockRes, sessionManager, config);
 
     expect(mockRes.statusCode).toBe(200);
-    const json = (mockRes as any).getJSON();
+    const json = mockRes.getJSON();
     expect(json.session_id).toBeDefined();
     expect(typeof json.session_id).toBe('string');
     // New response fields from signal improvements

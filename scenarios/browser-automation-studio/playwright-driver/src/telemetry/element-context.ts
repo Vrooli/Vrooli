@@ -226,17 +226,19 @@ async function captureRawElementMeta(
             : text || undefined;
         }
 
+        const rect = el.getBoundingClientRect();
+
         return {
           tagName: el.tagName.toLowerCase(),
           id: el.id || undefined,
-          className: el.className || undefined,
+          className: el.getAttribute('class') || undefined,
           innerText,
           attributes: Object.keys(attrs).length > 0 ? attrs : undefined,
           isVisible:
             style.display !== 'none' &&
             style.visibility !== 'hidden' &&
             parseFloat(style.opacity) > 0 &&
-            (el.offsetWidth > 0 || el.offsetHeight > 0),
+            (rect.width > 0 || rect.height > 0),
           isEnabled: !(el as HTMLInputElement).disabled,
           role: el.getAttribute('role') || inferRole(el) || undefined,
           ariaLabel: el.getAttribute('aria-label') || undefined,

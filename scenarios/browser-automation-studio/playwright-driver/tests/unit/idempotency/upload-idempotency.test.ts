@@ -7,11 +7,19 @@
  */
 
 import type { HandlerContext } from '../../../src/handlers/base';
-import { createMockPage, createTestConfig, createTypedInstruction } from '../../helpers';
+import {
+  createMockPage,
+  createMockContext,
+  createTestConfig,
+  createTypedInstruction,
+} from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
+jest.mock('fs/promises', () => ({
+  access: jest.fn(),
+}));
+
 describe('UploadHandler Idempotency', () => {
-  let UploadHandlerCtor: typeof import('../../../src/handlers/upload').UploadHandler;
   let handler: InstanceType<typeof import('../../../src/handlers/upload').UploadHandler>;
   let mockPage: ReturnType<typeof createMockPage>;
   let config: ReturnType<typeof createTestConfig>;
@@ -19,16 +27,11 @@ describe('UploadHandler Idempotency', () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    (jest as any).unstable_mockModule('fs/promises', () => ({
-      access: jest.fn().mockResolvedValue(undefined),
-    }));
+    mockAccess = (jest.requireMock('fs/promises') as { access: jest.Mock }).access;
+    mockAccess.mockResolvedValue(undefined);
 
-    const fsPromises = await import('fs/promises');
-    mockAccess = fsPromises.access as unknown as jest.Mock;
-
-    const mod = await import('../../../src/handlers/upload');
-    UploadHandlerCtor = mod.UploadHandler;
-    handler = new UploadHandlerCtor();
+    const { UploadHandler } = await import('../../../src/handlers/upload');
+    handler = new UploadHandler();
     mockPage = createMockPage();
     config = createTestConfig();
   });
@@ -46,7 +49,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -63,7 +66,7 @@ describe('UploadHandler Idempotency', () => {
       expect(result2.success).toBe(true);
 
       // setInputFiles called twice since they are sequential
-      expect(mockPage.setInputFiles).toHaveBeenCalledTimes(2);
+      expect(mockPage.setInputFiles.mock.calls.length).toBe(2);
     });
 
     it('should allow separate uploads for different files', async () => {
@@ -79,7 +82,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -94,7 +97,7 @@ describe('UploadHandler Idempotency', () => {
       expect(result2.success).toBe(true);
 
       // Different files should create separate upload calls
-      expect(mockPage.setInputFiles).toHaveBeenCalledTimes(2);
+      expect(mockPage.setInputFiles.mock.calls.length).toBe(2);
     });
 
     it('should allow separate uploads for different selectors', async () => {
@@ -110,7 +113,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -125,7 +128,7 @@ describe('UploadHandler Idempotency', () => {
       expect(result2.success).toBe(true);
 
       // Different selectors should create separate upload calls
-      expect(mockPage.setInputFiles).toHaveBeenCalledTimes(2);
+      expect(mockPage.setInputFiles.mock.calls.length).toBe(2);
     });
   });
 
@@ -140,7 +143,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -164,7 +167,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -186,7 +189,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -211,7 +214,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -222,11 +225,10 @@ describe('UploadHandler Idempotency', () => {
       const result = await handler.execute(instruction, context);
 
       expect(result.success).toBe(true);
-      expect(mockPage.setInputFiles).toHaveBeenCalledWith(
-        '#file-input',
-        ['/path/to/file1.txt', '/path/to/file2.txt'],
-        expect.any(Object)
-      );
+      const [selector, files, options] = mockPage.setInputFiles.mock.calls[0] ?? [];
+      expect(selector).toBe('#file-input');
+      expect(files).toEqual(['/path/to/file1.txt', '/path/to/file2.txt']);
+      expect(options).toEqual(expect.any(Object));
     });
 
     it('should generate consistent idempotency key for same file array', async () => {
@@ -243,7 +245,7 @@ describe('UploadHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -260,7 +262,7 @@ describe('UploadHandler Idempotency', () => {
 
       // Both calls succeed - the idempotency key would match for concurrent calls
       // Sequential calls both execute because the first completes before second starts
-      expect(mockPage.setInputFiles).toHaveBeenCalledTimes(2);
+      expect(mockPage.setInputFiles.mock.calls.length).toBe(2);
     });
   });
 });

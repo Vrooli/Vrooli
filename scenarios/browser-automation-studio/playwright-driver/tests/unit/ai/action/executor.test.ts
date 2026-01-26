@@ -3,7 +3,7 @@
  */
 
 import { createActionExecutor, createMockActionExecutor } from '../../../../src/ai/action/executor';
-import type { Page } from 'playwright';
+import type { Page } from 'rebrowser-playwright';
 import type { BrowserAction } from '../../../../src/ai/action/types';
 import type { ElementLabel } from '../../../../src/ai/vision-client/types';
 
@@ -482,8 +482,12 @@ describe('createMockActionExecutor', () => {
 
     const calls = mock.getCalls();
     expect(calls).toHaveLength(2);
-    expect(calls[0].action.type).toBe('click');
-    expect(calls[1].action.type).toBe('type');
+    const [firstCall, secondCall] = calls;
+    if (!firstCall || !secondCall) {
+      throw new Error('Expected two recorded calls');
+    }
+    expect(firstCall.action.type).toBe('click');
+    expect(secondCall.action.type).toBe('type');
   });
 
   it('can be set to fail mode', async () => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Pause } from 'lucide-react';
+import { Pause, Sparkles } from 'lucide-react';
 import { PREVIEW_RENDERERS } from './FeaturePreviews';
 import { FEATURE_CONFIGS, type FeatureConfig } from './featureConfigs';
 

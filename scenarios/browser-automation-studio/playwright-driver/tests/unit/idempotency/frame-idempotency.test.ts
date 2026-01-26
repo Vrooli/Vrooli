@@ -8,7 +8,13 @@
 
 import { FrameHandler } from '../../../src/handlers/frame';
 import type { HandlerContext } from '../../../src/handlers/base';
-import { createMockPage, createMockFrame, createTestConfig, createTypedInstruction } from '../../helpers';
+import {
+  createMockPage,
+  createMockFrame,
+  createMockContext,
+  createTestConfig,
+  createTypedInstruction,
+} from '../../helpers';
 import { logger, metrics } from '../../../src/utils';
 
 describe('FrameHandler Idempotency', () => {
@@ -42,7 +48,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -71,7 +77,7 @@ describe('FrameHandler Idempotency', () => {
       mockPage.mainFrame.mockReturnValue(mainFrame);
 
       // Empty frame stack - not currently in any iframe
-      const frameStack: any[] = [];
+      const frameStack: Array<ReturnType<typeof createMockFrame>> = [];
 
       const instruction = createTypedInstruction('frame-switch', {
         action: 'enter',
@@ -80,7 +86,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -107,7 +113,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -130,7 +136,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -155,7 +161,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -181,7 +187,7 @@ describe('FrameHandler Idempotency', () => {
       const frameStack = [frame];
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -203,12 +209,11 @@ describe('FrameHandler Idempotency', () => {
   describe('stale frame reference handling', () => {
     it('should detect and remove stale frame references', async () => {
       // Create a mock frame that will throw when url() is called (stale)
-      const staleFrame = {
-        url: jest.fn().mockImplementation(() => {
-          throw new Error('Frame detached');
-        }),
-        name: jest.fn().mockResolvedValue('stale-frame'),
-      } as any;
+      const staleFrame = createMockFrame();
+      staleFrame.url.mockImplementation(() => {
+        throw new Error('Frame detached');
+      });
+      staleFrame.name.mockReturnValue('stale-frame');
 
       const validFrame = createMockFrame();
       validFrame.url.mockReturnValue('https://example.com/iframe');
@@ -229,7 +234,7 @@ describe('FrameHandler Idempotency', () => {
       const frameStack = [staleFrame, validFrame];
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -256,7 +261,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -283,7 +288,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -307,7 +312,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,
@@ -331,7 +336,7 @@ describe('FrameHandler Idempotency', () => {
 
       const context: HandlerContext = {
         page: mockPage,
-        context: {} as any,
+        browserContext: createMockContext(),
         config,
         logger,
         metrics,

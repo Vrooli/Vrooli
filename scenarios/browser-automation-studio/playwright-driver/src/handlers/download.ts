@@ -156,12 +156,7 @@ export class DownloadHandler extends BaseHandler {
         const clickPromise = page.click(selector, { timeout });
 
         // Wait for click first - if it fails, we shouldn't wait for download
-        try {
-          await clickPromise;
-        } catch (clickError) {
-          // Click failed - don't wait for download event that will never come
-          throw clickError;
-        }
+        await clickPromise;
 
         // Click succeeded, now wait for download
         download = await downloadPromise;
@@ -171,12 +166,7 @@ export class DownloadHandler extends BaseHandler {
         const downloadPromise = page.waitForEvent('download', { timeout });
         const gotoPromise = page.goto(targetURL, { timeout });
 
-        try {
-          await gotoPromise;
-        } catch (gotoError) {
-          // Navigation failed
-          throw gotoError;
-        }
+        await gotoPromise;
 
         download = await downloadPromise;
       }

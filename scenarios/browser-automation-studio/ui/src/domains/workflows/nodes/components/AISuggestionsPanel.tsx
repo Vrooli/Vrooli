@@ -16,6 +16,8 @@ import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+
 const safeJson = async (response: Response): Promise<unknown> => {
   const text = await response.text();
   if (!text) return null;
@@ -26,13 +28,18 @@ const safeJson = async (response: Response): Promise<unknown> => {
   }
 };
 
+const isElementInfo = (value: unknown): value is ElementInfo => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.text)) return false;
+  if (!isString(value.tagName)) return false;
+  if (!isString(value.type)) return false;
+  if (!Array.isArray(value.selectors)) return false;
+  return true;
+};
+
 const parseElementInfo = (value: unknown): ElementInfo | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.text !== 'string') return null;
-  if (typeof value.tagName !== 'string') return null;
-  if (typeof value.type !== 'string') return null;
-  if (!Array.isArray(value.selectors)) return null;
-  return value as ElementInfo;
+  if (!isElementInfo(value)) return null;
+  return value;
 };
 
 export interface AISuggestionsPanelProps {

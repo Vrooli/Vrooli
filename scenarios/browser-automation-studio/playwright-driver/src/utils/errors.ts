@@ -62,9 +62,10 @@ const ERROR_PATTERNS: ErrorPattern[] = [
   {
     patterns: ['timeout', 'exceeded'],
     createError: (message, data) => new TimeoutError(message, (data.timeout as number) ?? 0),
-    extractData: (message) => {
+    extractData: (message): Record<string, unknown> => {
       const match = message.match(/(\d+)\s*ms/i);
-      return { timeout: match ? parseInt(match[1], 10) : undefined };
+      const timeout = match?.[1];
+      return { timeout: timeout ? parseInt(timeout, 10) : undefined };
     },
   },
 
@@ -316,9 +317,10 @@ function normalizeZodError(error: ZodError): InvalidInstructionError {
     code: issue.code,
   }));
 
+  const firstIssue = issues[0];
   const message =
-    issues.length === 1
-      ? `Validation error: ${issues[0].path.join('.') || 'value'} - ${issues[0].message}`
+    issues.length === 1 && firstIssue
+      ? `Validation error: ${firstIssue.path.join('.') || 'value'} - ${firstIssue.message}`
       : `Validation errors: ${issues.map((issue) => issue.path.join('.') || 'value').join(', ')}`;
 
   return new InvalidInstructionError(message, { zodIssues: issues });

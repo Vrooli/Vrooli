@@ -236,12 +236,12 @@ export class PerfCollector {
     const captureP50 = percentile(sortedCapture, 0.5);
     const captureP90 = percentile(sortedCapture, 0.9);
     const captureP99 = percentile(sortedCapture, 0.99);
-    const captureMax = sortedCapture[sortedCapture.length - 1];
+    const captureMax = sortedCapture[sortedCapture.length - 1] ?? 0;
 
     const e2eP50 = percentile(sortedE2E, 0.5);
     const e2eP90 = percentile(sortedE2E, 0.9);
     const e2eP99 = percentile(sortedE2E, 0.99);
-    const e2eMax = sortedE2E[sortedE2E.length - 1];
+    const e2eMax = sortedE2E[sortedE2E.length - 1] ?? 0;
 
     // Calculate throughput
     const actualFps = (this.frameCount / windowDurationMs) * 1000;
@@ -309,16 +309,18 @@ export class PerfCollector {
  */
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
-  if (sorted.length === 1) return sorted[0];
+  if (sorted.length === 1) return sorted[0] ?? 0;
 
   const index = p * (sorted.length - 1);
   const lower = Math.floor(index);
   const upper = Math.ceil(index);
 
-  if (lower === upper) return sorted[lower];
+  if (lower === upper) return sorted[lower] ?? 0;
 
   const fraction = index - lower;
-  return sorted[lower] * (1 - fraction) + sorted[upper] * fraction;
+  const lowerValue = sorted[lower] ?? 0;
+  const upperValue = sorted[upper] ?? lowerValue;
+  return lowerValue * (1 - fraction) + upperValue * fraction;
 }
 
 /**

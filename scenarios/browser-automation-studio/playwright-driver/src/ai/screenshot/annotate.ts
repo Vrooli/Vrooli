@@ -75,16 +75,16 @@ export function createElementAnnotator(
   // Config will be used in Phase 6 for visual annotation options
 
   return {
-    async annotate(
+    annotate(
       screenshot: Buffer,
       _elements: ElementLabel[]
     ): Promise<AnnotatedScreenshot> {
       // For now, return the screenshot as-is with the provided labels
       // Visual annotation (drawing labels) will be added in Phase 6
-      return {
+      return Promise.resolve({
         image: screenshot,
         labels: _elements,
-      };
+      });
     },
   };
 }
@@ -140,9 +140,7 @@ export async function extractInteractiveElements(
 
   // Extract elements in browser context
   // Note: The callback runs in browser context where DOM types are available
-  const rawElements = await page.evaluate<RawElement[], ExtractArgs>(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (args: any) => {
+  const rawElements = await page.evaluate<RawElement[], ExtractArgs>((args) => {
       const {
         selectors,
         maxElements,
@@ -153,7 +151,7 @@ export async function extractInteractiveElements(
       } = args;
 
       // Helper: Check if element is visible in viewport
-      function isInViewport(rect: { top: number; bottom: number; left: number; right: number; width: number; height: number }): boolean {
+      function isInViewport(rect: DOMRect): boolean {
         return (
           rect.top < viewportHeight &&
           rect.bottom > 0 &&
@@ -165,9 +163,8 @@ export async function extractInteractiveElements(
       }
 
       // Helper: Check if element is visually visible
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function isVisuallyVisible(el: any): boolean {
-        const style = (window as any).getComputedStyle(el);
+      function isVisuallyVisible(el: Element): boolean {
+        const style = window.getComputedStyle(el);
         return (
           style.display !== 'none' &&
           style.visibility !== 'hidden' &&
@@ -176,17 +173,16 @@ export async function extractInteractiveElements(
       }
 
       // Helper: Generate a unique CSS selector for an element
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function generateSelector(el: any): string {
+      function generateSelector(el: Element): string {
         // Try ID first
-        if (el.id) {
-          return `#${(CSS as any).escape(el.id)}`;
+        if (el instanceof HTMLElement && el.id) {
+          return `#${CSS.escape(el.id)}`;
         }
 
         // Try data-testid
         const testId = el.getAttribute('data-testid');
         if (testId) {
-          return `[data-testid="${(CSS as any).escape(testId)}"]`;
+          return `[data-testid="${CSS.escape(testId)}"]`;
         }
 
         // Try aria-label
@@ -199,19 +195,17 @@ export async function extractInteractiveElements(
         // Try name attribute for form elements
         const name = el.getAttribute('name');
         if (name) {
-          return `${el.tagName.toLowerCase()}[name="${(CSS as any).escape(name)}"]`;
+          return `${el.tagName.toLowerCase()}[name="${CSS.escape(name)}"]`;
         }
 
         // Fall back to tag + nth-of-type
         const parent = el.parentElement;
         if (parent) {
           const siblings = Array.from(parent.children).filter(
-            (s: any) => s.tagName === el.tagName
+            (s) => s.tagName === el.tagName
           );
           const index = siblings.indexOf(el) + 1;
-          const parentSelector = parent === (document as any).body
-            ? 'body'
-            : generateSelector(parent);
+          const parentSelector = parent === document.body ? 'body' : generateSelector(parent);
           return `${parentSelector} > ${el.tagName.toLowerCase()}:nth-of-type(${index})`;
         }
 
@@ -219,10 +213,9 @@ export async function extractInteractiveElements(
       }
 
       // Helper: Get element text content (truncated)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function getText(el: any): string | undefined {
+      function getText(el: Element): string | undefined {
         // For inputs, use placeholder
-        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
           return el.placeholder || undefined;
         }
 
@@ -236,8 +229,7 @@ export async function extractInteractiveElements(
       }
 
       // Helper: Get element role
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function getRole(el: any): string | undefined {
+      function getRole(el: Element): string | undefined {
         const explicit = el.getAttribute('role');
         if (explicit) return explicit;
 
@@ -263,23 +255,15 @@ export async function extractInteractiveElements(
       }
 
       // Query all interactive elements
-      const elements = Array.from((document as any).querySelectorAll(selectors));
+      const elements = Array.from(document.querySelectorAll(selectors));
 
       // Filter and map elements
-      const results: Array<{
-        selector: string;
-        tagName: string;
-        bounds: { x: number; y: number; width: number; height: number };
-        text?: string;
-        role?: string;
-        placeholder?: string;
-        ariaLabel?: string;
-      }> = [];
+      const results: RawElement[] = [];
 
       for (const el of elements) {
         if (results.length >= maxElements) break;
 
-        const rect = (el as any).getBoundingClientRect();
+        const rect = el.getBoundingClientRect();
 
         // Skip if not in viewport (when visibleOnly is true)
         if (visibleOnly && !isInViewport(rect)) continue;
@@ -292,7 +276,7 @@ export async function extractInteractiveElements(
 
         results.push({
           selector: generateSelector(el),
-          tagName: (el as any).tagName.toLowerCase(),
+          tagName: el.tagName.toLowerCase(),
           bounds: {
             x: Math.round(rect.x),
             y: Math.round(rect.y),
@@ -301,8 +285,8 @@ export async function extractInteractiveElements(
           },
           text: getText(el),
           role: getRole(el),
-          placeholder: (el as any).getAttribute('placeholder') || undefined,
-          ariaLabel: (el as any).getAttribute('aria-label') || undefined,
+          placeholder: el.getAttribute('placeholder') || undefined,
+          ariaLabel: el.getAttribute('aria-label') || undefined,
         });
       }
 
@@ -384,22 +368,22 @@ export function createMockAnnotator(
   let callCount = 0;
 
   return {
-    async annotate(
+    annotate(
       screenshot: Buffer,
       _elements: ElementLabel[]
     ): Promise<AnnotatedScreenshot> {
       callCount++;
-      return {
+      return Promise.resolve({
         image: screenshot,
         labels: mockLabels ?? _elements,
-      };
+      });
     },
 
-    getCalls() {
+    getCalls(): number {
       return callCount;
     },
 
-    reset() {
+    reset(): void {
       callCount = 0;
     },
   };

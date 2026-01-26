@@ -319,11 +319,15 @@ export function resolveUserAgent(fingerprint: FingerprintSettings): string {
   }
 
   // Use preset user agent if specified
-  if (fingerprint.user_agent_preset && USER_AGENTS[fingerprint.user_agent_preset]) {
-    return USER_AGENTS[fingerprint.user_agent_preset];
+  if (fingerprint.user_agent_preset) {
+    const presetUserAgent = USER_AGENTS[fingerprint.user_agent_preset];
+    if (presetUserAgent) {
+      return presetUserAgent;
+    }
   }
 
   // Auto-detect platform and use matching Chrome user agent
   const platformPreset = getPlatformUserAgentPreset();
-  return USER_AGENTS[platformPreset];
+  const fallbackUserAgent = USER_AGENTS['chrome-linux'] ?? Object.values(USER_AGENTS)[0] ?? 'Mozilla/5.0';
+  return USER_AGENTS[platformPreset] ?? fallbackUserAgent;
 }

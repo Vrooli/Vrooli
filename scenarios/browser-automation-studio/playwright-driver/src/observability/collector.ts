@@ -379,6 +379,7 @@ export class ObservabilityCollector {
     return {
       summary: 'Configuration summary not available',
       modified_count: 0,
+      total_count: 0,
       by_tier: {
         essential: 0,
         advanced: 0,
@@ -390,7 +391,7 @@ export class ObservabilityCollector {
   /**
    * Create an error response when collection fails.
    */
-  private createErrorResponse(error: unknown, depth: ObservabilityDepth): ObservabilityResponse {
+  private createErrorResponse(_error: unknown, depth: ObservabilityDepth): ObservabilityResponse {
     return {
       status: 'error',
       ready: false,

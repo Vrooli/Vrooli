@@ -98,8 +98,12 @@ describe('updateStats', () => {
     const after = new Date().toISOString();
 
     expect(stats.lastInjectionAt).not.toBeNull();
-    expect(stats.lastInjectionAt! >= before).toBe(true);
-    expect(stats.lastInjectionAt! <= after).toBe(true);
+    const lastInjectionAt = stats.lastInjectionAt;
+    if (!lastInjectionAt) {
+      throw new Error('Expected lastInjectionAt to be set');
+    }
+    expect(lastInjectionAt >= before).toBe(true);
+    expect(lastInjectionAt <= after).toBe(true);
   });
 
   it('should handle mixed success and failure', () => {

@@ -82,9 +82,16 @@ export async function buildContext(
   actualViewport: ActualViewport;
 }> {
   // Resolve artifact paths using dedicated module (explicit decision logic)
+  const effectiveCapabilities = spec.required_capabilities
+    ? { ...spec.required_capabilities }
+    : undefined;
+  if (effectiveCapabilities?.har && !config.telemetry.har.enabled) {
+    effectiveCapabilities.har = false;
+  }
+
   const resolvedArtifacts = resolveArtifactPaths(
     spec.artifact_paths,
-    spec.required_capabilities,
+    effectiveCapabilities,
     spec.execution_id
   );
 
@@ -92,25 +99,26 @@ export async function buildContext(
   const { fingerprint, behavior, antiDetection, proxy } = mergeWithPreset(spec.browser_profile);
 
   // Determine viewport with explicit source attribution
-  // We check the EXPLICIT session_profile fingerprint, not the merged fingerprint,
+  // We check the EXPLICIT browser_profile fingerprint, not the merged fingerprint,
   // because mergeWithPreset always adds default values (1280x720).
-  // Fingerprint viewport is ONLY used when the user explicitly provided a session_profile
+  // Fingerprint viewport is ONLY used when the user explicitly provided a browser_profile
   // with BOTH dimensions set and > 0. This prevents default fingerprint values from
   // overriding the UI-requested viewport.
-  const explicitFingerprint = spec.session_profile?.fingerprint;
-  const explicitHasWidth = explicitFingerprint?.viewport_width && explicitFingerprint.viewport_width > 0;
-  const explicitHasHeight = explicitFingerprint?.viewport_height && explicitFingerprint.viewport_height > 0;
-  const explicitHasBoth = explicitHasWidth && explicitHasHeight;
+  const explicitFingerprint = spec.browser_profile?.fingerprint;
+  const explicitWidth = explicitFingerprint?.viewport_width;
+  const explicitHeight = explicitFingerprint?.viewport_height;
+  const explicitHasWidth = typeof explicitWidth === 'number' && explicitWidth > 0;
+  const explicitHasHeight = typeof explicitHeight === 'number' && explicitHeight > 0;
 
   let viewportWidth: number;
   let viewportHeight: number;
   let viewportSource: ViewportSource;
   let viewportReason: string;
 
-  if (explicitHasBoth) {
-    // User explicitly provided a session_profile with complete viewport override
-    viewportWidth = explicitFingerprint!.viewport_width!;
-    viewportHeight = explicitFingerprint!.viewport_height!;
+  if (explicitWidth !== undefined && explicitHeight !== undefined && explicitWidth > 0 && explicitHeight > 0) {
+    // User explicitly provided a browser_profile with complete viewport override
+    viewportWidth = explicitWidth;
+    viewportHeight = explicitHeight;
     viewportSource = 'fingerprint';
     viewportReason = `Browser profile specifies ${viewportWidth}x${viewportHeight}`;
   } else if (explicitHasWidth || explicitHasHeight) {
@@ -344,7 +352,11 @@ export async function buildContext(
     micro_pause_max_ms: behavior.micro_pause_max_ms,
     micro_pause_frequency: behavior.micro_pause_frequency,
   };
-  (context as any)[BEHAVIOR_SETTINGS_KEY] = behaviorSettings;
+  Object.defineProperty(context, BEHAVIOR_SETTINGS_KEY, {
+    value: behaviorSettings,
+    writable: true,
+    configurable: true,
+  });
 
   // Start tracing if enabled (tracePath only set when tracing is requested)
   if (tracePath) {

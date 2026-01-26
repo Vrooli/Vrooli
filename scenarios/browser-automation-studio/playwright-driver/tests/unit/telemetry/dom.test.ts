@@ -17,7 +17,9 @@ describe('DOM Telemetry', () => {
 
       const snapshot = await captureDOMSnapshot(mockPage, config);
 
-      expect(mockPage.content).toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- jest mock does not use this
+      const contentMock = mockPage.content as jest.MockedFunction<typeof mockPage.content>;
+      expect(contentMock).toHaveBeenCalled();
       expect(snapshot).toBeDefined();
       expect(snapshot?.html).toBe(mockHTML);
     });
@@ -41,15 +43,17 @@ describe('DOM Telemetry', () => {
       const after = new Date().toISOString();
 
       expect(snapshot?.collected_at).toBeDefined();
-      expect(snapshot?.collected_at! >= before).toBe(true);
-      expect(snapshot?.collected_at! <= after).toBe(true);
+      if (!snapshot?.collected_at) {
+        throw new Error('Expected collected_at to be defined');
+      }
+      expect(snapshot.collected_at >= before).toBe(true);
+      expect(snapshot.collected_at <= after).toBe(true);
     });
 
     it('should return undefined when DOM capture disabled', async () => {
       const configDisabled = createTestConfig({
         telemetry: {
           screenshot: { enabled: true, fullPage: false, quality: 80, maxSizeBytes: 5 * 1024 * 1024 },
-          video: { enabled: false },
           dom: { enabled: false, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -60,7 +64,9 @@ describe('DOM Telemetry', () => {
 
       const snapshot = await captureDOMSnapshot(mockPage, configDisabled);
 
-      expect(mockPage.content).not.toHaveBeenCalled();
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- jest mock does not use this
+      const contentMock = mockPage.content as jest.MockedFunction<typeof mockPage.content>;
+      expect(contentMock).not.toHaveBeenCalled();
       expect(snapshot).toBeUndefined();
     });
 
@@ -68,7 +74,6 @@ describe('DOM Telemetry', () => {
       const configSmallMax = createTestConfig({
         telemetry: {
           screenshot: { enabled: true, fullPage: false, quality: 80, maxSizeBytes: 5 * 1024 * 1024 },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 100 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -116,7 +121,9 @@ describe('DOM Telemetry', () => {
 
       const snapshot = await captureElementSnapshot(mockPage, selector, config);
 
-      expect(mockPage.locator).toHaveBeenCalledWith(selector);
+      // eslint-disable-next-line @typescript-eslint/unbound-method -- jest mock does not use this
+      const locatorMock = mockPage.locator as jest.MockedFunction<typeof mockPage.locator>;
+      expect(locatorMock).toHaveBeenCalledWith(selector);
       expect(snapshot).toBeDefined();
       expect(snapshot?.html).toBe(mockHTML);
     });
@@ -125,7 +132,6 @@ describe('DOM Telemetry', () => {
       const configDisabled = createTestConfig({
         telemetry: {
           screenshot: { enabled: true, fullPage: false, quality: 80, maxSizeBytes: 5 * 1024 * 1024 },
-          video: { enabled: false },
           dom: { enabled: false, maxSizeBytes: 1 * 1024 * 1024 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -143,7 +149,6 @@ describe('DOM Telemetry', () => {
       const configSmallMax = createTestConfig({
         telemetry: {
           screenshot: { enabled: true, fullPage: false, quality: 80, maxSizeBytes: 5 * 1024 * 1024 },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 50 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },
@@ -188,7 +193,6 @@ describe('DOM Telemetry', () => {
       const configSmallMax = createTestConfig({
         telemetry: {
           screenshot: { enabled: true, fullPage: false, quality: 80, maxSizeBytes: 5 * 1024 * 1024 },
-          video: { enabled: false },
           dom: { enabled: true, maxSizeBytes: 10 },
           console: { enabled: true, maxEntries: 100 },
           network: { enabled: true, maxEvents: 500 },

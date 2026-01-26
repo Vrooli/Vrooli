@@ -88,7 +88,7 @@ export class InteractionHandler extends BaseHandler {
     const driverError = normalizeError(error);
     logger.warn('instruction: interaction failed', {
       type: instruction.type,
-      selector: (instruction.params as Record<string, unknown>).selector,
+      selector: instruction.params.selector,
       errorCode: driverError.code,
       errorMessage: driverError.message,
       retryable: driverError.retryable,
@@ -283,16 +283,12 @@ async function blurElement(page: Page, selector?: string): Promise<void> {
   if (selector) {
     // Playwright doesn't have a direct blur method, so we use evaluate
     await page.evaluate((sel) => {
-      // @ts-expect-error - document is available in browser context
       const element = document.querySelector(sel);
-      // @ts-expect-error - HTMLElement is available in browser context
       if (element && element instanceof HTMLElement) element.blur();
     }, selector);
   } else {
     await page.evaluate(() => {
-      // @ts-expect-error - document/HTMLElement available in browser context
       if (document.activeElement && document.activeElement instanceof HTMLElement) {
-        // @ts-expect-error - document available in browser context
         document.activeElement.blur();
       }
     });

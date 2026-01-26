@@ -4,6 +4,16 @@ import { EventEmitter } from 'events';
 /**
  * Mock IncomingMessage (HTTP Request)
  */
+type MockRequest = jest.Mocked<IncomingMessage> & {
+  destroyed: boolean;
+  destroy: jest.Mock<MockRequest, [Error?]>;
+};
+
+type MockResponse = jest.Mocked<ServerResponse> & {
+  getBody: () => string;
+  getJSON: () => Record<string, unknown>;
+};
+
 export function createMockRequest(options?: {
   method?: string;
   url?: string;
@@ -11,18 +21,20 @@ export function createMockRequest(options?: {
   body?: unknown;
   /** Delay before emitting body (ms). Used to test streaming behavior. */
   bodyDelay?: number;
-}): jest.Mocked<IncomingMessage> {
+}): MockRequest {
   const req = new EventEmitter() as jest.Mocked<IncomingMessage>;
+  const mockReq = req as MockRequest;
 
-  req.method = options?.method || 'GET';
-  req.url = options?.url || '/';
-  req.headers = options?.headers || {};
+  mockReq.method = options?.method || 'GET';
+  mockReq.url = options?.url || '/';
+  mockReq.headers = options?.headers || {};
   // Add destroyed property to match IncomingMessage interface
-  (req as any).destroyed = false;
+  mockReq.destroyed = false;
   // Add destroy method to match IncomingMessage interface (required by hardened body-parser)
-  (req as any).destroy = jest.fn(() => {
-    (req as any).destroyed = true;
-    req.emit('close');
+  mockReq.destroy = jest.fn((error?: Error) => {
+    mockReq.destroyed = true;
+    mockReq.emit('close', error);
+    return mockReq;
   });
 
   const delay = options?.bodyDelay ?? 0;
@@ -30,62 +42,74 @@ export function createMockRequest(options?: {
   // Simulate body streaming
   if (options?.body) {
     setTimeout(() => {
-      if ((req as any).destroyed) return;
+      if (mockReq.destroyed) return;
       const bodyStr = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
-      req.emit('data', Buffer.from(bodyStr));
-      req.emit('end');
+      mockReq.emit('data', Buffer.from(bodyStr));
+      mockReq.emit('end');
     }, delay);
   } else {
     setTimeout(() => {
-      if ((req as any).destroyed) return;
-      req.emit('end');
+      if (mockReq.destroyed) return;
+      mockReq.emit('end');
     }, delay);
   }
 
-  return req;
+  return mockReq;
 }
 
 /**
  * Mock ServerResponse (HTTP Response)
  */
-export function createMockResponse(): jest.Mocked<ServerResponse> {
+export function createMockResponse(): MockResponse {
   const res = new EventEmitter() as jest.Mocked<ServerResponse>;
+  const mockRes = res as MockResponse;
 
-  res.statusCode = 200;
-  res.statusMessage = 'OK';
-  res.setHeader = jest.fn();
-  res.getHeader = jest.fn();
-  res.removeHeader = jest.fn();
-  res.writeHead = jest.fn();
-  res.write = jest.fn();
+  mockRes.statusCode = 200;
+  mockRes.statusMessage = 'OK';
+  mockRes.setHeader = jest.fn();
+  mockRes.getHeader = jest.fn();
+  mockRes.removeHeader = jest.fn();
+  mockRes.writeHead = jest.fn();
+  type WriteArgs = [chunk: unknown, encoding?: BufferEncoding, cb?: (error?: Error | null) => void];
+  const writeCalls: WriteArgs[] = [];
+  mockRes.write = ((chunk: unknown, encoding?: BufferEncoding, cb?: (error?: Error | null) => void) => {
+    writeCalls.push([chunk, encoding, cb]);
+    return true;
+  }) as ServerResponse['write'];
 
   // ServerResponse.end has complex overloads - use Object.defineProperty to bypass TypeScript
   const endMock = jest.fn((data?: unknown) => {
     if (data) {
-      res.write(data);
+      mockRes.write(data);
     }
-    res.emit('finish');
-    return res;
+    mockRes.emit('finish');
+    return mockRes;
   });
-  Object.defineProperty(res, 'end', {
+  Object.defineProperty(mockRes, 'end', {
     value: endMock,
     writable: true,
     configurable: true,
   });
 
   // Helper to get response body
-  (res as any).getBody = (): string => {
-    const calls = (res.write as jest.Mock).mock.calls;
-    return calls.map((call) => call[0]).join('');
+  mockRes.getBody = (): string => {
+    return writeCalls.map((call) => String(call[0] ?? '')).join('');
   };
 
   // Helper to get response JSON
-  (res as any).getJSON = (): unknown => {
-    const body = (res as any).getBody();
-    return body ? JSON.parse(body) : null;
+  mockRes.getJSON = (): Record<string, unknown> => {
+    const body = mockRes.getBody();
+    if (!body) {
+      return {};
+    }
+    const parsed: unknown = JSON.parse(body);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    throw new Error('Expected JSON object response');
   };
 
-  return res;
+  return mockRes;
 }
 
 /**

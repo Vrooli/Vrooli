@@ -78,6 +78,8 @@ interface UseRecordingDebugReturn {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
+const isString = (value: unknown): value is string => typeof value === 'string';
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
 const parseJson = async (response: Response): Promise<unknown> => {
   try {
     return await response.json();
@@ -91,6 +93,42 @@ const extractMessage = (payload: unknown, fallback: string): string => {
     return payload.message;
   }
   return fallback;
+};
+
+const isServerState = (value: unknown): value is RecordingDebugResponse['server'] => {
+  if (!isRecord(value)) return false;
+  if (!isBoolean(value.is_recording)) return false;
+  if (value.recording_id !== null && value.recording_id !== undefined && !isString(value.recording_id)) return false;
+  if (!isBoolean(value.has_event_handler)) return false;
+  if (!isString(value.phase)) return false;
+  if (value.current_url !== null && value.current_url !== undefined && !isString(value.current_url)) return false;
+  return true;
+};
+
+const isDiagnostics = (value: unknown): value is RecordingDebugResponse['diagnostics'] => {
+  if (!isRecord(value)) return false;
+  return (
+    isBoolean(value.script_not_loaded) &&
+    isBoolean(value.script_not_ready) &&
+    isBoolean(value.script_not_in_main) &&
+    isBoolean(value.script_inactive) &&
+    isBoolean(value.no_handlers) &&
+    isBoolean(value.no_event_handler) &&
+    isBoolean(value.events_being_dropped) &&
+    isBoolean(value.service_worker_blocking)
+  );
+};
+
+const isRecordingDebugResponse = (value: unknown): value is RecordingDebugResponse => {
+  if (!isRecord(value)) return false;
+  if (!isString(value.session_id)) return false;
+  if (!isString(value.timestamp)) return false;
+  if (!isServerState(value.server)) return false;
+  if (!isDiagnostics(value.diagnostics)) return false;
+  if (value.route_handler !== null && value.route_handler !== undefined && !isRecord(value.route_handler)) return false;
+  if (value.injection !== null && value.injection !== undefined && !isRecord(value.injection)) return false;
+  if (value.browser_script !== null && value.browser_script !== undefined && !isRecord(value.browser_script)) return false;
+  return true;
 };
 
 export function useRecordingDebug(): UseRecordingDebugReturn {
@@ -112,13 +150,12 @@ export function useRecordingDebug(): UseRecordingDebugReturn {
         throw new Error(extractMessage(payload, `Failed to fetch debug info: ${response.statusText}`));
       }
 
-      if (!isRecord(payload)) {
+      if (!isRecordingDebugResponse(payload)) {
         throw new Error('Invalid debug response');
       }
 
-      const result = payload as RecordingDebugResponse;
-      setData(result);
-      return result;
+      setData(payload);
+      return payload;
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
       logger.error('Failed to fetch recording debug info', { component: 'useRecordingDebug' }, error);

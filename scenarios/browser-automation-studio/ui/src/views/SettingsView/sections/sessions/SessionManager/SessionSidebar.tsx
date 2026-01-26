@@ -1,3 +1,4 @@
+import { Settings, Database } from 'lucide-react';
 import { SECTION_GROUPS, type SectionId } from './sessionSidebarConfig';
 
 interface SessionSidebarProps {

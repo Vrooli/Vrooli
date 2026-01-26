@@ -16,7 +16,6 @@
  * 3. Test rapid navigation sequences
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from '@jest/globals';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import {
@@ -34,6 +33,11 @@ import { ActionType } from '../../src/proto/recording';
 // NOTE: The property is `action.type`, not `definition.type`
 function getActionType(entry: TimelineEntry): ActionType | undefined {
   return entry.action?.type;
+}
+
+function getEntryUrl(entry: TimelineEntry): string | undefined {
+  const rawUrl = (entry as { url?: unknown }).url;
+  return typeof rawUrl === 'string' ? rawUrl : undefined;
 }
 
 // Increase timeout for browser operations with navigation
@@ -103,7 +107,15 @@ class NavigationTestServer {
         res.end('Not Found');
       });
       this.server.listen(0, () => {
-        this.port = (this.server!.address() as { port: number }).port;
+        const server = this.server;
+        if (!server) {
+          throw new Error('Test server failed to initialize');
+        }
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('Unexpected server address for test server');
+        }
+        this.port = address.port;
         resolve(this.port);
       });
     });
@@ -180,11 +192,6 @@ describe('Route Loss During Navigation (Integration)', () => {
         },
       });
 
-      // Get telemetry before click
-      const telemetryBefore = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || { eventsDetected: 0 };
-      });
-
       // Click the link that navigates to page B
       await page.click('#nav-link');
 
@@ -192,26 +199,9 @@ describe('Route Loss During Navigation (Integration)', () => {
       await page.waitForURL('**/page-b', { timeout: 5000 });
       await page.waitForTimeout(500);
 
-      // Get telemetry after navigation
-      const telemetryAfter = await page.evaluate(() => {
-        return (window as any).__vrooli_recording_telemetry || { eventsDetected: 0 };
-      });
-
-      // Log captured entries for debugging
-      console.log('Captured entries:', capturedEntries.map((e) => ({
-        actionType: getActionType(e),
-        sequenceNum: e.sequenceNum,
-      })));
-
       // CRITICAL ASSERTION: The click event must be captured
       const clickEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.CLICK);
       const navEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.NAVIGATE);
-
-      // Check if events were detected by browser script
-      console.log('Browser telemetry:', {
-        before: telemetryBefore.eventsDetected,
-        after: telemetryAfter.eventsDetected,
-      });
 
       // If no click events captured but navigation events appear, the bug is reproduced
       if (clickEvents.length === 0 && navEvents.length > 0) {
@@ -249,11 +239,6 @@ describe('Route Loss During Navigation (Integration)', () => {
 
       const clickEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.CLICK);
       const navEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.NAVIGATE);
-
-      console.log('JS Navigation test - captured:', {
-        clicks: clickEvents.length,
-        navigations: navEvents.length,
-      });
 
       // The button click event should be captured even though it triggered navigation
       expect(clickEvents.length).toBeGreaterThan(0);
@@ -293,12 +278,6 @@ describe('Route Loss During Navigation (Integration)', () => {
       const newEntries = capturedEntries.slice(entriesBeforePageBClick);
       const pageBClicks = newEntries.filter((e) => getActionType(e) === ActionType.CLICK);
 
-      console.log('Post-navigation capture test:', {
-        entriesBeforeClick: entriesBeforePageBClick,
-        totalEntries: capturedEntries.length,
-        newClicks: pageBClicks.length,
-      });
-
       // Events on the new page should be captured
       expect(pageBClicks.length).toBeGreaterThan(0);
     });
@@ -313,8 +292,6 @@ describe('Route Loss During Navigation (Integration)', () => {
         onEntry: () => {},
       });
 
-      const statsBeforeNav = initializer.getRouteHandlerStats();
-
       // Navigate
       await page.goto(server.getUrl('/page-b'));
       await waitForScriptReady(page, 5000);
@@ -324,11 +301,6 @@ describe('Route Loss During Navigation (Integration)', () => {
       await page.waitForTimeout(500);
 
       const statsAfterClick = initializer.getRouteHandlerStats();
-
-      console.log('Route handler stats:', {
-        beforeNav: statsBeforeNav,
-        afterClick: statsAfterClick,
-      });
 
       // Route should have received events after navigation
       expect(statsAfterClick.eventsReceived).toBeGreaterThan(0);
@@ -381,8 +353,6 @@ describe('Route Loss During Navigation (Integration)', () => {
 
       const clickEvents = capturedEvents.filter((e) => e.actionType === 'click'); // RawBrowserEvent uses string
 
-      console.log('Rapid navigation test - clicks captured:', clickEvents.length);
-
       // Should still be able to capture events after rapid navigations
       expect(clickEvents.length).toBeGreaterThan(0);
     });
@@ -411,8 +381,6 @@ describe('Route Loss During Navigation (Integration)', () => {
       await page.waitForTimeout(500);
 
       const clickEvents = capturedEvents.filter((e) => e.actionType === 'click'); // RawBrowserEvent uses string
-
-      console.log('Back/forward navigation test - clicks captured:', clickEvents.length);
 
       expect(clickEvents.length).toBeGreaterThan(0);
     });
@@ -470,16 +438,11 @@ describe('Route Loss During Navigation (Integration)', () => {
       const clicks = capturedEntries.filter((e) => getActionType(e) === ActionType.CLICK);
       const navs = capturedEntries.filter((e) => getActionType(e) === ActionType.NAVIGATE);
 
-      console.log('Event ordering:', capturedEntries.map((e) => ({
-        type: getActionType(e),
-        seq: e.sequenceNum,
-      })));
-
       // If we have both click and navigate events, verify ordering
       if (clicks.length >= 2 && navs.length > 0) {
         // The last click (nav link) should come before the navigation
         const lastClick = clicks[clicks.length - 1];
-        const navToPageB = navs.find((n) => n.url?.includes('/page-b'));
+        const navToPageB = navs.find((entry) => getEntryUrl(entry)?.includes('/page-b'));
 
         if (lastClick && navToPageB) {
           expect(lastClick.sequenceNum).toBeLessThan(navToPageB.sequenceNum);

@@ -14,7 +14,6 @@
  * catch such issues before they reach production.
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from '@jest/globals';
 import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import {
@@ -35,6 +34,19 @@ jest.setTimeout(120000);
  */
 function getActionType(entry: TimelineEntry): ActionType | undefined {
   return entry.action?.type;
+}
+
+function getEntryUrl(entry: TimelineEntry): string | undefined {
+  const rawUrl = (entry as { url?: unknown }).url;
+  return typeof rawUrl === 'string' ? rawUrl : undefined;
+}
+
+function getTelemetryUrl(entry: TimelineEntry): string | undefined {
+  const telemetry = entry.telemetry as { url?: unknown } | undefined;
+  if (!telemetry) {
+    return undefined;
+  }
+  return typeof telemetry.url === 'string' ? telemetry.url : undefined;
 }
 
 /**
@@ -126,7 +138,15 @@ class TimelineTestServer {
         res.end('Not Found');
       });
       this.server.listen(0, () => {
-        this.port = (this.server!.address() as { port: number }).port;
+        const server = this.server;
+        if (!server) {
+          throw new Error('Test server failed to initialize');
+        }
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('Unexpected server address for test server');
+        }
+        this.port = address.port;
         resolve(this.port);
       });
     });
@@ -219,7 +239,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'click-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Perform click
@@ -233,9 +255,13 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       const clickEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.CLICK);
 
       expect(clickEvents.length).toBeGreaterThan(0);
-      expect(clickEvents[0].action).toBeDefined();
-      expect(clickEvents[0].sequenceNum).toBeDefined();
-      expect(clickEvents[0].timestamp).toBeDefined();
+      const firstClick = clickEvents[0];
+      if (!firstClick) {
+        throw new Error('Expected at least one click event');
+      }
+      expect(firstClick.action).toBeDefined();
+      expect(firstClick.sequenceNum).toBeDefined();
+      expect(firstClick.timestamp).toBeDefined();
     });
 
     it('[CRITICAL] should capture input/type events in timeline', async () => {
@@ -245,7 +271,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'input-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Use page.type() instead of fill() - type() dispatches individual keystrokes
@@ -262,11 +290,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         return type === ActionType.INPUT;
       });
 
-      console.log('Input test - captured entries:', capturedEntries.map((e) => ({
-        type: getActionType(e),
-        seq: e.sequenceNum,
-      })));
-
       expect(inputEvents.length).toBeGreaterThan(0);
     });
 
@@ -277,7 +300,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'scroll-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Simulate real scroll
@@ -305,7 +330,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'focus-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Focus an input - this should NOT be captured because focus category is disabled
@@ -328,7 +355,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'full-session',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // 1. Click
@@ -350,13 +379,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       const scrollEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.SCROLL);
       const inputEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.INPUT);
 
-      console.log('Full session captured:', {
-        clicks: clickEvents.length,
-        scrolls: scrollEvents.length,
-        inputs: inputEvents.length,
-        total: capturedEntries.length,
-      });
-
       // All core event types must be captured
       expect(clickEvents.length).toBeGreaterThan(0);
       expect(scrollEvents.length).toBeGreaterThan(0);
@@ -373,7 +395,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'ordering-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Perform actions in known order
@@ -390,7 +414,12 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       const sequenceNums = capturedEntries.map((e) => e.sequenceNum).filter((n): n is number => n !== undefined);
 
       for (let i = 1; i < sequenceNums.length; i++) {
-        expect(sequenceNums[i]).toBeGreaterThan(sequenceNums[i - 1]);
+        const current = sequenceNums[i];
+        const previous = sequenceNums[i - 1];
+        if (current === undefined || previous === undefined) {
+          throw new Error('Missing sequence number when validating ordering');
+        }
+        expect(current).toBeGreaterThan(previous);
       }
 
       // Verify timestamps are ascending (or equal for rapid events)
@@ -400,7 +429,12 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         .map((t) => Number(t.seconds) * 1000 + Number(t.nanos) / 1000000);
 
       for (let i = 1; i < timestamps.length; i++) {
-        expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
+        const current = timestamps[i];
+        const previous = timestamps[i - 1];
+        if (current === undefined || previous === undefined) {
+          throw new Error('Missing timestamp when validating ordering');
+        }
+        expect(current).toBeGreaterThanOrEqual(previous);
       }
     });
 
@@ -411,7 +445,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'nav-ordering-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Click the navigation link
@@ -425,15 +461,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       const clickEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.CLICK);
       const navEvents = capturedEntries.filter((e) => getActionType(e) === ActionType.NAVIGATE);
 
-      console.log('Nav ordering test:', {
-        clicks: clickEvents.length,
-        navs: navEvents.length,
-        entries: capturedEntries.map((e) => ({
-          type: getActionType(e),
-          seq: e.sequenceNum,
-        })),
-      });
-
       // CRITICAL: Click MUST be captured
       expect(clickEvents.length).toBeGreaterThan(0);
 
@@ -442,7 +469,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
 
       // Click should come before navigation in sequence
       const lastClick = clickEvents[clickEvents.length - 1];
-      const firstNav = navEvents.find((n) => n.url?.includes('/page-2'));
+      const firstNav = navEvents.find((entry) => getEntryUrl(entry)?.includes('/page-2'));
 
       if (lastClick && firstNav && lastClick.sequenceNum !== undefined && firstNav.sequenceNum !== undefined) {
         expect(lastClick.sequenceNum).toBeLessThan(firstNav.sequenceNum);
@@ -456,7 +483,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'post-nav-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Click before navigation
@@ -482,12 +511,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         .slice(entriesBeforePostNavClick)
         .filter((e) => getActionType(e) === ActionType.CLICK);
 
-      console.log('Post-navigation capture:', {
-        totalEntries: capturedEntries.length,
-        entriesBeforePostNavClick,
-        postNavClicks: postNavClicks.length,
-      });
-
       // CRITICAL: Events after navigation must be captured
       expect(postNavClicks.length).toBeGreaterThan(0);
     });
@@ -499,7 +522,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'e2e-test-session',
         recordingId: 'nav-capture-test',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       // Click navigation link to trigger navigation
@@ -512,18 +537,14 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       // Specifically validate NAVIGATE action type
       const navEvents = capturedEntries.filter(e => getActionType(e) === ActionType.NAVIGATE);
 
-      console.log('Navigation capture test:', {
-        navEvents: navEvents.length,
-        totalEntries: capturedEntries.length,
-        navUrls: navEvents.map(e => e.telemetry?.url || e.url),
-      });
-
       expect(navEvents.length).toBeGreaterThan(0);
 
       // Validate the navigation event has correct structure (check both telemetry.url and top-level url)
-      const navToPage2 = navEvents.find(e =>
-        e.telemetry?.url?.includes('/page-2') || e.url?.includes('/page-2')
-      );
+      const navToPage2 = navEvents.find((entry) => {
+        const telemetryUrl = getTelemetryUrl(entry);
+        const entryUrl = getEntryUrl(entry);
+        return telemetryUrl?.includes('/page-2') || entryUrl?.includes('/page-2');
+      });
       expect(navToPage2).toBeDefined();
       expect(navToPage2?.action?.type).toBe(ActionType.NAVIGATE);
     });
@@ -587,7 +608,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'structure-test-session',
         recordingId: 'structure-click',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       await page.click('#btn-1');
@@ -617,11 +640,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         expect(clickEntry.context?.origin?.case).toBe('sessionId');
         expect(clickEntry.context?.origin?.value).toBe('structure-test-session');
 
-        console.log('Click entry structure:', {
-          id: clickEntry.id,
-          url: clickEntry.telemetry?.url,
-          sessionId: clickEntry.context?.origin?.value,
-        });
       }
     });
 
@@ -632,7 +650,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'structure-test-session',
         recordingId: 'structure-scroll',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       await simulateRealScroll(page, 200);
@@ -650,14 +670,12 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         // Scroll params are stored in action.params (per proto schema)
         expect(scrollEntry.action?.params?.case).toBe('scroll');
 
-        // Log scroll params for debugging
         const scrollParams = scrollEntry.action?.params?.value;
-        console.log('Scroll entry params:', {
-          case: scrollEntry.action?.params?.case,
-          scrollX: (scrollParams as any)?.x,
-          scrollY: (scrollParams as any)?.y,
-          deltaY: (scrollParams as any)?.deltaY,
-        });
+        const scrollParamValues =
+          scrollParams && typeof scrollParams === 'object'
+            ? (scrollParams as { x?: number; y?: number; deltaY?: number })
+            : undefined;
+        expect(scrollParamValues).toBeDefined();
       }
     });
 
@@ -668,7 +686,9 @@ describe('End-to-End Timeline Validation (Integration)', () => {
       await pipelineManager.startRecording({
         sessionId: 'structure-test-session',
         recordingId: 'structure-meta',
-        onEntry: (entry) => capturedEntries.push(entry),
+        onEntry: (entry) => {
+          capturedEntries.push(entry);
+        },
       });
 
       await page.click('#btn-1');
@@ -690,11 +710,6 @@ describe('End-to-End Timeline Validation (Integration)', () => {
         expect(clickEntry.action?.metadata?.selectorCandidates).toBeDefined();
         expect(clickEntry.action?.metadata?.selectorCandidates?.length).toBeGreaterThan(0);
 
-        console.log('Element metadata:', {
-          tagName: clickEntry.action?.metadata?.elementSnapshot?.tagName,
-          id: clickEntry.action?.metadata?.elementSnapshot?.id,
-          selectorCount: clickEntry.action?.metadata?.selectorCandidates?.length,
-        });
       }
     });
   });

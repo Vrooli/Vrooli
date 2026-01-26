@@ -43,6 +43,7 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
       maxBufferSize: 10000,
       minSelectorConfidence: 0.3,
       defaultSwipeDistance: 300,
+      diagnosticsEnabled: false,
       debounce: {
         inputMs: 500,
         scrollMs: 150,
@@ -89,12 +90,23 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
     frameStreaming: {
       useScreencast: true,
       fallbackToPolling: true,
+      cdp: {
+        ackTimeoutMs: 1000,
+        maxAckFailures: 5,
+        frameLogInterval: 60,
+        pageCheckIntervalMs: 100,
+      },
     },
     performance: {
       enabled: false,
       includeTimingHeaders: true,
       logSummaryInterval: 60,
       bufferSize: 100,
+    },
+    history: {
+      callbackUrl: '',
+      thumbnailEnabled: true,
+      thumbnailQuality: 60,
     },
   };
 
@@ -125,7 +137,16 @@ export function createTestConfig(overrides?: DeepPartial<Config>): Config {
     },
     logging: { ...defaultConfig.logging, ...overrides?.logging },
     metrics: { ...defaultConfig.metrics, ...overrides?.metrics },
-    frameStreaming: { ...defaultConfig.frameStreaming, ...overrides?.frameStreaming },
+    frameStreaming: {
+      ...defaultConfig.frameStreaming,
+      ...overrides?.frameStreaming,
+      cdp: { ...defaultConfig.frameStreaming.cdp, ...overrides?.frameStreaming?.cdp },
+    },
     performance: { ...defaultConfig.performance, ...overrides?.performance },
+    history: {
+      ...defaultConfig.history,
+      ...overrides?.history,
+      callbackUrl: overrides?.history?.callbackUrl ?? defaultConfig.history.callbackUrl,
+    },
   };
 }

@@ -375,7 +375,11 @@ export class RecordingPipelineManager {
       // Allow re-verification from error state
       if (phase === 'ready') {
         // Already verified
-        return this.stateMachine.getVerification()!;
+        const verification = this.stateMachine.getVerification();
+        if (!verification) {
+          throw new Error('Pipeline is ready but verification data is missing');
+        }
+        return verification;
       }
       throw new Error(`Cannot verify from phase '${phase}', expected 'verifying' or 'error'`);
     }
@@ -450,7 +454,18 @@ export class RecordingPipelineManager {
       error: this.stateMachine.getError(),
     });
 
-    return lastVerification!;
+    if (!lastVerification) {
+      return {
+        scriptLoaded: false,
+        scriptReady: false,
+        inMainContext: false,
+        handlersCount: 0,
+        eventRouteActive: false,
+        verifiedAt: new Date().toISOString(),
+        version: null,
+      };
+    }
+    return lastVerification;
   }
 
   // ===========================================================================
