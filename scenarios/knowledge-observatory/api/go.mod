@@ -1,6 +1,8 @@
 module knowledge-observatory
 
-go 1.21
+go 1.24.0
+
+toolchain go1.24.12
 
 require (
 	github.com/gorilla/handlers v1.5.2
@@ -11,7 +13,11 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-require github.com/felixge/httpsnoop v1.0.3 // indirect
+require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251213004720-97cd9d5aeac2 // indirect
+)
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

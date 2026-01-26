@@ -170,9 +170,14 @@
       "description": "Execute phased test suite",
       "steps": [
         {
+          "name": "ensure-ui-build",
+          "run": "if [ -f ui/package.json ] && [ ! -f ui/dist/index.html ]; then cd ui && pnpm run build; else echo 'UI build already present'; fi",
+          "description": "Ensure UI bundle exists before Lighthouse audits"
+        },
+        {
           "name": "run-tests",
-          "run": "test-genie execute knowledge-observatory --preset comprehensive",
-          "description": "Run structure/unit/integration/business/performance phases"
+          "run": "ui_url=\"http://localhost:${UI_PORT}\"\ncheck_health() { curl -sS -o /dev/null -w \"%{http_code}\" \"$ui_url/health\" 2>/dev/null || true; }\nif curl -sS \"$ui_url/\" 2>/dev/null | grep -q \"Knowledge Observatory UI\"; then\n  echo \"Using existing Knowledge Observatory UI at $ui_url\"\n  test-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"\n  exit $?\nfi\nif [ \"$(check_health)\" != \"000\" ]; then\n  echo \"Port ${UI_PORT} is already serving a different UI. Stop the conflicting service or free the port.\"\n  exit 1\nfi\n( cd ui && node server.js ) &\nui_pid=$!\ntrap 'kill $ui_pid 2>/dev/null || true' EXIT\ni=0\nwhile [ \"$i\" -lt 30 ]; do\n  if [ \"$(check_health)\" != \"000\" ]; then\n    break\n  fi\n  i=$((i+1))\n  sleep 1\ndone\nif [ \"$(check_health)\" = \"000\" ]; then\n  echo \"UI failed to start on $ui_url\"\n  exit 1\nfi\ntest-genie execute knowledge-observatory --preset comprehensive --ui-url \"$ui_url\"",
+          "description": "Run structure/unit/integration/business/performance phases (ensures Knowledge Observatory UI is the Lighthouse target)"
         }
       ]
     },

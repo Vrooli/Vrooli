@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.deep_search_jobs (
     scope VARCHAR(20) NOT NULL CHECK (scope IN ('global', 'scenario', 'path')),
     scenario_name VARCHAR(255),
     base_path TEXT,
+    max_results INTEGER,
     status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed')),
     progress TEXT,
     results JSONB,
@@ -77,6 +78,8 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.deep_search_jobs (
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE
 );
+ALTER TABLE IF EXISTS knowledge_observatory.deep_search_jobs
+    ADD COLUMN IF NOT EXISTS max_results INTEGER;
 
 -- External ID mappings for idempotency (per namespace)
 CREATE TABLE IF NOT EXISTS knowledge_observatory.external_id_map (

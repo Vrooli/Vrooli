@@ -41,15 +41,25 @@ func (p *JSONParser) Parse(ctx context.Context, raw string) ([]DeepSearchResult,
 }
 
 func parseJSONResults(raw string) ([]DeepSearchResult, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, false
+	}
 	var direct []DeepSearchResult
-	if err := json.Unmarshal([]byte(raw), &direct); err == nil && len(direct) > 0 {
-		return direct, true
+	if strings.HasPrefix(trimmed, "[") {
+		if err := json.Unmarshal([]byte(trimmed), &direct); err == nil {
+			return direct, true
+		}
 	}
 	var wrapped struct {
 		Results []DeepSearchResult `json:"results"`
 	}
-	if err := json.Unmarshal([]byte(raw), &wrapped); err == nil && len(wrapped.Results) > 0 {
-		return wrapped.Results, true
+	if strings.HasPrefix(trimmed, "{") {
+		if err := json.Unmarshal([]byte(trimmed), &wrapped); err == nil {
+			if len(wrapped.Results) > 0 || strings.Contains(trimmed, "\"results\"") {
+				return wrapped.Results, true
+			}
+		}
 	}
 	return nil, false
 }

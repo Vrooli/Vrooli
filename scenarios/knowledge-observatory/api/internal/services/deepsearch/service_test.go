@@ -20,12 +20,12 @@ func newMemoryJobStore() *memoryJobStore {
 	return &memoryJobStore{jobs: make(map[string]DeepSearchJob)}
 }
 
-func (m *memoryJobStore) CreateJob(_ context.Context, _ DeepSearchRequest) (string, error) {
+func (m *memoryJobStore) CreateJob(_ context.Context, req DeepSearchRequest) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.seq++
 	id := "job-" + string(rune('A'+m.seq))
-	m.jobs[id] = DeepSearchJob{JobID: id, Status: StatusPending}
+	m.jobs[id] = DeepSearchJob{JobID: id, Status: StatusPending, MaxResults: req.MaxResults}
 	return id, nil
 }
 

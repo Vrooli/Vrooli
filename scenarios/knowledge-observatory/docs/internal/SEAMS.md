@@ -14,7 +14,7 @@
 - **Documentation viewer seam**: viewer service owns safe document loading + reset operations. [CODE: api/internal/services/viewer/service.go]
 - **Documentation deep search seam**: deepsearch service orchestrates agent-powered doc discovery + job tracking. [CODE: api/internal/services/deepsearch/service.go]
 - **Deep search job store seam**: Postgres adapter persists deep search job state. [CODE: api/internal/adapters/deepsearchstore/postgres.go]
-- **Agent-manager seam**: deep search agent client isolates agent-manager HTTP calls. [CODE: api/internal/adapters/agentmanager/deepsearch_client.go]
+- **Agent-manager seam**: deep search agent client isolates agent-manager HTTP calls and supports fixed base URLs for tests. [CODE: api/internal/adapters/agentmanager/deepsearch_client.go] [CODE: api/internal/adapters/agentmanager/client.go]
 - **Prompt-manager seam**: prompt-manager client retrieves skill content for deep search. [CODE: api/internal/adapters/promptmanager/client.go]
 
 ## Responsibility Zones

@@ -23,6 +23,7 @@ type jobRow struct {
 	ResultsJSON []byte
 	AgentRunID  sql.NullString
 	Error       sql.NullString
+	MaxResults  sql.NullInt64
 	CreatedAt   time.Time
 	StartedAt   sql.NullTime
 	CompletedAt sql.NullTime
@@ -35,11 +36,11 @@ func (p *Postgres) CreateJob(ctx context.Context, req deepsearch.DeepSearchReque
 	var id string
 	err := p.DB.QueryRowContext(ctx, `
 INSERT INTO knowledge_observatory.deep_search_jobs
-  (query, scope, scenario_name, base_path, status, created_at)
+  (query, scope, scenario_name, base_path, max_results, status, created_at)
 VALUES
-  ($1, $2, NULLIF($3, ''), NULLIF($4, ''), 'pending', NOW())
+  ($1, $2, NULLIF($3, ''), NULLIF($4, ''), $5, 'pending', NOW())
 RETURNING id
-`, req.Query, req.Scope, req.Scenario, req.BasePath).Scan(&id)
+`, req.Query, req.Scope, req.Scenario, req.BasePath, req.MaxResults).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("create deep search job failed: %w", err)
 	}
@@ -58,10 +59,10 @@ func (p *Postgres) GetJob(ctx context.Context, jobID string) (deepsearch.DeepSea
 	var row jobRow
 	err := p.DB.QueryRowContext(ctx, `
 SELECT id, status, COALESCE(progress, ''), COALESCE(results, '{}'::jsonb), COALESCE(agent_run_id::text, ''), COALESCE(error, ''),
-       created_at, started_at, completed_at
+       max_results, created_at, started_at, completed_at
 FROM knowledge_observatory.deep_search_jobs
 WHERE id = $1
-`, jobID).Scan(&row.ID, &row.Status, &row.Progress, &row.ResultsJSON, &row.AgentRunID, &row.Error, &row.CreatedAt, &row.StartedAt, &row.CompletedAt)
+`, jobID).Scan(&row.ID, &row.Status, &row.Progress, &row.ResultsJSON, &row.AgentRunID, &row.Error, &row.MaxResults, &row.CreatedAt, &row.StartedAt, &row.CompletedAt)
 	if err == sql.ErrNoRows {
 		return deepsearch.DeepSearchJob{}, false, nil
 	}
@@ -81,6 +82,7 @@ WHERE id = $1
 		Results:    results,
 		Error:      strings.TrimSpace(row.Error.String),
 		AgentRunID: strings.TrimSpace(row.AgentRunID.String),
+		MaxResults: int(row.MaxResults.Int64),
 	}
 	if row.StartedAt.Valid {
 		t := row.StartedAt.Time.UTC()

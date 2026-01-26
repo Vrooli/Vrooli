@@ -120,6 +120,7 @@ func (s *Service) StartSearch(ctx context.Context, req DeepSearchRequest) (*Deep
 		Status:     StatusRunning,
 		StartedAt:  &startedAt,
 		AgentRunID: runID,
+		MaxResults: req.MaxResults,
 	}
 
 	timeout := time.Duration(req.TimeoutSeconds) * time.Second
@@ -145,7 +146,11 @@ func (s *Service) GetJob(ctx context.Context, jobID string) (*DeepSearchJob, err
 		return nil, ErrJobNotFound
 	}
 	if job.Status == StatusRunning && job.AgentRunID != "" && s.agent != nil {
-		s.refreshJob(ctx, jobID, job.AgentRunID)
+		maxResults := job.MaxResults
+		if maxResults <= 0 {
+			maxResults = defaultMaxResults
+		}
+		s.refreshJob(ctx, jobID, job.AgentRunID, maxResults)
 		updated, _, err := s.store.GetJob(ctx, jobID)
 		if err == nil {
 			job = updated
@@ -223,7 +228,7 @@ func (s *Service) trackRun(jobID, runID string, timeout time.Duration, maxResult
 	}
 }
 
-func (s *Service) refreshJob(ctx context.Context, jobID, runID string) {
+func (s *Service) refreshJob(ctx context.Context, jobID, runID string, maxResults int) {
 	if s.agent == nil {
 		return
 	}
@@ -233,7 +238,10 @@ func (s *Service) refreshJob(ctx context.Context, jobID, runID string) {
 	}
 	switch run.Status {
 	case RunStatusComplete:
-		_ = s.finalizeRun(ctx, jobID, runID, maxMaxResults)
+		if maxResults <= 0 {
+			maxResults = maxMaxResults
+		}
+		_ = s.finalizeRun(ctx, jobID, runID, maxResults)
 	case RunStatusFailed, RunStatusCancelled:
 		message := strings.TrimSpace(run.Error)
 		if message == "" {

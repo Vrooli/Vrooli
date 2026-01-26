@@ -1,5 +1,6 @@
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
+| 2026-01-26 | GPT-5 (Codex CLI) | Phase 4 validation | Fixed deep search JSON parsing edge cases, added agent-manager adapter tests and deep search store/prompt-manager unit coverage, stored max_results in deep search jobs, and validated full scenario test suite (`make test`, 9/9 phases passing; Lighthouse SEO warning at 82%). |
 | 2026-01-26 | GPT-5 (Codex CLI) | Phase 4 deep search | Added agent-backed deep documentation search with agent-manager integration, Postgres-backed job tracking, prompt-manager skill, UI + CLI workflows, schema updates, and docs/architecture updates. |
 | 2026-01-26 | GPT-5 (Codex CLI) | Offline-first viewer | Replaced CDN markdown/mermaid/highlight loaders with local dependencies (marked, mermaid, highlight.js) and wired highlight CSS for offline usage; reran full scenario tests (lint clean). |
 | 2026-01-26 | GPT-5 (Codex CLI) | Phase 3 document viewer | Added doc viewer service + API endpoints, viewer UI (code/preview/split with mermaid/markdown), CLI docs view/reset commands, tests/docs updates. |

@@ -277,7 +277,8 @@ Returns the documentation tree for a scenario, including doc type hints and warn
 
 [CODE: api/docs_deep_search.go]
 [CODE: api/internal/services/deepsearch/service.go]
-[CODE: api/internal/services/docsearch/glob.go]
+[CODE: api/internal/services/deepsearch/parser.go]
+[CODE: api/internal/services/deepsearch/ollama_parser.go]
 [CODE: api/internal/services/docsearch/text.go]
 [CODE: api/internal/services/docsearch/unified.go]
 

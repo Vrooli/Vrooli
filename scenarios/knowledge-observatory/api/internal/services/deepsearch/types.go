@@ -1,6 +1,7 @@
 package deepsearch
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -70,6 +71,7 @@ type DeepSearchJob struct {
 	Results     []DeepSearchResult
 	Error       string
 	AgentRunID  string
+	MaxResults  int
 }
 
 // API exposes the deep search service surface.

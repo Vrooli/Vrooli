@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { DeepSearchPanel, type DeepSearchPanelProps } from "./DeepSearchPanel";
+import { selectors } from "../../../consts/selectors";
 
 const createProps = (overrides: Partial<DeepSearchPanelProps> = {}): DeepSearchPanelProps => ({
   query: "",
@@ -57,7 +58,8 @@ describe("DeepSearchPanel", () => {
 
     expect(screen.getByText(/Readme overview/i)).toBeDefined();
     expect(screen.getByText(/Relevance: 0.88/i)).toBeDefined();
-    expect(screen.getByText(/References/i)).toBeDefined();
+    const results = screen.getByTestId(selectors.deepSearch.results);
+    expect(within(results).getByText(/References/i)).toBeDefined();
   });
 
   it("shows error message when present", () => {

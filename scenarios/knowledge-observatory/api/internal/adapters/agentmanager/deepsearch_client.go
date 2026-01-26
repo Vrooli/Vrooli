@@ -66,6 +66,14 @@ func NewDeepSearchClient(timeout time.Duration, cfg DeepSearchProfileConfig) *De
 	}
 }
 
+// NewDeepSearchClientWithBaseURL creates a deep search client with a fixed agent-manager base URL.
+func NewDeepSearchClientWithBaseURL(timeout time.Duration, cfg DeepSearchProfileConfig, baseURL string) *DeepSearchClient {
+	return &DeepSearchClient{
+		client: NewClientWithBaseURL(timeout, baseURL),
+		cfg:    cfg,
+	}
+}
+
 func (c *DeepSearchClient) EnsureProfile(ctx context.Context) error {
 	resp, err := c.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
 		ProfileKey:     c.cfg.ProfileKey,

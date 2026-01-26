@@ -22,13 +22,20 @@ import (
 type Client struct {
 	httpClient *http.Client
 	jsonOpts   protojson.MarshalOptions
+	baseURL    string
 }
 
 // NewClient creates a new agent-manager client.
 func NewClient(timeout time.Duration) *Client {
+	return NewClientWithBaseURL(timeout, "")
+}
+
+// NewClientWithBaseURL creates a new agent-manager client with a fixed base URL.
+func NewClientWithBaseURL(timeout time.Duration, baseURL string) *Client {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: timeout,
@@ -36,6 +43,7 @@ func NewClient(timeout time.Duration) *Client {
 		jsonOpts: protojson.MarshalOptions{
 			UseProtoNames: false, // lowerCamelCase to match agent-manager HTTP handlers
 		},
+		baseURL: baseURL,
 	}
 }
 
@@ -194,6 +202,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
+	if strings.TrimSpace(c.baseURL) != "" {
+		return c.baseURL, nil
+	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve agent-manager url: %w", err)
