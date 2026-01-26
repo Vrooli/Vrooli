@@ -1,4 +1,6 @@
 // Package members provides CLI commands for member management.
+//
+// DOC: docs/reference/cli-commands.md#members
 package members
 
 import (

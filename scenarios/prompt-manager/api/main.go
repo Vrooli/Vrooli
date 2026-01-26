@@ -1,6 +1,10 @@
 // Package main is the entry point for the prompt-manager API server.
 // This file is intentionally thin - it only handles server bootstrap and wiring.
 // All business logic lives in domain packages: skills/, metrics/, tags/, testing/.
+//
+// DOC: docs/concepts/ARCHITECTURE.md
+// DOC: docs/reference/api-endpoints.md
+// DOC: docs/internal/SEAMS.md#dependency-wiring-in-maingo
 package main
 
 import (

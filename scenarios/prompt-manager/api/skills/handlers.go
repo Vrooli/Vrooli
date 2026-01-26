@@ -1,4 +1,7 @@
 // Package skills provides the core domain types and operations for skill management.
+//
+// DOC: docs/reference/api-endpoints.md#skills
+// DOC: docs/internal/SEAMS.md#1-skillsskillstore-interface
 package skills
 
 import (

@@ -1,4 +1,6 @@
 // Package search provides CLI commands for searching skills.
+//
+// DOC: docs/reference/cli-commands.md#search
 package search
 
 import (

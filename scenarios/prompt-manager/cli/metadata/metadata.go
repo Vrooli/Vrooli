@@ -1,4 +1,6 @@
 // Package metadata provides CLI commands for OG metadata fetching.
+//
+// DOC: docs/reference/cli-commands.md#metadata
 package metadata
 
 import (

@@ -1,4 +1,7 @@
 // Package testing provides LLM-based skill testing via Ollama.
+//
+// DOC: docs/reference/api-endpoints.md#testing-ollama
+// DOC: docs/internal/SEAMS.md#6-testingollamaclient
 package testing
 
 import (

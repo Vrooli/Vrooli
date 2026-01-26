@@ -1,4 +1,6 @@
 // Package tags provides tag management for prompt categorization.
+//
+// DOC: docs/reference/api-endpoints.md#tags
 package tags
 
 import (

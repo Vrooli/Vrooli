@@ -1,4 +1,6 @@
 // Package members provides types and operations for member management.
+//
+// DOC: docs/reference/api-endpoints.md#members
 package members
 
 import (

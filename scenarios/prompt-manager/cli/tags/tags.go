@@ -1,4 +1,6 @@
 // Package tags provides CLI commands for tag management.
+//
+// DOC: docs/reference/cli-commands.md#tags
 package tags
 
 import (

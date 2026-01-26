@@ -1,4 +1,6 @@
 // Package search provides skill search functionality.
+//
+// DOC: docs/reference/api-endpoints.md#search
 package search
 
 import (

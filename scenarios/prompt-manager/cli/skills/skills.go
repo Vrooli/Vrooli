@@ -1,4 +1,7 @@
 // Package skills provides CLI commands for skill management.
+//
+// DOC: docs/reference/cli-commands.md#skills
+// DOC: docs/concepts/ARCHITECTURE.md#cli-architecture
 package skills
 
 import (

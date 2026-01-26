@@ -1,4 +1,6 @@
 // Package testing provides CLI commands for skill testing with Ollama.
+//
+// DOC: docs/reference/cli-commands.md#testing
 package testing
 
 import (
