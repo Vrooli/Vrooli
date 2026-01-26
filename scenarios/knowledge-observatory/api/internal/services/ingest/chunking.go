@@ -1,5 +1,7 @@
 package ingest
 
+// DOC: docs/reference/api-endpoints.md#document-ingest
+// DOC: docs/concepts/ARCHITECTURE.md#ingest-flow
 import (
 	"crypto/sha256"
 	"encoding/hex"

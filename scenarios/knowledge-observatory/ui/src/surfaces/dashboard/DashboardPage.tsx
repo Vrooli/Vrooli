@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
+// DOC: docs/guides/getting-started.md#ui-walkthrough
 import { Activity, AlertCircle, Database, GitGraph, Search } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { routeToHash, type Route } from "../../shared/controllers/routeController";

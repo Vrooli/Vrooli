@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-endpoints.md#search
+// DOC: docs/reference/api-endpoints.md#health-metrics
 import { z } from "zod";
 import { fromJson, type DescMessage, type JsonValue } from "@bufbuild/protobuf";
 import { createValidator } from "@bufbuild/protovalidate";

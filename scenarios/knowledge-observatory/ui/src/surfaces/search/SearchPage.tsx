@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
+// DOC: docs/guides/getting-started.md#ui-walkthrough
 import { Search } from "lucide-react";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";

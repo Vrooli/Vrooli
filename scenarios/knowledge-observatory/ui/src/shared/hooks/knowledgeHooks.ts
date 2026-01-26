@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-endpoints.md#search
+// DOC: docs/reference/api-endpoints.md#health-metrics
 import { useMemo, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {

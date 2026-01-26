@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import { useCallback, useEffect, useState } from "react";
 import { parseRouteFromHash, routeToHash, type Route } from "../controllers/routeController";
 

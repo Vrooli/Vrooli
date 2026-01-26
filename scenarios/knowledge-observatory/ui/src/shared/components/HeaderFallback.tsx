@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import { Button } from "../ui/button";
 import type { Route } from "../controllers/routeController";
 

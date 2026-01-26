@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import type { ReactNode } from "react";
 import { Button, type ButtonProps } from "../ui/button";
 import { Panel } from "./Panel";

@@ -1,5 +1,6 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#delete-record
 import (
 	"encoding/json"
 	"net/http"

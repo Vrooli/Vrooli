@@ -1,5 +1,6 @@
 package vectorstore
 
+// DOC: docs/concepts/ARCHITECTURE.md#integrations
 import (
 	"bytes"
 	"context"

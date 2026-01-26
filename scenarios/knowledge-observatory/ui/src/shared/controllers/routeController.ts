@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 export type Route = "dashboard" | "search" | "metrics" | "graph";
 
 const ROUTE_HASHES: Record<Route, string> = {

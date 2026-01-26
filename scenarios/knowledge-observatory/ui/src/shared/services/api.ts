@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-endpoints.md#health
+// DOC: docs/reference/api-endpoints.md#search
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 import type { JsonObject } from "@bufbuild/protobuf";
 import {

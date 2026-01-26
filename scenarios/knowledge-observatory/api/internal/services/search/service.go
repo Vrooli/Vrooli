@@ -1,5 +1,7 @@
 package search
 
+// DOC: docs/concepts/ARCHITECTURE.md#search-flow
+// DOC: docs/reference/api-endpoints.md#search
 import (
 	"context"
 	"errors"

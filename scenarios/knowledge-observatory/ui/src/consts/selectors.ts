@@ -21,6 +21,7 @@
  * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
 
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
 

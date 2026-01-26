@@ -1,3 +1,5 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
+// DOC: docs/guides/getting-started.md#ui-walkthrough
 import { GitGraph } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";

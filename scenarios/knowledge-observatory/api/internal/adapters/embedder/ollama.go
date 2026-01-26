@@ -1,5 +1,7 @@
 package embedder
 
+// DOC: docs/concepts/ARCHITECTURE.md#integrations
+// DOC: docs/reference/configuration.md#api-runtime-configuration
 import (
 	"bytes"
 	"context"

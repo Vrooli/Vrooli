@@ -1,5 +1,6 @@
 package main
 
+// DOC: docs/concepts/ARCHITECTURE.md#integrations
 import (
 	"context"
 	"encoding/json"

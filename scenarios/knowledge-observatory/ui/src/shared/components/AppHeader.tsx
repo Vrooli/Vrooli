@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import type { ReactNode } from "react";
 import { Activity, Database, GitGraph, Search } from "lucide-react";
 import { selectors } from "../../consts/selectors";

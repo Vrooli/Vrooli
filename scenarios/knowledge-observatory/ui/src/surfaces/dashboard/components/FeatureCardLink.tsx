@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import type { ReactNode } from "react";
 import { routeToHash, type Route } from "../../../shared/controllers/routeController";
 

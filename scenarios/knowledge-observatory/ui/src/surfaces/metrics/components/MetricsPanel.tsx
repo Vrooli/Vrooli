@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#health-and-metrics-flow
 import { Database, TrendingUp, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "../../../shared/lib/utils";
 import { Button } from "../../../shared/ui/button";

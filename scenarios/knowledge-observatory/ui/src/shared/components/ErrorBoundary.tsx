@@ -1,3 +1,4 @@
+// DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 export type ErrorBoundaryFallbackProps = {

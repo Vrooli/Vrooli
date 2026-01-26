@@ -1,5 +1,6 @@
 package main
 
+// DOC: docs/reference/configuration.md#knowledge-schema-defaults
 import (
 	"errors"
 	"strings"

@@ -1,3 +1,4 @@
+// DOC: docs/reference/api-endpoints.md#search
 import { SearchPanel } from "./components/SearchPanel";
 import { useSearchController } from "../../shared/hooks/knowledgeHooks";
 

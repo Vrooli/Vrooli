@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Knowledge Observatory is the control-plane for Vrooli’s semantic memory. It ingests knowledge into Qdrant, surfaces search/graph/health views, and persists metadata in Postgres.
+Knowledge Observatory is the control-plane for Vrooli's semantic memory. It ingests knowledge into Qdrant, surfaces search/graph/health views, and persists metadata in Postgres.
 
 ## System Surfaces
 - **API**: Canonical write path + query surface. [CODE: api/server.go]
@@ -78,5 +78,16 @@ The dashboard, search, graph, and metrics pages are routed by hash.
 - API endpoints: [REQ: OT-P0-004]
 - CLI commands: [REQ: OT-P0-005]
 - UI dashboard: [REQ: OT-P0-006]
+
+## Future Targets
+- Timeline visualization: [REQ: OT-P1-001]
+- Bulk operations: [REQ: OT-P1-002]
+- Scenario contribution tracking: [REQ: OT-P1-003]
+- Semantic diffing: [REQ: OT-P1-004]
+- Coverage gap analysis: [REQ: OT-P1-005]
+- 3D graph visualization: [REQ: OT-P2-001]
+- AI recommendations: [REQ: OT-P2-002]
+- Export/import bundles: [REQ: OT-P2-003]
+- Advanced metadata filtering: [REQ: OT-P2-004]
 
 See also: [DOC: PRD.md#operational-targets]

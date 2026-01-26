@@ -1,5 +1,6 @@
 package metadatastore
 
+// DOC: docs/concepts/ARCHITECTURE.md#integrations
 import (
 	"context"
 	"database/sql"

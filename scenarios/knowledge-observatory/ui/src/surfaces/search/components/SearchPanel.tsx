@@ -1,3 +1,4 @@
+// DOC: docs/reference/api-endpoints.md#search
 import type { FormEvent } from "react";
 import { Search, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "../../../shared/ui/button";

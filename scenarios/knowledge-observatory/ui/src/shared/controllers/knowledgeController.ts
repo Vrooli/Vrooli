@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-endpoints.md#search
+// DOC: docs/reference/api-endpoints.md#health-metrics
 import {
   fetchHealth,
   fetchKnowledgeHealth,

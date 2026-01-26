@@ -1,5 +1,7 @@
 package ingestjobs
 
+// DOC: docs/reference/api-endpoints.md#ingest-jobs-async
+// DOC: docs/concepts/ARCHITECTURE.md#ingest-flow
 import (
 	"context"
 	"fmt"

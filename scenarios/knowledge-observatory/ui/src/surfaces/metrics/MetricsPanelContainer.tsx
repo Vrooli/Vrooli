@@ -1,3 +1,4 @@
+// DOC: docs/reference/api-endpoints.md#health-metrics
 import { MetricsPanel } from "./components/MetricsPanel";
 import { useKnowledgeMetrics } from "../../shared/hooks/knowledgeHooks";
 
