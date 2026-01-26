@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#search
+// DOC: docs/concepts/ARCHITECTURE.md#search-flow
 import (
 	"context"
 	"encoding/json"

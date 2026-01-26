@@ -1,0 +1,120 @@
+{
+  "version": "1.0.0",
+  "title": "Knowledge Observatory Documentation",
+  "description": "Operator, developer, and integration documentation for the Knowledge Observatory scenario.",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quickstart",
+          "description": "Run the scenario and complete your first search",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "guides/getting-started.md",
+          "title": "Getting Started Guide",
+          "description": "End-to-end usage across UI, CLI, and API",
+          "audience": ["users", "developers"]
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "layers",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture Overview",
+          "description": "System surfaces and data flows"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Domain vocabulary and data model terms"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "title": "API Endpoints",
+          "description": "REST API contracts and payloads"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Command-line usage and examples"
+        },
+        {
+          "path": "reference/configuration.md",
+          "title": "Configuration",
+          "description": "Environment variables, ports, and defaults"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "map",
+      "documents": [
+        {
+          "path": "guides/troubleshooting.md",
+          "title": "Troubleshooting",
+          "description": "Common failure modes and recovery steps"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress Log",
+          "internal": true
+        },
+        {
+          "path": "SCREAMING_ARCHITECTURE_AUDIT.md",
+          "title": "Screaming Architecture Audit",
+          "internal": true
+        },
+        {
+          "path": "EXPERIENCE_ARCHITECTURE_AUDIT.md",
+          "title": "Experience Architecture Audit",
+          "internal": true
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams & Boundaries",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE_NOTES.md",
+          "title": "UI Coherence Notes",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference", "guides"],
+    "secondary": ["internal"]
+  }
+}

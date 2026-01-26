@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#health-metrics
+// DOC: docs/concepts/ARCHITECTURE.md#health-and-metrics-flow
 import (
 	"bytes"
 	"context"

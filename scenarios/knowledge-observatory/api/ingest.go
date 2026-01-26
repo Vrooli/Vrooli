@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/reference/api-endpoints.md#upsert-record
+// DOC: docs/concepts/ARCHITECTURE.md#ingest-flow
 import (
 	"encoding/json"
 	"errors"

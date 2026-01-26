@@ -90,6 +90,14 @@ body {
     border-color: rgb(var(--ko-border-strong) / 0.6);
   }
 
+  .ko-focus-ring {
+    outline: none;
+  }
+
+  .ko-focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px rgb(var(--ko-accent) / 0.4);
+  }
+
   .ko-tab {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm font-semibold;
     border-color: rgb(var(--ko-border) / 0.5);

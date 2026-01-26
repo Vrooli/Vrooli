@@ -1,5 +1,7 @@
 package main
 
+// DOC: docs/concepts/ARCHITECTURE.md#api-runtime
+// DOC: docs/reference/configuration.md#api-runtime-configuration
 import (
 	"context"
 	"database/sql"

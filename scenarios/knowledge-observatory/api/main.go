@@ -1,5 +1,6 @@
 package main
 
+// DOC: docs/concepts/ARCHITECTURE.md#api-runtime
 import (
 	"github.com/vrooli/api-core/preflight"
 	"log"
