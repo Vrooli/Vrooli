@@ -85,6 +85,47 @@ interface RatingResponse {
   rating: number
 }
 
+/**
+ * AI search types
+ */
+export interface AISearchResult {
+  id: string
+  name: string
+  description: string
+  folder: string
+  tags: string[]
+  modes: string[]
+  score: number
+  scorePercent: number
+}
+
+export interface AISearchResponse {
+  results: AISearchResult[]
+  total: number
+  query: string
+  method: 'ai' | 'text'
+}
+
+export interface AISearchRequest {
+  query: string
+  limit?: number
+}
+
+export interface AISearchStatus {
+  available: boolean
+  ollama: boolean
+  qdrant: boolean
+  indexedCount: number
+  message?: string
+}
+
+export interface AIReindexResponse {
+  indexed: number
+  skipped: number
+  errors: number
+  message: string
+}
+
 class ApiClient {
   private async request<T>(
     endpoint: string,
@@ -248,6 +289,24 @@ class ApiClient {
   // Health check
   async healthCheck(): Promise<HealthResponse> {
     return this.request<HealthResponse>('/health')
+  }
+
+  // AI Search - semantic search using Ollama embeddings and Qdrant
+  async aiSearch(query: string, limit = 5): Promise<AISearchResponse> {
+    return this.request<AISearchResponse>('/search/ai', {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    })
+  }
+
+  async getAISearchStatus(): Promise<AISearchStatus> {
+    return this.request<AISearchStatus>('/search/ai/status')
+  }
+
+  async reindexAISearch(): Promise<AIReindexResponse> {
+    return this.request<AIReindexResponse>('/search/ai/reindex', {
+      method: 'POST',
+    })
   }
 
   // Member methods - aligned with api/members/handlers.go

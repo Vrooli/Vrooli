@@ -16,7 +16,7 @@ import (
 	"prompt-manager/cli/internal/appctx"
 )
 
-// SearchResult represents a search result item
+// SearchResult represents a search result item (text search)
 type SearchResult struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -29,11 +29,46 @@ type SearchResult struct {
 	Highlight   string   `json:"highlight,omitempty"`
 }
 
-// SearchResponse wraps search results with metadata
+// SearchResponse wraps search results with metadata (text search)
 type SearchResponse struct {
 	Results []SearchResult `json:"results"`
 	Total   int            `json:"total"`
 	Query   string         `json:"query"`
+}
+
+// AISearchResult represents an AI search result item
+type AISearchResult struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Folder       string   `json:"folder"`
+	Tags         []string `json:"tags,omitempty"`
+	Modes        []string `json:"modes,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"`
+}
+
+// AISearchResponse wraps AI search results with metadata
+type AISearchResponse struct {
+	Results []AISearchResult `json:"results"`
+	Total   int              `json:"total"`
+	Query   string           `json:"query"`
+	Method  string           `json:"method"`
+}
+
+// AISearchRequest represents the request body for AI search
+type AISearchRequest struct {
+	Query string `json:"query"`
+	Limit int    `json:"limit"`
+}
+
+// AvailabilityStatus represents AI search availability
+type AvailabilityStatus struct {
+	Available    bool   `json:"available"`
+	Ollama       bool   `json:"ollama"`
+	Qdrant       bool   `json:"qdrant"`
+	IndexedCount int    `json:"indexedCount"`
+	Message      string `json:"message,omitempty"`
 }
 
 // Commands returns the search command group.
@@ -45,7 +80,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "search",
 				Aliases:     []string{"find", "q"},
 				NeedsAPI:    true,
-				Description: "Search skills by content, name, or tags",
+				Description: "Search skills (AI-powered by default, --text for text-only)",
 				Run: func(args []string) error {
 					return cmdSearch(ctx, args)
 				},
@@ -58,13 +93,15 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("search", flag.ContinueOnError)
 	tag := fs.String("tag", "", "Filter by tag")
 	folder := fs.String("folder", "", "Filter by folder (core|local|drafts)")
+	textOnly := fs.Bool("text", false, "Force text-only search (skip AI)")
+	limit := fs.Int("limit", 5, "Maximum number of results")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 && *tag == "" && *folder == "" {
-		return fmt.Errorf("usage: search <query> [--tag=...] [--folder=...] [--json]")
+		return fmt.Errorf("usage: search <query> [--text] [--limit=N] [--tag=...] [--folder=...] [--json]")
 	}
 
 	query := ""
@@ -72,16 +109,74 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		query = strings.Join(fs.Args(), " ")
 	}
 
+	// For filters-only queries (no text query), use text search
+	if query == "" || *textOnly {
+		return textSearch(ctx, query, *tag, *folder, *jsonOut)
+	}
+
+	// Try AI search first
+	return aiSearch(ctx, query, *limit, *jsonOut)
+}
+
+// aiSearch performs AI-powered semantic search.
+func aiSearch(ctx appctx.Context, query string, limit int, jsonOut bool) error {
+	req := AISearchRequest{
+		Query: query,
+		Limit: limit,
+	}
+
+	var resp AISearchResponse
+	if err := ctx.Post("/search/ai", req, &resp); err != nil {
+		// Fall back to text search on error
+		fmt.Fprintln(os.Stderr, "(AI search unavailable, using text search)")
+		return textSearch(ctx, query, "", "", jsonOut)
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	// Show method used
+	methodLabel := "AI"
+	if resp.Method == "text" {
+		methodLabel = "text (AI unavailable)"
+	}
+
+	if resp.Total == 0 {
+		fmt.Printf("No skills found matching: %s (%s search)\n", query, methodLabel)
+		return nil
+	}
+
+	fmt.Printf("Search Results (%d found, %s search):\n", resp.Total, methodLabel)
+	for _, r := range resp.Results {
+		tags := ""
+		if len(r.Tags) > 0 {
+			tags = " [" + strings.Join(r.Tags, ", ") + "]"
+		}
+		// Show score as percentage for AI search
+		score := fmt.Sprintf(" (%d%%)", r.ScorePercent)
+		fmt.Printf("  %s - %s%s%s [%s]\n", r.Name, r.Folder, score, tags, r.ID)
+		if r.Description != "" {
+			fmt.Printf("    → %s\n", truncate(r.Description, 80))
+		}
+	}
+	return nil
+}
+
+// textSearch performs traditional text search.
+func textSearch(ctx appctx.Context, query, tag, folder string, jsonOut bool) error {
 	// Build query parameters
 	params := url.Values{}
 	if query != "" {
 		params.Set("q", query)
 	}
-	if *tag != "" {
-		params.Set("tag", *tag)
+	if tag != "" {
+		params.Set("tag", tag)
 	}
-	if *folder != "" {
-		params.Set("folder", *folder)
+	if folder != "" {
+		params.Set("folder", folder)
 	}
 
 	var resp SearchResponse
@@ -89,7 +184,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("search failed: %w", err)
 	}
 
-	if *jsonOut {
+	if jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(resp)
@@ -104,7 +199,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Search Results (%d found):\n", resp.Total)
+	fmt.Printf("Search Results (%d found, text search):\n", resp.Total)
 	for _, r := range resp.Results {
 		tags := ""
 		if len(r.Tags) > 0 {

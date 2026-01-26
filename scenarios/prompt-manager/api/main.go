@@ -12,7 +12,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"prompt-manager/aisearch"
 	"prompt-manager/members"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
@@ -88,6 +90,71 @@ func main() {
 	searchService := search.NewService(skillStore)
 	searchHandlers := search.NewHandlers(searchService)
 
+	// AI Search service (graceful degradation when unavailable)
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+	qdrantAPIKey := os.Getenv("QDRANT_API_KEY")
+
+	aiSearchCollection := os.Getenv("AI_SEARCH_COLLECTION")
+	if aiSearchCollection == "" {
+		aiSearchCollection = "prompt-manager-skills"
+	}
+
+	aiSearchThreshold := 0.5
+	if thresholdStr := os.Getenv("AI_SEARCH_THRESHOLD"); thresholdStr != "" {
+		if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
+			aiSearchThreshold = parsed
+		}
+	}
+
+	// Initialize AI search components
+	embedder := aisearch.NewEmbedder(ollamaURL, "nomic-embed-text")
+	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
+	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStore, searchService, aiSearchThreshold)
+	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
+
+	// Set AI indexer on skill handlers for CRUD hook integration
+	skillHandlers.SetAIIndexer(aiSearchService)
+
+	// Log AI search status and trigger startup indexing if available
+	if ollamaURL != "" && qdrantURL != "" {
+		log.Printf("AI Search: Ollama=%s, Qdrant=%s, Collection=%s", ollamaURL, qdrantURL, aiSearchCollection)
+		// Check availability and index if needed (async to not block startup)
+		go func() {
+			ctx := context.Background()
+			if !aiSearchService.Available(ctx) {
+				log.Println("AI Search: Resources not reachable at startup, skipping initial index")
+				return
+			}
+			// Ensure collection exists
+			if err := vectorStore.EnsureCollection(ctx); err != nil {
+				log.Printf("AI Search: Failed to ensure collection: %v", err)
+				return
+			}
+			// Check if index is empty
+			count, err := vectorStore.CountPoints(ctx)
+			if err != nil {
+				log.Printf("AI Search: Failed to count points: %v", err)
+				return
+			}
+			if count == 0 {
+				log.Println("AI Search: Index empty, starting initial indexing...")
+				result, err := aiSearchService.ReindexAll(ctx)
+				if err != nil {
+					log.Printf("AI Search: Initial indexing failed: %v", err)
+				} else {
+					log.Printf("AI Search: Initial indexing complete - %s", result.Message)
+				}
+			} else {
+				log.Printf("AI Search: Index contains %d skills", count)
+			}
+		}()
+	} else {
+		log.Println("AI Search: Resources not fully configured (will gracefully degrade to text search)")
+	}
+
 	// Setup routes
 	router := mux.NewRouter()
 
@@ -125,6 +192,11 @@ func main() {
 
 	// Search routes
 	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
+
+	// AI Search routes
+	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
+	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
+	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")

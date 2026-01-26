@@ -12,9 +12,9 @@
  * - New skill button
  */
 
-import { type ReactNode, type RefObject, useState, useRef, useCallback } from 'react'
+import { type ReactNode, type RefObject, useState, useRef, useCallback, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType } from '@/types'
@@ -25,7 +25,9 @@ import { TagFilterPopover } from './TagFilterPopover'
 import { MemberListPanel } from '../member/MemberListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
+import { AISearchModal } from '../search/AISearchModal'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
+import { getAISearchStatus } from '@/services/skillService'
 
 interface SkillTreeSidebarProps {
   treeNodes: TreeNode[]
@@ -136,6 +138,26 @@ export function SkillTreeSidebar({
     x: number
     y: number
   } | null>(null)
+
+  // AI Search modal state
+  const [isAISearchOpen, setIsAISearchOpen] = useState(false)
+  const [aiSearchAvailable, setAISearchAvailable] = useState(false)
+
+  // Check AI search availability on mount
+  useEffect(() => {
+    getAISearchStatus()
+      .then((status) => setAISearchAvailable(status.available))
+      .catch(() => setAISearchAvailable(false))
+  }, [])
+
+  const handleAISearch = useCallback(() => {
+    setIsAISearchOpen(true)
+  }, [])
+
+  const handleAISearchSelect = useCallback((skillId: string) => {
+    onSelectItem(skillId)
+    setIsAISearchOpen(false)
+  }, [onSelectItem])
 
   const handleCategoryContextMenu = useCallback((node: TreeNode, x: number, y: number) => {
     setSkillContextMenu(null) // Close any open skill menu
@@ -427,6 +449,19 @@ export function SkillTreeSidebar({
                 <p className="text-xs text-muted-foreground">
                   {searchQuery || selectedTags.length > 0 ? 'No skills match your filters' : 'No skills yet'}
                 </p>
+                {searchQuery && aiSearchAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleAISearch}
+                    className={cn(
+                      'mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs',
+                      'bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors'
+                    )}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Try AI Search
+                  </button>
+                )}
               </div>
             ) : (
               treeNodes.map((node) => (
@@ -536,6 +571,14 @@ export function SkillTreeSidebar({
           />
         </Tabs.Content>
       </Tabs.Root>
+
+      {/* AI Search Modal */}
+      <AISearchModal
+        isOpen={isAISearchOpen}
+        onClose={() => setIsAISearchOpen(false)}
+        initialQuery={searchQuery}
+        onSelectSkill={handleAISearchSelect}
+      />
     </div>
   )
 }

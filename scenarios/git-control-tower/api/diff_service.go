@@ -81,6 +81,7 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 
 	var content string
 	var annotatedLines []AnnotatedLine
+	lineCount := 0
 	isBinary := isBinaryFile(cleanPath)
 
 	if req.Commit != "" {
@@ -121,6 +122,35 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 				Change:  LineChangeNone,
 			}
 		}
+		lineCount = len(lines)
+		if lineCount > 0 && lines[lineCount-1] == "" {
+			lineCount-- // Don't count empty trailing line
+		}
+	}
+
+	hasDiff := false
+	stats := DiffStats{}
+
+	if req.Untracked {
+		hasDiff = true
+		stats.Files = 1
+		if !isBinary {
+			stats.Additions = lineCount
+		}
+	} else {
+		var diffOut []byte
+		var diffErr error
+		if req.Commit != "" {
+			diffOut, diffErr = deps.Git.ShowCommitDiff(ctx, repoDir, req.Commit, cleanPath)
+		} else {
+			diffOut, diffErr = deps.Git.Diff(ctx, repoDir, cleanPath, req.Staged)
+		}
+		if diffErr != nil {
+			return nil, fmt.Errorf("check diff for source content: %w", diffErr)
+		}
+		parsed := ParseDiffOutput(string(diffOut))
+		hasDiff = parsed.HasDiff
+		stats = parsed.Stats
 	}
 
 	return &DiffResponse{
@@ -128,8 +158,8 @@ func getSourceContent(ctx context.Context, deps DiffDeps, req DiffRequest, repoD
 		Path:           cleanPath,
 		Staged:         req.Staged,
 		Untracked:      req.Untracked,
-		HasDiff:        false,
-		Stats:          DiffStats{},
+		HasDiff:        hasDiff,
+		Stats:          stats,
 		FullContent:    content,
 		AnnotatedLines: annotatedLines,
 		Mode:           ViewModeSource,

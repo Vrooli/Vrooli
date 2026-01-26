@@ -131,6 +131,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdList(ctx, subArgs)
 	case "show", "get":
 		return cmdShow(ctx, subArgs)
+	case "read", "cat":
+		return cmdRead(ctx, subArgs)
 	case "add", "create":
 		return cmdAdd(ctx, subArgs)
 	case "update", "edit":
@@ -165,6 +167,7 @@ func usageText() string {
 Subcommands:
   list, ls              List all skills
   show, get <id>        Show skill details
+  read <id|name>        Output skill content only (for piping)
   add, create <name>    Create a new skill
   update, edit <id>     Update an existing skill
   delete, rm <id>       Delete a skill
@@ -267,6 +270,47 @@ func cmdShow(ctx appctx.Context, args []string) error {
 		fmt.Printf("Tags: %s\n", strings.Join(skill.Tags, ", "))
 	}
 	fmt.Printf("\nContent:\n%s\n", skill.Content)
+	return nil
+}
+
+// cmdRead outputs only the skill content (for piping to other tools).
+func cmdRead(ctx appctx.Context, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: skill read <id|name>")
+	}
+	identifier := strings.Join(args, " ")
+
+	// Try to get skill by ID first
+	var skill SkillResponse
+	if err := ctx.Get(fmt.Sprintf("/skills/%s", identifier), &skill); err != nil {
+		// If not found by ID, search by name
+		var skills []SkillResponse
+		query := url.Values{}
+		if err := ctx.GetWithQuery("/skills", query, &skills); err != nil {
+			return fmt.Errorf("failed to list skills: %w", err)
+		}
+
+		// Find by name (case-insensitive)
+		identifierLower := strings.ToLower(identifier)
+		var match *SkillResponse
+		for i := range skills {
+			if strings.ToLower(skills[i].Name) == identifierLower {
+				match = &skills[i]
+				break
+			}
+		}
+		if match == nil {
+			return fmt.Errorf("skill not found: %s", identifier)
+		}
+
+		// Fetch full skill with content
+		if err := ctx.Get(fmt.Sprintf("/skills/%s", match.ID), &skill); err != nil {
+			return fmt.Errorf("failed to get skill: %w", err)
+		}
+	}
+
+	// Output content only (no metadata, no formatting)
+	fmt.Print(skill.Content)
 	return nil
 }
 

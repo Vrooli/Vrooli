@@ -37,6 +37,62 @@ func TestGetDiff_WithFakeGit(t *testing.T) {
 	}
 }
 
+func TestGetDiff_SourceMode_HasDiffForUnstaged(t *testing.T) {
+	repoDir := t.TempDir()
+	path := "modified.txt"
+	if err := os.WriteFile(filepath.Join(repoDir, path), []byte("line 1\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	fakeGit := NewFakeGitRunner().
+		AddUnstagedFile(path)
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: repoDir,
+	}, DiffRequest{
+		Path: path,
+		Mode: ViewModeSource,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true for source mode")
+	}
+	if !fakeGit.AssertCalled("Diff") {
+		t.Fatalf("expected Diff to be called for source mode")
+	}
+	if diff.Stats.Files != 1 {
+		t.Fatalf("expected Stats.Files=1, got %d", diff.Stats.Files)
+	}
+}
+
+func TestGetDiff_SourceMode_CommitHasDiff(t *testing.T) {
+	fakeGit := NewFakeGitRunner()
+
+	diff, err := GetDiff(context.Background(), DiffDeps{
+		Git:     fakeGit,
+		RepoDir: "/fake/repo",
+	}, DiffRequest{
+		Path:   "file.txt",
+		Commit: "abc123",
+		Mode:   ViewModeSource,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !diff.HasDiff {
+		t.Fatalf("expected HasDiff=true for commit source mode")
+	}
+	if !fakeGit.AssertCalled("ShowFileAtCommit") {
+		t.Fatalf("expected ShowFileAtCommit to be called")
+	}
+	if !fakeGit.AssertCalled("ShowCommitDiff") {
+		t.Fatalf("expected ShowCommitDiff to be called for source mode commit")
+	}
+}
+
 func TestGetDiff_WithFakeGit_Staged(t *testing.T) {
 	fakeGit := NewFakeGitRunner().
 		AddStagedFile("staged.txt")

@@ -171,3 +171,33 @@ export async function getAllTags(): Promise<string[]> {
   }
   return Array.from(tags).sort()
 }
+
+/**
+ * AI Search - semantic search using embeddings.
+ * Falls back to text search if AI resources unavailable.
+ *
+ * @param query - Search query
+ * @param limit - Maximum results (default 5)
+ * @returns AI search response with results and method used
+ */
+export async function aiSearch(query: string, limit = 5) {
+  return api.aiSearch(query, limit)
+}
+
+/**
+ * Get AI search system status.
+ *
+ * @returns Status of Ollama, Qdrant, and index count
+ */
+export async function getAISearchStatus() {
+  return api.getAISearchStatus()
+}
+
+/**
+ * Rebuild AI search index from all skills.
+ *
+ * @returns Reindex results (indexed, skipped, errors)
+ */
+export async function reindexAISearch() {
+  return api.reindexAISearch()
+}

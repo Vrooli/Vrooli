@@ -5,6 +5,7 @@
 package skills
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -20,8 +21,9 @@ import (
 // Handlers provides HTTP handlers for skill operations.
 // Depends on interfaces (SkillStore, MetricsService) for testability.
 type Handlers struct {
-	store   SkillStore
-	metrics MetricsService
+	store     SkillStore
+	metrics   MetricsService
+	aiIndexer AISearchIndexer // Optional: nil if AI search not available
 }
 
 // NewHandlers creates a new skills handler.
@@ -31,6 +33,40 @@ func NewHandlers(store SkillStore, metrics MetricsService) *Handlers {
 		store:   store,
 		metrics: metrics,
 	}
+}
+
+// SetAIIndexer sets the AI search indexer for async index updates.
+// This is called after the aisearch.Service is initialized to avoid circular deps.
+func (h *Handlers) SetAIIndexer(indexer AISearchIndexer) {
+	h.aiIndexer = indexer
+}
+
+// triggerIndexAsync asynchronously indexes a skill if AI search is available.
+func (h *Handlers) triggerIndexAsync(skillID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		ctx := context.Background()
+		if err := h.aiIndexer.IndexSkill(ctx, skillID); err != nil {
+			// Log but don't fail - indexing is best effort
+			fmt.Printf("[skills] AI index update failed for %s: %v\n", skillID, err)
+		}
+	}()
+}
+
+// triggerDeleteAsync asynchronously removes a skill from the index.
+func (h *Handlers) triggerDeleteAsync(skillID string) {
+	if h.aiIndexer == nil {
+		return
+	}
+	go func() {
+		ctx := context.Background()
+		if err := h.aiIndexer.DeleteFromIndex(ctx, skillID); err != nil {
+			// Log but don't fail - indexing is best effort
+			fmt.Printf("[skills] AI index delete failed for %s: %v\n", skillID, err)
+		}
+	}()
 }
 
 // List handles GET /skills - returns all skills with optional filtering.
@@ -224,6 +260,9 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	response.Content = req.Content
 	response.Folder = req.Folder
 
+	// Trigger async AI index update
+	h.triggerIndexAsync(req.ID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
@@ -342,6 +381,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		response.Content = content
 	}
 
+	// Trigger async AI index update
+	h.triggerIndexAsync(id)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -387,6 +429,9 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Delete metrics from database
 	h.metrics.Delete(id)
+
+	// Trigger async AI index delete
+	h.triggerDeleteAsync(id)
 
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -195,15 +195,15 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "description": "Optional: Vector database for semantic search"
+        "description": "Vector database for AI-powered semantic search (stores skill embeddings)"
       },
       "ollama": {
         "type": "ollama",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "description": "Optional: Local LLM for prompt testing",
+        "description": "Local LLM for AI search embeddings (nomic-embed-text) and prompt testing (llama3.2)",
         "models": [
           "nomic-embed-text",
           "llama3.2"

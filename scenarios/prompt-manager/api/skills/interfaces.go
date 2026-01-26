@@ -4,7 +4,10 @@
 // DOC: docs/internal/SEAMS.md#1-skillsskillstore-interface
 package skills
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // SkillStore defines the interface for skill storage operations.
 // This is the primary testing seam for the skills domain.
@@ -67,4 +70,15 @@ type SkillMetrics struct {
 	LastUsed            *time.Time `json:"lastUsed,omitempty"`
 	EffectivenessRating *int       `json:"effectivenessRating,omitempty"`
 	Notes               *string    `json:"notes,omitempty"`
+}
+
+// AISearchIndexer defines the interface for AI search index operations.
+// This allows skills handlers to trigger index updates without circular imports.
+// Implementation is provided by the aisearch.Service.
+type AISearchIndexer interface {
+	// IndexSkill indexes a single skill into the vector store.
+	IndexSkill(ctx context.Context, skillID string) error
+
+	// DeleteFromIndex removes a skill from the vector index.
+	DeleteFromIndex(ctx context.Context, skillID string) error
 }
