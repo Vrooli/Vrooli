@@ -2,7 +2,7 @@
 
 This document defines the **architectural boundaries** (seams) within the playwright-driver package. A "seam" is a place where you can alter behavior without editing existing code - understanding these boundaries helps you know where to make changes.
 
-> **Last Updated**: 2026-01-03 (Seam discovery and boundary enforcement review)
+> **Last Updated**: 2026-01-26 (Coverage-driven seam review for telemetry, injection, recording diagnostics, and input handling)
 
 ## Module Boundaries
 
@@ -546,6 +546,21 @@ telemetry/ ◄── recording/ ────────────────
 | Session | Integration | `tests/integration/session/` |
 
 ## Evolution Guidelines
+
+## Seam: Service Worker Control (CDP Boundary)
+
+**Location**: `src/service-worker/controller.ts`
+
+**Responsibility**: Thin adapter over the Chrome DevTools Protocol ServiceWorker domain.
+
+**Why it matters**:
+- The controller owns all CDP-specific behavior (event wiring, unregistering, stopping workers)
+- Callers should treat it as a **CDP boundary** and avoid reaching into CDP session internals
+- Tests should mock `getCachedCDPSession()` rather than reimplement CDP details
+
+**Change axis**:
+- Allow additive monitoring logic (new events or metadata) without changing callers
+- Avoid changing public methods (`enable`, `disable`, `unregister`, `unregisterAll`, `setupBlockingForContext`) without coordinating with handlers
 
 ### Safe Changes (Won't Break Other Code)
 

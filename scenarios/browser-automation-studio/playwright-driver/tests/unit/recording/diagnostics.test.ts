@@ -48,12 +48,14 @@ function createMockPage(): jest.Mocked<Page> {
   return {
     evaluate: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    off: jest.fn(),
     context: jest.fn().mockReturnValue({
       newCDPSession: jest.fn().mockResolvedValue({
         send: jest.fn().mockResolvedValue({ result: { type: 'string', value: '{}' } }),
         detach: jest.fn().mockResolvedValue(undefined),
       }),
     }),
+    url: jest.fn().mockReturnValue('https://example.com'),
   } as unknown as jest.Mocked<Page>;
 }
 
@@ -287,6 +289,85 @@ describe('Recording Diagnostics', () => {
       expect(
         result.issues.find((i) => i.code === DIAGNOSTIC_CODES.INJECTION_ALL_FAILED)?.severity
       ).toBe(DiagnosticSeverity.ERROR);
+    });
+
+    it('should flag invalid page types in FULL diagnostics', async () => {
+      const page = {
+        ...createMockPage(),
+        url: jest.fn().mockReturnValue('about:blank'),
+      } as unknown as jest.Mocked<Page>;
+      const context = createMockContext();
+
+      mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
+
+      const result = await runRecordingDiagnostics(page, context, {
+        level: RecordingDiagnosticLevel.FULL,
+      });
+
+      expect(result.ready).toBe(false);
+      expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.EVENT_SEND_FAILED)).toBe(true);
+      expect(result.eventFlowTest?.pageValid).toBe(false);
+    });
+
+    it('should surface script-not-ready issues from event flow test', async () => {
+      const sessionSequence = [
+        {
+          send: jest.fn().mockResolvedValue({
+            result: {
+              type: 'string',
+              value: JSON.stringify({
+                loaded: true,
+                ready: false,
+                inMainContext: true,
+                handlersCount: 2,
+                version: '1.0.0',
+              }),
+            },
+          }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockResolvedValue({
+            result: { type: 'string', value: JSON.stringify({ sent: false, status: null, error: 'blocked' }) },
+          }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockRejectedValue(new Error('console failed')),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+        {
+          send: jest.fn().mockResolvedValue({ result: { type: 'string', value: 'null' } }),
+          detach: jest.fn().mockResolvedValue(undefined),
+        },
+      ];
+
+      const page = {
+        url: jest.fn().mockReturnValue('https://example.com'),
+        on: jest.fn(),
+        off: jest.fn(),
+        context: jest.fn().mockReturnValue({
+          newCDPSession: jest
+            .fn()
+            .mockResolvedValueOnce(sessionSequence[0])
+            .mockResolvedValueOnce(sessionSequence[1])
+            .mockResolvedValueOnce(sessionSequence[2])
+            .mockResolvedValueOnce(sessionSequence[3]),
+        }),
+      } as unknown as jest.Mocked<Page>;
+
+      const context = createMockContext();
+
+      mockVerifyScriptInjection.mockResolvedValue(createGoodVerification());
+
+      const result = await runRecordingDiagnostics(page, context, {
+        level: RecordingDiagnosticLevel.FULL,
+        timeoutMs: 10,
+      });
+
+      expect(result.ready).toBe(false);
+      expect(result.issues.some((i) => i.code === DIAGNOSTIC_CODES.SCRIPT_NOT_READY)).toBe(true);
+      expect(result.eventFlowTest?.passed).toBe(false);
     });
   });
 

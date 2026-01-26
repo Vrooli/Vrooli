@@ -97,26 +97,7 @@ export class DeviceHandler extends BaseHandler {
     const orientation = params.orientation;
     const angle = params.angle;
 
-    if (orientation) {
-      // Use orientation to determine dimensions
-      const currentIsPortrait = currentViewport.height > currentViewport.width;
-      const targetIsPortrait = orientation === 'portrait';
-
-      if (currentIsPortrait === targetIsPortrait) {
-        // Already in correct orientation
-        logger.info('Already in target orientation', {
-          orientation,
-        });
-        targetWidth = currentViewport.width;
-        targetHeight = currentViewport.height;
-        actualAngle = currentIsPortrait ? 0 : 90;
-      } else {
-        // Swap dimensions
-        targetWidth = currentViewport.height;
-        targetHeight = currentViewport.width;
-        actualAngle = targetIsPortrait ? 0 : 90;
-      }
-    } else if (angle !== undefined) {
+    if (angle !== undefined) {
       // Use angle to determine dimensions
       actualAngle = angle;
 
@@ -155,6 +136,25 @@ export class DeviceHandler extends BaseHandler {
               retryable: false,
             },
           };
+      }
+    } else if (orientation) {
+      // Use orientation to determine dimensions
+      const currentIsPortrait = currentViewport.height > currentViewport.width;
+      const targetIsPortrait = orientation === 'portrait';
+
+      if (currentIsPortrait === targetIsPortrait) {
+        // Already in correct orientation
+        logger.info('Already in target orientation', {
+          orientation,
+        });
+        targetWidth = currentViewport.width;
+        targetHeight = currentViewport.height;
+        actualAngle = currentIsPortrait ? 0 : 90;
+      } else {
+        // Swap dimensions
+        targetWidth = currentViewport.height;
+        targetHeight = currentViewport.width;
+        actualAngle = targetIsPortrait ? 0 : 90;
       }
     } else {
       return {

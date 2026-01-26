@@ -130,6 +130,36 @@ describe('DeviceHandler', () => {
     );
   });
 
+  it('prefers angle over orientation when both are provided', async () => {
+    const mockPage = createMockPage({
+      viewportSize: jest.fn().mockReturnValue({ width: 1200, height: 800 }),
+      setViewportSize: jest.fn().mockResolvedValue(undefined),
+      evaluate: jest.fn().mockResolvedValue(undefined),
+    });
+    const mockContext = createMockContext();
+    const context: HandlerContext = {
+      page: mockPage,
+      browserContext: mockContext,
+      config: createTestConfig(),
+      logger,
+      metrics,
+      sessionId: 'device-session',
+    };
+
+    const instruction = {
+      index: 0,
+      nodeId: 'node-3',
+      ...createRotateInstruction({ orientation: DeviceOrientation.PORTRAIT, angle: 180 }),
+      params: {},
+    };
+
+    const result = await handler.execute(instruction, context);
+
+    expect(result.success).toBe(true);
+    expect(result.extracted_data?.device?.angle).toBe(180);
+    expect(mockPage.evaluate).toHaveBeenCalledWith(expect.any(Function), 180);
+  });
+
   it('rejects invalid rotation angles when invoked directly', async () => {
     const mockPage = createMockPage({
       viewportSize: jest.fn().mockReturnValue({ width: 800, height: 1200 }),
