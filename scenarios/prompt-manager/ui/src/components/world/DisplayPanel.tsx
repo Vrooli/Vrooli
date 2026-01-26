@@ -1,5 +1,5 @@
 /**
- * CombinePanel - UI for combining selected skills.
+ * DisplayPanel - UI for displaying selected skills.
  * Shows selection count, format options, and preview.
  */
 
@@ -9,35 +9,35 @@ import { Copy, Check, X, FileCode, FileText, Braces, ChevronDown, ChevronUp } fr
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import type { Skill } from '@/types'
-import type { CombineFormat } from '@/types/world'
-import { combineSkills, generatePreview, validateForCombine } from '@/services/skillCombineService'
+import type { DisplayFormat } from '@/types/world'
+import { displaySkills, generatePreview, validateForDisplay } from '@/services/skillDisplayService'
 
-interface CombinePanelProps {
+interface DisplayPanelProps {
   selectedSkills: Skill[]
   onClear: () => void
-  onCombine?: (combined: string, format: CombineFormat) => void
+  onDisplay?: (combined: string, format: DisplayFormat) => void
 }
 
-const FORMAT_OPTIONS: Array<{ value: CombineFormat; label: string; icon: React.ReactNode }> = [
+const FORMAT_OPTIONS: Array<{ value: DisplayFormat; label: string; icon: React.ReactNode }> = [
   { value: 'xml', label: 'XML', icon: <FileCode className="h-4 w-4" /> },
   { value: 'markdown', label: 'Markdown', icon: <FileText className="h-4 w-4" /> },
   { value: 'json', label: 'JSON', icon: <Braces className="h-4 w-4" /> },
 ]
 
-export function CombinePanel({ selectedSkills, onClear, onCombine }: CombinePanelProps) {
-  const [format, setFormat] = useState<CombineFormat>('xml')
+export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPanelProps) {
+  const [format, setFormat] = useState<DisplayFormat>('xml')
   const [copied, setCopied] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
   // Validation
   const validation = useMemo(
-    () => validateForCombine(selectedSkills),
+    () => validateForDisplay(selectedSkills),
     [selectedSkills]
   )
 
-  // Combined output
-  const combineResult = useMemo(
-    () => combineSkills(selectedSkills, format),
+  // Display output
+  const displayResult = useMemo(
+    () => displaySkills(selectedSkills, format),
     [selectedSkills, format]
   )
 
@@ -47,25 +47,25 @@ export function CombinePanel({ selectedSkills, onClear, onCombine }: CombinePane
     [selectedSkills, format]
   )
 
-  // Handle copy - uses API for authoritative combining
+  // Handle copy - uses API for authoritative display
   const handleCopy = async () => {
     try {
-      // Get combined content from API
-      const skillIds = selectedSkills.map((p) => p.id)
-      const response = await api.combineSkills(skillIds, format)
+      // Get displayed content from API
+      const identifiers = selectedSkills.map((p) => p.id)
+      const response = await api.displaySkills(identifiers, format)
 
       // Copy to clipboard
       await navigator.clipboard.writeText(response.combined)
       setCopied(true)
-      onCombine?.(response.combined, format)
+      onDisplay?.(response.combined, format)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {
-      console.error('Failed to combine and copy skills:', error)
-      // Fallback to client-side combining if API fails
+      console.error('Failed to display and copy skills:', error)
+      // Fallback to client-side display if API fails
       try {
-        await navigator.clipboard.writeText(combineResult.combined)
+        await navigator.clipboard.writeText(displayResult.combined)
         setCopied(true)
-        onCombine?.(combineResult.combined, format)
+        onDisplay?.(displayResult.combined, format)
         setTimeout(() => setCopied(false), 2000)
       } catch (fallbackError) {
         console.error('Fallback copy also failed:', fallbackError)
@@ -92,7 +92,7 @@ export function CombinePanel({ selectedSkills, onClear, onCombine }: CombinePane
               {selectedSkills.length} skill{selectedSkills.length !== 1 ? 's' : ''} selected
             </span>
             <span className="text-xs text-slate-400">
-              ~{combineResult.totalTokens.toLocaleString()} tokens
+              ~{displayResult.totalTokens.toLocaleString()} tokens
             </span>
           </div>
 
@@ -172,7 +172,7 @@ export function CombinePanel({ selectedSkills, onClear, onCombine }: CombinePane
             ) : (
               <>
                 <Copy className="h-4 w-4" />
-                Copy Combined
+                Copy Display
               </>
             )}
           </Button>

@@ -551,21 +551,29 @@ func (h *Handlers) toResponseWithContent(p Metadata) Response {
 	return response
 }
 
-// Combine handles POST /skills/combine - combines multiple skills into one output.
-func (h *Handlers) Combine(w http.ResponseWriter, r *http.Request) {
-	var req CombineRequest
+// Display handles POST /skills/display - formats multiple skills into one output.
+func (h *Handlers) Display(w http.ResponseWriter, r *http.Request) {
+	var req DisplayRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if len(req.SkillIDs) == 0 {
-		http.Error(w, "At least one skill ID is required", http.StatusBadRequest)
+	if len(req.Identifiers) == 0 {
+		http.Error(w, "Identifiers are required", http.StatusBadRequest)
 		return
 	}
 
-	// Default format
-	format := req.Format
+	resolve := strings.ToLower(strings.TrimSpace(req.Resolve))
+	if resolve == "" {
+		resolve = "auto"
+	}
+	if !isValidResolveMode(resolve) {
+		http.Error(w, "Resolve must be 'auto', 'id', 'file', or 'name'", http.StatusBadRequest)
+		return
+	}
+
+	format := strings.ToLower(strings.TrimSpace(req.Format))
 	if format == "" {
 		format = "xml"
 	}
@@ -574,108 +582,112 @@ func (h *Handlers) Combine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Collect skills
-	var responses []Response
-	for _, id := range req.SkillIDs {
-		skill, folder, err := h.store.FindByID(id)
-		if err != nil {
-			continue // Skip missing skills
-		}
-
-		content, err := h.store.GetContent(folder, skill.File)
-		if err != nil {
-			continue
-		}
-
-		response := h.toResponse(*skill)
-		response.Content = content
-		response.Folder = folder
-		responses = append(responses, response)
+	allowMissing := true
+	if req.AllowMissing != nil {
+		allowMissing = *req.AllowMissing
 	}
 
-	if len(responses) == 0 {
-		http.Error(w, "No valid skills found", http.StatusNotFound)
+	indexed, err := loadIndexedSkills(h.store)
+	if err != nil {
+		http.Error(w, "Failed to load skills", http.StatusInternalServerError)
 		return
 	}
 
-	// Generate combined output
+	resp := DisplayResponse{Format: format, Resolve: resolve}
+
+	var responses []Response
+	for _, identifier := range req.Identifiers {
+		matches := resolveIdentifier(identifier, resolve, indexed)
+		switch len(matches) {
+		case 0:
+			resp.Missing = append(resp.Missing, ReadIssue{
+				Identifier: identifier,
+				Reason:     "not_found",
+			})
+		case 1:
+			readSkill, err := h.buildReadResponse(matches[0])
+			if err != nil {
+				http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
+				return
+			}
+			responses = append(responses, readSkill)
+		default:
+			resp.Ambiguous = append(resp.Ambiguous, ReadAmbiguous{
+				Identifier: identifier,
+				Candidates: buildCandidates(matches),
+			})
+		}
+	}
+
+	if !allowMissing && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
+		status := http.StatusNotFound
+		if len(resp.Ambiguous) > 0 {
+			status = http.StatusConflict
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	if len(responses) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
 	var combined string
 	switch format {
 	case "xml":
-		combined = combineToXML(responses)
+		combined = displayToXML(responses)
 	case "markdown":
-		combined = combineToMarkdown(responses)
+		combined = displayToMarkdown(responses)
 	case "json":
-		combined = combineToJSON(responses)
+		combined = displayToJSON(responses)
 	}
 
-	// Estimate tokens (~4 chars per token)
 	totalTokens := (len(combined) + 3) / 4
+	resp.Combined = combined
+	resp.SkillCount = len(responses)
+	resp.TotalTokens = totalTokens
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(CombineResponse{
-		Combined:    combined,
-		SkillCount:  len(responses),
-		TotalTokens: totalTokens,
-		Format:      format,
-	})
+	json.NewEncoder(w).Encode(resp)
 }
 
-// combineToXML generates XML output for combined skills.
-func combineToXML(skills []Response) string {
+// displayToXML generates XML output for displayed skills.
+func displayToXML(skills []Response) string {
 	var b strings.Builder
-	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-	b.WriteString("<combined-skills count=\"")
-	b.WriteString(string(rune('0' + len(skills))))
+	b.WriteString("<skills count=\"")
+	b.WriteString(fmt.Sprintf("%d", len(skills)))
 	b.WriteString("\">\n")
 
 	for _, p := range skills {
-		modes := strings.Join(p.Modes, "/")
 		b.WriteString("  <skill id=\"")
 		b.WriteString(escapeXML(p.ID))
 		b.WriteString("\" name=\"")
 		b.WriteString(escapeXML(p.Name))
-		b.WriteString("\"")
-		if modes != "" {
-			b.WriteString(" modes=\"")
-			b.WriteString(escapeXML(modes))
-			b.WriteString("\"")
-		}
-		b.WriteString(">\n")
-
-		if p.Description != "" {
-			b.WriteString("    <description>")
-			b.WriteString(escapeXML(p.Description))
-			b.WriteString("</description>\n")
-		}
-
-		if len(p.Tags) > 0 {
-			b.WriteString("    <tags>")
-			b.WriteString(escapeXML(strings.Join(p.Tags, ", ")))
-			b.WriteString("</tags>\n")
-		}
-
-		b.WriteString("    <content><![CDATA[\n")
+		b.WriteString("\"><![CDATA[\n")
 		b.WriteString(p.Content)
-		b.WriteString("\n]]></content>\n")
-		b.WriteString("  </skill>\n")
+		b.WriteString("\n]]></skill>\n")
 	}
 
-	b.WriteString("</combined-skills>")
+	b.WriteString("</skills>")
 	return b.String()
 }
 
-// combineToMarkdown generates Markdown output for combined skills.
-func combineToMarkdown(skills []Response) string {
+// displayToMarkdown generates Markdown output for displayed skills.
+func displayToMarkdown(skills []Response) string {
 	var b strings.Builder
 	b.WriteString("# Combined Skills (")
-	b.WriteString(string(rune('0' + len(skills))))
+	b.WriteString(fmt.Sprintf("%d", len(skills)))
 	b.WriteString(")\n\n")
 	b.WriteString("---\n\n")
 
 	for i, p := range skills {
 		b.WriteString("## ")
-		b.WriteString(string(rune('1' + i)))
+		b.WriteString(fmt.Sprintf("%d", i+1))
 		b.WriteString(". ")
 		b.WriteString(p.Name)
 		b.WriteString("\n\n")
@@ -713,8 +725,8 @@ func combineToMarkdown(skills []Response) string {
 	return b.String()
 }
 
-// combineToJSON generates JSON output for combined skills.
-func combineToJSON(skills []Response) string {
+// displayToJSON generates JSON output for displayed skills.
+func displayToJSON(skills []Response) string {
 	type jsonSkill struct {
 		ID          string   `json:"id"`
 		Name        string   `json:"name"`

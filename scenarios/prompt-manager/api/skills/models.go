@@ -77,18 +77,23 @@ type UpdateRequest struct {
 	Draft        *bool    `json:"draft,omitempty"`
 }
 
-// CombineRequest is the request body for combining multiple skills.
-type CombineRequest struct {
-	SkillIDs []string `json:"skillIds"`
-	Format   string   `json:"format,omitempty"` // "xml", "markdown", or "json"
+// DisplayRequest is the request body for displaying multiple skills.
+type DisplayRequest struct {
+	Identifiers  []string `json:"identifiers"`
+	Resolve      string   `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
+	AllowMissing *bool    `json:"allowMissing,omitempty"` // default true
+	Format       string   `json:"format,omitempty"`       // "xml", "markdown", or "json"
 }
 
-// CombineResponse is the response for combined skills.
-type CombineResponse struct {
-	Combined    string `json:"combined"`
-	SkillCount  int    `json:"skillCount"`
-	TotalTokens int    `json:"totalTokens"`
-	Format      string `json:"format"`
+// DisplayResponse is the response for displayed skills.
+type DisplayResponse struct {
+	Combined    string          `json:"combined"`
+	SkillCount  int             `json:"skillCount"`
+	TotalTokens int             `json:"totalTokens"`
+	Format      string          `json:"format"`
+	Resolve     string          `json:"resolve"`
+	Missing     []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
 }
 
 // Folders defines the valid folder names for skill storage.
@@ -131,8 +136,43 @@ type VersionsResponse struct {
 
 // RevertResponse is the API response for reverting to a version.
 type RevertResponse struct {
-	SkillID     string `json:"skillId"`
-	RevertedTo  int    `json:"revertedTo"`
-	NewVersion  int    `json:"newVersion"`
-	RestoredAt  string `json:"restoredAt"`
+	SkillID    string `json:"skillId"`
+	RevertedTo int    `json:"revertedTo"`
+	NewVersion int    `json:"newVersion"`
+	RestoredAt string `json:"restoredAt"`
+}
+
+// ReadRequest is the request body for reading multiple skills by identifier.
+type ReadRequest struct {
+	Identifiers  []string `json:"identifiers"`
+	Resolve      string   `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
+	AllowMissing *bool    `json:"allowMissing,omitempty"` // default true
+}
+
+// ReadIssue captures missing identifiers.
+type ReadIssue struct {
+	Identifier string `json:"identifier"`
+	Reason     string `json:"reason"`
+}
+
+// ReadCandidate is a minimal representation of a skill for ambiguity reporting.
+type ReadCandidate struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	File   string `json:"file"`
+	Folder string `json:"folder"`
+}
+
+// ReadAmbiguous captures ambiguous identifiers.
+type ReadAmbiguous struct {
+	Identifier string          `json:"identifier"`
+	Candidates []ReadCandidate `json:"candidates"`
+}
+
+// ReadResponse is the response for reading multiple skills.
+type ReadResponse struct {
+	Skills    []Response      `json:"skills"`
+	Missing   []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous []ReadAmbiguous `json:"ambiguous,omitempty"`
+	Resolve   string          `json:"resolve"`
 }

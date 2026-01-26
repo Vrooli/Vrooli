@@ -1,21 +1,21 @@
 /**
- * Tests for skillCombineService.ts
+ * Tests for skillDisplayService.ts
  *
  * Tests cover:
- * - Combining skills to XML format
- * - Combining skills to Markdown format
- * - Combining skills to JSON format
+ * - Displaying skills to XML format
+ * - Displaying skills to Markdown format
+ * - Displaying skills to JSON format
  * - Preview generation
  * - Validation
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  combineSkills,
+  displaySkills,
   generatePreview,
-  validateForCombine,
+  validateForDisplay,
   copyToClipboard,
-} from './skillCombineService'
+} from './skillDisplayService'
 import type { Skill } from '@/types'
 
 // Helper to create a minimal skill for testing
@@ -37,9 +37,9 @@ function createTestSkill(overrides: Partial<Skill> = {}): Skill {
   }
 }
 
-describe('combineSkills', () => {
+describe('displaySkills', () => {
   it('should return empty result for empty array', () => {
-    const result = combineSkills([], 'xml')
+    const result = displaySkills([], 'xml')
 
     expect(result.combined).toBe('')
     expect(result.skillCount).toBe(0)
@@ -50,17 +50,16 @@ describe('combineSkills', () => {
     it('should generate valid XML structure', () => {
       const skills = [createTestSkill({ id: '1', name: 'Test', content: 'Hello' })]
 
-      const result = combineSkills(skills, 'xml')
+      const result = displaySkills(skills, 'xml')
 
-      expect(result.combined).toContain('<?xml version="1.0"')
-      expect(result.combined).toContain('<combined-skills')
-      expect(result.combined).toContain('</combined-skills>')
+      expect(result.combined).toContain('<skills count="1">')
+      expect(result.combined).toContain('</skills>')
     })
 
     it('should include skill ID and name as attributes', () => {
       const skills = [createTestSkill({ id: 'my-skill', name: 'My Skill' })]
 
-      const result = combineSkills(skills, 'xml')
+      const result = displaySkills(skills, 'xml')
 
       expect(result.combined).toContain('id="my-skill"')
       expect(result.combined).toContain('name="My Skill"')
@@ -69,7 +68,7 @@ describe('combineSkills', () => {
     it('should include content in CDATA section', () => {
       const skills = [createTestSkill({ content: 'Some <special> content' })]
 
-      const result = combineSkills(skills, 'xml')
+      const result = displaySkills(skills, 'xml')
 
       expect(result.combined).toContain('<![CDATA[')
       expect(result.combined).toContain('Some <special> content')
@@ -79,34 +78,20 @@ describe('combineSkills', () => {
     it('should escape XML special characters in attributes', () => {
       const skills = [createTestSkill({ name: 'Test "Skill" & More' })]
 
-      const result = combineSkills(skills, 'xml')
+      const result = displaySkills(skills, 'xml')
 
       expect(result.combined).toContain('&quot;')
       expect(result.combined).toContain('&amp;')
     })
 
-    it('should include modes when present', () => {
-      const skills = [createTestSkill({ modes: ['coding', 'review'] })]
+    it('should not include extra metadata tags in XML', () => {
+      const skills = [createTestSkill({ description: 'My description', tags: ['tag1'], modes: ['coding'] })]
 
-      const result = combineSkills(skills, 'xml')
+      const result = displaySkills(skills, 'xml')
 
-      expect(result.combined).toContain('modes="coding/review"')
-    })
-
-    it('should include description when present', () => {
-      const skills = [createTestSkill({ description: 'My description' })]
-
-      const result = combineSkills(skills, 'xml')
-
-      expect(result.combined).toContain('<description>My description</description>')
-    })
-
-    it('should include tags when present', () => {
-      const skills = [createTestSkill({ tags: ['tag1', 'tag2'] })]
-
-      const result = combineSkills(skills, 'xml')
-
-      expect(result.combined).toContain('<tags>tag1, tag2</tags>')
+      expect(result.combined).not.toContain('<description>')
+      expect(result.combined).not.toContain('<tags>')
+      expect(result.combined).not.toContain('modes=')
     })
   })
 
@@ -114,7 +99,7 @@ describe('combineSkills', () => {
     it('should generate valid Markdown structure', () => {
       const skills = [createTestSkill({ name: 'Test Skill' })]
 
-      const result = combineSkills(skills, 'markdown')
+      const result = displaySkills(skills, 'markdown')
 
       expect(result.combined).toContain('# Combined Skills')
       expect(result.combined).toContain('## 1. Test Skill')
@@ -123,7 +108,7 @@ describe('combineSkills', () => {
     it('should include description as blockquote', () => {
       const skills = [createTestSkill({ description: 'My description' })]
 
-      const result = combineSkills(skills, 'markdown')
+      const result = displaySkills(skills, 'markdown')
 
       expect(result.combined).toContain('> My description')
     })
@@ -131,7 +116,7 @@ describe('combineSkills', () => {
     it('should format modes with bold label', () => {
       const skills = [createTestSkill({ modes: ['coding', 'review'] })]
 
-      const result = combineSkills(skills, 'markdown')
+      const result = displaySkills(skills, 'markdown')
 
       expect(result.combined).toContain('**Modes:**')
       expect(result.combined).toContain('coding / review')
@@ -140,7 +125,7 @@ describe('combineSkills', () => {
     it('should format tags with code backticks', () => {
       const skills = [createTestSkill({ tags: ['tag1', 'tag2'] })]
 
-      const result = combineSkills(skills, 'markdown')
+      const result = displaySkills(skills, 'markdown')
 
       expect(result.combined).toContain('**Tags:**')
       expect(result.combined).toContain('`tag1`')
@@ -150,7 +135,7 @@ describe('combineSkills', () => {
     it('should wrap content in code block', () => {
       const skills = [createTestSkill({ content: 'function test() {}' })]
 
-      const result = combineSkills(skills, 'markdown')
+      const result = displaySkills(skills, 'markdown')
 
       expect(result.combined).toContain('```')
       expect(result.combined).toContain('function test() {}')
@@ -159,7 +144,7 @@ describe('combineSkills', () => {
 
   describe('JSON format', () => {
     // Type for parsed JSON output
-    interface CombinedJsonOutput {
+    interface DisplayJsonOutput {
       combined: boolean
       count: number
       generated: string
@@ -176,7 +161,7 @@ describe('combineSkills', () => {
     it('should generate valid JSON', () => {
       const skills = [createTestSkill({ id: '1', name: 'Test' })]
 
-      const result = combineSkills(skills, 'json')
+      const result = displaySkills(skills, 'json')
 
       expect(() => JSON.parse(result.combined) as unknown).not.toThrow()
     })
@@ -184,8 +169,8 @@ describe('combineSkills', () => {
     it('should include combined flag and count', () => {
       const skills = [createTestSkill(), createTestSkill({ id: '2' })]
 
-      const result = combineSkills(skills, 'json')
-      const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
+      const result = displaySkills(skills, 'json')
+      const parsed: DisplayJsonOutput = JSON.parse(result.combined) as DisplayJsonOutput
 
       expect(parsed.combined).toBe(true)
       expect(parsed.count).toBe(2)
@@ -203,8 +188,8 @@ describe('combineSkills', () => {
         }),
       ]
 
-      const result = combineSkills(skills, 'json')
-      const parsed: CombinedJsonOutput = JSON.parse(result.combined) as CombinedJsonOutput
+      const result = displaySkills(skills, 'json')
+      const parsed: DisplayJsonOutput = JSON.parse(result.combined) as DisplayJsonOutput
       const firstSkill = parsed.skills[0]
 
       expect(firstSkill).toBeDefined()
@@ -220,16 +205,16 @@ describe('combineSkills', () => {
   it('should default to XML format', () => {
     const skills = [createTestSkill()]
 
-    const result = combineSkills(skills)
+    const result = displaySkills(skills)
 
     expect(result.format).toBe('xml')
-    expect(result.combined).toContain('<?xml')
+    expect(result.combined).toContain('<skills')
   })
 
   it('should calculate token estimate', () => {
     const skills = [createTestSkill({ content: 'A'.repeat(400) })]
 
-    const result = combineSkills(skills, 'xml')
+    const result = displaySkills(skills, 'xml')
 
     // Roughly 4 chars per token
     expect(result.totalTokens).toBeGreaterThan(100)
@@ -242,7 +227,7 @@ describe('combineSkills', () => {
       createTestSkill({ id: '3' }),
     ]
 
-    const result = combineSkills(skills, 'xml')
+    const result = displaySkills(skills, 'xml')
 
     expect(result.skillCount).toBe(3)
   })
@@ -275,16 +260,16 @@ describe('generatePreview', () => {
   })
 })
 
-describe('validateForCombine', () => {
+describe('validateForDisplay', () => {
   it('should error on empty array', () => {
-    const result = validateForCombine([])
+    const result = validateForDisplay([])
 
     expect(result.valid).toBe(false)
     expect(result.errors).toContain('No skills selected')
   })
 
   it('should warn on single skill', () => {
-    const result = validateForCombine([createTestSkill()])
+    const result = validateForDisplay([createTestSkill()])
 
     expect(result.valid).toBe(true)
     expect(result.warnings.length).toBeGreaterThan(0)
@@ -292,7 +277,7 @@ describe('validateForCombine', () => {
   })
 
   it('should be valid for multiple skills', () => {
-    const result = validateForCombine([
+    const result = validateForDisplay([
       createTestSkill({ id: '1' }),
       createTestSkill({ id: '2' }),
     ])
@@ -302,7 +287,7 @@ describe('validateForCombine', () => {
   })
 
   it('should warn on empty content', () => {
-    const result = validateForCombine([
+    const result = validateForDisplay([
       createTestSkill({ id: '1', content: '' }),
       createTestSkill({ id: '2', content: 'Has content' }),
     ])
@@ -311,7 +296,7 @@ describe('validateForCombine', () => {
   })
 
   it('should warn on draft skills', () => {
-    const result = validateForCombine([
+    const result = validateForDisplay([
       createTestSkill({ id: '1', draft: true, name: 'Draft Skill' }),
       createTestSkill({ id: '2', draft: false }),
     ])
@@ -320,12 +305,12 @@ describe('validateForCombine', () => {
     expect(result.warnings.some((w) => w.includes('Draft Skill'))).toBe(true)
   })
 
-  it('should warn on large combined size', () => {
+  it('should warn on large displayed size', () => {
     const largeSkills = Array.from({ length: 10 }, (_, i) =>
       createTestSkill({ id: `${i}`, content: 'A'.repeat(10000) })
     )
 
-    const result = validateForCombine(largeSkills)
+    const result = validateForDisplay(largeSkills)
 
     expect(result.warnings.some((w) => w.includes('large'))).toBe(true)
   })
@@ -341,7 +326,7 @@ describe('copyToClipboard', () => {
     mockClipboard.writeText.mockReset()
   })
 
-  it('should copy combined content to clipboard', async () => {
+  it('should copy displayed content to clipboard', async () => {
     mockClipboard.writeText.mockResolvedValue(undefined)
     const skills = [createTestSkill()]
 

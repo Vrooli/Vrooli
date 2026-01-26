@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
 import type { Skill } from '@/types'
-import type { CombineFormat } from '@/types/world'
+import type { DisplayFormat } from '@/types/world'
 import { EditorToolbar } from './EditorToolbar'
 import { SkillContentEditor } from './SkillContentEditor'
 import { FilePathMenu } from './FilePathMenu'
@@ -67,7 +67,7 @@ interface SkillEditorPanelProps {
   onDiscard: () => void
   onDelete: () => void
   onSelectSkill?: (skillId: string) => void
-  onCombineSkills?: (combined: string, format: CombineFormat) => void
+  onDisplaySkills?: (combined: string, format: DisplayFormat) => void
 
   // Loading states
   isSaving: boolean
@@ -97,7 +97,7 @@ export function SkillEditorPanel({
   onDiscard,
   onDelete,
   onSelectSkill,
-  onCombineSkills,
+  onDisplaySkills,
   isSaving,
   isDeleting,
   className,
@@ -118,7 +118,7 @@ export function SkillEditorPanel({
           <WorldCanvas
             skills={allSkills}
             onSelectSkill={onSelectSkill}
-            onCombineSkills={onCombineSkills}
+            onDisplaySkills={onDisplaySkills}
           />
         </PanelErrorBoundary>
       </div>

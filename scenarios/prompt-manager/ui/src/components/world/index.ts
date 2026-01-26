@@ -10,7 +10,7 @@ export { WorldCanvas } from './WorldCanvas'
 export { WorldScene } from './WorldScene'
 export { WorldControls } from './WorldControls'
 export { EnvironmentControls } from './EnvironmentControls'
-export { CombinePanel } from './CombinePanel'
+export { DisplayPanel } from './DisplayPanel'
 
 // Member system
 export { MemberProvider, useMember, useMemberComponent, getAvailableMembers, registerMember } from './MemberProvider'

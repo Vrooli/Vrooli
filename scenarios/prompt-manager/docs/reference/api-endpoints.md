@@ -296,17 +296,19 @@ Get all skills with hash for change detection.
 
 ---
 
-## Combine
+## Display
 
-### POST /api/v1/skills/combine
+### POST /api/v1/skills/display
 
-Combine multiple skills into a single output.
+Display multiple skills into a single output.
 
 **Request Body:**
 ```json
 {
-  "skillIds": ["debugging", "testing", "refactor"],
-  "format": "xml"
+  "identifiers": ["debugging", "testing", "refactor"],
+  "format": "xml",
+  "resolve": "auto",
+  "allowMissing": true
 }
 ```
 
@@ -318,11 +320,14 @@ Combine multiple skills into a single output.
   "combined": "<skills>...</skills>",
   "skillCount": 3,
   "totalTokens": 2500,
-  "format": "xml"
+  "format": "xml",
+  "resolve": "auto",
+  "missing": [],
+  "ambiguous": []
 }
 ```
 
-**Use Case:** Combine related skills for LLM context.
+**Use Case:** Display related skills for LLM context.
 
 ---
 

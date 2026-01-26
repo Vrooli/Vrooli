@@ -1,9 +1,9 @@
 /**
- * Service for combining multiple skills into various output formats.
+ * Service for displaying multiple skills into various output formats.
  */
 
 import type { Skill } from '@/types'
-import type { CombineFormat, CombineResponse } from '@/types/world'
+import type { DisplayFormat, DisplayResponse } from '@/types/world'
 
 /**
  * Escape XML special characters.
@@ -26,43 +26,28 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * Combine skills into XML format.
+ * Display skills into XML format.
  */
-function combineToXml(skills: Skill[]): string {
+function displayToXml(skills: Skill[]): string {
   const lines: string[] = [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<combined-skills count="${skills.length}">`,
+    `<skills count="${skills.length}">`,
   ]
 
   skills.forEach((skill) => {
-    const modes = skill.modes.join('/')
-    const tags = skill.tags.join(', ')
-
-    lines.push(`  <skill id="${escapeXml(skill.id)}" name="${escapeXml(skill.name)}"${modes ? ` modes="${escapeXml(modes)}"` : ''}>`)
-
-    if (skill.description) {
-      lines.push(`    <description>${escapeXml(skill.description)}</description>`)
-    }
-
-    if (tags) {
-      lines.push(`    <tags>${escapeXml(tags)}</tags>`)
-    }
-
-    lines.push(`    <content><![CDATA[`)
+    lines.push(`  <skill id="${escapeXml(skill.id)}" name="${escapeXml(skill.name)}"><![CDATA[`)
     lines.push(skill.content || '')
-    lines.push(`]]></content>`)
-    lines.push(`  </skill>`)
+    lines.push(`]]></skill>`)
   })
 
-  lines.push(`</combined-skills>`)
+  lines.push(`</skills>`)
 
   return lines.join('\n')
 }
 
 /**
- * Combine skills into Markdown format.
+ * Display skills into Markdown format.
  */
-function combineToMarkdown(skills: Skill[]): string {
+function displayToMarkdown(skills: Skill[]): string {
   const lines: string[] = [
     `# Combined Skills (${skills.length})`,
     '',
@@ -110,9 +95,9 @@ function combineToMarkdown(skills: Skill[]): string {
 }
 
 /**
- * Combine skills into JSON format.
+ * Display skills into JSON format.
  */
-function combineToJson(skills: Skill[]): string {
+function displayToJson(skills: Skill[]): string {
   const data = {
     combined: true,
     count: skills.length,
@@ -131,12 +116,12 @@ function combineToJson(skills: Skill[]): string {
 }
 
 /**
- * Combine multiple skills into the specified format.
+ * Display multiple skills into the specified format.
  */
-export function combineSkills(
+export function displaySkills(
   skills: Skill[],
-  format: CombineFormat = 'xml'
-): CombineResponse {
+  format: DisplayFormat = 'xml'
+): DisplayResponse {
   if (skills.length === 0) {
     return {
       combined: '',
@@ -150,16 +135,16 @@ export function combineSkills(
 
   switch (format) {
     case 'xml':
-      combined = combineToXml(skills)
+      combined = displayToXml(skills)
       break
     case 'markdown':
-      combined = combineToMarkdown(skills)
+      combined = displayToMarkdown(skills)
       break
     case 'json':
-      combined = combineToJson(skills)
+      combined = displayToJson(skills)
       break
     default:
-      combined = combineToXml(skills)
+      combined = displayToXml(skills)
   }
 
   return {
@@ -171,14 +156,14 @@ export function combineSkills(
 }
 
 /**
- * Generate a preview of combined skills (first N characters).
+ * Generate a preview of displayed skills (first N characters).
  */
 export function generatePreview(
   skills: Skill[],
-  format: CombineFormat = 'xml',
+  format: DisplayFormat = 'xml',
   maxLength: number = 500
 ): string {
-  const result = combineSkills(skills, format)
+  const result = displaySkills(skills, format)
 
   if (result.combined.length <= maxLength) {
     return result.combined
@@ -188,9 +173,9 @@ export function generatePreview(
 }
 
 /**
- * Validate skills for combination.
+ * Validate skills for display.
  */
-export function validateForCombine(skills: Skill[]): {
+export function validateForDisplay(skills: Skill[]): {
   valid: boolean
   errors: string[]
   warnings: string[]
@@ -203,7 +188,7 @@ export function validateForCombine(skills: Skill[]): {
   }
 
   if (skills.length === 1) {
-    warnings.push('Only one skill selected - combining is optional')
+    warnings.push('Only one skill selected - display is optional')
   }
 
   // Check for missing content
@@ -222,14 +207,14 @@ export function validateForCombine(skills: Skill[]): {
     )
   }
 
-  // Estimate combined size
+  // Estimate displayed size
   const totalContent = skills.reduce(
     (sum, p) => sum + p.content.length,
     0
   )
   if (totalContent > 50000) {
     warnings.push(
-      `Combined content is large (~${Math.round(totalContent / 1000)}KB). Consider selecting fewer skills.`
+      `Displayed content is large (~${Math.round(totalContent / 1000)}KB). Consider selecting fewer skills.`
     )
   }
 
@@ -241,14 +226,14 @@ export function validateForCombine(skills: Skill[]): {
 }
 
 /**
- * Copy combined content to clipboard.
+ * Copy displayed content to clipboard.
  */
 export async function copyToClipboard(
   skills: Skill[],
-  format: CombineFormat = 'xml'
+  format: DisplayFormat = 'xml'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const result = combineSkills(skills, format)
+    const result = displaySkills(skills, format)
     await navigator.clipboard.writeText(result.combined)
     return { success: true }
   } catch (error) {

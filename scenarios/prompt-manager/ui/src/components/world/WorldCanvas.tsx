@@ -12,7 +12,7 @@ import { Suspense, useCallback, useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Loader } from '@react-three/drei'
 import type { Skill } from '@/types'
-import type { CombineFormat } from '@/types/world'
+import type { DisplayFormat } from '@/types/world'
 import type { FurnitureInstance } from '@/types/furniture'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
@@ -24,7 +24,7 @@ import { useWorldDefaults } from '@/hooks/useWorldDefaults'
 import { MemberProvider } from './MemberProvider'
 import { WorldScene, type MemberWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
-import { CombinePanel } from './CombinePanel'
+import { DisplayPanel } from './DisplayPanel'
 import { MemberOverlay } from './MemberOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
 import { FurnitureContextMenu } from './furniture'
@@ -77,7 +77,7 @@ function generateMemberPosition(memberId: string, index: number, total: number):
 interface WorldCanvasProps {
   skills: Skill[]
   onSelectSkill?: (skillId: string) => void
-  onCombineSkills?: (combined: string, format: CombineFormat) => void
+  onDisplaySkills?: (combined: string, format: DisplayFormat) => void
   memberType?: string
   className?: string
 }
@@ -85,7 +85,7 @@ interface WorldCanvasProps {
 export function WorldCanvas({
   skills,
   onSelectSkill: _onSelectSkill,
-  onCombineSkills,
+  onDisplaySkills,
   memberType = 'geometric',
   className,
 }: WorldCanvasProps) {
@@ -243,12 +243,12 @@ export function WorldCanvas({
     setCursorPosition(null)
   }, [])
 
-  // Handle combine
-  const handleCombine = useCallback(
-    (combined: string, format: CombineFormat) => {
-      onCombineSkills?.(combined, format)
+  // Handle display
+  const handleDisplay = useCallback(
+    (combined: string, format: DisplayFormat) => {
+      onDisplaySkills?.(combined, format)
     },
-    [onCombineSkills]
+    [onDisplaySkills]
   )
 
   // Get full skill objects for selected IDs
@@ -387,11 +387,11 @@ export function WorldCanvas({
         </div>
       )}
 
-      {/* Combine panel */}
-      <CombinePanel
+      {/* Display panel */}
+      <DisplayPanel
         selectedSkills={selectedSkillObjects}
         onClear={() => setSelectedSkillIds([])}
-        onCombine={handleCombine}
+        onDisplay={handleDisplay}
       />
 
       {/* Empty state */}

@@ -71,7 +71,7 @@ export type MemberRegistry = Record<string, MemberConfig>
 export type SelectionMode = 'single' | 'multi' | 'toggle'
 
 /**
- * Selection state for skill combination.
+ * Selection state for skill display.
  */
 export interface SelectionState {
   selectedIds: string[]
@@ -80,24 +80,24 @@ export interface SelectionState {
 }
 
 /**
- * Combined skills output format.
+ * Displayed skills output format.
  */
-export type CombineFormat = 'xml' | 'markdown' | 'json'
+export type DisplayFormat = 'xml' | 'markdown' | 'json'
 
 /**
- * Request to combine multiple skills.
+ * Request to display multiple skills.
  */
-export interface CombineRequest {
-  skillIds: string[]
-  format: CombineFormat
+export interface DisplayRequest {
+  identifiers: string[]
+  format: DisplayFormat
 }
 
 /**
- * Response from combining skills.
+ * Response from displaying skills.
  */
-export interface CombineResponse {
+export interface DisplayResponse {
   combined: string
   skillCount: number
   totalTokens: number
-  format: CombineFormat
+  format: DisplayFormat
 }

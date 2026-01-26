@@ -30,7 +30,7 @@ import type {
   FolderType,
 } from '@/types'
 import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
-import type { CombineFormat, CombineResponse } from '@/types/world'
+import type { DisplayFormat, DisplayResponse } from '@/types/world'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
@@ -284,11 +284,11 @@ class ApiClient {
     )
   }
 
-  // Combine skills
-  async combineSkills(skillIds: string[], format: CombineFormat = 'xml'): Promise<CombineResponse> {
-    return this.request<CombineResponse>('/skills/combine', {
+  // Display skills
+  async displaySkills(identifiers: string[], format: DisplayFormat = 'xml'): Promise<DisplayResponse> {
+    return this.request<DisplayResponse>('/skills/display', {
       method: 'POST',
-      body: JSON.stringify({ skillIds, format }),
+      body: JSON.stringify({ identifiers, format }),
     })
   }
 

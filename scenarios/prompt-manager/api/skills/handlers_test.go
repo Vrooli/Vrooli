@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -249,5 +250,238 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 	json.Unmarshal(w2.Body.Bytes(), &resp2)
 	if resp2.ID != "skill-1" {
 		t.Errorf("expected ID 'skill-1', got '%s'", resp2.ID)
+	}
+}
+
+func addMockSkill(store *MockStore, folder, id, file, name, content string) {
+	createdAt := "2024-01-01T00:00:00Z"
+	skill := Metadata{
+		ID:          id,
+		File:        file,
+		Name:        name,
+		Description: "",
+		Modes:       []string{},
+		Tags:        []string{},
+		Icon:        "",
+		Draft:       false,
+		CreatedAt:   createdAt,
+		UpdatedAt:   createdAt,
+	}
+	store.skills[folder] = append(store.skills[folder], skill)
+	store.contents[folder+"/"+file] = content
+}
+
+func TestRead_ResolveAutoByID(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+
+	req := ReadRequest{Identifiers: []string{"react-coherence"}}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+	if resp.Skills[0].ID != "react-coherence" {
+		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	}
+	if resp.Skills[0].Content != "content-a" {
+		t.Errorf("expected content 'content-a', got '%s'", resp.Skills[0].Content)
+	}
+}
+
+func TestRead_ResolveFileWithoutExtension(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+
+	req := ReadRequest{Identifiers: []string{"react-coherence"}, Resolve: "file"}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+	if resp.Skills[0].ID != "react-coherence" {
+		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	}
+}
+
+func TestRead_ResolveFilePath(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+
+	req := ReadRequest{Identifiers: []string{"core/react-coherence.md"}, Resolve: "file"}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+	if resp.Skills[0].ID != "react-coherence" {
+		t.Errorf("expected ID 'react-coherence', got '%s'", resp.Skills[0].ID)
+	}
+}
+
+func TestRead_ResolveNameAmbiguous(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "alpha-core", "alpha.md", "Alpha", "content-a")
+	addMockSkill(store, "local", "alpha-local", "alpha.md", "Alpha", "content-b")
+
+	req := ReadRequest{Identifiers: []string{"Alpha"}, Resolve: "name"}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Ambiguous) != 1 {
+		t.Fatalf("expected 1 ambiguous entry, got %d", len(resp.Ambiguous))
+	}
+	if len(resp.Ambiguous[0].Candidates) != 2 {
+		t.Fatalf("expected 2 candidates, got %d", len(resp.Ambiguous[0].Candidates))
+	}
+}
+
+func TestRead_StrictMissingReturnsNotFound(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	allowMissing := false
+	req := ReadRequest{
+		Identifiers:  []string{"missing"},
+		AllowMissing: &allowMissing,
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("read: expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Missing) != 1 {
+		t.Fatalf("expected 1 missing entry, got %d", len(resp.Missing))
+	}
+}
+
+func TestDisplay_ResolveFileWithoutExtension(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
+
+	req := DisplayRequest{Identifiers: []string{"react-coherence"}, Resolve: "file"}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/display", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Display(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("display: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp DisplayResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("display: failed to parse response: %v", err)
+	}
+
+	if resp.SkillCount != 1 {
+		t.Fatalf("expected 1 skill, got %d", resp.SkillCount)
+	}
+	if !strings.Contains(resp.Combined, "<skills count=\"1\">") {
+		t.Fatalf("expected XML root with count, got: %s", resp.Combined)
+	}
+	if !strings.Contains(resp.Combined, "<![CDATA[\ncontent-a\n]]>") {
+		t.Fatalf("expected CDATA content, got: %s", resp.Combined)
+	}
+}
+
+func TestDisplay_StrictMissingReturnsNotFound(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	allowMissing := false
+	req := DisplayRequest{
+		Identifiers:  []string{"missing"},
+		AllowMissing: &allowMissing,
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/display", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Display(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("display: expected status 404, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp DisplayResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("display: failed to parse response: %v", err)
+	}
+
+	if len(resp.Missing) != 1 {
+		t.Fatalf("expected 1 missing entry, got %d", len(resp.Missing))
 	}
 }

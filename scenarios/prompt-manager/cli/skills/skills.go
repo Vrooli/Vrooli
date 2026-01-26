@@ -68,18 +68,58 @@ type SyncResponse struct {
 	Hash        string          `json:"hash"`
 }
 
-// CombineRequest matches the API request for combining skills
-type CombineRequest struct {
-	SkillIDs []string `json:"skillIds"`
-	Format   string   `json:"format,omitempty"`
+// DisplayRequest matches the API request for displaying multiple skills
+type DisplayRequest struct {
+	Identifiers  []string `json:"identifiers"`
+	Resolve      string   `json:"resolve,omitempty"`
+	AllowMissing *bool    `json:"allowMissing,omitempty"`
+	Format       string   `json:"format,omitempty"`
 }
 
-// CombineResponse matches the API response for combining skills
-type CombineResponse struct {
-	Combined    string `json:"combined"`
-	SkillCount  int    `json:"skillCount"`
-	TotalTokens int    `json:"totalTokens"`
-	Format      string `json:"format"`
+// DisplayResponse matches the API response for displaying skills
+type DisplayResponse struct {
+	Combined    string          `json:"combined"`
+	SkillCount  int             `json:"skillCount"`
+	TotalTokens int             `json:"totalTokens"`
+	Format      string          `json:"format"`
+	Resolve     string          `json:"resolve"`
+	Missing     []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
+}
+
+// ReadRequest matches the API request for reading multiple skills
+type ReadRequest struct {
+	Identifiers  []string `json:"identifiers"`
+	Resolve      string   `json:"resolve,omitempty"`
+	AllowMissing *bool    `json:"allowMissing,omitempty"`
+}
+
+// ReadIssue captures missing identifiers
+type ReadIssue struct {
+	Identifier string `json:"identifier"`
+	Reason     string `json:"reason"`
+}
+
+// ReadCandidate is a minimal skill representation for ambiguity reporting
+type ReadCandidate struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	File   string `json:"file"`
+	Folder string `json:"folder"`
+}
+
+// ReadAmbiguous captures ambiguous identifiers
+type ReadAmbiguous struct {
+	Identifier string          `json:"identifier"`
+	Candidates []ReadCandidate `json:"candidates"`
+}
+
+// ReadResponse matches the API response for reading multiple skills
+type ReadResponse struct {
+	Skills    []SkillResponse `json:"skills"`
+	Missing   []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous []ReadAmbiguous `json:"ambiguous,omitempty"`
+	Resolve   string          `json:"resolve"`
 }
 
 // VersionResponse matches the API response for versions
@@ -107,7 +147,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|show|add|update|delete|use|sync|combine|rate|versions|revert)",
+					Description: "Manage skills (list|show|add|update|delete|use|sync|display|rate|versions|revert)",
 					Run: func(args []string) error {
 						return route(ctx, args)
 					},
@@ -143,8 +183,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdUse(ctx, subArgs)
 	case "sync":
 		return cmdSync(ctx, subArgs)
-	case "combine":
-		return cmdCombine(ctx, subArgs)
+	case "display":
+		return cmdDisplay(ctx, subArgs)
 	case "rate":
 		return cmdRate(ctx, subArgs)
 	case "versions", "history":
@@ -167,13 +207,13 @@ func usageText() string {
 Subcommands:
   list, ls              List all skills
   show, get <id>        Show skill details
-  read <id|name>        Output skill content only (for piping)
+  read <identifier>...  Output skill content only (for piping)
   add, create <name>    Create a new skill
   update, edit <id>     Update an existing skill
   delete, rm <id>       Delete a skill
   use, copy <id>        Record usage and copy to clipboard
   sync                  Sync skills with hash-based change detection
-  combine <id>...       Combine multiple skills
+  display <id>...       Display multiple skills
   rate <id> <1-5>       Rate skill effectiveness
   versions, history <id> Show version history
   revert, restore <id> <version>  Revert to a specific version`
@@ -275,42 +315,61 @@ func cmdShow(ctx appctx.Context, args []string) error {
 
 // cmdRead outputs only the skill content (for piping to other tools).
 func cmdRead(ctx appctx.Context, args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: skill read <id|name>")
-	}
-	identifier := strings.Join(args, " ")
-
-	// Try to get skill by ID first
-	var skill SkillResponse
-	if err := ctx.Get(fmt.Sprintf("/skills/%s", identifier), &skill); err != nil {
-		// If not found by ID, search by name
-		var skills []SkillResponse
-		query := url.Values{}
-		if err := ctx.GetWithQuery("/skills", query, &skills); err != nil {
-			return fmt.Errorf("failed to list skills: %w", err)
-		}
-
-		// Find by name (case-insensitive)
-		identifierLower := strings.ToLower(identifier)
-		var match *SkillResponse
-		for i := range skills {
-			if strings.ToLower(skills[i].Name) == identifierLower {
-				match = &skills[i]
-				break
-			}
-		}
-		if match == nil {
-			return fmt.Errorf("skill not found: %s", identifier)
-		}
-
-		// Fetch full skill with content
-		if err := ctx.Get(fmt.Sprintf("/skills/%s", match.ID), &skill); err != nil {
-			return fmt.Errorf("failed to get skill: %w", err)
-		}
+	fs := flag.NewFlagSet("read", flag.ContinueOnError)
+	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
+	jsonOut := fs.Bool("json", false, "Output full JSON response")
+	strict := fs.Bool("strict", false, "Fail if any identifier is missing or ambiguous")
+	separator := fs.String("sep", "\n\n---\n\n", "Separator between skills")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
 
-	// Output content only (no metadata, no formatting)
-	fmt.Print(skill.Content)
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--strict] [--json]")
+	}
+
+	req := ReadRequest{
+		Identifiers: fs.Args(),
+		Resolve:     *resolve,
+	}
+
+	var resp ReadResponse
+	if err := ctx.Post("/skills/read", req, &resp); err != nil {
+		return fmt.Errorf("failed to read skills: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	for i, skill := range resp.Skills {
+		if i > 0 {
+			fmt.Print(*separator)
+		}
+		fmt.Print(skill.Content)
+	}
+
+	if len(resp.Missing) > 0 {
+		var ids []string
+		for _, miss := range resp.Missing {
+			ids = append(ids, miss.Identifier)
+		}
+		fmt.Fprintf(os.Stderr, "\nMissing skills: %s\n", strings.Join(ids, ", "))
+	}
+	if len(resp.Ambiguous) > 0 {
+		var ids []string
+		for _, amb := range resp.Ambiguous {
+			ids = append(ids, amb.Identifier)
+		}
+		fmt.Fprintf(os.Stderr, "\nAmbiguous skills: %s\n", strings.Join(ids, ", "))
+	}
+
+	if *strict && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
+		return fmt.Errorf("one or more skills were missing or ambiguous")
+	}
+
 	return nil
 }
 
@@ -533,26 +592,33 @@ func cmdSync(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-func cmdCombine(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("combine", flag.ContinueOnError)
+func cmdDisplay(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("display", flag.ContinueOnError)
 	format := fs.String("format", "xml", "Output format (xml|markdown|json)")
+	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
 	jsonOut := fs.Bool("json", false, "Output as JSON response")
+	strict := fs.Bool("strict", false, "Fail if any identifier is missing or ambiguous")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill combine <id> [<id>...] [--format=xml|markdown|json]")
+		return fmt.Errorf("usage: skill display <identifier> [identifier...] [--format=xml|markdown|json] [--resolve=auto|id|file|name] [--strict] [--json]")
 	}
 
-	req := CombineRequest{
-		SkillIDs: fs.Args(),
-		Format:   *format,
+	req := DisplayRequest{
+		Identifiers: fs.Args(),
+		Resolve:     *resolve,
+		Format:      *format,
+	}
+	if *strict {
+		allowMissing := false
+		req.AllowMissing = &allowMissing
 	}
 
-	var resp CombineResponse
-	if err := ctx.Post("/skills/combine", req, &resp); err != nil {
-		return fmt.Errorf("failed to combine skills: %w", err)
+	var resp DisplayResponse
+	if err := ctx.Post("/skills/display", req, &resp); err != nil {
+		return fmt.Errorf("failed to display skills: %w", err)
 	}
 
 	if *jsonOut {
@@ -561,8 +627,34 @@ func cmdCombine(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Combined %d skills (~%d tokens):\n\n", resp.SkillCount, resp.TotalTokens)
+	if resp.SkillCount == 0 && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
+		var ids []string
+		for _, miss := range resp.Missing {
+			ids = append(ids, miss.Identifier)
+		}
+		for _, amb := range resp.Ambiguous {
+			ids = append(ids, amb.Identifier)
+		}
+		return fmt.Errorf("no skills resolved (missing/ambiguous: %s)", strings.Join(ids, ", "))
+	}
+
+	fmt.Printf("Displayed %d skills (~%d tokens):\n\n", resp.SkillCount, resp.TotalTokens)
 	fmt.Println(resp.Combined)
+
+	if len(resp.Missing) > 0 {
+		var ids []string
+		for _, miss := range resp.Missing {
+			ids = append(ids, miss.Identifier)
+		}
+		fmt.Fprintf(os.Stderr, "\nMissing skills: %s\n", strings.Join(ids, ", "))
+	}
+	if len(resp.Ambiguous) > 0 {
+		var ids []string
+		for _, amb := range resp.Ambiguous {
+			ids = append(ids, amb.Identifier)
+		}
+		fmt.Fprintf(os.Stderr, "\nAmbiguous skills: %s\n", strings.Join(ids, ", "))
+	}
 
 	// Copy to clipboard if available
 	if clipboard.IsAvailable() {

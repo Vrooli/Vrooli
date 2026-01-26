@@ -31,14 +31,14 @@ Agent-maintained document tracking development milestones.
 ### Phase 3: CLI Completion (2025-01-25)
 - [x] Noun-verb subcommand pattern implemented
 - [x] All API endpoints have CLI coverage:
-  - `skill` - list, show, add, update, delete, use, sync, combine, rate, versions, revert
+  - `skill` - list, show, add, update, delete, use, sync, display, rate, versions, revert
   - `tag` - list, create
   - `member` - list, show, create, update, delete
   - `test` - run, history
   - `search` - query
   - `metadata` - fetch
 - [x] Output formatting helpers in `internal/output/`
-- [x] Clipboard integration for `use` and `combine`
+- [x] Clipboard integration for `use` and `display`
 
 ### Phase 4: Documentation (2025-01-25)
 - [x] docs/QUICKSTART.md - Getting started guide

@@ -176,8 +176,9 @@ func main() {
 	// Skill routes
 	v1.HandleFunc("/skills", skillHandlers.List).Methods("GET")
 	v1.HandleFunc("/skills/sync", skillHandlers.Sync).Methods("GET")
-	v1.HandleFunc("/skills/combine", skillHandlers.Combine).Methods("POST")
+	v1.HandleFunc("/skills/display", skillHandlers.Display).Methods("POST")
 	v1.HandleFunc("/skills", skillHandlers.Create).Methods("POST")
+	v1.HandleFunc("/skills/read", skillHandlers.Read).Methods("POST")
 	v1.HandleFunc("/skills/{id}", skillHandlers.Get).Methods("GET")
 	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")

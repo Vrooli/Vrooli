@@ -157,24 +157,26 @@ pm skill sync [--tag=TAG] [--json]
 
 Returns all skills with a hash for cache invalidation.
 
-### pm skill combine
+### pm skill display
 
-Combine multiple skills into a single output.
+Display multiple skills into a single output.
 
 ```bash
-pm skill combine <id> [<id>...] [--format=xml|markdown|json] [--json]
+pm skill display <identifier> [<identifier>...] [--format=xml|markdown|json] [--resolve=auto|id|file|name] [--strict] [--json]
 ```
 
 **Options:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--format` | `xml` | Output format |
+| `--resolve` | `auto` | Resolution mode |
+| `--strict` | | Fail if any identifier is missing or ambiguous |
 | `--json` | | Output full response as JSON |
 
 **Example:**
 ```bash
-pm skill combine debugging testing refactor --format=markdown
-# Output: Combined 3 skills (~2500 tokens) copied to clipboard
+pm skill display react-coherence domain-compression --format=markdown
+# Output: Displayed 2 skills (~2500 tokens) copied to clipboard
 ```
 
 ### pm skill rate
