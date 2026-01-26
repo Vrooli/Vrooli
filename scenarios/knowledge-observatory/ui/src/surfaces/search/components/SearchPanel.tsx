@@ -172,14 +172,11 @@ export function SearchPanel({
       </div>
 
       {hasError && (
-        <div
-          className="ko-alert ko-alert-danger"
-          data-testid={selectors.search.error}
-        >
-          <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="ko-alert ko-alert-danger" data-testid={selectors.search.error}>
+          <AlertCircle className="h-5 w-5 ko-text-danger flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-red-300 ko-alert-title">Search Error</p>
-            <p className="ko-text-sm text-red-600 mt-1">{safeErrorMessage}</p>
+            <p className="ko-alert-title ko-text-danger-strong">Search Error</p>
+            <p className="ko-text-sm ko-text-danger-muted mt-1">{safeErrorMessage}</p>
           </div>
         </div>
       )}
@@ -211,22 +208,19 @@ export function SearchPanel({
                 const hasMetadata = result.hasMetadata && Object.keys(metadata).length > 0;
 
                 return (
-                  <div
-                    key={resultId}
-                    className="ko-card p-4 hover:border-green-500/70 transition-colors"
-                  >
+                  <div key={resultId} className="ko-card ko-card-interactive p-4">
                     <div className="flex items-start justify-between gap-4 mb-2">
-                      <span className="ko-text-xs text-green-500 font-mono">ID: {resultId}</span>
-                      <span className="ko-text-xs text-green-300 font-semibold">
+                      <span className="ko-text-xs ko-subtle font-mono">ID: {resultId}</span>
+                      <span className="ko-text-xs ko-text-strong font-semibold">
                         Score: {result.scoreLabel}
                       </span>
                     </div>
-                    <p className="ko-text-sm text-green-200">{content}</p>
+                    <p className="ko-text-sm ko-text-primary">{content}</p>
                     {hasMetadata && (
-                      <div className="mt-2 pt-2 border-t border-green-800/40">
-                        <details className="ko-text-xs text-green-500">
-                          <summary className="cursor-pointer hover:text-green-300">Metadata</summary>
-                          <pre className="mt-2 p-2 bg-black/70 rounded overflow-x-auto text-green-200 font-mono">
+                      <div className="mt-2 pt-2 ko-border-subtle border-t">
+                        <details className="ko-text-xs ko-subtle">
+                          <summary className="ko-link">Metadata</summary>
+                          <pre className="mt-2 p-2 ko-surface-strong rounded overflow-x-auto ko-text-primary font-mono">
                             {safeJsonStringify(metadata)}
                           </pre>
                         </details>
@@ -241,11 +235,8 @@ export function SearchPanel({
       )}
 
       {!hasData && !hasError && !isLoading && (
-        <div
-          className="ko-panel p-8 text-center"
-          data-testid={selectors.search.emptyState}
-        >
-          <Search className="h-12 w-12 text-green-600 mx-auto mb-3" />
+        <div className="ko-panel p-8 text-center" data-testid={selectors.search.emptyState}>
+          <Search className="h-12 w-12 ko-icon-strong mx-auto mb-3" />
           <p className="ko-muted">Enter a query to search the knowledge base</p>
           <p className="ko-text-sm ko-subtle mt-1">Uses semantic embeddings to find relevant content</p>
         </div>

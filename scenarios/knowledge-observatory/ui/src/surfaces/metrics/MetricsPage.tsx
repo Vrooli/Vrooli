@@ -1,6 +1,7 @@
 import { Database } from "lucide-react";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";
+import { Panel, PanelHeader } from "../../shared/components/Panel";
 import { SectionErrorState } from "../../shared/components/SectionErrorState";
 import type { Route } from "../../shared/controllers/routeController";
 import { MetricsPanelContainer } from "./MetricsPanelContainer";
@@ -27,16 +28,15 @@ export function MetricsPage({ onNavigate }: MetricsPageProps) {
       )}
     >
       <PageShell>
-        <section className="ko-panel ko-section">
-          <div className="flex items-center gap-2 mb-2">
-            <Database className="h-5 w-5 text-green-500" />
-            <h2 className="ko-text-lg font-semibold">Quality Metrics</h2>
-          </div>
-          <p className="ko-text-sm ko-muted mb-4">
-            Track coherence, freshness, redundancy, and coverage to spot drift or gaps.
-          </p>
+        <Panel>
+          <PanelHeader
+            title="Quality Metrics"
+            description="Track coherence, freshness, redundancy, and coverage to spot drift or gaps."
+            icon={<Database className="h-5 w-5 ko-icon" />}
+            className="mb-4"
+          />
           <MetricsPanelContainer />
-        </section>
+        </Panel>
       </PageShell>
     </ErrorBoundary>
   );

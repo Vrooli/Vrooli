@@ -9,7 +9,7 @@ export type HeaderFallbackProps = {
 
 export function HeaderFallback({ errorMessage, onRetry, onNavigate }: HeaderFallbackProps) {
   return (
-    <header className="border-b border-green-800/60 bg-black/80 backdrop-blur px-6 py-4">
+    <header className="ko-app-header">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Knowledge Observatory</h1>
@@ -17,7 +17,7 @@ export function HeaderFallback({ errorMessage, onRetry, onNavigate }: HeaderFall
         </div>
         <Button onClick={onRetry}>Retry Header</Button>
       </div>
-      <p className="ko-text-xs ko-subtle mt-2">{errorMessage}</p>
+      <p className="ko-text-xs ko-text-danger-muted mt-2">{errorMessage}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button variant="secondary" onClick={() => onNavigate("dashboard")}>
           Dashboard

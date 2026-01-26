@@ -62,10 +62,10 @@ function TabLink({ route, activeRoute, label, icon, testId }: TabLinkProps) {
 
 export function AppHeader({ route, pageTitle, statusPulse, statusLabel }: AppHeaderProps) {
   return (
-    <header className="border-b border-green-800/60 bg-black/80 backdrop-blur px-6 py-4">
+    <header className="ko-app-header">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Database className="h-8 w-8 text-green-500" />
+          <Database className="h-8 w-8 ko-icon" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight" data-testid={selectors.header.title}>
               Knowledge Observatory
@@ -78,8 +78,10 @@ export function AppHeader({ route, pageTitle, statusPulse, statusLabel }: AppHea
             className="ko-card flex items-center gap-2 px-3 py-1.5 font-mono"
             data-testid={selectors.header.statusBadge}
           >
-            <Activity className={`h-4 w-4 ${statusPulse ? "animate-pulse" : "opacity-80"}`} />
-            <span className="ko-text-xs font-semibold uppercase tracking-wider text-green-200">
+            <Activity
+              className={`h-4 w-4 ko-icon-muted ${statusPulse ? "animate-pulse" : "opacity-80"}`}
+            />
+            <span className="ko-text-xs ko-text-primary font-semibold uppercase tracking-wider">
               {statusLabel}
             </span>
           </div>

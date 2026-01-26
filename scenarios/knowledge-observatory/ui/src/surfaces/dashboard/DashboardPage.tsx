@@ -4,6 +4,7 @@ import { routeToHash, type Route } from "../../shared/controllers/routeControlle
 import type { HealthViewModel } from "../../shared/controllers/knowledgeController";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";
+import { Panel, PanelHeader } from "../../shared/components/Panel";
 import { SectionErrorState } from "../../shared/components/SectionErrorState";
 import { Button } from "../../shared/ui/button";
 import { FeatureCardLink } from "./components/FeatureCardLink";
@@ -46,7 +47,7 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
       )}
     >
       <PageShell>
-        <section className="ko-panel ko-section" data-testid={selectors.dashboard.quickActions}>
+        <Panel testId={selectors.dashboard.quickActions}>
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h2 className="ko-text-lg font-semibold">Start a Knowledge Check</h2>
@@ -66,13 +67,14 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
               </Button>
             </div>
           </div>
-        </section>
+        </Panel>
 
-        <section className="ko-panel ko-section" data-testid={selectors.dashboard.healthSection}>
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="h-5 w-5" />
-            <h2 className="ko-text-lg font-semibold">System Health</h2>
-          </div>
+        <Panel testId={selectors.dashboard.healthSection}>
+          <PanelHeader
+            title="System Health"
+            icon={<Activity className="h-5 w-5 ko-icon" />}
+            className="mb-4"
+          />
 
           {isLoading && (
             <div className="ko-stack-xs">
@@ -83,10 +85,10 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
 
           {hasError && (
             <div className="ko-alert ko-alert-danger" data-testid={selectors.dashboard.healthError}>
-              <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
+              <AlertCircle className="h-5 w-5 ko-text-danger mt-0.5" />
               <div>
-                <p className="text-red-300 ko-alert-title">Connection Error</p>
-                <p className="ko-text-sm text-red-600 mt-1">
+                <p className="ko-alert-title ko-text-danger-strong">Connection Error</p>
+                <p className="ko-text-sm ko-text-danger-muted mt-1">
                   Unable to reach the API. Confirm the scenario is running, then refresh.
                 </p>
               </div>
@@ -118,21 +120,21 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
           >
             Refresh Status
           </Button>
-        </section>
+        </Panel>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FeatureCardLink
             route="search"
             title="Semantic Search"
             description="Query knowledge base using natural language across all collections"
-            icon={<Search className="h-8 w-8 text-green-500" />}
+            icon={<Search className="h-8 w-8 ko-icon" />}
             testId={selectors.dashboard.featureSearch}
           />
           <FeatureCardLink
             route="graph"
             title="Knowledge Graph"
             description="Explore semantic relationships and concept connections"
-            icon={<GitGraph className="h-8 w-8 text-green-500" />}
+            icon={<GitGraph className="h-8 w-8 ko-icon" />}
             badge="Preview"
             testId={selectors.dashboard.featureGraph}
           />
@@ -140,13 +142,13 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
             route="metrics"
             title="Quality Metrics"
             description="Monitor coherence, freshness, and redundancy scores"
-            icon={<Database className="h-8 w-8 text-green-500" />}
+            icon={<Database className="h-8 w-8 ko-icon" />}
             testId={selectors.dashboard.featureMetrics}
           />
         </section>
 
-        <section className="ko-panel ko-section" data-testid={selectors.dashboard.cliSection}>
-          <h2 className="ko-text-lg font-semibold mb-4">CLI Commands</h2>
+        <Panel testId={selectors.dashboard.cliSection}>
+          <PanelHeader title="CLI Commands" className="mb-4" />
           <div className="ko-stack-xs ko-text-sm">
             <div className="ko-card p-3">
               <code className="ko-code">knowledge-observatory search "your query"</code>
@@ -161,7 +163,7 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
               <p className="ko-subtle ko-text-xs mt-1">Generate knowledge relationship graph</p>
             </div>
           </div>
-        </section>
+        </Panel>
       </PageShell>
     </ErrorBoundary>
   );

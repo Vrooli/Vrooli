@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";
+import { Panel, PanelHeader } from "../../shared/components/Panel";
 import { SectionErrorState } from "../../shared/components/SectionErrorState";
 import type { Route } from "../../shared/controllers/routeController";
 import { SearchPanelContainer } from "./SearchPanelContainer";
@@ -27,16 +28,15 @@ export function SearchPage({ onNavigate }: SearchPageProps) {
       )}
     >
       <PageShell>
-        <section className="ko-panel ko-section">
-          <div className="flex items-center gap-2 mb-2">
-            <Search className="h-5 w-5 text-green-500" />
-            <h2 className="ko-text-lg font-semibold">Semantic Search</h2>
-          </div>
-          <p className="ko-text-sm ko-muted mb-4">
-            Ask natural-language questions to locate related knowledge across all collections.
-          </p>
+        <Panel>
+          <PanelHeader
+            title="Semantic Search"
+            description="Ask natural-language questions to locate related knowledge across all collections."
+            icon={<Search className="h-5 w-5 ko-icon" />}
+            className="mb-4"
+          />
           <SearchPanelContainer />
-        </section>
+        </Panel>
       </PageShell>
     </ErrorBoundary>
   );

@@ -22,7 +22,7 @@ export function FeatureCardLink({
     <a
       href={routeToHash(route)}
       data-testid={testId}
-      className="ko-panel ko-panel-inset p-6 hover:bg-green-950/30 hover:border-green-500/60 transition-all cursor-pointer text-left block"
+      className="ko-panel ko-panel-inset ko-panel-link p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div>

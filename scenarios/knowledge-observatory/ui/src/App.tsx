@@ -18,7 +18,7 @@ export default function App() {
   const pageTitle = useMemo(() => getPageTitle(route), [route]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-green-950/30 to-black text-green-200">
+    <div className="ko-app-shell">
       <ErrorBoundary
         fallback={({ error, reset }) => (
           <HeaderFallback errorMessage={error.message} onRetry={reset} onNavigate={navigate} />
