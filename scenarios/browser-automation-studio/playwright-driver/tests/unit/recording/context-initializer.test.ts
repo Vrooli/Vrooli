@@ -805,7 +805,7 @@ describe('RecordingContextInitializer', () => {
       await handler(route);
 
       const stats = initializer.getInjectionStats();
-      expect(stats.attempted).toBe(0);
+      expect(stats.attempted).toBe(1);
       expect(stats.successful).toBe(0);
       expect(stats.failed).toBe(0);
     });

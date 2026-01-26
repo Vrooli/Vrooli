@@ -12,6 +12,15 @@ import {
   logProviderConfig,
 } from '../../../src/playwright/provider';
 import { RECORDING_TROUBLESHOOTING } from '../../../src/playwright/types';
+import { createNoOpLogger, setLogger } from '../../../src/utils';
+import type { Logger as WinstonLogger } from 'winston';
+
+const createMockLogger = (): WinstonLogger => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  error: jest.fn(),
+} as unknown as WinstonLogger);
 
 describe('Playwright Provider', () => {
   const originalEnv = process.env.PLAYWRIGHT_PROVIDER;
@@ -90,17 +99,18 @@ describe('Playwright Provider', () => {
     });
 
     it('should warn and fallback when playwright is requested but not installed', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockLogger = createMockLogger();
+      setLogger(mockLogger);
 
       const provider = createPlaywrightProvider('playwright');
 
       // Should fallback to rebrowser-playwright since playwright isn't installed
       expect(provider.name).toBe('rebrowser-playwright');
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Standard playwright requested')
       );
 
-      consoleSpy.mockRestore();
+      setLogger(createNoOpLogger());
     });
   });
 
@@ -118,11 +128,12 @@ describe('Playwright Provider', () => {
 
   describe('logProviderConfig', () => {
     it('should log provider configuration', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const mockLogger = createMockLogger();
+      setLogger(mockLogger);
 
       logProviderConfig();
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(mockLogger.info).toHaveBeenCalledWith(
         '[playwright-provider] Active configuration:',
         expect.objectContaining({
           name: 'rebrowser-playwright',
@@ -132,7 +143,7 @@ describe('Playwright Provider', () => {
         })
       );
 
-      consoleSpy.mockRestore();
+      setLogger(createNoOpLogger());
     });
   });
 });

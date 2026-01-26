@@ -8,6 +8,7 @@ const mockPage = {
   goto: jest.fn().mockResolvedValue(undefined),
   screenshot: jest.fn().mockResolvedValue(Buffer.from('image-bytes')),
   url: jest.fn().mockReturnValue('https://example.com'),
+  title: jest.fn().mockResolvedValue('Example'),
 };
 const mockSessionManager: Pick<SessionManager, 'getSession'> = {
   getSession: () => ({ page: mockPage } as unknown as ReturnType<SessionManager['getSession']>),

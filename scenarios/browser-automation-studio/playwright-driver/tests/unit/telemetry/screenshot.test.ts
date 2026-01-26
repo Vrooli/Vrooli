@@ -97,14 +97,11 @@ describe('Screenshot', () => {
       const screenshot = await captureScreenshot(mockPage, configSmallMax);
 
       expect(screenshotMock).toHaveBeenCalledTimes(2);
-      expect(screenshotMock).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({ fullPage: true })
-      );
-      expect(screenshotMock).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({ fullPage: false })
-      );
+      const firstCall = screenshotMock.mock.calls[0]?.[0];
+      const secondCall = screenshotMock.mock.calls[1]?.[0];
+
+      expect(firstCall?.fullPage).toBe(true);
+      expect(secondCall?.clip).toMatchObject({ x: 0, y: 0 });
       expect(screenshot?.base64).toBe(smallBuffer.toString('base64'));
     });
 

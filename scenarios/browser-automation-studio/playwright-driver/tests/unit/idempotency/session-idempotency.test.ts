@@ -5,14 +5,8 @@
  * These tests verify that repeated operations produce consistent results.
  */
 
-jest.mock('rebrowser-playwright', () => ({
-  chromium: {
-    launch: jest.fn(),
-  },
-}));
-
 import type { SessionSpec } from '../../../src/types';
-import { chromium } from 'rebrowser-playwright';
+import { playwrightProvider } from '../../../src/playwright';
 import { SessionManager } from '../../../src/session/manager';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
 
@@ -22,7 +16,7 @@ describe('Session Idempotency', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
-  let chromiumMock: { launch: jest.Mock };
+  let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
 
   const baseSpec: SessionSpec = {
     execution_id: 'exec-idempotency-test',
@@ -33,22 +27,21 @@ describe('Session Idempotency', () => {
     required_capabilities: {},
   };
 
-  beforeEach(async () => {
-    chromiumMock = chromium as unknown as { launch: jest.Mock };
-
+  beforeEach(() => {
     mockBrowser = createMockBrowser();
     mockContext = createMockContext();
     mockPage = createMockPage();
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    chromiumMock.launch.mockResolvedValue(mockBrowser);
+    launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
     manager = new SessionManager(config);
   });
 
   afterEach(async () => {
+    launchSpy.mockRestore();
     await manager.shutdown();
     jest.clearAllMocks();
   });

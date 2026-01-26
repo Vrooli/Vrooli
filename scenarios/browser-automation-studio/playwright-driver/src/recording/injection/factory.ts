@@ -201,8 +201,10 @@ export class InjectionStrategyFactory {
         return new CDPInjectionStrategy();
       case 'route-injection':
         return new RouteInjectionStrategy();
-      default:
-        throw new Error('Unknown injection strategy');
+      default: {
+        const unknownName = String(name);
+        throw new Error(`Unknown injection strategy: ${unknownName}`);
+      }
     }
   }
 

@@ -27,7 +27,7 @@ describe('UploadHandler Idempotency', () => {
 
   beforeEach(async () => {
     jest.resetModules();
-    mockAccess = (jest.requireMock('fs/promises') as { access: jest.Mock }).access;
+    mockAccess = jest.requireMock<{ access: jest.Mock }>('fs/promises').access;
     mockAccess.mockResolvedValue(undefined);
 
     const { UploadHandler } = await import('../../../src/handlers/upload');

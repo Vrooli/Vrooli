@@ -51,7 +51,7 @@ export function createMockPage(overrides?: Partial<Page>): jest.Mocked<Page> {
     title: jest.fn().mockResolvedValue('Test Page'),
     viewport: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
     viewportSize: jest.fn().mockReturnValue({ width: 1280, height: 720 }),
-    context: jest.fn(),
+    context: jest.fn().mockReturnValue({}),
     frames: jest.fn().mockReturnValue([]),
     mainFrame: jest.fn(),
     isVisible: jest.fn().mockResolvedValue(true),

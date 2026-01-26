@@ -1,11 +1,5 @@
-jest.mock('rebrowser-playwright', () => ({
-  chromium: {
-    launch: jest.fn(),
-  },
-}));
-
 import type { SessionSpec } from '../../../src/types';
-import { chromium } from 'rebrowser-playwright';
+import { playwrightProvider } from '../../../src/playwright';
 import { SessionManager } from '../../../src/session/manager';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
 import { createMockBrowser, createMockContext, createMockPage, createTestConfig } from '../../helpers';
@@ -16,11 +10,7 @@ describe('SessionManager', () => {
   let mockBrowser: ReturnType<typeof createMockBrowser>;
   let mockContext: ReturnType<typeof createMockContext>;
   let mockPage: ReturnType<typeof createMockPage>;
-  let chromiumMock: { launch: jest.Mock };
-
-  beforeAll(() => {
-    chromiumMock = chromium as unknown as { launch: jest.Mock };
-  });
+  let launchSpy: jest.SpiedFunction<typeof playwrightProvider.chromium.launch>;
 
   beforeEach(() => {
     mockBrowser = createMockBrowser();
@@ -29,8 +19,7 @@ describe('SessionManager', () => {
 
     mockBrowser.newContext.mockResolvedValue(mockContext);
     mockContext.newPage.mockResolvedValue(mockPage);
-    chromiumMock.launch.mockReset();
-    chromiumMock.launch.mockResolvedValue(mockBrowser);
+    launchSpy = jest.spyOn(playwrightProvider.chromium, 'launch').mockResolvedValue(mockBrowser);
 
     config = createTestConfig();
     manager = new SessionManager(config);
@@ -40,6 +29,7 @@ describe('SessionManager', () => {
     if (manager) {
       await manager.shutdown();
     }
+    launchSpy.mockRestore();
     jest.clearAllMocks();
   });
 
@@ -66,7 +56,7 @@ describe('SessionManager', () => {
     it('should launch browser on first session', async () => {
       await manager.startSession(sessionSpec);
 
-      const launchCalls = chromiumMock.launch.mock.calls as Array<[Record<string, unknown>]>;
+      const launchCalls = launchSpy.mock.calls as Array<[Record<string, unknown>]>;
       expect(launchCalls[0]?.[0]).toEqual(
         expect.objectContaining({
           headless: config.browser.headless,
