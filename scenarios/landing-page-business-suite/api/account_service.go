@@ -123,6 +123,27 @@ func (s *AccountService) GetSubscription(userIdentity string) (*landing_page_rea
 	if planTierStr == "" && priceIDStr != "" {
 		if plan, err := s.planService.GetPlanByPriceID(priceIDStr); err == nil {
 			planTierStr = plan.PlanTier
+			if bundleKeyStr == "" {
+				bundleKeyStr = plan.BundleKey
+			}
+		}
+	}
+	if planTierStr != "" {
+		if _, err := normalizePlanTier(planTierStr); err != nil {
+			logStructured("subscription_plan_tier_invalid", map[string]interface{}{
+				"level":     "warn",
+				"plan_tier": planTierStr,
+				"price_id":  priceIDStr,
+			})
+			planTierStr = ""
+		} else if planTier.String == "" || bundleKey.String == "" {
+			_, _ = s.db.Exec(`
+				UPDATE subscriptions
+				SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
+					bundle_key = COALESCE(NULLIF($2,''), bundle_key),
+					updated_at = NOW()
+				WHERE subscription_id = $3
+			`, planTierStr, bundleKeyStr, subID)
 		}
 	}
 

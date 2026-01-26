@@ -47,6 +47,16 @@ interface FormState {
   featuresText: string;
 }
 
+interface VerifiedStripePrice {
+  id?: string;
+  lookup_key?: string;
+  currency?: string;
+  amount_cents?: number;
+  interval?: string;
+  active?: boolean;
+  product?: string;
+}
+
 const DEFAULT_FORM: FormState = {
   stripePriceId: '',
   planName: '',
@@ -64,11 +74,20 @@ const DEFAULT_FORM: FormState = {
   featuresText: '',
 };
 
+const normalizeStripeInterval = (interval?: string | null): string | null => {
+  const raw = interval?.trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === 'month' || raw === 'year' || raw === 'one_time') return raw;
+  if (raw === 'one-time' || raw === 'one time' || raw === 'onetime') return 'one_time';
+  return null;
+};
+
 export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanModalProps) {
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [stripeDetails, setStripeDetails] = useState<VerifiedStripePrice | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +98,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
       if (field === 'stripePriceId') {
         setVerified(false);
         setVerifyError(null);
+        setStripeDetails(null);
       }
     },
     []
@@ -90,6 +110,10 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
       setVerifyError('Enter a Stripe price ID');
       return;
     }
+    if (!priceId.startsWith('price_')) {
+      setVerifyError('Stripe price IDs must start with "price_"');
+      return;
+    }
 
     setVerifying(true);
     setVerifyError(null);
@@ -97,18 +121,31 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
 
     try {
       const info = await verifyStripePrice(priceId);
-      setVerified(true);
+      const normalizedInterval = normalizeStripeInterval(info.interval);
+
+      if (info.interval && !normalizedInterval) {
+        setVerifyError(`Stripe interval "${info.interval}" is not supported. Use month, year, or one_time.`);
+        setVerified(false);
+        setStripeDetails(null);
+      } else {
+        setVerifyError(null);
+        setVerified(true);
+        setStripeDetails(info);
+      }
 
       // Auto-fill fields from Stripe
       setForm((prev) => ({
         ...prev,
+        stripePriceId: info.id || prev.stripePriceId,
         amountCents: info.amount_cents?.toString() || prev.amountCents,
         currency: info.currency || prev.currency,
-        billingInterval: info.interval || prev.billingInterval,
+        billingInterval: normalizedInterval ?? prev.billingInterval,
         planName: info.product || prev.planName,
+        displayEnabled: typeof info.active === 'boolean' ? info.active : prev.displayEnabled,
       }));
     } catch (err) {
       setVerifyError(err instanceof Error ? err.message : 'Verification failed');
+      setStripeDetails(null);
     } finally {
       setVerifying(false);
     }
@@ -118,8 +155,13 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
     setError(null);
 
     // Validate required fields
-    if (!form.stripePriceId.trim()) {
+    const stripePriceId = form.stripePriceId.trim();
+    if (!stripePriceId) {
       setError('Stripe Price ID is required');
+      return;
+    }
+    if (!stripePriceId.startsWith('price_')) {
+      setError('Stripe Price IDs must start with "price_".');
       return;
     }
     if (!form.planName.trim()) {
@@ -134,6 +176,45 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
       setError('Billing Interval is required');
       return;
     }
+    if (!form.amountCents.trim()) {
+      setError('Amount (cents) is required. Verify the price to auto-fill.');
+      return;
+    }
+    const amountCents = Number.parseInt(form.amountCents, 10);
+    if (!Number.isFinite(amountCents) || amountCents < 0) {
+      setError('Amount (cents) must be a valid non-negative number.');
+      return;
+    }
+    if (form.planTier === 'free' && amountCents !== 0) {
+      setError('Free plans must have amount 0. Create a $0 Stripe price for free tiers.');
+      return;
+    }
+    const currency = form.currency.trim();
+    if (!currency || currency.length !== 3) {
+      setError('Currency must be a 3-letter ISO code (e.g., USD).');
+      return;
+    }
+    const displayWeight = Number.parseInt(form.displayWeight, 10);
+    if (!Number.isFinite(displayWeight) || displayWeight < 0) {
+      setError('Display weight must be a non-negative number.');
+      return;
+    }
+
+    if (stripeDetails) {
+      const stripeInterval = normalizeStripeInterval(stripeDetails.interval);
+      if (stripeInterval && stripeInterval !== form.billingInterval) {
+        setError('Billing interval must match the verified Stripe price.');
+        return;
+      }
+      if (stripeDetails.currency && stripeDetails.currency.toLowerCase() !== currency.toLowerCase()) {
+        setError('Currency must match the verified Stripe price.');
+        return;
+      }
+      if (typeof stripeDetails.amount_cents === 'number' && stripeDetails.amount_cents !== amountCents) {
+        setError('Amount (cents) must match the verified Stripe price.');
+        return;
+      }
+    }
 
     setSaving(true);
 
@@ -144,22 +225,25 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         .filter((f) => f.length > 0);
 
       const payload: CreateBundlePricePayload = {
-        stripe_price_id: form.stripePriceId.trim(),
+        stripe_price_id: stripePriceId,
         plan_name: form.planName.trim(),
         plan_tier: form.planTier,
         billing_interval: form.billingInterval,
-        currency: form.currency || 'usd',
-        display_weight: parseInt(form.displayWeight, 10) || 10,
+        currency: currency.toLowerCase(),
+        display_weight: displayWeight,
         display_enabled: form.displayEnabled,
         highlight: form.highlight,
         features: features.length > 0 ? features : undefined,
       };
 
-      if (form.amountCents) {
-        payload.amount_cents = parseInt(form.amountCents, 10) || 0;
-      }
-      if (form.monthlyIncludedCredits) {
-        payload.monthly_included_credits = parseInt(form.monthlyIncludedCredits, 10) || 0;
+      payload.amount_cents = amountCents;
+      if (form.monthlyIncludedCredits.trim() !== '') {
+        const credits = Number.parseInt(form.monthlyIncludedCredits, 10);
+        if (!Number.isFinite(credits) || credits < 0) {
+          setError('Included credits must be a non-negative number.');
+          return;
+        }
+        payload.monthly_included_credits = credits;
       }
       if (form.subtitle.trim()) {
         payload.subtitle = form.subtitle.trim();
@@ -181,12 +265,13 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
     } finally {
       setSaving(false);
     }
-  }, [form, bundleKey, onSuccess, onClose]);
+  }, [form, stripeDetails, bundleKey, onSuccess, onClose]);
 
   const handleClose = useCallback(() => {
     setForm(DEFAULT_FORM);
     setVerified(false);
     setVerifyError(null);
+    setStripeDetails(null);
     setError(null);
     onClose();
   }, [onClose]);
@@ -200,7 +285,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
             Add New Plan
           </DialogTitle>
           <DialogDescription>
-            Create a new pricing plan. Enter a Stripe Price ID and verify it to auto-fill details.
+            Create a new pricing plan. Enter a Stripe Price ID (starts with price_) and verify it to auto-fill details.
           </DialogDescription>
         </DialogHeader>
 
@@ -320,6 +405,18 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               placeholder="10"
               value={form.displayWeight}
               onChange={(e) => handleChange('displayWeight', e.target.value)}
+            />
+          </div>
+
+          {/* Included Credits */}
+          <div className="space-y-2">
+            <Label htmlFor="included-credits">Included Credits (per month)</Label>
+            <Input
+              id="included-credits"
+              type="number"
+              placeholder="1000000"
+              value={form.monthlyIncludedCredits}
+              onChange={(e) => handleChange('monthlyIncludedCredits', e.target.value)}
             />
           </div>
 

@@ -116,6 +116,36 @@ func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeSe
 		req.WebhookSecret = normalize(req.WebhookSecret)
 		req.DashboardUrl = normalize(req.DashboardUrl)
 
+		if req.PublishableKey != nil && *req.PublishableKey != "" {
+			if !strings.HasPrefix(*req.PublishableKey, "pk_") {
+				writeJSONError(w, http.StatusBadRequest, "Publishable key must start with pk_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.SecretKey != nil && *req.SecretKey != "" {
+			if !strings.HasPrefix(*req.SecretKey, "sk_") && !strings.HasPrefix(*req.SecretKey, "rk_") {
+				writeJSONError(w, http.StatusBadRequest, "Restricted key must start with sk_ or rk_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.WebhookSecret != nil && *req.WebhookSecret != "" {
+			if !strings.HasPrefix(*req.WebhookSecret, "whsec_") {
+				writeJSONError(w, http.StatusBadRequest, "Webhook secret must start with whsec_", ApiErrorTypeValidation)
+				return
+			}
+		}
+
+		if req.DashboardUrl != nil && *req.DashboardUrl != "" {
+			normalizedURL, err := ValidateURL(*req.DashboardUrl)
+			if err != nil {
+				writeJSONError(w, http.StatusBadRequest, "Invalid dashboard_url format", ApiErrorTypeValidation)
+				return
+			}
+			req.DashboardUrl = &normalizedURL
+		}
+
 		if (req.PublishableKey == nil || *req.PublishableKey == "") &&
 			(req.SecretKey == nil || *req.SecretKey == "") &&
 			(req.WebhookSecret == nil || *req.WebhookSecret == "") &&

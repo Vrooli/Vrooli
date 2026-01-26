@@ -344,6 +344,42 @@ describe('useBillingForm', () => {
 
       expect(result.current.priceForms['test_bundle:price_123']?.error).toBe('Save failed');
     });
+
+    it('requires verification when Stripe price ID changes', async () => {
+      savePriceFormMock.mockResolvedValue({});
+      verifyPriceIdMock.mockResolvedValue({ status: 'ok', message: 'Verified' });
+
+      const { result } = renderHook(() => useBillingForm());
+
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
+
+      act(() => {
+        result.current.handlePriceChange('test_bundle', 'price_123', 'stripePriceId')({
+          target: { value: 'price_new' },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      await act(async () => {
+        await result.current.handleSavePrice('test_bundle', 'price_123');
+      });
+
+      expect(savePriceFormMock).not.toHaveBeenCalled();
+      expect(result.current.priceForms['test_bundle:price_123']?.error).toBe(
+        'Verify the new Stripe price ID before saving changes.'
+      );
+
+      await act(async () => {
+        await result.current.handleVerifyPrice('test_bundle', 'price_123');
+      });
+
+      await act(async () => {
+        await result.current.handleSavePrice('test_bundle', 'price_123');
+      });
+
+      expect(savePriceFormMock).toHaveBeenCalled();
+    });
   });
 
   describe('price verification', () => {

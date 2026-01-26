@@ -92,8 +92,8 @@ func ValidateInList(value, fieldName string, allowed []string) error {
 
 // Common validation errors for URL and batch validation
 var (
-	ErrURLRequired  = errors.New("URL is required")
-	ErrURLInvalid   = errors.New("invalid URL format")
+	ErrURLRequired   = errors.New("URL is required")
+	ErrURLInvalid    = errors.New("invalid URL format")
 	ErrBatchTooLarge = errors.New("batch size exceeds maximum")
 )
 
@@ -146,6 +146,31 @@ func ValidateURLOptional(urlStr string) (string, error) {
 		return "", nil // Optional - empty is valid
 	}
 	return ValidateURL(urlStr)
+}
+
+// NormalizeRedirectURL validates an optional redirect URL.
+// Allows relative paths ("/success") or absolute http(s) URLs.
+// Returns empty string when input is empty.
+func NormalizeRedirectURL(urlStr string) (string, error) {
+	trimmed := strings.TrimSpace(urlStr)
+	if trimmed == "" {
+		return "", nil
+	}
+	if strings.HasPrefix(trimmed, "/") {
+		return trimmed, nil
+	}
+	return ValidateURL(trimmed)
+}
+
+// NormalizeRedirectURLForHandler validates a redirect URL and writes an error response if invalid.
+// Returns normalized URL and true on success, or empty string and false on failure.
+func NormalizeRedirectURLForHandler(w http.ResponseWriter, urlStr, fieldName string) (string, bool) {
+	normalized, err := NormalizeRedirectURL(urlStr)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, "Invalid "+fieldName+" format", ApiErrorTypeValidation)
+		return "", false
+	}
+	return normalized, true
 }
 
 // ValidateURLForHandler validates a URL and writes an error response if invalid.

@@ -44,7 +44,14 @@ function classifyErrorState(err: unknown): ErrorState {
   }
   if (isApiError(err, 'server_error')) {
     return {
-      message: 'Our servers are experiencing issues. Please try again later.',
+      message: isApiError(err) ? err.userMessage : 'Our servers are experiencing issues. Please try again later.',
+      type: 'server',
+      retryable: true,
+    };
+  }
+  if (isApiError(err, 'rate_limited')) {
+    return {
+      message: isApiError(err) ? err.userMessage : 'Too many requests. Please wait a moment and try again.',
       type: 'server',
       retryable: true,
     };
@@ -52,6 +59,13 @@ function classifyErrorState(err: unknown): ErrorState {
   if (isApiError(err, 'validation')) {
     return {
       message: isApiError(err) ? err.userMessage : 'Invalid request. Please try again.',
+      type: 'validation',
+      retryable: false,
+    };
+  }
+  if (isApiError(err, 'not_found')) {
+    return {
+      message: isApiError(err) ? err.userMessage : 'Requested resource was not found.',
       type: 'validation',
       retryable: false,
     };

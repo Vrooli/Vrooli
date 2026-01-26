@@ -3,6 +3,7 @@
 // DOC: docs/guides/ADMIN_GUIDE.md#stripe-setup - Admin Stripe setup
 import {
   getStripeSettings,
+  getApiErrorMessage,
   updateStripeSettings,
   getBundleCatalog,
   updateBundlePrice,
@@ -92,11 +93,26 @@ export async function savePriceForm(
 ): Promise<void> {
   const features = parseFeaturesText(formState.values.featuresText);
   const stripePriceId = formState.values.stripePriceId.trim();
+  const planName = formState.values.planName.trim();
+  const displayWeight = formState.values.displayWeight;
+
+  if (!planName) {
+    throw new Error('Plan name is required.');
+  }
+  if (!stripePriceId) {
+    throw new Error('Stripe price ID is required.');
+  }
+  if (!stripePriceId.startsWith('price_')) {
+    throw new Error('Stripe price IDs must start with "price_".');
+  }
+  if (!Number.isFinite(displayWeight) || displayWeight < 0) {
+    throw new Error('Display weight must be a non-negative number.');
+  }
 
   await updateBundlePrice(bundleKey, priceId, {
-    stripe_price_id: stripePriceId === '' ? '' : stripePriceId,
-    plan_name: formState.values.planName.trim() || undefined,
-    display_weight: formState.values.displayWeight,
+    stripe_price_id: stripePriceId,
+    plan_name: planName,
+    display_weight: displayWeight,
     display_enabled: formState.values.displayEnabled,
     subtitle: formState.values.subtitle.trim() || undefined,
     badge: formState.values.badge.trim() || undefined,
@@ -107,14 +123,20 @@ export async function savePriceForm(
 }
 
 /**
- * Verify a Stripe price ID or lookup key
+ * Verify a Stripe price ID
  */
 export async function verifyPriceId(priceIdOrKey: string): Promise<PriceVerificationResult> {
   const value = priceIdOrKey.trim();
   if (!value) {
     return {
       status: 'error',
-      message: 'Enter a Stripe price ID or lookup key',
+      message: 'Enter a Stripe price ID',
+    };
+  }
+  if (!value.startsWith('price_')) {
+    return {
+      status: 'error',
+      message: 'Stripe price IDs must start with "price_".',
     };
   }
 
@@ -135,7 +157,7 @@ export async function verifyPriceId(priceIdOrKey: string): Promise<PriceVerifica
   } catch (error) {
     return {
       status: 'error',
-      message: error instanceof Error ? error.message : 'Verification failed',
+      message: getApiErrorMessage(error, 'Verification failed'),
     };
   }
 }

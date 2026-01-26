@@ -101,7 +101,7 @@ func TestHandleAdminUpdateBundlePrice_Success(t *testing.T) {
 	insertBundlePrice(t, db, productID, "price_to_update", "Original Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	planService := requireTestPlanService(t)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	newName := "Updated Plan Name"
@@ -128,7 +128,7 @@ func TestHandleAdminUpdateBundlePrice_MissingBundleKey(t *testing.T) {
 	defer db.Close()
 
 	planService := NewPlanService(db)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	jsonBody, _ := json.Marshal(body)
@@ -153,7 +153,7 @@ func TestHandleAdminUpdateBundlePrice_MissingPriceID(t *testing.T) {
 	defer db.Close()
 
 	planService := NewPlanService(db)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	jsonBody, _ := json.Marshal(body)
@@ -178,7 +178,7 @@ func TestHandleAdminUpdateBundlePrice_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	planService := NewPlanService(db)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	req := httptest.NewRequest(http.MethodPut, "/admin/bundles/bundle_key/prices/price_id", bytes.NewReader([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -204,7 +204,7 @@ func TestHandleAdminUpdateBundlePrice_NotFound(t *testing.T) {
 	defer cleanupBundleProductRecords(t, db, productID)
 
 	planService := requireTestPlanService(t)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	newName := "New Name"
@@ -369,6 +369,179 @@ func TestHandleAdminVerifyStripePrice_InvalidKey(t *testing.T) {
 }
 
 // ============================================================================
+// Stripe import preview / import tests
+// ============================================================================
+
+func TestHandleAdminStripeImportPreview_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "import_preview_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Import Preview Bundle", "prod_bundle", "import_preview_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	insertBundlePrice(t, db, productID, "price_existing", "Existing Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 0, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/products":
+			fmt.Fprint(w, `{"data":[{"id":"prod_bundle","name":"Import Bundle","active":true}]}`)
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/prices":
+			fmt.Fprint(w, `{"data":[{"id":"price_existing","lookup_key":"pro_monthly","currency":"usd","unit_amount":4999,"active":true,"recurring":{"interval":"month"}},{"id":"price_new","lookup_key":"pro_yearly","currency":"usd","unit_amount":49900,"active":true,"recurring":{"interval":"year"}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer stripeServer.Close()
+
+	stripe := requireTestStripeService(t, db)
+	stripe.UseHTTPClient(stripeServer.Client())
+	stripe.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			webhookSecret:  "wh_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			hasWebhook:     true,
+			apiBase:        stripeServer.URL,
+			source:         "test",
+		}, nil
+	})
+	if err := stripe.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("refresh stripe config failed: %v", err)
+	}
+
+	planService := requireTestPlanService(t)
+	handler := handleAdminStripeImportPreview(stripe, planService)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/stripe/import-preview", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if resp["total_prices"] == nil {
+		t.Fatal("expected total_prices in response")
+	}
+}
+
+func TestHandleAdminStripeImport_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "import_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Import Bundle", "prod_bundle", "import_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/prices/price_new" {
+			fmt.Fprint(w, `{"id":"price_new","lookup_key":"pro_monthly","currency":"usd","unit_amount":2900,"active":true,"recurring":{"interval":"month"},"product":{"id":"prod_bundle","name":"Import Bundle"}}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	stripe := requireTestStripeService(t, db)
+	stripe.UseHTTPClient(stripeServer.Client())
+	stripe.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
+		return stripeRuntimeConfig{
+			publishableKey: "pk_test",
+			secretKey:      "sk_test",
+			webhookSecret:  "wh_test",
+			hasPublishable: true,
+			hasSecret:      true,
+			hasWebhook:     true,
+			apiBase:        stripeServer.URL,
+			source:         "test",
+		}, nil
+	})
+	if err := stripe.RefreshConfig(context.Background()); err != nil {
+		t.Fatalf("refresh stripe config failed: %v", err)
+	}
+
+	planService := requireTestPlanService(t)
+	handler := handleAdminStripeImport(stripe, planService)
+
+	body := StripeImportRequest{
+		Selections: []ImportPlanSelection{
+			{PriceID: "price_new", Action: "import"},
+		},
+	}
+	payload, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/stripe/import", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp StripeImportResult
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Imported != 1 {
+		t.Fatalf("expected 1 imported, got %d", resp.Imported)
+	}
+}
+
+// ============================================================================
+// handleAdminCreateBundlePrice Tests
+// ============================================================================
+
+func TestHandleAdminCreateBundlePrice_Success(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	bundleKey := configureTestBundleEnv(t, "create_env")
+	productID := upsertTestBundleProduct(t, db, bundleKey, "Create Bundle", "prod_create", "create_env", 1000000, 0.001, "credits")
+	defer cleanupBundleProductRecords(t, db, productID)
+
+	planService := requireTestPlanService(t)
+	handler := handleAdminCreateBundlePrice(planService, nil)
+
+	amount := int64(2900)
+	currency := "usd"
+	body := createBundlePriceRequest{
+		StripePriceID:   "price_create",
+		PlanName:        "Create Plan",
+		PlanTier:        "pro",
+		BillingInterval: "month",
+		AmountCents:     &amount,
+		Currency:        &currency,
+	}
+	payload, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/admin/bundles/%s/prices", bundleKey), bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{
+		"bundle_key": bundleKey,
+	})
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	if _, err := planService.GetPlanByPriceID("price_create"); err != nil {
+		t.Fatalf("expected created plan to exist: %v", err)
+	}
+}
+
+// ============================================================================
 // updateBundlePriceRequest Additional Tests
 // ============================================================================
 
@@ -383,7 +556,7 @@ func TestHandleAdminUpdateBundlePrice_UpdateDisplayWeight(t *testing.T) {
 	insertBundlePrice(t, db, productID, "price_weight", "Weight Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	planService := requireTestPlanService(t)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	newWeight := 99
@@ -416,7 +589,7 @@ func TestHandleAdminUpdateBundlePrice_ToggleDisplayEnabled(t *testing.T) {
 	insertBundlePrice(t, db, productID, "price_toggle", "Toggle Plan", "pro", "month", "usd", 4999, false, "", 0, 0, "", 5000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
 	planService := requireTestPlanService(t)
-	handler := handleAdminUpdateBundlePrice(planService)
+	handler := handleAdminUpdateBundlePrice(planService, nil)
 
 	body := updateBundlePriceRequest{}
 	enabled := false

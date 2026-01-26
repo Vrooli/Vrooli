@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -49,7 +50,11 @@ func createTestPlanService(t *testing.T, bundle bundleFileFormat, plans []planFi
 	if err := planStore.LoadAll(); err != nil {
 		t.Fatalf("failed to load plans: %v", err)
 	}
-	return NewPlanServiceWithPlanStore(planStore)
+	return NewPlanServiceWithOptions(PlanServiceOptions{
+		PlanStore:     planStore,
+		DefaultBundle: bundle.BundleKey,
+		DisplayEnv:    bundle.Environment,
+	})
 }
 
 // testBundle returns a standard test bundle configuration.
@@ -661,6 +666,131 @@ func TestPlanService_UpdateBundlePrice_EmptyBundleKey_ReturnsNil(t *testing.T) {
 	}
 	if result != nil {
 		t.Error("Expected nil result for empty bundle key")
+	}
+}
+
+func TestPlanService_CreateBundlePrice_RejectsStripeProductMismatch(t *testing.T) {
+	bundle := testBundle("create_bundle", "production")
+	service := createTestPlanService(t, bundle, nil)
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 1200,
+			Interval:    "month",
+			ProductID:   "prod_other",
+			ProductName: "Other Bundle",
+			Active:      true,
+		}, nil
+	}
+
+	_, err := service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID:   "price_new",
+		PlanName:        "Pro Monthly",
+		PlanTier:        "pro",
+		BillingInterval: "month",
+	}, fetcher)
+	if err == nil {
+		t.Fatal("expected error for mismatched stripe product")
+	}
+	if !strings.Contains(err.Error(), "product") {
+		t.Fatalf("expected product mismatch error, got: %v", err)
+	}
+}
+
+func TestPlanService_CreateBundlePrice_RejectsAmountMismatch(t *testing.T) {
+	bundle := testBundle("create_bundle_amount", "production")
+	service := createTestPlanService(t, bundle, nil)
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 1500,
+			Interval:    "month",
+			ProductID:   bundle.StripeProductID,
+			ProductName: "Test Bundle",
+			Active:      true,
+		}, nil
+	}
+
+	amount := int64(999)
+	_, err := service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID:   "price_new",
+		PlanName:        "Pro Monthly",
+		PlanTier:        "pro",
+		BillingInterval: "month",
+		AmountCents:     &amount,
+	}, fetcher)
+	if err == nil {
+		t.Fatal("expected error for amount mismatch")
+	}
+	if !strings.Contains(err.Error(), "amount_cents") {
+		t.Fatalf("expected amount mismatch error, got: %v", err)
+	}
+}
+
+func TestEnsureStripePriceMatchesBundle(t *testing.T) {
+	bundle := &BundleProduct{
+		BundleKey:       "bundle_key",
+		Name:            "Bundle",
+		StripeProductId: "prod_bundle",
+		CreditsPerUsd:   1_000_000,
+		Environment:     "test",
+	}
+
+	err := ensureStripePriceMatchesBundle(bundle, &StripePriceImport{
+		PriceID:   "price_123",
+		ProductID: "prod_other",
+	})
+	if err == nil {
+		t.Fatal("expected error for mismatched product")
+	}
+	if !strings.Contains(err.Error(), "expected") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPlanService_ImportStripePrices_RequiresSelections(t *testing.T) {
+	bundle := testBundle("import_bundle", "production")
+	service := createTestPlanService(t, bundle, nil)
+
+	_, err := service.ImportStripePrices(context.Background(), nil, func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return nil, nil
+	})
+	if err == nil {
+		t.Fatal("expected error for empty selections")
+	}
+}
+
+func TestPlanService_ImportStripePrices_ImportsNewPrice(t *testing.T) {
+	bundle := testBundle("import_bundle_valid", "production")
+	service := createTestPlanService(t, bundle, nil)
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 2000,
+			Interval:    "month",
+			ProductID:   bundle.StripeProductID,
+			ProductName: "Test Bundle",
+			Active:      true,
+		}, nil
+	}
+
+	result, err := service.ImportStripePrices(context.Background(), []ImportPlanSelection{
+		{PriceID: "price_new", Action: "import"},
+	}, fetcher)
+	if err != nil {
+		t.Fatalf("unexpected import error: %v", err)
+	}
+	if result.Imported != 1 {
+		t.Fatalf("expected 1 imported, got %d", result.Imported)
 	}
 }
 

@@ -12,6 +12,7 @@ export function PriceReadOnlyCard({ price, formState }: PriceReadOnlyCardProps) 
   const demoPlan = formState.demo;
   const isEnabled = formState.values.displayEnabled;
   const isHighlighted = formState.values.highlight;
+  const currencyLabel = price.currency ? price.currency.toUpperCase() : 'USD';
 
   return (
     <div
@@ -43,7 +44,7 @@ export function PriceReadOnlyCard({ price, formState }: PriceReadOnlyCardProps) 
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span>{getIntervalLabel(normalizeInterval(price.billing_interval))}</span>
             <span>·</span>
-            <span>{price.currency.toUpperCase()}</span>
+            <span>{currencyLabel}</span>
             {price.stripe_price_id && (
               <>
                 <span>·</span>

@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-01-07
+> **Last Updated**: 2026-01-26
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -66,14 +66,20 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 
 - **Subscription/cache seam** (`StripeService.VerifySubscription`)  
   - Subscription state is cached in Postgres and refreshed from Stripe when stale.  
-  - All cache invalidation and reconciliation stay inside `StripeService`; handlers only translate errors and params.
+  - All cache invalidation and reconciliation stay inside `StripeService`; handlers only translate errors and params.  
+  - Subscription persistence preserves existing `plan_tier`/`bundle_key` when Stripe payloads omit or invalidate fields, and uses price ID token inference as a fallback.
 
 ---
 
 ## Other Seams
 
-- **Plan/pricing lookup** (`plan_service.go`, `landing_config_service.go`)  
-  Centralizes bundle/price metadata. Handlers and UI pricing components must resolve plans via the service to avoid duplicated Stripe IDs or plan tiers.
+- **Plan/pricing lookup + integrity** (`plan_service.go`, `plan_store.go`)  
+  Centralizes bundle/price metadata and enforces plan integrity rules (valid tiers, kind↔tier alignment, currency, billing interval, unique Stripe price IDs, bundle↔Stripe product matching).  
+  - Additional tier invariants: **free** plans require `amount_cents = 0`; **credits/donation** tiers must use `one_time` billing intervals.  
+  - Admin creation now flows through `PlanService.CreateBundlePrice(...)`, keeping validation + Stripe verification in the domain layer.
+  - Admin updates flow through `PlanService.UpdateBundlePriceWithStripe(...)`, which verifies Stripe price changes before applying updates.
+  - Stripe import flows through `PlanService.ImportStripePrices(...)` → `PlanStore.ApplyStripeImportSelections(...)` to batch updates and persist once (rejecting prices that do not belong to the bundle's Stripe product).
+  - Plan catalog writes are atomic (temp file + rename) and re-normalize bundle/plan fields on save to keep `.vrooli/plans.json` consistent.
 
 - **Metrics ingestion** (`metrics_service.go`, `metrics_handlers.go`)  
   Validation and storage happen in the service; handlers only marshal/unmarshal requests.

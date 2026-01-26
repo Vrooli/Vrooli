@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
@@ -638,6 +640,54 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 	if result == nil || result.State == landing_page_react_vite_v1.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE {
 		t.Errorf("Expected a subscription status, got %v", result)
 	}
+}
+
+func TestPersistSubscriptionFromStripe_PreservesPlanTier(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
+	service := requireTestStripeService(t, db)
+
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_email, status, plan_tier, bundle_key, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+	`, "sub_keep", "keep@example.com", "active", "pro", "business_suite")
+	require.NoError(t, err)
+
+	sub := &stripeSubscription{
+		ID:            "sub_keep",
+		Status:        "active",
+		Customer:      "cus_keep",
+		CustomerEmail: "keep@example.com",
+		Metadata:      map[string]interface{}{},
+	}
+
+	_, err = service.persistSubscriptionFromStripe("", sub)
+	require.NoError(t, err)
+
+	var planTier string
+	err = db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, "sub_keep").Scan(&planTier)
+	require.NoError(t, err)
+	assert.Equal(t, "pro", planTier)
+}
+
+func TestPersistInvoiceStatus_InfersPlanTierFromPriceID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
+	service := requireTestStripeService(t, db)
+
+	err := service.persistInvoiceStatus("sub_infer", "cus_infer", "infer@example.com", "price_solo_monthly", "active")
+	require.NoError(t, err)
+
+	var planTier string
+	err = db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, "sub_infer").Scan(&planTier)
+	require.NoError(t, err)
+	assert.Equal(t, "solo", planTier)
 }
 
 // ============================================================================

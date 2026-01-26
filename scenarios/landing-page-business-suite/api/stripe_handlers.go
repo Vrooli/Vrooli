@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
@@ -23,12 +24,13 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 			CancelURL     string `json:"cancel_url"`
 		}
 
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
+		if !decodeJSONBody(w, r, &body) {
 			return
 		}
 
 		// Validate required fields
+		body.PriceID = strings.TrimSpace(body.PriceID)
+		body.CustomerEmail = strings.TrimSpace(body.CustomerEmail)
 		if body.PriceID == "" || body.CustomerEmail == "" {
 			logStructured("checkout_validation_failed", map[string]interface{}{
 				"reason":    "missing_required_fields",
@@ -38,6 +40,23 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 			writeJSONError(w, http.StatusBadRequest, "Missing required fields: price_id, customer_email", ApiErrorTypeValidation)
 			return
 		}
+
+		normalizedEmail, ok := ValidateEmailForHandler(w, body.CustomerEmail)
+		if !ok {
+			return
+		}
+		body.CustomerEmail = normalizedEmail
+
+		successURL, ok := NormalizeRedirectURLForHandler(w, body.SuccessURL, "success_url")
+		if !ok {
+			return
+		}
+		cancelURL, ok := NormalizeRedirectURLForHandler(w, body.CancelURL, "cancel_url")
+		if !ok {
+			return
+		}
+		body.SuccessURL = successURL
+		body.CancelURL = cancelURL
 
 		// Set default URLs if not provided
 		if body.SuccessURL == "" {
@@ -60,6 +79,10 @@ func handleCheckoutCreate(service *StripeService) http.HandlerFunc {
 				"error":    err.Error(),
 				"price_id": req.PriceId,
 			})
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
 			writeJSONError(w, http.StatusInternalServerError, "Failed to create checkout session. Please try again.", ApiErrorTypeServerError)
 			return
 		}
@@ -138,6 +161,10 @@ func handleSubscriptionVerify(service *StripeService) http.HandlerFunc {
 				"user":  userIdentity,
 				"error": err.Error(),
 			})
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
 			writeJSONError(w, http.StatusInternalServerError, "Failed to verify subscription. Please try again.", ApiErrorTypeServerError)
 			return
 		}
@@ -173,6 +200,10 @@ func handleSubscriptionCancel(service *StripeService) http.HandlerFunc {
 				"user":  req.UserIdentity,
 				"error": err.Error(),
 			})
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
 			writeJSONError(w, http.StatusBadRequest, "Failed to cancel subscription. Please try again.", ApiErrorTypeServerError)
 			return
 		}

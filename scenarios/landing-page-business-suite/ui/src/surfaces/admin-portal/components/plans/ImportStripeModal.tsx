@@ -50,10 +50,16 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
 
   const formatPrice = (amountCents: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-    }).format(amountCents / 100);
+    const safeAmount = Number.isFinite(amountCents) ? amountCents : 0;
+    const safeCurrency = currency?.toUpperCase?.() || 'USD';
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: safeCurrency,
+      }).format(safeAmount / 100);
+    } catch {
+      return `${(safeAmount / 100).toFixed(2)} ${safeCurrency}`;
+    }
   };
 
   const formatInterval = (interval?: string) => {

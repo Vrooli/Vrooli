@@ -60,6 +60,20 @@ The Customization page has been updated to use InlineAlert, and other admin page
 
 ---
 
+## Stability Issues
+
+### Missing ESLint config for UI
+
+**Severity:** Medium  
+**Status:** ✅ Resolved  
+**Reported:** 2026-01-26  
+**Resolved:** 2026-01-26  
+
+The UI does not include an ESLint configuration, so React hook rules and unsafe-type checks are not enforced.  
+Added `ui/eslint.config.js` with the safety rules; dependencies already exist in `ui/package.json`.
+
+---
+
 ## Test Organization
 
 ### Monolithic Test Files

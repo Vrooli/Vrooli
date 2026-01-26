@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { StripeSettingsResponse, BundleCatalogEntry } from '../../../shared/api';
+import { getApiErrorMessage, type StripeSettingsResponse, type BundleCatalogEntry } from '../../../shared/api';
 import {
   loadStripeSettings,
   saveStripeSettings,
@@ -60,7 +60,7 @@ export function useBillingForm() {
       const data = await loadStripeSettings();
       setStripeSettings(data);
     } catch (error) {
-      setStripeError(error instanceof Error ? error.message : 'Failed to load Stripe settings');
+      setStripeError(getApiErrorMessage(error, 'Failed to load Stripe settings'));
     } finally {
       setLoadingStripe(false);
     }
@@ -82,7 +82,7 @@ export function useBillingForm() {
       setPriceForms(buildPriceFormsFromBundles(enrichedBundles));
       setPriceChecks({});
     } catch (error) {
-      setBundleError(error instanceof Error ? error.message : 'Failed to load bundle catalog');
+      setBundleError(getApiErrorMessage(error, 'Failed to load bundle catalog'));
     } finally {
       setLoadingBundles(false);
     }
@@ -116,7 +116,7 @@ export function useBillingForm() {
       setStripeSettings(updated);
       setStripeForm(DEFAULT_STRIPE_FORM);
     } catch (error) {
-      setStripeError(error instanceof Error ? error.message : 'Failed to update Stripe settings');
+      setStripeError(getApiErrorMessage(error, 'Failed to update Stripe settings'));
     } finally {
       setSavingStripe(false);
     }
@@ -171,6 +171,15 @@ export function useBillingForm() {
           },
         };
       });
+
+      if (field === 'stripePriceId') {
+        setPriceChecks((prev) => {
+          if (!prev[key]) return prev;
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
     },
     []
   );
@@ -192,6 +201,52 @@ export function useBillingForm() {
         },
       }));
       return;
+    }
+
+    const planName = formState.values.planName.trim();
+    const stripePriceId = formState.values.stripePriceId.trim();
+    if (!planName) {
+      setPriceForms((prev) => ({
+        ...prev,
+        [key]: {
+          ...formState,
+          error: 'Plan name is required.',
+        },
+      }));
+      return;
+    }
+    if (!stripePriceId) {
+      setPriceForms((prev) => ({
+        ...prev,
+        [key]: {
+          ...formState,
+          error: 'Stripe price ID is required.',
+        },
+      }));
+      return;
+    }
+    if (!stripePriceId.startsWith('price_')) {
+      setPriceForms((prev) => ({
+        ...prev,
+        [key]: {
+          ...formState,
+          error: 'Stripe price IDs must start with "price_".',
+        },
+      }));
+      return;
+    }
+    if (stripePriceId !== formState.original.stripePriceId.trim()) {
+      const check = priceChecks[key];
+      if (!check || check.status !== 'ok') {
+        setPriceForms((prev) => ({
+          ...prev,
+          [key]: {
+            ...formState,
+            error: 'Verify the new Stripe price ID before saving changes.',
+          },
+        }));
+        return;
+      }
     }
 
     setPriceForms((prev) => ({
@@ -223,12 +278,12 @@ export function useBillingForm() {
           [key]: {
             ...existing,
             saving: false,
-            error: error instanceof Error ? error.message : 'Failed to update price',
+            error: getApiErrorMessage(error, 'Failed to update price'),
           },
         };
       });
     }
-  }, [priceForms, loadBundles]);
+  }, [priceForms, priceChecks, loadBundles]);
 
   /**
    * Verify a Stripe price ID

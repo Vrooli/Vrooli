@@ -55,6 +55,49 @@ const (
 	sessionTypeSupporterContribution = "supporter_contribution"
 )
 
+// StripeConfigError indicates missing or invalid Stripe configuration.
+type StripeConfigError struct {
+	MissingKey string
+}
+
+func (e *StripeConfigError) Error() string {
+	return fmt.Sprintf("stripe configuration missing %s", e.MissingKey)
+}
+
+// StripeAPIError represents a Stripe API error response.
+type StripeAPIError struct {
+	Status    int
+	Message   string
+	Type      string
+	Code      string
+	Param     string
+	RequestID string
+}
+
+func (e *StripeAPIError) Error() string {
+	msg := strings.TrimSpace(e.Message)
+	if msg == "" {
+		msg = "stripe api error"
+	}
+	if e.RequestID != "" {
+		return fmt.Sprintf("stripe api error (%d): %s (request_id=%s)", e.Status, msg, e.RequestID)
+	}
+	return fmt.Sprintf("stripe api error (%d): %s", e.Status, msg)
+}
+
+// StripeBundleProductNotFoundError indicates the configured bundle product is missing in Stripe.
+type StripeBundleProductNotFoundError struct {
+	BundleKey string
+	ProductID string
+}
+
+func (e *StripeBundleProductNotFoundError) Error() string {
+	if e.BundleKey == "" {
+		return fmt.Sprintf("stripe product %s not found for bundle", e.ProductID)
+	}
+	return fmt.Sprintf("stripe product %s not found for bundle %s", e.ProductID, e.BundleKey)
+}
+
 // StripePriceInfo provides typed price verification results.
 type StripePriceInfo struct {
 	ID          string `json:"id"`
@@ -336,7 +379,7 @@ func (s *StripeService) doStripeForm(ctx context.Context, method, path string, v
 func (s *StripeService) doStripeRequest(ctx context.Context, method, path string, body io.Reader, contentType string) ([]byte, error) {
 	cfg := s.getConfig()
 	if !cfg.hasSecret {
-		return nil, errors.New("Stripe not configured - missing STRIPE_SECRET_KEY (restricted key)")
+		return nil, &StripeConfigError{MissingKey: "secret_key"}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, s.stripeAPIURL(path), body)
@@ -372,10 +415,88 @@ func (s *StripeService) doStripeRequest(ctx context.Context, method, path string
 		if bodySnippet == "" {
 			bodySnippet = "no response body"
 		}
-		return nil, fmt.Errorf("stripe request %s %s failed: %s - %s", method, path, resp.Status, bodySnippet)
+		return nil, parseStripeAPIError(resp.StatusCode, bodySnippet, data, resp.Header.Get("Request-Id"))
 	}
 
 	return data, nil
+}
+
+func parseStripeAPIError(status int, fallback string, data []byte, requestID string) *StripeAPIError {
+	var payload struct {
+		Error struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+			Code    string `json:"code"`
+			Param   string `json:"param"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(data, &payload); err == nil && strings.TrimSpace(payload.Error.Message) != "" {
+		return &StripeAPIError{
+			Status:    status,
+			Message:   strings.TrimSpace(payload.Error.Message),
+			Type:      strings.TrimSpace(payload.Error.Type),
+			Code:      strings.TrimSpace(payload.Error.Code),
+			Param:     strings.TrimSpace(payload.Error.Param),
+			RequestID: strings.TrimSpace(requestID),
+		}
+	}
+
+	return &StripeAPIError{
+		Status:    status,
+		Message:   strings.TrimSpace(fallback),
+		RequestID: strings.TrimSpace(requestID),
+	}
+}
+
+func classifyStripeError(err error) (int, string, string, bool) {
+	if err == nil {
+		return http.StatusInternalServerError, ApiErrorTypeServerError, "Stripe request failed. Please try again.", false
+	}
+
+	var configErr *StripeConfigError
+	if errors.As(err, &configErr) {
+		return http.StatusBadRequest, ApiErrorTypeValidation,
+			"Stripe secret key is missing. Add a restricted key in Billing settings to continue.", true
+	}
+
+	var bundleErr *StripeBundleProductNotFoundError
+	if errors.As(err, &bundleErr) {
+		message := "Stripe product not found for the active bundle. Update the bundle's Stripe product ID or create the product in Stripe."
+		if bundleErr.ProductID != "" {
+			if bundleErr.BundleKey != "" {
+				message = fmt.Sprintf("Stripe product %s was not found for bundle %s. Update the bundle's Stripe product ID or create the product in Stripe.", bundleErr.ProductID, bundleErr.BundleKey)
+			} else {
+				message = fmt.Sprintf("Stripe product %s was not found. Update the bundle's Stripe product ID or create the product in Stripe.", bundleErr.ProductID)
+			}
+		}
+		return http.StatusUnprocessableEntity, ApiErrorTypeValidation, message, true
+	}
+
+	var apiErr *StripeAPIError
+	if errors.As(err, &apiErr) {
+		switch {
+		case apiErr.Status == http.StatusUnauthorized || apiErr.Status == http.StatusForbidden:
+			return http.StatusBadRequest, ApiErrorTypeValidation,
+				"Stripe authentication failed. Check the restricted key in Billing settings.", true
+		case apiErr.Status == http.StatusNotFound || strings.EqualFold(apiErr.Code, "resource_missing"):
+			return http.StatusBadRequest, ApiErrorTypeValidation,
+				"Stripe resource not found. Verify the Stripe price or product ID.", true
+		case apiErr.Status == http.StatusTooManyRequests:
+			return http.StatusTooManyRequests, ApiErrorTypeRateLimited,
+				"Stripe rate limit reached. Please try again in a moment.", true
+		case apiErr.Status >= 500:
+			return http.StatusBadGateway, ApiErrorTypeServerError,
+				"Stripe is currently unavailable. Please try again later.", true
+		default:
+			message := strings.TrimSpace(apiErr.Message)
+			if message == "" {
+				message = "Stripe request failed. Please check your input and try again."
+			}
+			return http.StatusBadRequest, ApiErrorTypeValidation, message, true
+		}
+	}
+
+	return http.StatusInternalServerError, ApiErrorTypeServerError, "Stripe request failed. Please try again.", false
 }
 
 func (s *StripeService) lookupCustomerID(user string) string {
@@ -454,7 +575,7 @@ func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, e
 		Currency   string `json:"currency"`
 		UnitAmount int64  `json:"unit_amount"`
 		Active     bool   `json:"active"`
-		Recurring  struct {
+		Recurring  *struct {
 			Interval string `json:"interval"`
 		} `json:"recurring"`
 		Product struct {
@@ -465,12 +586,17 @@ func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, e
 		return nil, fmt.Errorf("decode stripe price: %w", err)
 	}
 
+	interval := "one_time"
+	if price.Recurring != nil && strings.TrimSpace(price.Recurring.Interval) != "" {
+		interval = price.Recurring.Interval
+	}
+
 	return map[string]interface{}{
 		"id":           price.ID,
 		"lookup_key":   price.LookupKey,
 		"currency":     price.Currency,
 		"amount_cents": price.UnitAmount,
-		"interval":     price.Recurring.Interval,
+		"interval":     interval,
 		"active":       price.Active,
 		"product":      price.Product.Name,
 	}, nil
@@ -954,6 +1080,28 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 			if plan.BundleKey != "" {
 				bundleKey = plan.BundleKey
 			}
+		} else {
+			logStructured("stripe_plan_lookup_failed", map[string]interface{}{
+				"level":    "warn",
+				"price_id": priceID,
+				"error":    err.Error(),
+			})
+		}
+	}
+	if strings.TrimSpace(planTier) == "" && strings.TrimSpace(priceID) != "" {
+		if inferred, ok := detectTierToken(priceID); ok {
+			planTier = inferred
+		}
+	}
+	if strings.TrimSpace(planTier) != "" {
+		if _, err := normalizePlanTier(planTier); err != nil {
+			logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
+				"level":        "warn",
+				"plan_tier":    planTier,
+				"price_id":     priceID,
+				"subscription": sub.ID,
+			})
+			planTier = ""
 		}
 	}
 
@@ -971,14 +1119,14 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 
 	_, err := s.db.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1), NOW()), NOW())
+		VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,$8::int,$9::timestamp,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), NOW()), NOW())
 		ON CONFLICT (subscription_id) DO UPDATE SET
 			customer_id = EXCLUDED.customer_id,
 			customer_email = EXCLUDED.customer_email,
 			status = EXCLUDED.status,
-			plan_tier = EXCLUDED.plan_tier,
-			price_id = EXCLUDED.price_id,
-			bundle_key = EXCLUDED.bundle_key,
+			plan_tier = COALESCE(NULLIF(EXCLUDED.plan_tier,''), subscriptions.plan_tier),
+			price_id = COALESCE(NULLIF(EXCLUDED.price_id,''), subscriptions.price_id),
+			bundle_key = COALESCE(NULLIF(EXCLUDED.bundle_key,''), subscriptions.bundle_key),
 			billing_cycle_start = EXCLUDED.billing_cycle_start,
 			canceled_at = EXCLUDED.canceled_at,
 			updated_at = NOW()
@@ -1399,6 +1547,12 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 			if plan.BundleKey != "" {
 				bundleKey = plan.BundleKey
 			}
+		} else {
+			logStructured("stripe_plan_lookup_failed", map[string]interface{}{
+				"level":    "warn",
+				"price_id": priceID,
+				"error":    err.Error(),
+			})
 		}
 	}
 
@@ -1407,8 +1561,21 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 		if err := s.db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, subscriptionID).Scan(&current); err == nil && current.Valid {
 			planTier = current.String
 		}
-		if strings.TrimSpace(planTier) == "" {
-			planTier = "pro"
+	}
+	if strings.TrimSpace(planTier) == "" && strings.TrimSpace(priceID) != "" {
+		if inferred, ok := detectTierToken(priceID); ok {
+			planTier = inferred
+		}
+	}
+	if strings.TrimSpace(planTier) != "" {
+		if _, err := normalizePlanTier(planTier); err != nil {
+			logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
+				"level":        "warn",
+				"plan_tier":    planTier,
+				"price_id":     priceID,
+				"subscription": subscriptionID,
+			})
+			planTier = ""
 		}
 	}
 
@@ -1537,6 +1704,25 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_r
 			if plan, err := s.planService.GetPlanByPriceID(priceID.String); err == nil {
 				planTier.String = plan.PlanTier
 				bundleKey.String = plan.BundleKey
+			}
+		}
+		if planTier.String != "" {
+			if _, err := normalizePlanTier(planTier.String); err != nil {
+				logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
+					"level":        "warn",
+					"plan_tier":    planTier.String,
+					"price_id":     priceID.String,
+					"subscription": subscriptionID.String,
+				})
+				planTier.String = ""
+			} else if subscriptionID.Valid {
+				_, _ = s.db.Exec(`
+					UPDATE subscriptions
+					SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
+						bundle_key = COALESCE(NULLIF($2,''), bundle_key),
+						updated_at = NOW()
+					WHERE subscription_id = $3
+				`, planTier.String, bundleKey.String, subscriptionID.String)
 			}
 		}
 	}
@@ -1723,6 +1909,32 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 		return nil, fmt.Errorf("fetch stripe products: %w", err)
 	}
 
+	if planStore != nil {
+		if bundle := planStore.GetBundle(); bundle != nil {
+			bundleProductID := strings.TrimSpace(bundle.StripeProductId)
+			if bundleProductID != "" {
+				filtered := make([]stripeProduct, 0, 1)
+				for _, product := range products {
+					if product.ID == bundleProductID {
+						filtered = append(filtered, product)
+						break
+					}
+				}
+				if len(filtered) == 0 {
+					bundleKey := ""
+					if bundle.BundleKey != "" {
+						bundleKey = bundle.BundleKey
+					}
+					return nil, &StripeBundleProductNotFoundError{
+						BundleKey: bundleKey,
+						ProductID: bundleProductID,
+					}
+				}
+				products = filtered
+			}
+		}
+	}
+
 	// Get existing price IDs from plan store
 	existingPriceIDs := make(map[string]bool)
 	if planStore != nil {
@@ -1827,7 +2039,6 @@ func (s *StripeService) fetchStripeProducts(ctx context.Context) ([]stripeProduc
 func (s *StripeService) fetchStripePricesForProduct(ctx context.Context, productID string) ([]stripePrice, error) {
 	values := url.Values{}
 	values.Set("product", productID)
-	values.Set("active", "true")
 	values.Set("limit", "100")
 	path := "/v1/prices?" + values.Encode()
 

@@ -7,6 +7,7 @@ import {
   type StripeImportResult,
   type StripePriceImport,
 } from '../../../shared/api/billing';
+import { getApiErrorMessage } from '../../../shared/api';
 
 const buildSelectionMap = (
   preview: StripeImportPreview,
@@ -84,7 +85,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       setPreview(data);
       setSelections(defaultSelectionsForPreview(data));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load Stripe products');
+      setError(getApiErrorMessage(err, 'Failed to load Stripe products'));
     } finally {
       setLoading(false);
     }
@@ -133,6 +134,9 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
   const handleImport = useCallback(async () => {
     const selectionsList: ImportPlanSelection[] = Object.entries(selections).map(([priceId, selected]) => {
       const price = priceIndex.get(priceId);
+      if (!price) {
+        return { price_id: priceId, action: 'skip' };
+      }
       const action: ImportPlanSelection['action'] = selected
         ? price?.exists_locally
           ? 'overwrite'
@@ -169,7 +173,7 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       // Call completion callback
       onImportComplete?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      setError(getApiErrorMessage(err, 'Import failed'));
     } finally {
       setImporting(false);
     }

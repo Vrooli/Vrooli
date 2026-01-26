@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   listVariants,
   getStripeSettings,
+  getApiErrorMessage,
   resetDemoData,
   getBranding,
   listDownloadAppsAdmin,
@@ -173,7 +174,7 @@ export function useAdminHome(): UseAdminHomeReturn {
       setStripeSettings(data);
     } catch (error) {
       setStripeSettings(null);
-      setStripeError(error instanceof Error ? error.message : 'Failed to load monetization status');
+      setStripeError(getApiErrorMessage(error, 'Failed to load monetization status'));
     } finally {
       setStripeLoading(false);
     }

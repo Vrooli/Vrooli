@@ -42,6 +42,7 @@ export function PriceFormCard({
 }: PriceFormCardProps) {
   const dirty = isPriceFormDirty(formState);
   const demoPlan = formState.demo;
+  const currencyLabel = price.currency ? price.currency.toUpperCase() : 'USD';
 
   return (
     <div className="py-4 first:pt-0 last:pb-0">
@@ -49,7 +50,7 @@ export function PriceFormCard({
         <div>
           <h3 className="text-lg font-semibold text-white">{price.plan_name}</h3>
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            <span>{getIntervalLabel(normalizeInterval(price.billing_interval))} · {price.currency.toUpperCase()}</span>
+            <span>{getIntervalLabel(normalizeInterval(price.billing_interval))} · {currencyLabel}</span>
             <span
               className={cn(
                 'inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs',
@@ -108,7 +109,7 @@ export function PriceFormCard({
           type="text"
           value={formState.values.stripePriceId}
           onChange={onPriceChange(bundleKey, priceIdentifier, 'stripePriceId')}
-          placeholder="price_abc123 or lookup key if using Stripe aliases"
+          placeholder="price_abc123"
           className={inputClassName}
         />
         <div className="mt-2 flex items-center gap-2 text-xs">
@@ -125,7 +126,7 @@ export function PriceFormCard({
           {priceCheck?.status === 'ok' && <span className="text-emerald-300">{priceCheck.message || 'Verified'}</span>}
           {priceCheck?.status === 'error' && <span className="text-amber-200">{priceCheck.message || 'Verification failed'}</span>}
         </div>
-        <p className="mt-1 text-xs text-slate-400">Paste the actual Stripe price ID or leave blank for free/CTA-only tiers.</p>
+        <p className="mt-1 text-xs text-slate-400">Use the Stripe price ID (starts with price_). Create a $0 price in Stripe for free tiers.</p>
       </FormField>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">

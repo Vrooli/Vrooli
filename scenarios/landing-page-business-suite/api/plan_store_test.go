@@ -195,7 +195,7 @@ func TestGetBundle_NilBundle(t *testing.T) {
 
 func TestGetBundle_ReturnsClone(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	bundle1 := ps.GetBundle()
@@ -211,7 +211,7 @@ func TestGetBundle_ReturnsClone(t *testing.T) {
 
 func TestGetPlans_ReturnsClones(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	plans1 := ps.GetPlans()
@@ -226,7 +226,7 @@ func TestGetPlans_ReturnsClones(t *testing.T) {
 
 func TestGetPlanByPriceID_Found(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	plan, err := ps.GetPlanByPriceID("price_monthly_pro")
@@ -238,7 +238,7 @@ func TestGetPlanByPriceID_Found(t *testing.T) {
 
 func TestGetPlanByPriceID_NotFound(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	plan, err := ps.GetPlanByPriceID("price_nonexistent")
@@ -257,7 +257,7 @@ func TestGetPlanByPriceID_EmptyID(t *testing.T) {
 
 func TestGetPricingOverview(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	overview, err := ps.GetPricingOverview()
@@ -286,7 +286,7 @@ func TestGetPricingOverview_NilBundle(t *testing.T) {
 
 func TestListBundleCatalog(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	catalog, err := ps.ListBundleCatalog(context.Background())
@@ -323,61 +323,75 @@ func TestAddPlan(t *testing.T) {
 		DisplayEnabled:  true,
 	}
 
-	err := ps.AddPlan(newPlan)
+	created, err := ps.AddPlan(newPlan)
 	require.NoError(t, err)
+	require.NotNil(t, created)
 
 	plans := ps.GetPlans()
 	assert.Len(t, plans, initialCount+1)
 
 	// Verify it was saved to file
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 	assert.Len(t, ps2.GetPlans(), initialCount+1)
 }
 
 func TestAddPlan_DuplicatePriceID(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	duplicatePlan := &PlanOption{
-		StripePriceId: "price_monthly_pro", // Already exists
-		PlanName:      "Duplicate",
+		StripePriceId:   "price_monthly_pro", // Already exists
+		PlanName:        "Duplicate",
+		PlanTier:        "pro",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
 	}
 
-	err := ps.AddPlan(duplicatePlan)
+	_, err := ps.AddPlan(duplicatePlan)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 }
 
 func TestAddPlan_EmptyPriceID(t *testing.T) {
 	ps := NewPlanStore("/tmp/test")
-	err := ps.AddPlan(&PlanOption{PlanName: "No Price ID"})
+	_, err := ps.AddPlan(&PlanOption{PlanName: "No Price ID"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "stripe_price_id is required")
 }
 
 func TestAddPlan_SetsBundleKey(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "my_bundle"})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	newPlan := &PlanOption{
-		StripePriceId: "price_bundle_test",
-		PlanName:      "Bundle Test",
+		StripePriceId:   "price_bundle_test",
+		PlanName:        "Bundle Test",
+		PlanTier:        "pro",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
 	}
 
-	err := ps.AddPlan(newPlan)
+	created, err := ps.AddPlan(newPlan)
 	require.NoError(t, err)
+	require.NotNil(t, created)
 
 	plan, err := ps.GetPlanByPriceID("price_bundle_test")
 	require.NoError(t, err)
-	assert.Equal(t, "my_bundle", plan.BundleKey)
+	assert.Equal(t, "test_bundle", plan.BundleKey)
 }
 
 func TestUpdatePlan(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	newName := "Updated Pro Monthly"
@@ -396,7 +410,7 @@ func TestUpdatePlan(t *testing.T) {
 	assert.False(t, updated.DisplayEnabled)
 
 	// Verify persisted
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 	plan, _ := ps2.GetPlanByPriceID("price_monthly_pro")
 	assert.Equal(t, "Updated Pro Monthly", plan.PlanName)
@@ -404,7 +418,7 @@ func TestUpdatePlan(t *testing.T) {
 
 func TestUpdatePlan_NotFound(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	name := "test"
@@ -422,7 +436,7 @@ func TestUpdatePlan_EmptyPriceID(t *testing.T) {
 
 func TestUpdatePlan_Metadata(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	subtitle := "New Subtitle"
@@ -450,7 +464,7 @@ func TestUpdatePlan_Metadata(t *testing.T) {
 
 func TestUpdatePlan_ClearMetadata(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	emptyStr := ""
@@ -476,7 +490,7 @@ func TestUpdatePlan_ClearMetadata(t *testing.T) {
 
 func TestDeletePlan(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	initialCount := len(ps.GetPlans())
@@ -488,7 +502,7 @@ func TestDeletePlan(t *testing.T) {
 	assert.Len(t, plans, initialCount-1)
 
 	// Verify it was persisted
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 	assert.Len(t, ps2.GetPlans(), initialCount-1)
 
@@ -499,7 +513,7 @@ func TestDeletePlan(t *testing.T) {
 
 func TestDeletePlan_NotFound(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	err := ps.DeletePlan("nonexistent")
@@ -516,11 +530,11 @@ func TestDeletePlan_EmptyPriceID(t *testing.T) {
 
 func TestSetPlans(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "new_bundle"})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	newBundle := &BundleProduct{
-		BundleKey:       "new_bundle",
+		BundleKey:       "test_bundle",
 		Name:            "New Bundle",
 		StripeProductId: "prod_new",
 		CreditsPerUsd:   500000,
@@ -533,6 +547,9 @@ func TestSetPlans(t *testing.T) {
 			PlanTier:        "solo",
 			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
 			AmountCents:     999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
 		},
 		{
 			StripePriceId:   "price_set_2",
@@ -540,6 +557,9 @@ func TestSetPlans(t *testing.T) {
 			PlanTier:        "pro",
 			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_YEAR,
 			AmountCents:     9999,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
 		},
 	}
 
@@ -556,26 +576,32 @@ func TestSetPlans(t *testing.T) {
 
 	// Verify bundle key was set on plans
 	for _, plan := range plans {
-		assert.Equal(t, "new_bundle", plan.BundleKey)
+		assert.Equal(t, "test_bundle", plan.BundleKey)
 	}
 
 	// Verify persisted
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 	assert.Len(t, ps2.GetPlans(), 2)
 }
 
 func TestSetPlans_NilBundle(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	originalBundle := ps.GetBundle()
 
 	newPlans := []*PlanOption{
 		{
-			StripePriceId: "price_only",
-			PlanName:      "Only Plan",
+			StripePriceId:   "price_only",
+			PlanName:        "Only Plan",
+			PlanTier:        "pro",
+			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+			AmountCents:     1000,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
 		},
 	}
 
@@ -601,15 +627,24 @@ func TestSavePlans_CreatesDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 	plansPath := filepath.Join(tmpDir, "deep", "nested", "dir", "plans.json")
 
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	ps.bundle = &BundleProduct{
-		BundleKey: "test",
-		Name:      "Test",
+		BundleKey:       "test_bundle",
+		Name:            "Test",
+		StripeProductId: "prod_test",
+		CreditsPerUsd:   1000000,
+		Environment:     "test",
 	}
 	ps.plans = []*PlanOption{
 		{
-			StripePriceId: "price_test",
-			PlanName:      "Test",
+			StripePriceId:   "price_test",
+			PlanName:        "Test",
+			PlanTier:        "pro",
+			BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+			AmountCents:     1000,
+			Currency:        "usd",
+			DisplayWeight:   10,
+			DisplayEnabled:  true,
 		},
 	}
 
@@ -623,7 +658,7 @@ func TestSavePlans_CreatesDirectory(t *testing.T) {
 
 func TestConcurrentAccess(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	var wg sync.WaitGroup
@@ -646,9 +681,15 @@ func TestConcurrentAccess(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			priceID := "price_concurrent_" + string(rune('a'+idx))
-			_ = ps.AddPlan(&PlanOption{
-				StripePriceId: priceID,
-				PlanName:      "Concurrent Plan",
+			_, _ = ps.AddPlan(&PlanOption{
+				StripePriceId:   priceID,
+				PlanName:        "Concurrent Plan",
+				PlanTier:        "pro",
+				BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+				AmountCents:     1000,
+				Currency:        "usd",
+				DisplayWeight:   10,
+				DisplayEnabled:  true,
 			})
 			_ = ps.DeletePlan(priceID)
 		}(i)
@@ -697,6 +738,321 @@ func TestPlanKindMapping(t *testing.T) {
 	}
 }
 
+func TestNormalizePlanOptionRejectsKindMismatch(t *testing.T) {
+	plan := &PlanOption{
+		StripePriceId:   "price_mismatch",
+		PlanName:        "Credits Topup",
+		PlanTier:        "credits",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     5000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		Kind:            landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION,
+	}
+
+	err := normalizePlanOption(plan, "test_bundle")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "plan_kind")
+}
+
+func TestNormalizePlanOptionRejectsFreeNonZeroAmount(t *testing.T) {
+	plan := &PlanOption{
+		StripePriceId:   "price_free_mismatch",
+		PlanName:        "Free Plan",
+		PlanTier:        "free",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     100,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		Kind:            planKindForTier("free"),
+	}
+
+	err := normalizePlanOption(plan, "test_bundle")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "free plan amount_cents")
+}
+
+func TestNormalizePlanOptionRejectsCreditsNonOneTime(t *testing.T) {
+	plan := &PlanOption{
+		StripePriceId:   "price_credits_monthly",
+		PlanName:        "Credits Monthly",
+		PlanTier:        "credits",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		Kind:            planKindForTier("credits"),
+	}
+
+	err := normalizePlanOption(plan, "test_bundle")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "credits plans must use one_time")
+}
+
+func TestApplyStripeImportSelections_OverwritesTier(t *testing.T) {
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          "prod_test",
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+
+	existing := &PlanOption{
+		StripePriceId:   "price_existing",
+		PlanName:        "Solo Plan",
+		PlanTier:        "solo",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		PlanRank:        planRankForTier("solo"),
+		Kind:            planKindForTier("solo"),
+	}
+
+	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{existing}))
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 2000,
+			Interval:    "month",
+			ProductID:   "prod_test",
+			ProductName: "Pro Monthly",
+			Active:      true,
+		}, nil
+	}
+
+	result, err := ps.ApplyStripeImportSelections(context.Background(), []ImportPlanSelection{
+		{PriceID: "price_existing", Action: "overwrite"},
+	}, fetcher)
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Overwritten)
+
+	updated, err := ps.GetPlanByPriceID("price_existing")
+	require.NoError(t, err)
+	assert.Equal(t, "pro", updated.PlanTier)
+	assert.Equal(t, int64(2000), updated.AmountCents)
+	assert.Equal(t, "Pro Monthly", updated.PlanName)
+	assert.Equal(t, planKindForTier("pro"), updated.Kind)
+}
+
+func TestUpdatePlanWithStripeDetails_RejectsMismatchedProduct(t *testing.T) {
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          "prod_bundle",
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+
+	existing := &PlanOption{
+		StripePriceId:   "price_existing",
+		PlanName:        "Existing Plan",
+		PlanTier:        "pro",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		PlanRank:        planRankForTier("pro"),
+		Kind:            planKindForTier("pro"),
+	}
+
+	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{existing}))
+
+	newName := "Updated Plan"
+	_, err := ps.UpdatePlanWithStripeDetails("price_existing", UpdateBundlePriceInput{
+		PlanName: &newName,
+	}, &StripePriceImport{
+		PriceID:     "price_existing",
+		Currency:    "usd",
+		AmountCents: 2000,
+		Interval:    "month",
+		ProductID:   "prod_other",
+		ProductName: "Other Bundle",
+		Active:      true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "product")
+}
+
+func TestUpdatePlanWithStripeDetails_RejectsFreeAmountMismatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          "prod_bundle",
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+
+	freePlan := &PlanOption{
+		StripePriceId:   "price_free",
+		PlanName:        "Free Plan",
+		PlanTier:        "free",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
+		AmountCents:     0,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		PlanRank:        planRankForTier("free"),
+		Kind:            planKindForTier("free"),
+	}
+
+	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{freePlan}))
+
+	newName := "Updated Free"
+	_, err := ps.UpdatePlanWithStripeDetails("price_free", UpdateBundlePriceInput{
+		PlanName: &newName,
+	}, &StripePriceImport{
+		PriceID:     "price_free",
+		Currency:    "usd",
+		AmountCents: 500,
+		Interval:    "month",
+		ProductID:   "prod_bundle",
+		ProductName: "Test Bundle",
+		Active:      true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "free plan amount_cents")
+}
+
+func TestUpdatePlanWithStripeDetails_RejectsCreditsIntervalMismatch(t *testing.T) {
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          "prod_bundle",
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+
+	creditsPlan := &PlanOption{
+		StripePriceId:   "price_credits",
+		PlanName:        "Credits Pack",
+		PlanTier:        "credits",
+		BillingInterval: landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME,
+		AmountCents:     1000,
+		Currency:        "usd",
+		DisplayWeight:   10,
+		DisplayEnabled:  true,
+		PlanRank:        planRankForTier("credits"),
+		Kind:            planKindForTier("credits"),
+	}
+
+	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{creditsPlan}))
+
+	newName := "Updated Credits"
+	_, err := ps.UpdatePlanWithStripeDetails("price_credits", UpdateBundlePriceInput{
+		PlanName: &newName,
+	}, &StripePriceImport{
+		PriceID:     "price_credits",
+		Currency:    "usd",
+		AmountCents: 1000,
+		Interval:    "month",
+		ProductID:   "prod_bundle",
+		ProductName: "Test Bundle",
+		Active:      true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credits plans must use one_time")
+}
+
+func TestApplyStripeImportSelections_RejectsMismatchedProduct(t *testing.T) {
+	tmpDir := t.TempDir()
+	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
+
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  plansPath,
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          "prod_bundle",
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+
+	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{}))
+
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{
+			PriceID:     priceID,
+			LookupKey:   "pro_monthly",
+			Currency:    "usd",
+			AmountCents: 2000,
+			Interval:    "month",
+			ProductID:   "prod_other",
+			ProductName: "Other Bundle",
+			Active:      true,
+		}, nil
+	}
+
+	result, err := ps.ApplyStripeImportSelections(context.Background(), []ImportPlanSelection{
+		{PriceID: "price_new", Action: "import"},
+	}, fetcher)
+	require.NoError(t, err)
+	assert.Equal(t, 0, result.Imported)
+	assert.NotEmpty(t, result.Errors)
+
+	plans := ps.GetPlans()
+	assert.Len(t, plans, 0)
+}
+
 func TestIntroPricingTypeMapping(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -722,11 +1078,11 @@ func TestIntroPricingTypeMapping(t *testing.T) {
 
 func TestMetadataConversion(t *testing.T) {
 	original := map[string]interface{}{
-		"string":  "value",
-		"number":  float64(42),
-		"bool":    true,
-		"nested":  map[string]interface{}{"key": "val"},
-		"list":    []interface{}{"a", "b"},
+		"string": "value",
+		"number": float64(42),
+		"bool":   true,
+		"nested": map[string]interface{}{"key": "val"},
+		"list":   []interface{}{"a", "b"},
 	}
 
 	protoMap := convertMetadataToProto(original)
@@ -797,7 +1153,7 @@ func TestRoundTripSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load fresh
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 
 	// Verify bundle persisted correctly
@@ -817,7 +1173,7 @@ func TestRoundTripSaveLoad(t *testing.T) {
 func TestSaveLoadWithIntroFields(t *testing.T) {
 	plansJSON := []byte(`{
   "bundle": {
-    "bundle_key": "test",
+    "bundle_key": "test_bundle",
     "name": "Test",
     "stripe_product_id": "prod_test",
     "credits_per_usd": 1000000,
@@ -842,7 +1198,7 @@ func TestSaveLoadWithIntroFields(t *testing.T) {
 }`)
 
 	plansPath := setupTestPlansFile(t, plansJSON)
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	plan, err := ps.GetPlanByPriceID("price_intro")
@@ -858,7 +1214,7 @@ func TestSaveLoadWithIntroFields(t *testing.T) {
 	// Save and reload
 	require.NoError(t, ps.SavePlans())
 
-	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps2 := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps2.LoadAll())
 
 	plan2, _ := ps2.GetPlanByPriceID("price_intro")
@@ -869,7 +1225,7 @@ func TestSaveLoadWithIntroFields(t *testing.T) {
 
 func TestFileFormat_UpdatedAt(t *testing.T) {
 	plansPath := setupTestPlansFile(t, testPlansJSON())
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath})
+	ps := NewPlanStoreWithOptions(PlanStoreOptions{PlansPath: plansPath, BundleKey: "test_bundle"})
 	require.NoError(t, ps.LoadAll())
 
 	// Save to update the timestamp

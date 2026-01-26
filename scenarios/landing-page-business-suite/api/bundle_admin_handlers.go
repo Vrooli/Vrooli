@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
+	"errors"
 	"net/http"
 	"strings"
-
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 type bundleCatalogResponse struct {
@@ -37,11 +34,15 @@ func handleAdminBundleCatalog(planService *PlanService) http.HandlerFunc {
 	}
 }
 
-func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
+func handleAdminUpdateBundlePrice(planService *PlanService, stripe *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bundleKey, ok := getPathParam(r, "bundle_key")
 		if !ok || bundleKey == "" {
 			writeJSONError(w, http.StatusBadRequest, "Bundle key is required", ApiErrorTypeValidation)
+			return
+		}
+		if bundleKey != planService.BundleKey() {
+			writeJSONError(w, http.StatusBadRequest, "Bundle key does not match active bundle", ApiErrorTypeValidation)
 			return
 		}
 		priceID, ok := getPathParam(r, "price_id")
@@ -56,8 +57,17 @@ func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 		}
 
 		input := UpdateBundlePriceInput(req)
-		updated, err := planService.UpdateBundlePrice(r.Context(), bundleKey, priceID, input)
+
+		var fetcher StripePriceFetcher
+		if stripe != nil {
+			fetcher = stripe.FetchStripePriceDetails
+		}
+		updated, err := planService.UpdateBundlePriceWithStripe(r.Context(), bundleKey, priceID, input, fetcher)
 		if err != nil {
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
@@ -68,6 +78,10 @@ func handleAdminUpdateBundlePrice(planService *PlanService) http.HandlerFunc {
 
 func handleAdminVerifyStripePrice(stripe *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if stripe == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Stripe service unavailable", ApiErrorTypeServerError)
+			return
+		}
 		key := strings.TrimSpace(getQueryParam(r, "key"))
 		if key == "" {
 			writeJSONError(w, http.StatusBadRequest, "price key required", ApiErrorTypeValidation)
@@ -76,6 +90,10 @@ func handleAdminVerifyStripePrice(stripe *StripeService) http.HandlerFunc {
 
 		info, err := stripe.VerifyStripePrice(key)
 		if err != nil {
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
@@ -87,6 +105,10 @@ func handleAdminVerifyStripePrice(stripe *StripeService) http.HandlerFunc {
 // handleAdminStripeImportPreview returns a preview of products/prices available for import from Stripe.
 func handleAdminStripeImportPreview(stripe *StripeService, planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if stripe == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Stripe service unavailable", ApiErrorTypeServerError)
+			return
+		}
 		planStore := planService.GetPlanStore()
 		if planStore == nil {
 			writeJSONError(w, http.StatusInternalServerError, "plan store not available", ApiErrorTypeServerError)
@@ -95,7 +117,11 @@ func handleAdminStripeImportPreview(stripe *StripeService, planService *PlanServ
 
 		preview, err := stripe.ListStripeProductsWithPrices(r.Context(), planStore)
 		if err != nil {
-			writeJSONError(w, http.StatusInternalServerError, err.Error(), ApiErrorTypeServerError)
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe products", ApiErrorTypeServerError)
 			return
 		}
 
@@ -103,23 +129,9 @@ func handleAdminStripeImportPreview(stripe *StripeService, planService *PlanServ
 	}
 }
 
-// ImportPlanSelection represents a single price selection for import.
-type ImportPlanSelection struct {
-	PriceID string `json:"price_id"`
-	Action  string `json:"action"` // "import", "overwrite", "skip"
-}
-
 // StripeImportRequest contains the selections for importing prices from Stripe.
 type StripeImportRequest struct {
 	Selections []ImportPlanSelection `json:"selections"`
-}
-
-// StripeImportResult contains the results of the import operation.
-type StripeImportResult struct {
-	Imported   int      `json:"imported"`
-	Overwritten int      `json:"overwritten"`
-	Skipped    int      `json:"skipped"`
-	Errors     []string `json:"errors,omitempty"`
 }
 
 // handleAdminStripeImport imports selected prices from Stripe into the plan store.
@@ -130,106 +142,30 @@ func handleAdminStripeImport(stripe *StripeService, planService *PlanService) ht
 			return
 		}
 
-		if len(req.Selections) == 0 {
-			writeJSONError(w, http.StatusBadRequest, "no selections provided", ApiErrorTypeValidation)
-			return
+		var fetcher StripePriceFetcher
+		if stripe != nil {
+			fetcher = stripe.FetchStripePriceDetails
 		}
 
-		planStore := planService.GetPlanStore()
-		if planStore == nil {
-			writeJSONError(w, http.StatusInternalServerError, "plan store not available", ApiErrorTypeServerError)
+		result, err := planService.ImportStripePrices(r.Context(), req.Selections, fetcher)
+		if err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, errStripeImportNoSelections) ||
+				errors.Is(err, errStripeImportNoValidSelections) ||
+				errors.Is(err, errStripeImportMissingFetcher) ||
+				errors.Is(err, errStripeImportBundleMissing) {
+				status = http.StatusBadRequest
+			}
+			errorType := ApiErrorTypeValidation
+			if status == http.StatusInternalServerError {
+				errorType = ApiErrorTypeServerError
+			}
+			writeJSONError(w, status, err.Error(), errorType)
 			return
-		}
-
-		result := StripeImportResult{}
-		ctx := r.Context()
-
-		for _, selection := range req.Selections {
-			priceID := strings.TrimSpace(selection.PriceID)
-			if priceID == "" {
-				result.Errors = append(result.Errors, "empty price ID in selection")
-				continue
-			}
-
-			switch selection.Action {
-			case "skip":
-				result.Skipped++
-				continue
-			case "import", "overwrite":
-				// Fetch price details from Stripe
-				priceDetails, err := stripe.FetchStripePriceDetails(ctx, priceID)
-				if err != nil {
-					result.Errors = append(result.Errors, "failed to fetch price "+priceID+": "+err.Error())
-					continue
-				}
-
-				// Convert to PlanOption
-				plan := stripePriceImportToPlanOption(priceDetails)
-
-				// Check if exists
-				existing, _ := planStore.GetPlanByPriceID(priceID)
-				if existing != nil {
-					if selection.Action == "overwrite" {
-						// Update existing plan with Stripe data
-						input := UpdateBundlePriceInput{
-							PlanName: &plan.PlanName,
-						}
-						if _, err := planStore.UpdatePlan(priceID, input); err != nil {
-							result.Errors = append(result.Errors, "failed to update "+priceID+": "+err.Error())
-							continue
-						}
-						result.Overwritten++
-					} else {
-						// Skip existing
-						result.Skipped++
-					}
-				} else {
-					// Add new plan
-					if err := planStore.AddPlan(plan); err != nil {
-						result.Errors = append(result.Errors, "failed to add "+priceID+": "+err.Error())
-						continue
-					}
-					result.Imported++
-				}
-			default:
-				result.Errors = append(result.Errors, "unknown action: "+selection.Action)
-			}
 		}
 
 		writeJSONSuccessData(w, result)
 	}
-}
-
-// stripePriceImportToPlanOption converts a StripePriceImport to a PlanOption.
-func stripePriceImportToPlanOption(price *StripePriceImport) *PlanOption {
-	interval := mapBillingInterval(price.Interval)
-
-	// Derive plan tier from product name or default to "pro"
-	planTier := derivePlanTierFromName(price.ProductName)
-
-	return &PlanOption{
-		StripePriceId:   price.PriceID,
-		PlanName:        price.ProductName,
-		PlanTier:        planTier,
-		BillingInterval: interval,
-		AmountCents:     price.AmountCents,
-		Currency:        price.Currency,
-		DisplayEnabled:  price.Active,
-		DisplayWeight:   10,
-		Kind:            landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION,
-	}
-}
-
-// derivePlanTierFromName attempts to derive a plan tier from a product/price name.
-func derivePlanTierFromName(name string) string {
-	lower := strings.ToLower(name)
-	tiers := []string{"free", "solo", "pro", "studio", "business"}
-	for _, tier := range tiers {
-		if strings.Contains(lower, tier) {
-			return tier
-		}
-	}
-	return "pro" // Default tier
 }
 
 // createBundlePriceRequest contains fields for creating a new plan.
@@ -258,122 +194,46 @@ func handleAdminCreateBundlePrice(planService *PlanService, stripe *StripeServic
 			writeJSONError(w, http.StatusBadRequest, "Bundle key is required", ApiErrorTypeValidation)
 			return
 		}
+		if bundleKey != planService.BundleKey() {
+			writeJSONError(w, http.StatusBadRequest, "Bundle key does not match active bundle", ApiErrorTypeValidation)
+			return
+		}
 
 		var req createBundlePriceRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
 
-		// Validate required fields
-		if req.StripePriceID == "" {
-			writeJSONError(w, http.StatusBadRequest, "stripe_price_id is required", ApiErrorTypeValidation)
-			return
-		}
-		if req.PlanName == "" {
-			writeJSONError(w, http.StatusBadRequest, "plan_name is required", ApiErrorTypeValidation)
-			return
-		}
-		if req.PlanTier == "" {
-			writeJSONError(w, http.StatusBadRequest, "plan_tier is required", ApiErrorTypeValidation)
-			return
-		}
-		if req.BillingInterval == "" {
-			writeJSONError(w, http.StatusBadRequest, "billing_interval is required", ApiErrorTypeValidation)
-			return
-		}
-
-		// Optionally verify the price exists in Stripe
-		var amountCents int64
-		var currency string = "usd"
-
-		if strings.HasPrefix(req.StripePriceID, "price_") {
-			priceDetails, err := stripe.FetchStripePriceDetails(context.Background(), req.StripePriceID)
-			if err != nil {
-				// Price not found in Stripe, but we can still create it locally
-				logStructured("stripe_price_not_verified", map[string]interface{}{
-					"price_id": req.StripePriceID,
-					"error":    err.Error(),
-				})
-			} else {
-				amountCents = priceDetails.AmountCents
-				currency = priceDetails.Currency
-			}
-		}
-
-		// Override with request values if provided
-		if req.AmountCents != nil {
-			amountCents = *req.AmountCents
-		}
-		if req.Currency != nil && *req.Currency != "" {
-			currency = *req.Currency
-		}
-
-		displayWeight := int32(10)
-		if req.DisplayWeight != nil {
-			displayWeight = *req.DisplayWeight
-		}
-
-		displayEnabled := true
-		if req.DisplayEnabled != nil {
-			displayEnabled = *req.DisplayEnabled
-		}
-
-		var monthlyCredits int64
-		if req.MonthlyIncludedCredits != nil {
-			monthlyCredits = *req.MonthlyIncludedCredits
-		}
-
-		// Build metadata
-		metadata := make(map[string]*commonv1.JsonValue)
-		if req.Subtitle != nil && strings.TrimSpace(*req.Subtitle) != "" {
-			metadata["subtitle"] = newStringJsonValue(strings.TrimSpace(*req.Subtitle))
-		}
-		if req.Badge != nil && strings.TrimSpace(*req.Badge) != "" {
-			metadata["badge"] = newStringJsonValue(strings.TrimSpace(*req.Badge))
-		}
-		if req.CtaLabel != nil && strings.TrimSpace(*req.CtaLabel) != "" {
-			metadata["cta_label"] = newStringJsonValue(strings.TrimSpace(*req.CtaLabel))
-		}
-		if req.Highlight != nil && *req.Highlight {
-			metadata["highlight"] = newBoolJsonValue(true)
-		}
-		if len(req.Features) > 0 {
-			listValues := make([]*commonv1.JsonValue, 0, len(req.Features))
-			for _, f := range req.Features {
-				if trimmed := strings.TrimSpace(f); trimmed != "" {
-					listValues = append(listValues, newStringJsonValue(trimmed))
-				}
-			}
-			if len(listValues) > 0 {
-				metadata["features"] = newListJsonValue(listValues)
-			}
-		}
-
-		plan := &PlanOption{
-			StripePriceId:          strings.TrimSpace(req.StripePriceID),
-			PlanName:               strings.TrimSpace(req.PlanName),
-			PlanTier:               strings.ToLower(strings.TrimSpace(req.PlanTier)),
-			BillingInterval:        mapBillingInterval(req.BillingInterval),
-			AmountCents:            amountCents,
-			Currency:               currency,
-			DisplayWeight:          displayWeight,
-			DisplayEnabled:         displayEnabled,
-			MonthlyIncludedCredits: monthlyCredits,
-			Kind:                   landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUBSCRIPTION,
-			BundleKey:              bundleKey,
-		}
-
-		if len(metadata) > 0 {
-			plan.Metadata = metadata
-		}
-
 		planStore := planService.GetPlanStore()
-		if planStore == nil {
+		if planStore == nil || planStore.GetBundle() == nil {
 			writeJSONError(w, http.StatusInternalServerError, "plan store not available", ApiErrorTypeServerError)
 			return
 		}
 
-		if err := planStore.AddPlan(plan); err != nil {
+		input := CreateBundlePriceInput{
+			StripePriceID:          req.StripePriceID,
+			PlanName:               req.PlanName,
+			PlanTier:               req.PlanTier,
+			BillingInterval:        req.BillingInterval,
+			AmountCents:            req.AmountCents,
+			Currency:               req.Currency,
+			DisplayWeight:          req.DisplayWeight,
+			DisplayEnabled:         req.DisplayEnabled,
+			MonthlyIncludedCredits: req.MonthlyIncludedCredits,
+			Subtitle:               req.Subtitle,
+			Badge:                  req.Badge,
+			CtaLabel:               req.CtaLabel,
+			Highlight:              req.Highlight,
+			Features:               req.Features,
+		}
+
+		var fetcher StripePriceFetcher
+		if stripe != nil {
+			fetcher = stripe.FetchStripePriceDetails
+		}
+
+		plan, err := planService.CreateBundlePrice(r.Context(), bundleKey, input, fetcher)
+		if err != nil {
 			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
 			return
 		}
@@ -388,6 +248,10 @@ func handleAdminDeleteBundlePrice(planService *PlanService) http.HandlerFunc {
 		bundleKey, ok := getPathParam(r, "bundle_key")
 		if !ok || bundleKey == "" {
 			writeJSONError(w, http.StatusBadRequest, "Bundle key is required", ApiErrorTypeValidation)
+			return
+		}
+		if bundleKey != planService.BundleKey() {
+			writeJSONError(w, http.StatusBadRequest, "Bundle key does not match active bundle", ApiErrorTypeValidation)
 			return
 		}
 		priceID, ok := getPathParam(r, "price_id")

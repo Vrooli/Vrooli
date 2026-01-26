@@ -8,6 +8,9 @@ import {
   createCheckoutSession,
   createCreditsCheckoutSession,
   createBillingPortalSession,
+  createBundlePrice,
+  getStripeImportPreview,
+  importStripePlans,
   type StripeSettingsResponse,
   type StripeSettingsUpdatePayload,
   type BundleCatalogResponse,
@@ -262,7 +265,19 @@ describe('billing API', () => {
 
   describe('updateBundlePrice', () => {
     it('sends PATCH request with correct URL and payload', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
+      fetchMock.mockResolvedValue(mockResponses.success({
+        plan_name: 'Pro Plus',
+        plan_tier: 'pro',
+        billing_interval: 'month',
+        amount_cents: 9900,
+        currency: 'usd',
+        intro_enabled: false,
+        stripe_price_id: 'price_123',
+        monthly_included_credits: 0,
+        one_time_bonus_credits: 0,
+        display_enabled: true,
+        display_weight: 75,
+      }));
 
       await updateBundlePrice('main', 'price_123', {
         plan_name: 'Pro Plus',
@@ -279,13 +294,56 @@ describe('billing API', () => {
     });
 
     it('URL encodes bundle key and price id', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
+      fetchMock.mockResolvedValue(mockResponses.success({
+        plan_name: 'Encoded Plan',
+        plan_tier: 'pro',
+        billing_interval: 'month',
+        amount_cents: 9900,
+        currency: 'usd',
+        intro_enabled: false,
+        stripe_price_id: 'price+special',
+        monthly_included_credits: 0,
+        one_time_bonus_credits: 0,
+        display_enabled: true,
+        display_weight: 10,
+      }));
 
       await updateBundlePrice('bundle/with/slashes', 'price+special', {});
 
       const [url] = getFetchCall(fetchMock);
       expect(url).toContain(encodeURIComponent('bundle/with/slashes'));
       expect(url).toContain(encodeURIComponent('price+special'));
+    });
+  });
+
+  describe('createBundlePrice', () => {
+    it('sends POST request with payload and returns plan', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({
+        plan_name: 'New Plan',
+        plan_tier: 'pro',
+        billing_interval: 'month',
+        amount_cents: 2900,
+        currency: 'usd',
+        intro_enabled: false,
+        stripe_price_id: 'price_new',
+        monthly_included_credits: 0,
+        one_time_bonus_credits: 0,
+        display_enabled: true,
+        display_weight: 10,
+      }));
+
+      const result = await createBundlePrice('main', {
+        stripe_price_id: 'price_new',
+        plan_name: 'New Plan',
+        plan_tier: 'pro',
+        billing_interval: 'month',
+        amount_cents: 2900,
+      });
+
+      const [url, options] = getFetchCall(fetchMock);
+      expect(options.method).toBe('POST');
+      expect(url).toContain('/admin/bundles/main/prices');
+      expect(result.plan_name).toBe('New Plan');
     });
   });
 
@@ -322,6 +380,57 @@ describe('billing API', () => {
       fetchMock.mockResolvedValue(mockResponses.notFound('Price not found'));
 
       await expect(verifyStripePrice('invalid_price')).rejects.toBeInstanceOf(ApiError);
+    });
+  });
+
+  describe('getStripeImportPreview', () => {
+    it('returns import preview data', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({
+        products: [
+          {
+            product_id: 'prod_123',
+            product_name: 'Main Bundle',
+            prices: [
+              {
+                price_id: 'price_123',
+                lookup_key: 'pro_monthly',
+                currency: 'usd',
+                amount_cents: 9900,
+                interval: 'month',
+                product_id: 'prod_123',
+                product_name: 'Main Bundle',
+                active: true,
+                exists_locally: false,
+              },
+            ],
+          },
+        ],
+        total_prices: 1,
+        conflict_count: 0,
+        new_count: 1,
+      }));
+
+      const result = await getStripeImportPreview();
+
+      expect(result.total_prices).toBe(1);
+      expect(result.products[0]?.prices[0]?.price_id).toBe('price_123');
+    });
+  });
+
+  describe('importStripePlans', () => {
+    it('returns import results', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({
+        imported: 1,
+        overwritten: 0,
+        skipped: 0,
+        errors: [],
+      }));
+
+      const result = await importStripePlans({
+        selections: [{ price_id: 'price_123', action: 'import' }],
+      });
+
+      expect(result.imported).toBe(1);
     });
   });
 

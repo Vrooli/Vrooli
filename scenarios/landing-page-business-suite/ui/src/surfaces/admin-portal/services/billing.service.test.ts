@@ -223,9 +223,7 @@ describe('billing.service', () => {
       });
     });
 
-    it('sends empty string for stripe_price_id when cleared', async () => {
-      updateBundlePriceMock.mockResolvedValue({});
-
+    it('rejects empty stripe_price_id', async () => {
       const formState: PriceFormState = {
         values: {
           stripePriceId: '',
@@ -252,16 +250,11 @@ describe('billing.service', () => {
         saving: false,
       };
 
-      await savePriceForm('test_bundle', 'price_123', formState);
-
-      expect(updateBundlePriceMock).toHaveBeenCalledWith('test_bundle', 'price_123', expect.objectContaining({
-        stripe_price_id: '',
-      }));
+      await expect(savePriceForm('test_bundle', 'price_123', formState)).rejects.toThrow('Stripe price ID is required.');
+      expect(updateBundlePriceMock).not.toHaveBeenCalled();
     });
 
-    it('omits undefined values for empty optional fields', async () => {
-      updateBundlePriceMock.mockResolvedValue({});
-
+    it('rejects empty plan names', async () => {
       const formState: PriceFormState = {
         values: {
           stripePriceId: 'price_123',
@@ -288,13 +281,8 @@ describe('billing.service', () => {
         saving: false,
       };
 
-      await savePriceForm('test_bundle', 'price_123', formState);
-
-      const call = updateBundlePriceMock.mock.calls[0][2];
-      expect(call.plan_name).toBeUndefined();
-      expect(call.subtitle).toBeUndefined();
-      expect(call.badge).toBeUndefined();
-      expect(call.cta_label).toBeUndefined();
+      await expect(savePriceForm('test_bundle', 'price_123', formState)).rejects.toThrow('Plan name is required.');
+      expect(updateBundlePriceMock).not.toHaveBeenCalled();
     });
   });
 
@@ -303,7 +291,7 @@ describe('billing.service', () => {
       const result = await verifyPriceId('');
 
       expect(result.status).toBe('error');
-      expect(result.message).toBe('Enter a Stripe price ID or lookup key');
+      expect(result.message).toBe('Enter a Stripe price ID');
       expect(verifyStripePriceMock).not.toHaveBeenCalled();
     });
 
@@ -311,7 +299,7 @@ describe('billing.service', () => {
       const result = await verifyPriceId('   ');
 
       expect(result.status).toBe('error');
-      expect(result.message).toBe('Enter a Stripe price ID or lookup key');
+      expect(result.message).toBe('Enter a Stripe price ID');
     });
 
     it('returns ok with formatted info on successful verification', async () => {
@@ -344,13 +332,12 @@ describe('billing.service', () => {
       expect(result.message).toContain('inactive');
     });
 
-    it('returns simple "Verified" when no details available', async () => {
-      verifyStripePriceMock.mockResolvedValue({});
-
+    it('rejects non-price identifiers', async () => {
       const result = await verifyPriceId('some_key');
 
-      expect(result.status).toBe('ok');
-      expect(result.message).toBe('Verified');
+      expect(result.status).toBe('error');
+      expect(result.message).toBe('Stripe price IDs must start with "price_".');
+      expect(verifyStripePriceMock).not.toHaveBeenCalled();
     });
 
     it('returns error status on API failure', async () => {
@@ -368,7 +355,7 @@ describe('billing.service', () => {
       const result = await verifyPriceId('price_test');
 
       expect(result.status).toBe('error');
-      expect(result.message).toBe('Verification failed');
+      expect(result.message).toBe('Unknown error');
     });
   });
 

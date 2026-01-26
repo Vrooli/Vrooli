@@ -17,7 +17,10 @@ import {
   CheckoutSessionSchema,
   BillingPortalResponseSchema,
   VerifyStripePriceResponseSchema,
+  StripeImportPreviewSchema,
+  StripeImportResultSchema,
 } from './schemas/billing.schema';
+import { PlanOptionSchema } from './schemas/landing.schema';
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -123,6 +126,12 @@ export function updateBundlePrice(bundleKey: string, priceId: string, payload: U
   return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(PlanOptionSchema, resp, 'PlanOption');
+    if (!validated) {
+      throw new Error('Invalid plan response from update');
+    }
+    return validated;
   });
 }
 
@@ -245,7 +254,13 @@ export interface StripeImportResult {
  * Get a preview of products/prices available to import from Stripe.
  */
 export function getStripeImportPreview(): Promise<StripeImportPreview> {
-  return apiCall<StripeImportPreview>('/admin/stripe/import-preview');
+  return apiCall<StripeImportPreview>('/admin/stripe/import-preview').then((resp) => {
+    const validated = parseOrNull(StripeImportPreviewSchema, resp, 'StripeImportPreview');
+    if (!validated) {
+      throw new Error('Invalid Stripe import preview response');
+    }
+    return validated;
+  });
 }
 
 /**
@@ -255,6 +270,12 @@ export function importStripePlans(request: StripeImportRequest): Promise<StripeI
   return apiCall<StripeImportResult>('/admin/stripe/import', {
     method: 'POST',
     body: JSON.stringify(request),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeImportResultSchema, resp, 'StripeImportResult');
+    if (!validated) {
+      throw new Error('Invalid Stripe import result');
+    }
+    return validated;
   });
 }
 
@@ -283,6 +304,12 @@ export function createBundlePrice(bundleKey: string, payload: CreateBundlePriceP
   return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(PlanOptionSchema, resp, 'PlanOption');
+    if (!validated) {
+      throw new Error('Invalid plan response from create');
+    }
+    return validated;
   });
 }
 

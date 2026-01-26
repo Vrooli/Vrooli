@@ -149,8 +149,8 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
 		t.Fatalf("Failed to unmarshal error response: %v", err)
 	}
-	if !strings.Contains(errResp.Error, "Failed to create checkout session") {
-		t.Errorf("Expected error message about checkout session failure, got '%s'", errResp.Error)
+	if !strings.Contains(errResp.Error, "No such price") {
+		t.Errorf("Expected Stripe error message, got '%s'", errResp.Error)
 	}
 }
 
@@ -241,7 +241,7 @@ func TestHandleBillingPortalURL_Success(t *testing.T) {
 
 	handler := handleBillingPortalURL(service)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=/account", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
 	// Inject authenticated user context
 	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "portal@example.com"})
 	req = req.WithContext(ctx)
@@ -270,7 +270,7 @@ func TestHandleBillingPortalURL_Unauthenticated(t *testing.T) {
 	service := NewStripeService(db)
 	handler := handleBillingPortalURL(service)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=/account", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
 	// No user context injected
 	rr := httptest.NewRecorder()
 
@@ -326,7 +326,7 @@ func TestHandleBillingPortalURL_StripeError(t *testing.T) {
 
 	handler := handleBillingPortalURL(service)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=/account", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
 	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "error@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
@@ -372,7 +372,7 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 	service.UseHTTPClient(stripeServer.Client())
 
 	// Test with custom log key and error message
-	handler := createCheckoutSessionHandler(service, "custom_log_key", "Custom error message")
+	handler := createCheckoutSessionHandler(service, "custom_log_key", "Custom error message", false)
 
 	reqBody, _ := json.Marshal(map[string]string{
 		"price_id":       "price_consolidated_test",

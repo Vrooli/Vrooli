@@ -578,7 +578,7 @@ describe('useAdminHome', () => {
         expect(result.current.stripeLoading).toBe(false);
       });
 
-      expect(result.current.stripeError).toBe('Failed to load monetization status');
+      expect(result.current.stripeError).toBe('String error');
     });
 
     it('handles non-Error objects in demo reset', async () => {

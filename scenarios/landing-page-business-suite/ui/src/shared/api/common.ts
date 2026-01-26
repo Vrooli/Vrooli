@@ -27,14 +27,17 @@ export class ApiError extends Error {
     message: string,
     type: ApiErrorType,
     status?: number,
-    userMessage?: string
+    userMessage?: string,
+    retryableOverride?: boolean
   ) {
     super(message);
     this.name = 'ApiError';
     this.type = type;
     this.status = status;
     // Network, timeout, and server errors are typically retryable
-    this.retryable = ['network', 'timeout', 'server_error', 'rate_limited'].includes(type);
+    this.retryable = typeof retryableOverride === 'boolean'
+      ? retryableOverride
+      : ['network', 'timeout', 'server_error', 'rate_limited'].includes(type);
     this.userMessage = userMessage ?? getDefaultUserMessage(type);
   }
 }
@@ -70,6 +73,20 @@ function classifyError(status: number): ApiErrorType {
   if (status === 429) return 'rate_limited';
   if (status >= 500) return 'server_error';
   return 'unknown';
+}
+
+function isApiErrorType(value: unknown): value is ApiErrorType {
+  return typeof value === 'string' && [
+    'network',
+    'timeout',
+    'unauthorized',
+    'forbidden',
+    'not_found',
+    'validation',
+    'rate_limited',
+    'server_error',
+    'unknown',
+  ].includes(value);
 }
 
 interface ApiCallOptions extends RequestInit {
@@ -112,18 +129,27 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
 
       // Try to extract a more specific message from JSON response
       let userMessage: string | undefined;
+      let errorTypeOverride: ApiErrorType | undefined;
+      let retryableOverride: boolean | undefined;
       try {
         const parsed = JSON.parse(errorText);
         userMessage = parsed.error || parsed.message || undefined;
+        if (isApiErrorType(parsed.error_type)) {
+          errorTypeOverride = parsed.error_type;
+        }
+        if (typeof parsed.retryable === 'boolean') {
+          retryableOverride = parsed.retryable;
+        }
       } catch {
         // Not JSON, use default message
       }
 
       throw new ApiError(
         `API call failed (${res.status}): ${errorText}`,
-        errorType,
+        errorTypeOverride ?? errorType,
         res.status,
-        userMessage
+        userMessage,
+        retryableOverride
       );
     }
 
@@ -176,6 +202,22 @@ export function isApiError(error: unknown, type?: ApiErrorType): error is ApiErr
   if (!(error instanceof ApiError)) return false;
   if (type === undefined) return true;
   return error.type === type;
+}
+
+/**
+ * Extract a user-facing error message from ApiError or generic Error values.
+ */
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    return error.userMessage || error.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+  return fallback;
 }
 
 /**

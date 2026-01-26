@@ -257,7 +257,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(handleAdminPresignGetDownloadArtifact(s.downloadHosting, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdmin(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService))).Methods("PATCH")
+	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService, s.stripeService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices", s.requireAdmin(handleAdminCreateBundlePrice(s.planService, s.stripeService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminDeleteBundlePrice(s.planService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/stripe/import-preview", s.requireAdmin(handleAdminStripeImportPreview(s.stripeService, s.planService))).Methods("GET")

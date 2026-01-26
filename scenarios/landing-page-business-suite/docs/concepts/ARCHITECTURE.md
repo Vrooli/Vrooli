@@ -15,6 +15,7 @@ This document describes the system architecture of landing pages generated from 
 - [CODE: ui/src/App.tsx] - React application entry point and routing
 - [CODE: api/landing_config_service.go] - Landing page configuration service
 - [CODE: api/variant_handlers.go] - A/B testing variant endpoints
+- [CODE: api/plan_store.go] - File-based plan catalog (pricing source of truth)
 
 ## Table of Contents
 
@@ -166,47 +167,26 @@ api/
 
 ## Data Architecture
 
-### Database Schema
+### File-based Configuration (Source of Truth)
 
-```
-+------------------+       +------------------+       +------------------+
-|    variants      |       |    sections      |       |     events       |
-+------------------+       +------------------+       +------------------+
-| id (PK)          |<------| id (PK)          |       | id (PK)          |
-| slug (unique)    |       | variant_id (FK)  |       | variant_id (FK)  |
-| name             |       | section_type     |       | event_type       |
-| status           |       | content (JSONB)  |       | event_data (JSON)|
-| weight           |       | order            |       | session_id       |
-| axes (JSONB)     |       | enabled          |       | visitor_id       |
-| created_at       |       | created_at       |       | created_at       |
-| updated_at       |       | updated_at       |       +------------------+
-+------------------+       +------------------+
+- `.vrooli/plans.json` — bundle + pricing catalog (PlanStore). Writes are atomic; Stripe imports batch updates via `PlanService`.
+- Plan updates and Stripe imports enforce bundle↔Stripe product alignment to prevent cross-product contamination, plus tier invariants (free plans are $0; credits/donations are one-time).
+- `.vrooli/variants/*.json` — landing variants + sections (ConfigStore)
+- `.vrooli/branding.json` — public branding for the landing UI
+- `.vrooli/fallback/fallback.json` — baked fallback variant payload
 
-+------------------+       +------------------+       +------------------+
-|  subscriptions   |       |     credits      |       |   admin_users    |
-+------------------+       +------------------+       +------------------+
-| id (PK)          |       | id (PK)          |       | id (PK)          |
-| user_email       |       | user_email       |       | email (unique)   |
-| stripe_sub_id    |       | balance          |       | password_hash    |
-| status           |       | bonus            |       | created_at       |
-| plan_tier        |       | updated_at       |       | updated_at       |
-| current_period_* |       +------------------+       +------------------+
-| created_at       |
-+------------------+
+### Database Schema (Runtime State)
 
-+------------------+
-|    branding      |
-+------------------+
-| id (PK)          |
-| site_name        |
-| tagline          |
-| logo_url         |
-| favicon_url      |
-| primary_color    |
-| canonical_url    |
-| stripe_keys      |
-+------------------+
-```
+The database stores runtime state (sessions, subscriptions, metrics) rather than configuration:
+
+- `admin_users`, `admin_sessions` — admin auth/session state
+- `metrics_events` — analytics events
+- `checkout_sessions` — Stripe checkout tracking
+- `subscriptions`, `subscription_schedules` — subscription lifecycle cache
+- `subscription_tier_limits` — per-tier usage limits
+- Download tables (apps/artifacts/storage) for gated assets
+
+> **Note:** Legacy `bundle_products`/`bundle_prices` tables may still exist for migrations, but pricing is now sourced from `.vrooli/plans.json`.
 
 ### Data Flow Patterns
 
@@ -221,11 +201,11 @@ URL param → localStorage → API weight-based → Store in localStorage
 
 **Content Loading:**
 ```
-API Request → Database → JSON assembly → Cache headers → Response
-                |
-                v
-            Fallback (if API unavailable)
-            .vrooli/fallback/fallback.json
+API Request → ConfigStore (JSON) → JSON assembly → Cache headers → Response
+                  |
+                  v
+              Fallback (if config unavailable)
+              .vrooli/fallback/fallback.json
 ```
 
 **Event Tracking:**
@@ -255,7 +235,7 @@ User action → Frontend SDK → POST /metrics/track → Database INSERT
      │ GET /landing-config         │              │
      │────────────────────────────>│              │
      │              │              │              │
-     │              │              │ SELECT       │
+     │              │              │ Read config  │
      │              │              │─────────────>│
      │              │              │              │
      │              │              │ variant,     │
