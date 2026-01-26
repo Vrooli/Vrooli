@@ -6,7 +6,10 @@ import {
   FolderOpen,
   File,
   Loader2,
+  Trash2,
+  History,
 } from "lucide-react";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDirectoryContents, queryKeys } from "../lib/hooks";
 import { fetchDirectoryContents, type DirEntry, type DirListResponse } from "../lib/api";
@@ -27,6 +30,10 @@ interface ProjectTreeViewProps {
   onSelectFile: (path: string) => void;
   selectedFile?: string;
   gitStatuses?: Record<string, string>;
+  scrollToFile?: string;
+  onScrollComplete?: () => void;
+  onDeletePath?: (path: string, isDir: boolean) => void;
+  onBlameFile?: (path: string) => void;
 }
 
 interface LazyTreeNode {
@@ -114,6 +121,7 @@ interface TreeNodeComponentProps {
   selectedPath?: string;
   gitStatuses?: Record<string, string>;
   fetchedDirs: Map<string, LazyTreeNode[]>;
+  onContextMenu?: (e: React.MouseEvent, path: string, isDir: boolean) => void;
 }
 
 const TreeNodeComponent = memo(function TreeNodeComponent({
@@ -126,6 +134,7 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
   selectedPath,
   gitStatuses,
   fetchedDirs,
+  onContextMenu,
 }: TreeNodeComponentProps) {
   const isExpanded = expanded.has(node.path);
   const isLoading = loadingPaths.has(node.path);
@@ -160,7 +169,9 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
         }`}
         style={{ paddingLeft }}
         onClick={handleClick}
+        onContextMenu={(e) => onContextMenu?.(e, node.path, node.isDir)}
         data-testid={`tree-node-${node.path}`}
+        data-file-path={node.path}
       >
         {node.isDir ? (
           <>
@@ -225,6 +236,7 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
               selectedPath={selectedPath}
               gitStatuses={gitStatuses}
               fetchedDirs={fetchedDirs}
+              onContextMenu={onContextMenu}
             />
           ))}
           {children.length === 0 && (
@@ -245,6 +257,10 @@ export const ProjectTreeView = memo(function ProjectTreeView({
   onSelectFile,
   selectedFile,
   gitStatuses,
+  scrollToFile,
+  onScrollComplete,
+  onDeletePath,
+  onBlameFile,
 }: ProjectTreeViewProps) {
   const queryClient = useQueryClient();
 
@@ -412,6 +428,119 @@ export const ProjectTreeView = memo(function ProjectTreeView({
     [onSelectFile]
   );
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    path: string;
+    isDir: boolean;
+  } | null>(null);
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, path: string, isDir: boolean) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, path, isDir });
+    },
+    []
+  );
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Build context menu items based on target
+  const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
+    if (!contextMenu) return [];
+
+    const items: ContextMenuItem[] = [];
+
+    // Delete action (for both files and directories)
+    if (onDeletePath) {
+      items.push({
+        label: contextMenu.isDir ? "Delete Folder" : "Delete File",
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: () => onDeletePath(contextMenu.path, contextMenu.isDir),
+        variant: "danger",
+      });
+    }
+
+    // Blame action (files only)
+    if (!contextMenu.isDir && onBlameFile) {
+      items.push({
+        label: "View File History",
+        icon: <History className="h-4 w-4" />,
+        onClick: () => onBlameFile(contextMenu.path),
+      });
+    }
+
+    return items;
+  }, [contextMenu, onDeletePath, onBlameFile]);
+
+  // Scroll to file when returning from Related Files panel
+  useEffect(() => {
+    if (!scrollToFile) return;
+
+    // Get parent folder paths that need to be expanded
+    const segments = scrollToFile.split("/");
+    const parentPaths: string[] = [];
+    for (let i = 1; i < segments.length; i++) {
+      parentPaths.push(segments.slice(0, i).join("/"));
+    }
+
+    const expandAndScroll = async () => {
+      // Expand all parent folders that aren't already expanded
+      for (const path of parentPaths) {
+        if (!expanded.has(path)) {
+          // Check if we need to fetch this directory
+          if (!fetchedDirs.has(path)) {
+            setLoadingPaths((prev) => new Set(prev).add(path));
+            try {
+              let data = queryClient.getQueryData<DirListResponse>(
+                queryKeys.directoryContents(path)
+              );
+              if (!data) {
+                data = await fetchDirectoryContents(path);
+                queryClient.setQueryData(queryKeys.directoryContents(path), data);
+              }
+              setFetchedDirs((prev) => {
+                const next = new Map(prev);
+                next.set(path, data.entries.map(entryToNode));
+                return next;
+              });
+            } catch {
+              // Skip this path if fetch failed
+              continue;
+            } finally {
+              setLoadingPaths((prev) => {
+                const next = new Set(prev);
+                next.delete(path);
+                return next;
+              });
+            }
+          }
+          // Mark as expanded
+          setExpanded((prev) => {
+            const next = new Set(prev);
+            next.add(path);
+            return next;
+          });
+        }
+      }
+
+      // Wait for DOM to update, then scroll
+      setTimeout(() => {
+        const element = document.querySelector(`[data-file-path="${CSS.escape(scrollToFile)}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        onScrollComplete?.();
+      }, 100);
+    };
+
+    expandAndScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollToFile]);
+
   if (rootQuery.isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -439,21 +568,30 @@ export const ProjectTreeView = memo(function ProjectTreeView({
   }
 
   return (
-    <div className="py-2" data-testid="project-tree-view">
-      {rootNodes.map((node) => (
-        <TreeNodeComponent
-          key={node.path}
-          node={node}
-          depth={0}
-          expanded={expanded}
-          loadingPaths={loadingPaths}
-          onToggle={handleToggle}
-          onSelect={handleSelect}
-          selectedPath={selectedFile}
-          gitStatuses={gitStatuses}
-          fetchedDirs={fetchedDirs}
-        />
-      ))}
-    </div>
+    <>
+      <div className="py-2" data-testid="project-tree-view">
+        {rootNodes.map((node) => (
+          <TreeNodeComponent
+            key={node.path}
+            node={node}
+            depth={0}
+            expanded={expanded}
+            loadingPaths={loadingPaths}
+            onToggle={handleToggle}
+            onSelect={handleSelect}
+            selectedPath={selectedFile}
+            gitStatuses={gitStatuses}
+            fetchedDirs={fetchedDirs}
+            onContextMenu={handleContextMenu}
+          />
+        ))}
+      </div>
+      <ContextMenu
+        isOpen={contextMenu !== null}
+        position={contextMenu ?? { x: 0, y: 0 }}
+        items={contextMenuItems}
+        onClose={handleCloseContextMenu}
+      />
+    </>
   );
 });

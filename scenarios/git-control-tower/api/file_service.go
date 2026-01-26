@@ -303,6 +303,92 @@ func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*
 	}, nil
 }
 
+// DeletePath removes a file or directory from the filesystem
+// This is a filesystem delete, NOT a git rm. Tracked files will show as "deleted" in git status.
+func DeletePath(ctx context.Context, deps FileDeps, req DeletePathRequest) (*DeletePathResponse, error) {
+	repoDir := strings.TrimSpace(deps.RepoDir)
+	if repoDir == "" {
+		return nil, fmt.Errorf("repo dir is required")
+	}
+
+	reqPath := strings.TrimSpace(req.Path)
+	if reqPath == "" {
+		return &DeletePathResponse{
+			Success:   false,
+			Path:      reqPath,
+			Error:     "path is required",
+			Timestamp: time.Now().UTC(),
+		}, nil
+	}
+
+	// Clean and validate the path to prevent directory traversal
+	cleaned := filepath.Clean(reqPath)
+	if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
+		return &DeletePathResponse{
+			Success:   false,
+			Path:      reqPath,
+			Error:     "invalid path: potential directory traversal",
+			Timestamp: time.Now().UTC(),
+		}, nil
+	}
+
+	// Block deleting critical paths
+	dangerousPaths := []string{".git", ".gitignore", ".gitattributes"}
+	cleanedLower := strings.ToLower(cleaned)
+	for _, dangerous := range dangerousPaths {
+		if cleanedLower == dangerous || strings.HasPrefix(cleanedLower, dangerous+"/") {
+			return &DeletePathResponse{
+				Success:   false,
+				Path:      reqPath,
+				Error:     "cannot delete protected path",
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+	}
+
+	fullPath := filepath.Join(repoDir, cleaned)
+
+	// Check if path exists and get info
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &DeletePathResponse{
+				Success:   false,
+				Path:      reqPath,
+				Error:     "path does not exist",
+				Timestamp: time.Now().UTC(),
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to stat path: %w", err)
+	}
+
+	isDir := info.IsDir()
+
+	// Delete the path
+	if isDir {
+		err = os.RemoveAll(fullPath)
+	} else {
+		err = os.Remove(fullPath)
+	}
+
+	if err != nil {
+		return &DeletePathResponse{
+			Success:   false,
+			Path:      reqPath,
+			IsDir:     isDir,
+			Error:     fmt.Sprintf("failed to delete: %v", err),
+			Timestamp: time.Now().UTC(),
+		}, nil
+	}
+
+	return &DeletePathResponse{
+		Success:   true,
+		Path:      reqPath,
+		IsDir:     isDir,
+		Timestamp: time.Now().UTC(),
+	}, nil
+}
+
 // matchesPattern checks if a path matches a glob pattern
 func matchesPattern(path, pattern string) bool {
 	if pattern == "" {

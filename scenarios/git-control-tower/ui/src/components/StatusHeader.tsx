@@ -9,6 +9,7 @@ import {
   RefreshCw,
   LayoutGrid,
   History,
+  FileText,
   X,
   Search
 } from "lucide-react";
@@ -31,6 +32,9 @@ interface StatusHeaderProps {
   // History mode props
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
+  // File blame mode props
+  viewingFileBlame?: { path: string; filename: string } | null;
+  onExitBlameMode?: () => void;
 }
 
 export function StatusHeader({
@@ -44,7 +48,9 @@ export function StatusHeader({
   onOpenUpstreamInfo,
   onOpenFileSearch,
   viewingCommit,
-  onExitHistoryMode
+  onExitHistoryMode,
+  viewingFileBlame,
+  onExitBlameMode
 }: StatusHeaderProps) {
   const isHealthy = health?.readiness ?? false;
   const ahead = syncStatus?.ahead ?? status?.branch.ahead ?? 0;
@@ -56,12 +62,57 @@ export function StatusHeader({
     branchName && upstreamBranch && branchName !== upstreamBranch
   );
   const isHistoryMode = Boolean(viewingCommit);
+  const isBlameMode = Boolean(viewingFileBlame);
   const cleanDetails = [
     ahead > 0 ? `${ahead} ahead` : "",
     behind > 0 ? `${behind} behind` : ""
   ]
     .filter(Boolean)
     .join(", ");
+
+  // Blame mode header - shows file history mode
+  if (isBlameMode && viewingFileBlame) {
+    return (
+      <header
+        className="relative z-30 flex items-center justify-between px-4 py-3 border-b border-blue-800/50 bg-blue-950/30 backdrop-blur-sm"
+        data-testid="status-header"
+      >
+        <div className="flex items-center gap-4 min-w-0 flex-1">
+          {/* Blame mode indicator */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <FileText className="h-4 w-4 text-blue-400" />
+            <Badge variant="info" className="text-xs">
+              File History
+            </Badge>
+          </div>
+
+          {/* File info */}
+          <div className="flex items-center gap-2 min-w-0" data-testid="blame-file-info">
+            <span className="text-sm text-blue-200 truncate" title={viewingFileBlame.path}>
+              {viewingFileBlame.filename}
+            </span>
+            <span className="text-xs text-slate-500 truncate hidden sm:block" title={viewingFileBlame.path}>
+              ({viewingFileBlame.path})
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Exit blame mode button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExitBlameMode}
+            className="gap-1.5 border-blue-600/50 text-blue-200 hover:bg-blue-900/30"
+            data-testid="exit-blame-mode"
+          >
+            <X className="h-3.5 w-3.5" />
+            Back to Working Directory
+          </Button>
+        </div>
+      </header>
+    );
+  }
 
   // History mode header - different layout showing commit info
   if (isHistoryMode && viewingCommit) {

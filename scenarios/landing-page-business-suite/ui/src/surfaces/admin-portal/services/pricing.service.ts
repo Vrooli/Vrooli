@@ -1,4 +1,4 @@
-import type { BundleCatalogEntry, PlanOption, PlanDisplayMetadata, PricingOverview } from '../../../shared/api';
+import type { BundleCatalogEntry, BundleProduct, PlanOption, PlanDisplayMetadata, PricingOverview } from '../../../shared/api';
 import { injectDemoPlansForBundle, isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { isFormDirty } from '../../../shared/lib/formUtils';
 
@@ -103,6 +103,38 @@ export function filterPricesByTab(
     if (tab === 'year') return interval === 'year';
     return interval === 'one_time' || interval === 'other';
   });
+}
+
+/**
+ * Create a synthetic demo bundle for previewing layout when no bundles exist
+ */
+export function createDemoBundleEntry(): BundleCatalogEntry {
+  const demoBundle: BundleProduct = {
+    bundle_key: 'demo_bundle',
+    name: 'Demo Bundle',
+    stripe_product_id: 'demo_product',
+    credits_per_usd: 1000000,
+    display_credits_multiplier: 1,
+    display_credits_label: 'credits',
+    environment: 'demo',
+  };
+
+  return {
+    bundle: demoBundle,
+    prices: [],
+  };
+}
+
+/**
+ * Ensure at least one bundle exists for demo display.
+ * When bundles array is empty and demo placeholders are enabled,
+ * returns a synthetic demo bundle that will be enriched with demo plans.
+ */
+export function ensureBundleForDemo(bundles: BundleCatalogEntry[], includeDemo: boolean): BundleCatalogEntry[] {
+  if (bundles.length > 0 || !includeDemo) {
+    return bundles;
+  }
+  return [createDemoBundleEntry()];
 }
 
 /**

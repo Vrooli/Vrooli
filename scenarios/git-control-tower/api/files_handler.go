@@ -124,3 +124,36 @@ func (s *Server) handleRelatedFiles(w http.ResponseWriter, r *http.Request) {
 		Timestamp: time.Now().UTC(),
 	})
 }
+
+// handleDeletePath handles POST /api/v1/repo/files/delete
+// Deletes a file or directory from the filesystem
+func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req DeletePathRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := DeletePath(ctx, FileDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}

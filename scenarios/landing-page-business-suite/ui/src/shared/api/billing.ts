@@ -96,6 +96,18 @@ export function updateStripeSettings(payload: StripeSettingsUpdatePayload) {
   });
 }
 
+export type RevealStripeSecretField = 'secret_key' | 'webhook_secret' | 'publishable_key';
+
+export interface RevealStripeSecretResponse {
+  field: RevealStripeSecretField;
+  value: string;
+}
+
+export function revealStripeSecret(field: RevealStripeSecretField): Promise<RevealStripeSecretResponse> {
+  const params = new URLSearchParams({ field });
+  return apiCall<RevealStripeSecretResponse>(`/admin/settings/stripe/reveal?${params.toString()}`);
+}
+
 export function getBundleCatalog() {
   return apiCall<BundleCatalogResponse>('/admin/bundles').then((resp) => {
     const validated = parseOrNull(BundleCatalogResponseSchema, resp, 'BundleCatalogResponse');

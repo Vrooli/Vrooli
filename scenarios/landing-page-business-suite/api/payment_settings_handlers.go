@@ -45,6 +45,57 @@ func handleGetStripeSettings(paymentService *PaymentSettingsService, stripeServi
 	}
 }
 
+// handleRevealStripeSecret returns the unredacted value of a specific Stripe secret field.
+// Requires admin authentication. Accepts a 'field' query parameter with values:
+// - secret_key
+// - webhook_secret
+// - publishable_key
+func handleRevealStripeSecret(paymentService *PaymentSettingsService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		field := r.URL.Query().Get("field")
+		if field == "" {
+			writeJSONError(w, http.StatusBadRequest, "Missing 'field' query parameter", ApiErrorTypeValidation)
+			return
+		}
+
+		allowedFields := map[string]bool{
+			"secret_key":      true,
+			"webhook_secret":  true,
+			"publishable_key": true,
+		}
+		if !allowedFields[field] {
+			writeJSONError(w, http.StatusBadRequest, "Invalid field. Allowed: secret_key, webhook_secret, publishable_key", ApiErrorTypeValidation)
+			return
+		}
+
+		record, err := paymentService.GetStripeSettings(r.Context())
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Failed to load Stripe settings", ApiErrorTypeServerError)
+			return
+		}
+		if record == nil {
+			writeJSONError(w, http.StatusNotFound, "No Stripe settings found", ApiErrorTypeNotFound)
+			return
+		}
+
+		var value string
+		switch field {
+		case "secret_key":
+			value = record.SecretKey
+		case "webhook_secret":
+			value = record.WebhookSecret
+		case "publishable_key":
+			value = record.PublishableKey
+		}
+
+		resp := map[string]string{
+			"field": field,
+			"value": value,
+		}
+		writeJSON(w, resp)
+	}
+}
+
 func handleUpdateStripeSettings(paymentService *PaymentSettingsService, stripeService *StripeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var body struct {

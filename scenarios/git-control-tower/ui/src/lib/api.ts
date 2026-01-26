@@ -672,3 +672,26 @@ export async function fetchDirectoryContents(path = ""): Promise<DirListResponse
   });
   return handleResponse<DirListResponse>(res);
 }
+
+// Delete Path Types
+export interface DeletePathRequest {
+  path: string;
+}
+
+export interface DeletePathResponse {
+  success: boolean;
+  path: string;
+  is_dir: boolean;
+  error?: string;
+  timestamp: string;
+}
+
+export async function deletePath(request: DeletePathRequest): Promise<DeletePathResponse> {
+  const url = buildApiUrl("/repo/files/delete", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<DeletePathResponse>(res);
+}

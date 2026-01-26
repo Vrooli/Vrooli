@@ -143,3 +143,17 @@ type DirListResponse struct {
 
 // MaxDirDepth is the maximum depth for directory listing (safety limit)
 const MaxDirDepth = 20
+
+// DeletePathRequest specifies what to delete
+type DeletePathRequest struct {
+	Path string `json:"path"` // Relative path to delete
+}
+
+// DeletePathResponse contains the result of a delete operation
+type DeletePathResponse struct {
+	Success   bool      `json:"success"`
+	Path      string    `json:"path"`
+	IsDir     bool      `json:"is_dir"`
+	Error     string    `json:"error,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}

@@ -13,6 +13,7 @@ import {
 } from '../services/billing.service';
 import {
   enrichBundlesWithDemo,
+  ensureBundleForDemo,
   buildPriceFormsFromBundles,
   isPriceFormDirty,
   type PriceFormState,
@@ -73,7 +74,10 @@ export function useBillingForm() {
     setBundleError(null);
     try {
       const { bundles: payload } = await loadBundleCatalog();
-      const enrichedBundles = enrichBundlesWithDemo(payload, includeDemoPlaceholders);
+      // Ensure at least one bundle exists for demo display when empty
+      const bundlesWithDemo = ensureBundleForDemo(payload, includeDemoPlaceholders);
+      // Then enrich with demo placeholder plans
+      const enrichedBundles = enrichBundlesWithDemo(bundlesWithDemo, includeDemoPlaceholders);
       setBundles(enrichedBundles);
       setPriceForms(buildPriceFormsFromBundles(enrichedBundles));
       setPriceChecks({});

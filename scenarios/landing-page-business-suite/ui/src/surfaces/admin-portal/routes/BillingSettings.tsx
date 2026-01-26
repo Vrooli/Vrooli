@@ -2,6 +2,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
 import { FormField, inputClassName, textareaClassName } from '../components/FormField';
+import { SecretInput } from '../components/SecretInput';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
@@ -9,7 +10,8 @@ import { Button } from '../../../shared/ui/button';
 import { Textarea } from '../../../shared/ui/input';
 import { MetricsModeProvider } from '../../../shared/hooks/useMetrics';
 import { PricingSection } from '../../public-landing/sections/PricingSection';
-import { AlertTriangle, CreditCard, RefreshCw, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, CreditCard, Package, RefreshCw, ShieldCheck } from 'lucide-react';
+import { revealStripeSecret } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { cn } from '../../../shared/lib/utils';
 import { useBillingForm } from '../hooks/useBillingForm';
@@ -65,7 +67,6 @@ export function BillingSettings() {
   } = useBillingForm();
 
   const currentDashboardUrl = stripeSettings?.dashboard_url;
-  const publishablePreview = stripeSettings?.publishable_key_preview;
 
   return (
     <AdminLayout maxWidth="wide">
@@ -126,38 +127,38 @@ export function BillingSettings() {
                 <form onSubmit={handleStripeSave} className="grid gap-4 md:grid-cols-2">
                   <FormField
                     label="Publishable Key"
-                    helpText={publishablePreview ? `Saved (preview): ${publishablePreview}` : undefined}
+                    helpText={stripeSettings?.publishable_key_set ? 'Publishable key is saved. Enter a new value to rotate.' : undefined}
                   >
-                    <input
-                      type="text"
+                    <SecretInput
+                      isSet={stripeSettings?.publishable_key_set ?? false}
                       value={stripeForm.publishableKey}
                       onChange={handleStripeInput('publishableKey')}
-                      placeholder={publishablePreview ? `${publishablePreview} (saved)` : 'pk_live_...'}
-                      className={inputClassName}
+                      placeholder="pk_live_..."
+                      onReveal={() => revealStripeSecret('publishable_key').then((r) => r.value)}
                     />
                   </FormField>
                   <FormField
                     label="Restricted Key (secret)"
                     helpText={stripeSettings?.secret_key_set ? 'Restricted key is saved. Enter a new value to rotate.' : undefined}
                   >
-                    <input
-                      type="text"
+                    <SecretInput
+                      isSet={stripeSettings?.secret_key_set ?? false}
                       value={stripeForm.secretKey}
                       onChange={handleStripeInput('secretKey')}
-                      placeholder={stripeSettings?.secret_key_set ? 'Saved restricted key (not shown)' : 'rk_live_...'}
-                      className={inputClassName}
+                      placeholder="rk_live_..."
+                      onReveal={() => revealStripeSecret('secret_key').then((r) => r.value)}
                     />
                   </FormField>
                   <FormField
                     label="Webhook Secret"
                     helpText={stripeSettings?.webhook_secret_set ? 'Webhook secret is saved. Enter a new value to rotate.' : undefined}
                   >
-                    <input
-                      type="text"
+                    <SecretInput
+                      isSet={stripeSettings?.webhook_secret_set ?? false}
                       value={stripeForm.webhookSecret}
                       onChange={handleStripeInput('webhookSecret')}
-                      placeholder={stripeSettings?.webhook_secret_set ? 'Saved webhook secret (not shown)' : 'whsec_...'}
-                      className={inputClassName}
+                      placeholder="whsec_..."
+                      onReveal={() => revealStripeSecret('webhook_secret').then((r) => r.value)}
                     />
                   </FormField>
                   <FormField label="Dashboard URL">
@@ -223,7 +224,28 @@ export function BillingSettings() {
             {bundleError && (
               <Callout type="error" message={bundleError} />
             )}
-            {!loadingBundles && !bundleError && bundles.map((entry) => (
+            {!loadingBundles && !bundleError && bundles.length === 0 && (
+              <Card className={LAYOUT.card.base}>
+                <CardContent className="py-12 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
+                    <Package className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-white">No pricing plans configured</h3>
+                  <p className="mb-6 max-w-md mx-auto text-sm text-slate-400">
+                    You don't have any pricing bundles set up yet. Enable "Show demo placeholders" to preview
+                    the layout with sample plans, or connect your Stripe account to create real pricing tiers.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={toggleDemoPlaceholders}
+                    className="gap-2"
+                  >
+                    {includeDemoPlaceholders ? 'Hide demo placeholders' : 'Show demo placeholders'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {!loadingBundles && !bundleError && bundles.length > 0 && bundles.map((entry) => (
               <BundleCard
                 key={entry.bundle.bundle_key}
                 entry={entry}

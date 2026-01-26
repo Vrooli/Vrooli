@@ -11,6 +11,7 @@ import { CommitPanel } from "./components/CommitPanel";
 import { GitHistory } from "./components/GitHistory";
 import { GroupingSettingsModal } from "./components/GroupingSettingsModal";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
+import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
@@ -54,6 +55,7 @@ import {
   useCreateBranch,
   useSwitchBranch,
   usePublishBranch,
+  useDeletePath,
   queryKeys
 } from "./lib/hooks";
 
@@ -141,6 +143,17 @@ export default function App() {
   // Related files panel state
   const [showRelatedFiles, setShowRelatedFiles] = useState(false);
   const [relatedFilesForPath, setRelatedFilesForPath] = useState<string | undefined>();
+  const [scrollToFile, setScrollToFile] = useState<string | undefined>();
+  // File blame mode (viewing history for a specific file)
+  const [viewingFileBlame, setViewingFileBlame] = useState<{
+    path: string;
+    filename: string;
+  } | null>(null);
+  // Pending file/folder delete confirmation
+  const [pendingDeletePath, setPendingDeletePath] = useState<{
+    path: string;
+    isDir: boolean;
+  } | null>(null);
   // Track whether URL initialization is complete (state variable, not ref, for proper batching)
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
@@ -343,8 +356,10 @@ export default function App() {
   const createBranchMutation = useCreateBranch();
   const switchBranchMutation = useSwitchBranch();
   const publishBranchMutation = usePublishBranch();
+  const deletePathMutation = useDeletePath();
 
   const isStaging = stageMutation.isPending || unstageMutation.isPending;
+  const isDeleting = deletePathMutation.isPending;
   const isDiscarding = discardMutation.isPending;
   const isIgnoring = ignoreMutation.isPending;
   const repoDir = statusQuery.data?.repo_dir;
@@ -1089,8 +1104,17 @@ export default function App() {
 
   // Handle back from related files panel
   const handleBackFromRelatedFiles = useCallback(() => {
+    // Set scrollToFile before hiding related files so we scroll to the current selection
+    if (selectedFile) {
+      setScrollToFile(selectedFile);
+    }
     setShowRelatedFiles(false);
     setRelatedFilesForPath(undefined);
+  }, [selectedFile]);
+
+  // Clear scrollToFile after scroll completes
+  const handleScrollComplete = useCallback(() => {
+    setScrollToFile(undefined);
   }, []);
 
   // Handle selecting a file from the related files panel
@@ -1108,6 +1132,47 @@ export default function App() {
       setMobileActivePanel("diff");
     }
   }, [isMobile]);
+
+  // Handle request to delete file/folder (shows confirmation modal)
+  const handleRequestDeletePath = useCallback((path: string, isDir: boolean) => {
+    setPendingDeletePath({ path, isDir });
+  }, []);
+
+  // Handle confirmed delete
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDeletePath) return;
+    deletePathMutation.mutate(
+      { path: pendingDeletePath.path },
+      {
+        onSuccess: () => {
+          setPendingDeletePath(null);
+          // Clear selection if we deleted the selected file
+          if (selectedFile === pendingDeletePath.path) {
+            setSelectedFile(undefined);
+          }
+        }
+      }
+    );
+  }, [pendingDeletePath, deletePathMutation, selectedFile]);
+
+  // Handle cancel delete
+  const handleCancelDelete = useCallback(() => {
+    setPendingDeletePath(null);
+  }, []);
+
+  // Handle blame file (view file history)
+  const handleBlameFile = useCallback((path: string) => {
+    const filename = path.split("/").pop() || path;
+    setViewingFileBlame({ path, filename });
+    if (isMobile) {
+      setMobileActivePanel("history");
+    }
+  }, [isMobile]);
+
+  // Handle exit blame mode
+  const handleExitBlameMode = useCallback(() => {
+    setViewingFileBlame(null);
+  }, []);
 
   // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -1622,6 +1687,10 @@ export default function App() {
             onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
+            scrollToFile={scrollToFile}
+            onScrollComplete={handleScrollComplete}
+            onDeletePath={handleRequestDeletePath}
+            onBlameFile={handleBlameFile}
           />
         );
       case "history":
@@ -1655,6 +1724,9 @@ export default function App() {
             onCloseFilters={() => setIsHistoryFiltersOpen(false)}
             selectedCommitHash={viewingCommit?.hash}
             onSelectCommit={handleSelectCommit}
+            blameFilePath={viewingFileBlame?.path}
+            blameFileName={viewingFileBlame?.filename}
+            onExitBlameMode={handleExitBlameMode}
           />
         );
       case "commit":
@@ -1865,6 +1937,10 @@ export default function App() {
             onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
             onStagePaths={handleStagePaths}
             onDiscardPaths={handleDiscardPaths}
+            scrollToFile={scrollToFile}
+            onScrollComplete={handleScrollComplete}
+            onDeletePath={handleRequestDeletePath}
+            onBlameFile={handleBlameFile}
           />
         );
       case "diff":
@@ -1957,6 +2033,9 @@ export default function App() {
                 setMobileActivePanel("changes");
               }
             }}
+            blameFilePath={viewingFileBlame?.path}
+            blameFileName={viewingFileBlame?.filename}
+            onExitBlameMode={handleExitBlameMode}
           />
         );
     }
@@ -2140,6 +2219,14 @@ export default function App() {
           onConfirm={handleDiscardMultiple}
           onCancel={() => setPendingDiscardFiles(null)}
         />
+        <DeleteConfirmationModal
+          isOpen={pendingDeletePath !== null}
+          path={pendingDeletePath?.path ?? ""}
+          isDirectory={pendingDeletePath?.isDir ?? false}
+          isLoading={isDeleting}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
         <MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
@@ -2168,6 +2255,8 @@ export default function App() {
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
+        viewingFileBlame={viewingFileBlame}
+        onExitBlameMode={handleExitBlameMode}
       />
 
       {/* Main Content - Layout */}
@@ -2337,6 +2426,14 @@ export default function App() {
         isLoading={discardMutation.isPending}
         onConfirm={handleDiscardMultiple}
         onCancel={() => setPendingDiscardFiles(null)}
+      />
+      <DeleteConfirmationModal
+        isOpen={pendingDeletePath !== null}
+        path={pendingDeletePath?.path ?? ""}
+        isDirectory={pendingDeletePath?.isDir ?? false}
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
       />
       <FileSearchModal
         isOpen={isFileSearchOpen}

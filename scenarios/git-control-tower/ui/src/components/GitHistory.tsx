@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, EyeOff } from "lucide-react";
+import { ChevronDown, ChevronRight, GitCommit, Loader2, SlidersHorizontal, Eye, EyeOff, FileText, X } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -34,6 +34,10 @@ interface GitHistoryProps {
   // History mode props
   selectedCommitHash?: string | null;
   onSelectCommit?: (entry: RepoHistoryEntry | null) => void;
+  // Blame mode props (view history for a specific file)
+  blameFilePath?: string | null;
+  blameFileName?: string | null;
+  onExitBlameMode?: () => void;
 }
 
 type HistoryEntry = {
@@ -130,7 +134,10 @@ export function GitHistory({
   onOpenFilters,
   onCloseFilters,
   selectedCommitHash,
-  onSelectCommit
+  onSelectCommit,
+  blameFilePath,
+  blameFileName,
+  onExitBlameMode
 }: GitHistoryProps) {
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const handleSearchChange = onSearchQueryChange ?? (() => {});
@@ -342,6 +349,16 @@ export function GitHistory({
   const visibleEntries = useMemo(() => {
     return historyEntries.filter((entry) => {
       const details = resolveDetails(entry.hash);
+
+      // Blame mode: only show commits that touched the file
+      if (blameFilePath && details) {
+        if (!details.files.includes(blameFilePath)) return false;
+      } else if (blameFilePath && !details) {
+        // If we don't have file details, we can't filter by blame
+        // Return false to hide entries without details when in blame mode
+        return false;
+      }
+
       if (normalizedSearch) {
         const haystack = details
           ? `${details.subject} ${details.author ?? ""}`
@@ -364,6 +381,7 @@ export function GitHistory({
       return true;
     });
   }, [
+    blameFilePath,
     detailsAvailable,
     filterNeedsDetails,
     historyEntries,
@@ -407,6 +425,21 @@ export function GitHistory({
             <span className="truncate">History</span>
           </CardTitle>
           <div className="flex items-center gap-2 ml-auto">
+            {blameFileName && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-900/30 border border-blue-800/50">
+                <FileText className="h-3 w-3 text-blue-400" />
+                <span className="text-xs text-blue-300 max-w-[120px] truncate" title={blameFilePath ?? ""}>
+                  {blameFileName}
+                </span>
+                <button
+                  onClick={onExitBlameMode}
+                  className="h-4 w-4 rounded-full hover:bg-blue-800/50 flex items-center justify-center"
+                  aria-label="Exit file history mode"
+                >
+                  <X className="h-3 w-3 text-blue-400" />
+                </button>
+              </div>
+            )}
             <Button
               variant="outline"
               size="sm"

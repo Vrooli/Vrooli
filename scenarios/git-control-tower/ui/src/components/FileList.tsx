@@ -103,6 +103,10 @@ interface FileListProps {
   onStagePaths?: (paths: string[]) => void;
   onDiscardPaths?: (paths: string[], untracked: boolean) => void;
   onSelectAnyFile?: (path: string) => void;
+  scrollToFile?: string;
+  onScrollComplete?: () => void;
+  onDeletePath?: (path: string, isDir: boolean) => void;
+  onBlameFile?: (path: string) => void;
 }
 
 interface FileSectionProps {
@@ -683,6 +687,10 @@ export function FileList({
   onStagePaths,
   onDiscardPaths,
   onSelectAnyFile,
+  scrollToFile,
+  onScrollComplete,
+  onDeletePath,
+  onBlameFile,
 }: FileListProps) {
   const isMobile = useIsMobile();
   const hasStaged = (files?.staged?.length ?? 0) > 0;
@@ -828,6 +836,21 @@ export function FileList({
       setConfirmingGroup(null);
     }
   }, [groupingActive]);
+
+  // Scroll to file when returning from Related Files panel
+  useEffect(() => {
+    if (!scrollToFile || fileViewMode === "tree") return; // Tree view handles its own scrolling
+
+    const timeoutId = setTimeout(() => {
+      const element = document.querySelector(`[data-file-path="${CSS.escape(scrollToFile)}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      onScrollComplete?.();
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [scrollToFile, onScrollComplete, fileViewMode]);
 
   const groupedSections = useMemo(() => {
     if (!groupingActive) return [];
@@ -1120,6 +1143,10 @@ export function FileList({
                     }}
                     selectedFile={selectedFiles?.[0]?.path}
                     gitStatuses={files?.statuses}
+                    scrollToFile={scrollToFile}
+                    onScrollComplete={onScrollComplete}
+                    onDeletePath={onDeletePath}
+                    onBlameFile={onBlameFile}
                   />
                 ) : groupingActive ? (
                   groupedSections.map((group) => {

@@ -21,6 +21,7 @@ import {
   fetchFiles,
   fetchRelatedFiles,
   fetchDirectoryContents,
+  deletePath,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -36,7 +37,8 @@ import {
   type ViewMode,
   type FileTreeResponse,
   type RelatedFilesResponse,
-  type DirListResponse
+  type DirListResponse,
+  type DeletePathRequest
 } from "./api";
 
 export const queryKeys = {
@@ -259,5 +261,18 @@ export function useDirectoryContents(path: string, enabled = true) {
     queryFn: () => fetchDirectoryContents(path),
     enabled,
     staleTime: 30000 // Cache for 30 seconds
+  });
+}
+
+export function useDeletePath() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: DeletePathRequest) => deletePath(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
+      // Invalidate all directory contents caches since structure changed
+      queryClient.invalidateQueries({ queryKey: ["repo", "dir"] });
+    }
   });
 }
