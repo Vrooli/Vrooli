@@ -3,6 +3,7 @@
  * Floats above the member and always faces the camera.
  */
 
+import { useMemo } from 'react'
 import { Html } from '@react-three/drei'
 import { useOverlayStore } from '@/stores/overlayStore'
 
@@ -30,10 +31,20 @@ export function NameTag({
   isHovered = false,
   yOffset = 1.2,
 }: NameTagProps) {
-  const shouldShow = useOverlayStore((state) => state.shouldShowNameTag(memberId, isHovered))
+  // Get stable references to config values
   const overlaysVisible = useOverlayStore((state) => state.overlaysVisible)
+  const nameTagConfig = useOverlayStore((state) => state.nameTagConfig)
 
-  if (!overlaysVisible || !shouldShow) {
+  // Compute visibility based on config and hover state
+  const shouldShow = useMemo(() => {
+    if (!overlaysVisible) return false
+    if (nameTagConfig.neverShowFor.includes(memberId)) return false
+    if (nameTagConfig.alwaysShowFor.includes(memberId)) return true
+    if (nameTagConfig.showOnHover) return isHovered
+    return nameTagConfig.showAll
+  }, [overlaysVisible, nameTagConfig, memberId, isHovered])
+
+  if (!shouldShow) {
     return null
   }
 

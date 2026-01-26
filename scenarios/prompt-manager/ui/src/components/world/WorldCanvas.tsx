@@ -18,12 +18,13 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore } from '@/stores/cameraStore'
 import { useMemberData } from '@/hooks/useMemberData'
+import { useWorldDefaults } from '@/hooks/useWorldDefaults'
 import { MemberProvider } from './MemberProvider'
 import { WorldScene, type MemberWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
-import { EnvironmentControls } from './EnvironmentControls'
 import { CombinePanel } from './CombinePanel'
 import { MemberOverlay } from './MemberOverlay'
+import { WorldEditorToolbar, ObjectPalette } from './editor'
 import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
@@ -88,6 +89,9 @@ export function WorldCanvas({
   // Theme for 3D colors
   const resolvedTheme = useResolvedTheme()
   const isDarkMode = resolvedTheme === 'dark'
+
+  // Seed world with default furniture/decorations on first load
+  useWorldDefaults()
 
   // Cursor tracking for member
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
@@ -307,7 +311,10 @@ export function WorldCanvas({
         selectionCount={selectedSkillIds.length}
         memberCount={members.length}
       />
-      <EnvironmentControls className="absolute bottom-4 left-4" />
+
+      {/* World Editor */}
+      <WorldEditorToolbar className="absolute top-4 left-1/2 -translate-x-1/2" />
+      <ObjectPalette className="absolute top-16 left-4" />
 
       {/* Combine panel */}
       <CombinePanel

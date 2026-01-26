@@ -3,9 +3,11 @@
  * Shows text content in a chat-bubble style overlay.
  */
 
+import { useCallback, useMemo } from 'react'
 import { Html } from '@react-three/drei'
 import { X } from 'lucide-react'
-import { useOverlayStore, selectMemberSpeechBubbles } from '@/stores/overlayStore'
+import { useOverlayStore } from '@/stores/overlayStore'
+import type { SpeechBubble as SpeechBubbleType } from '@/stores/overlayStore'
 
 interface SpeechBubbleProps {
   /** Member ID for state lookup */
@@ -28,11 +30,25 @@ export function SpeechBubble({
   yOffset = 1.4,
   maxWidth = 200,
 }: SpeechBubbleProps) {
-  const bubbles = useOverlayStore((state) => selectMemberSpeechBubbles(state, memberId))
+  // Get all speech bubbles from store (stable reference)
+  const allBubbles = useOverlayStore((state) => state.speechBubbles)
   const hideSpeechBubble = useOverlayStore((state) => state.hideSpeechBubble)
 
-  // Show only the most recent bubble (or stack them with offset)
-  const latestBubble = bubbles[bubbles.length - 1]
+  // Filter bubbles for this member - memoized to avoid recreating array
+  const memberBubbles = useMemo(() => {
+    if (!memberId || !Array.isArray(allBubbles)) return []
+    return allBubbles.filter((b: SpeechBubbleType) => b.memberId === memberId)
+  }, [allBubbles, memberId])
+
+  // Show only the most recent bubble
+  const latestBubble = memberBubbles.length > 0 ? memberBubbles[memberBubbles.length - 1] : null
+
+  // Memoize the close handler
+  const handleClose = useCallback(() => {
+    if (latestBubble) {
+      hideSpeechBubble(latestBubble.id)
+    }
+  }, [hideSpeechBubble, latestBubble])
 
   // Early return for empty bubbles
   if (!latestBubble) {
@@ -63,7 +79,7 @@ export function SpeechBubble({
         {/* Close button for non-temporary bubbles */}
         {!latestBubble.temporary && (
           <button
-            onClick={() => hideSpeechBubble(latestBubble.id)}
+            onClick={handleClose}
             className="
               absolute -top-2 -right-2
               w-5 h-5

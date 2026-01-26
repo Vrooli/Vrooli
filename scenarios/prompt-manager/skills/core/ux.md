@@ -12,7 +12,12 @@ Focus on producing a **professional, polished, friction-free user experience**, 
 * Ensure all UI elements have **clear affordances and signifiers** indicating how they should be used.
 * Add **help buttons, tooltips, hint text, or short explainer components** wherever concepts, parameters, or interactions may be confusing.
 * Favor **concise text**, intuitive labels, and consistent terminology across the UI.
-* Ensure **testability is part of UX clarity**: add stable `data-testid` selectors for key UI elements so BAS workflows can validate the experience end-to-end. Use the scenario selector registry (`ui/src/constants/selectors.ts`) and reference those selectors in components instead of hard-coded strings. See `scenarios/test-genie/docs/phases/playbooks/ui-automation-with-bas.md` for the selector registry standard and workflow usage.
+* Ensure **testability is part of UX clarity**:
+  * Add stable `data-testid` selectors for key UI elements so BAS workflows can validate the experience end-to-end
+  * Use the scenario selector registry (`ui/src/constants/selectors.ts`) - never hardcode selectors
+  * Reference selectors in components: `data-testid={selectors.dashboard.newProjectButton}`
+  * See **browser-automation-studio** skill for validating selectors with BAS CLI
+  * See **e2e-testing** skill for selector registry standards and workflow authoring patterns
 
 ### **2. Layout & Information Hierarchy**
 

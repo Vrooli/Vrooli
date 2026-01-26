@@ -14,14 +14,16 @@
 import { useRef, useEffect } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
-import { useMemberComponent } from './MemberProvider'
+import { MemberWithAccessories } from './members/MemberWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { DragPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
+import { DynamicLighting, DynamicFog } from './rendering'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
+import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { Member } from '@/types/member'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
@@ -70,11 +72,13 @@ export function WorldScene({
   const controlsRef = useRef<OrbitControlsRef>(null)
   const { camera } = useThree()
 
-  // Get member component from DI
-  const MemberComponent = useMemberComponent()
-
   // Disable orbit controls during drag
   const isDragging = useInteractionStore((state) => state.isDragging)
+
+  // Environment config for ground styling
+  const currentEnv = useEnvironmentStore((state) => state.current)
+  const groundConfig = currentEnv?.ground
+  const isNightTime = currentEnv?.timeOfDay === 'night'
 
   // Furniture seat position lookup
   const getMemberSeatPosition = useFurnitureStore((state) => state.getMemberSeatPosition)
@@ -99,24 +103,18 @@ export function WorldScene({
       />
       {showFpsOverlay && <FPSOverlay position={[-6, 4, 0]} detailed />}
 
-      {/* Lighting */}
-      <ambientLight intensity={0.4} />
-      <directionalLight
-        position={[10, 10, 5]}
-        intensity={1}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-      />
-      <pointLight position={[-10, 5, -10]} intensity={0.5} color="#6366f1" />
-      <pointLight position={[10, -5, 10]} intensity={0.3} color="#22d3ee" />
+      {/* Dynamic Lighting from environment config */}
+      <DynamicLighting enableShadows shadowMapSize={2048} />
 
-      {/* Environment */}
-      {isDarkMode && (
+      {/* Dynamic Fog from environment config */}
+      <DynamicFog />
+
+      {/* Stars - only show in dark mode or night time */}
+      {(isDarkMode || isNightTime) && (
         <WorldErrorBoundary componentName="Stars" minimal>
           <Stars radius={100} depth={50} count={2000} factor={4} fade speed={1} />
         </WorldErrorBoundary>
       )}
-      <fog attach="fog" args={[isDarkMode ? '#0f172a' : '#f8fafc', 10, 50]} />
 
       {/* Controls - disabled during drag */}
       <OrbitControls
@@ -133,17 +131,42 @@ export function WorldScene({
       {/* Drag plane - catches pointer events during drag */}
       <DragPlane y={0} />
 
-      {/* Grid helper */}
-      <gridHelper
-        args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
-        position={[0, -2, 0]}
-      />
+      {/* Grid helper - respects environment ground config */}
+      {groundConfig?.visible !== false && groundConfig?.type === 'grid' && (
+        <gridHelper
+          args={[
+            groundConfig.size ?? 30,
+            groundConfig.divisions ?? 30,
+            groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
+            groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
+          ]}
+          position={[0, groundConfig.position ?? -2, 0]}
+        />
+      )}
+      {/* Fallback grid if no config */}
+      {!groundConfig && (
+        <gridHelper
+          args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
+          position={[0, -2, 0]}
+        />
+      )}
+      {/* Ground plane for non-grid environments */}
+      {groundConfig?.visible && groundConfig.type === 'plane' && (
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, groundConfig.position ?? -2, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[groundConfig.size ?? 100, groundConfig.size ?? 100]} />
+          <meshStandardMaterial color={groundConfig.color ?? '#228B22'} />
+        </mesh>
+      )}
 
       {/* Furniture and Decorations */}
       <FurnitureManager interactive draggable />
       <DecorationManager interactive draggable />
 
-      {/* Render all members */}
+      {/* Render all members with accessories and overlays */}
       {membersWithPositions.map(({ member, position }) => {
         const seatInfo = getMemberSeatPosition(member.id)
         const finalPosition = seatInfo?.position ?? position
@@ -151,9 +174,9 @@ export function WorldScene({
         const seatRotation = seatInfo?.rotation ?? 0
 
         return (
-          <MemberComponent
+          <MemberWithAccessories
             key={member.id}
-            memberId={member.id}
+            member={member}
             position={finalPosition}
             cursorPosition={cursorPosition}
             selectedNodes={selectedNodeIds}
@@ -161,11 +184,8 @@ export function WorldScene({
             isSeated={isSeated}
             seatRotation={seatRotation}
             onMemberClick={() => onMemberClick?.(member.id, finalPosition)}
-            colors={{
-              body: member.bodyColor,
-              head: member.headColor,
-              accent: member.accentColor,
-            }}
+            showOverlays
+            showAccessories
           />
         )
       })}

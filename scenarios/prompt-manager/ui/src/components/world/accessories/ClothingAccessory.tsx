@@ -67,7 +67,7 @@ export function ClothingTop({
     return null
   }
 
-  const pos = offset.position as [number, number, number]
+  const pos = offset.position
 
   switch (type) {
     case 'tshirt':
@@ -201,7 +201,7 @@ export function ClothingBottom({
     return null
   }
 
-  const pos = offset.position as [number, number, number]
+  const pos = offset.position
 
   switch (type) {
     case 'pants':
@@ -283,7 +283,7 @@ export function FootwearAccessory({
     return null
   }
 
-  const pos = offset.position as [number, number, number]
+  const pos = offset.position
 
   switch (type) {
     case 'shoes':

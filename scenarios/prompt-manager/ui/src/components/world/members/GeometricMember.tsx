@@ -54,7 +54,8 @@ export function GeometricMember({
   const objectIdRef = useRef(memberId ?? `member-${Math.random().toString(36).slice(2)}`)
 
   // Hover highlighting - only if memberId is provided and LOD allows
-  const { isHovered, hoverProps } = useHoverHighlight(memberId ?? 'unknown', {
+  // Note: isHovered is used by MemberWithAccessories which wraps this component
+  const { hoverProps } = useHoverHighlight(memberId ?? 'unknown', {
     enabled: !!memberId && (lodLevelRef.current === 'high' || lodLevelRef.current === 'medium'),
   })
 
@@ -331,14 +332,6 @@ export function GeometricMember({
           <capsuleGeometry args={[0.06, 0.25, 4, 8]} />
         </mesh>
       </group>
-
-      {/* Hover glow effect */}
-      {isHovered && (
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[0.55, 16, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.08} />
-        </mesh>
-      )}
 
       {/* Floating orbs around member when selected */}
       {selectedNodes.length > 0 && (

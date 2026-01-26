@@ -8,10 +8,17 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Palette } from 'lucide-react'
+import { X, Palette, Shirt, Crown, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Member, UpdateMemberRequest } from '@/types/member'
 import { DEFAULT_MEMBER_COLORS } from '@/types/member'
+import { useAccessoryStore } from '@/stores/accessoryStore'
+import type {
+  HeadAccessoryType,
+  ClothingTopType,
+  ClothingBottomType,
+  FootwearType,
+} from '@/types/accessory'
 
 interface MemberCustomizeModalProps {
   isOpen: boolean
@@ -37,6 +44,40 @@ const COLOR_PRESETS = [
   '#64748b', // slate
 ]
 
+// Accessory options
+const HEAD_ACCESSORIES: { type: HeadAccessoryType; icon: string; label: string }[] = [
+  { type: 'none', icon: '❌', label: 'None' },
+  { type: 'hat', icon: '🎩', label: 'Hat' },
+  { type: 'glasses', icon: '👓', label: 'Glasses' },
+  { type: 'crown', icon: '👑', label: 'Crown' },
+  { type: 'headphones', icon: '🎧', label: 'Headphones' },
+  { type: 'halo', icon: '😇', label: 'Halo' },
+]
+
+const CLOTHING_TOPS: { type: ClothingTopType; icon: string; label: string }[] = [
+  { type: 'none', icon: '❌', label: 'None' },
+  { type: 'tshirt', icon: '👕', label: 'T-Shirt' },
+  { type: 'hoodie', icon: '🧥', label: 'Hoodie' },
+  { type: 'jacket', icon: '🧥', label: 'Jacket' },
+  { type: 'vest', icon: '🦺', label: 'Vest' },
+  { type: 'dress', icon: '👗', label: 'Dress' },
+]
+
+const CLOTHING_BOTTOMS: { type: ClothingBottomType; icon: string; label: string }[] = [
+  { type: 'none', icon: '❌', label: 'None' },
+  { type: 'pants', icon: '👖', label: 'Pants' },
+  { type: 'shorts', icon: '🩳', label: 'Shorts' },
+  { type: 'skirt', icon: '👗', label: 'Skirt' },
+]
+
+const FOOTWEAR: { type: FootwearType; icon: string; label: string }[] = [
+  { type: 'none', icon: '❌', label: 'None' },
+  { type: 'shoes', icon: '👞', label: 'Shoes' },
+  { type: 'boots', icon: '🥾', label: 'Boots' },
+  { type: 'sneakers', icon: '👟', label: 'Sneakers' },
+  { type: 'sandals', icon: '🩴', label: 'Sandals' },
+]
+
 /**
  * Member customization modal component.
  */
@@ -55,6 +96,17 @@ export function MemberCustomizeModal({
   const [bodyColor, setBodyColor] = useState<string>(DEFAULT_MEMBER_COLORS.bodyColor)
   const [headColor, setHeadColor] = useState<string>(DEFAULT_MEMBER_COLORS.headColor)
   const [accentColor, setAccentColor] = useState<string>(DEFAULT_MEMBER_COLORS.accentColor)
+  const [activeTab, setActiveTab] = useState<'colors' | 'accessories'>('colors')
+
+  // Accessory state
+  const [headAccessory, setHeadAccessory] = useState<HeadAccessoryType>('none')
+  const [clothingTop, setClothingTop] = useState<ClothingTopType>('none')
+  const [clothingBottom, setClothingBottom] = useState<ClothingBottomType>('none')
+  const [footwear, setFootwear] = useState<FootwearType>('none')
+
+  // Accessory store
+  const getMemberAccessories = useAccessoryStore((state) => state.getMemberAccessories)
+  const setMemberAccessories = useAccessoryStore((state) => state.setMemberAccessories)
 
   // Initialize form when member changes
   useEffect(() => {
@@ -63,8 +115,15 @@ export function MemberCustomizeModal({
       setBodyColor(member.bodyColor)
       setHeadColor(member.headColor)
       setAccentColor(member.accentColor)
+
+      // Load accessories from store
+      const accessories = getMemberAccessories(member.id)
+      setHeadAccessory(accessories.head?.type ?? 'none')
+      setClothingTop(accessories.clothingTop?.type ?? 'none')
+      setClothingBottom(accessories.clothingBottom?.type ?? 'none')
+      setFootwear(accessories.footwear?.type ?? 'none')
     }
-  }, [member])
+  }, [member, getMemberAccessories])
 
   // Focus name input when opened
   useEffect(() => {
@@ -114,6 +173,17 @@ export function MemberCustomizeModal({
 
   // Handle save
   const handleSave = async () => {
+    if (!member) return
+
+    // Save accessories to store
+    setMemberAccessories(member.id, {
+      head: { type: headAccessory },
+      clothingTop: { type: clothingTop },
+      clothingBottom: { type: clothingBottom },
+      footwear: { type: footwear },
+    })
+
+    // Save member data
     await onSave({
       name,
       bodyColor,
@@ -158,7 +228,7 @@ export function MemberCustomizeModal({
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
             <Palette className="h-5 w-5 text-primary" />
           </div>
@@ -171,8 +241,14 @@ export function MemberCustomizeModal({
         </div>
 
         {/* Preview */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4">
           <div className="relative">
+            {/* Head accessory preview */}
+            {headAccessory !== 'none' && (
+              <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-2xl">
+                {HEAD_ACCESSORIES.find((a) => a.type === headAccessory)?.icon}
+              </span>
+            )}
             {/* Body */}
             <div
               className="w-20 h-28 rounded-full flex items-start justify-center pt-4"
@@ -223,24 +299,97 @@ export function MemberCustomizeModal({
           />
         </div>
 
-        {/* Color pickers */}
-        <div className="space-y-4">
-          <ColorPicker
-            label="Body Color"
-            value={bodyColor}
-            onChange={setBodyColor}
-          />
-          <ColorPicker
-            label="Head Color"
-            value={headColor}
-            onChange={setHeadColor}
-          />
-          <ColorPicker
-            label="Accent Color"
-            value={accentColor}
-            onChange={setAccentColor}
-          />
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4 border-b border-border">
+          <button
+            type="button"
+            onClick={() => setActiveTab('colors')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === 'colors'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Palette className="h-4 w-4" />
+            Colors
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('accessories')}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === 'accessories'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Shirt className="h-4 w-4" />
+            Accessories
+          </button>
         </div>
+
+        {/* Colors Tab */}
+        {activeTab === 'colors' && (
+          <div className="space-y-4">
+            <ColorPicker
+              label="Body Color"
+              value={bodyColor}
+              onChange={setBodyColor}
+            />
+            <ColorPicker
+              label="Head Color"
+              value={headColor}
+              onChange={setHeadColor}
+            />
+            <ColorPicker
+              label="Accent Color"
+              value={accentColor}
+              onChange={setAccentColor}
+            />
+          </div>
+        )}
+
+        {/* Accessories Tab */}
+        {activeTab === 'accessories' && (
+          <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+            {/* Head Accessory */}
+            <AccessoryPicker
+              label="Head"
+              icon={<Crown className="h-4 w-4" />}
+              options={HEAD_ACCESSORIES}
+              value={headAccessory}
+              onChange={(type) => setHeadAccessory(type as HeadAccessoryType)}
+            />
+
+            {/* Clothing Top */}
+            <AccessoryPicker
+              label="Top"
+              icon={<Shirt className="h-4 w-4" />}
+              options={CLOTHING_TOPS}
+              value={clothingTop}
+              onChange={(type) => setClothingTop(type as ClothingTopType)}
+            />
+
+            {/* Clothing Bottom */}
+            <AccessoryPicker
+              label="Bottom"
+              icon={<Briefcase className="h-4 w-4" />}
+              options={CLOTHING_BOTTOMS}
+              value={clothingBottom}
+              onChange={(type) => setClothingBottom(type as ClothingBottomType)}
+            />
+
+            {/* Footwear */}
+            <AccessoryPicker
+              label="Footwear"
+              icon={<span className="text-sm">👟</span>}
+              options={FOOTWEAR}
+              value={footwear}
+              onChange={(type) => setFootwear(type as FootwearType)}
+            />
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 mt-6">
@@ -328,6 +477,50 @@ function ColorPicker({ label, value, onChange }: ColorPickerProps) {
             )}
           />
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Accessory picker component with emoji options.
+ */
+interface AccessoryPickerProps {
+  label: string
+  icon: React.ReactNode
+  options: { type: string; icon: string; label: string }[]
+  value: string
+  onChange: (type: string) => void
+}
+
+function AccessoryPicker({ label, icon, options, value, onChange }: AccessoryPickerProps) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-muted-foreground">{icon}</span>
+        <label className="text-sm font-medium text-foreground">{label}</label>
+      </div>
+      <div className="flex gap-1.5 flex-wrap">
+        {options.map((option) => (
+          <button
+            key={option.type}
+            type="button"
+            onClick={() => onChange(option.type)}
+            className={cn(
+              'flex flex-col items-center justify-center',
+              'w-12 h-12 rounded-lg border transition-all',
+              value === option.type
+                ? 'border-primary bg-primary/10 scale-105'
+                : 'border-border hover:border-muted-foreground hover:bg-muted'
+            )}
+            title={option.label}
+          >
+            <span className="text-lg">{option.icon}</span>
+            <span className="text-[10px] text-muted-foreground truncate max-w-full">
+              {option.type === 'none' ? '' : option.label.slice(0, 5)}
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   )

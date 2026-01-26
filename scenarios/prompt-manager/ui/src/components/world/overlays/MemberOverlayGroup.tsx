@@ -3,6 +3,7 @@
  * Manages the composition and layering of name tags, status icons, etc.
  */
 
+import { useMemo } from 'react'
 import { NameTag } from './NameTag'
 import { StatusIcon } from './StatusIcon'
 import { ThinkingBubble } from './ThinkingBubble'
@@ -38,14 +39,20 @@ export function MemberOverlayGroup({
   status,
   enabled = true,
 }: MemberOverlayGroupProps) {
-  const storedStatus = useAccessoryStore((state) => state.getMemberStatus(memberId))
+  // Get stable reference to member accessories state
+  const memberAccessories = useAccessoryStore((state) => state.memberAccessories)
+
+  // Memoize status lookup to avoid creating new objects
+  const effectiveStatus = useMemo<MemberStatusType>(() => {
+    if (status) return status
+    const memberState = memberAccessories[memberId]
+    return memberState?.status?.type ?? 'normal'
+  }, [status, memberAccessories, memberId])
 
   // Early return for disabled or invalid memberId
   if (!enabled || !memberId) {
     return null
   }
-
-  const effectiveStatus = status ?? storedStatus?.type ?? 'normal'
 
   return (
     <>

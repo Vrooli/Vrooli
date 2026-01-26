@@ -3,11 +3,12 @@
  * Allows users to change time of day, scene type, and other environment settings.
  */
 
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { Sun, Moon, Sunrise, Sunset, Building2, Trees, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useEnvironmentStore, getTimeOfDayPreset } from '@/stores/environmentStore'
-import type { TimeOfDay, DreiEnvironmentPreset } from '@/types/environment'
+import { useEnvironmentStore } from '@/stores/environmentStore'
+import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
+import type { TimeOfDay, SceneType } from '@/types/environment'
 
 // Stable icon references
 const TIME_OF_DAY_CONFIG: { time: TimeOfDay; icon: React.ReactNode; label: string }[] = [
@@ -18,12 +19,10 @@ const TIME_OF_DAY_CONFIG: { time: TimeOfDay; icon: React.ReactNode; label: strin
 ]
 
 // Scene type configurations
-type SceneType = 'abstract-space' | 'outdoor-park' | 'indoor-office'
-
-const SCENE_TYPE_CONFIG: { type: SceneType; icon: React.ReactNode; label: string; preset: DreiEnvironmentPreset }[] = [
-  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space', preset: 'night' },
-  { type: 'outdoor-park', icon: <Trees className="h-4 w-4" />, label: 'Park', preset: 'forest' },
-  { type: 'indoor-office', icon: <Building2 className="h-4 w-4" />, label: 'Office', preset: 'apartment' },
+const SCENE_TYPE_CONFIG: { type: SceneType; icon: React.ReactNode; label: string }[] = [
+  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space' },
+  { type: 'outdoor-park', icon: <Trees className="h-4 w-4" />, label: 'Park' },
+  { type: 'indoor-office', icon: <Building2 className="h-4 w-4" />, label: 'Office' },
 ]
 
 interface EnvironmentControlsProps {
@@ -37,34 +36,46 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
   const preferredTimeOfDay = useEnvironmentStore((state) => state.preferredTimeOfDay)
   const setPreferredTimeOfDay = useEnvironmentStore((state) => state.setPreferredTimeOfDay)
   const setDreiPreset = useEnvironmentStore((state) => state.setDreiPreset)
+  const setEnvironment = useEnvironmentStore((state) => state.setEnvironment)
   const syncWithTheme = useEnvironmentStore((state) => state.syncWithTheme)
   const setSyncWithTheme = useEnvironmentStore((state) => state.setSyncWithTheme)
   const currentEnv = useEnvironmentStore((state) => state.current)
 
-  const [sceneType, setSceneType] = useState<SceneType>(
-    (currentEnv?.type as SceneType) ?? 'abstract-space'
-  )
+  const sceneType: SceneType = currentEnv?.type ?? 'abstract-space'
 
   const handleTimeOfDayChange = useCallback(
     (timeOfDay: TimeOfDay) => {
       setPreferredTimeOfDay(timeOfDay)
-      // Also update the drei preset to match
+      // Create and set full environment config
+      const newEnv = createEnvironmentConfig(
+        `${sceneType}-${timeOfDay}`,
+        `${sceneType} ${timeOfDay}`,
+        { sceneType, timeOfDay }
+      )
+      setEnvironment(newEnv)
+      // Also update drei preset
       if (!syncWithTheme) {
-        setDreiPreset(getTimeOfDayPreset(timeOfDay))
+        setDreiPreset(TIME_TO_DREI_PRESET[timeOfDay])
       }
     },
-    [setPreferredTimeOfDay, setDreiPreset, syncWithTheme]
+    [setPreferredTimeOfDay, setDreiPreset, setEnvironment, syncWithTheme, sceneType]
   )
 
   const handleSceneTypeChange = useCallback(
-    (type: SceneType, preset: DreiEnvironmentPreset) => {
-      setSceneType(type)
-      // Update the drei preset based on scene type
+    (type: SceneType) => {
+      // Create and set full environment config
+      const newEnv = createEnvironmentConfig(
+        `${type}-${preferredTimeOfDay}`,
+        `${type} ${preferredTimeOfDay}`,
+        { sceneType: type, timeOfDay: preferredTimeOfDay }
+      )
+      setEnvironment(newEnv)
+      // Also update drei preset for scene type
       if (!syncWithTheme) {
-        setDreiPreset(preset)
+        setDreiPreset(TIME_TO_DREI_PRESET[preferredTimeOfDay])
       }
     },
-    [setDreiPreset, syncWithTheme]
+    [setDreiPreset, setEnvironment, syncWithTheme, preferredTimeOfDay]
   )
 
   const handleToggleThemeSync = useCallback(() => {
@@ -97,12 +108,12 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
       {/* Scene Type Row */}
       <div className="flex items-center gap-1">
         <span className="text-xs text-slate-400 w-12">Scene:</span>
-        {SCENE_TYPE_CONFIG.map(({ type, icon, label, preset }) => (
+        {SCENE_TYPE_CONFIG.map(({ type, icon, label }) => (
           <Button
             key={type}
             variant="ghost"
             size="sm"
-            onClick={() => handleSceneTypeChange(type, preset)}
+            onClick={() => handleSceneTypeChange(type)}
             className={`h-7 w-7 p-0 ${
               sceneType === type
                 ? 'bg-indigo-500/30 text-indigo-300'

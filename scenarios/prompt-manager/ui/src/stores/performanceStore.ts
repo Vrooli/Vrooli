@@ -130,11 +130,9 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
       let max = -Infinity
 
       for (const sample of samples) {
-        if (sample && typeof sample.fps === 'number') {
-          sum += sample.fps
-          if (sample.fps < min) min = sample.fps
-          if (sample.fps > max) max = sample.fps
-        }
+        sum += sample.fps
+        if (sample.fps < min) min = sample.fps
+        if (sample.fps > max) max = sample.fps
       }
 
       const avgFps = sum / samples.length
@@ -163,8 +161,8 @@ export const usePerformanceStore = create<PerformanceStore>((set, get) => ({
         },
       })
     } else {
-      // Just update index without React update
-      state.sampleIndex = newIndex
+      // Update just the sample index (minimal state update)
+      set({ sampleIndex: newIndex })
     }
   },
 

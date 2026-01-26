@@ -11,6 +11,8 @@ Focus on producing a **high-signal, trustworthy test suite** that accurately ref
 
 * **If `docs/internal/PROBLEMS.md` exists**, read the Test Gaps section first to understand what test gaps have been identified.
 
+* For **UI-level validation**, e2e tests are handled by BAS workflows in `bas/` directories. See the **e2e-testing** skill for strategy and the **browser-automation-studio** skill for CLI usage. This skill focuses on unit and integration tests that complement (not duplicate) e2e coverage.
+
 * Ensure **each operational target** has clear, meaningful test coverage through its linked technical requirements.
 * Where gaps exist, add tests that validate the **actual behavior** users and systems depend on, not just internal implementation details.
 * Prefer tests that verify the **full intent** of a requirement (happy path + key edge cases), rather than narrow or trivial assertions.

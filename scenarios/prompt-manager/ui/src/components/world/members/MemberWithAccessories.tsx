@@ -10,6 +10,7 @@ import { HeadAccessory } from '../accessories/HeadAccessory'
 import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
 import { ClothingTop, ClothingBottom, FootwearAccessory } from '../accessories/ClothingAccessory'
 import { MemberOverlayGroup } from '../overlays/MemberOverlayGroup'
+import { HoverGlow } from '../effects'
 import { useSkillBackpack } from '../accessories/hooks/useSkillBackpack'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
@@ -25,6 +26,10 @@ interface MemberWithAccessoriesProps extends Omit<MemberProps, 'memberId'> {
   showAccessories?: boolean
   /** Enable hover highlighting */
   enableHover?: boolean
+  /** Whether member is seated on furniture */
+  isSeated?: boolean
+  /** Rotation when seated (radians) */
+  seatRotation?: number
 }
 
 /**
@@ -54,16 +59,34 @@ export function MemberWithAccessories({
   showOverlays = true,
   showAccessories = true,
   enableHover = true,
+  isSeated = false,
+  seatRotation = 0,
 }: MemberWithAccessoriesProps) {
   // Defensive: ensure selectedNodes is always an array
   const selectedNodes = selectedNodesProp ?? []
+  // Defensive: ensure skills is an array before accessing length
+  const skillCount = Array.isArray(member.skills) ? member.skills.length : 0
   // Compute backpack type from skill count
-  const backpackType = useSkillBackpack(member.skills.length)
+  const backpackType = useSkillBackpack(skillCount)
 
-  // Get stored accessories for this member
-  const storedAccessories = useAccessoryStore((state) =>
-    state.getMemberAccessories(member.id)
-  )
+  // Get stable references from accessory store
+  const memberAccessoriesState = useAccessoryStore((state) => state.memberAccessories)
+  const accessoryDefaults = useAccessoryStore((state) => state.defaults)
+
+  // Memoize accessory resolution to avoid creating new objects on each render
+  const storedAccessories = useMemo(() => {
+    const memberId = member.id
+    const memberState = memberAccessoriesState[memberId]
+    const defaults = accessoryDefaults
+    return {
+      head: memberState?.accessories.head ?? defaults.head ?? { type: 'none' as const },
+      back: memberState?.accessories.back ?? defaults.back ?? { type: 'none' as const },
+      held: memberState?.accessories.held ?? defaults.held ?? { type: 'none' as const },
+      clothingTop: memberState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' as const },
+      clothingBottom: memberState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' as const },
+      footwear: memberState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' as const },
+    }
+  }, [memberAccessoriesState, member.id, accessoryDefaults])
 
   // Hover highlighting
   const { isHovered, hoverProps } = useHoverHighlight(member.id, {
@@ -93,6 +116,8 @@ export function MemberWithAccessories({
         onAnimationComplete={onAnimationComplete}
         onMemberClick={onMemberClick}
         colors={memberColors}
+        isSeated={isSeated}
+        seatRotation={seatRotation}
       />
 
       {/* Accessories */}
@@ -101,11 +126,11 @@ export function MemberWithAccessories({
           {/* Auto-computed backpack based on skills */}
           <BackpackAccessory
             type={backpackType}
-            skillCount={member.skills.length}
+            skillCount={skillCount}
           />
 
           {/* Head accessory from store */}
-          {storedAccessories.head && storedAccessories.head.type !== 'none' && (
+          {storedAccessories.head.type !== 'none' && (
             <HeadAccessory
               type={storedAccessories.head.type}
               color={storedAccessories.head.color}
@@ -113,7 +138,7 @@ export function MemberWithAccessories({
           )}
 
           {/* Held item from store */}
-          {storedAccessories.held && storedAccessories.held.type !== 'none' && (
+          {storedAccessories.held.type !== 'none' && (
             <HeldItemAccessory
               type={storedAccessories.held.type}
               hand={storedAccessories.held.hand}
@@ -122,7 +147,7 @@ export function MemberWithAccessories({
           )}
 
           {/* Clothing - top */}
-          {storedAccessories.clothingTop && storedAccessories.clothingTop.type !== 'none' && (
+          {storedAccessories.clothingTop.type !== 'none' && (
             <ClothingTop
               type={storedAccessories.clothingTop.type}
               color={storedAccessories.clothingTop.color}
@@ -131,7 +156,7 @@ export function MemberWithAccessories({
           )}
 
           {/* Clothing - bottom */}
-          {storedAccessories.clothingBottom && storedAccessories.clothingBottom.type !== 'none' && (
+          {storedAccessories.clothingBottom.type !== 'none' && (
             <ClothingBottom
               type={storedAccessories.clothingBottom.type}
               color={storedAccessories.clothingBottom.color}
@@ -139,7 +164,7 @@ export function MemberWithAccessories({
           )}
 
           {/* Footwear */}
-          {storedAccessories.footwear && storedAccessories.footwear.type !== 'none' && (
+          {storedAccessories.footwear.type !== 'none' && (
             <FootwearAccessory
               type={storedAccessories.footwear.type}
               color={storedAccessories.footwear.color}
@@ -148,13 +173,14 @@ export function MemberWithAccessories({
         </group>
       )}
 
-      {/* Hover glow effect */}
-      {isHovered && (
-        <mesh position={position}>
-          <sphereGeometry args={[0.6, 16, 16]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.1} />
-        </mesh>
-      )}
+      {/* Hover glow effect - uses member's accent color */}
+      <HoverGlow
+        isActive={isHovered}
+        position={position}
+        size={0.8}
+        color={memberColors.accent || '#6366f1'}
+        intensity={0.6}
+      />
 
       {/* Overlays (name tag, status, speech) */}
       {showOverlays && (
