@@ -141,11 +141,11 @@ func main() {
 			}
 			if count == 0 {
 				log.Println("AI Search: Index empty, starting initial indexing...")
-				result, err := aiSearchService.ReindexAll(ctx)
-				if err != nil {
-					log.Printf("AI Search: Initial indexing failed: %v", err)
+				status, started := aiSearchService.StartReindex()
+				if started {
+					log.Printf("AI Search: Initial indexing started at %s", status.StartedAt)
 				} else {
-					log.Printf("AI Search: Initial indexing complete - %s", result.Message)
+					log.Printf("AI Search: Reindex already running (started at %s)", status.StartedAt)
 				}
 			} else {
 				log.Printf("AI Search: Index contains %d skills", count)
@@ -197,6 +197,8 @@ func main() {
 	v1.HandleFunc("/search/ai", aiSearchHandlers.Search).Methods("POST")
 	v1.HandleFunc("/search/ai/status", aiSearchHandlers.Status).Methods("GET")
 	v1.HandleFunc("/search/ai/reindex", aiSearchHandlers.Reindex).Methods("POST")
+	v1.HandleFunc("/search/ai/reindex/status", aiSearchHandlers.ReindexStatus).Methods("GET")
+	v1.HandleFunc("/search/ai/reindex/cancel", aiSearchHandlers.CancelReindex).Methods("POST")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")

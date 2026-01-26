@@ -119,11 +119,17 @@ export interface AISearchStatus {
   message?: string
 }
 
-export interface AIReindexResponse {
+export interface AIReindexStatus {
+  running: boolean
+  startedAt?: string
+  finishedAt?: string
   indexed: number
   skipped: number
   errors: number
-  message: string
+  total: number
+  message?: string
+  canceled?: boolean
+  error?: string
 }
 
 class ApiClient {
@@ -303,8 +309,18 @@ class ApiClient {
     return this.request<AISearchStatus>('/search/ai/status')
   }
 
-  async reindexAISearch(): Promise<AIReindexResponse> {
-    return this.request<AIReindexResponse>('/search/ai/reindex', {
+  async reindexAISearch(): Promise<AIReindexStatus> {
+    return this.request<AIReindexStatus>('/search/ai/reindex', {
+      method: 'POST',
+    })
+  }
+
+  async getAISearchReindexStatus(): Promise<AIReindexStatus> {
+    return this.request<AIReindexStatus>('/search/ai/reindex/status')
+  }
+
+  async cancelAISearchReindex(): Promise<AIReindexStatus> {
+    return this.request<AIReindexStatus>('/search/ai/reindex/cancel', {
       method: 'POST',
     })
   }

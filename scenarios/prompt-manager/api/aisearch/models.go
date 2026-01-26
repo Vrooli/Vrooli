@@ -46,6 +46,20 @@ type ReindexResponse struct {
 	Message string `json:"message"`
 }
 
+// ReindexStatus represents the status of a reindex job.
+type ReindexStatus struct {
+	Running    bool   `json:"running"`
+	StartedAt  string `json:"startedAt,omitempty"`
+	FinishedAt string `json:"finishedAt,omitempty"`
+	Indexed    int    `json:"indexed"`
+	Skipped    int    `json:"skipped"`
+	Errors     int    `json:"errors"`
+	Total      int    `json:"total"`
+	Message    string `json:"message,omitempty"`
+	Canceled   bool   `json:"canceled,omitempty"`
+	Error      string `json:"error,omitempty"`
+}
+
 // VectorPayload represents the metadata stored with each vector point.
 type VectorPayload struct {
 	SkillID     string   `json:"skill_id"`

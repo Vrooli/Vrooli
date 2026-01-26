@@ -62,13 +62,27 @@ func (h *Handlers) Reindex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.service.ReindexAll(r.Context())
-	if err != nil {
-		log.Printf("[aisearch] Reindex error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	resp, started := h.service.StartReindex()
 
 	w.Header().Set("Content-Type", "application/json")
+	if started {
+		w.WriteHeader(http.StatusAccepted)
+	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+// ReindexStatus handles GET /api/v1/search/ai/reindex/status - check reindex status.
+func (h *Handlers) ReindexStatus(w http.ResponseWriter, r *http.Request) {
+	status := h.service.ReindexStatus()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+// CancelReindex handles POST /api/v1/search/ai/reindex/cancel - cancel active reindex.
+func (h *Handlers) CancelReindex(w http.ResponseWriter, r *http.Request) {
+	status := h.service.CancelReindex()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }

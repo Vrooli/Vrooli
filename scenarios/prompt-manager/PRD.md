@@ -1,5 +1,50 @@
 # Product Requirements Document (PRD)
 
+## 🎯 Overview
+Prompt Manager is a centralized, campaign-based prompt management system that stores, organizes, analyzes, and enhances prompts for AI interactions. It provides durable prompt intelligence for agents and humans, with fast search, tagging, and testing workflows.
+
+## 🧭 Scope & Priorities
+
+### 🔴 P0 – Must ship for viability
+- CRUD operations for prompts and campaigns via API
+- Campaign-based organization with hierarchical structure
+- Full-text search across all prompts
+- CLI for quick prompt operations
+- Web UI for visual prompt management
+- PostgreSQL integration for persistent storage
+
+### 🟠 P1 – Should have post-launch
+- Semantic search using Qdrant vector database
+- Prompt analysis and pattern extraction
+- Prompt enhancement suggestions
+- Usage tracking and metrics
+- Tag-based categorization
+
+### 🟢 P2 – Future / expansion
+- Export/import functionality (complete)
+- Collaboration features
+- Advanced analytics dashboard
+- Version history for prompts (complete)
+
+## 🧱 Tech Direction Snapshot
+- **API:** Go + PostgreSQL with versioned REST endpoints and health checks.
+- **Search:** Text search first, optional semantic search via Qdrant + Ollama embeddings.
+- **UI:** React + TypeScript for tree navigation, editor, and search workflows.
+- **CLI:** Cross-platform commands for listing, searching, and managing prompts.
+
+## 🎨 UX & Branding
+- Clean, productivity-focused UI with fast search, clear hierarchy, and minimal friction for prompt editing.
+- Consistent iconography, tag chips, and search affordances across sidebar and modals.
+
+## 🎯 Operational Targets
+- API p95 latency under 100ms; AI search under 200ms.
+- UI initial load under 2 seconds on local resources.
+- Reliable reindexing and status visibility for AI search resources.
+
+## 🤝 Dependencies & Launch Plan
+- **Dependencies:** PostgreSQL (required), Qdrant + Ollama (optional for semantic search).
+- **Launch plan:** Start resources → run migrations → start scenario via lifecycle → verify health/search → optional AI reindex.
+
 ## 🎯 Capability Definition
 
 ### Core Capability
@@ -530,9 +575,9 @@ stop:
 ## 🔗 References
 
 ### Documentation
-- [Vrooli Lifecycle System](../../../docs/scenarios/LIFECYCLE.md)
-- [PostgreSQL Integration](../../../docs/resources/postgres.md)
-- [Health Check Schema](../../../cli/commands/scenario/schemas/health-ui.schema.json)
+- [Vrooli Lifecycle System](../../docs/scenarios/DEPLOYMENT.md)
+- [PostgreSQL Integration](../../docs/resources/README.md)
+- [Health Check Schema](../../cli/commands/scenario/schemas/health-ui.schema.json)
 
 ### Related Scenarios
 - **ecosystem-manager**: Uses prompts for scenario generation

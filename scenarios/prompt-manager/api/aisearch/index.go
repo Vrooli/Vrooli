@@ -2,6 +2,8 @@ package aisearch
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -44,7 +46,7 @@ func (s *Service) IndexSkill(ctx context.Context, skillID string) error {
 	}
 
 	// Upsert into vector store
-	if err := s.vectorStore.Upsert(ctx, skill.ID, vector, payload); err != nil {
+	if err := s.vectorStore.Upsert(ctx, qdrantPointID(skill.ID), vector, payload); err != nil {
 		return fmt.Errorf("upsert failed: %w", err)
 	}
 
@@ -54,7 +56,7 @@ func (s *Service) IndexSkill(ctx context.Context, skillID string) error {
 
 // DeleteFromIndex removes a skill from the vector index.
 func (s *Service) DeleteFromIndex(ctx context.Context, skillID string) error {
-	if err := s.vectorStore.Delete(ctx, skillID); err != nil {
+	if err := s.vectorStore.Delete(ctx, qdrantPointID(skillID)); err != nil {
 		return fmt.Errorf("delete from index failed: %w", err)
 	}
 	log.Printf("[aisearch] Deleted skill from index: %s", skillID)
@@ -63,6 +65,14 @@ func (s *Service) DeleteFromIndex(ctx context.Context, skillID string) error {
 
 // ReindexAll rebuilds the entire vector index from all skills.
 func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
+	return s.reindexAllWithProgress(ctx, nil, nil)
+}
+
+func (s *Service) reindexAllWithProgress(
+	ctx context.Context,
+	progress func(indexed, skipped, errors int),
+	setTotal func(total int),
+) (*ReindexResponse, error) {
 	// Ensure collection exists
 	if err := s.vectorStore.EnsureCollection(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ensure collection: %w", err)
@@ -73,14 +83,29 @@ func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get skills: %w", err)
 	}
+	if setTotal != nil {
+		setTotal(len(allSkills))
+	}
 
 	var indexed, skipped, errors int
 
 	for _, skill := range allSkills {
+		if err := ctx.Err(); err != nil {
+			return &ReindexResponse{
+				Indexed: indexed,
+				Skipped: skipped,
+				Errors:  errors,
+				Message: fmt.Sprintf("Indexed %d skills, skipped %d, errors %d", indexed, skipped, errors),
+			}, err
+		}
+
 		// Extract folder from file path
 		folder, filename := extractFolderAndFile(skill.File)
 		if folder == "" {
 			skipped++
+			if progress != nil {
+				progress(indexed, skipped, errors)
+			}
 			continue
 		}
 
@@ -89,6 +114,9 @@ func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
 		if err != nil {
 			log.Printf("[aisearch] Failed to load content for %s: %v", skill.ID, err)
 			errors++
+			if progress != nil {
+				progress(indexed, skipped, errors)
+			}
 			continue
 		}
 
@@ -100,6 +128,9 @@ func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
 		if err != nil {
 			log.Printf("[aisearch] Failed to embed %s: %v", skill.ID, err)
 			errors++
+			if progress != nil {
+				progress(indexed, skipped, errors)
+			}
 			continue
 		}
 
@@ -114,13 +145,19 @@ func (s *Service) ReindexAll(ctx context.Context) (*ReindexResponse, error) {
 		}
 
 		// Upsert into vector store
-		if err := s.vectorStore.Upsert(ctx, skill.ID, vector, payload); err != nil {
+		if err := s.vectorStore.Upsert(ctx, qdrantPointID(skill.ID), vector, payload); err != nil {
 			log.Printf("[aisearch] Failed to upsert %s: %v", skill.ID, err)
 			errors++
+			if progress != nil {
+				progress(indexed, skipped, errors)
+			}
 			continue
 		}
 
 		indexed++
+		if progress != nil {
+			progress(indexed, skipped, errors)
+		}
 	}
 
 	return &ReindexResponse{
@@ -172,4 +209,36 @@ func extractFolderAndFile(file string) (folder, filename string) {
 		return parts[0], parts[1]
 	}
 	return "", file
+}
+
+var qdrantNamespace = [16]byte{
+	0x6b, 0xa7, 0xb8, 0x10,
+	0x9d, 0xad, 0x11, 0xd1,
+	0x80, 0xb4, 0x00, 0xc0,
+	0x4f, 0xd4, 0x30, 0xc8,
+}
+
+func qdrantPointID(skillID string) string {
+	name := strings.TrimSpace(skillID)
+	if name == "" {
+		name = "unknown"
+	}
+	return uuidV5(qdrantNamespace, "prompt-manager:"+name)
+}
+
+func uuidV5(namespace [16]byte, name string) string {
+	hash := sha1.New()
+	_, _ = hash.Write(namespace[:])
+	_, _ = hash.Write([]byte(name))
+	sum := hash.Sum(nil)
+
+	var uuid [16]byte
+	copy(uuid[:], sum[:16])
+
+	// Set version (5) and RFC4122 variant bits.
+	uuid[6] = (uuid[6] & 0x0f) | 0x50
+	uuid[8] = (uuid[8] & 0x3f) | 0x80
+
+	hexStr := hex.EncodeToString(uuid[:])
+	return hexStr[0:8] + "-" + hexStr[8:12] + "-" + hexStr[12:16] + "-" + hexStr[16:20] + "-" + hexStr[20:32]
 }

@@ -2,9 +2,12 @@ package aisearch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
+	"sync"
+	"time"
 
 	"prompt-manager/search"
 	"prompt-manager/skills"
@@ -17,6 +20,22 @@ type Service struct {
 	skillStore    skills.SkillStore
 	searchService *search.Service
 	threshold     float64
+	reindex       *reindexState
+}
+
+type reindexState struct {
+	mu         sync.Mutex
+	running    bool
+	canceled   bool
+	startedAt  time.Time
+	finishedAt time.Time
+	indexed    int
+	skipped    int
+	errors     int
+	total      int
+	message    string
+	lastError  string
+	cancel     context.CancelFunc
 }
 
 // NewService creates a new AI search service.
@@ -36,6 +55,7 @@ func NewService(
 		skillStore:    skillStore,
 		searchService: searchService,
 		threshold:     threshold,
+		reindex:       &reindexState{},
 	}
 }
 
@@ -113,6 +133,10 @@ func (s *Service) toAISearchResult(r SearchResult) AISearchResult {
 	payload := r.Payload
 
 	// Extract fields from payload
+	resultID := r.ID
+	if payloadSkillID, ok := payload["skill_id"].(string); ok && payloadSkillID != "" {
+		resultID = payloadSkillID
+	}
 	name, _ := payload["name"].(string)
 	description, _ := payload["description"].(string)
 	folder, _ := payload["folder"].(string)
@@ -142,7 +166,7 @@ func (s *Service) toAISearchResult(r SearchResult) AISearchResult {
 	}
 
 	return AISearchResult{
-		ID:           r.ID,
+		ID:           resultID,
 		Name:         name,
 		Description:  description,
 		Folder:       folder,
@@ -192,4 +216,117 @@ func (s *Service) GetStatus(ctx context.Context) *AvailabilityStatus {
 // Available returns true if AI search is available.
 func (s *Service) Available(ctx context.Context) bool {
 	return s.embedder.Available(ctx) && s.vectorStore.Available(ctx)
+}
+
+// StartReindex begins a singleton reindex job if one is not already running.
+// Returns the current status and whether a new job was started.
+func (s *Service) StartReindex() (ReindexStatus, bool) {
+	s.reindex.mu.Lock()
+	defer s.reindex.mu.Unlock()
+
+	if s.reindex.running {
+		return s.reindex.statusLocked(), false
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	s.reindex.running = true
+	s.reindex.canceled = false
+	s.reindex.startedAt = time.Now()
+	s.reindex.finishedAt = time.Time{}
+	s.reindex.indexed = 0
+	s.reindex.skipped = 0
+	s.reindex.errors = 0
+	s.reindex.total = 0
+	s.reindex.message = "Reindex started"
+	s.reindex.lastError = ""
+	s.reindex.cancel = cancel
+
+	go s.runReindexJob(ctx)
+
+	return s.reindex.statusLocked(), true
+}
+
+// CancelReindex requests cancellation of the active reindex job.
+func (s *Service) CancelReindex() ReindexStatus {
+	s.reindex.mu.Lock()
+	defer s.reindex.mu.Unlock()
+
+	if s.reindex.running && s.reindex.cancel != nil {
+		s.reindex.canceled = true
+		s.reindex.message = "Reindex cancel requested"
+		s.reindex.cancel()
+	}
+
+	return s.reindex.statusLocked()
+}
+
+// ReindexStatus returns the current reindex status.
+func (s *Service) ReindexStatus() ReindexStatus {
+	s.reindex.mu.Lock()
+	defer s.reindex.mu.Unlock()
+	return s.reindex.statusLocked()
+}
+
+func (s *Service) runReindexJob(ctx context.Context) {
+	resp, err := s.reindexAllWithProgress(ctx, func(indexed, skipped, errorsCount int) {
+		s.reindex.mu.Lock()
+		s.reindex.indexed = indexed
+		s.reindex.skipped = skipped
+		s.reindex.errors = errorsCount
+		s.reindex.mu.Unlock()
+	}, func(total int) {
+		s.reindex.mu.Lock()
+		s.reindex.total = total
+		s.reindex.mu.Unlock()
+	})
+
+	s.reindex.mu.Lock()
+	defer s.reindex.mu.Unlock()
+
+	if resp != nil {
+		s.reindex.indexed = resp.Indexed
+		s.reindex.skipped = resp.Skipped
+		s.reindex.errors = resp.Errors
+		s.reindex.message = resp.Message
+	}
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			s.reindex.canceled = true
+			if s.reindex.message == "" {
+				s.reindex.message = "Reindex canceled"
+			}
+		} else {
+			s.reindex.lastError = err.Error()
+		}
+	}
+
+	s.reindex.running = false
+	s.reindex.finishedAt = time.Now()
+	s.reindex.cancel = nil
+}
+
+func formatReindexTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
+
+func (rs *reindexState) statusLocked() ReindexStatus {
+	status := ReindexStatus{
+		Running:    rs.running,
+		StartedAt:  formatReindexTime(rs.startedAt),
+		FinishedAt: formatReindexTime(rs.finishedAt),
+		Indexed:    rs.indexed,
+		Skipped:    rs.skipped,
+		Errors:     rs.errors,
+		Total:      rs.total,
+		Message:    rs.message,
+		Canceled:   rs.canceled,
+	}
+	if rs.lastError != "" {
+		status.Error = rs.lastError
+	}
+	return status
 }

@@ -201,3 +201,17 @@ export async function getAISearchStatus() {
 export async function reindexAISearch() {
   return api.reindexAISearch()
 }
+
+/**
+ * Get AI search reindex job status.
+ */
+export async function getAISearchReindexStatus() {
+  return api.getAISearchReindexStatus()
+}
+
+/**
+ * Cancel active AI search reindex job.
+ */
+export async function cancelAISearchReindex() {
+  return api.cancelAISearchReindex()
+}

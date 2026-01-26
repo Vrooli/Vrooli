@@ -7,11 +7,12 @@
  * - Click result to navigate to skill
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { X, Sparkles, Search, AlertCircle, Loader2 } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { X, Sparkles, Search, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AISearchResponse, AISearchResult } from '@/lib/api'
-import { aiSearch } from '@/services/skillService'
+import type { AISearchResponse, AISearchResult, AISearchStatus, AIReindexStatus } from '@/lib/api'
+import { aiSearch, getAISearchStatus, reindexAISearch, getAISearchReindexStatus, cancelAISearchReindex } from '@/services/skillService'
 
 interface AISearchModalProps {
   isOpen: boolean
@@ -30,6 +31,11 @@ export function AISearchModal({
   const [results, setResults] = useState<AISearchResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<AISearchStatus | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [reindexStatus, setReindexStatus] = useState<AIReindexStatus | null>(null)
+  const [reindexLoading, setReindexLoading] = useState(false)
+  const wasReindexRunning = useRef(false)
 
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -54,22 +60,114 @@ export function AISearchModal({
   useEffect(() => {
     if (isOpen && query.trim()) {
       const debounce = setTimeout(() => {
-        performSearch(query)
+        void performSearch(query)
       }, 300)
       return () => clearTimeout(debounce)
     }
   }, [isOpen, query, performSearch])
 
-  // Update query when initialQuery changes
+  // Load AI status when modal opens
   useEffect(() => {
-    if (initialQuery !== query) {
-      setQuery(initialQuery)
+    if (!isOpen) return
+
+    let active = true
+
+    const loadStatus = async () => {
+      setStatusError(null)
+      try {
+        const nextStatus = await getAISearchStatus()
+        if (active) {
+          setStatus(nextStatus)
+        }
+      } catch (err) {
+        if (active) {
+          setStatus(null)
+          setStatusError(err instanceof Error ? err.message : 'Failed to load AI search status')
+        }
+      }
     }
+
+    const loadReindexStatus = async () => {
+      try {
+        const nextReindexStatus = await getAISearchReindexStatus()
+        if (active) {
+          setReindexStatus(nextReindexStatus)
+        }
+      } catch {
+        if (active) {
+          setReindexStatus(null)
+        }
+      }
+    }
+
+    void loadStatus()
+    void loadReindexStatus()
+
+    return () => {
+      active = false
+    }
+  }, [isOpen])
+
+  // Poll reindex status while running
+  useEffect(() => {
+    if (!isOpen || !reindexStatus?.running) return
+
+    const interval = setInterval(() => {
+      getAISearchReindexStatus()
+        .then((next) => setReindexStatus(next))
+        .catch(() => {})
+    }, 1500)
+
+    return () => clearInterval(interval)
+  }, [isOpen, reindexStatus?.running])
+
+  // Refresh AI status when reindex completes
+  useEffect(() => {
+    const running = Boolean(reindexStatus?.running)
+    if (isOpen && wasReindexRunning.current && !running) {
+      getAISearchStatus()
+        .then((nextStatus) => setStatus(nextStatus))
+        .catch(() => {})
+    }
+    wasReindexRunning.current = running
+  }, [isOpen, reindexStatus?.running])
+
+  // Update query only when the initialQuery prop changes
+  useEffect(() => {
+    setQuery(initialQuery)
   }, [initialQuery])
 
   const handleSelectResult = (result: AISearchResult) => {
     onSelectSkill(result.id)
     onClose()
+  }
+
+  const handleReindex = async () => {
+    if (reindexLoading) return
+    setReindexLoading(true)
+    setStatusError(null)
+    try {
+      const nextStatus = await reindexAISearch()
+      setReindexStatus(nextStatus)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to start reindex')
+    } finally {
+      setReindexLoading(false)
+    }
+  }
+
+  const handleCancelReindex = async () => {
+    if (reindexLoading) return
+    setReindexLoading(true)
+    setStatusError(null)
+    try {
+      const nextStatus = await cancelAISearchReindex()
+      setReindexStatus(nextStatus)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to cancel reindex')
+    } finally {
+      setReindexLoading(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -79,10 +177,20 @@ export function AISearchModal({
   }
 
   if (!isOpen) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  const reindexCompleted = reindexStatus
+    ? reindexStatus.indexed + reindexStatus.skipped + reindexStatus.errors
+    : 0
+  const reindexPercent =
+    reindexStatus && reindexStatus.total > 0
+      ? Math.min(100, Math.round((reindexCompleted / reindexStatus.total) * 100))
+      : null
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50"
+      className="fixed inset-0 flex items-start justify-center pt-[10vh] bg-black/50"
+      style={{ zIndex: 2147483647 }}
       onClick={onClose}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -129,6 +237,87 @@ export function AISearchModal({
           </div>
         </div>
 
+        {/* Status */}
+        <div className="px-4 py-2 border-b border-border bg-muted/20">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2 py-0.5',
+                status
+                  ? status.available
+                    ? 'bg-green-500/15 text-green-400'
+                    : 'bg-amber-500/15 text-amber-400'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {status ? (status.available ? 'AI ready' : 'AI unavailable') : 'AI status pending'}
+            </span>
+            <span>Ollama: {status ? (status.ollama ? 'online' : 'offline') : '—'}</span>
+            <span>Qdrant: {status ? (status.qdrant ? 'online' : 'offline') : '—'}</span>
+            <span>Indexed: {status ? status.indexedCount : '—'}</span>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void handleReindex()
+                }}
+                disabled={reindexLoading || reindexStatus?.running || !status?.available}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                  reindexLoading || reindexStatus?.running || !status?.available
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-primary/15 text-primary hover:bg-primary/25'
+                )}
+                title={status?.available ? 'Rebuild AI search index' : 'AI resources unavailable'}
+              >
+                <RefreshCw className={cn('h-3 w-3', reindexLoading ? 'animate-spin' : '')} />
+                Reindex
+              </button>
+              {reindexStatus?.running && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleCancelReindex()
+                  }}
+                  disabled={reindexLoading}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                    reindexLoading
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                  )}
+                >
+                  <X className="h-3 w-3" />
+                  Cancel
+                </button>
+              )}
+            </div>
+          </div>
+          {statusError && (
+            <div className="mt-1 text-xs text-destructive">{statusError}</div>
+          )}
+          {status?.message && !status.available && (
+            <div className="mt-1 text-xs text-amber-500">{status.message}</div>
+          )}
+          {status?.available && status.indexedCount === 0 && (
+            <div className="mt-1 text-xs text-amber-500">
+              No embeddings indexed yet. Run reindex to enable AI results.
+            </div>
+          )}
+          {reindexStatus?.running && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Reindexing {reindexCompleted}/{reindexStatus.total || '—'}
+              {reindexPercent !== null ? ` (${reindexPercent}%)` : ''}...
+            </div>
+          )}
+          {reindexStatus?.error && !reindexStatus.running && (
+            <div className="mt-1 text-xs text-destructive">{reindexStatus.error}</div>
+          )}
+          {reindexStatus?.message && !reindexStatus.running && (
+            <div className="mt-1 text-xs text-muted-foreground">{reindexStatus.message}</div>
+          )}
+        </div>
+
         {/* Results */}
         <div className="max-h-[60vh] overflow-y-auto">
           {loading && (
@@ -153,6 +342,11 @@ export function AISearchModal({
                 {results.method === 'text' && (
                   <span className="ml-1 text-amber-500">
                     (using text search - AI unavailable)
+                  </span>
+                )}
+                {results.method === 'ai' && status?.indexedCount === 0 && (
+                  <span className="ml-1 text-amber-500">
+                    (AI index empty)
                   </span>
                 )}
               </div>
@@ -243,5 +437,5 @@ export function AISearchModal({
         </div>
       </div>
     </div>
-  )
+  , document.body)
 }
