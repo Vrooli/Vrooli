@@ -34,6 +34,7 @@ interface LazyTreeNode {
   path: string;
   isDir: boolean;
   language?: string;
+  tracked: boolean; // True if tracked by git
   children?: LazyTreeNode[]; // undefined = not fetched, [] = empty folder
   isLoading?: boolean;
 }
@@ -75,6 +76,7 @@ function entryToNode(entry: DirEntry): LazyTreeNode {
     path: entry.path,
     isDir: entry.is_dir,
     language: entry.language,
+    tracked: entry.tracked,
     children: entry.is_dir ? undefined : undefined, // folders start with undefined children (not fetched)
   };
 }
@@ -132,8 +134,8 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
   const badge = node.isDir ? null : getStatusBadge(gitStatus);
   const fileTypeInfo = node.isDir ? null : getFileTypeInfo(node.path);
 
-  // Check if file is untracked (status contains "?")
-  const isUntracked = gitStatus?.toUpperCase().includes("?") ?? false;
+  // Check if file/folder is untracked (not tracked by git)
+  const isUntracked = !node.tracked;
 
   // Get children from fetchedDirs if this folder is expanded and has been fetched
   const children = node.isDir && isExpanded ? fetchedDirs.get(node.path) : undefined;
@@ -170,9 +172,9 @@ const TreeNodeComponent = memo(function TreeNodeComponent({
               <ChevronRight className="h-3 w-3 text-slate-500 flex-shrink-0" />
             )}
             {isExpanded ? (
-              <FolderOpen className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+              <FolderOpen className={`h-3.5 w-3.5 flex-shrink-0 ${isUntracked ? "text-slate-600" : "text-amber-400"}`} />
             ) : (
-              <Folder className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+              <Folder className={`h-3.5 w-3.5 flex-shrink-0 ${isUntracked ? "text-slate-600" : "text-amber-400"}`} />
             )}
           </>
         ) : (

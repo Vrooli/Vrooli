@@ -382,6 +382,7 @@ export interface DirEntry {
   path: string;
   is_dir: boolean;
   language?: string;
+  tracked: boolean; // True if tracked by git (files only; folders true if they contain tracked files)
 }
 
 export interface DirListResponse {

@@ -131,6 +131,7 @@ type DirEntry struct {
 	Path     string `json:"path"`
 	IsDir    bool   `json:"is_dir"`
 	Language string `json:"language,omitempty"`
+	Tracked  bool   `json:"tracked"` // True if tracked by git (files only; folders always true)
 }
 
 // DirListResponse contains contents of a directory

@@ -232,6 +232,23 @@ func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*
 		return nil, fmt.Errorf("failed to read directory: %w", err)
 	}
 
+	// Get tracked files to determine tracking status
+	// Build a set for O(1) lookup and also track which prefixes have tracked files
+	trackedFiles := make(map[string]bool)
+	trackedPrefixes := make(map[string]bool)
+	trackedList, err := deps.Git.ListTrackedFiles(ctx, repoDir)
+	if err == nil {
+		for _, f := range trackedList {
+			trackedFiles[f] = true
+			// Mark all parent directories as having tracked content
+			parts := strings.Split(f, "/")
+			for i := 1; i < len(parts); i++ {
+				prefix := strings.Join(parts[:i], "/")
+				trackedPrefixes[prefix] = true
+			}
+		}
+	}
+
 	entries := make([]DirEntry, 0, len(dirEntries))
 	for _, de := range dirEntries {
 		// Check for cancellation
@@ -257,8 +274,12 @@ func GetDirectoryContents(ctx context.Context, deps FileDeps, dirPath string) (*
 			IsDir: de.IsDir(),
 		}
 
-		if !de.IsDir() {
+		if de.IsDir() {
+			// Folder is "tracked" if it contains any tracked files
+			entry.Tracked = trackedPrefixes[entryPath]
+		} else {
 			entry.Language = LanguageFromExtension(name)
+			entry.Tracked = trackedFiles[entryPath]
 		}
 
 		entries = append(entries, entry)
