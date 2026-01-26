@@ -71,6 +71,18 @@ func (m *MockStore) DeleteContent(folder, filename string) error {
 	return nil
 }
 
+func (m *MockStore) GetVersions(skillID string) ([]SkillVersion, error) {
+	return []SkillVersion{}, nil
+}
+
+func (m *MockStore) SaveVersion(skillID, folder string, skill *Metadata, content string) error {
+	return nil
+}
+
+func (m *MockStore) GetVersionContent(skillID string, version int) (*SkillVersion, error) {
+	return nil, errors.New("version not found")
+}
+
 // MockMetricsService implements MetricsService for testing.
 type MockMetricsService struct{}
 

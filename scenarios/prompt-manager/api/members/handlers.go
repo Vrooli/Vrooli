@@ -13,11 +13,11 @@ import (
 
 // Handlers provides HTTP handlers for member operations.
 type Handlers struct {
-	store *Store
+	store MemberStore
 }
 
 // NewHandlers creates a new members handler.
-func NewHandlers(store *Store) *Handlers {
+func NewHandlers(store MemberStore) *Handlers {
 	return &Handlers{store: store}
 }
 

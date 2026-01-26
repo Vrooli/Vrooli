@@ -10,14 +10,17 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/cli/members"
+	"prompt-manager/cli/metadata"
 	"prompt-manager/cli/search"
 	"prompt-manager/cli/skills"
-	"prompt-manager/cli/versions"
+	"prompt-manager/cli/tags"
+	"prompt-manager/cli/testing"
 )
 
 const (
 	appName        = "prompt-manager"
-	appVersion     = "1.0.0"
+	appVersion     = "2.0.0"
 	defaultAPIBase = ""
 )
 
@@ -44,7 +47,7 @@ func NewApp() (*App, error) {
 	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
 		Name:              appName,
 		Version:           appVersion,
-		Description:       "Personal Prompt Manager CLI - manage skills organized by folders",
+		Description:       "Personal Prompt Manager CLI - manage skills, tags, members, and more",
 		DefaultAPIBase:    defaultAPIBase,
 		APIEnvVars:        env.APIEnvVars,
 		APIPortEnvVars:    env.APIPortEnvVars,
@@ -89,9 +92,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	groups := []cliapp.CommandGroup{
 		health,
 	}
-	groups = append(groups, skills.Commands(a)...)
-	groups = append(groups, search.Commands(a))
-	groups = append(groups, versions.Commands(a))
+
+	// Domain commands (noun-verb pattern)
+	groups = append(groups, skills.Commands(a)...)  // pm skill <verb>
+	groups = append(groups, tags.Commands(a))       // pm tag <verb>
+	groups = append(groups, members.Commands(a))    // pm member <verb>
+	groups = append(groups, testing.Commands(a))    // pm test <verb>
+	groups = append(groups, metadata.Commands(a))   // pm metadata <verb>
+	groups = append(groups, search.Commands(a))     // pm search (standalone)
 	groups = append(groups, config)
 
 	return groups

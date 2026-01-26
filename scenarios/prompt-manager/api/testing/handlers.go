@@ -15,23 +15,23 @@ import (
 
 // Handlers provides HTTP handlers for skill testing operations.
 type Handlers struct {
-	repo         *Repository
-	ollamaClient *OllamaClient
-	store        *skills.Store
+	repo      TestRepository
+	llmClient LLMClient
+	store     skills.SkillStore
 }
 
 // NewHandlers creates a new testing handler.
-func NewHandlers(repo *Repository, ollamaClient *OllamaClient, store *skills.Store) *Handlers {
+func NewHandlers(repo TestRepository, llmClient LLMClient, store skills.SkillStore) *Handlers {
 	return &Handlers{
-		repo:         repo,
-		ollamaClient: ollamaClient,
-		store:        store,
+		repo:      repo,
+		llmClient: llmClient,
+		store:     store,
 	}
 }
 
 // Test handles POST /skills/{id}/test - tests a skill with Ollama.
 func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
-	if !h.ollamaClient.IsEnabled() {
+	if !h.llmClient.IsEnabled() {
 		http.Error(w, "Skill testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
 		return
 	}
@@ -76,8 +76,8 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 		finalContent = strings.ReplaceAll(finalContent, "{{"+key+"}}", value)
 	}
 
-	// Call Ollama
-	ollamaResp, responseTime, err := h.ollamaClient.Generate(req.Model, finalContent, maxTokens, temperature)
+	// Call LLM
+	llmResp, responseTime, err := h.llmClient.Generate(req.Model, finalContent, maxTokens, temperature)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -93,9 +93,9 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 		SkillID:      id,
 		Model:        req.Model,
 		InputVars:    &varsStr,
-		Response:     &ollamaResp.Response,
+		Response:     &llmResp.Response,
 		ResponseTime: &responseTime,
-		TokenCount:   &ollamaResp.EvalCount,
+		TokenCount:   &llmResp.EvalCount,
 		TestedAt:     time.Now(),
 	}
 
@@ -106,9 +106,9 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(TestResponse{
 		TestID:       testID,
 		Model:        req.Model,
-		Response:     ollamaResp.Response,
+		Response:     llmResp.Response,
 		ResponseTime: responseTime,
-		TokenCount:   ollamaResp.EvalCount,
+		TokenCount:   llmResp.EvalCount,
 		TestedAt:     time.Now(),
 	})
 }

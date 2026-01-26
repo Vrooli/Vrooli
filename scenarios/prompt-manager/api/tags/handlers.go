@@ -8,11 +8,11 @@ import (
 
 // Handlers provides HTTP handlers for tag operations.
 type Handlers struct {
-	repo *Repository
+	repo TagRepository
 }
 
 // NewHandlers creates a new tags handler.
-func NewHandlers(repo *Repository) *Handlers {
+func NewHandlers(repo TagRepository) *Handlers {
 	return &Handlers{repo: repo}
 }
 

@@ -133,3 +133,130 @@ func (s *Store) FindByID(id string) (*Metadata, string, error) {
 	}
 	return nil, "", fmt.Errorf("skill not found: %s", id)
 }
+
+// versionsFilePath returns the path to versions.json for a folder.
+func (s *Store) versionsFilePath(folder string) string {
+	return filepath.Join(s.baseDir, folder, "versions.json")
+}
+
+// LoadVersions loads all version files for a folder.
+func (s *Store) LoadVersions(folder string) (map[string]*VersionFile, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := os.ReadFile(s.versionsFilePath(folder))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]*VersionFile), nil
+		}
+		return nil, err
+	}
+
+	var versionFiles map[string]*VersionFile
+	if err := json.Unmarshal(data, &versionFiles); err != nil {
+		return nil, err
+	}
+
+	return versionFiles, nil
+}
+
+// SaveVersions saves version files for a folder.
+func (s *Store) SaveVersions(folder string, versions map[string]*VersionFile) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := json.MarshalIndent(versions, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(s.versionsFilePath(folder), data, 0o644)
+}
+
+// GetVersions returns version history for a skill.
+func (s *Store) GetVersions(skillID string) ([]SkillVersion, error) {
+	skill, folder, err := s.FindByID(skillID)
+	if err != nil {
+		return nil, err
+	}
+
+	versions, err := s.LoadVersions(folder)
+	if err != nil {
+		return nil, err
+	}
+
+	vf, ok := versions[skillID]
+	if !ok || len(vf.Versions) == 0 {
+		// No version history yet - return current as v1
+		content, err := s.GetContent(folder, skill.File)
+		if err != nil {
+			return nil, err
+		}
+		return []SkillVersion{{
+			Version:   1,
+			Content:   content,
+			Name:      skill.Name,
+			UpdatedAt: skill.UpdatedAt,
+		}}, nil
+	}
+
+	return vf.Versions, nil
+}
+
+// SaveVersion saves the current state as a new version.
+func (s *Store) SaveVersion(skillID, folder string, skill *Metadata, content string) error {
+	versions, err := s.LoadVersions(folder)
+	if err != nil {
+		return err
+	}
+
+	vf, ok := versions[skillID]
+	if !ok {
+		vf = &VersionFile{
+			SkillID:  skillID,
+			Versions: []SkillVersion{},
+		}
+		versions[skillID] = vf
+	}
+
+	// Determine next version number
+	nextVersion := 1
+	if len(vf.Versions) > 0 {
+		nextVersion = vf.Versions[len(vf.Versions)-1].Version + 1
+	}
+
+	vf.Versions = append(vf.Versions, SkillVersion{
+		Version:   nextVersion,
+		Content:   content,
+		Name:      skill.Name,
+		UpdatedAt: skill.UpdatedAt,
+	})
+
+	return s.SaveVersions(folder, versions)
+}
+
+// GetVersionContent returns the content of a specific version.
+func (s *Store) GetVersionContent(skillID string, version int) (*SkillVersion, error) {
+	_, folder, err := s.FindByID(skillID)
+	if err != nil {
+		return nil, err
+	}
+
+	versions, err := s.LoadVersions(folder)
+	if err != nil {
+		return nil, err
+	}
+
+	vf, ok := versions[skillID]
+	if !ok {
+		return nil, fmt.Errorf("no version history for skill: %s", skillID)
+	}
+
+	for _, v := range vf.Versions {
+		if v.Version == version {
+			return &v, nil
+		}
+	}
+
+	return nil, fmt.Errorf("version %d not found for skill: %s", version, skillID)
+}

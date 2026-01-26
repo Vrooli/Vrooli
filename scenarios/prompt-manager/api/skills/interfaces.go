@@ -28,6 +28,15 @@ type SkillStore interface {
 
 	// DeleteContent removes a skill's markdown file from disk.
 	DeleteContent(folder, filename string) error
+
+	// GetVersions returns version history for a skill.
+	GetVersions(skillID string) ([]SkillVersion, error)
+
+	// SaveVersion saves the current state as a new version.
+	SaveVersion(skillID, folder string, skill *Metadata, content string) error
+
+	// GetVersionContent returns the content of a specific version.
+	GetVersionContent(skillID string, version int) (*SkillVersion, error)
 }
 
 // MetricsService defines the interface for skill metrics operations.

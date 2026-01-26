@@ -12,6 +12,7 @@ import (
 	"prompt-manager/members"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
+	"prompt-manager/search"
 	"prompt-manager/skills"
 	"prompt-manager/tags"
 	"prompt-manager/testing"
@@ -79,6 +80,10 @@ func main() {
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
 
+	// Search service and handlers
+	searchService := search.NewService(skillStore)
+	searchHandlers := search.NewHandlers(searchService)
+
 	// Setup routes
 	router := mux.NewRouter()
 
@@ -106,9 +111,16 @@ func main() {
 	v1.HandleFunc("/skills/{id}", skillHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/skills/{id}", skillHandlers.Delete).Methods("DELETE")
 
+	// Version history routes (part of skills domain)
+	v1.HandleFunc("/skills/{id}/versions", skillHandlers.GetVersions).Methods("GET")
+	v1.HandleFunc("/skills/{id}/revert/{version}", skillHandlers.RevertToVersion).Methods("POST")
+
 	// Usage tracking routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")
 	v1.HandleFunc("/skills/{id}/rating", skillHandlers.SetRating).Methods("PUT")
+
+	// Search routes
+	v1.HandleFunc("/search/skills", searchHandlers.Search).Methods("GET")
 
 	// Tags routes
 	v1.HandleFunc("/tags", tagsHandlers.List).Methods("GET")

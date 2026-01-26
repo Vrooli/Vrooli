@@ -106,3 +106,33 @@ func IsWritableFolder(folder string) bool {
 	}
 	return false
 }
+
+// SkillVersion represents a historical version of a skill.
+type SkillVersion struct {
+	Version   int    `json:"version"`
+	Content   string `json:"content"`
+	Name      string `json:"name"`
+	UpdatedAt string `json:"updatedAt"`
+	CreatedBy string `json:"createdBy,omitempty"`
+}
+
+// VersionFile represents the structure of versions.json files.
+type VersionFile struct {
+	SkillID  string         `json:"skillId"`
+	Versions []SkillVersion `json:"versions"`
+}
+
+// VersionsResponse is the API response for version history.
+type VersionsResponse struct {
+	SkillID  string         `json:"skillId"`
+	Current  int            `json:"current"`
+	Versions []SkillVersion `json:"versions"`
+}
+
+// RevertResponse is the API response for reverting to a version.
+type RevertResponse struct {
+	SkillID     string `json:"skillId"`
+	RevertedTo  int    `json:"revertedTo"`
+	NewVersion  int    `json:"newVersion"`
+	RestoredAt  string `json:"restoredAt"`
+}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -710,4 +711,120 @@ func escapeXML(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
+}
+
+// GetVersions handles GET /skills/{id}/versions - returns version history.
+func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	versions, err := h.store.GetVersions(id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Determine current version
+	current := 1
+	if len(versions) > 0 {
+		current = versions[len(versions)-1].Version
+	}
+
+	response := VersionsResponse{
+		SkillID:  id,
+		Current:  current,
+		Versions: versions,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// RevertToVersion handles POST /skills/{id}/revert/{version} - reverts to a version.
+func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	versionStr := vars["version"]
+
+	// Parse version number
+	var version int
+	if _, err := fmt.Sscanf(versionStr, "%d", &version); err != nil {
+		http.Error(w, "Invalid version number", http.StatusBadRequest)
+		return
+	}
+
+	skill, folder, err := h.store.FindByID(id)
+	if err != nil {
+		http.Error(w, "Skill not found", http.StatusNotFound)
+		return
+	}
+
+	// Only allow reverts for writable folders
+	if !IsWritableFolder(folder) {
+		http.Error(w, "Cannot revert core skills", http.StatusForbidden)
+		return
+	}
+
+	// Get the version to revert to
+	targetVersion, err := h.store.GetVersionContent(id, version)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Save current state as a new version before reverting
+	currentContent, err := h.store.GetContent(folder, skill.File)
+	if err != nil {
+		http.Error(w, "Failed to read current content", http.StatusInternalServerError)
+		return
+	}
+	h.store.SaveVersion(id, folder, skill, currentContent)
+
+	// Restore the old content
+	if err := h.store.SaveContent(folder, skill.File, targetVersion.Content); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Update metadata timestamp
+	now := time.Now().Format(time.RFC3339)
+	skill.UpdatedAt = now
+
+	// Save metadata
+	skills, err := h.store.LoadMetadata(folder)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for i, p := range skills {
+		if p.ID == id {
+			skills[i] = *skill
+			break
+		}
+	}
+	if err := h.store.SaveMetadata(folder, skills); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get updated version list to determine new version number
+	versions, _ := h.store.GetVersions(id)
+	newVersion := 1
+	if len(versions) > 0 {
+		newVersion = versions[len(versions)-1].Version + 1
+	}
+
+	response := RevertResponse{
+		SkillID:    id,
+		RevertedTo: version,
+		NewVersion: newVersion,
+		RestoredAt: now,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
