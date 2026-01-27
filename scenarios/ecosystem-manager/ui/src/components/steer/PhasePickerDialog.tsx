@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn, formatPhaseName } from '@/lib/utils';
+import { cn, formatPhaseName, normalizeSteerMode } from '@/lib/utils';
 import { usePhaseUsage, type SortOption } from '@/hooks/usePhaseUsage';
 import type { PhaseInfo } from '@/types/api';
 
@@ -53,6 +53,7 @@ export function PhasePickerDialog({
   const gridRef = useRef<HTMLDivElement>(null);
 
   const { trackUsage, sortByRecent, sortByFrequency, sortByName } = usePhaseUsage();
+  const normalizedValue = normalizeSteerMode(value);
 
   // Filter by search
   const filteredPhases = useMemo(() => {
@@ -98,8 +99,9 @@ export function PhasePickerDialog({
 
   const handleSelect = useCallback(
     (phaseName: string) => {
-      trackUsage(phaseName);
-      onSelect(phaseName);
+      const normalized = normalizeSteerMode(phaseName);
+      trackUsage(normalized);
+      onSelect(normalized);
       onOpenChange(false);
     },
     [trackUsage, onSelect, onOpenChange]
@@ -227,7 +229,7 @@ export function PhasePickerDialog({
                   className={cn(
                     'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
                     'hover:bg-slate-800 hover:border-slate-600',
-                    value === phase.name && 'border-blue-500 bg-blue-500/10',
+                    normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
                     index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
                   )}
                 >
@@ -235,7 +237,7 @@ export function PhasePickerDialog({
                     <span className="font-medium text-sm text-slate-100">
                       {formatPhaseName(phase.name)}
                     </span>
-                    {value === phase.name && (
+                    {normalizedValue === normalizeSteerMode(phase.name) && (
                       <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
                     )}
                   </div>

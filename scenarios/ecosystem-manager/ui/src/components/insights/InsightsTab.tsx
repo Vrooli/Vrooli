@@ -24,37 +24,10 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { getApiErrorMessage } from '@/lib/utils';
 
 interface InsightsTabProps {
   task: Task;
-}
-
-// Helper to extract user-friendly error message from API errors
-function getErrorMessage(error: unknown): string {
-  if (!error) return 'Unknown error';
-
-  // Check if it's an Error object with a message
-  if (error instanceof Error) {
-    try {
-      // Try to parse JSON from the error message (e.g., "API Error (400): {...}")
-      const match = error.message.match(/API Error \(\d+\): (.+)/);
-      if (match) {
-        const jsonStr = match[1];
-        const parsed = JSON.parse(jsonStr);
-        return parsed.error || parsed.message || error.message;
-      }
-    } catch {
-      // If parsing fails, return the original message
-    }
-    return error.message;
-  }
-
-  // If it's an object with an error property
-  if (typeof error === 'object' && error !== null && 'error' in error) {
-    return String((error as any).error);
-  }
-
-  return String(error);
 }
 
 export function InsightsTab({ task }: InsightsTabProps) {
@@ -373,7 +346,7 @@ export function InsightsTab({ task }: InsightsTabProps) {
 
             {(generateMutation.isError || previewMutation.isError) && (() => {
               const error = generateMutation.error || previewMutation.error;
-              const errorMsg = getErrorMessage(error);
+              const errorMsg = getApiErrorMessage(error);
               const isFilterError = errorMsg.includes('No executions found matching filter') ||
                                    errorMsg.includes('none match your selected status filter');
               const canRetryWithAll = isFilterError && generateStatusFilter !== 'all';

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import type { PromptFileInfo, PromptFile, PhaseInfo } from '@/types/api';
+import { normalizeSteerMode } from '@/lib/utils';
 
 export function usePromptFiles() {
   return useQuery<PromptFileInfo[]>({
@@ -54,12 +55,26 @@ export function useMergedPhaseNames() {
 
   const phases = useMemo(() => {
     const skills = skillsQuery.data ?? [];
-    return skills
-      .filter((s) => s.modes?.some((m) => m.toLowerCase() === 'steer'))
-      .map((s): PhaseInfo => ({
-        name: s.modes?.find((m) => m.toLowerCase() !== 'steer') || s.name,
-        description: s.description,
-      }));
+    const phaseMap = new Map<string, PhaseInfo>();
+
+    skills.forEach((skill) => {
+      const modes = skill.modes ?? [];
+      const hasSteerMode = modes.some((mode) => normalizeSteerMode(mode) === 'steer');
+      if (!hasSteerMode) return;
+
+      const modeName = modes.find((mode) => normalizeSteerMode(mode) !== 'steer') || skill.name;
+      const normalized = normalizeSteerMode(modeName);
+      if (!normalized) return;
+
+      if (!phaseMap.has(normalized)) {
+        phaseMap.set(normalized, {
+          name: normalized,
+          description: skill.description,
+        });
+      }
+    });
+
+    return Array.from(phaseMap.values());
   }, [skillsQuery.data]);
 
   return {

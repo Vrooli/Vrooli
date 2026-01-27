@@ -178,23 +178,42 @@ func (l *PromptLoader) syncAll() error {
 	defer l.mu.Unlock()
 
 	now := time.Now()
+	customModes := make([]SteerMode, 0)
 	for _, p := range syncResp.Skills {
+		hasSteerMode := false
+		normalizedModes := make([]string, 0, len(p.Modes))
+
+		for _, mode := range p.Modes {
+			normalized := strings.TrimSpace(strings.ToLower(mode))
+			if normalized == "" {
+				continue
+			}
+			if normalized == "steer" {
+				hasSteerMode = true
+				continue
+			}
+			normalizedModes = append(normalizedModes, normalized)
+		}
+
+		if hasSteerMode {
+			for _, normalized := range normalizedModes {
+				customModes = append(customModes, SteerMode(normalized))
+			}
+		}
+
 		data, err := parsePhasePrompt(p.Content)
 		if err != nil {
 			log.Printf("Warning: could not parse skill %s: %v", p.ID, err)
 			continue
 		}
+
 		l.cache[p.ID] = &cachedPrompt{
 			data:      data,
 			fetchedAt: now,
 		}
 		// Also cache by normalized mode name
-		for _, mode := range p.Modes {
-			if strings.ToLower(mode) == "steer" {
-				continue // Skip the "Steer" tag itself
-			}
-			normalizedMode := strings.ToLower(mode)
-			l.cache[normalizedMode] = &cachedPrompt{
+		for _, normalized := range normalizedModes {
+			l.cache[normalized] = &cachedPrompt{
 				data:      data,
 				fetchedAt: now,
 			}
@@ -203,6 +222,10 @@ func (l *PromptLoader) syncAll() error {
 
 	// Store raw skills for UI access
 	l.rawSkills = syncResp.Skills
+
+	if len(customModes) > 0 {
+		RegisterSteerModes(customModes...)
+	}
 
 	l.lastSync = now
 	log.Printf("Synced %d skills from prompt-manager", len(syncResp.Skills))
