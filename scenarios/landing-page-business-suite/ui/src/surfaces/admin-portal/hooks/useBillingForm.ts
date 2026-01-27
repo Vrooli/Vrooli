@@ -5,6 +5,7 @@ import {
   saveStripeSettings,
   loadBundleCatalog,
   savePriceForm,
+  deletePriceForm,
   verifyPriceId,
   buildStripeStatusBadges,
   DEFAULT_STRIPE_FORM,
@@ -16,6 +17,7 @@ import {
   ensureBundleForDemo,
   buildPriceFormsFromBundles,
   isPriceFormDirty,
+  getPriceIdentifier,
   type PriceFormState,
   type PriceFormValues,
 } from '../services/pricing.service';
@@ -297,7 +299,7 @@ export function useBillingForm() {
 
     const result = await verifyPriceId(value);
     setPriceChecks((prev) => ({ ...prev, [key]: result }));
-  }, [priceForms]);
+  }, [priceForms, deletePriceForm, getPriceIdentifier, getApiErrorMessage]);
 
   /**
    * Remove a demo placeholder plan from the UI
@@ -322,6 +324,94 @@ export function useBillingForm() {
       const next = { ...prev };
       delete next[`${bundleKey}:${priceId}`];
       return next;
+    });
+  }, []);
+
+  /**
+   * Delete a plan from the bundle catalog
+   */
+  const handleDeletePlan = useCallback(async (bundleKey: string, priceId: string) => {
+    const key = `${bundleKey}:${priceId}`;
+    const formState = priceForms[key];
+    const planLabel = formState?.values.planName || 'this plan';
+
+    const confirmed = window.confirm(
+      `Delete "${planLabel}"? This plan will be removed from the bundle catalog and cannot be restored.`
+    );
+    if (!confirmed) return;
+
+    if (formState) {
+      setPriceForms((prev) => ({
+        ...prev,
+        [key]: { ...formState, saving: true, error: undefined },
+      }));
+    }
+
+    try {
+      await deletePriceForm(bundleKey, priceId);
+      setBundles((prev) =>
+        prev.map((entry) =>
+          entry.bundle.bundle_key !== bundleKey
+            ? entry
+            : {
+                ...entry,
+                prices: entry.prices.filter((price) => getPriceIdentifier(price) !== priceId),
+              }
+        )
+      );
+      setPriceForms((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+      setPriceChecks((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    } catch (error) {
+      setPriceForms((prev) => {
+        const existing = prev[key];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [key]: {
+            ...existing,
+            saving: false,
+            error: getApiErrorMessage(error, 'Failed to delete plan'),
+          },
+        };
+      });
+    }
+  }, [priceForms]);
+
+  /**
+   * Reorder plans inside a bundle and update display weights
+   */
+  const handleReorderPlans = useCallback((bundleKey: string, orderedPriceIds: string[]) => {
+    setPriceForms((prev) => {
+      if (orderedPriceIds.length === 0) return prev;
+      const weightBase = orderedPriceIds.length * 10;
+      let changed = false;
+      const next = { ...prev };
+      orderedPriceIds.forEach((priceId, index) => {
+        const key = `${bundleKey}:${priceId}`;
+        const current = next[key];
+        if (!current) return;
+        const nextWeight = weightBase - index * 10;
+        if (current.values.displayWeight === nextWeight) return;
+        changed = true;
+        next[key] = {
+          ...current,
+          values: {
+            ...current.values,
+            displayWeight: nextWeight,
+          },
+          error: undefined,
+        };
+      });
+      return changed ? next : prev;
     });
   }, []);
 
@@ -362,6 +452,8 @@ export function useBillingForm() {
     handleVerifyPrice,
     priceChecks,
     removeDemoPlan,
+    handleDeletePlan,
+    handleReorderPlans,
 
     // Tab state
     pricingTab,

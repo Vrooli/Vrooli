@@ -29,6 +29,8 @@ export function TiersManagement() {
     handleVerifyPrice,
     priceChecks,
     removeDemoPlan,
+    handleDeletePlan,
+    handleReorderPlans,
 
     // Tab state
     pricingTab,
@@ -167,6 +169,8 @@ export function TiersManagement() {
           onSavePrice={handleSavePrice}
           onVerifyPrice={handleVerifyPrice}
           onRemoveDemoPlan={removeDemoPlan}
+          onDeletePlan={handleDeletePlan}
+          onReorderPlans={handleReorderPlans}
           priceChecks={priceChecks}
           onAddPlan={handleOpenAddPlan}
           defaultBundleKey={defaultBundleKey}

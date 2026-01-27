@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { GripVertical, Plus } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../shared/ui/card';
@@ -33,6 +34,8 @@ export interface BundleCardProps {
   onSavePrice: (bundleKey: string, priceId: string) => Promise<void>;
   onVerifyPrice: (bundleKey: string, priceId: string) => Promise<void>;
   onRemoveDemoPlan: (bundleKey: string, priceId: string) => void;
+  onDeletePlan?: (bundleKey: string, priceId: string) => void;
+  onReorderPlans?: (bundleKey: string, orderedPriceIds: string[]) => void;
   onAddPlan?: (bundleKey: string) => void;
 }
 
@@ -47,11 +50,138 @@ export function BundleCard({
   onSavePrice,
   onVerifyPrice,
   onRemoveDemoPlan,
+  onDeletePlan,
+  onReorderPlans,
   onAddPlan,
 }: BundleCardProps) {
-  const visiblePrices = filterPricesByTab(entry.prices, pricingTab, includeDemoPlaceholders);
+  const visiblePrices = useMemo(
+    () => filterPricesByTab(entry.prices, pricingTab, includeDemoPlaceholders),
+    [entry.prices, pricingTab, includeDemoPlaceholders]
+  );
   const demoHidden = entry.prices.some(isDemoPlanOption) && !includeDemoPlaceholders;
   const previewData = buildPricingPreviewData(entry, priceForms, includeDemoPlaceholders);
+  const canReorder = mode === 'edit' && typeof onReorderPlans === 'function';
+
+  const sortedVisiblePrices = useMemo(() => {
+    const enriched = visiblePrices.map((price, index) => {
+      const priceIdentifier = getPriceIdentifier(price);
+      const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
+      const formState = priceForms[key];
+      const weight = formState?.values.displayWeight ?? price.display_weight ?? 0;
+      const rank = typeof price.plan_rank === 'number' ? price.plan_rank : Number.MAX_SAFE_INTEGER;
+      return { price, priceIdentifier, weight, rank, index };
+    });
+
+    return enriched.sort((a, b) => {
+      if (a.weight === b.weight) {
+        if (a.rank === b.rank) {
+          return a.index - b.index;
+        }
+        return a.rank - b.rank;
+      }
+      return b.weight - a.weight;
+    });
+  }, [entry.bundle.bundle_key, priceForms, visiblePrices]);
+
+  const [collapsedById, setCollapsedById] = useState<Record<string, boolean>>({});
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sortedVisiblePrices.length === 0) return;
+    setCollapsedById((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      const ids = new Set(sortedVisiblePrices.map((item) => item.priceIdentifier));
+
+      sortedVisiblePrices.forEach((item) => {
+        if (next[item.priceIdentifier] === undefined) {
+          next[item.priceIdentifier] = true;
+          changed = true;
+        }
+      });
+
+      Object.keys(next).forEach((id) => {
+        if (!ids.has(id)) {
+          delete next[id];
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sortedVisiblePrices]);
+
+  const handleToggleCollapse = (priceId: string) => {
+    setCollapsedById((prev) => {
+      const isCollapsed = prev[priceId] ?? true;
+      const next: Record<string, boolean> = {};
+      sortedVisiblePrices.forEach((item) => {
+        next[item.priceIdentifier] = item.priceIdentifier === priceId ? !isCollapsed : true;
+      });
+      return next;
+    });
+  };
+
+  const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    if (!moved) return items;
+    next.splice(to, 0, moved);
+    return next;
+  };
+
+  const handleDragStart = (priceId: string) => (event: DragEvent<HTMLElement>) => {
+    if (!canReorder) return;
+    setDraggingId(priceId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', priceId);
+  };
+
+  const handleDragOver = (priceId: string) => (event: DragEvent<HTMLElement>) => {
+    if (!canReorder) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (draggingId && priceId !== draggingId) {
+      setDragOverId(priceId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    if (!canReorder) return;
+    setDragOverId(null);
+  };
+
+  const handleDrop = (targetId: string) => (event: DragEvent<HTMLElement>) => {
+    if (!canReorder) return;
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData('text/plain');
+    if (!sourceId || sourceId === targetId) {
+      setDraggingId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const ids = sortedVisiblePrices.map((item) => item.priceIdentifier);
+    const sourceIndex = ids.indexOf(sourceId);
+    const targetIndex = ids.indexOf(targetId);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      setDraggingId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const reordered = moveItem(ids, sourceIndex, targetIndex);
+    onReorderPlans?.(entry.bundle.bundle_key, reordered);
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+
+  const handleDragEnd = () => {
+    if (!canReorder) return;
+    setDraggingId(null);
+    setDragOverId(null);
+  };
 
   // Resizable columns: left (form cards) starts at 40%, right (preview) at 60%
   const {
@@ -106,9 +236,9 @@ export function BundleCard({
           className={`hidden xl:flex gap-6 ${isResizing ? 'select-none' : ''}`}
         >
           {/* Left column: form cards */}
-          <div style={leftColumnStyle} className="divide-y divide-slate-700/50 min-w-0 overflow-y-auto max-h-[700px]">
-            {visiblePrices.map((price) => {
-              const priceIdentifier = getPriceIdentifier(price);
+          <div style={leftColumnStyle} className="space-y-4 min-w-0 overflow-y-auto max-h-[700px] pr-1">
+            {sortedVisiblePrices.map((item, index) => {
+              const { price, priceIdentifier } = item;
               const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
               const formState = priceForms[key];
               if (!formState) return null;
@@ -131,10 +261,22 @@ export function BundleCard({
                   price={price}
                   formState={formState}
                   priceCheck={priceChecks[key]}
+                  isCollapsed={collapsedById[priceIdentifier] ?? true}
+                  onToggleCollapse={() => handleToggleCollapse(priceIdentifier)}
                   onPriceChange={onPriceChange}
                   onSavePrice={onSavePrice}
                   onVerifyPrice={onVerifyPrice}
                   onRemoveDemoPlan={onRemoveDemoPlan}
+                  onDeletePlan={onDeletePlan}
+                  planIndex={index}
+                  draggable={canReorder}
+                  onDragStart={handleDragStart(priceIdentifier)}
+                  onDragOver={handleDragOver(priceIdentifier)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop(priceIdentifier)}
+                  onDragEnd={handleDragEnd}
+                  isDragging={draggingId === priceIdentifier}
+                  isDragOver={dragOverId === priceIdentifier}
                 />
               );
             })}
@@ -178,8 +320,8 @@ export function BundleCard({
         {/* Mobile: stacked layout (no resize) */}
         <div className="xl:hidden space-y-6">
           <div className="space-y-4">
-            {visiblePrices.map((price) => {
-              const priceIdentifier = getPriceIdentifier(price);
+            {sortedVisiblePrices.map((item, index) => {
+              const { price, priceIdentifier } = item;
               const key = `${entry.bundle.bundle_key}:${priceIdentifier}`;
               const formState = priceForms[key];
               if (!formState) return null;
@@ -202,10 +344,22 @@ export function BundleCard({
                   price={price}
                   formState={formState}
                   priceCheck={priceChecks[key]}
+                  isCollapsed={collapsedById[priceIdentifier] ?? true}
+                  onToggleCollapse={() => handleToggleCollapse(priceIdentifier)}
                   onPriceChange={onPriceChange}
                   onSavePrice={onSavePrice}
                   onVerifyPrice={onVerifyPrice}
                   onRemoveDemoPlan={onRemoveDemoPlan}
+                  onDeletePlan={onDeletePlan}
+                  planIndex={index}
+                  draggable={canReorder}
+                  onDragStart={handleDragStart(priceIdentifier)}
+                  onDragOver={handleDragOver(priceIdentifier)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop(priceIdentifier)}
+                  onDragEnd={handleDragEnd}
+                  isDragging={draggingId === priceIdentifier}
+                  isDragOver={dragOverId === priceIdentifier}
                 />
               );
             })}

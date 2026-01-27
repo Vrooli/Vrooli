@@ -7,6 +7,7 @@ import {
   updateStripeSettings,
   getBundleCatalog,
   updateBundlePrice,
+  deleteBundlePrice,
   verifyStripePrice,
   type StripeSettingsResponse,
   type BundleCatalogEntry,
@@ -121,6 +122,13 @@ export async function savePriceForm(
     highlight: formState.values.highlight,
     features,
   });
+}
+
+/**
+ * Delete a plan from the bundle catalog.
+ */
+export async function deletePriceForm(bundleKey: string, priceId: string): Promise<void> {
+  await deleteBundlePrice(bundleKey, priceId);
 }
 
 /**

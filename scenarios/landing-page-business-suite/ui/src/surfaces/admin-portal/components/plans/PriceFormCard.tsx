@@ -1,6 +1,8 @@
-import { RefreshCw } from 'lucide-react';
+import { useMemo, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
+import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Textarea } from '../../../../shared/ui/input';
+import { Card, CardContent, CardHeader } from '../../../../shared/ui/card';
 import { FormField, inputClassName, textareaClassName } from '../FormField';
 import { cn } from '../../../../shared/lib/utils';
 import {
@@ -27,6 +29,18 @@ export interface PriceFormCardProps {
   onSavePrice: (bundleKey: string, priceId: string) => Promise<void>;
   onVerifyPrice: (bundleKey: string, priceId: string) => Promise<void>;
   onRemoveDemoPlan: (bundleKey: string, priceId: string) => void;
+  onDeletePlan?: (bundleKey: string, priceId: string) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  planIndex?: number;
+  draggable?: boolean;
+  onDragStart?: (event: DragEvent<HTMLElement>) => void;
+  onDragOver?: (event: DragEvent<HTMLElement>) => void;
+  onDragLeave?: () => void;
+  onDrop?: (event: DragEvent<HTMLElement>) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
+  isDragOver?: boolean;
 }
 
 export function PriceFormCard({
@@ -39,166 +53,303 @@ export function PriceFormCard({
   onSavePrice,
   onVerifyPrice,
   onRemoveDemoPlan,
+  onDeletePlan,
+  isCollapsed = true,
+  onToggleCollapse,
+  planIndex,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+  isDragging,
+  isDragOver,
 }: PriceFormCardProps) {
   const dirty = isPriceFormDirty(formState);
   const demoPlan = formState.demo;
   const currencyLabel = price.currency ? price.currency.toUpperCase() : 'USD';
+  const planLabel = formState.values.planName.trim() || price.plan_name;
+  const stripePriceSummary = formState.values.stripePriceId || price.stripe_price_id || 'None (free/CTA)';
+
+  const verificationStatus = priceCheck?.status || 'idle';
+  const verifyDisabled = formState.saving || verificationStatus === 'checking';
+  const verificationIcon = useMemo(() => {
+    if (verificationStatus === 'checking') {
+      return <Loader2 className="h-4 w-4 animate-spin text-slate-400" />;
+    }
+    return (
+      <ShieldCheck
+        className={cn(
+          'h-4 w-4',
+          verificationStatus === 'ok'
+            ? 'text-emerald-400'
+            : verificationStatus === 'error'
+              ? 'text-amber-300'
+              : 'text-slate-500'
+        )}
+      />
+    );
+  }, [verificationStatus]);
+
+  const handleHeaderKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!onToggleCollapse) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onToggleCollapse();
+    }
+  };
+
+  const stopPropagation = (event: MouseEvent) => {
+    event.stopPropagation();
+  };
 
   return (
-    <div className="py-4 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{price.plan_name}</h3>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-            <span>{getIntervalLabel(normalizeInterval(price.billing_interval))} · {currencyLabel}</span>
-            <span
+    <Card
+      className={cn(
+        'border-white/10 bg-slate-900/50 shadow-none transition-all',
+        isDragging && 'opacity-60 scale-[0.99]',
+        isDragOver && 'ring-2 ring-blue-500/40 ring-offset-2 ring-offset-slate-950'
+      )}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <CardHeader
+        className="p-4"
+        onClick={onToggleCollapse}
+        role={onToggleCollapse ? 'button' : undefined}
+        tabIndex={onToggleCollapse ? 0 : undefined}
+        onKeyDown={onToggleCollapse ? handleHeaderKeyDown : undefined}
+        aria-expanded={onToggleCollapse ? !isCollapsed : undefined}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <button
+              type="button"
               className={cn(
-                'inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs',
-                demoPlan
-                  ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
-                  : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+                'mt-1 flex items-center gap-2 text-slate-400',
+                draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-60'
               )}
+              title={draggable ? 'Drag to reorder' : undefined}
+              onClick={stopPropagation}
+              draggable={draggable}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              aria-label="Drag to reorder plan"
             >
-              {demoPlan ? 'Demo placeholder (not saved)' : `Stripe price: ${price.stripe_price_id || 'None (free/CTA)'}`}
-            </span>
+              <GripVertical className="h-4 w-4" />
+              {planIndex !== undefined && (
+                <span className="text-xs text-slate-500 font-mono">#{planIndex + 1}</span>
+              )}
+            </button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-semibold text-white truncate">{planLabel}</h3>
+                {dirty && !demoPlan && (
+                  <span className="rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-xs text-blue-200">
+                    Unsaved changes
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs',
+                    demoPlan
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-200'
+                      : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
+                  )}
+                >
+                  {demoPlan ? 'Demo placeholder (not saved)' : `Stripe price: ${stripePriceSummary}`}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                <span>{getIntervalLabel(normalizeInterval(price.billing_interval))}</span>
+                <span>·</span>
+                <span>{currencyLabel}</span>
+                <span>·</span>
+                <span>Weight {formState.values.displayWeight}</span>
+                {formState.values.stripePriceId && (
+                  <>
+                    <span>·</span>
+                    <span className="font-mono text-slate-500 truncate max-w-[160px]">
+                      {formState.values.stripePriceId}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0" onClick={stopPropagation}>
+            <label className="flex items-center gap-2 text-xs text-slate-200">
+              <input
+                type="checkbox"
+                checked={formState.values.displayEnabled}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'displayEnabled')}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
+              />
+              Visible
+            </label>
+            {demoPlan ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-amber-200 hover:text-amber-100"
+                onClick={() => onRemoveDemoPlan(bundleKey, priceIdentifier)}
+              >
+                Remove demo placeholder
+              </Button>
+            ) : (
+              onDeletePlan && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
+                  onClick={() => onDeletePlan(bundleKey, priceIdentifier)}
+                  disabled={formState.saving}
+                  title="Delete plan"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onToggleCollapse}
+              className="h-8 w-8 p-0"
+              title={isCollapsed ? 'Expand plan' : 'Collapse plan'}
+            >
+              <ChevronDown className={cn('h-4 w-4 transition-transform', !isCollapsed && 'rotate-180')} />
+            </Button>
           </div>
         </div>
-        {demoPlan && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-amber-200 hover:text-amber-100"
-            onClick={() => onRemoveDemoPlan(bundleKey, priceIdentifier)}
-          >
-            Remove demo placeholder
-          </Button>
-        )}
-        <label className="flex items-center gap-2 text-sm text-slate-200">
-          <input
-            type="checkbox"
-            checked={formState.values.displayEnabled}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'displayEnabled')}
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
-          />
-          Visible on landing page
-        </label>
-      </div>
+      </CardHeader>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <FormField label="Plan Name" className="md:col-span-2">
-          <input
-            type="text"
-            value={formState.values.planName}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'planName')}
-            className={inputClassName}
-          />
-        </FormField>
-        <FormField label="Display Weight">
-          <input
-            type="number"
-            value={formState.values.displayWeight}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'displayWeight')}
-            className={inputClassName}
-          />
-        </FormField>
-      </div>
+      {!isCollapsed && (
+        <CardContent className="pt-0 space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <FormField label="Plan Name" className="md:col-span-2">
+              <input
+                type="text"
+                value={formState.values.planName}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'planName')}
+                className={inputClassName}
+              />
+            </FormField>
+            <FormField label="Display Weight">
+              <input
+                type="number"
+                value={formState.values.displayWeight}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'displayWeight')}
+                className={inputClassName}
+              />
+            </FormField>
+          </div>
 
-      <FormField label="Stripe Price ID" className="mt-4">
-        <input
-          type="text"
-          value={formState.values.stripePriceId}
-          onChange={onPriceChange(bundleKey, priceIdentifier, 'stripePriceId')}
-          placeholder="price_abc123"
-          className={inputClassName}
-        />
-        <div className="mt-2 flex items-center gap-2 text-xs">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="border border-white/10 bg-white/5 text-white"
-            onClick={() => onVerifyPrice(bundleKey, priceIdentifier)}
-          >
-            Verify
-          </Button>
-          {priceCheck?.status === 'checking' && <span className="text-slate-300">Checking...</span>}
-          {priceCheck?.status === 'ok' && <span className="text-emerald-300">{priceCheck.message || 'Verified'}</span>}
-          {priceCheck?.status === 'error' && <span className="text-amber-200">{priceCheck.message || 'Verification failed'}</span>}
-        </div>
-        <p className="mt-1 text-xs text-slate-400">Use the Stripe price ID (starts with price_). Create a $0 price in Stripe for free tiers.</p>
-      </FormField>
+          <FormField label="Stripe Price ID">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2">
+                {verificationIcon}
+              </span>
+              <input
+                type="text"
+                value={formState.values.stripePriceId}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'stripePriceId')}
+                placeholder="price_abc123"
+                className={cn(inputClassName, 'pl-10 pr-24')}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white hover:bg-white/10 disabled:opacity-50"
+                onClick={() => onVerifyPrice(bundleKey, priceIdentifier)}
+                disabled={verifyDisabled}
+              >
+                {verificationStatus === 'checking' ? 'Checking...' : 'Verify'}
+              </button>
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              {verificationStatus === 'checking' && <span className="text-slate-300">Checking...</span>}
+              {verificationStatus === 'ok' && <span className="text-emerald-300">{priceCheck?.message || 'Verified'}</span>}
+              {verificationStatus === 'error' && <span className="text-amber-200">{priceCheck?.message || 'Verification failed'}</span>}
+            </div>
+            <p className="mt-1 text-xs text-slate-400">Use the Stripe price ID (starts with price_). Create a $0 price in Stripe for free tiers.</p>
+          </FormField>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <FormField label="Subtitle">
-          <input
-            type="text"
-            value={formState.values.subtitle}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'subtitle')}
-            className={inputClassName}
-          />
-        </FormField>
-        <FormField label="Badge">
-          <input
-            type="text"
-            value={formState.values.badge}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'badge')}
-            className={inputClassName}
-          />
-        </FormField>
-      </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="Subtitle">
+              <input
+                type="text"
+                value={formState.values.subtitle}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'subtitle')}
+                className={inputClassName}
+              />
+            </FormField>
+            <FormField label="Badge">
+              <input
+                type="text"
+                value={formState.values.badge}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'badge')}
+                className={inputClassName}
+              />
+            </FormField>
+          </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <FormField label="CTA Label">
-          <input
-            type="text"
-            value={formState.values.ctaLabel}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'ctaLabel')}
-            className={inputClassName}
-          />
-        </FormField>
-        <label className="mt-6 flex items-center gap-2 text-sm text-slate-200">
-          <input
-            type="checkbox"
-            checked={formState.values.highlight}
-            onChange={onPriceChange(bundleKey, priceIdentifier, 'highlight')}
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
-          />
-          Highlight tier (apply hero styling)
-        </label>
-      </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="CTA Label">
+              <input
+                type="text"
+                value={formState.values.ctaLabel}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'ctaLabel')}
+                className={inputClassName}
+              />
+            </FormField>
+            <label className="mt-6 flex items-center gap-2 text-sm text-slate-200">
+              <input
+                type="checkbox"
+                checked={formState.values.highlight}
+                onChange={onPriceChange(bundleKey, priceIdentifier, 'highlight')}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-blue-500"
+              />
+              Highlight tier (apply hero styling)
+            </label>
+          </div>
 
-      <FormField label="Feature Bullets" className="mt-4">
-        <Textarea
-          value={formState.values.featuresText}
-          onChange={onPriceChange(bundleKey, priceIdentifier, 'featuresText')}
-          rows={4}
-          className={textareaClassName}
-          placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
-        />
-      </FormField>
+          <FormField label="Feature Bullets">
+            <Textarea
+              value={formState.values.featuresText}
+              onChange={onPriceChange(bundleKey, priceIdentifier, 'featuresText')}
+              rows={4}
+              className={textareaClassName}
+              placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
+            />
+          </FormField>
 
-      {formState.error && (
-        <p className="mt-3 text-sm text-rose-300">{formState.error}</p>
+          {formState.error && (
+            <p className="mt-3 text-sm text-rose-300">{formState.error}</p>
+          )}
+
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={() => onSavePrice(bundleKey, priceIdentifier)}
+              disabled={!dirty || formState.saving || demoPlan}
+              className="gap-2"
+            >
+              {formState.saving && <RefreshCw className="h-4 w-4 animate-spin" />}
+              {demoPlan ? 'Demo plan' : dirty ? 'Save changes' : 'Up to date'}
+            </Button>
+            {!price.display_enabled && (
+              <span className="text-xs text-slate-400">Hidden from landing page visitors</span>
+            )}
+            {demoPlan && (
+              <span className="text-xs text-amber-300">Connect Stripe & reload to edit this slot.</span>
+            )}
+          </div>
+        </CardContent>
       )}
-
-      <div className="mt-4 flex items-center gap-3">
-        <Button
-          type="button"
-          onClick={() => onSavePrice(bundleKey, priceIdentifier)}
-          disabled={!dirty || formState.saving || demoPlan}
-          className="gap-2"
-        >
-          {formState.saving && <RefreshCw className="h-4 w-4 animate-spin" />}
-          {demoPlan ? 'Demo plan' : dirty ? 'Save changes' : 'Up to date'}
-        </Button>
-        {!price.display_enabled && (
-          <span className="text-xs text-slate-400">Hidden from landing page visitors</span>
-        )}
-        {demoPlan && (
-          <span className="text-xs text-amber-300">Connect Stripe & reload to edit this slot.</span>
-        )}
-      </div>
-    </div>
+    </Card>
   );
 }
