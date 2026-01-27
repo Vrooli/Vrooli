@@ -1,6 +1,6 @@
 package docschema
 
-// DOC: docs/plans/knowledge-observatory-documentation-hub-expansion.md#phase-0-foundation--documentation-structure-standards-week-1
+// DOC: ../../docs/plans/knowledge-observatory-documentation-hub-expansion.md#phase-0-foundation--documentation-structure-standards-week-1
 
 // DocType represents a known documentation file type.
 type DocType string

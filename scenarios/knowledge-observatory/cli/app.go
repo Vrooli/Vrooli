@@ -87,12 +87,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-		docs := cliapp.CommandGroup{
-			Title: "Documentation",
-			Commands: []cliapp.Command{
-				{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset)", Run: a.cmdDocs},
-			},
-		}
+	docs := cliapp.CommandGroup{
+		Title: "Documentation",
+		Commands: []cliapp.Command{
+			{Name: "docs", NeedsAPI: true, Description: "Documentation explorer commands (search-files, search-text, search-deep, scenarios, tree, health, view, reset, heal, heal-status)", Run: a.cmdDocs},
+		},
+	}
 
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
@@ -286,7 +286,7 @@ func (a *App) cmdGraph(args []string) error {
 
 func (a *App) cmdDocs(args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset> [options]")
+		return fmt.Errorf("usage: docs <search-files|search-text|search-deep|scenarios|tree|health|view|reset|heal|heal-status> [options]")
 	}
 	subcommand := strings.TrimSpace(args[0])
 	switch subcommand {
@@ -306,6 +306,10 @@ func (a *App) cmdDocs(args []string) error {
 		return a.cmdDocsView(args[1:])
 	case "reset":
 		return a.cmdDocsReset(args[1:])
+	case "heal":
+		return a.cmdDocsHeal(args[1:])
+	case "heal-status":
+		return a.cmdDocsHealStatus(args[1:])
 	default:
 		return fmt.Errorf("unknown docs subcommand: %s", subcommand)
 	}
@@ -584,6 +588,83 @@ func (a *App) cmdDocsReset(args []string) error {
 	return a.printJSON(body)
 }
 
+func (a *App) cmdDocsHeal(args []string) error {
+	fs := flag.NewFlagSet("docs heal", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "Scenario name")
+	issues := fs.String("issues", "", "Comma-separated issue labels")
+	autoApprove := fs.Bool("auto-approve", false, "Auto-approve if health improves")
+	dryRun := fs.Bool("dry-run", false, "Preview only (no apply)")
+	wait := fs.Bool("wait", false, "Wait for job completion")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	scenarioValue := strings.TrimSpace(*scenario)
+	if scenarioValue == "" {
+		scenarioValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if scenarioValue == "" {
+		return fmt.Errorf("usage: docs heal <scenario> [--issues=label1,label2] [--auto-approve] [--dry-run] [--wait]")
+	}
+
+	req := docsHealRequest{
+		ScenarioName: scenarioValue,
+		Issues:       splitCSV(*issues),
+		AutoApprove:  *autoApprove,
+		DryRun:       *dryRun,
+	}
+
+	body, err := a.doRequest("POST", fmt.Sprintf("/scenarios/%s/docs/heal", scenarioValue), nil, req)
+	if err != nil {
+		return err
+	}
+	if !*wait {
+		return a.printJSON(body)
+	}
+
+	var job docsHealJob
+	if err := json.Unmarshal(body, &job); err != nil {
+		return err
+	}
+	if job.JobID == "" {
+		return fmt.Errorf("healing job id missing")
+	}
+	for {
+		statusBody, err := a.doRequest("GET", fmt.Sprintf("/docs/heal/%s", job.JobID), nil, nil)
+		if err != nil {
+			return err
+		}
+		var status docsHealJob
+		if err := json.Unmarshal(statusBody, &status); err != nil {
+			return err
+		}
+		if status.Status != "pending" && status.Status != "running" {
+			return a.printJSON(statusBody)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func (a *App) cmdDocsHealStatus(args []string) error {
+	fs := flag.NewFlagSet("docs heal-status", flag.ContinueOnError)
+	jobID := fs.String("job-id", "", "Healing job ID")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	jobValue := strings.TrimSpace(*jobID)
+	if jobValue == "" {
+		jobValue = strings.TrimSpace(strings.Join(fs.Args(), " "))
+	}
+	if jobValue == "" {
+		return fmt.Errorf("usage: docs heal-status <job_id>")
+	}
+	body, err := a.doRequest("GET", fmt.Sprintf("/docs/heal/%s", jobValue), nil, nil)
+	if err != nil {
+		return err
+	}
+	return a.printJSON(body)
+}
+
 func (a *App) cmdIngest(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
 	namespace := fs.String("namespace", "", "Namespace for the record")
@@ -846,9 +927,9 @@ type docsDeepSearchRequest struct {
 }
 
 type docsDeepSearchJob struct {
-	JobID   string `json:"job_id"`
-	Status  string `json:"status"`
-	Error   string `json:"error,omitempty"`
+	JobID  string `json:"job_id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 type docsResetRequest struct {
@@ -856,6 +937,19 @@ type docsResetRequest struct {
 	MaxAgeDays     int    `json:"max_age_days,omitempty"`
 	KeepMinEntries int    `json:"keep_min_entries,omitempty"`
 	PreviewOnly    bool   `json:"preview_only,omitempty"`
+}
+
+type docsHealRequest struct {
+	ScenarioName string   `json:"scenario_name"`
+	Issues       []string `json:"issues,omitempty"`
+	AutoApprove  bool     `json:"auto_approve,omitempty"`
+	DryRun       bool     `json:"dry_run,omitempty"`
+}
+
+type docsHealJob struct {
+	JobID  string `json:"job_id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
 }
 
 func splitCSV(value string) []string {

@@ -26,6 +26,7 @@ import (
 
 	"knowledge-observatory/internal/adapters/agentmanager"
 	"knowledge-observatory/internal/adapters/deepsearchstore"
+	"knowledge-observatory/internal/adapters/dochealingstore"
 	"knowledge-observatory/internal/adapters/embedder"
 	"knowledge-observatory/internal/adapters/jobstore"
 	"knowledge-observatory/internal/adapters/metadatastore"
@@ -33,6 +34,7 @@ import (
 	"knowledge-observatory/internal/adapters/vectorstore"
 	"knowledge-observatory/internal/ports"
 	"knowledge-observatory/internal/services/deepsearch"
+	"knowledge-observatory/internal/services/dochealing"
 	"knowledge-observatory/internal/services/dochealth"
 	"knowledge-observatory/internal/services/docsearch"
 	"knowledge-observatory/internal/services/explorer"
@@ -78,6 +80,7 @@ type Server struct {
 	docExplorerService   *explorer.Service
 	docViewerService     *viewer.Service
 	docDeepSearchService deepsearch.API
+	docHealingService    dochealing.API
 
 	ingestJobRunner *ingestjobs.Runner
 	materializer    *Materializer
@@ -237,6 +240,23 @@ func (s *Server) setupServices() {
 			s.docDeepSearchService = service
 		}
 	}
+	if s.config != nil && s.config.ScenariosRoot != "" && s.db != nil {
+		jobStore := &dochealingstore.Postgres{DB: s.db}
+		agentCfg := agentmanager.DefaultDocHealingProfileConfig()
+		agentClient := agentmanager.NewDocHealingClient(s.config.AgentManagerTimeout, agentCfg)
+		promptClient := promptmanager.NewClient(s.config.PromptManagerTimeout)
+		skillPath := filepath.Join(s.config.ScenariosRoot, "prompt-manager", "skills", "core", "documentation-health.md")
+		skillProvider := dochealing.CompositeSkillProvider{
+			Primary:  promptClient,
+			Fallback: dochealing.FileSkillProvider{Path: skillPath},
+		}
+		service, err := dochealing.NewService(s.config.ScenariosRoot, s.docHealthService, agentClient, jobStore, skillProvider)
+		if err != nil {
+			s.log("doc healing service disabled", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docHealingService = service
+		}
+	}
 
 	if js != nil {
 		s.ingestJobRunner = &ingestjobs.Runner{
@@ -282,6 +302,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs", s.handleDocsTree).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/health", s.handleDocsHealth).Methods("GET")
 	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/reset", s.handleDocsReset).Methods("POST")
+	s.router.HandleFunc("/api/v1/scenarios/{name}/docs/heal", s.handleDocsHeal).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/files", s.handleDocsSearchFiles).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/text", s.handleDocsSearchText).Methods("POST")
 	s.router.HandleFunc("/api/v1/docs/search/unified", s.handleDocsSearchUnified).Methods("POST")
@@ -289,6 +310,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/docs/search/deep/{job_id}", s.handleDocsSearchDeepStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/content", s.handleDocsContent).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/reset", s.handleDocsViewerReset).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/heal/{job_id}", s.handleDocsHealStatus).Methods("GET")
+	s.router.HandleFunc("/api/v1/docs/heal/{job_id}/approve", s.handleDocsHealApprove).Methods("POST")
+	s.router.HandleFunc("/api/v1/docs/heal/{job_id}/reject", s.handleDocsHealReject).Methods("POST")
 
 	// Canonical knowledge write path (records) - sync upsert
 	s.router.HandleFunc("/api/v1/knowledge/records/upsert", s.handleUpsertRecord).Methods("POST")

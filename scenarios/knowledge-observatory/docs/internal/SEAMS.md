@@ -15,6 +15,9 @@
 - **Documentation deep search seam**: deepsearch service orchestrates agent-powered doc discovery + job tracking. [CODE: api/internal/services/deepsearch/service.go]
 - **Deep search job store seam**: Postgres adapter persists deep search job state. [CODE: api/internal/adapters/deepsearchstore/postgres.go]
 - **Agent-manager seam**: deep search agent client isolates agent-manager HTTP calls and supports fixed base URLs for tests. [CODE: api/internal/adapters/agentmanager/deepsearch_client.go] [CODE: api/internal/adapters/agentmanager/client.go]
+- **Documentation healing seam**: dochealing service coordinates agent-manager runs, diff review, and approvals. [CODE: api/internal/services/dochealing/service.go]
+- **Doc healing job store seam**: Postgres adapter persists doc healing job state. [CODE: api/internal/adapters/dochealingstore/postgres.go]
+- **Doc healing agent seam**: doc healing agent client isolates agent-manager diff/approval calls. [CODE: api/internal/adapters/agentmanager/dochealing_client.go]
 - **Prompt-manager seam**: prompt-manager client retrieves skill content for deep search. [CODE: api/internal/adapters/promptmanager/client.go]
 
 ## Responsibility Zones
@@ -27,6 +30,7 @@
 - **Documentation explorer API**: handlers + explorer service for scenario listing and doc tree. [CODE: api/docs_explorer.go] [CODE: api/docs_search.go] [CODE: api/internal/services/explorer/tree.go]
 - **Documentation viewer API**: handlers + viewer service for content and reset. [CODE: api/docs_viewer.go] [CODE: api/internal/services/viewer/content.go]
 - **Documentation deep search API**: handlers + deep search service for agent-backed search. [CODE: api/docs_deep_search.go] [CODE: api/internal/services/deepsearch/service.go]
+- **Documentation healing API**: handlers + healing service for agent-backed fixes. [CODE: api/docs_heal.go] [CODE: api/internal/services/dochealing/service.go]
 - **Integrations/infrastructure**: Qdrant/Ollama/Postgres adapters. [CODE: api/internal/adapters/vectorstore/qdrant.go] [CODE: api/internal/adapters/embedder/ollama.go] [CODE: api/internal/adapters/metadatastore/postgres.go]
 - **Cross-cutting concerns**: CORS, logging, health checks. [CODE: api/server.go]
 

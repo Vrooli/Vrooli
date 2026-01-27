@@ -153,6 +153,32 @@ func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error
 	return result.Run, nil
 }
 
+// GetRunDiff retrieves the diff for a run.
+func (c *Client) GetRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil, fmt.Errorf("run_id is required")
+	}
+	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/runs/%s/diff", runID), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+
+	var result apipb.GetRunDiffResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.Diff, nil
+}
+
 // GetRunEvents retrieves events for a run.
 func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
 	path := fmt.Sprintf("/api/v1/runs/%s/events", runID)
@@ -175,6 +201,56 @@ func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence i
 		return nil, err
 	}
 	return result.Events, nil
+}
+
+// ApproveRun approves and applies changes from a sandboxed run.
+func (c *Client) ApproveRun(ctx context.Context, req *apipb.ApproveRunRequest) (*apipb.ApproveRunResponse, error) {
+	if req == nil || strings.TrimSpace(req.RunId) == "" {
+		return nil, fmt.Errorf("run_id is required")
+	}
+	body, err := c.jsonOpts.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/runs/%s/approve", req.RunId), body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	var result apipb.ApproveRunResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// RejectRun rejects and discards changes from a sandboxed run.
+func (c *Client) RejectRun(ctx context.Context, req *apipb.RejectRunRequest) (*apipb.RejectRunResponse, error) {
+	if req == nil || strings.TrimSpace(req.RunId) == "" {
+		return nil, fmt.Errorf("run_id is required")
+	}
+	body, err := c.jsonOpts.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/runs/%s/reject", req.RunId), body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, c.parseError(resp)
+	}
+	var result apipb.RejectRunResponse
+	if err := c.parseResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {

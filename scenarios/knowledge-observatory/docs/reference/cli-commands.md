@@ -156,6 +156,8 @@ knowledge-observatory docs tree knowledge-observatory
 knowledge-observatory docs health knowledge-observatory
 knowledge-observatory docs view "scenarios/knowledge-observatory/docs/manifest.json" --format preview
 knowledge-observatory docs reset "scenarios/knowledge-observatory/docs/internal/PROBLEMS.md" --max-age-days 30 --keep-min-entries 3 --preview
+knowledge-observatory docs heal knowledge-observatory --dry-run --wait
+knowledge-observatory docs heal-status <job_id>
 ```
 
 ### docs search-files
@@ -227,6 +229,23 @@ Fetch documentation health details for a scenario.
 ### docs view
 
 Fetch document content for a given path.
+
+### docs heal
+
+Spawn a documentation healing agent.
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--issues` | Comma-separated issue labels to target |
+| `--auto-approve` | Auto-approve if health improves |
+| `--dry-run` | Preview-only healing (no apply) |
+| `--wait` | Wait for completion before exiting |
+
+### docs heal-status
+
+Fetch status for a healing job by ID.
 
 **Options:**
 | Flag | Description |

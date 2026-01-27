@@ -1,7 +1,15 @@
 // DOC: docs/reference/api-endpoints.md#documentation-health
-import { AlertCircle, RefreshCw, Wrench } from "lucide-react";
+// DOC: docs/reference/api-endpoints.md#documentation-healing
+import { AlertCircle, CheckCircle, Loader2, RefreshCw, Wrench, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../../../shared/ui/button";
 import type { DocHealthViewModel, HealthTone } from "../../../shared/controllers/documentationController";
+import { useDocHealing } from "../../../shared/hooks/healingHooks";
+
+const formatPercent = (value?: number) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return "—";
+  return `${Math.round(value * 100)}%`;
+};
 
 const toneClasses: Record<HealthTone, string> = {
   good: "ko-tone-good",
@@ -26,6 +34,59 @@ export function HealthPanel({
   errorMessage,
   onRefresh,
 }: HealthPanelProps) {
+  const [isHealOpen, setIsHealOpen] = useState(false);
+  const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
+  const [autoApprove, setAutoApprove] = useState(false);
+  const [dryRun, setDryRun] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const { job, isBusy, error: healError, actions } = useDocHealing(scenarioName);
+
+  const issueOptions = useMemo(() => {
+    const issues: string[] = [];
+    healthViewModel.missingDocs.forEach((doc) => issues.push(`Missing: ${doc}`));
+    healthViewModel.misplacedDocs.forEach((doc) =>
+      issues.push(`Misplaced: ${doc.actualPath} -> ${doc.expectedPath}`)
+    );
+    healthViewModel.extraDocs.forEach((doc) => issues.push(`Extra: ${doc}`));
+    return issues;
+  }, [healthViewModel.extraDocs, healthViewModel.misplacedDocs, healthViewModel.missingDocs]);
+
+  useEffect(() => {
+    setSelectedIssues(issueOptions);
+    setRejectReason("");
+    setAutoApprove(false);
+    setDryRun(false);
+  }, [scenarioName, issueOptions]);
+
+  const toggleIssue = (issue: string) => {
+    setSelectedIssues((current) =>
+      current.includes(issue) ? current.filter((item) => item !== issue) : [...current, issue]
+    );
+  };
+
+  const handleStartHealing = async () => {
+    if (!scenarioName) return;
+    await actions.startHealing({
+      scenario_name: scenarioName,
+      issues: selectedIssues,
+      auto_approve: autoApprove,
+      dry_run: dryRun,
+    });
+  };
+
+  const handleApprove = async () => {
+    await actions.approve();
+  };
+
+  const handleReject = async () => {
+    await actions.reject(undefined, rejectReason);
+  };
+
+  const resetJob = () => {
+    actions.clearJob();
+    setRejectReason("");
+  };
+
   if (!scenarioName) {
     return <div className="ko-panel p-4 ko-text-sm ko-muted">Select a scenario to view health details.</div>;
   }
@@ -55,6 +116,13 @@ export function HealthPanel({
   }
 
   const toneClass = toneClasses[healthViewModel.healthTone] ?? toneClasses.medium;
+  const canHeal = healthViewModel.canAutoFix && healthViewModel.hasIssues;
+  const healButtonLabel =
+    job?.status === "running" || job?.status === "pending"
+      ? "Healing in Progress"
+      : job?.status === "needs_review"
+        ? "Review Changes"
+        : "Fix with Agent";
 
   return (
     <div className="ko-stack">
@@ -116,13 +184,194 @@ export function HealthPanel({
       <div className="ko-card p-3 flex items-center justify-between">
         <div>
           <p className="ko-text-sm font-semibold ko-text-strong">Heal Documentation</p>
-          <p className="ko-text-xs ko-muted">Automation unlocks in Phase 5.</p>
+          <p className="ko-text-xs ko-muted">
+            {canHeal ? "Spawn an agent to repair documentation structure." : "All docs are aligned."}
+          </p>
         </div>
-        <Button variant="outline" size="sm" disabled>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!canHeal && !job}
+          onClick={() => setIsHealOpen(true)}
+        >
           <Wrench className="h-4 w-4 mr-2" />
-          Fix with Agent
+          {healButtonLabel}
         </Button>
       </div>
+
+      {isHealOpen && (
+        <div className="ko-modal-backdrop">
+          <div className="ko-modal">
+            <div className="ko-modal-header">
+              <div>
+                <p className="ko-text-sm ko-subtle">Documentation Healing</p>
+                <p className="text-lg font-semibold ko-text-strong">{scenarioName}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsHealOpen(false)}>
+                Close
+              </Button>
+            </div>
+
+            <div className="ko-modal-body ko-stack">
+              {healError && (
+                <div className="ko-alert ko-alert-danger">
+                  <AlertCircle className="h-5 w-5 ko-text-danger flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="ko-alert-title ko-text-danger-strong">Healing error</p>
+                    <p className="ko-text-sm ko-text-danger-muted mt-1">{healError.message}</p>
+                  </div>
+                </div>
+              )}
+
+              {!job && (
+                <div className="ko-stack-sm">
+                  <div className="ko-issue-block">
+                    <p className="ko-text-sm font-semibold ko-text-strong">Select issues to fix</p>
+                    {issueOptions.length === 0 ? (
+                      <p className="ko-text-xs ko-muted mt-2">No issues detected.</p>
+                    ) : (
+                      <div className="ko-stack-xs mt-3">
+                        {issueOptions.map((issue) => (
+                          <label key={issue} className="ko-checkbox-row">
+                            <input
+                              type="checkbox"
+                              checked={selectedIssues.includes(issue)}
+                              onChange={() => toggleIssue(issue)}
+                            />
+                            <span>{issue}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="ko-issue-block">
+                    <p className="ko-text-sm font-semibold ko-text-strong">Options</p>
+                    <div className="ko-stack-xs mt-3">
+                      <label className="ko-checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={autoApprove}
+                          onChange={(event) => setAutoApprove(event.target.checked)}
+                        />
+                        <span>Auto-approve when health improves</span>
+                      </label>
+                      <label className="ko-checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={dryRun}
+                          onChange={(event) => setDryRun(event.target.checked)}
+                        />
+                        <span>Dry run (preview only)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="ko-modal-footer">
+                    <Button
+                      type="button"
+                      onClick={handleStartHealing}
+                      disabled={!scenarioName || selectedIssues.length === 0 || isBusy}
+                    >
+                      {isBusy ? "Starting..." : "Start Healing"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {job && (
+                <div className="ko-stack-sm">
+                  <div className="ko-card p-3 flex items-center justify-between">
+                    <div>
+                      <p className="ko-text-xs ko-muted">Status</p>
+                      <p className="ko-text-sm font-semibold ko-text-strong">{job.status}</p>
+                    </div>
+                    {(job.status === "running" || job.status === "pending") && (
+                      <span className="ko-inline-status">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {job.progress || "Working..."}
+                      </span>
+                    )}
+                    {job.status === "approved" && <CheckCircle className="h-5 w-5 ko-icon-strong" />}
+                    {job.status === "rejected" && <XCircle className="h-5 w-5 ko-text-danger-strong" />}
+                  </div>
+
+                  <div className="ko-card p-3">
+                    <p className="ko-text-xs ko-muted">Health</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <span className="ko-pill">Before {formatPercent(job.health_before)}</span>
+                      <span className="ko-pill ko-pill-good">After {formatPercent(job.health_after)}</span>
+                    </div>
+                  </div>
+
+                  {job.error && (
+                    <div className="ko-alert ko-alert-danger">
+                      <AlertCircle className="h-5 w-5 ko-text-danger flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="ko-alert-title ko-text-danger-strong">Job error</p>
+                        <p className="ko-text-sm ko-text-danger-muted mt-1">{job.error}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {job.diff && job.diff.files.length > 0 && (
+                    <div className="ko-stack-sm">
+                      <div className="ko-issue-block">
+                        <p className="ko-text-sm font-semibold ko-text-strong">Diff Summary</p>
+                        <p className="ko-text-xs ko-muted mt-2">
+                          {job.diff.summary || "Review the proposed documentation changes below."}
+                        </p>
+                      </div>
+                      <div className="ko-diff-list">
+                        {job.diff.files.map((file) => (
+                          <div key={`${file.path}-${file.operation}`} className="ko-diff-card">
+                            <div className="ko-diff-header">
+                              <span className="ko-text-sm font-semibold">{file.path}</span>
+                              <span className="ko-pill">{file.operation}</span>
+                            </div>
+                            <pre className="ko-diff-code">{file.diff || "Diff not available."}</pre>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {job.status === "needs_review" && (
+                    <div className="ko-issue-block ko-stack-sm">
+                      <p className="ko-text-sm font-semibold ko-text-strong">Approve changes</p>
+                      <label className="ko-text-xs ko-muted">
+                        Rejection reason (optional)
+                        <input
+                          className="ko-input mt-2"
+                          value={rejectReason}
+                          onChange={(event) => setRejectReason(event.target.value)}
+                          placeholder="Reason for rejection"
+                        />
+                      </label>
+                      <div className="flex gap-2">
+                        <Button onClick={handleApprove} disabled={isBusy}>
+                          Approve
+                        </Button>
+                        <Button onClick={handleReject} variant="danger" disabled={isBusy}>
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(job.status === "approved" || job.status === "rejected" || job.status === "failed") && (
+                    <div className="ko-modal-footer">
+                      <Button variant="outline" onClick={resetJob}>
+                        Start New Healing
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { HealthPanel, type HealthPanelProps } from "./HealthPanel";
+
+const renderWithQueryClient = (ui: ReactElement) => {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
 
 const createProps = (overrides: Partial<HealthPanelProps> = {}): HealthPanelProps => ({
   scenarioName: "alpha",
@@ -24,14 +33,14 @@ const createProps = (overrides: Partial<HealthPanelProps> = {}): HealthPanelProp
 
 describe("HealthPanel", () => {
   it("renders no-issues state", () => {
-    render(<HealthPanel {...createProps()} />);
+    renderWithQueryClient(<HealthPanel {...createProps()} />);
 
     expect(screen.getByText(/No documentation issues detected/i)).toBeDefined();
     expect(screen.getByText(/10 docs/i)).toBeDefined();
   });
 
   it("renders missing docs list", () => {
-    render(
+    renderWithQueryClient(
       <HealthPanel
         {...createProps({
           healthViewModel: {

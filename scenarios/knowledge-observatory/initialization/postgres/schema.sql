@@ -81,6 +81,30 @@ CREATE TABLE IF NOT EXISTS knowledge_observatory.deep_search_jobs (
 ALTER TABLE IF EXISTS knowledge_observatory.deep_search_jobs
     ADD COLUMN IF NOT EXISTS max_results INTEGER;
 
+-- Documentation healing jobs
+CREATE TABLE IF NOT EXISTS knowledge_observatory.doc_heal_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scenario_name VARCHAR(255) NOT NULL,
+    issues JSONB,
+    auto_approve BOOLEAN DEFAULT FALSE,
+    dry_run BOOLEAN DEFAULT FALSE,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'running', 'needs_review', 'approved', 'rejected', 'failed')),
+    progress TEXT,
+    diff JSONB,
+    agent_run_id UUID,
+    error TEXT,
+    health_before DECIMAL(3,2),
+    health_after DECIMAL(3,2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    approved_at TIMESTAMP WITH TIME ZONE,
+    approved_by TEXT,
+    rejected_at TIMESTAMP WITH TIME ZONE,
+    rejected_by TEXT,
+    reject_reason TEXT
+);
+
 -- External ID mappings for idempotency (per namespace)
 CREATE TABLE IF NOT EXISTS knowledge_observatory.external_id_map (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -172,6 +196,9 @@ CREATE INDEX IF NOT EXISTS idx_ingest_jobs_created ON knowledge_observatory.inge
 CREATE INDEX IF NOT EXISTS idx_ingest_jobs_status ON knowledge_observatory.ingest_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_created ON knowledge_observatory.deep_search_jobs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_deep_search_jobs_status ON knowledge_observatory.deep_search_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_doc_heal_jobs_created ON knowledge_observatory.doc_heal_jobs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_doc_heal_jobs_status ON knowledge_observatory.doc_heal_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_doc_heal_jobs_scenario ON knowledge_observatory.doc_heal_jobs(scenario_name);
 CREATE INDEX IF NOT EXISTS idx_external_id_map_namespace ON knowledge_observatory.external_id_map(namespace);
 CREATE INDEX IF NOT EXISTS idx_external_id_map_external_id ON knowledge_observatory.external_id_map(external_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_metadata_collection ON knowledge_observatory.knowledge_metadata(collection_name);

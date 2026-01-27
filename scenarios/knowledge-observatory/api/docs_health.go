@@ -81,7 +81,7 @@ func (s *Server) handleDocsHealth(w http.ResponseWriter, r *http.Request) {
 		MissingDocs:   missing,
 		ExtraDocs:     result.Validation.ExtraDocs,
 		Warnings:      warnings,
-		CanAutoFix:    false,
+		CanAutoFix:    s.docHealingService != nil && result.Validation.HealthScore < 1,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

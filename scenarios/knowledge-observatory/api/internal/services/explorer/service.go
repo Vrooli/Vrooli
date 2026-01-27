@@ -1,6 +1,6 @@
 package explorer
 
-// DOC: docs/plans/knowledge-observatory-documentation-hub-expansion.md#phase-2-scenario-documentation-explorer-week-3
+// DOC: ../../docs/plans/knowledge-observatory-documentation-hub-expansion.md#phase-2-scenario-documentation-explorer-week-3
 
 import (
 	"context"

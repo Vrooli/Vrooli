@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// DOC: scenarios/prompt-manager/skills/core/documentation-health.md#bidirectional-reference-format
+// DOC: ../prompt-manager/skills/core/documentation-health.md#bidirectional-reference-format
 
 type ReferenceKind string
 
@@ -48,7 +48,7 @@ func ParseMarkdownReferences(content string) []Reference {
 	return refs
 }
 
-// ParseDocCommentReferences extracts // DOC: references from code.
+// ParseDocCommentReferences extracts DOC references from code.
 func ParseDocCommentReferences(content string) []Reference {
 	lines := strings.Split(content, "\n")
 	var refs []Reference

@@ -352,7 +352,7 @@ Returns documentation health for a scenario (misplaced, missing, extra docs).
   "warnings": [
     {"type": "misplaced", "message": "Documentation file is in the wrong location", "expected_path": "docs/internal/PROGRESS.md", "severity": "warning"}
   ],
-  "can_auto_fix": false
+  "can_auto_fix": true
 }
 ```
 
@@ -384,6 +384,71 @@ Returns documentation health for a scenario (misplaced, missing, extra docs).
 [CODE: api/docs_health.go]
 [CODE: api/internal/docschema/validation.go]
 [CODE: api/internal/docschema/reset.go]
+
+## Documentation Healing
+`POST /api/v1/scenarios/{name}/docs/heal`
+
+Spawn a documentation healing agent for a scenario.
+
+**Request**
+```json
+{
+  "scenario_name": "knowledge-observatory",
+  "issues": ["Missing: seams (docs/internal/SEAMS.md)"],
+  "auto_approve": false,
+  "dry_run": true
+}
+```
+
+**Response**
+```json
+{
+  "job_id": "uuid",
+  "scenario_name": "knowledge-observatory",
+  "status": "running",
+  "progress": "10% - scanning docs",
+  "health_before": 0.72,
+  "started_at": "2026-01-26T18:45:02Z"
+}
+```
+
+`GET /api/v1/docs/heal/{job_id}`
+
+Check healing job status and diff preview.
+
+**Response**
+```json
+{
+  "job_id": "uuid",
+  "scenario_name": "knowledge-observatory",
+  "status": "needs_review",
+  "health_before": 0.72,
+  "health_after": 0.92,
+  "diff": {
+    "summary": "Moved SEAMS.md into docs/internal and updated manifest.",
+    "files": [
+      {
+        "path": "scenarios/knowledge-observatory/docs/internal/SEAMS.md",
+        "operation": "modify",
+        "diff": "diff --git a/... b/..."
+      }
+    ]
+  }
+}
+```
+
+`POST /api/v1/docs/heal/{job_id}/approve`
+
+Approve and apply healing changes.
+
+`POST /api/v1/docs/heal/{job_id}/reject`
+
+Reject and discard healing changes.
+
+[CODE: api/docs_heal.go]
+[CODE: api/internal/services/dochealing/service.go]
+[CODE: api/internal/adapters/agentmanager/dochealing_client.go]
+[CODE: api/internal/adapters/dochealingstore/postgres.go]
 
 ## Upsert Record
 `POST /api/v1/knowledge/records/upsert`

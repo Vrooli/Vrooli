@@ -494,6 +494,72 @@ body {
     color: rgb(var(--ko-text-muted));
   }
 
+  .ko-modal-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center px-4 py-6;
+    background-color: rgb(var(--ko-surface-strong) / 0.65);
+    backdrop-filter: blur(6px);
+  }
+
+  .ko-modal {
+    @apply w-full max-w-3xl rounded-lg border p-6 space-y-4;
+    background-color: rgb(var(--ko-surface) / 0.95);
+    border-color: rgb(var(--ko-border-strong) / 0.6);
+    box-shadow: 0 25px 60px rgb(var(--ko-surface-strong) / 0.7);
+  }
+
+  .ko-modal-header {
+    @apply flex items-start justify-between gap-4;
+  }
+
+  .ko-modal-body {
+    @apply space-y-4;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .ko-modal-footer {
+    @apply flex justify-end;
+  }
+
+  .ko-checkbox-row {
+    @apply flex items-start gap-2 text-sm;
+  }
+
+  .ko-checkbox-row input {
+    accent-color: rgb(var(--ko-accent));
+  }
+
+  .ko-inline-status {
+    @apply inline-flex items-center gap-2 text-xs;
+    color: rgb(var(--ko-text-muted));
+  }
+
+  .ko-diff-list {
+    @apply space-y-3;
+  }
+
+  .ko-diff-card {
+    border: 1px solid rgb(var(--ko-border) / 0.6);
+    background-color: rgb(var(--ko-surface-strong) / 0.5);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .ko-diff-header {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .ko-diff-code {
+    @apply mt-3 text-xs;
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    max-height: 240px;
+    overflow: auto;
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
   .ko-viewer-shell {
     @apply gap-6;
   }

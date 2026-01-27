@@ -136,6 +136,38 @@ export interface DeepSearchJob {
   error?: string;
 }
 
+export interface DocHealRequest {
+  scenario_name: string;
+  issues?: string[];
+  auto_approve?: boolean;
+  dry_run?: boolean;
+}
+
+export interface DocHealFileDiff {
+  path: string;
+  operation: string;
+  old_path?: string;
+  diff: string;
+}
+
+export interface DocHealDiff {
+  files: DocHealFileDiff[];
+  summary: string;
+}
+
+export interface DocHealJob {
+  job_id: string;
+  scenario_name: string;
+  status: string;
+  progress?: string;
+  started_at?: string;
+  completed_at?: string;
+  diff?: DocHealDiff;
+  health_before?: number;
+  health_after?: number;
+  error?: string;
+}
+
 export async function fetchScenarioSummaries(): Promise<ScenarioSummary[]> {
   const url = buildApiUrl("/api/v1/scenarios", { baseUrl: API_BASE });
   const res = await fetch(url, {
@@ -297,6 +329,81 @@ export async function fetchDeepSearchJob(jobId: string): Promise<DeepSearchJob> 
   return normalizeDeepSearchJob(data);
 }
 
+export async function startDocHealing(payload: DocHealRequest): Promise<DocHealJob> {
+  const scenario = payload.scenario_name.trim();
+  if (!scenario) {
+    throw new Error("Scenario name is required");
+  }
+  const url = buildApiUrl(`/api/v1/scenarios/${encodeURIComponent(scenario)}/docs/heal`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc healing failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocHealJob(data);
+}
+
+export async function fetchDocHealingJob(jobId: string): Promise<DocHealJob> {
+  const trimmed = jobId.trim();
+  if (!trimmed) {
+    throw new Error("Job ID is required");
+  }
+  const url = buildApiUrl(`/api/v1/docs/heal/${encodeURIComponent(trimmed)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc healing status failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocHealJob(data);
+}
+
+export async function approveDocHealing(jobId: string, actor?: string): Promise<DocHealJob> {
+  const trimmed = jobId.trim();
+  if (!trimmed) {
+    throw new Error("Job ID is required");
+  }
+  const url = buildApiUrl(`/api/v1/docs/heal/${encodeURIComponent(trimmed)}/approve`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: actor?.trim() || undefined }),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc healing approve failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocHealJob(data);
+}
+
+export async function rejectDocHealing(jobId: string, actor?: string, reason?: string): Promise<DocHealJob> {
+  const trimmed = jobId.trim();
+  if (!trimmed) {
+    throw new Error("Job ID is required");
+  }
+  const url = buildApiUrl(`/api/v1/docs/heal/${encodeURIComponent(trimmed)}/reject`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: actor?.trim() || undefined, reason: reason?.trim() || undefined }),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc healing reject failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocHealJob(data);
+}
+
 export async function resetDocContent(request: DocResetRequest): Promise<DocResetResponse> {
   const trimmed = request.path.trim();
   if (!trimmed) {
@@ -349,6 +456,51 @@ const normalizeDeepSearchJob = (value: unknown): DeepSearchJob => {
     error: toNonEmptyString(value.error),
     results: normalizeDeepSearchResults(value.results),
   };
+};
+
+const normalizeDocHealJob = (value: unknown): DocHealJob => {
+  if (!isRecord(value)) {
+    throw new Error("Invalid doc healing response");
+  }
+  return {
+    job_id: toNonEmptyString(value.job_id) ?? "",
+    scenario_name: toNonEmptyString(value.scenario_name) ?? "",
+    status: toNonEmptyString(value.status) ?? "unknown",
+    progress: toNonEmptyString(value.progress),
+    started_at: toNonEmptyString(value.started_at),
+    completed_at: toNonEmptyString(value.completed_at),
+    error: toNonEmptyString(value.error),
+    health_before: toFiniteNumber(value.health_before),
+    health_after: toFiniteNumber(value.health_after),
+    diff: normalizeDocHealDiff(value.diff),
+  };
+};
+
+const normalizeDocHealDiff = (value: unknown): DocHealDiff | undefined => {
+  if (!isRecord(value)) return undefined;
+  return {
+    summary: toNonEmptyString(value.summary) ?? "",
+    files: normalizeDocHealFiles(value.files),
+  };
+};
+
+const normalizeDocHealFiles = (value: unknown): DocHealFileDiff[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const path = toNonEmptyString(item.path);
+    const operation = toNonEmptyString(item.operation);
+    const diff = typeof item.diff === "string" ? item.diff : undefined;
+    if (!path || !operation || diff === undefined) return [];
+    return [
+      {
+        path,
+        operation,
+        old_path: toNonEmptyString(item.old_path),
+        diff,
+      },
+    ];
+  });
 };
 
 const normalizeDeepSearchResults = (value: unknown): DeepSearchResult[] => {

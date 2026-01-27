@@ -86,6 +86,18 @@ Ollama  Qdrant  Postgres
 [CODE: api/internal/adapters/agentmanager/deepsearch_client.go]
 [CODE: api/internal/adapters/deepsearchstore/postgres.go]
 
+## Documentation Healing Flow
+1. Validate current documentation health for the scenario.
+2. Spawn a sandboxed agent run with the documentation-health skill.
+3. Retrieve the run diff from agent-manager for review.
+4. Estimate projected health after applying file changes.
+5. Approve or reject changes via agent-manager.
+
+[CODE: api/docs_heal.go]
+[CODE: api/internal/services/dochealing/service.go]
+[CODE: api/internal/adapters/agentmanager/dochealing_client.go]
+[CODE: api/internal/adapters/dochealingstore/postgres.go]
+
 ## Documentation Explorer Flow
 1. List scenarios with documentation stats.
 2. Build scenario doc tree with doc type hints and health warnings.
