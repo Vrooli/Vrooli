@@ -10,7 +10,7 @@ pyautogui==0.9.54
 pillow==10.1.0
 
 # Utilities
-python-multipart==0.0.6
+python-multipart==0.0.22
 requests==2.31.0
 aiofiles==23.2.1
 
