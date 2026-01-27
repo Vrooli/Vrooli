@@ -26,6 +26,9 @@ This skill provides concrete patterns that ensure agents across multiple session
 
 Documentation should align with the mental model hierarchy used in screaming-architecture-audit:
 
+Required reading:
+- `prompt-manager skills read screaming-architecture-audit`
+
 ```
                       PRD.md
                    (Why does this exist?)

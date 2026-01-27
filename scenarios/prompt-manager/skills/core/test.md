@@ -13,6 +13,9 @@ Focus on producing a **high-signal, trustworthy test suite** that accurately ref
 
 * For **UI-level validation**, e2e tests are handled by BAS workflows in `bas/` directories. See the **e2e-testing** skill for strategy and the **browser-automation-studio** skill for CLI usage. This skill focuses on unit and integration tests that complement (not duplicate) e2e coverage.
 
+Optional reading:
+- `prompt-manager skills read e2e-testing browser-automation-studio`
+
 * Ensure **each operational target** has clear, meaningful test coverage through its linked technical requirements.
 * Where gaps exist, add tests that validate the **actual behavior** users and systems depend on, not just internal implementation details.
 * Prefer tests that verify the **full intent** of a requirement (happy path + key edge cases), rather than narrow or trivial assertions.

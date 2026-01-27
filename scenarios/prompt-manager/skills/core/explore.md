@@ -20,6 +20,9 @@ Focus on generating **novel ideas, alternative approaches, and fresh perspective
 
 * For **UI exploration**, consider using BAS AI navigation to let a vision model explore the interface based on natural language prompts. This can surface unexpected UX issues or edge cases. See **browser-automation-studio** skill section on AI Navigation.
 
+Optional reading:
+- `prompt-manager skills read browser-automation-studio`
+
 Exploration should be **curiosity-driven**, not tied to immediate completeness gains.
 
 ### **2. Safe, Reversible Experimentation**

@@ -493,6 +493,9 @@ visited-tracker visit <file-path> \
 | react-stability | Crash prevention | Stability patterns apply equally to R3F components |
 | performance | General optimization | After R3F-specific fixes, apply general perf patterns |
 
+Optional reading:
+- `prompt-manager skills read react-coherence react-stability performance`
+
 **Recommended sequence for R3F work:**
 1. **r3f-coherence** (audit) → find re-render bugs and animation issues
 2. **react-stability** → ensure error boundaries and defensive patterns

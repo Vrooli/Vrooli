@@ -499,6 +499,9 @@ visited-tracker exclude <file-path> \
 | refactor | General cleanup | Use after coherence audit identifies structural issues |
 | code-cleanup | Dead code removal | Coherence may reveal dead/duplicate code to clean |
 
+Optional reading:
+- `prompt-manager skills read react-stability experience-architecture-audit refactor code-cleanup`
+
 **Recommended sequence for major work:**
 1. **react-coherence** (audit) → understand current state
 2. **react-stability** → ensure crash resistance

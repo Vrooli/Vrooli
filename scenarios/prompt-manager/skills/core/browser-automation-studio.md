@@ -4,6 +4,9 @@ Reference for using Browser Automation Studio (BAS) to execute workflows, analyz
 
 This skill covers **tool usage**. For e2e testing strategy and workflow organization, see the **e2e-testing** skill.
 
+Required reading:
+- `prompt-manager skills read e2e-testing`
+
 ---
 
 ### **1. Core Commands Reference**

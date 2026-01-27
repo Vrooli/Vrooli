@@ -7,6 +7,9 @@ Focus on validating **requirements and user-visible behavior**, not implementati
 
 For CLI commands and artifact analysis, see the **browser-automation-studio** skill.
 
+Optional reading:
+- `prompt-manager skills read browser-automation-studio`
+
 ---
 
 ### **1. When to Use E2E Testing**

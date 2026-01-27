@@ -19,6 +19,9 @@ Focus on producing a **professional, polished, friction-free user experience**, 
   * See **browser-automation-studio** skill for validating selectors with BAS CLI
   * See **e2e-testing** skill for selector registry standards and workflow authoring patterns
 
+Optional reading:
+- `prompt-manager skills read browser-automation-studio e2e-testing`
+
 ### **2. Layout & Information Hierarchy**
 
 * Organize content so the user’s attention naturally follows an **F-shaped visual scanning pattern**:
