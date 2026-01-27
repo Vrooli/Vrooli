@@ -13,6 +13,16 @@
       "file": "balanced/profile.json"
     },
     {
+      "id": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2",
+      "name": "From Scratch",
+      "description": "The entire scenario development lifecycle, after initial setup",
+      "tags": [
+        "Fullstack"
+      ],
+      "kind": "profile",
+      "file": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2/profile.json"
+    },
+    {
       "id": "production-ready",
       "name": "Production Ready",
       "description": "Comprehensive quality assurance for production deployment. Covers all quality dimensions thoroughly.",

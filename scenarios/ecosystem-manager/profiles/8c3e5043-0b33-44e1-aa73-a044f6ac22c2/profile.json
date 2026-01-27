@@ -1,0 +1,341 @@
+{
+  "id": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2",
+  "name": "From Scratch",
+  "description": "The entire scenario development lifecycle, after initial setup",
+  "phases": [
+    {
+      "id": "phase-1769543721896-0",
+      "skill_id": "screaming-architecture-audit",
+      "skill_name": "Screaming Architecture",
+      "modes": [
+        "Architecture",
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769543967122-1",
+      "skill_id": "boundary-of-responsibility-enforcement",
+      "skill_name": "Boundary of Responsibility Enforcement",
+      "modes": [
+        "Architecture"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769543967128-2",
+      "skill_id": "seam-discovery-and-enforcement",
+      "skill_name": "Seam Discovery \u0026 Enforcement",
+      "modes": [
+        "Architecture"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769543967133-3",
+      "skill_id": "control-surface-tunable-levers-design",
+      "skill_name": "Control Surface \u0026 Tunable Levers",
+      "modes": [
+        "Configuration"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544084836-4",
+      "skill_id": "failure-topography-and-graceful-degradation",
+      "skill_name": "Failure Topography \u0026 Graceful Degradation",
+      "modes": [
+        "Reliability"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544904158-14",
+      "skill_id": "error-semantics-recovery-path-design",
+      "skill_name": "Error Semantics \u0026 Recovery Path",
+      "modes": [
+        "ErrorHandling"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544827657-12",
+      "skill_id": "intent-clarification",
+      "skill_name": "Intent Clarification",
+      "modes": [
+        "Documentation"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544631730-5",
+      "skill_id": "change-axis-and-evolution-resilience-audit",
+      "skill_name": "Change Axis \u0026 Evolution Resilience",
+      "modes": [
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544870985-13",
+      "skill_id": "documentation-health",
+      "skill_name": "Documentation Health",
+      "modes": [
+        "Documentation",
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544648573-6",
+      "skill_id": "react-stability",
+      "skill_name": "React Stability",
+      "modes": [
+        "React"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544684039-7",
+      "skill_id": "react-coherence",
+      "skill_name": "React Coherence",
+      "modes": [
+        "React"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544690780-8",
+      "skill_id": "utils-unification",
+      "skill_name": "Utils Unification",
+      "modes": [
+        "Architecture",
+        "Refactor"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 2
+    },
+    {
+      "id": "phase-1769544698478-9",
+      "skill_id": "progress",
+      "skill_name": "Progress",
+      "modes": [
+        "Progress"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 3
+    },
+    {
+      "id": "phase-1769544749169-10",
+      "skill_id": "decision-boundary-extraction",
+      "skill_name": "Decision Boundary Extraction",
+      "modes": [
+        "Analysis"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544788809-12",
+      "skill_id": "cognitive-load-reduction",
+      "skill_name": "Cognitive Load Reduction",
+      "modes": [
+        "Simplification"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769545016290-18",
+      "skill_id": "progress",
+      "skill_name": "Progress",
+      "stop_conditions": null,
+      "max_iterations": 3
+    },
+    {
+      "id": "phase-1769545350881-32",
+      "skill_id": "screaming-architecture-audit",
+      "skill_name": "Screaming Architecture",
+      "modes": [
+        "Architecture",
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 2
+    },
+    {
+      "id": "phase-1769544985847-17",
+      "skill_id": "temporal-flow-audit",
+      "skill_name": "Temporal Flow Audit",
+      "modes": [
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544950632-15",
+      "skill_id": "idempotency-replay-safety-hardening",
+      "skill_name": "Idempotency \u0026 Replay Safety",
+      "modes": [
+        "Reliability"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769544971990-16",
+      "skill_id": "signal-and-feedback-surface-design",
+      "skill_name": "Signal \u0026 Feedback Surface Design",
+      "modes": [
+        "Observability"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769545038645-19",
+      "skill_id": "progress",
+      "skill_name": "Progress",
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545096804-22",
+      "skill_id": "utils-unification",
+      "skill_name": "Utils Unification",
+      "modes": [
+        "Architecture",
+        "Refactor"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 2
+    },
+    {
+      "id": "phase-1769545127001-23",
+      "skill_id": "refactor",
+      "skill_name": "Refactor",
+      "modes": [
+        "Refactor"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545047133-20",
+      "skill_id": "seam-discovery-and-enforcement",
+      "skill_name": "Seam Discovery \u0026 Enforcement",
+      "modes": [
+        "Architecture"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 1
+    },
+    {
+      "id": "phase-1769545084297-21",
+      "skill_id": "test",
+      "skill_name": "Test",
+      "modes": [
+        "Test"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545254920-28",
+      "skill_id": "progress",
+      "skill_name": "Progress",
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545171441-24",
+      "skill_id": "react-stability",
+      "skill_name": "React Stability",
+      "modes": [
+        "React"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545200875-25",
+      "skill_id": "react-coherence",
+      "skill_name": "React Coherence",
+      "modes": [
+        "React"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545215177-26",
+      "skill_id": "experience-architecture-audit",
+      "skill_name": "Experience Architecture Audit",
+      "modes": [
+        "UX",
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545226992-27",
+      "skill_id": "navigation-integrity-audit",
+      "skill_name": "Navigation Integrity Audit",
+      "modes": [
+        "UX",
+        "Audits"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 2
+    },
+    {
+      "id": "phase-1769545295306-30",
+      "skill_id": "refactor",
+      "skill_name": "Refactor",
+      "modes": [
+        "Refactor"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545318334-31",
+      "skill_id": "test",
+      "skill_name": "Test",
+      "modes": [
+        "Test"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 5
+    },
+    {
+      "id": "phase-1769545276906-29",
+      "skill_id": "e2e-testing",
+      "skill_name": "E2E Testing",
+      "modes": [
+        "Test"
+      ],
+      "stop_conditions": null,
+      "max_iterations": 10
+    }
+  ],
+  "quality_gates": null,
+  "created_at": "2026-01-27T20:00:06.143729669Z",
+  "updated_at": "2026-01-27T20:23:08.234499718Z",
+  "tags": [
+    "Fullstack"
+  ]
+}
