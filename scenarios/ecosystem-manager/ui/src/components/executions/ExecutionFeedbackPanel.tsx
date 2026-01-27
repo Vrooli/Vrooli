@@ -146,7 +146,7 @@ export function ExecutionFeedbackPanel({
                     Action: {entry.suggested_action}
                   </p>
                 )}
-                {entry.metadata?.subsystem && (
+                {typeof entry.metadata?.subsystem === 'string' && entry.metadata.subsystem.trim() && (
                   <p className="text-xs text-slate-400">
                     Subsystem: {entry.metadata.subsystem}
                   </p>
@@ -172,12 +172,11 @@ export function ExecutionFeedbackPanel({
             <div className="space-y-2">
               <Label htmlFor="feedback-category">Category</Label>
               <Select
-                id="feedback-category"
                 value={category}
                 onValueChange={(value) => setCategory(value)}
                 disabled={formDisabled}
               >
-                <SelectTrigger>
+                <SelectTrigger id="feedback-category">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,12 +191,11 @@ export function ExecutionFeedbackPanel({
             <div className="space-y-2">
               <Label htmlFor="feedback-severity">Severity</Label>
               <Select
-                id="feedback-severity"
                 value={severity}
                 onValueChange={(value) => setSeverity(value)}
                 disabled={formDisabled}
               >
-                <SelectTrigger>
+                <SelectTrigger id="feedback-severity">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

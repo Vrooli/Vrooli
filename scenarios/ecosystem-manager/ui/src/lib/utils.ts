@@ -5,18 +5,39 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const BUILT_IN_PHASE_LABELS: Record<string, string> = {
+  progress: 'Progress',
+  ux: 'UX',
+  refactor: 'Refactor',
+  test: 'Test',
+  explore: 'Explore',
+  polish: 'Polish',
+  performance: 'Performance',
+  security: 'Security',
+};
+
 /**
  * Formats a phase name (e.g., "progress-mode" -> "Progress Mode")
  */
 export function formatPhaseName(name: string): string {
   return name
-    .split('-')
+    .split(/[-_]/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
 
 export function normalizeSteerMode(mode?: string): string {
   return (mode ?? '').trim().toLowerCase();
+}
+
+export function getPhaseDisplayName(
+  phaseId?: string,
+  phases: Array<{ id: string; name: string }> = []
+): string | undefined {
+  if (!phaseId) return undefined;
+  const normalized = normalizeSteerMode(phaseId);
+  const match = phases.find((phase) => normalizeSteerMode(phase.id) === normalized);
+  return match?.name ?? BUILT_IN_PHASE_LABELS[normalized] ?? formatPhaseName(phaseId);
 }
 
 export function getApiErrorMessage(error: unknown): string {

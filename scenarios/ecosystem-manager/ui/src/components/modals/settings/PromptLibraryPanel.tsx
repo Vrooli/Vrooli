@@ -112,11 +112,10 @@ export function PromptLibraryPanel() {
 
     // Add skills from prompt-manager
     steerSkills.forEach((skill) => {
-      const modeName = skill.modes?.find((m) => m.toLowerCase() !== 'steer') || skill.name;
       groups.skill.push({
         id: `skill:${skill.id}`,
-        displayName: modeName,
-        description: skill.description || `Steer skill: ${modeName}`,
+        displayName: skill.name,
+        description: skill.description || `Steer skill: ${skill.name}`,
         type: 'skill',
         skill,
       });

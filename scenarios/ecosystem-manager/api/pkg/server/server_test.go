@@ -119,7 +119,7 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 }
 
 func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
-	router, queueDir, cleanup := setupTestServer(t)
+	router, _, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -127,8 +127,8 @@ func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
 
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rr.Code, rr.Body.String())
 	}
 
 	var response map[string]any
@@ -136,20 +136,19 @@ func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	if response["version"] != "test-version" {
-		t.Fatalf("expected version test-version, got %v", response["version"])
+	if response["version"] != apiVersion {
+		t.Fatalf("expected version %s, got %v", apiVersion, response["version"])
 	}
-
 	deps, ok := response["dependencies"].(map[string]any)
 	if !ok {
 		t.Fatalf("dependencies missing")
 	}
-	storageDep, ok := deps["storage"].(map[string]any)
+	dbDep, ok := deps["database"].(map[string]any)
 	if !ok {
-		t.Fatalf("storage dependency missing")
+		t.Fatalf("database dependency missing")
 	}
-	if storageDep["path"] != queueDir {
-		t.Fatalf("expected storage path %s, got %v", queueDir, storageDep["path"])
+	if connected, ok := dbDep["connected"].(bool); !ok || connected {
+		t.Fatalf("expected database connected=false, got %v", dbDep["connected"])
 	}
 }
 

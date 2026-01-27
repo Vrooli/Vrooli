@@ -180,7 +180,9 @@ type StopCondition struct {
 // SteerPhase represents a single phase in an Auto Steer profile
 type SteerPhase struct {
 	ID             string          `json:"id"`
-	Mode           SteerMode       `json:"mode"`
+	SkillID        string          `json:"skill_id"`
+	SkillName      string          `json:"skill_name"`
+	Modes          []string        `json:"modes,omitempty"`
 	StopConditions []StopCondition `json:"stop_conditions"`
 	MaxIterations  int             `json:"max_iterations"`
 	Description    string          `json:"description,omitempty"`
@@ -286,7 +288,9 @@ type SecurityMetrics struct {
 // PhaseExecution represents the execution of a single phase
 type PhaseExecution struct {
 	PhaseID      string          `json:"phase_id"`
-	Mode         SteerMode       `json:"mode"`
+	SkillID      string          `json:"skill_id"`
+	SkillName    string          `json:"skill_name"`
+	Modes        []string        `json:"modes,omitempty"`
 	Iterations   int             `json:"iterations"`
 	StartMetrics MetricsSnapshot `json:"start_metrics"`
 	EndMetrics   MetricsSnapshot `json:"end_metrics"`
@@ -313,7 +317,9 @@ type ProfileExecutionState struct {
 
 // PhasePerformance tracks metrics for a completed phase
 type PhasePerformance struct {
-	Mode          SteerMode          `json:"mode"`
+	SkillID       string             `json:"skill_id"`
+	SkillName     string             `json:"skill_name"`
+	Modes         []string           `json:"modes,omitempty"`
 	Iterations    int                `json:"iterations"`
 	MetricDeltas  map[string]float64 `json:"metric_deltas"` // metric_name -> change
 	Duration      int64              `json:"duration"`      // milliseconds

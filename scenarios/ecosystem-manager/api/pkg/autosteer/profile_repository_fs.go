@@ -507,6 +507,7 @@ func clonePhases(phases []SteerPhase) []SteerPhase {
 	cloned := make([]SteerPhase, len(phases))
 	for i, phase := range phases {
 		cloned[i] = phase
+		cloned[i].Modes = append([]string(nil), phase.Modes...)
 		cloned[i].StopConditions = cloneStopConditions(phase.StopConditions)
 	}
 	return cloned

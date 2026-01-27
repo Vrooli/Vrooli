@@ -90,7 +90,8 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	phaseBreakdown := []PhasePerformance{
 		{
-			Mode:       ModeProgress,
+			SkillID:    "progress",
+			SkillName:  "Progress",
 			Iterations: 10,
 			MetricDeltas: map[string]float64{
 				"operational_targets_percentage": 30.0,
@@ -99,7 +100,8 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 			Effectiveness: 3.0,
 		},
 		{
-			Mode:       ModeUX,
+			SkillID:    "ux",
+			SkillName:  "UX",
 			Iterations: 5,
 			MetricDeltas: map[string]float64{
 				"accessibility_score": 22.0,
@@ -462,7 +464,7 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 			t.Error("Expected phase statistics")
 		}
 
-		progressStats, ok := analytics.PhaseStats[ModeProgress]
+		progressStats, ok := analytics.PhaseStats["progress"]
 		if !ok {
 			t.Error("Expected statistics for Progress mode")
 		} else {
@@ -535,7 +537,7 @@ func TestHistoryService_PhaseEffectiveness(t *testing.T) {
 	}
 
 	// Check UX phase effectiveness
-	uxStats, ok := analytics.PhaseStats[ModeUX]
+	uxStats, ok := analytics.PhaseStats["ux"]
 	if !ok {
 		t.Fatal("Expected UX phase statistics")
 	}

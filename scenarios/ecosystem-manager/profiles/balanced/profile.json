@@ -5,7 +5,9 @@
   "phases": [
     {
       "id": "balanced-progress",
-      "mode": "progress",
+      "skill_id": "progress",
+      "skill_name": "Progress",
+      "modes": [],
       "stop_conditions": [
         {
           "type": "compound",
@@ -30,7 +32,9 @@
     },
     {
       "id": "balanced-ux",
-      "mode": "ux",
+      "skill_id": "ux",
+      "skill_name": "UX",
+      "modes": [],
       "stop_conditions": [
         {
           "type": "compound",
@@ -67,7 +71,9 @@
     },
     {
       "id": "balanced-refactor",
-      "mode": "refactor",
+      "skill_id": "refactor",
+      "skill_name": "Refactor",
+      "modes": [],
       "stop_conditions": [
         {
           "type": "compound",
@@ -92,7 +98,9 @@
     },
     {
       "id": "balanced-test",
-      "mode": "test",
+      "skill_id": "test",
+      "skill_name": "Test",
+      "modes": [],
       "stop_conditions": [
         {
           "type": "compound",

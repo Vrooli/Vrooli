@@ -13,7 +13,7 @@ profiles/
 
 ## Rules
 - `metadata.json` is authoritative for **id, name, description, tags, kind, file path**.
-- `profile.json` contains the full Auto Steer profile configuration (phases, quality gates, etc.).
+- `profile.json` contains the full Auto Steer profile configuration (phases, quality gates, etc.). Phases store `skill_id`, `skill_name`, and `modes` (breadcrumb hints) instead of a single mode string.
 - Keep `metadata.json` and `profile.json` in sync; mismatches are treated as errors.
 - `kind` is either `template` or `profile`.
 

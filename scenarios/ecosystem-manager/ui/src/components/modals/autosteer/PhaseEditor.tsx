@@ -8,13 +8,13 @@ import { ArrowDown, ArrowUp, ChevronDown, CodeIcon, Copy, GripVertical, Trash2 }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { AutoSteerPhase, SteerMode } from '@/types/api';
+import type { AutoSteerPhase } from '@/types/api';
 import { ConditionBuilderModal } from './ConditionBuilderModal';
 import { Slider } from '@/components/ui/slider';
 import { AVAILABLE_METRICS } from './ConditionNode';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { PhasePicker } from '@/components/steer/PhasePicker';
-import { normalizeSteerMode } from '@/lib/utils';
+import { getPhaseDisplayName } from '@/lib/utils';
 
 interface PhaseEditorProps {
   phase: AutoSteerPhase;
@@ -69,13 +69,32 @@ export function PhaseEditor({
   const conditionCount = phase.stop_conditions?.length || 0;
   const conditionSummary = (phase.stop_conditions || []).map((condition) => summarizeCondition(condition));
 
-  const modeLabel = phase.mode ? toTitleCase(phase.mode) : 'Select a mode';
-  const normalizedMode = normalizeSteerMode(phase.mode);
-  const selectedPhase = normalizedMode
-    ? phaseNames.find(p => normalizeSteerMode(p.name) === normalizedMode)
-    : undefined;
+  const selectedPhase = phase.skill_id ? phaseNames.find((p) => p.id === phase.skill_id) : undefined;
+  const modeLabel =
+    phase.skill_name || getPhaseDisplayName(phase.skill_id, phaseNames) || 'Select a phase';
   const modeDescription = selectedPhase?.description || `Phase: ${modeLabel}`;
   const maxIterations = phase.max_iterations || 10;
+
+  const handlePhaseSelect = (phaseId?: string) => {
+    if (!phaseId) {
+      onChange({ ...phase, skill_id: '', skill_name: '', modes: [] });
+      return;
+    }
+
+    const selected = phaseNames.find((p) => p.id === phaseId);
+    const displayName = getPhaseDisplayName(phaseId, phaseNames) ?? '';
+    if (!selected) {
+      onChange({ ...phase, skill_id: phaseId, skill_name: displayName, modes: [] });
+      return;
+    }
+
+    onChange({
+      ...phase,
+      skill_id: selected.id,
+      skill_name: selected.name,
+      modes: selected.modes ?? [],
+    });
+  };
 
   const containerClasses = [
     'border border-slate-700 rounded-lg shadow-sm',
@@ -140,8 +159,8 @@ export function PhaseEditor({
             <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap" onClick={stopPropagation}>
               <div className="min-w-[180px] flex-1">
                 <PhasePicker
-                  value={phase.mode}
-                  onChange={(mode) => updateField('mode', mode as SteerMode)}
+                  value={phase.skill_id}
+                  onChange={handlePhaseSelect}
                   phaseNames={phaseNames}
                   isLoading={phasesLoading}
                   placeholder="Select a phase"
@@ -240,8 +259,8 @@ export function PhaseEditor({
             <div>
               <Label>Mode *</Label>
               <PhasePicker
-                value={phase.mode}
-                onChange={(mode) => updateField('mode', mode as SteerMode)}
+                value={phase.skill_id}
+                onChange={handlePhaseSelect}
                 phaseNames={phaseNames}
                 isLoading={phasesLoading}
                 placeholder="Select a phase"

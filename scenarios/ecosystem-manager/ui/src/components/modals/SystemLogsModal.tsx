@@ -17,6 +17,7 @@ import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbac
 import { SystemInsightsTab } from '../insights';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import type { ExecutionHistory, LogEntry, ProfilePerformance } from '@/types/api';
@@ -75,6 +76,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     });
 
   const { data: profiles = [] } = useAutoSteerProfiles();
+  const { data: phaseNames = [] } = useMergedPhaseNames();
 
   const profileNameMap = useMemo(
     () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p.name])),
@@ -556,7 +558,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                       )}
                       {filteredExecutions.map((exec) => {
                         const isSelected = exec.id === selectedExecutionId;
-                        const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById);
+                        const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
                         const hasSteerFocus = Boolean(steerFocus.autoSteerProfileName || steerFocus.manualSteerMode);
                         return (
                           <tr
@@ -611,6 +613,8 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 outputText={selectedOutputText}
                 isLoadingPrompt={isFetchingPrompt}
                 isLoadingOutput={isFetchingSelectedOutput}
+                profilesById={autoSteerProfilesById}
+                phaseNames={phaseNames}
               />
             </div>
           </TabsContent>
@@ -793,12 +797,12 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                               .join(', ');
 
                             return (
-                              <div key={`${phase.mode}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
+                              <div key={`${phase.skill_id}-${idx}`} className="border border-white/5 rounded-md p-3 bg-slate-800/60">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-3">
                                     <span className="text-xs text-slate-400">Phase {idx + 1}</span>
                                     <span className="px-2 py-1 text-xs rounded border border-white/10 bg-white/5">
-                                      {phase.mode}
+                                      {phase.skill_name}
                                     </span>
                                   </div>
                                   <div className="text-xs text-slate-300">

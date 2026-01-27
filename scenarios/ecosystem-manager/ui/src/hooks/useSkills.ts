@@ -24,7 +24,6 @@ export function useSyncSkills() {
     mutationFn: () => api.syncSkills(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.skills.list() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.prompts.phaseNames() });
     },
   });
 }
@@ -35,9 +34,7 @@ export function useSyncSkills() {
 export function useSteerSkills() {
   const { data: skills, ...rest } = useSkills();
 
-  const steerSkills = skills?.filter((skill) =>
-    skill.modes?.some((mode) => mode.toLowerCase() === 'steer')
-  );
+  const steerSkills = skills?.filter((skill) => skill.modes?.[0]?.toLowerCase() === 'steer');
 
   return {
     data: steerSkills,

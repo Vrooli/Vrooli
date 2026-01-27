@@ -41,7 +41,8 @@ func TestPhaseCoordinator_ShouldAdvancePhase_MaxIterations(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		Mode:          ModeProgress,
+		SkillID:       "progress",
+		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
 			{Type: ConditionTypeSimple, Metric: "operational_targets_percentage", CompareOperator: OpGreaterThanEquals, Value: 80},
@@ -71,7 +72,8 @@ func TestPhaseCoordinator_ShouldAdvancePhase_ConditionMet(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		Mode:          ModeProgress,
+		SkillID:       "progress",
+		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
 			{Type: ConditionTypeSimple, Metric: "operational_targets_percentage", CompareOperator: OpGreaterThanEquals, Value: 80},
@@ -100,7 +102,8 @@ func TestPhaseCoordinator_ShouldAdvancePhase_Continue(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		Mode:          ModeProgress,
+		SkillID:       "progress",
+		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
 			{Type: ConditionTypeSimple, Metric: "operational_targets_percentage", CompareOperator: OpGreaterThanEquals, Value: 80},
@@ -128,7 +131,8 @@ func TestPhaseCoordinator_ShouldAdvancePhase_UnavailableMetric(t *testing.T) {
 	coordinator := NewPhaseCoordinator(mockEvaluator)
 
 	phase := SteerPhase{
-		Mode:          ModeProgress,
+		SkillID:       "progress",
+		SkillName:     "Progress",
 		MaxIterations: 10,
 		StopConditions: []StopCondition{
 			{Type: ConditionTypeSimple, Metric: "test_metric", CompareOperator: OpGreaterThanEquals, Value: 80},

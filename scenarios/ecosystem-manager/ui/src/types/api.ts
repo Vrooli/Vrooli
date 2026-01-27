@@ -182,7 +182,9 @@ export interface AutoSteerProfile {
 
 export interface AutoSteerPhase {
   id?: string;
-  mode: SteerMode;
+  skill_id: string;
+  skill_name: string;
+  modes: string[];
   max_iterations: number;
   description?: string;
   stop_conditions?: StopCondition[];
@@ -217,7 +219,9 @@ export interface AutoSteerTemplate {
 
 export interface PhaseExecution {
   phase_id?: string;
-  mode?: string;
+  skill_id?: string;
+  skill_name?: string;
+  modes?: string[];
   iterations: number;
   stop_reason?: string;
   started_at?: string;
@@ -284,7 +288,9 @@ export interface MetricsSnapshot {
 }
 
 export interface PhasePerformance {
-  mode: string;
+  skill_id: string;
+  skill_name: string;
+  modes?: string[];
   iterations: number;
   metric_deltas?: Record<string, number>;
   duration: number;
@@ -514,8 +520,11 @@ export interface PromptFile {
 }
 
 export interface PhaseInfo {
+  id: string;
   name: string;
   description?: string;
+  modes?: string[];
+  source?: 'prompt-manager' | 'builtin';
 }
 
 // ==================== Skills Types (from prompt-manager) ====================

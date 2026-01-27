@@ -66,11 +66,11 @@ function getSnapshot(): PhaseUsageData {
 export function usePhaseUsage() {
   const usageData = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const trackUsage = useCallback((phaseName: string) => {
+  const trackUsage = useCallback((phaseId: string) => {
     const current = loadFromStorage();
 
     // Update recent list (prepend, remove duplicates, limit)
-    const newRecent = [phaseName, ...current.recent.filter((p) => p !== phaseName)].slice(
+    const newRecent = [phaseId, ...current.recent.filter((p) => p !== phaseId)].slice(
       0,
       MAX_RECENT
     );
@@ -78,7 +78,7 @@ export function usePhaseUsage() {
     // Increment frequency
     const newFrequency = {
       ...current.frequency,
-      [phaseName]: (current.frequency[phaseName] || 0) + 1,
+      [phaseId]: (current.frequency[phaseId] || 0) + 1,
     };
 
     saveToStorage({
@@ -89,13 +89,15 @@ export function usePhaseUsage() {
   }, []);
 
   const sortByRecent = useCallback(
-    <T extends { name: string }>(phases: T[]): T[] => {
+    <T extends { id?: string; name: string }>(phases: T[]): T[] => {
       const recentSet = new Set(usageData.recent);
       const recentIndex = new Map(usageData.recent.map((name, idx) => [name, idx]));
 
       return [...phases].sort((a, b) => {
-        const aRecent = recentSet.has(a.name);
-        const bRecent = recentSet.has(b.name);
+        const aKey = a.id ?? a.name;
+        const bKey = b.id ?? b.name;
+        const aRecent = recentSet.has(aKey);
+        const bRecent = recentSet.has(bKey);
 
         // Recent items first
         if (aRecent && !bRecent) return -1;
@@ -103,7 +105,7 @@ export function usePhaseUsage() {
 
         // Among recent items, sort by recency (lower index = more recent)
         if (aRecent && bRecent) {
-          return (recentIndex.get(a.name) || 0) - (recentIndex.get(b.name) || 0);
+          return (recentIndex.get(aKey) || 0) - (recentIndex.get(bKey) || 0);
         }
 
         // Non-recent items: alphabetical
@@ -114,10 +116,12 @@ export function usePhaseUsage() {
   );
 
   const sortByFrequency = useCallback(
-    <T extends { name: string }>(phases: T[]): T[] => {
+    <T extends { id?: string; name: string }>(phases: T[]): T[] => {
       return [...phases].sort((a, b) => {
-        const aFreq = usageData.frequency[a.name] || 0;
-        const bFreq = usageData.frequency[b.name] || 0;
+        const aKey = a.id ?? a.name;
+        const bKey = b.id ?? b.name;
+        const aFreq = usageData.frequency[aKey] || 0;
+        const bFreq = usageData.frequency[bKey] || 0;
 
         // Higher frequency first
         if (aFreq !== bFreq) return bFreq - aFreq;
@@ -129,7 +133,7 @@ export function usePhaseUsage() {
     [usageData.frequency]
   );
 
-  const sortByName = useCallback(<T extends { name: string }>(phases: T[]): T[] => {
+  const sortByName = useCallback(<T extends { id?: string; name: string }>(phases: T[]): T[] => {
     return [...phases].sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 

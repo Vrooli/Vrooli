@@ -1,7 +1,7 @@
 import { Compass } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { PhasePicker } from '../PhasePicker';
-import { formatPhaseName } from '@/lib/utils';
+import { getPhaseDisplayName } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 interface ManualPanelProps {
@@ -12,6 +12,8 @@ interface ManualPanelProps {
 }
 
 export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPanelProps) {
+  const displayName = value ? getPhaseDisplayName(value, phaseNames) ?? value : undefined;
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3 mb-4">
@@ -38,9 +40,9 @@ export function ManualPanel({ value, onChange, phaseNames, isLoading }: ManualPa
           dialogTitle="Select Focus Mode"
           dialogDescription="Choose a steering phase for manual mode."
         />
-        {value && (
+        {value && displayName && (
           <p className="text-xs text-slate-500">
-            The task will focus on <span className="text-amber-400">{formatPhaseName(value)}</span>{' '}
+            The task will focus on <span className="text-amber-400">{displayName}</span>{' '}
             improvements.
           </p>
         )}

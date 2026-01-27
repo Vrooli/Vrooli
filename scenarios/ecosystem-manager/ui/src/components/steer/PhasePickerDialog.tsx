@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { cn, formatPhaseName, normalizeSteerMode } from '@/lib/utils';
+import { cn, normalizeSteerMode } from '@/lib/utils';
 import { usePhaseUsage, type SortOption } from '@/hooks/usePhaseUsage';
 import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
 import type { PhaseInfo } from '@/types/api';
@@ -39,14 +39,14 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 const BUILT_IN_PHASES: PhaseInfo[] = [
-  { name: 'progress', description: 'Advance core objectives and operational targets.' },
-  { name: 'ux', description: 'Improve usability, accessibility, and user flows.' },
-  { name: 'refactor', description: 'Raise code quality without changing behavior.' },
-  { name: 'test', description: 'Expand coverage and harden edge cases.' },
-  { name: 'explore', description: 'Explore options before committing to a path.' },
-  { name: 'polish', description: 'Finalize copy, visuals, and small fixes.' },
-  { name: 'performance', description: 'Profile and optimize slow paths.' },
-  { name: 'security', description: 'Reduce vulnerabilities and tighten validation.' },
+  { id: 'progress', name: 'Progress', description: 'Advance core objectives and operational targets.', modes: [], source: 'builtin' },
+  { id: 'ux', name: 'UX', description: 'Improve usability, accessibility, and user flows.', modes: [], source: 'builtin' },
+  { id: 'refactor', name: 'Refactor', description: 'Raise code quality without changing behavior.', modes: [], source: 'builtin' },
+  { id: 'test', name: 'Test', description: 'Expand coverage and harden edge cases.', modes: [], source: 'builtin' },
+  { id: 'explore', name: 'Explore', description: 'Explore options before committing to a path.', modes: [], source: 'builtin' },
+  { id: 'polish', name: 'Polish', description: 'Finalize copy, visuals, and small fixes.', modes: [], source: 'builtin' },
+  { id: 'performance', name: 'Performance', description: 'Profile and optimize slow paths.', modes: [], source: 'builtin' },
+  { id: 'security', name: 'Security', description: 'Reduce vulnerabilities and tighten validation.', modes: [], source: 'builtin' },
 ];
 
 export function PhasePickerDialog({
@@ -77,11 +77,12 @@ export function PhasePickerDialog({
     (phases: PhaseInfo[]) => {
       if (!search.trim()) return phases;
       const searchLower = search.toLowerCase();
-      return phases.filter((phase) => {
-        const nameLower = phase.name.toLowerCase();
-        const descLower = (phase.description || '').toLowerCase();
-        return nameLower.includes(searchLower) || descLower.includes(searchLower);
-      });
+    return phases.filter((phase) => {
+      const nameLower = phase.name.toLowerCase();
+      const descLower = (phase.description || '').toLowerCase();
+      const modesLower = (phase.modes || []).join(' ').toLowerCase();
+      return nameLower.includes(searchLower) || descLower.includes(searchLower) || modesLower.includes(searchLower);
+    });
     },
     [search]
   );
@@ -136,8 +137,8 @@ export function PhasePickerDialog({
   }, [combinedPhases.length, focusedIndex]);
 
   const handleSelect = useCallback(
-    (phaseName: string) => {
-      const normalized = normalizeSteerMode(phaseName);
+    (phaseId: string) => {
+      const normalized = normalizeSteerMode(phaseId);
       trackUsage(normalized);
       onSelect(normalized);
       onOpenChange(false);
@@ -178,7 +179,7 @@ export function PhasePickerDialog({
         case 'Enter':
           e.preventDefault();
           if (combinedPhases[focusedIndex]) {
-            handleSelect(combinedPhases[focusedIndex].name);
+            handleSelect(combinedPhases[focusedIndex].id);
           }
           break;
         case 'Escape':
@@ -316,28 +317,33 @@ export function PhasePickerDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {sortedPromptPhases.map((phase, index) => (
                     <button
-                      key={phase.name}
+                      key={`${phase.id}-${index}`}
                       data-index={index}
                       type="button"
-                      onClick={() => handleSelect(phase.name)}
+                      onClick={() => handleSelect(phase.id)}
                       className={cn(
                         'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
                         'hover:bg-slate-800 hover:border-slate-600',
-                        normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
+                        normalizedValue === phase.id && 'border-blue-500 bg-blue-500/10',
                         index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
                       )}
                     >
                       <div className="flex items-center gap-2 w-full">
                         <span className="font-medium text-sm text-slate-100">
-                          {formatPhaseName(phase.name)}
+                          {phase.name}
                         </span>
-                        {normalizedValue === normalizeSteerMode(phase.name) && (
+                        {normalizedValue === phase.id && (
                           <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
                         )}
                       </div>
                       {phase.description && (
                         <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                           {phase.description}
+                        </p>
+                      )}
+                      {phase.modes && phase.modes.length > 0 && (
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          {phase.modes.join(' > ')}
                         </p>
                       )}
                     </button>
@@ -361,28 +367,33 @@ export function PhasePickerDialog({
                     const combinedIndex = sortedPromptPhases.length + index;
                     return (
                       <button
-                        key={phase.name}
+                        key={phase.id}
                         data-index={combinedIndex}
                         type="button"
-                        onClick={() => handleSelect(phase.name)}
+                        onClick={() => handleSelect(phase.id)}
                         className={cn(
                           'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
                           'hover:bg-slate-800 hover:border-slate-600',
-                          normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
+                          normalizedValue === phase.id && 'border-blue-500 bg-blue-500/10',
                           combinedIndex === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
                         )}
                       >
                         <div className="flex items-center gap-2 w-full">
                           <span className="font-medium text-sm text-slate-100">
-                            {formatPhaseName(phase.name)}
+                            {phase.name}
                           </span>
-                          {normalizedValue === normalizeSteerMode(phase.name) && (
+                          {normalizedValue === phase.id && (
                             <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
                           )}
                         </div>
                         {phase.description && (
                           <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                             {phase.description}
+                          </p>
+                        )}
+                        {phase.modes && phase.modes.length > 0 && (
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {phase.modes.join(' > ')}
                           </p>
                         )}
                       </button>

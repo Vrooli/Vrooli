@@ -55,26 +55,20 @@ export function useMergedPhaseNames() {
 
   const phases = useMemo(() => {
     const skills = skillsQuery.data ?? [];
-    const phaseMap = new Map<string, PhaseInfo>();
 
-    skills.forEach((skill) => {
-      const modes = skill.modes ?? [];
-      const hasSteerMode = modes.some((mode) => normalizeSteerMode(mode) === 'steer');
-      if (!hasSteerMode) return;
-
-      const modeName = modes.find((mode) => normalizeSteerMode(mode) !== 'steer') || skill.name;
-      const normalized = normalizeSteerMode(modeName);
-      if (!normalized) return;
-
-      if (!phaseMap.has(normalized)) {
-        phaseMap.set(normalized, {
-          name: normalized,
+    return skills
+      .filter((skill) => normalizeSteerMode(skill.modes?.[0]) === 'steer')
+      .map((skill) => {
+        const modes = (skill.modes ?? []).slice(1).map((mode) => mode.trim()).filter(Boolean);
+        return {
+          id: normalizeSteerMode(skill.id),
+          name: skill.name,
           description: skill.description,
-        });
-      }
-    });
-
-    return Array.from(phaseMap.values());
+          modes,
+          source: 'prompt-manager' as const,
+        };
+      })
+      .filter((phase) => phase.id && normalizeSteerMode(phase.name));
   }, [skillsQuery.data]);
 
   return {

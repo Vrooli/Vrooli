@@ -41,7 +41,9 @@ function normalizeProfileModes(source: Partial<AutoSteerProfile>): Partial<AutoS
   if (clone.phases) {
     clone.phases = clone.phases.map((phase) => ({
       ...phase,
-      mode: normalizeSteerMode(phase.mode),
+      skill_id: normalizeSteerMode(phase.skill_id),
+      skill_name: phase.skill_name?.trim() ?? '',
+      modes: (phase.modes ?? []).map((mode) => mode.trim()).filter(Boolean),
     }));
   }
   return clone;
@@ -103,8 +105,8 @@ export function AutoSteerProfileEditorModal({
 
     // Validate each phase
     for (const phase of normalizedProfile.phases) {
-      if (!phase.mode) {
-        alert('Each phase must have a mode');
+      if (!phase.skill_id || !phase.skill_name) {
+        alert('Each phase must have a skill selected');
         return;
       }
       if (!phase.max_iterations || phase.max_iterations < 1) {
@@ -245,11 +247,11 @@ function buildSaveError(error: unknown): SaveError {
   const detail = getApiErrorMessage(error);
   const lowerDetail = detail.toLowerCase();
 
-  if (lowerDetail.includes('invalid profile') || lowerDetail.includes('invalid mode')) {
+  if (lowerDetail.includes('invalid profile') || lowerDetail.includes('invalid skill')) {
     return {
       title: 'Profile validation failed',
       detail,
-      recovery: 'Choose a valid phase mode and ensure each phase has at least one stop condition.',
+      recovery: 'Choose a valid phase and ensure each phase has at least one stop condition.',
     };
   }
 

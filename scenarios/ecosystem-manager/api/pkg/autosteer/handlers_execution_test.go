@@ -38,7 +38,8 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 	phases := []SteerPhase{
 		{
 			ID:            uuid.New().String(),
-			Mode:          ModeProgress,
+			SkillID:       "progress",
+			SkillName:     "Progress",
 			MaxIterations: 3,
 			StopConditions: []StopCondition{
 				{
@@ -51,7 +52,8 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 		},
 		{
 			ID:            uuid.New().String(),
-			Mode:          ModeTest,
+			SkillID:       "test",
+			SkillName:     "Test",
 			MaxIterations: 3,
 			StopConditions: []StopCondition{
 				{

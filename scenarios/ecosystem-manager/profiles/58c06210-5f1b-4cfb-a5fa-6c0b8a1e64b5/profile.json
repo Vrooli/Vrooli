@@ -5,14 +5,18 @@
   "phases": [
     {
       "id": "phase-1769528342943-0",
-      "mode": "progress",
+      "skill_id": "react-stability",
+      "skill_name": "React Stability",
+      "modes": [
+        "React"
+      ],
       "stop_conditions": null,
       "max_iterations": 10
     }
   ],
   "quality_gates": null,
   "created_at": "2026-01-27T15:40:03.913566954Z",
-  "updated_at": "2026-01-27T15:40:03.913566954Z",
+  "updated_at": "2026-01-27T19:35:26.057010823Z",
   "tags": [
     "UX"
   ]

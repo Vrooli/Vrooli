@@ -55,6 +55,7 @@ const DEFAULT_SETTINGS: Settings = {
     skip_permissions: true,
     task_timeout_minutes: 30,
     idle_timeout_cap_minutes: 30,
+    runner_type: 'claude-code',
   },
   display: {
     theme: 'dark',
@@ -83,6 +84,8 @@ type ApiSettingsPayload = {
   skip_permissions?: boolean;
   task_timeout?: number;
   idle_timeout_cap?: number;
+  runner_type?: string;
+  runnerType?: string;
   condensed_mode?: boolean;
   recycler?: {
     enabled_for?: string;
@@ -105,6 +108,9 @@ const isEnabledFor = (value: unknown): value is Settings['recycler']['enabled_fo
 const isModelProvider = (value: unknown): value is Settings['recycler']['model_provider'] =>
   value === 'ollama' || value === 'openrouter';
 
+const isRunnerType = (value: unknown): value is Settings['agent']['runner_type'] =>
+  value === 'claude-code' || value === 'codex' || value === 'opencode';
+
 function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings | { settings?: ApiSettingsPayload }): Settings {
   // Handle nested response from GET /api/settings (has "settings" wrapper)
   const source = (raw as any)?.settings ?? raw ?? {};
@@ -115,6 +121,9 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings | { settings?: Ap
     (source as ApiSettingsPayload)?.cooldown_seconds ??
     (source as ApiSettingsPayload)?.refresh_interval ??
     DEFAULT_SETTINGS.processor.cooldown_seconds;
+
+  const runnerTypeRaw =
+    (source as ApiSettingsPayload)?.runner_type ?? (source as ApiSettingsPayload)?.runnerType;
 
   return {
     processor: {
@@ -134,6 +143,9 @@ function mapApiSettingsToUi(raw: ApiSettingsPayload | Settings | { settings?: Ap
       idle_timeout_cap_minutes:
         (source as ApiSettingsPayload)?.idle_timeout_cap ??
         DEFAULT_SETTINGS.agent.idle_timeout_cap_minutes,
+      runner_type: isRunnerType(runnerTypeRaw)
+        ? runnerTypeRaw
+        : DEFAULT_SETTINGS.agent.runner_type,
     },
     display: {
       theme: isTheme(theme) ? theme : DEFAULT_SETTINGS.display.theme,
@@ -402,6 +414,7 @@ function normalizeRunningProcess(raw: any): RunningProcess {
     task_title: raw?.task_title ?? raw?.taskTitle ?? '',
     process_id: String(processId),
     agent_id: raw?.agent_id ?? raw?.AgentID ?? raw?.agentTag ?? '',
+    process_type: raw?.process_type ?? raw?.processType ?? raw?.ProcessType ?? 'task',
     start_time: startTime,
     elapsed_seconds: Number(elapsed) || 0,
   };
@@ -421,6 +434,7 @@ function mapUiSettingsToApi(settings: Settings): ApiSettingsPayload {
     skip_permissions: settings.agent.skip_permissions,
     task_timeout: settings.agent.task_timeout_minutes,
     idle_timeout_cap: settings.agent.idle_timeout_cap_minutes,
+    runner_type: settings.agent.runner_type,
     recycler: {
       enabled_for: settings.recycler.enabled_for,
       interval_seconds: settings.recycler.recycle_interval,

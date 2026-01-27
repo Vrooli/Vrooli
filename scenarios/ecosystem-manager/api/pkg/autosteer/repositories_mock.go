@@ -259,7 +259,9 @@ func (r *MockExecutionStateRepository) RecordPhaseCompletion(state *ProfileExecu
 	now := time.Now()
 	phaseExecution := PhaseExecution{
 		PhaseID:      phase.ID,
-		Mode:         phase.Mode,
+		SkillID:      phase.SkillID,
+		SkillName:    phase.SkillName,
+		Modes:        append([]string(nil), phase.Modes...),
 		Iterations:   state.CurrentPhaseIteration,
 		StartMetrics: state.PhaseStartMetrics,
 		EndMetrics:   state.Metrics,

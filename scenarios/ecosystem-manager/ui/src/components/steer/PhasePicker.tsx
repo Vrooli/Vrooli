@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { ChevronRight, Compass } from 'lucide-react';
-import { cn, formatPhaseName, normalizeSteerMode } from '@/lib/utils';
+import { cn, getPhaseDisplayName, normalizeSteerMode } from '@/lib/utils';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { PhasePickerDialog } from './PhasePickerDialog';
 import type { PhaseInfo } from '@/types/api';
 
 interface PhasePickerProps {
   value?: string;
-  onChange: (phaseName: string | undefined) => void;
+  onChange: (phaseId: string | undefined) => void;
   phaseNames?: PhaseInfo[];
   isLoading?: boolean;
   placeholder?: string;
@@ -47,18 +47,12 @@ export function PhasePicker({
 
   // Find selected phase for display
   const normalizedValue = value ? normalizeSteerMode(value) : '';
-  const selectedPhase = normalizedValue
-    ? phaseNames.find((p) => normalizeSteerMode(p.name) === normalizedValue)
-    : undefined;
-  const displayName = selectedPhase
-    ? formatPhaseName(selectedPhase.name)
-    : normalizedValue
-      ? formatPhaseName(normalizedValue)
-      : null;
+  const selectedPhase = normalizedValue ? phaseNames.find((p) => p.id === normalizedValue) : undefined;
+  const displayName = normalizedValue ? getPhaseDisplayName(normalizedValue, phaseNames) : null;
   const displayDescription = selectedPhase?.description;
 
-  const handleSelect = (phaseName: string) => {
-    onChange(normalizeSteerMode(phaseName));
+  const handleSelect = (phaseId: string) => {
+    onChange(normalizeSteerMode(phaseId));
   };
 
   return (

@@ -1,6 +1,9 @@
 package autosteer
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // ValidateProfile validates a profile's structure and data.
 func ValidateProfile(profile *AutoSteerProfile) error {
@@ -15,11 +18,14 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 	}
 
 	for i, phase := range profile.Phases {
-		normalizedMode := phase.Mode.Normalized()
-		if !normalizedMode.IsValid() {
-			return fmt.Errorf("phase %d has invalid mode: %s", i, phase.Mode)
+		normalizedID := strings.TrimSpace(phase.SkillID)
+		if normalizedID == "" {
+			return fmt.Errorf("phase %d must have a skill_id", i)
 		}
-		profile.Phases[i].Mode = normalizedMode
+		if strings.TrimSpace(phase.SkillName) == "" {
+			return fmt.Errorf("phase %d must have a skill_name", i)
+		}
+		profile.Phases[i].SkillID = normalizedID
 
 		if phase.MaxIterations <= 0 {
 			return fmt.Errorf("phase %d must have maxIterations > 0", i)

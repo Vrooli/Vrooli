@@ -86,7 +86,7 @@ func (o *ExecutionOrchestrator) StartExecution(taskID string, profileID string, 
 	// Log phase start
 	if len(profile.Phases) > 0 {
 		log.Printf("Auto Steer: Started execution for task %s with profile %s, beginning phase 0 (%s)",
-			taskID, profileID, profile.Phases[0].Mode)
+			taskID, profileID, profile.Phases[0].SkillName)
 	}
 
 	return state, nil
@@ -250,7 +250,7 @@ func (o *ExecutionOrchestrator) AdvancePhase(taskID string, scenarioName string)
 		Success:        true,
 		NextPhaseIndex: state.CurrentPhaseIndex,
 		Completed:      false,
-		Message:        fmt.Sprintf("Advanced to phase %d: %s", state.CurrentPhaseIndex+1, profile.Phases[state.CurrentPhaseIndex].Mode),
+		Message:        fmt.Sprintf("Advanced to phase %d: %s", state.CurrentPhaseIndex+1, profile.Phases[state.CurrentPhaseIndex].SkillName),
 	}, nil
 }
 
@@ -275,7 +275,7 @@ func (o *ExecutionOrchestrator) GetCurrentMode(taskID string) (SteerMode, error)
 		return "", nil
 	}
 
-	return profile.Phases[state.CurrentPhaseIndex].Mode, nil
+	return SteerMode(profile.Phases[state.CurrentPhaseIndex].SkillID), nil
 }
 
 // DeleteExecutionState removes any active execution state for a task.

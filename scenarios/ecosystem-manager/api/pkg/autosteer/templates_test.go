@@ -56,9 +56,12 @@ func validatePhase(t *testing.T, phase SteerPhase, index int, templateName strin
 		return "Template '" + templateName + "' phase " + string(rune('0'+index))
 	}
 
-	// Validate mode
-	if !phase.Mode.IsValid() {
-		t.Errorf("%s: invalid mode %s", prefix(), phase.Mode)
+	// Validate skill identifiers
+	if phase.SkillID == "" {
+		t.Errorf("%s: missing skill_id", prefix())
+	}
+	if phase.SkillName == "" {
+		t.Errorf("%s: missing skill_name", prefix())
 	}
 
 	// Validate max iterations
@@ -197,7 +200,7 @@ func TestTemplates_BalancedTemplate(t *testing.T) {
 	// Should include progress phase
 	hasProgress := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeProgress {
+		if phase.SkillID == "progress" {
 			hasProgress = true
 			break
 		}
@@ -220,7 +223,7 @@ func TestTemplates_RapidMVPTemplate(t *testing.T) {
 	}
 
 	// Should start with progress phase
-	if len(template.Phases) > 0 && template.Phases[0].Mode != ModeProgress {
+	if len(template.Phases) > 0 && template.Phases[0].SkillID != "progress" {
 		t.Error("Expected Rapid MVP to start with Progress phase")
 	}
 
@@ -248,10 +251,10 @@ func TestTemplates_ProductionReadyTemplate(t *testing.T) {
 	hasSecurity := false
 	hasTesting := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeSecurity {
+		if phase.SkillID == "security" {
 			hasSecurity = true
 		}
-		if phase.Mode == ModeTest {
+		if phase.SkillID == "test" {
 			hasTesting = true
 		}
 	}
@@ -280,10 +283,10 @@ func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
 	hasTest := false
 	hasRefactor := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeTest {
+		if phase.SkillID == "test" {
 			hasTest = true
 		}
-		if phase.Mode == ModeRefactor {
+		if phase.SkillID == "refactor" {
 			hasRefactor = true
 		}
 	}
@@ -307,7 +310,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	hasUX := false
 	uxPhaseIndex := -1
 	for i, phase := range template.Phases {
-		if phase.Mode == ModeUX {
+		if phase.SkillID == "ux" {
 			hasUX = true
 			uxPhaseIndex = i
 			break
@@ -329,7 +332,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 	// Should likely include explore phase for creativity
 	hasExplore := false
 	for _, phase := range template.Phases {
-		if phase.Mode == ModeExplore {
+		if phase.SkillID == "explore" {
 			hasExplore = true
 			break
 		}
@@ -343,10 +346,10 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 	templates := loadTemplateProfiles(t)
 
 	// Track which modes are used across all templates
-	modeUsage := make(map[SteerMode]int)
+	modeUsage := make(map[string]int)
 	for _, template := range templates {
 		for _, phase := range template.Phases {
-			modeUsage[phase.Mode]++
+			modeUsage[phase.SkillID]++
 		}
 	}
 
@@ -356,7 +359,7 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 	}
 
 	// Ensure common modes are represented
-	importantModes := []SteerMode{ModeProgress, ModeUX, ModeTest, ModeRefactor}
+	importantModes := []string{"progress", "ux", "test", "refactor"}
 	for _, mode := range importantModes {
 		if modeUsage[mode] == 0 {
 			t.Errorf("Important mode %s is not used in any template", mode)

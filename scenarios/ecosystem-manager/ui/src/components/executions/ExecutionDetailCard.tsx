@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
-import type { ExecutionHistory } from '@/types/api';
+import { cn, getPhaseDisplayName } from '@/lib/utils';
+import type { AutoSteerProfile, ExecutionHistory, PhaseInfo } from '@/types/api';
 
 interface ExecutionDetailCardProps {
   execution: ExecutionHistory | null;
@@ -7,6 +7,8 @@ interface ExecutionDetailCardProps {
   outputText?: string;
   isLoadingPrompt?: boolean;
   isLoadingOutput?: boolean;
+  profilesById?: Record<string, AutoSteerProfile | undefined>;
+  phaseNames?: PhaseInfo[];
   className?: string;
 }
 
@@ -93,12 +95,28 @@ const formatExecutionDuration = (execution?: ExecutionHistory | null) => {
   return '—';
 };
 
-const formatSteerInfo = (execution?: ExecutionHistory | null) => {
+const formatSteerInfo = (
+  execution?: ExecutionHistory | null,
+  profilesById: Record<string, AutoSteerProfile | undefined> = {},
+  phaseNames: PhaseInfo[] = [],
+) => {
   if (!execution) return '—';
-  const mode = execution.steer_mode || execution.steering_source || '';
-  const phase = execution.steer_phase_index ? ` • phase ${execution.steer_phase_index}` : '';
+  const phaseIndex = typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
+  const phaseArrayIndex = typeof phaseIndex === 'number' && phaseIndex > 0 ? phaseIndex - 1 : undefined;
+
+  let modeLabel: string | undefined;
+  if (execution.auto_steer_profile_id && typeof phaseArrayIndex === 'number') {
+    const profile = profilesById[execution.auto_steer_profile_id];
+    modeLabel = profile?.phases?.[phaseArrayIndex]?.skill_name;
+  }
+  if (!modeLabel && execution.steer_mode) {
+    modeLabel = getPhaseDisplayName(execution.steer_mode, phaseNames) ?? execution.steer_mode;
+  }
+
+  const label = modeLabel ?? execution.steering_source ?? '';
+  const phase = phaseIndex ? ` • phase ${phaseIndex}` : '';
   const iteration = execution.steer_phase_iteration ? ` • iteration ${execution.steer_phase_iteration}` : '';
-  return mode ? `${mode}${phase}${iteration}` : '—';
+  return label ? `${label}${phase}${iteration}` : '—';
 };
 
 const MetaItem = ({ label, value }: { label: string; value?: string | number | null }) => (
@@ -114,6 +132,8 @@ export function ExecutionDetailCard({
   outputText,
   isLoadingPrompt,
   isLoadingOutput,
+  profilesById,
+  phaseNames,
   className,
 }: ExecutionDetailCardProps) {
   if (!execution) {
@@ -177,7 +197,7 @@ export function ExecutionDetailCard({
         <MetaItem label="Prompt size" value={execution.prompt_size ?? '—'} />
         <MetaItem label="Agent" value={execution.agent_tag || '—'} />
         <MetaItem label="Process" value={execution.process_id ? `PID ${execution.process_id}` : '—'} />
-        <MetaItem label="Steer" value={formatSteerInfo(execution)} />
+        <MetaItem label="Steer" value={formatSteerInfo(execution, profilesById, phaseNames)} />
         <MetaItem label="Auto Steer profile" value={execution.auto_steer_profile_id ?? '—'} />
       </div>
 

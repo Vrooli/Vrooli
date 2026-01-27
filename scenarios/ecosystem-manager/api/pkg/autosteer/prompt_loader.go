@@ -180,26 +180,15 @@ func (l *PromptLoader) syncAll() error {
 	now := time.Now()
 	customModes := make([]SteerMode, 0)
 	for _, p := range syncResp.Skills {
-		hasSteerMode := false
-		normalizedModes := make([]string, 0, len(p.Modes))
-
-		for _, mode := range p.Modes {
-			normalized := strings.TrimSpace(strings.ToLower(mode))
-			if normalized == "" {
-				continue
-			}
-			if normalized == "steer" {
-				hasSteerMode = true
-				continue
-			}
-			normalizedModes = append(normalizedModes, normalized)
+		if len(p.Modes) == 0 || strings.TrimSpace(strings.ToLower(p.Modes[0])) != "steer" {
+			continue
 		}
 
-		if hasSteerMode {
-			for _, normalized := range normalizedModes {
-				customModes = append(customModes, SteerMode(normalized))
-			}
+		normalizedID := normalizeSteerMode(SteerMode(p.ID))
+		if normalizedID == "" {
+			continue
 		}
+		normalizedKey := string(normalizedID)
 
 		data, err := parsePhasePrompt(p.Content)
 		if err != nil {
@@ -207,17 +196,12 @@ func (l *PromptLoader) syncAll() error {
 			continue
 		}
 
-		l.cache[p.ID] = &cachedPrompt{
+		l.cache[normalizedKey] = &cachedPrompt{
 			data:      data,
 			fetchedAt: now,
 		}
-		// Also cache by normalized mode name
-		for _, normalized := range normalizedModes {
-			l.cache[normalized] = &cachedPrompt{
-				data:      data,
-				fetchedAt: now,
-			}
-		}
+
+		customModes = append(customModes, normalizedID)
 	}
 
 	// Store raw skills for UI access
@@ -236,7 +220,7 @@ func (l *PromptLoader) syncAll() error {
 // loadPrompt loads a prompt by mode ID.
 // Returns empty data and false if unavailable (instead of error).
 func (l *PromptLoader) loadPrompt(mode SteerMode) (phasePromptData, bool) {
-	modeStr := strings.ToLower(string(mode))
+	modeStr := string(normalizeSteerMode(mode))
 
 	// Check cache first
 	l.mu.RLock()

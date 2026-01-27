@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,13 +148,16 @@ func createTestSchema(db *sql.DB) error {
 func CreateTestProfile(t *testing.T, name string, mode SteerMode, maxIterations int) *AutoSteerProfile {
 	t.Helper()
 
+	skillName := strings.Title(strings.ReplaceAll(string(mode), "_", " "))
+
 	return &AutoSteerProfile{
 		Name:        name,
 		Description: fmt.Sprintf("Test profile for %s mode", mode),
 		Phases: []SteerPhase{
 			{
 				ID:            uuid.New().String(),
-				Mode:          mode,
+				SkillID:       string(mode),
+				SkillName:     skillName,
 				MaxIterations: maxIterations,
 				StopConditions: []StopCondition{
 					{

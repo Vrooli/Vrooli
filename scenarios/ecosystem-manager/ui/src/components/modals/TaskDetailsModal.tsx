@@ -553,8 +553,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const currentPhaseNumber = autoSteerState ? toNumber(autoSteerState.current_phase_index) + 1 : 0;
   const totalPhases = activeProfile?.phases?.length ?? 0;
   const currentMode =
-    activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.mode ??
-    (activeProfile?.phases?.[0]?.mode ?? undefined);
+    activeProfile?.phases?.[autoSteerState?.current_phase_index ?? 0]?.skill_name ??
+    (activeProfile?.phases?.[0]?.skill_name ?? undefined);
   const completedPhaseIterations =
     autoSteerState?.phase_history?.reduce((sum, phase) => sum + toNumber(phase?.iterations), 0) ?? 0;
   const currentPhaseIteration = toNumber(autoSteerState?.current_phase_iteration);
@@ -693,7 +693,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="prompt">Prompt</TabsTrigger>
@@ -829,7 +833,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           {currentMode && (
                             <>
                               <span className="hidden sm:inline text-slate-500">•</span>
-                              <span className="uppercase tracking-wide text-[11px]">{currentMode}</span>
+                              <span className="tracking-wide text-[11px]">{currentMode}</span>
                             </>
                           )}
                         </div>
@@ -890,7 +894,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             const isActive = idx === phaseDraft;
                             return (
                               <button
-                                key={phase.id ?? `${phase.mode}-${idx}`}
+                                key={phase.id ?? `${phase.skill_id}-${idx}`}
                                 type="button"
                                 className={`
                                   px-3 py-2 rounded-md border text-left transition-all
@@ -902,7 +906,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                                 }}
                               >
                                 <div className="text-[11px] uppercase text-slate-400">Phase {idx + 1}</div>
-                                <div className="text-sm font-semibold">{phase.mode.toUpperCase()}</div>
+                                <div className="text-sm font-semibold">{phase.skill_name}</div>
                                 <div className="text-[11px] text-slate-500">
                                   Max iterations: {phase.max_iterations}
                                 </div>
@@ -1102,7 +1106,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                   {sortedExecutions.map((exec, idx) => {
                     const isSelected = exec.id === selectedExecutionId;
-                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById);
+                    const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, phaseNames);
                     const summaryLabel = formatExecutionSummary(exec, steerFocus);
                     return (
                       <div
@@ -1174,6 +1178,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   outputText={selectedOutputText}
                   isLoadingPrompt={isLoadingSelectedPrompt}
                   isLoadingOutput={isLoadingSelectedOutput}
+                  profilesById={autoSteerProfilesById}
+                  phaseNames={phaseNames}
                 />
                 {selectedExecution && (
                   <div className="flex justify-end mt-3">

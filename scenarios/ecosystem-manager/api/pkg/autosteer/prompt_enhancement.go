@@ -113,7 +113,7 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 	var output strings.Builder
 
 	// Mode-specific instructions first (phase markdown owns the heading)
-	modeContent := p.renderModeContent(currentPhase.Mode)
+	modeContent := p.renderModeContent(SteerMode(currentPhase.SkillID))
 	if strings.TrimSpace(modeContent) != "" {
 		output.WriteString("\n")
 		output.WriteString(modeContent)
@@ -144,7 +144,7 @@ func (p *PromptEnhancer) GenerateAutoSteerSection(
 		for i, phaseExec := range state.PhaseHistory {
 			output.WriteString(fmt.Sprintf("**Phase %d: %s** (%d iterations)\n",
 				i+1,
-				strings.ToUpper(string(phaseExec.Mode)),
+				phaseExec.SkillName,
 				phaseExec.Iterations,
 			))
 
@@ -275,12 +275,12 @@ You have completed the **%s** phase and are now entering the **%s** phase.
 
 Continue building on the work from previous phases while focusing on the new objectives.
 `,
-		strings.ToUpper(string(oldPhase.Mode)),
-		strings.ToUpper(string(newPhase.Mode)),
+		oldPhase.SkillName,
+		newPhase.SkillName,
 		phaseNumber,
 		totalPhases,
-		strings.ToUpper(string(oldPhase.Mode)),
-		p.promptLoader.GetInstructions(newPhase.Mode),
+		oldPhase.SkillName,
+		p.promptLoader.GetInstructions(SteerMode(newPhase.SkillID)),
 	)
 }
 
@@ -298,7 +298,7 @@ func (p *PromptEnhancer) GenerateCompletionMessage(profile *AutoSteerProfile, st
 	for i, phaseExec := range state.PhaseHistory {
 		output.WriteString(fmt.Sprintf("**Phase %d: %s**\n",
 			i+1,
-			strings.ToUpper(string(phaseExec.Mode)),
+			phaseExec.SkillName,
 		))
 		output.WriteString(fmt.Sprintf("- Iterations: %d\n", phaseExec.Iterations))
 		output.WriteString(fmt.Sprintf("- Stop Reason: %s\n", phaseExec.StopReason))

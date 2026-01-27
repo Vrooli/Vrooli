@@ -20,7 +20,7 @@ func TestStartExecution_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 5},
+			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	if err := profileRepo.CreateProfile(profile); err != nil {
@@ -103,7 +103,7 @@ func TestStartExecution_MetricsCollectionError(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 5},
+			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -224,8 +224,8 @@ func TestAdvancePhase_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 5},
-			{ID: "phase-2", Mode: ModeRefactor, MaxIterations: 3},
+			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
+			{ID: "phase-2", SkillID: "refactor", SkillName: "Refactor", MaxIterations: 3},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -277,7 +277,7 @@ func TestAdvancePhase_CompleteExecution(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 5},
+			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)
@@ -325,7 +325,7 @@ func TestGetEnhancedPrompt_Success(t *testing.T) {
 		ID:   "test-profile",
 		Name: "Test Profile",
 		Phases: []SteerPhase{
-			{ID: "phase-1", Mode: ModeProgress, MaxIterations: 5},
+			{ID: "phase-1", SkillID: "progress", SkillName: "Progress", MaxIterations: 5},
 		},
 	}
 	_ = profileRepo.CreateProfile(profile)

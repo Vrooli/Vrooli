@@ -154,7 +154,9 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
     const newPhaseId = `phase-${Date.now()}-${phases.length}`;
     const newPhase: AutoSteerPhase = {
       id: newPhaseId,
-      mode: 'progress',
+      skill_id: 'progress',
+      skill_name: 'Progress',
+      modes: [],
       max_iterations: 10,
       description: '',
       stop_conditions: [],

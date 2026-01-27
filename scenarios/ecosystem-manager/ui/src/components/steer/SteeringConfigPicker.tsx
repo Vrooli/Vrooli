@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Circle, Compass, ListOrdered, Zap, ChevronRight } from 'lucide-react';
-import { cn, formatPhaseName } from '@/lib/utils';
+import { cn, getPhaseDisplayName } from '@/lib/utils';
 import { useAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
@@ -30,7 +30,8 @@ interface StrategyDisplay {
 
 function getStrategyDisplay(
   config: SteeringConfig,
-  profiles: AutoSteerProfile[]
+  profiles: AutoSteerProfile[],
+  phaseNames: { id: string; name: string }[]
 ): StrategyDisplay {
   switch (config.strategy) {
     case 'profile': {
@@ -54,7 +55,10 @@ function getStrategyDisplay(
           colorClasses: 'bg-cyan-500/10 text-cyan-100 border-cyan-500/30 hover:bg-cyan-500/20',
         };
       }
-      const preview = items.slice(0, 3).map(formatPhaseName).join(' → ');
+      const preview = items
+        .slice(0, 3)
+        .map((mode) => getPhaseDisplayName(mode, phaseNames) ?? mode)
+        .join(' → ');
       const more = items.length > 3 ? ` +${items.length - 3}` : '';
       return {
         label: preview + more,
@@ -65,8 +69,9 @@ function getStrategyDisplay(
     }
     case 'manual': {
       const mode = config.manualMode;
+      const modeLabel = mode ? getPhaseDisplayName(mode, phaseNames) ?? mode : undefined;
       return {
-        label: mode ? formatPhaseName(mode) : 'Manual',
+        label: modeLabel ?? 'Manual',
         sublabel: mode ? 'Manual focus' : 'Select a mode',
         icon: Compass,
         colorClasses: 'bg-amber-500/10 text-amber-50 border-amber-500/30 hover:bg-amber-500/20',
@@ -97,7 +102,7 @@ export function SteeringConfigPicker({
   const { data: profiles = [], isLoading: isLoadingProfiles } = useAutoSteerProfiles();
   const { data: phaseNames = [], isLoading: isLoadingPhases } = useMergedPhaseNames();
 
-  const display = getStrategyDisplay(value, profiles);
+  const display = getStrategyDisplay(value, profiles, phaseNames);
   const Icon = display.icon;
 
   return (

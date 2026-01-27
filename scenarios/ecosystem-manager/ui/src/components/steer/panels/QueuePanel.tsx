@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -17,7 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Check, GripVertical, ListOrdered, Loader2, X } from 'lucide-react';
 import { PhasePicker } from '../PhasePicker';
-import { formatPhaseName } from '@/lib/utils';
+import { getPhaseDisplayName } from '@/lib/utils';
 import type { PhaseInfo } from '@/types/api';
 
 type ItemStatus = 'completed' | 'current' | 'pending';
@@ -41,7 +42,7 @@ interface QueuePanelProps {
 
 interface SortableQueueItemProps {
   id: string;
-  mode: string;
+  label: string;
   index: number;
   onRemove: () => void;
   status?: ItemStatus;
@@ -50,7 +51,7 @@ interface SortableQueueItemProps {
 }
 
 interface ReadOnlyQueueItemProps {
-  mode: string;
+  label: string;
   index: number;
   status: ItemStatus;
   onClick?: () => void;
@@ -69,7 +70,7 @@ function getStatusStyles(status: ItemStatus): string {
   }
 }
 
-function ReadOnlyQueueItem({ mode, index, status, onClick, isPending }: ReadOnlyQueueItemProps) {
+function ReadOnlyQueueItem({ label, index, status, onClick, isPending }: ReadOnlyQueueItemProps) {
   const isClickable = !!onClick && !isPending;
   const clickableStyles = isClickable
     ? 'cursor-pointer hover:bg-cyan-500/15 hover:border-cyan-500/40 transition-colors'
@@ -129,13 +130,13 @@ function ReadOnlyQueueItem({ mode, index, status, onClick, isPending }: ReadOnly
                 : 'text-cyan-200'
         }`}
       >
-        {formatPhaseName(mode)}
+        {label}
       </span>
     </div>
   );
 }
 
-function SortableQueueItem({ id, mode, index, onRemove, status, onClick, isPending }: SortableQueueItemProps) {
+function SortableQueueItem({ id, label, index, onRemove, status, onClick, isPending }: SortableQueueItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -228,7 +229,7 @@ function SortableQueueItem({ id, mode, index, onRemove, status, onClick, isPendi
             : undefined
         }
       >
-        {formatPhaseName(mode)}
+        {label}
       </span>
       <button
         type="button"
@@ -252,6 +253,11 @@ export function QueuePanel({
   onPositionChange,
   pendingPosition,
 }: QueuePanelProps) {
+  const getPhaseLabel = useMemo(
+    () => (mode: string) => getPhaseDisplayName(mode, phaseNames) ?? mode,
+    [phaseNames]
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -342,7 +348,7 @@ export function QueuePanel({
             {value.map((mode, index) => (
               <ReadOnlyQueueItem
                 key={`${mode}-${index}`}
-                mode={mode}
+                label={getPhaseLabel(mode)}
                 index={index}
                 status={getItemStatus(index)}
                 onClick={onPositionChange ? () => onPositionChange(index) : undefined}
@@ -359,7 +365,7 @@ export function QueuePanel({
                   <SortableQueueItem
                     key={itemIds[index]}
                     id={itemIds[index]}
-                    mode={mode}
+                    label={getPhaseLabel(mode)}
                     index={index}
                     onRemove={() => handleRemove(index)}
                     status={getItemStatus(index)}
@@ -379,7 +385,7 @@ export function QueuePanel({
           <span className="font-medium text-slate-400">Order: </span>
           {value.map((mode, idx) => (
             <span key={idx}>
-              <span className="text-cyan-400">{mode}</span>
+              <span className="text-cyan-400">{getPhaseLabel(mode)}</span>
               {idx < value.length - 1 && <span className="text-slate-600"> → </span>}
             </span>
           ))}

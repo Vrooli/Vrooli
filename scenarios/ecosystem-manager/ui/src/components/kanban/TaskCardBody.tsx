@@ -6,6 +6,8 @@
 import { FileText } from 'lucide-react';
 import type { Task, AutoSteerProfile } from '../../types/api';
 import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
+import { useMergedPhaseNames } from '@/hooks/usePromptFiles';
+import { getPhaseDisplayName } from '@/lib/utils';
 import { useAppState } from '../../contexts/AppStateContext';
 
 interface TaskCardBodyProps {
@@ -17,18 +19,21 @@ interface TaskCardBodyProps {
 export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: TaskCardBodyProps) {
   const { cachedSettings } = useAppState();
   const condensedMode = cachedSettings?.display?.condensed_mode ?? false;
+  const { data: phaseNames = [] } = useMergedPhaseNames();
 
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
   const hasQueueSteering = !hasAutoSteer && task.steering_queue && task.steering_queue.length > 0;
-  const manualSteerMode = !hasAutoSteer && !hasQueueSteering && task.steer_mode ? task.steer_mode.toUpperCase() : '';
+  const manualSteerMode = !hasAutoSteer && !hasQueueSteering && task.steer_mode
+    ? getPhaseDisplayName(task.steer_mode, phaseNames) ?? task.steer_mode
+    : '';
   const phaseIndex = typeof autoSteerPhaseIndex === 'number'
     ? autoSteerPhaseIndex
     : typeof task.auto_steer_phase_index === 'number'
       ? task.auto_steer_phase_index
       : undefined;
-  const phaseLabel = autoSteerProfile?.phases?.[phaseIndex ?? -1]?.mode;
-  const phaseMode = phaseLabel || task.auto_steer_mode;
+  const phaseLabel = autoSteerProfile?.phases?.[phaseIndex ?? -1]?.skill_name;
+  const phaseMode = phaseLabel || getPhaseDisplayName(task.auto_steer_mode, phaseNames);
   const phaseTooltip = phaseIndex !== undefined && phaseMode
     ? `Phase ${phaseIndex + 1}: ${phaseMode}`
     : phaseMode || autoSteerProfile?.name || 'Auto Steer';
@@ -61,7 +66,7 @@ export function TaskCardBody({ task, autoSteerProfile, autoSteerPhaseIndex }: Ta
         phaseMode={phaseMode}
         phaseTooltip={phaseTooltip}
         manualSteerMode={!hasAutoSteer && !hasQueueSteering && manualSteerMode ? manualSteerMode : undefined}
-        queueMode={hasQueueSteering ? task.steering_queue_mode : undefined}
+        queueMode={hasQueueSteering ? getPhaseDisplayName(task.steering_queue_mode, phaseNames) : undefined}
         queueIndex={hasQueueSteering ? task.steering_queue_index : undefined}
         queueTotal={hasQueueSteering ? task.steering_queue_total : undefined}
         queueExhausted={hasQueueSteering ? task.steering_queue_exhausted : undefined}

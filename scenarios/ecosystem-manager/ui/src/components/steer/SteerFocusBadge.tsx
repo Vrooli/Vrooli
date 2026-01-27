@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn, getPhaseDisplayName } from '@/lib/utils';
 import type { AutoSteerProfile, ExecutionHistory } from '@/types/api';
 import { Compass, ListOrdered, Zap } from 'lucide-react';
 
@@ -28,22 +28,27 @@ export interface SteerFocusInfo {
 export function getExecutionSteerFocus(
   execution: ExecutionHistory,
   profilesById: Record<string, AutoSteerProfile | undefined> = {},
+  phaseNames: Array<{ id: string; name: string }> = [],
 ): SteerFocusInfo {
-  const manualSteerMode = execution.steer_mode ? execution.steer_mode.toUpperCase() : undefined;
+  const manualSteerMode = execution.steer_mode
+    ? getPhaseDisplayName(execution.steer_mode, phaseNames) ?? execution.steer_mode
+    : undefined;
   const profileId = execution.auto_steer_profile_id;
   const profile = profileId ? profilesById[profileId] : undefined;
   const autoSteerProfileName = profileId ? profile?.name ?? profileId : undefined;
 
   if (autoSteerProfileName) {
-    const phaseIndex =
+    const phaseIndexRaw =
       typeof execution.steer_phase_index === 'number' ? execution.steer_phase_index : undefined;
+    const phaseArrayIndex =
+      typeof phaseIndexRaw === 'number' && phaseIndexRaw > 0 ? phaseIndexRaw - 1 : undefined;
     const phaseMode =
-      typeof phaseIndex === 'number' && profile?.phases?.[phaseIndex]
-        ? profile.phases[phaseIndex].mode
-        : undefined;
+      typeof phaseArrayIndex === 'number' && profile?.phases?.[phaseArrayIndex]
+        ? profile.phases[phaseArrayIndex].skill_name
+        : getPhaseDisplayName(execution.steer_mode, phaseNames);
     const phaseTooltip =
-      phaseMode && typeof phaseIndex === 'number'
-        ? `Phase ${phaseIndex + 1}: ${phaseMode}`
+      phaseMode && typeof phaseIndexRaw === 'number'
+        ? `Phase ${phaseIndexRaw}: ${phaseMode}`
         : phaseMode ?? autoSteerProfileName;
 
     return {
@@ -92,7 +97,7 @@ export function SteerFocusBadge({
             {phaseMode && (
               <>
                 <span className="text-[10px] text-indigo-800/70 dark:text-indigo-100/70">•</span>
-                <span className="font-normal text-[11px] text-indigo-800/90 dark:text-indigo-100/90 uppercase">
+                <span className="font-normal text-[11px] text-indigo-800/90 dark:text-indigo-100/90">
                   {phaseMode}
                 </span>
               </>
@@ -108,7 +113,7 @@ export function SteerFocusBadge({
     const position = queueIndex !== undefined && queueTotal !== undefined
       ? `${queueIndex + 1}/${queueTotal}`
       : undefined;
-    const displayMode = queueMode?.toUpperCase?.() ?? queueMode;
+    const displayMode = queueMode;
     const tooltip = queueExhausted
       ? 'Queue exhausted'
       : position
@@ -126,14 +131,14 @@ export function SteerFocusBadge({
       >
         <ListOrdered className="h-3.5 w-3.5" />
         <div className="flex flex-col leading-tight">
-          <span className="text-xs font-semibold flex items-center gap-1">
-            {position && (
-              <>
-                <span className="font-mono text-[10px] text-cyan-700 dark:text-cyan-200/70">{position}</span>
-                <span className="text-[10px] text-cyan-800/70 dark:text-cyan-100/70">•</span>
-              </>
-            )}
-            <span className={cn('font-normal text-[11px] uppercase', queueExhausted && 'line-through')}>
+            <span className="text-xs font-semibold flex items-center gap-1">
+              {position && (
+                <>
+                  <span className="font-mono text-[10px] text-cyan-700 dark:text-cyan-200/70">{position}</span>
+                  <span className="text-[10px] text-cyan-800/70 dark:text-cyan-100/70">•</span>
+                </>
+              )}
+            <span className={cn('font-normal text-[11px]', queueExhausted && 'line-through')}>
               {queueExhausted ? 'Done' : displayMode || 'Queue'}
             </span>
           </span>
@@ -143,7 +148,7 @@ export function SteerFocusBadge({
   }
 
   // Manual steering badge (amber)
-  const manualLabel = manualSteerMode?.toUpperCase?.() ?? manualSteerMode;
+  const manualLabel = manualSteerMode;
   if (!manualLabel) {
     return null;
   }

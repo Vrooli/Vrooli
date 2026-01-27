@@ -285,7 +285,7 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 				prompt = autosteer.InjectSteeringSection(prompt, autoSteerSection)
 				if strings.TrimSpace(autoSteerSection) != "" {
 					response["auto_steer_applied"] = true
-					response["auto_steer_mode"] = profile.Phases[phaseIdx].Mode
+					response["auto_steer_mode"] = profile.Phases[phaseIdx].SkillID
 					response["auto_steer_phase_label"] = fmt.Sprintf("Phase %d", phaseIdx+1)
 				} else {
 					response["auto_steer_applied"] = false
