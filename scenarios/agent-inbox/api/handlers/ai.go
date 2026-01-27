@@ -725,24 +725,6 @@ func processStreamingChoice(choice integrations.OpenRouterChoice, acc *domain.St
 	acc.SetFinishReason(choice.FinishReason)
 }
 
-// handleCompletionResult processes a completed AI response.
-// Decision: Tool execution required vs regular message
-// This is the key decision point - if the model requested tool calls,
-// we execute them and signal the client to continue. Otherwise,
-// we simply save the message and update the preview.
-// Returns the message ID of the saved message (empty if none saved).
-func (h *Handlers) handleCompletionResult(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) string {
-	res := h.handleCompletionResultFull(r, sw, svc, chatID, model, result)
-	return res.MessageID
-}
-
-// handleCompletionResultWithStatus is like handleCompletionResult but also returns
-// whether there are pending approvals. This is used by the auto-continue loop.
-func (h *Handlers) handleCompletionResultWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) (string, bool) {
-	res := h.handleCompletionResultFull(r, sw, svc, chatID, model, result)
-	return res.MessageID, res.HasPendingApprovals
-}
-
 // handleCompletionResultFull processes a completed AI response and returns full execution info.
 // This includes async operation tracking for tools that run in the background.
 func (h *Handlers) handleCompletionResultFull(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult) ToolExecutionStreamResult {
@@ -757,7 +739,7 @@ func (h *Handlers) handleCompletionResultFull(r *http.Request, sw *StreamWriter,
 	} else if result.HasResponse() {
 		// Save regular message (text and/or images)
 		msg, _ := svc.SaveCompletionResult(ctx, chatID, model, result, parentMessageID)
-		svc.UpdateChatPreview(ctx, chatID, result)
+		_ = svc.UpdateChatPreview(ctx, chatID, result) // Ignore error: preview update is best-effort
 		if msg != nil {
 			return ToolExecutionStreamResult{MessageID: msg.ID}
 		}
@@ -773,26 +755,12 @@ type ToolExecutionStreamResult struct {
 	AsyncOperations     []domain.AsyncOperationInfo
 }
 
-// handleToolCallsStreaming executes tool calls during a streaming response.
+// handleToolCallsStreamingFull executes tool calls and returns full result including async info.
 // parentMessageID is the user message that triggered this completion (for branching support).
-// Returns the message ID of the saved assistant message (empty if save failed).
 //
 // TEMPORAL FLOW NOTE: Tool calls are executed sequentially to maintain
 // deterministic ordering. Errors are reported via SSE events but do not
 // stop subsequent tool execution - this allows partial success scenarios.
-func (h *Handlers) handleToolCallsStreaming(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) string {
-	res := h.handleToolCallsStreamingFull(r, sw, svc, chatID, model, result, parentMessageID)
-	return res.MessageID
-}
-
-// handleToolCallsStreamingWithStatus is like handleToolCallsStreaming but also returns
-// whether there are pending approvals. This is used by the auto-continue loop.
-func (h *Handlers) handleToolCallsStreamingWithStatus(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) (string, bool) {
-	res := h.handleToolCallsStreamingFull(r, sw, svc, chatID, model, result, parentMessageID)
-	return res.MessageID, res.HasPendingApprovals
-}
-
-// handleToolCallsStreamingFull executes tool calls and returns full result including async info.
 func (h *Handlers) handleToolCallsStreamingFull(r *http.Request, sw *StreamWriter, svc *services.CompletionService, chatID, model string, result *domain.CompletionResult, parentMessageID string) ToolExecutionStreamResult {
 	ctx := r.Context()
 	res := ToolExecutionStreamResult{}
@@ -804,7 +772,7 @@ func (h *Handlers) handleToolCallsStreamingFull(r *http.Request, sw *StreamWrite
 		return res
 	}
 
-	svc.UpdateChatPreview(ctx, chatID, result)
+	_ = svc.UpdateChatPreview(ctx, chatID, result) // Ignore error: preview update is best-effort
 
 	// Execute each tool call
 	messageID := ""
@@ -1102,7 +1070,7 @@ func (h *Handlers) handleRegularMessageNonStreaming(w http.ResponseWriter, r *ht
 		return
 	}
 
-	svc.UpdateChatPreview(r.Context(), chatID, result)
+	_ = svc.UpdateChatPreview(r.Context(), chatID, result) // Ignore error: preview update is best-effort
 
 	// Fetch and save generation stats asynchronously
 	// Pass model and usage data for fallback if OpenRouter stats are unavailable

@@ -71,7 +71,7 @@ export function AsyncStatusBar({
   operations,
   completedCount,
   onRefresh,
-  onCancel,
+  onCancel: _onCancel,
   onOpenDrawer,
   isCollapsed,
   onToggleCollapse,
@@ -96,7 +96,7 @@ export function AsyncStatusBar({
     }
   };
 
-  const handleRefreshOne = async (toolCallId: string) => {
+  const _handleRefreshOne = async (toolCallId: string) => {
     setRefreshingIds((prev) => new Set(prev).add(toolCallId));
     try {
       await onRefresh(toolCallId);

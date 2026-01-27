@@ -69,5 +69,13 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
     },
+  },
+  // Test files get relaxed rules - non-null assertions are acceptable in tests
+  // where we control the test data and explicit guards are overkill
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+    },
   }
 );

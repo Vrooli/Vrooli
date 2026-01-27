@@ -45,7 +45,7 @@ export function ScenarioViewer({ scenarioName, path, onBack }: ScenarioViewerPro
           return;
         }
         setLoadState("ready");
-      } catch (err) {
+      } catch {
         setErrorMessage("Failed to connect to scenario");
         setLoadState("error");
       }

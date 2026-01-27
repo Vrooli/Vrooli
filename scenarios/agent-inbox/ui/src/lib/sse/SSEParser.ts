@@ -172,12 +172,13 @@ export class SSEParser {
           this.currentEvent.id = value;
         }
         break;
-      case "retry":
+      case "retry": {
         const retry = parseInt(value, 10);
         if (!isNaN(retry) && retry >= 0) {
           this.currentEvent.retry = retry;
         }
         break;
+      }
       // Unknown fields are ignored per SSE spec
     }
   }

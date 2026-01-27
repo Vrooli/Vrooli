@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, forwardRef, useCallback, useMemo, ty
 import {
   Loader2, User, Bot, Wrench, CheckCircle2, XCircle, Play,
   Copy, Volume2, VolumeX, RefreshCw, Pencil, Trash2, GitBranch,
-  ChevronDown, ChevronUp, ShieldAlert, ExternalLink, BookOpen,
+  ShieldAlert, ExternalLink, BookOpen,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { resolveAttachmentUrl, type Attachment, type Message, type ToolCall, type ToolCallRecord } from "../../lib/api";

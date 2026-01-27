@@ -21,6 +21,8 @@ import {
   ArchiveRestore,
   PanelLeftClose,
   PanelLeft,
+  Bot,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Tooltip } from "../ui/tooltip";
@@ -33,6 +35,7 @@ interface SidebarProps {
   currentView: View;
   onViewChange: (view: View) => void;
   onNewChat: () => void;
+  onNewAgentChat?: () => void;
   onManageLabels: () => void;
   onOpenSettings: () => void;
   onShowKeyboardShortcuts: () => void;
@@ -74,6 +77,7 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
     currentView,
     onViewChange,
     onNewChat,
+    onNewAgentChat,
     onManageLabels,
     onOpenSettings,
     onShowKeyboardShortcuts,
@@ -101,6 +105,21 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
 
   // Confirmation dialog state for clear archived
   const [showClearArchivedConfirm, setShowClearArchivedConfirm] = useState(false);
+
+  // New chat dropdown state
+  const [showNewChatMenu, setShowNewChatMenu] = useState(false);
+  const newChatMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close new chat menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (newChatMenuRef.current && !newChatMenuRef.current.contains(event.target as Node)) {
+        setShowNewChatMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Server-side search (must be defined before displayChats)
   const search = useSearch({ debounceMs: 300, limit: 20 });
@@ -407,19 +426,66 @@ export const Sidebar = forwardRef<HTMLInputElement, SidebarProps>(function Sideb
             </Tooltip>
           )}
         </div>
-        <Button
-          onClick={onNewChat}
-          disabled={isCreatingChat || selectionMode}
-          className="w-full justify-center gap-2"
-          data-testid="new-chat-button"
-        >
-          {isCreatingChat ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
+        {/* New Chat button with optional agent mode dropdown */}
+        <div className="relative" ref={newChatMenuRef}>
+          <div className="flex gap-1">
+            <Button
+              onClick={onNewChat}
+              disabled={isCreatingChat || selectionMode}
+              className="flex-1 justify-center gap-2"
+              data-testid="new-chat-button"
+            >
+              {isCreatingChat ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              New Chat
+            </Button>
+            {onNewAgentChat && (
+              <Button
+                onClick={() => setShowNewChatMenu(!showNewChatMenu)}
+                disabled={isCreatingChat || selectionMode}
+                className="px-2"
+                data-testid="new-chat-dropdown"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {showNewChatMenu && onNewAgentChat && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-white/10 rounded-lg shadow-lg z-50 overflow-hidden">
+              <button
+                onClick={() => {
+                  onNewChat();
+                  setShowNewChatMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-300 hover:bg-white/10 transition-colors"
+                data-testid="new-llm-chat-option"
+              >
+                <MessageSquare className="h-4 w-4 text-indigo-400" />
+                <div>
+                  <div className="font-medium text-white">LLM Chat</div>
+                  <div className="text-xs text-slate-500">Chat with AI assistant</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  onNewAgentChat();
+                  setShowNewChatMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-slate-300 hover:bg-white/10 transition-colors border-t border-white/5"
+                data-testid="new-agent-chat-option"
+              >
+                <Bot className="h-4 w-4 text-blue-400" />
+                <div>
+                  <div className="font-medium text-white">Agent Chat</div>
+                  <div className="text-xs text-slate-500">Agentic coding with tools</div>
+                </div>
+              </button>
+            </div>
           )}
-          New Chat
-        </Button>
+        </div>
       </div>
 
       {/* Bulk Actions Bar - shown when items are selected */}
@@ -880,9 +946,17 @@ const ChatListItem = forwardRef<HTMLDivElement, ChatListItemProps>(function Chat
             )}
           </div>
         ) : (
-          /* Chat Icon */
-          <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${isSelected ? "bg-indigo-500/30" : "bg-white/10"}`}>
-            <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+          /* Chat Icon - Show agent icon for agent mode chats */
+          <div className={`mt-0.5 p-1.5 rounded-lg shrink-0 ${
+            chat.chat_mode === "agent"
+              ? isSelected ? "bg-blue-500/30" : "bg-blue-500/10"
+              : isSelected ? "bg-indigo-500/30" : "bg-white/10"
+          }`}>
+            {chat.chat_mode === "agent" ? (
+              <Bot className="h-3.5 w-3.5 text-blue-400" />
+            ) : (
+              <MessageSquare className="h-3.5 w-3.5 text-slate-400" />
+            )}
           </div>
         )}
 

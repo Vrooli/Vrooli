@@ -169,12 +169,14 @@ describe("ChatToolsSelector", () => {
 
   it("shows override indicator when tools have overrides", async () => {
     // Override mock to have an enabled tool with chat-level override
-    const overrideToolSet = {
+    const baseTool = mockToolSet.tools[0];
+    if (!baseTool) throw new Error("Test setup error: mockToolSet.tools[0] is undefined");
+    const overrideToolSet: api.ToolSet = {
       ...mockToolSet,
       tools: [
         {
-          ...mockToolSet.tools[0],
-          source: "chat" as const, // This enabled tool has a chat override
+          ...baseTool,
+          source: "chat", // This enabled tool has a chat override
         },
       ],
     };

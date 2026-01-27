@@ -14,13 +14,16 @@ interface ModeSelectorProps {
   isAgentActive?: boolean;
 }
 
+// Define mode options as a tuple to ensure at least one element
+const DEFAULT_MODE = {
+  value: "llm" as const,
+  label: "LLM",
+  description: "Chat with AI using LLM completion",
+  icon: <MessageSquare className="h-4 w-4" />
+};
+
 const MODES: { value: ChatMode; label: string; description: string; icon: React.ReactNode }[] = [
-  {
-    value: "llm",
-    label: "LLM",
-    description: "Chat with AI using LLM completion",
-    icon: <MessageSquare className="h-4 w-4" />
-  },
+  DEFAULT_MODE,
   {
     value: "agent",
     label: "Agent",
@@ -55,8 +58,7 @@ export function ModeSelector({
   }, []);
 
   // Always returns a valid mode since we have a fallback
-  // MODES is a constant non-empty array, so MODES[0] always exists
-  const currentMode = MODES.find(m => m.value === mode) ?? MODES[0]!;
+  const currentMode = MODES.find(m => m.value === mode) ?? DEFAULT_MODE;
 
   return (
     <div ref={containerRef} className="relative">

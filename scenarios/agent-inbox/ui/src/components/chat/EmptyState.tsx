@@ -1,16 +1,65 @@
+import { useState } from "react";
 import { MessageSquare, Sparkles, Zap, Shield } from "lucide-react";
 import { MessageInput, type MessagePayload } from "./MessageInput";
+import { ModeSelector, type ChatMode } from "./ModeSelector";
+import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
+import { useAgentSettings } from "../../hooks/useAgentSettings";
 import type { Model } from "../../lib/api";
 
 interface EmptyStateProps {
   onStartChat: (payload: MessagePayload) => void;
+  onStartAgentChat: (payload: MessagePayload, config: AgentStartConfig) => void;
   isCreating: boolean;
   models: Model[];
 }
 
-export function EmptyState({ onStartChat, isCreating, models }: EmptyStateProps) {
+export function EmptyState({ onStartChat, onStartAgentChat, isCreating, models }: EmptyStateProps) {
   // Use the first model as default for capability checking
   const defaultModel = models[0] ?? null;
+
+  // Mode selection state
+  const [selectedMode, setSelectedMode] = useState<ChatMode>("llm");
+  const [showAgentConfig, setShowAgentConfig] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<MessagePayload | null>(null);
+
+  // Agent settings from localStorage
+  const { settings: agentSettings } = useAgentSettings();
+
+  // Handle send with mode-aware routing
+  const handleSend = (payload: MessagePayload) => {
+    if (selectedMode === "agent") {
+      // If we have default project path, use defaults
+      if (agentSettings.defaultProjectPath) {
+        onStartAgentChat(payload, {
+          runner_type: agentSettings.defaultRunner,
+          project_path: agentSettings.defaultProjectPath,
+          model: agentSettings.defaultModel,
+          max_turns: agentSettings.defaultMaxTurns,
+        });
+      } else {
+        // Show config modal to get project path
+        setPendingPayload(payload);
+        setShowAgentConfig(true);
+      }
+    } else {
+      onStartChat(payload);
+    }
+  };
+
+  // Handle agent config confirmation
+  const handleAgentConfigConfirm = (config: AgentStartConfig) => {
+    if (pendingPayload) {
+      onStartAgentChat(pendingPayload, config);
+      setPendingPayload(null);
+      setShowAgentConfig(false);
+    }
+  };
+
+  // Handle agent config cancel
+  const handleAgentConfigCancel = () => {
+    setPendingPayload(null);
+    setShowAgentConfig(false);
+  };
 
   return (
     <div className="flex-1 flex items-center justify-center bg-slate-950 p-4 sm:p-8" data-testid="empty-state">
@@ -31,12 +80,26 @@ export function EmptyState({ onStartChat, isCreating, models }: EmptyStateProps)
           </p>
         </div>
 
-        {/* Chat Input - Primary CTA */}
-        <div className="mb-8">
+        {/* Mode Selector + Chat Input - Primary CTA */}
+        <div className="mb-8 space-y-3">
+          <div className="flex items-center justify-between">
+            <ModeSelector
+              mode={selectedMode}
+              onModeChange={setSelectedMode}
+              disabled={isCreating}
+            />
+            {selectedMode === "agent" && !agentSettings.defaultProjectPath && (
+              <span className="text-xs text-amber-400">
+                Project path required
+              </span>
+            )}
+          </div>
           <MessageInput
-            onSend={onStartChat}
+            onSend={handleSend}
             isLoading={isCreating}
-            placeholder="Type your message to start a conversation..."
+            placeholder={selectedMode === "agent"
+              ? "Describe what you want the agent to do..."
+              : "Type your message to start a conversation..."}
             currentModel={defaultModel}
             autoFocus
           />
@@ -71,6 +134,15 @@ export function EmptyState({ onStartChat, isCreating, models }: EmptyStateProps)
           </ul>
         </div>
       </div>
+
+      {/* Agent Start Modal - shown when agent mode selected without default project path */}
+      <AgentStartModal
+        isOpen={showAgentConfig}
+        onClose={handleAgentConfigCancel}
+        onStart={handleAgentConfigConfirm}
+        defaultSettings={agentSettings}
+        isLoading={isCreating}
+      />
     </div>
   );
 }

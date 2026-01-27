@@ -184,9 +184,9 @@ describe("useTools - Optimistic Update Verification", () => {
     // All tools should be disabled after optimistic updates
     await waitFor(() => {
       const tools = result.current.toolSet?.tools;
-      expect(tools?.[0].enabled).toBe(false);
-      expect(tools?.[1].enabled).toBe(false);
-      expect(tools?.[2].enabled).toBe(false);
+      expect(tools![0]!.enabled).toBe(false);
+      expect(tools![1]!.enabled).toBe(false);
+      expect(tools![2]!.enabled).toBe(false);
     });
 
     // API should have been called 3 times with correct args
@@ -250,10 +250,10 @@ describe("useTools - Optimistic Update Verification", () => {
     // Check that only scenario-a tool1 changed
     await waitFor(() => {
       const tools = result.current.toolSet?.tools;
-      expect(tools?.[0].enabled).toBe(false); // scenario-a tool1 - changed
-      expect(tools?.[1].enabled).toBe(true);  // scenario-a tool2 - unchanged
-      expect(tools?.[2].enabled).toBe(true);  // scenario-b tool1 - unchanged
-      expect(tools?.[3].enabled).toBe(true);  // scenario-b tool2 - unchanged
+      expect(tools![0]!.enabled).toBe(false); // scenario-a tool1 - changed
+      expect(tools![1]!.enabled).toBe(true);  // scenario-a tool2 - unchanged
+      expect(tools![2]!.enabled).toBe(true);  // scenario-b tool1 - unchanged
+      expect(tools![3]!.enabled).toBe(true);  // scenario-b tool2 - unchanged
     });
   });
 
@@ -440,9 +440,9 @@ describe("useTools - concurrent mutations", () => {
     // All should be disabled
     await waitFor(() => {
       const tools = result.current.toolSet?.tools;
-      expect(tools?.[0].enabled).toBe(false);
-      expect(tools?.[1].enabled).toBe(false);
-      expect(tools?.[2].enabled).toBe(false);
+      expect(tools![0]!.enabled).toBe(false);
+      expect(tools![1]!.enabled).toBe(false);
+      expect(tools![2]!.enabled).toBe(false);
     });
   });
 });

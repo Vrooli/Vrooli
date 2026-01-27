@@ -98,7 +98,7 @@ describe("buildChildrenMap", () => {
     // Root messages (null parent)
     const roots = childrenMap.get(null) ?? [];
     expect(roots).toHaveLength(1);
-    expect(roots[0].id).toBe("msg-1");
+    expect(roots[0]!.id).toBe("msg-1");
 
     // Children of msg-1 (the 3 assistant responses)
     const msg1Children = childrenMap.get("msg-1") ?? [];
@@ -132,7 +132,7 @@ describe("buildChildrenMap", () => {
     const roots = childrenMap.get(null) ?? [];
 
     expect(roots).toHaveLength(1);
-    expect(roots[0].id).toBe("msg-1");
+    expect(roots[0]!.id).toBe("msg-1");
   });
 });
 
@@ -190,7 +190,7 @@ describe("computeVisibleMessages", () => {
     // The function finds the most recent message and traces back to root
     expect(visible.length).toBeGreaterThan(0);
     // Should include the most recent message (msg-4)
-    expect(visible[visible.length - 1].id).toBe("msg-4");
+    expect(visible[visible.length - 1]!.id).toBe("msg-4");
   });
 
   it("returns stable empty array for empty input", () => {
@@ -246,7 +246,7 @@ describe("getMessageSiblings", () => {
     const siblings = getMessageSiblings(messages, "msg-2");
 
     expect(siblings).toHaveLength(1);
-    expect(siblings[0].id).toBe("msg-2");
+    expect(siblings[0]!.id).toBe("msg-2");
   });
 
   it("returns empty array for nonexistent message", () => {
@@ -391,7 +391,7 @@ describe("findLeafMessages", () => {
     const leaves = findLeafMessages(messages);
 
     expect(leaves).toHaveLength(1);
-    expect(leaves[0].id).toBe("msg-4");
+    expect(leaves[0]!.id).toBe("msg-4");
   });
 
   it("returns all messages as leaves when no parent relationships", () => {
@@ -479,6 +479,6 @@ describe("edge cases", () => {
     const roots = childrenMap.get(null) ?? [];
 
     expect(roots).toHaveLength(1);
-    expect(roots[0].id).toBe("msg-1");
+    expect(roots[0]!.id).toBe("msg-1");
   });
 });

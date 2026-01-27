@@ -58,7 +58,6 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		query += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
 
 	// Get totals
@@ -95,7 +94,6 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		modelQuery += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
 	modelQuery += " GROUP BY model ORDER BY total_cost DESC"
 
@@ -136,7 +134,6 @@ func (r *Repository) GetUsageStats(ctx context.Context, startDate, endDate *time
 	if endDate != nil {
 		dayQuery += fmt.Sprintf(" AND created_at < $%d", argNum)
 		args = append(args, *endDate)
-		argNum++
 	}
 	dayQuery += " GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30"
 

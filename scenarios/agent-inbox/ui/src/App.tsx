@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Menu, X, ChevronLeft, Star, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Menu, X, ChevronLeft, Star } from "lucide-react";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus, type AsyncStatusUpdate } from "./hooks/useAsyncStatus";
 import { useTools } from "./hooks/useTools";
@@ -20,7 +20,10 @@ import { ScenarioViewer, useScenarioViewerRoute } from "./components/scenarios/S
 import { Button } from "./components/ui/button";
 import { ToastProvider } from "./components/ui/toast";
 import { updateTemplate as updateTemplateAPI, updateDefaultTemplate as updateDefaultTemplateAPI } from "./data/templates";
-import { deleteArchivedChats, markAllChatsAsRead } from "./lib/api";
+import { deleteArchivedChats, markAllChatsAsRead, startAgentMode, createChat as createChatAPI } from "./lib/api";
+import type { AgentStartConfig } from "./components/chat/AgentStartModal";
+import type { MessagePayload } from "./components/chat/MessageInput";
+import { getDefaultModel } from "./components/settings/Settings";
 import type { TemplateWithSource } from "./lib/types/templates";
 
 // Sidebar collapsed state persistence (desktop)
@@ -343,6 +346,48 @@ function AppContent() {
     }
   }, [createChat]);
 
+  const handleNewAgentChat = useCallback(() => {
+    createChat({ chat_mode: "agent" });
+    // Close sidebar on mobile when creating new chat
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [createChat]);
+
+  // Handle starting an agent chat with message and config from EmptyState
+  const handleStartAgentChat = useCallback(
+    async (payload: MessagePayload, config: AgentStartConfig) => {
+      const hasContent = payload.content.trim();
+      if (!hasContent) return;
+
+      try {
+        // Create chat in agent mode with default model
+        const defaultModel = getDefaultModel();
+        const newChat = await createChatAPI({ model: defaultModel, chat_mode: "agent" });
+        const chatId = newChat.id;
+
+        // Select the new chat
+        selectChat(chatId);
+
+        // Start agent mode with the first message
+        await startAgentMode(chatId, {
+          message: payload.content.trim(),
+          runner_type: config.runner_type,
+          project_path: config.project_path,
+          model: config.model || undefined,
+          max_turns: config.max_turns || undefined,
+        });
+
+        // Refresh chat data to get updated agent state
+        queryClient.invalidateQueries({ queryKey: ["chats"] });
+        queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      } catch (error) {
+        console.error("Failed to create agent chat:", error);
+      }
+    },
+    [selectChat, queryClient]
+  );
+
   const handleBackToList = useCallback(() => {
     setChatListOpen(true);
   }, []);
@@ -492,6 +537,13 @@ function AppContent() {
     },
     [editingMessage, editMessageAndComplete]
   );
+
+  // Handle refresh chat (used after agent mode changes)
+  const handleRefreshChat = useCallback(() => {
+    if (selectedChatId) {
+      queryClient.invalidateQueries({ queryKey: ["chat", selectedChatId] });
+    }
+  }, [selectedChatId, queryClient]);
 
   // Keyboard shortcuts
   const anyModalOpen = showLabelManager || showSettings || showKeyboardShortcuts || showUsageStats || !!settingsEditingTemplate;
@@ -754,6 +806,7 @@ function AppContent() {
               }
             }}
             onNewChat={handleNewChat}
+            onNewAgentChat={handleNewAgentChat}
             onManageLabels={() => setShowLabelManager(true)}
             onOpenSettings={handleOpenSettings}
             onShowKeyboardShortcuts={handleShowKeyboardShortcuts}
@@ -829,9 +882,15 @@ function AppContent() {
               onTemplateActivated={handleTemplateActivated}
               activeTemplateId={activeTemplate.activeTemplateId}
               onTemplateDeactivate={activeTemplate.deactivate}
+              onRefreshChat={handleRefreshChat}
             />
           ) : (
-            <EmptyState onStartChat={createChatWithMessage} isCreating={isCreatingChat} models={models} />
+            <EmptyState
+              onStartChat={createChatWithMessage}
+              onStartAgentChat={handleStartAgentChat}
+              isCreating={isCreatingChat}
+              models={models}
+            />
           )}
         </ErrorBoundary>
       </div>

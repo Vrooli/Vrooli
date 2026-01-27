@@ -224,7 +224,7 @@ func (r *Repository) BulkSaveToolConfigurations(ctx context.Context, configs []*
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Prepare separate statements for global vs chat-specific configs
 	globalStmt, err := tx.PrepareContext(ctx, `

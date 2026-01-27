@@ -71,7 +71,7 @@ func (tp *ToolPersistence) SaveToolResult(ctx context.Context, params SaveToolRe
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
 	// Always rollback on error - no-op if already committed
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// 1. Save tool call record
 	if err := tp.repo.SaveToolCallRecordTx(ctx, tx, params.MessageID, params.Record); err != nil {
@@ -109,7 +109,7 @@ func (tp *ToolPersistence) SaveToolResultWithoutLeafUpdate(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// 1. Save tool call record
 	if err := tp.repo.SaveToolCallRecordTx(ctx, tx, params.MessageID, params.Record); err != nil {
@@ -138,7 +138,7 @@ func (tp *ToolPersistence) UpdateActiveLeaf(ctx context.Context, chatID, message
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if err := tp.repo.SetActiveLeafTx(ctx, tx, chatID, messageID); err != nil {
 		return fmt.Errorf("set active leaf: %w", err)

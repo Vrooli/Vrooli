@@ -345,7 +345,7 @@ func (h *Handlers) RejectToolCall(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Reason string `json:"reason"`
 	}
-	json.NewDecoder(r.Body).Decode(&req) // Ignore error - reason is optional
+	_ = json.NewDecoder(r.Body).Decode(&req) // Ignore error - reason is optional
 
 	svc := h.NewCompletionService()
 	if err := svc.RejectToolCall(r.Context(), chatID, toolCallID, req.Reason); err != nil {

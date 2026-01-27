@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseToolInput, type SkillAttachment } from "./tool-utils";
+import { parseToolInput } from "./tool-utils";
 
 describe("parseToolInput", () => {
   describe("skill extraction", () => {
@@ -28,9 +28,9 @@ describe("parseToolInput", () => {
       const result = parseToolInput(argsWithSkills);
 
       expect(result.skills).toHaveLength(1);
-      expect(result.skills[0].key).toBe("security");
-      expect(result.skills[0].label).toBe("Security Best Practices");
-      expect(result.skills[0].content).toBe("Always validate user input...");
+      expect(result.skills[0]!.key).toBe("security");
+      expect(result.skills[0]!.label).toBe("Security Best Practices");
+      expect(result.skills[0]!.content).toBe("Always validate user input...");
     });
 
     it("returns empty skills when no _context_attachments", () => {
@@ -73,8 +73,8 @@ describe("parseToolInput", () => {
       const result = parseToolInput(argsWithMultipleSkills);
 
       expect(result.skills).toHaveLength(2);
-      expect(result.skills[0].key).toBe("global");
-      expect(result.skills[1].key).toBe("targeted");
+      expect(result.skills[0]!.key).toBe("global");
+      expect(result.skills[1]!.key).toBe("targeted");
     });
   });
 

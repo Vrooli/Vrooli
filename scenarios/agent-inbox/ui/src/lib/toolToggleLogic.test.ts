@@ -232,8 +232,8 @@ describe("getToolsNeedingToggle", () => {
     const needingToggle = getToolsNeedingToggle(tools, true);
 
     expect(needingToggle).toHaveLength(2);
-    expect(needingToggle[0].tool.name).toBe("tool1");
-    expect(needingToggle[1].tool.name).toBe("tool3");
+    expect(needingToggle[0]!.tool.name).toBe("tool1");
+    expect(needingToggle[1]!.tool.name).toBe("tool3");
   });
 
   it("should return tools that need to be disabled", () => {
@@ -246,8 +246,8 @@ describe("getToolsNeedingToggle", () => {
     const needingToggle = getToolsNeedingToggle(tools, false);
 
     expect(needingToggle).toHaveLength(2);
-    expect(needingToggle[0].tool.name).toBe("tool2");
-    expect(needingToggle[1].tool.name).toBe("tool3");
+    expect(needingToggle[0]!.tool.name).toBe("tool2");
+    expect(needingToggle[1]!.tool.name).toBe("tool3");
   });
 
   it("should return empty array when no changes needed", () => {
@@ -361,9 +361,9 @@ describe("Sequential toggle simulation (batch scenario toggle)", () => {
     }
 
     // Final verification: all tools should be disabled
-    expect(toolSet.tools[0].enabled).toBe(false);
-    expect(toolSet.tools[1].enabled).toBe(false);
-    expect(toolSet.tools[2].enabled).toBe(false);
+    expect(toolSet.tools[0]!.enabled).toBe(false);
+    expect(toolSet.tools[1]!.enabled).toBe(false);
+    expect(toolSet.tools[2]!.enabled).toBe(false);
   });
 
   it("should correctly toggle only tools in the target scenario", () => {
@@ -386,11 +386,11 @@ describe("Sequential toggle simulation (batch scenario toggle)", () => {
     }
 
     // Scenario-a tools should be disabled
-    expect(toolSet.tools[0].enabled).toBe(false);
-    expect(toolSet.tools[1].enabled).toBe(false);
+    expect(toolSet.tools[0]!.enabled).toBe(false);
+    expect(toolSet.tools[1]!.enabled).toBe(false);
 
     // Scenario-b tools should be UNCHANGED
-    expect(toolSet.tools[2].enabled).toBe(true);
-    expect(toolSet.tools[3].enabled).toBe(true);
+    expect(toolSet.tools[2]!.enabled).toBe(true);
+    expect(toolSet.tools[3]!.enabled).toBe(true);
   });
 });

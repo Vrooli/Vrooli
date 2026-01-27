@@ -413,7 +413,7 @@ func (r *Repository) GetMessages(ctx context.Context, chatID string) ([]domain.M
 			m.ToolCallID = toolCallID.String
 		}
 		if len(toolCallsJSON) > 0 {
-			json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+			_ = json.Unmarshal(toolCallsJSON, &m.ToolCalls) // Error ignored: fallback to empty slice
 		}
 		if responseID.Valid {
 			m.ResponseID = responseID.String
@@ -490,7 +490,7 @@ func (r *Repository) GetMessagesForCompletion(ctx context.Context, chatID string
 			msg.ToolCallID = toolCallID.String
 		}
 		if len(toolCallsJSON) > 0 {
-			json.Unmarshal(toolCallsJSON, &msg.ToolCalls)
+			_ = json.Unmarshal(toolCallsJSON, &msg.ToolCalls) // Error ignored: fallback to empty slice
 		}
 		if webSearch.Valid {
 			val := webSearch.Bool
@@ -669,7 +669,7 @@ func (r *Repository) GetMessageByID(ctx context.Context, messageID string) (*dom
 		m.ToolCallID = toolCallID.String
 	}
 	if len(toolCallsJSON) > 0 {
-		json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+		_ = json.Unmarshal(toolCallsJSON, &m.ToolCalls) // Error ignored: fallback to empty slice
 	}
 	if responseID.Valid {
 		m.ResponseID = responseID.String
@@ -731,7 +731,7 @@ func (r *Repository) GetMessageSiblings(ctx context.Context, messageID string) (
 			m.ToolCallID = toolCallID.String
 		}
 		if len(toolCallsJSON) > 0 {
-			json.Unmarshal(toolCallsJSON, &m.ToolCalls)
+			_ = json.Unmarshal(toolCallsJSON, &m.ToolCalls) // Error ignored: fallback to empty slice
 		}
 		if responseID.Valid {
 			m.ResponseID = responseID.String
@@ -805,7 +805,7 @@ func (r *Repository) ForkChat(ctx context.Context, sourceChatID, upToMessageID, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Create the new chat
 	var newChat domain.Chat

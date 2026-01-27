@@ -99,7 +99,7 @@ func (h *UploadHandlers) UploadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	// Manual JSON to avoid import cycle
-	w.Write([]byte(`{"id":"` + attachment.ID + `","file_name":"` + attachment.FileName + `","content_type":"` + attachment.ContentType + `","file_size":` + itoa(attachment.FileSize) + `,"storage_path":"` + attachment.StoragePath + `","url":"` + h.Storage.GetFileURL(attachment.StoragePath) + `"}`))
+	_, _ = w.Write([]byte(`{"id":"` + attachment.ID + `","file_name":"` + attachment.FileName + `","content_type":"` + attachment.ContentType + `","file_size":` + itoa(attachment.FileSize) + `,"storage_path":"` + attachment.StoragePath + `","url":"` + h.Storage.GetFileURL(attachment.StoragePath) + `"}`))
 }
 
 // ServeFile serves uploaded files.

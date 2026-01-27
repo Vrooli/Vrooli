@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useCompletion, type ActiveToolCall, type PendingApproval } from "./useCompletion";
+import { useCompletion, type ActiveToolCall } from "./useCompletion";
 import * as api from "../lib/api";
 
 // Mock the API module
@@ -93,7 +93,7 @@ describe("useCompletion", () => {
     it("adds tool call on tool_call_start event", async () => {
       vi.useRealTimers();
 
-      let capturedState: ActiveToolCall[] = [];
+      const _capturedState: ActiveToolCall[] = [];
 
       vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
         options?.onEvent?.({
@@ -220,9 +220,9 @@ describe("useCompletion", () => {
     it("cancels in-flight request on cancelCompletion", async () => {
       vi.useRealTimers();
 
-      let abortSignal: AbortSignal | undefined;
+      let _abortSignal: AbortSignal | undefined;
       vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
-        abortSignal = options?.signal;
+        _abortSignal = options?.signal;
         // Simulate a long-running request
         await new Promise((_, reject) => {
           options?.signal?.addEventListener("abort", () => {
@@ -543,7 +543,7 @@ describe("useCompletion", () => {
         await new Promise<void>((resolve) => {
           resolvePromise = resolve;
           // Also resolve on abort to prevent hanging
-          options?.signal?.addEventListener("abort", resolve);
+          options?.signal?.addEventListener("abort", () => resolve());
         });
       });
 

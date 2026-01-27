@@ -928,7 +928,7 @@ async function processSSEStream(
         if (options?.onEvent) {
           options.onEvent(parsed);
         }
-      } catch (e) {
+      } catch {
         // Log parse errors for debugging but don't crash the stream
         console.warn(`Failed to parse SSE event data: ${sseEvent.data.slice(0, 100)}...`);
       }

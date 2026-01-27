@@ -289,7 +289,7 @@ export function ToolCallDetailModal({
   // Format the result
   const result = record?.result;
   const hasResult = status === "completed" && result;
-  const formattedResult = hasResult ? formatToolResult(result) : null;
+  const _formattedResult = hasResult ? formatToolResult(result) : null;
 
   // Error handling
   const isFailed = isFailedStatus(status);

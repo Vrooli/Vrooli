@@ -354,7 +354,7 @@ func (h *Handlers) ExportChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(content))
+	_, _ = w.Write([]byte(content))
 }
 
 // formatMarkdown formats a chat and messages as markdown.

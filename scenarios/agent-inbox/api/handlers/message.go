@@ -67,15 +67,16 @@ func (h *Handlers) AddMessage(w http.ResponseWriter, r *http.Request) {
 		if linkErr := h.Repo.LinkAttachmentsToMessage(r.Context(), msg.ID, req.AttachmentIDs); linkErr != nil {
 			// Log but don't fail the request - message was created successfully
 			// The attachments may have expired or been deleted
+			log.Printf("[WARN] Failed to link attachments to message: %v", linkErr)
 		}
 	}
 
 	// Update active leaf to point to this new message
-	h.Repo.SetActiveLeaf(r.Context(), chatID, msg.ID)
+	_ = h.Repo.SetActiveLeaf(r.Context(), chatID, msg.ID) // Ignore error: leaf update is best-effort
 
 	// Update chat preview using centralized truncation
 	preview := domain.TruncatePreview(req.Content)
-	h.Repo.UpdateChatPreview(r.Context(), chatID, preview, req.Role == domain.RoleAssistant)
+	_ = h.Repo.UpdateChatPreview(r.Context(), chatID, preview, req.Role == domain.RoleAssistant) // Ignore error: preview update is best-effort
 
 	h.JSONResponse(w, msg, http.StatusCreated)
 }
@@ -136,7 +137,7 @@ func (h *Handlers) RegenerateMessage(w http.ResponseWriter, r *http.Request) {
 
 	// Set active leaf to the parent so the new response is a sibling of the original
 	if parentMessageID != "" {
-		h.Repo.SetActiveLeaf(r.Context(), chatID, parentMessageID)
+		_ = h.Repo.SetActiveLeaf(r.Context(), chatID, parentMessageID) // Ignore error: leaf update is best-effort
 	}
 
 	// Now trigger a new completion - this will create a sibling response
@@ -215,11 +216,11 @@ func (h *Handlers) EditMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update active leaf to point to the new message
-	h.Repo.SetActiveLeaf(r.Context(), chatID, newMsg.ID)
+	_ = h.Repo.SetActiveLeaf(r.Context(), chatID, newMsg.ID) // Ignore error: leaf update is best-effort
 
 	// Update chat preview with the new content
 	preview := domain.TruncatePreview(req.Content)
-	h.Repo.UpdateChatPreview(r.Context(), chatID, preview, false)
+	_ = h.Repo.UpdateChatPreview(r.Context(), chatID, preview, false) // Ignore error: preview update is best-effort
 
 	// Return the new message - frontend will trigger completion separately
 	h.JSONResponse(w, newMsg, http.StatusOK)
@@ -307,7 +308,7 @@ func (h *Handlers) toggleBool(w http.ResponseWriter, r *http.Request, field stri
 	var req struct {
 		Value *bool `json:"value"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
+	_ = json.NewDecoder(r.Body).Decode(&req) // Ignore error: value is optional
 
 	newValue, err := h.Repo.ToggleChatBool(r.Context(), chatID, field, req.Value)
 	if err != nil {

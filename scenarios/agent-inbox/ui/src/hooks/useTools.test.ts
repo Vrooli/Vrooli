@@ -160,7 +160,7 @@ describe("useTools", () => {
     });
 
     expect(result.current.enabledTools).toHaveLength(1);
-    expect(result.current.enabledTools[0].tool.name).toBe("spawn_coding_agent");
+    expect(result.current.enabledTools[0]!.tool.name).toBe("spawn_coding_agent");
   });
 
   it("groups tools by scenario", async () => {

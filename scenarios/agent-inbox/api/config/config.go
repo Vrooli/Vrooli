@@ -501,7 +501,7 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+func _getEnvDuration(key string, defaultValue time.Duration) time.Duration { //nolint:unused // Reserved for future use
 	if value := os.Getenv(key); value != "" {
 		if seconds, err := strconv.Atoi(value); err == nil {
 			return time.Duration(seconds) * time.Second

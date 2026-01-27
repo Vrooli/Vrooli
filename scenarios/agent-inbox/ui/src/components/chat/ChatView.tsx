@@ -6,12 +6,19 @@ import { MessageList } from "./MessageList";
 import { MessageInput, type MessagePayload } from "./MessageInput";
 import { AsyncStatusBar } from "./AsyncStatusBar";
 import { AsyncOperationDrawer } from "./AsyncOperationDrawer";
+import { ModeSelector, type ChatMode } from "./ModeSelector";
+import { AgentStartModal, type AgentStartConfig } from "./AgentStartModal";
+import { AgentEventList } from "./agent/AgentEventList";
+import { AgentStatusIndicator } from "./agent/AgentStatusIndicator";
 import type { AsyncResultReference } from "./AsyncResultChip";
-import type { ChatWithMessages, Model, Label, Message } from "../../lib/api";
+import type { ChatWithMessages, Model, Label, Message, AgentChatConfig } from "../../lib/api";
+import { startAgentMode, sendAgentMessage, stopAgentMode } from "../../lib/api";
 import type { ActiveToolCall } from "../../hooks/useChats";
 import type { AsyncStatusUpdate } from "../../hooks/useAsyncStatus";
 import type { ViewMode } from "../settings/Settings";
 import { computeVisibleMessages } from "../../lib/messageTree";
+import { useAgentSettings } from "../../hooks/useAgentSettings";
+import { useAgentWebSocket } from "../../hooks/useAgentWebSocket";
 
 // Stable empty arrays for default prop values and useMemo returns
 // CRITICAL: Using `= []` or `return []` creates a NEW array on every render/recalculation,
@@ -71,6 +78,9 @@ interface ChatViewProps {
   activeTemplateId?: string | null;
   /** Callback to deactivate the active template */
   onTemplateDeactivate?: () => void;
+  // Agent mode
+  /** Callback to refresh chat data after agent mode changes */
+  onRefreshChat?: () => void;
 }
 
 // Stable empty array for async references
@@ -112,17 +122,122 @@ export function ChatView({
   onRefreshAsyncOperation,
   onFetchAsyncHistory,
   hasMoreAsyncHistory = false,
-  asyncReferences = EMPTY_ASYNC_REFS,
+  asyncReferences: _asyncReferences = EMPTY_ASYNC_REFS,
   onInsertAsyncReference,
-  onRemoveAsyncReference,
+  onRemoveAsyncReference: _onRemoveAsyncReference,
   onTemplateActivated,
   activeTemplateId,
   onTemplateDeactivate,
+  onRefreshChat,
 }: ChatViewProps) {
   // Async operations drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedOperation, setSelectedOperation] = useState<AsyncStatusUpdate | null>(null);
   const [statusBarCollapsed, setStatusBarCollapsed] = useState(false);
+
+  // Agent mode state
+  const { settings: agentSettings } = useAgentSettings();
+  const [chatMode, setChatMode] = useState<ChatMode>(chatData?.chat?.chat_mode || "llm");
+  const [isStartingAgent, setIsStartingAgent] = useState(false);
+  const [showAgentStartModal, setShowAgentStartModal] = useState(false);
+  const [pendingAgentMessage, setPendingAgentMessage] = useState<string>("");
+  const [agentError, setAgentError] = useState<string | null>(null);
+
+  // Check if agent is currently active
+  const isAgentActive = chatData?.chat?.chat_mode === "agent" && !!chatData?.chat?.agent_run_id;
+
+  // Agent WebSocket for real-time events
+  const {
+    events: agentEvents,
+    status: agentStatus,
+    isConnected: _isAgentConnected,
+    error: agentWsError,
+    refresh: refreshAgentEvents
+  } = useAgentWebSocket({
+    chatId: chatData?.chat?.id || null,
+    runId: chatData?.chat?.agent_run_id || null,
+    enabled: isAgentActive,
+    onStatusChange: (newStatus) => {
+      // Refresh chat when agent completes or fails
+      if (["complete", "failed", "cancelled"].includes(newStatus.status || "")) {
+        onRefreshChat?.();
+      }
+    }
+  });
+
+  // Handle mode change
+  const handleModeChange = useCallback((newMode: ChatMode) => {
+    setChatMode(newMode);
+  }, []);
+
+  // Handle starting agent mode
+  const handleStartAgent = useCallback(async (config: AgentStartConfig) => {
+    if (!chatData?.chat?.id || !pendingAgentMessage) return;
+
+    setIsStartingAgent(true);
+    setAgentError(null);
+
+    try {
+      const agentConfig: AgentChatConfig = {
+        message: pendingAgentMessage,
+        runner_type: config.runner_type,
+        project_path: config.project_path,
+        model: config.model || undefined,
+        max_turns: config.max_turns || undefined
+      };
+
+      await startAgentMode(chatData.chat.id, agentConfig);
+      setShowAgentStartModal(false);
+      setPendingAgentMessage("");
+      onRefreshChat?.();
+    } catch (e) {
+      setAgentError(e instanceof Error ? e.message : "Failed to start agent");
+    } finally {
+      setIsStartingAgent(false);
+    }
+  }, [chatData?.chat?.id, pendingAgentMessage, onRefreshChat]);
+
+  // Handle sending message in agent mode
+  const handleSendAgentMessage = useCallback(async (message: string) => {
+    if (!chatData?.chat?.id) return;
+
+    // If not in agent mode yet, show the start modal
+    if (!isAgentActive) {
+      setPendingAgentMessage(message);
+      setShowAgentStartModal(true);
+      return;
+    }
+
+    // Continue existing run
+    try {
+      setAgentError(null);
+      await sendAgentMessage(chatData.chat.id, message);
+      refreshAgentEvents();
+    } catch (e) {
+      setAgentError(e instanceof Error ? e.message : "Failed to send message");
+    }
+  }, [chatData?.chat?.id, isAgentActive, refreshAgentEvents]);
+
+  // Handle stopping agent
+  const handleStopAgent = useCallback(async () => {
+    if (!chatData?.chat?.id) return;
+
+    try {
+      await stopAgentMode(chatData.chat.id);
+      onRefreshChat?.();
+    } catch (e) {
+      setAgentError(e instanceof Error ? e.message : "Failed to stop agent");
+    }
+  }, [chatData?.chat?.id, onRefreshChat]);
+
+  // Handle sending message - route to agent or LLM based on mode
+  const handleSendMessage = useCallback((payload: MessagePayload) => {
+    if (chatMode === "agent") {
+      handleSendAgentMessage(payload.content);
+    } else {
+      onSendMessage(payload);
+    }
+  }, [chatMode, handleSendAgentMessage, onSendMessage]);
 
   // Handle opening the drawer for a specific operation or history view
   const handleOpenDrawer = useCallback((operation?: AsyncStatusUpdate) => {
@@ -234,8 +349,35 @@ export function ChatView({
         />
       </ErrorBoundary>
 
-      {/* Async Status Bar - compact view of active/recent operations */}
-      {(activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (
+      {/* Mode selector and agent status bar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-zinc-800">
+        <ModeSelector
+          mode={chatMode}
+          onModeChange={handleModeChange}
+          disabled={isStartingAgent}
+          isAgentActive={isAgentActive}
+        />
+        {agentError && (
+          <span className="text-xs text-red-400">{agentError}</span>
+        )}
+        {agentWsError && isAgentActive && (
+          <span className="text-xs text-yellow-400">Connection issue: {agentWsError}</span>
+        )}
+      </div>
+
+      {/* Agent status indicator when active */}
+      {isAgentActive && agentStatus && (
+        <AgentStatusIndicator
+          status={agentStatus.status}
+          phase={agentStatus.phase}
+          progress={agentStatus.progress_percent}
+          errorMsg={agentStatus.error_msg}
+          onStop={handleStopAgent}
+        />
+      )}
+
+      {/* Async Status Bar - compact view of active/recent operations (only in LLM mode) */}
+      {!isAgentActive && (activeAsyncOperations.length > 0 || completedAsyncOperations.length > 0) && (
         <ErrorBoundary name="AsyncStatusBar">
           <AsyncStatusBar
             operations={asyncOperations}
@@ -262,34 +404,41 @@ export function ChatView({
         hasMoreHistory={hasMoreAsyncHistory}
       />
 
-      <ErrorBoundary name="MessageList">
-        <MessageList
-          messages={visibleMessages}
-          allMessages={allMessages}
-          isGenerating={isGenerating}
-          streamingContent={streamingContent}
-          activeToolCalls={activeToolCalls}
-          generatedImages={generatedImages}
-          toolCallRecords={stableToolCallRecords}
-          asyncOperations={asyncOperations}
-          scrollToMessageId={scrollToMessageId}
-          onScrollComplete={onScrollComplete}
-          viewMode={viewMode}
-          onRegenerateMessage={onRegenerateMessage}
-          onSelectBranch={onSelectBranch}
-          onForkConversation={onForkConversation}
-          onEditMessage={onEditMessage}
-          onOpenAsyncDrawer={handleOpenDrawer}
-          isRegenerating={isRegenerating}
-          isForking={isForking}
-        />
-      </ErrorBoundary>
+      {/* Main content: Agent events or normal message list */}
+      {isAgentActive ? (
+        <ErrorBoundary name="AgentEventList">
+          <AgentEventList events={agentEvents} autoScroll={true} />
+        </ErrorBoundary>
+      ) : (
+        <ErrorBoundary name="MessageList">
+          <MessageList
+            messages={visibleMessages}
+            allMessages={allMessages}
+            isGenerating={isGenerating}
+            streamingContent={streamingContent}
+            activeToolCalls={activeToolCalls}
+            generatedImages={generatedImages}
+            toolCallRecords={stableToolCallRecords}
+            asyncOperations={asyncOperations}
+            scrollToMessageId={scrollToMessageId}
+            onScrollComplete={onScrollComplete}
+            viewMode={viewMode}
+            onRegenerateMessage={onRegenerateMessage}
+            onSelectBranch={onSelectBranch}
+            onForkConversation={onForkConversation}
+            onEditMessage={onEditMessage}
+            onOpenAsyncDrawer={handleOpenDrawer}
+            isRegenerating={isRegenerating}
+            isForking={isForking}
+          />
+        </ErrorBoundary>
+      )}
 
       <div className="border-t border-white/10 bg-slate-950/50">
         <ErrorBoundary name="MessageInput">
           <MessageInput
-            onSend={onSendMessage}
-            isLoading={isGenerating}
+            onSend={handleSendMessage}
+            isLoading={isGenerating || isStartingAgent}
             currentModel={models.find((m) => m.id === chatData.chat.model) || null}
             chatId={chatData.chat.id}
             chatWebSearchDefault={chatData.chat.web_search_enabled || false}
@@ -302,6 +451,18 @@ export function ChatView({
           />
         </ErrorBoundary>
       </div>
+
+      {/* Agent start modal */}
+      <AgentStartModal
+        isOpen={showAgentStartModal}
+        onClose={() => {
+          setShowAgentStartModal(false);
+          setPendingAgentMessage("");
+        }}
+        onStart={handleStartAgent}
+        defaultSettings={agentSettings}
+        isLoading={isStartingAgent}
+      />
     </div>
   );
 }

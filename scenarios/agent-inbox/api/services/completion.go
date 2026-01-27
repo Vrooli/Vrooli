@@ -217,7 +217,7 @@ func (s *CompletionService) SaveCompletionResult(ctx context.Context, chatID, mo
 
 	// Update active leaf to point to the new message
 	if msg != nil {
-		s.repo.SetActiveLeaf(ctx, chatID, msg.ID)
+		_ = s.repo.SetActiveLeaf(ctx, chatID, msg.ID) // Ignore error: leaf update is best-effort
 	}
 
 	// Save generated images as attachments
@@ -418,7 +418,7 @@ func (s *CompletionService) ExecuteToolCalls(ctx context.Context, chatID, messag
 
 	// Update active leaf to the last tool message
 	if lastToolMsgID != "" {
-		s.repo.SetActiveLeaf(ctx, chatID, lastToolMsgID)
+		_ = s.repo.SetActiveLeaf(ctx, chatID, lastToolMsgID) // Ignore error: leaf update is best-effort
 	}
 
 	// Return aggregated error if any tool failed
@@ -497,10 +497,10 @@ func (s *CompletionService) ApproveToolCall(ctx context.Context, chatID, toolCal
 		log.Printf("[DEBUG] Atomically saved approval result: msg=%s, tool_call_id=%s", toolMsg.ID, toolCallID)
 	} else {
 		// Fallback to non-atomic saves (legacy behavior)
-		s.repo.SaveToolCallRecord(ctx, record.MessageID, executedRecord)
+		_ = s.repo.SaveToolCallRecord(ctx, record.MessageID, executedRecord) // Ignore error: fallback path
 		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, executedRecord.Result, record.MessageID)
 		if toolMsg != nil {
-			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+			_ = s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID) // Ignore error: leaf update is best-effort
 		}
 	}
 
@@ -572,7 +572,7 @@ func (s *CompletionService) RejectToolCall(ctx context.Context, chatID, toolCall
 		// Fallback to non-atomic saves (legacy behavior)
 		toolMsg, _ := s.repo.SaveToolResponseMessage(ctx, chatID, toolCallID, rejectionResult, record.MessageID)
 		if toolMsg != nil {
-			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+			_ = s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID) // Ignore error: leaf update is best-effort
 		}
 	}
 
@@ -1115,7 +1115,7 @@ func (s *CompletionService) ExecuteToolManually(ctx context.Context, chatID, sce
 		if toolMsgErr != nil {
 			log.Printf("warning: failed to save manual tool response message: %v", toolMsgErr)
 		} else if toolMsg != nil {
-			s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID)
+			_ = s.repo.SetActiveLeaf(ctx, chatID, toolMsg.ID) // Ignore error: leaf update is best-effort
 		}
 
 		result.ToolCallRecord = record

@@ -18,6 +18,7 @@ import {
   MailCheck,
   Archive,
   Loader2,
+  Bot,
 } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -27,11 +28,13 @@ import { ToolConfiguration } from "./ToolConfiguration";
 import { TemplatesSettingsTab } from "./TemplatesSettingsTab";
 import { SkillsSettingsTab } from "./SkillsSettingsTab";
 import { SkillEditorModal } from "./SkillEditorModal";
+import { AgentModeSettings } from "./AgentModeSettings";
 import { ManualToolDialog } from "../tools/ManualToolDialog";
 import { useTools } from "../../hooks/useTools";
 import { useYoloMode } from "../../hooks/useSettings";
 import { useSuggestionsSettings } from "../../hooks/useSuggestionsSettings";
 import { useModeHistory } from "../../hooks/useModeHistory";
+import { useAgentSettings } from "../../hooks/useAgentSettings";
 import {
   getAllTemplates,
   deleteTemplate as deleteTemplateFromAPI,
@@ -49,7 +52,7 @@ import type { TemplateWithSource, SkillWithSource, Skill } from "../../lib/types
 
 export type Theme = "dark" | "light";
 export type ViewMode = "bubble" | "compact";
-export type SettingsTab = "general" | "ai" | "tools" | "templates" | "skills" | "data";
+export type SettingsTab = "general" | "ai" | "agent" | "tools" | "templates" | "skills" | "data";
 
 // Default model used when none is set
 export const DEFAULT_MODEL = "anthropic/claude-3.5-sonnet";
@@ -166,6 +169,13 @@ export function Settings({
   } = useSuggestionsSettings();
 
   const { history: modeHistory, clearHistory: clearModeHistory } = useModeHistory();
+
+  // Agent mode settings
+  const {
+    settings: agentSettings,
+    setSettings: setAgentSettings,
+    resetSettings: resetAgentSettings,
+  } = useAgentSettings();
 
   // Templates state - refresh when tab changes to templates
   const [templates, setTemplates] = useState<TemplateWithSource[]>([]);
@@ -343,6 +353,12 @@ export function Settings({
                 AI
               </span>
             </TabsTrigger>
+            <TabsTrigger value="agent">
+              <span className="flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                Agent
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="tools">
               <span className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
@@ -472,6 +488,15 @@ export function Settings({
               />
             </section>
 
+          </TabsContent>
+
+          {/* Agent Tab */}
+          <TabsContent value="agent" className="space-y-6">
+            <AgentModeSettings
+              settings={agentSettings}
+              onSettingsChange={setAgentSettings}
+              onReset={resetAgentSettings}
+            />
           </TabsContent>
 
           {/* Tools Tab */}

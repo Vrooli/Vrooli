@@ -97,7 +97,7 @@ func (h *Handlers) GetAsyncOperations(w http.ResponseWriter, r *http.Request) {
 	operations := h.AsyncTracker.GetActiveOperations(chatID)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"operations": operations,
 		"count":      len(operations),
 	})
@@ -133,7 +133,7 @@ func (h *Handlers) CancelAsyncOperation(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":      true,
 		"tool_call_id": toolCallID,
 		"message":      "Operation cancelled",
@@ -171,7 +171,7 @@ func (h *Handlers) RefreshAsyncOperation(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(update)
+	_ = json.NewEncoder(w).Encode(update)
 }
 
 // GetAsyncOperationHistory handles GET /api/v1/chats/{id}/async-operations/history
@@ -226,7 +226,7 @@ func (h *Handlers) GetAsyncOperationHistory(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"operations": updates,
 		"total":      total,
 		"limit":      limit,

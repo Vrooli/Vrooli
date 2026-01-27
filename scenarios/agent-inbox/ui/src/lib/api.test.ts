@@ -29,7 +29,7 @@ import {
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 // Mock @vrooli/api-base
 vi.mock("@vrooli/api-base", () => ({
@@ -388,8 +388,8 @@ describe("completeChat", () => {
     });
 
     expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].type).toBe("tool_call_start");
-    expect(receivedEvents[0].tool_name).toBe("run-agent");
+    expect(receivedEvents[0]!.type).toBe("tool_call_start");
+    expect(receivedEvents[0]!.tool_name).toBe("run-agent");
   });
 
   it("handles tool_call_result events", async () => {
@@ -408,8 +408,8 @@ describe("completeChat", () => {
     });
 
     expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].type).toBe("tool_call_result");
-    expect(receivedEvents[0].status).toBe("completed");
+    expect(receivedEvents[0]!.type).toBe("tool_call_result");
+    expect(receivedEvents[0]!.status).toBe("completed");
   });
 
   it("handles error events", async () => {
@@ -428,8 +428,8 @@ describe("completeChat", () => {
     });
 
     expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].type).toBe("error");
-    expect(receivedEvents[0].error).toBe("Something went wrong");
+    expect(receivedEvents[0]!.type).toBe("error");
+    expect(receivedEvents[0]!.error).toBe("Something went wrong");
   });
 
   it("handles pending approval events", async () => {
@@ -449,8 +449,8 @@ describe("completeChat", () => {
     });
 
     expect(receivedEvents).toHaveLength(2);
-    expect(receivedEvents[0].type).toBe("tool_pending_approval");
-    expect(receivedEvents[1].type).toBe("awaiting_approvals");
+    expect(receivedEvents[0]!.type).toBe("tool_pending_approval");
+    expect(receivedEvents[1]!.type).toBe("awaiting_approvals");
   });
 
   it("ignores invalid JSON gracefully", async () => {
@@ -759,8 +759,10 @@ describe("SSE parsing edge cases", () => {
   });
 
   it("handles multiple events in single chunk", async () => {
+    // Per SSE spec, each event needs \n\n terminator. Multiple data: lines
+    // before empty line are concatenated into one event.
     const events = [
-      'data: {"type":"content","content":"One"}\ndata: {"type":"content","content":"Two"}\ndata: {"type":"content","content":"Three"}\n\n',
+      'data: {"type":"content","content":"One"}\n\ndata: {"type":"content","content":"Two"}\n\ndata: {"type":"content","content":"Three"}\n\n',
       "data: [DONE]\n\n",
     ];
 
@@ -813,8 +815,8 @@ describe("SSE parsing edge cases", () => {
     });
 
     expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].type).toBe("image_generated");
-    expect(receivedEvents[0].image_url).toBe("https://example.com/image.png");
+    expect(receivedEvents[0]!.type).toBe("image_generated");
+    expect(receivedEvents[0]!.image_url).toBe("https://example.com/image.png");
   });
 
   it("handles progress events", async () => {
@@ -833,7 +835,7 @@ describe("SSE parsing edge cases", () => {
     });
 
     expect(receivedEvents).toHaveLength(1);
-    expect(receivedEvents[0].type).toBe("progress");
-    expect(receivedEvents[0].phase).toBe("executing");
+    expect(receivedEvents[0]!.type).toBe("progress");
+    expect(receivedEvents[0]!.phase).toBe("executing");
   });
 });

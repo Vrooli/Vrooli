@@ -103,11 +103,14 @@ const mockCompletionState = {
 
 const mockLabelsState = {
   labels: [],
-  isLoading: false,
+  loadingLabels: false,
+  labelsError: null,
   createLabel: vi.fn(),
   deleteLabel: vi.fn(),
   assignLabel: vi.fn(),
   removeLabel: vi.fn(),
+  isCreatingLabel: false,
+  isDeletingLabel: false,
 };
 
 function createWrapper() {
@@ -121,11 +124,6 @@ function createWrapper() {
       mutations: {
         retry: false,
       },
-    },
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
     },
   });
   return ({ children }: { children: React.ReactNode }) =>
