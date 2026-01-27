@@ -2,9 +2,7 @@ import { z } from 'zod';
 import {
   AxisVariantStatusSchema,
   FlexibleTimestampSchema,
-  MetadataSchema,
   TrendSchema,
-  TwitterCardSchema,
   VariantStatusSchema,
 } from './common.schema';
 import {

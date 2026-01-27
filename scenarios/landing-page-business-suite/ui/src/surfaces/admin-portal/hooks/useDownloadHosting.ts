@@ -87,7 +87,7 @@ interface UseDownloadHostingReturn {
 export function useDownloadHosting({
   activeTab,
   loadApps,
-  getFirstAppKey,
+  getFirstAppKey: _getFirstAppKey,
 }: UseDownloadHostingProps): UseDownloadHostingReturn {
   // Storage state
   const [storageSettings, setStorageSettings] = useState<DownloadStorageSettingsSnapshot | null>(null);
@@ -185,7 +185,7 @@ export function useDownloadHosting({
     setStorageSuccess(null);
     try {
       const payload = buildStorageUpdatePayload(storageForm, credentialsForm);
-      const { settings } = await updateDownloadStorageAdmin(payload as any);
+      const { settings } = await updateDownloadStorageAdmin(payload);
       setStorageSettings(settings);
       setStorageSuccess('Saved storage settings.');
     } catch (err) {

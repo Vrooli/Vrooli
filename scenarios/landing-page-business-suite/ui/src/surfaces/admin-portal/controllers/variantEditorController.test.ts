@@ -5,6 +5,13 @@ import type {
   VariantSpace,
   VariantAxes,
   LandingHeaderConfig,
+  getVariant,
+  getAdminSections,
+  getVariantSpace,
+  createVariant,
+  updateVariant,
+  exportVariantSnapshot,
+  importVariantSnapshot,
 } from '../../../shared/api';
 import {
   loadVariantEditorData,
@@ -21,25 +28,33 @@ import {
 } from './variantEditorController';
 
 // Mock the API module
-const getVariantMock = vi.fn();
-const getAdminSectionsMock = vi.fn();
-const getVariantSpaceMock = vi.fn();
-const createVariantMock = vi.fn();
-const updateVariantMock = vi.fn();
-const exportVariantSnapshotMock = vi.fn();
-const importVariantSnapshotMock = vi.fn();
+type GetVariantFn = typeof getVariant;
+type GetAdminSectionsFn = typeof getAdminSections;
+type GetVariantSpaceFn = typeof getVariantSpace;
+type CreateVariantFn = typeof createVariant;
+type UpdateVariantFn = typeof updateVariant;
+type ExportVariantSnapshotFn = typeof exportVariantSnapshot;
+type ImportVariantSnapshotFn = typeof importVariantSnapshot;
+
+const getVariantMock = vi.fn<Parameters<GetVariantFn>, ReturnType<GetVariantFn>>();
+const getAdminSectionsMock = vi.fn<Parameters<GetAdminSectionsFn>, ReturnType<GetAdminSectionsFn>>();
+const getVariantSpaceMock = vi.fn<Parameters<GetVariantSpaceFn>, ReturnType<GetVariantSpaceFn>>();
+const createVariantMock = vi.fn<Parameters<CreateVariantFn>, ReturnType<CreateVariantFn>>();
+const updateVariantMock = vi.fn<Parameters<UpdateVariantFn>, ReturnType<UpdateVariantFn>>();
+const exportVariantSnapshotMock = vi.fn<Parameters<ExportVariantSnapshotFn>, ReturnType<ExportVariantSnapshotFn>>();
+const importVariantSnapshotMock = vi.fn<Parameters<ImportVariantSnapshotFn>, ReturnType<ImportVariantSnapshotFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getVariant: (...args: unknown[]) => getVariantMock(...args),
-    getAdminSections: (...args: unknown[]) => getAdminSectionsMock(...args),
-    getVariantSpace: (...args: unknown[]) => getVariantSpaceMock(...args),
-    createVariant: (...args: unknown[]) => createVariantMock(...args),
-    updateVariant: (...args: unknown[]) => updateVariantMock(...args),
-    exportVariantSnapshot: (...args: unknown[]) => exportVariantSnapshotMock(...args),
-    importVariantSnapshot: (...args: unknown[]) => importVariantSnapshotMock(...args),
+    getVariant: (...args: Parameters<GetVariantFn>) => getVariantMock(...args),
+    getAdminSections: (...args: Parameters<GetAdminSectionsFn>) => getAdminSectionsMock(...args),
+    getVariantSpace: (...args: Parameters<GetVariantSpaceFn>) => getVariantSpaceMock(...args),
+    createVariant: (...args: Parameters<CreateVariantFn>) => createVariantMock(...args),
+    updateVariant: (...args: Parameters<UpdateVariantFn>) => updateVariantMock(...args),
+    exportVariantSnapshot: (...args: Parameters<ExportVariantSnapshotFn>) => exportVariantSnapshotMock(...args),
+    importVariantSnapshot: (...args: Parameters<ImportVariantSnapshotFn>) => importVariantSnapshotMock(...args),
   };
 });
 
@@ -366,7 +381,12 @@ describe('variantEditorController', () => {
     });
 
     it('updates existing variant when isNew is false', async () => {
-      updateVariantMock.mockResolvedValue({});
+      updateVariantMock.mockResolvedValue({
+        id: 1,
+        slug: 'control',
+        name: 'Updated Name',
+        status: 'active',
+      });
 
       await persistVariant({
         isNew: false,
@@ -400,7 +420,7 @@ describe('variantEditorController', () => {
 
   describe('loadVariantSnapshot', () => {
     it('calls exportVariantSnapshot', async () => {
-      const mockSnapshot = { variant: { slug: 'control' }, sections: [] };
+      const mockSnapshot = { variant: { slug: 'control', name: 'Control', axes: {} }, sections: [] };
       exportVariantSnapshotMock.mockResolvedValue(mockSnapshot);
 
       const result = await loadVariantSnapshot('control');

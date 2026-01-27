@@ -18,10 +18,7 @@ import { LAYOUT } from '../config/layout.constants';
 import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
 import { useAdminHome } from '../hooks/useAdminHome';
 import { RESOLUTION_LABELS } from '../config/variant.constants';
-import {
-  HEALTH_SNAPSHOT_DAYS,
-  describeWeightStatus,
-} from '../services/adminHome.service';
+import { describeWeightStatus } from '../services/adminHome.service';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 
 /**
@@ -38,7 +35,6 @@ export function LandingDashboard() {
   const {
     variant: liveVariant,
     resolution: liveResolution,
-    statusNote: liveStatusNote,
   } = useLandingVariant();
 
   const {

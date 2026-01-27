@@ -100,5 +100,5 @@ function normalizeHeaderCTA<T extends { mode?: string; label?: string; href?: st
 }
 
 export function cloneHeaderConfig(config: LandingHeaderConfig): LandingHeaderConfig {
-  return JSON.parse(JSON.stringify(config)) as LandingHeaderConfig;
+  return structuredClone(config);
 }

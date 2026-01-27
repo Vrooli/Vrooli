@@ -27,7 +27,6 @@ import { useFeedbackManagement } from '../hooks/useFeedbackManagement';
 import {
   type FeedbackType,
   type FeedbackStatus,
-  TYPE_CONFIG,
   STATUS_CONFIG,
   getTypeColor,
   getStatusColor,
@@ -215,7 +214,6 @@ export function FeedbackManagement() {
             </div>
 
             {filteredFeedback.map((feedback) => {
-              const typeConfig = TYPE_CONFIG[feedback.type as FeedbackType] || TYPE_CONFIG.general;
               const statusConfig = STATUS_CONFIG[feedback.status as FeedbackStatus] || STATUS_CONFIG.pending;
               const typeIcon = typeIcons[feedback.type as FeedbackType] || typeIcons.general;
               const statusIcon = statusIcons[feedback.status as FeedbackStatus] || statusIcons.pending;

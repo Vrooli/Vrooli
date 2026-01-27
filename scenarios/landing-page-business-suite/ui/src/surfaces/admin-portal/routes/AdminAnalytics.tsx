@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
 import type { VariantStats } from "../../../shared/api";
 import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
-import { useAdminAnalytics, DEFAULT_TIME_RANGE } from "../hooks/useAdminAnalytics";
+import { useAdminAnalytics } from "../hooks/useAdminAnalytics";
 import { RESOLUTION_LABELS } from "../config/variant.constants";
 
 const getTrendIcon = (trend?: 'up' | 'down' | 'stable') => {
@@ -573,16 +573,16 @@ function AnalyticsShortcutsCard({
 
           <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Needs attention</p>
-            {showNeedsAttention ? (
+            {showNeedsAttention && weakestVariant ? (
               <>
-                <p className="text-xl font-semibold text-white">{weakestVariant!.variant_name}</p>
-                <p className="text-3xl font-bold text-rose-300">{weakestVariant!.conversion_rate.toFixed(2)}%</p>
+                <p className="text-xl font-semibold text-white">{weakestVariant.variant_name}</p>
+                <p className="text-3xl font-bold text-rose-300">{weakestVariant.conversion_rate.toFixed(2)}%</p>
                 <p className="text-xs text-slate-500">Slowest performer right now</p>
                 <div className="flex gap-2 mt-2">
-                  <Button size="sm" onClick={() => onFocusVariant(weakestVariant!.variant_slug)}>
+                  <Button size="sm" onClick={() => onFocusVariant(weakestVariant.variant_slug)}>
                     Inspect metrics
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(weakestVariant!.variant_slug)}>
+                  <Button size="sm" variant="outline" onClick={() => onCustomizeVariant(weakestVariant.variant_slug)}>
                     Edit variant
                   </Button>
                 </div>

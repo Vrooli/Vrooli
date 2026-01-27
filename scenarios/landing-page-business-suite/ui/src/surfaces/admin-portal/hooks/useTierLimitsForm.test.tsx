@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTierLimitsForm } from './useTierLimitsForm';
 import type { TierLimit } from '../../../shared/api';
+import type { fetchAllTierLimits, saveTierLimit } from '../services/tiers.service';
 
 /**
  * Helper to assert a value is defined in tests.
@@ -14,8 +15,11 @@ function assertDefined<T>(value: T | undefined, name: string): asserts value is 
 }
 
 // Mock the tiers service
-const fetchAllTierLimitsMock = vi.fn();
-const saveTierLimitMock = vi.fn();
+type FetchAllTierLimitsFn = typeof fetchAllTierLimits;
+type SaveTierLimitFn = typeof saveTierLimit;
+
+const fetchAllTierLimitsMock = vi.fn<Parameters<FetchAllTierLimitsFn>, ReturnType<FetchAllTierLimitsFn>>();
+const saveTierLimitMock = vi.fn<Parameters<SaveTierLimitFn>, ReturnType<SaveTierLimitFn>>();
 
 vi.mock('../services/tiers.service', async () => {
   const actual = await vi.importActual<typeof import('../services/tiers.service')>(
@@ -23,8 +27,8 @@ vi.mock('../services/tiers.service', async () => {
   );
   return {
     ...actual,
-    fetchAllTierLimits: (...args: unknown[]) => fetchAllTierLimitsMock(...args),
-    saveTierLimit: (...args: unknown[]) => saveTierLimitMock(...args),
+    fetchAllTierLimits: (...args: Parameters<FetchAllTierLimitsFn>) => fetchAllTierLimitsMock(...args),
+    saveTierLimit: (...args: Parameters<SaveTierLimitFn>) => saveTierLimitMock(...args),
   };
 });
 

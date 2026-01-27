@@ -23,7 +23,7 @@ import {
   type UsageSummary,
 } from './credits';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall, parseJsonBody } from '../test-utils/api-mocks';
 
 describe('credits API', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -84,7 +84,7 @@ describe('credits API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('POST');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           provider: 'openai',
           key: 'sk-full-key-value',
         });
@@ -188,7 +188,7 @@ describe('credits API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('POST');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           provider: 'anthropic',
           active: false,
         });
@@ -279,7 +279,7 @@ describe('credits API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('PUT');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           limit_key: 'ai_credits',
           app_bundle_key: undefined,
           update: { limit_value: 20000000 },
@@ -304,7 +304,7 @@ describe('credits API', () => {
         await updateTierLimit('pro', 'api_calls', { limit_value: 2000 }, 'my_app');
 
         const [, options] = getFetchCall(fetchMock);
-        expect(JSON.parse(options.body as string).app_bundle_key).toBe('my_app');
+        expect(parseJsonBody(options.body).app_bundle_key).toBe('my_app');
       });
     });
 
@@ -343,7 +343,7 @@ describe('credits API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('DELETE');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           tier_id: 'pro',
           limit_key: 'ai_credits',
           app_bundle_key: undefined,
@@ -356,7 +356,7 @@ describe('credits API', () => {
         await deleteTierLimit('pro', 'api_calls', 'my_app');
 
         const [, options] = getFetchCall(fetchMock);
-        expect(JSON.parse(options.body as string).app_bundle_key).toBe('my_app');
+        expect(parseJsonBody(options.body).app_bundle_key).toBe('my_app');
       });
     });
   });

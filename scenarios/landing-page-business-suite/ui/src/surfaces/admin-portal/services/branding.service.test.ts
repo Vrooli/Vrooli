@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SiteBranding, Asset } from '../../../shared/api';
+import type {
+  SiteBranding,
+  Asset,
+  getBranding,
+  updateBranding,
+  clearBrandingField,
+} from '../../../shared/api';
 import {
   brandingToForm,
   formToBrandingPayload,
@@ -17,17 +23,21 @@ import {
 } from './branding.service';
 
 // Mock the API module
-const getBrandingMock = vi.fn();
-const updateBrandingMock = vi.fn();
-const clearBrandingFieldMock = vi.fn();
+type GetBrandingFn = typeof getBranding;
+type UpdateBrandingFn = typeof updateBranding;
+type ClearBrandingFieldFn = typeof clearBrandingField;
+
+const getBrandingMock = vi.fn<Parameters<GetBrandingFn>, ReturnType<GetBrandingFn>>();
+const updateBrandingMock = vi.fn<Parameters<UpdateBrandingFn>, ReturnType<UpdateBrandingFn>>();
+const clearBrandingFieldMock = vi.fn<Parameters<ClearBrandingFieldFn>, ReturnType<ClearBrandingFieldFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getBranding: (...args: unknown[]) => getBrandingMock(...args),
-    updateBranding: (...args: unknown[]) => updateBrandingMock(...args),
-    clearBrandingField: (...args: unknown[]) => clearBrandingFieldMock(...args),
+    getBranding: (...args: Parameters<GetBrandingFn>) => getBrandingMock(...args),
+    updateBranding: (...args: Parameters<UpdateBrandingFn>) => updateBrandingMock(...args),
+    clearBrandingField: (...args: Parameters<ClearBrandingFieldFn>) => clearBrandingFieldMock(...args),
   };
 });
 

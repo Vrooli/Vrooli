@@ -1,17 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SiteBranding, VariantSEOConfig, VariantSEOResponse } from '../../../shared/api';
+import type {
+  SiteBranding,
+  VariantSEOConfig,
+  VariantSEOResponse,
+  getVariantSEO,
+  updateVariantSEO,
+} from '../../../shared/api';
 import { buildEditableSEOConfig, loadVariantSEOConfig, saveVariantSEOConfig } from './seoController';
 
 // Mock the API functions
-const getVariantSEOMock = vi.fn();
-const updateVariantSEOMock = vi.fn();
+type GetVariantSEOFn = typeof getVariantSEO;
+type UpdateVariantSEOFn = typeof updateVariantSEO;
+
+const getVariantSEOMock = vi.fn<Parameters<GetVariantSEOFn>, ReturnType<GetVariantSEOFn>>();
+const updateVariantSEOMock = vi.fn<Parameters<UpdateVariantSEOFn>, ReturnType<UpdateVariantSEOFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getVariantSEO: (...args: unknown[]) => getVariantSEOMock(...args),
-    updateVariantSEO: (...args: unknown[]) => updateVariantSEOMock(...args),
+    getVariantSEO: (...args: Parameters<GetVariantSEOFn>) => getVariantSEOMock(...args),
+    updateVariantSEO: (...args: Parameters<UpdateVariantSEOFn>) => updateVariantSEOMock(...args),
   };
 });
 

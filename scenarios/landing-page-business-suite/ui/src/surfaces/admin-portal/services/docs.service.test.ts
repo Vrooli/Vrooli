@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { DocEntry, DocContent } from '../../../shared/api';
+import type { DocEntry, DocContent, getDocsTree, getDocContent } from '../../../shared/api';
 import {
   fetchDocsTree,
   fetchDocContent,
@@ -8,15 +8,18 @@ import {
 } from './docs.service';
 
 // Mock the API module
-const getDocsTreeMock = vi.fn();
-const getDocContentMock = vi.fn();
+type GetDocsTreeFn = typeof getDocsTree;
+type GetDocContentFn = typeof getDocContent;
+
+const getDocsTreeMock = vi.fn<Parameters<GetDocsTreeFn>, ReturnType<GetDocsTreeFn>>();
+const getDocContentMock = vi.fn<Parameters<GetDocContentFn>, ReturnType<GetDocContentFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getDocsTree: (...args: unknown[]) => getDocsTreeMock(...args),
-    getDocContent: (...args: unknown[]) => getDocContentMock(...args),
+    getDocsTree: (...args: Parameters<GetDocsTreeFn>) => getDocsTreeMock(...args),
+    getDocContent: (...args: Parameters<GetDocContentFn>) => getDocContentMock(...args),
   };
 });
 

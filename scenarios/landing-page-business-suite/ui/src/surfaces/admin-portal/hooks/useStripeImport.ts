@@ -223,8 +223,18 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       });
       setImportResult(result);
 
-      if (result.errors && result.errors.length > 0) {
-        setError(`Import completed with ${result.errors.length} error(s)`);
+      const errorCount = result.errors?.length ?? 0;
+      const hasErrors = errorCount > 0;
+      if (hasErrors) {
+        setError(`Import completed with ${errorCount} error(s)`);
+      }
+
+      // Call completion callback
+      onImportComplete?.();
+
+      if (!hasErrors) {
+        closeModal();
+        return;
       }
 
       // Refresh preview to update exists_locally flags
@@ -245,15 +255,12 @@ export function useStripeImport(onImportComplete?: () => void): UseStripeImportR
       } else {
         setSelections({});
       }
-
-      // Call completion callback
-      onImportComplete?.();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Import failed'));
     } finally {
       setImporting(false);
     }
-  }, [selections, onImportComplete, priceIndex, selectedProductId]);
+  }, [closeModal, selections, onImportComplete, priceIndex, selectedProductId]);
 
   const resetImportResult = useCallback(() => {
     setImportResult(null);

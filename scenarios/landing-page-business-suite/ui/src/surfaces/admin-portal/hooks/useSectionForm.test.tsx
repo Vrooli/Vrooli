@@ -5,8 +5,17 @@ import type {
   LandingConfigResponse,
   LandingSection,
   Variant,
+  getLandingConfig,
+  listVariants,
 } from '../../../shared/api';
 import { useSectionForm } from './useSectionForm';
+import type {
+  loadSectionEditor,
+  persistExistingSectionContent,
+  loadVariantContext,
+  updateSectionOrder,
+} from '../controllers/sectionEditorController';
+import type { loadComparePreference, saveComparePreference } from '../services/section.service';
 
 // Mock react-router-dom
 const navigateMock = vi.fn();
@@ -14,43 +23,63 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateMock,
 }));
 
+vi.mock('../../../shared/hooks/useDebounce', () => ({
+  useDebounce: <T,>(value: T) => value,
+}));
+
 // Mock the controller
-const loadSectionEditorMock = vi.fn();
-const persistExistingSectionContentMock = vi.fn();
-const loadVariantContextMock = vi.fn();
-const updateSectionOrderMock = vi.fn();
+type LoadSectionEditorFn = typeof loadSectionEditor;
+type PersistExistingSectionContentFn = typeof persistExistingSectionContent;
+type LoadVariantContextFn = typeof loadVariantContext;
+type UpdateSectionOrderFn = typeof updateSectionOrder;
+
+const loadSectionEditorMock = vi.fn<Parameters<LoadSectionEditorFn>, ReturnType<LoadSectionEditorFn>>();
+const persistExistingSectionContentMock = vi.fn<
+  Parameters<PersistExistingSectionContentFn>,
+  ReturnType<PersistExistingSectionContentFn>
+>();
+const loadVariantContextMock = vi.fn<Parameters<LoadVariantContextFn>, ReturnType<LoadVariantContextFn>>();
+const updateSectionOrderMock = vi.fn<Parameters<UpdateSectionOrderFn>, ReturnType<UpdateSectionOrderFn>>();
 
 vi.mock('../controllers/sectionEditorController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/sectionEditorController')>('../controllers/sectionEditorController');
   return {
     ...actual,
-    loadSectionEditor: (...args: unknown[]) => loadSectionEditorMock(...args),
-    persistExistingSectionContent: (...args: unknown[]) => persistExistingSectionContentMock(...args),
-    loadVariantContext: (...args: unknown[]) => loadVariantContextMock(...args),
-    updateSectionOrder: (...args: unknown[]) => updateSectionOrderMock(...args),
+    loadSectionEditor: (...args: Parameters<LoadSectionEditorFn>) => loadSectionEditorMock(...args),
+    persistExistingSectionContent: (...args: Parameters<PersistExistingSectionContentFn>) => persistExistingSectionContentMock(...args),
+    loadVariantContext: (...args: Parameters<LoadVariantContextFn>) => loadVariantContextMock(...args),
+    updateSectionOrder: (...args: Parameters<UpdateSectionOrderFn>) => updateSectionOrderMock(...args),
   };
 });
 
 // Mock API functions
-const getLandingConfigMock = vi.fn();
-const listVariantsMock = vi.fn();
+type GetLandingConfigFn = typeof getLandingConfig;
+type ListVariantsFn = typeof listVariants;
+
+const getLandingConfigMock = vi.fn<Parameters<GetLandingConfigFn>, ReturnType<GetLandingConfigFn>>();
+const listVariantsMock = vi.fn<Parameters<ListVariantsFn>, ReturnType<ListVariantsFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getLandingConfig: (...args: unknown[]) => getLandingConfigMock(...args),
-    listVariants: (...args: unknown[]) => listVariantsMock(...args),
+    getLandingConfig: (...args: Parameters<GetLandingConfigFn>) => getLandingConfigMock(...args),
+    listVariants: (...args: Parameters<ListVariantsFn>) => listVariantsMock(...args),
   };
 });
 
 // Mock section service
 vi.mock('../services/section.service', async () => {
   const actual = await vi.importActual<typeof import('../services/section.service')>('../services/section.service');
+  type LoadComparePreferenceFn = typeof loadComparePreference;
+  type SaveComparePreferenceFn = typeof saveComparePreference;
+  const loadComparePreferenceMock = vi.fn<Parameters<LoadComparePreferenceFn>, ReturnType<LoadComparePreferenceFn>>()
+    .mockReturnValue(null);
+  const saveComparePreferenceMock = vi.fn<Parameters<SaveComparePreferenceFn>, ReturnType<SaveComparePreferenceFn>>();
   return {
     ...actual,
-    loadComparePreference: vi.fn().mockReturnValue(null),
-    saveComparePreference: vi.fn(),
+    loadComparePreference: (...args: Parameters<LoadComparePreferenceFn>) => loadComparePreferenceMock(...args),
+    saveComparePreference: (...args: Parameters<SaveComparePreferenceFn>) => saveComparePreferenceMock(...args),
   };
 });
 
@@ -99,6 +128,29 @@ const mockVariants: Variant[] = [
   { id: 2, slug: 'test-a', name: 'Test A' },
 ];
 
+type SectionFormResult = ReturnType<typeof useSectionForm>;
+
+const waitForNewFormReady = async (result: { current: SectionFormResult }) => {
+  await waitFor(() => {
+    expect(result.current.variantOptions).toEqual(mockVariants);
+  });
+  await waitFor(() => {
+    expect(result.current.previewConfigError).toBe('Variant slug missing for preview');
+  });
+};
+
+const waitForExistingVariantReady = async (result: { current: SectionFormResult }) => {
+  await waitFor(() => {
+    expect(result.current.variantOptions).toEqual(mockVariants);
+  });
+  await waitFor(() => {
+    expect(result.current.previewConfig).toEqual(mockLandingConfig);
+  });
+  await waitFor(() => {
+    expect(result.current.variantContext).toEqual(mockVariantContext);
+  });
+};
+
 describe('useSectionForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -133,8 +185,10 @@ describe('useSectionForm', () => {
 
     it('does not load section when sectionId is "new"', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       expect(result.current.isNew).toBe(true);
       expect(loadSectionEditorMock).not.toHaveBeenCalled();
@@ -208,8 +262,10 @@ describe('useSectionForm', () => {
 
     it('provides setSectionType', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       act(() => {
         result.current.setSectionType('features');
@@ -220,8 +276,10 @@ describe('useSectionForm', () => {
 
     it('provides setEnabled', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       act(() => {
         result.current.setEnabled(false);
@@ -335,6 +393,8 @@ describe('useSectionForm', () => {
       const { result } = renderHook(() =>
         useSectionForm({ variantSlug: 'control', sectionId: '42' })
       );
+
+      await waitForExistingVariantReady(result);
 
       act(() => {
         result.current.handleAddSection();
@@ -696,8 +756,10 @@ describe('useSectionForm', () => {
     // Use 'new' sectionId to avoid needing API mocks for section loading
     it('handles content with unicode characters', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       // For new sections, loading should be false immediately
       expect(result.current.loading).toBe(false);
@@ -714,8 +776,10 @@ describe('useSectionForm', () => {
 
     it('handles very long content strings', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       const longText = 'A'.repeat(10000);
 
@@ -729,8 +793,10 @@ describe('useSectionForm', () => {
 
     it('handles empty string content', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       // Set initial title then clear it
       act(() => {
@@ -746,8 +812,10 @@ describe('useSectionForm', () => {
 
     it('handles content with HTML-like strings', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       act(() => {
         result.current.updateContentField('title', '<script>alert("xss")</script>');
@@ -759,8 +827,10 @@ describe('useSectionForm', () => {
 
     it('handles whitespace-only content', async () => {
       const { result } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'new' })
+        useSectionForm({ variantSlug: undefined, sectionId: 'new' })
       );
+
+      await waitForNewFormReady(result);
 
       act(() => {
         result.current.updateContentField('title', '   ');

@@ -16,10 +16,10 @@ import {
   type BundleCatalogResponse,
 } from './billing';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall, parseJsonBody } from '../test-utils/api-mocks';
 
 vi.mock('@bufbuild/protobuf', () => ({
-  fromJson: vi.fn((schema, data) => data),
+  fromJson: <T,>(_schema: unknown, data: T): T => data,
 }));
 
 describe('billing API', () => {
@@ -196,7 +196,7 @@ describe('billing API', () => {
 
       const [, options] = getFetchCall(fetchMock);
       expect(options.method).toBe('PUT');
-      expect(JSON.parse(options.body as string)).toEqual(payload);
+      expect(parseJsonBody(options.body)).toEqual(payload);
     });
 
     it('returns updated settings', async () => {
@@ -261,6 +261,19 @@ describe('billing API', () => {
       expect(result.bundles[0]?.bundle.bundle_key).toBe('main');
       expect(result.bundles[0]?.prices[0]?.plan_name).toBe('Pro');
     });
+
+    it('throws on invalid bundle catalog response', async () => {
+      fetchMock.mockResolvedValue(mockResponses.success({
+        bundles: [
+          {
+            bundle: {},
+            prices: [{}],
+          },
+        ],
+      }));
+
+      await expect(getBundleCatalog()).rejects.toThrow('Invalid bundle catalog response');
+    });
   });
 
   describe('updateBundlePrice', () => {
@@ -287,7 +300,7 @@ describe('billing API', () => {
       const [url, options] = getFetchCall(fetchMock);
       expect(options.method).toBe('PATCH');
       expect(url).toContain('/admin/bundles/main/prices/price_123');
-      expect(JSON.parse(options.body as string)).toEqual({
+      expect(parseJsonBody(options.body)).toEqual({
         plan_name: 'Pro Plus',
         display_weight: 75,
       });
@@ -454,7 +467,7 @@ describe('billing API', () => {
 
       const [, options] = getFetchCall(fetchMock);
       expect(options.method).toBe('POST');
-      const body = JSON.parse(options.body as string);
+      const body = parseJsonBody(options.body);
       expect(body.price_id).toBe('price_123');
     });
 
@@ -468,7 +481,7 @@ describe('billing API', () => {
       });
 
       const [, options] = getFetchCall(fetchMock);
-      const body = JSON.parse(options.body as string);
+      const body = parseJsonBody(options.body);
       expect(body.customer_email).toBe('user@example.com');
     });
 
@@ -483,7 +496,7 @@ describe('billing API', () => {
       });
 
       const [, options] = getFetchCall(fetchMock);
-      const body = JSON.parse(options.body as string);
+      const body = parseJsonBody(options.body);
       expect(body.success_url).toBe('https://example.com/success');
       expect(body.cancel_url).toBe('https://example.com/cancel');
     });
@@ -514,7 +527,7 @@ describe('billing API', () => {
       const [url, options] = getFetchCall(fetchMock);
       expect(options.method).toBe('POST');
       expect(url).toContain('/billing/create-credits-checkout-session');
-      const body = JSON.parse(options.body as string);
+      const body = parseJsonBody(options.body);
       expect(body.price_id).toBe('price_credits_100');
       expect(body.customer_email).toBe('user@example.com');
     });

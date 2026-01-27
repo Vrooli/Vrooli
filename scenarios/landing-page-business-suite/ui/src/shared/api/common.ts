@@ -1,4 +1,5 @@
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
+import { isRecord, safeParseJson } from '../lib/utils';
 
 export const API_BASE = resolveApiBase({ appendSuffix: true });
 
@@ -131,17 +132,23 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
       let userMessage: string | undefined;
       let errorTypeOverride: ApiErrorType | undefined;
       let retryableOverride: boolean | undefined;
-      try {
-        const parsed = JSON.parse(errorText);
-        userMessage = parsed.error || parsed.message || undefined;
-        if (isApiErrorType(parsed.error_type)) {
-          errorTypeOverride = parsed.error_type;
+      const parsed = safeParseJson(errorText);
+      if (isRecord(parsed)) {
+        const errorValue = parsed.error;
+        const messageValue = parsed.message;
+        if (typeof errorValue === 'string' && errorValue.trim()) {
+          userMessage = errorValue;
+        } else if (typeof messageValue === 'string' && messageValue.trim()) {
+          userMessage = messageValue;
+        }
+
+        const errorTypeValue = parsed.error_type;
+        if (typeof errorTypeValue === 'string' && isApiErrorType(errorTypeValue)) {
+          errorTypeOverride = errorTypeValue;
         }
         if (typeof parsed.retryable === 'boolean') {
           retryableOverride = parsed.retryable;
         }
-      } catch {
-        // Not JSON, use default message
       }
 
       throw new ApiError(

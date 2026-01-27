@@ -1,4 +1,5 @@
 import { fromJson, type JsonValue, type DescMessage } from '@bufbuild/protobuf';
+import { z } from 'zod';
 import {
   ConfigSource,
   GetStripeSettingsResponseSchema,
@@ -9,7 +10,7 @@ import {
   type StripeSettings,
 } from '@proto-lprv/settings_pb';
 import { apiCall } from './common';
-import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession } from './types';
+import type { BillingPortalResponse, BundleCatalogEntry, CheckoutSession, PlanOption } from './types';
 import { normalizeTimestamp } from '../lib/protobuf-utils';
 import { parseOrNull } from './safeParse';
 import {
@@ -21,6 +22,22 @@ import {
   StripeImportResultSchema,
 } from './schemas/billing.schema';
 import { PlanOptionSchema } from './schemas/landing.schema';
+
+type BundleCatalogResponseParsed = z.infer<typeof BundleCatalogResponseSchema>;
+
+const normalizeBundleCatalog = (response: BundleCatalogResponseParsed): BundleCatalogResponse => ({
+  bundles: response.bundles.map((entry) => ({
+    bundle: entry.bundle,
+    prices: entry.prices.map((plan): PlanOption => ({
+      ...plan,
+      intro_enabled: plan.intro_enabled ?? false,
+      monthly_included_credits: plan.monthly_included_credits ?? 0,
+      one_time_bonus_credits: plan.one_time_bonus_credits ?? 0,
+      display_enabled: plan.display_enabled ?? false,
+      display_weight: plan.display_weight ?? 0,
+    })),
+  })),
+});
 
 export interface StripeSettingsResponse {
   publishable_key_preview?: string;
@@ -111,14 +128,13 @@ export function revealStripeSecret(field: RevealStripeSecretField): Promise<Reve
   return apiCall<RevealStripeSecretResponse>(`/admin/settings/stripe/reveal?${params.toString()}`);
 }
 
-export function getBundleCatalog() {
+export function getBundleCatalog(): Promise<BundleCatalogResponse> {
   return apiCall<BundleCatalogResponse>('/admin/bundles').then((resp) => {
     const validated = parseOrNull(BundleCatalogResponseSchema, resp, 'BundleCatalogResponse');
     if (!validated) {
-      // Return empty bundles array if validation fails but log error
-      return { bundles: [] };
+      throw new Error('Invalid bundle catalog response');
     }
-    return validated;
+    return normalizeBundleCatalog(validated);
   });
 }
 

@@ -9,7 +9,7 @@ import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
-import { Gauge, Save, Infinity, DollarSign, Zap } from 'lucide-react';
+import { Gauge, Save, Infinity as InfinityIcon, DollarSign, Zap } from 'lucide-react';
 import { formatDollars } from '../../../shared/api';
 import { useTierLimitsForm } from '../hooks/useTierLimitsForm';
 
@@ -107,7 +107,7 @@ export function TierLimitsSettings() {
                           <span className="text-white">
                             {isUnlimited ? (
                               <span className="flex items-center gap-1">
-                                <Infinity className="h-4 w-4" /> Unlimited
+                                <InfinityIcon className="h-4 w-4" /> Unlimited
                               </span>
                             ) : (
                               formatDollars(currentValue, aiCreditsLimit.cost_multiplier)

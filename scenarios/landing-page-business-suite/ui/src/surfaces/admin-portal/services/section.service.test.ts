@@ -9,6 +9,15 @@ import {
   getVariantGuidance,
   COMPARE_STORAGE_KEY,
 } from './section.service';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
+
+const parseStored = (value: string): Record<string, unknown> => {
+  const parsed = safeParseJson(value);
+  if (!isRecord(parsed)) {
+    throw new Error('Expected stored preferences to be an object');
+  }
+  return parsed;
+};
 
 describe('section.service', () => {
   describe('loadComparePreference', () => {
@@ -98,7 +107,7 @@ describe('section.service', () => {
 
       const storedStr = mockStorage[COMPARE_STORAGE_KEY];
       expect(storedStr).toBeDefined();
-      const stored = JSON.parse(storedStr!);
+      const stored = parseStored(storedStr!);
       expect(stored['test-variant']).toBe('compare-variant');
     });
 
@@ -107,7 +116,7 @@ describe('section.service', () => {
 
       saveComparePreference('test-variant', 'compare-variant');
 
-      const stored = JSON.parse(mockStorage[COMPARE_STORAGE_KEY]);
+      const stored = parseStored(mockStorage[COMPARE_STORAGE_KEY]);
       expect(stored['existing-variant']).toBe('existing-compare');
       expect(stored['test-variant']).toBe('compare-variant');
     });
@@ -117,7 +126,7 @@ describe('section.service', () => {
 
       saveComparePreference('test-variant', null);
 
-      const stored = JSON.parse(mockStorage[COMPARE_STORAGE_KEY]);
+      const stored = parseStored(mockStorage[COMPARE_STORAGE_KEY]);
       expect(stored['test-variant']).toBeUndefined();
     });
 

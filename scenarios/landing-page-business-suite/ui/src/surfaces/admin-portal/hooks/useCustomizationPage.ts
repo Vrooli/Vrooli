@@ -179,7 +179,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
       drafts[v.slug] = v.weight ?? 0;
     });
     setWeightDrafts(drafts);
-  }, [activeVariants.map((v) => `${v.slug}:${v.weight}`).join('|')]);
+  }, [activeVariants]);
 
   // Weight helpers
   const getWeight = useCallback(

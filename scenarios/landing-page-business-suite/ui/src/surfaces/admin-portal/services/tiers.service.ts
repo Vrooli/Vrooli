@@ -4,7 +4,7 @@ import {
   updateTierLimit as apiUpdateTierLimit,
   formatDollars,
 } from '../../../shared/api';
-import { TIER_OPTIONS, isUnlimitedValue } from '../../../shared/lib/tierUtils';
+import { TIER_OPTIONS } from '../../../shared/lib/tierUtils';
 
 /**
  * Default values for tier limits

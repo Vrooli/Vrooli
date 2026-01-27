@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { AnalyticsSummary, VariantStats } from '../../../shared/api';
+import type { AnalyticsSummary, VariantStats, getMetricsSummary, getVariantMetrics } from '../../../shared/api';
 import {
   buildDateRange,
   fetchAnalyticsSummary,
@@ -8,15 +8,18 @@ import {
 } from './analyticsController';
 
 // Mock the API module
-const getMetricsSummaryMock = vi.fn();
-const getVariantMetricsMock = vi.fn();
+type GetMetricsSummaryFn = typeof getMetricsSummary;
+type GetVariantMetricsFn = typeof getVariantMetrics;
+
+const getMetricsSummaryMock = vi.fn<Parameters<GetMetricsSummaryFn>, ReturnType<GetMetricsSummaryFn>>();
+const getVariantMetricsMock = vi.fn<Parameters<GetVariantMetricsFn>, ReturnType<GetVariantMetricsFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getMetricsSummary: (...args: unknown[]) => getMetricsSummaryMock(...args),
-    getVariantMetrics: (...args: unknown[]) => getVariantMetricsMock(...args),
+    getMetricsSummary: (...args: Parameters<GetMetricsSummaryFn>) => getMetricsSummaryMock(...args),
+    getVariantMetrics: (...args: Parameters<GetVariantMetricsFn>) => getVariantMetricsMock(...args),
   };
 });
 
@@ -136,7 +139,7 @@ describe('analyticsController', () => {
       getMetricsSummaryMock.mockResolvedValue({
         ...mockSummary,
         variant_stats: null,
-      });
+      } as unknown as AnalyticsSummary);
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',
@@ -152,7 +155,7 @@ describe('analyticsController', () => {
       getMetricsSummaryMock.mockResolvedValue({
         total_visitors: 100,
         variant_stats: undefined,
-      });
+      } as unknown as AnalyticsSummary);
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',
@@ -178,7 +181,11 @@ describe('analyticsController', () => {
 
   describe('fetchVariantAnalytics', () => {
     it('calls getVariantMetrics with variant slug and date range', async () => {
-      getVariantMetricsMock.mockResolvedValue({ stats: mockVariantStats });
+      getVariantMetricsMock.mockResolvedValue({
+        start_date: '2025-01-01',
+        end_date: '2025-01-07',
+        stats: mockVariantStats,
+      });
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',
@@ -191,7 +198,11 @@ describe('analyticsController', () => {
     });
 
     it('returns normalized variant stats array', async () => {
-      getVariantMetricsMock.mockResolvedValue({ stats: mockVariantStats });
+      getVariantMetricsMock.mockResolvedValue({
+        start_date: '2025-01-01',
+        end_date: '2025-01-07',
+        stats: mockVariantStats,
+      });
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',
@@ -205,7 +216,11 @@ describe('analyticsController', () => {
     });
 
     it('normalizes null stats to empty array', async () => {
-      getVariantMetricsMock.mockResolvedValue({ stats: null });
+      getVariantMetricsMock.mockResolvedValue({
+        start_date: '2025-01-01',
+        end_date: '2025-01-07',
+        stats: null,
+      } as unknown as Awaited<ReturnType<GetVariantMetricsFn>>);
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',
@@ -218,7 +233,11 @@ describe('analyticsController', () => {
     });
 
     it('normalizes undefined stats to empty array', async () => {
-      getVariantMetricsMock.mockResolvedValue({});
+      getVariantMetricsMock.mockResolvedValue({
+        start_date: '2025-01-01',
+        end_date: '2025-01-07',
+        stats: undefined,
+      } as unknown as Awaited<ReturnType<GetVariantMetricsFn>>);
 
       const range: AnalyticsDateRange = {
         startDate: '2025-01-01',

@@ -2,11 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { SiteBranding, Asset } from '../../../shared/api';
 import { useBrandingForm } from './useBrandingForm';
+import type { loadBranding, saveBranding, clearField } from '../services/branding.service';
 
 // Mock the branding service
-const loadBrandingMock = vi.fn();
-const saveBrandingMock = vi.fn();
-const clearFieldMock = vi.fn();
+type LoadBrandingFn = typeof loadBranding;
+type SaveBrandingFn = typeof saveBranding;
+type ClearFieldFn = typeof clearField;
+
+const loadBrandingMock = vi.fn<Parameters<LoadBrandingFn>, ReturnType<LoadBrandingFn>>();
+const saveBrandingMock = vi.fn<Parameters<SaveBrandingFn>, ReturnType<SaveBrandingFn>>();
+const clearFieldMock = vi.fn<Parameters<ClearFieldFn>, ReturnType<ClearFieldFn>>();
 
 vi.mock('../services/branding.service', async () => {
   const actual = await vi.importActual<typeof import('../services/branding.service')>(
@@ -14,9 +19,9 @@ vi.mock('../services/branding.service', async () => {
   );
   return {
     ...actual,
-    loadBranding: (...args: unknown[]) => loadBrandingMock(...args),
-    saveBranding: (...args: unknown[]) => saveBrandingMock(...args),
-    clearField: (...args: unknown[]) => clearFieldMock(...args),
+    loadBranding: (...args: Parameters<LoadBrandingFn>) => loadBrandingMock(...args),
+    saveBranding: (...args: Parameters<SaveBrandingFn>) => saveBrandingMock(...args),
+    clearField: (...args: Parameters<ClearFieldFn>) => clearFieldMock(...args),
   };
 });
 
@@ -358,9 +363,9 @@ describe('useBrandingForm', () => {
     });
 
     it('sets saving state during submission', async () => {
-      let resolveSave: (value: unknown) => void;
+      let resolveSave: (value: SiteBranding) => void;
       saveBrandingMock.mockReturnValue(
-        new Promise((resolve) => {
+        new Promise<SiteBranding>((resolve) => {
           resolveSave = resolve;
         })
       );
@@ -382,7 +387,7 @@ describe('useBrandingForm', () => {
       expect(result.current.saving).toBe(true);
 
       await act(async () => {
-        resolveSave!({ ...mockBranding, site_name: 'Changed' });
+        resolveSave?.({ ...mockBranding, site_name: 'Changed' });
       });
 
       expect(result.current.saving).toBe(false);

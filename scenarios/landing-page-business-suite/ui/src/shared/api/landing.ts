@@ -10,7 +10,7 @@ import { apiCall } from './common';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
 import { PlanOptionSchema, PricingOverviewSchema } from './schemas';
-import { parseOrNull, parseArrayFiltered, safeParse } from './safeParse';
+import { parseOrNull, safeParse } from './safeParse';
 
 export function getLandingConfig(variantSlug?: string) {
   const params = new URLSearchParams();
@@ -91,7 +91,7 @@ export function getPlans() {
     }
 
     const normalizePlan = (plan: RawPlan): PlanOption | null => {
-      const normalized = {
+      const normalized: PlanOption = {
         plan_name: plan.planName ?? '',
         plan_tier: plan.planTier ?? '',
         billing_interval: billingInterval(plan.billingInterval),
@@ -116,7 +116,9 @@ export function getPlans() {
       };
 
       // Validate the normalized plan against the schema
-      return parseOrNull(PlanOptionSchema, normalized, 'PlanOption');
+      const validated = parseOrNull(PlanOptionSchema, normalized, 'PlanOption');
+      if (!validated) return null;
+      return normalized;
     };
 
     const pricing = message.pricing;

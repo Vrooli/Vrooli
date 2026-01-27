@@ -4,7 +4,6 @@ import Editor from '@monaco-editor/react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
-import { FormSection } from '../components/FormSection';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
@@ -72,7 +71,6 @@ export function VariantEditor() {
     setHeaderConfig,
 
     // Tab state
-    activeTab,
     setActiveTab,
     isJsonTab,
     currentSaving,

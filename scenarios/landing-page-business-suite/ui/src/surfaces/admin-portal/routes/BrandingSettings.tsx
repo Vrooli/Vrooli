@@ -2,7 +2,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
 import { FormField, inputClassName, textareaClassName } from '../components/FormField';
-import { StatusBadge, StatusBadgeGrid } from '../components/StatusBadge';
+import { StatusBadgeGrid } from '../components/StatusBadge';
 import { LabelWithHelp } from '../components/LabelWithHelp';
 import { PasswordInput } from '../components/PasswordInput';
 import { ClearableInput } from '../components/ClearableInput';

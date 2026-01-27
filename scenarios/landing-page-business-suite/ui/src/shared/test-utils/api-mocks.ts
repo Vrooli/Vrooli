@@ -1,22 +1,22 @@
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 import { ApiError, type ApiErrorType } from '../api/common';
+import { isRecord, safeParseJson } from '../lib/utils';
 
 /**
  * Factory for creating a mock fetch function with proper type handling.
  */
-export function createFetchMock() {
-  return vi.fn() as ReturnType<typeof vi.fn> & {
-    mockResolvedValue: (value: MockFetchResponse) => ReturnType<typeof vi.fn>;
-    mockRejectedValue: (error: Error) => ReturnType<typeof vi.fn>;
-    mockImplementation: (fn: () => Promise<MockFetchResponse>) => ReturnType<typeof vi.fn>;
-  };
+type FetchArgs = [RequestInfo | URL, RequestInit?];
+export type FetchMock = Mock<FetchArgs, Promise<MockFetchResponse>>;
+
+export function createFetchMock(): FetchMock {
+  return vi.fn<FetchArgs, Promise<MockFetchResponse>>();
 }
 
-export interface MockFetchResponse {
+export interface MockFetchResponse<T = unknown> {
   ok: boolean;
   status?: number;
   statusText?: string;
-  json?: () => Promise<unknown>;
+  json?: () => Promise<T>;
   text?: () => Promise<string>;
 }
 
@@ -27,7 +27,7 @@ export const mockResponses = {
   /**
    * Create a successful JSON response.
    */
-  success<T>(data: T, status = 200): MockFetchResponse {
+  success<T>(data: T, status = 200): MockFetchResponse<T> {
     return {
       ok: true,
       status,
@@ -176,7 +176,7 @@ export function createApiErrorMock(
 /**
  * Helper to install fetch mock on globalThis.
  */
-export function installFetchMock(mockFetch: ReturnType<typeof createFetchMock>): void {
+export function installFetchMock(mockFetch: FetchMock): void {
   globalThis.fetch = mockFetch as unknown as typeof fetch;
 }
 
@@ -225,11 +225,11 @@ export function expectApiError(
  * Returns the mock function and a cleanup function.
  */
 export function createWindowOpenMock(): {
-  mock: ReturnType<typeof vi.fn>;
+  mock: Mock<Parameters<typeof window.open>, ReturnType<typeof window.open>>;
   restore: () => void;
 } {
   const originalOpen = window.open;
-  const mock = vi.fn();
+  const mock = vi.fn<Parameters<typeof window.open>, ReturnType<typeof window.open>>();
   window.open = mock;
 
   return {
@@ -244,13 +244,14 @@ export function createWindowOpenMock(): {
  * Create a mock for URL.createObjectURL, used for blob downloads.
  */
 export function createObjectURLMock(): {
-  mock: ReturnType<typeof vi.fn>;
+  mock: Mock<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>;
   restore: () => void;
 } {
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mock = vi.fn((_obj: Blob | MediaSource) => 'blob:test-url') as any;
+  const mock = vi.fn<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>(
+    () => 'blob:test-url'
+  );
   const revokeMock = vi.fn();
   URL.createObjectURL = mock;
   URL.revokeObjectURL = revokeMock;
@@ -278,9 +279,9 @@ export function assertDefined<T>(value: T | undefined, name: string): asserts va
  * Helper to safely get the first call arguments from a mock.
  * Throws if no calls were made, ensuring the test fails if mock wasn't called.
  */
-export function getFirstCall<T extends ReturnType<typeof vi.fn>>(
-  mock: T
-): NonNullable<T['mock']['calls'][0]> {
+export function getFirstCall<TArgs extends unknown[], TReturn>(
+  mock: Mock<TArgs, TReturn>
+): TArgs {
   const call = mock.mock.calls[0];
   if (!call) {
     throw new Error('Expected mock to have been called at least once');
@@ -292,10 +293,10 @@ export function getFirstCall<T extends ReturnType<typeof vi.fn>>(
  * Helper to safely get a specific call from a mock by index.
  * Throws if the call at that index doesn't exist.
  */
-export function getCall<T extends ReturnType<typeof vi.fn>>(
-  mock: T,
+export function getCall<TArgs extends unknown[], TReturn>(
+  mock: Mock<TArgs, TReturn>,
   index: number
-): NonNullable<T['mock']['calls'][number]> {
+): TArgs {
   const call = mock.mock.calls[index];
   if (!call) {
     throw new Error(`Expected mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
@@ -308,14 +309,27 @@ export function getCall<T extends ReturnType<typeof vi.fn>>(
  * Returns [url, options] tuple with proper types.
  */
 export function getFetchCall(
-  mock: ReturnType<typeof createFetchMock>,
+  mock: FetchMock,
   index = 0
 ): [string, RequestInit] {
   const call = mock.mock.calls[index];
   if (!call) {
     throw new Error(`Expected fetch mock to have call at index ${index}, but only ${mock.mock.calls.length} calls were made`);
   }
-  return [call[0] as string, call[1] as RequestInit];
+  const url = typeof call[0] === 'string' ? call[0] : call[0].toString();
+  const options: RequestInit = call[1] ?? {};
+  return [url, options];
+}
+
+export function parseJsonBody(body: BodyInit | null | undefined): Record<string, unknown> {
+  if (typeof body !== 'string') {
+    throw new Error('Expected request body to be a JSON string');
+  }
+  const parsed = safeParseJson(body);
+  if (!isRecord(parsed)) {
+    throw new Error('Expected JSON body to be an object');
+  }
+  return parsed;
 }
 
 /**
@@ -323,19 +337,16 @@ export function getFetchCall(
  */
 export function createDownloadLinkMock(): {
   element: HTMLAnchorElement;
-  clickSpy: ReturnType<typeof vi.fn>;
-  appendChildSpy: ReturnType<typeof vi.fn>;
-  removeChildSpy: ReturnType<typeof vi.fn>;
+  clickSpy: Mock<[], void>;
+  appendChildSpy: Mock<[Node], Node>;
+  removeChildSpy: Mock<[Node], Node>;
   restore: () => void;
 } {
-  const clickSpy = vi.fn();
-  const appendChildSpy = vi.fn();
-  const removeChildSpy = vi.fn();
+  const clickSpy = vi.fn<[], void>();
+  const appendChildSpy = vi.fn<[Node], Node>();
+  const removeChildSpy = vi.fn<[Node], Node>();
 
   const originalCreateElement = document.createElement.bind(document);
-  const originalAppendChild = document.body.appendChild.bind(document.body);
-  const originalRemoveChild = document.body.removeChild.bind(document.body);
-
   const element = originalCreateElement('a') as HTMLAnchorElement;
   element.click = clickSpy;
 

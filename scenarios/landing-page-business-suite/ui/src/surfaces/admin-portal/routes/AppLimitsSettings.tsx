@@ -9,7 +9,7 @@ import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
 import { useToast } from '../../../shared/ui/Toast';
-import { AppWindow, Save, Infinity, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { AppWindow, Save, Infinity as InfinityIcon, DollarSign, Plus, Trash2 } from 'lucide-react';
 import { formatDollars, TIER_OPTIONS } from '../../../shared/api';
 import {
   getEditKey,
@@ -154,7 +154,7 @@ export function AppLimitsSettings() {
                               <span className="text-white">
                                 {isUnlimited ? (
                                   <span className="flex items-center gap-1">
-                                    <Infinity className="h-4 w-4" /> Unlimited
+                                    <InfinityIcon className="h-4 w-4" /> Unlimited
                                   </span>
                                 ) : (
                                   formatDollars(currentValue, limit.cost_multiplier)

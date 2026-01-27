@@ -123,7 +123,7 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
         { slug: 'test-variant', name: 'Test Variant', status: 'active' },
         { slug: 'compare-variant', name: 'Compare Variant', status: 'active' },
       ],
-    } as any);
+    });
   });
 
   const renderEditor = () => {

@@ -2,18 +2,33 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDocsViewer } from './useDocsViewer';
 import type { DocEntry, DocContent } from '../../../shared/api';
+import type {
+  fetchDocsTree,
+  fetchDocContent,
+  findFirstMarkdownFile,
+  getExpandedPathsForDocPath,
+} from '../services/docs.service';
 
 // Mock the service module
-const fetchDocsTreeMock = vi.fn();
-const fetchDocContentMock = vi.fn();
-const findFirstMarkdownFileMock = vi.fn();
-const getExpandedPathsForDocPathMock = vi.fn();
+type FetchDocsTreeFn = typeof fetchDocsTree;
+type FetchDocContentFn = typeof fetchDocContent;
+type FindFirstMarkdownFileFn = typeof findFirstMarkdownFile;
+type GetExpandedPathsForDocPathFn = typeof getExpandedPathsForDocPath;
+
+const fetchDocsTreeMock = vi.fn<Parameters<FetchDocsTreeFn>, ReturnType<FetchDocsTreeFn>>();
+const fetchDocContentMock = vi.fn<Parameters<FetchDocContentFn>, ReturnType<FetchDocContentFn>>();
+const findFirstMarkdownFileMock = vi.fn<Parameters<FindFirstMarkdownFileFn>, ReturnType<FindFirstMarkdownFileFn>>();
+const getExpandedPathsForDocPathMock = vi.fn<
+  Parameters<GetExpandedPathsForDocPathFn>,
+  ReturnType<GetExpandedPathsForDocPathFn>
+>();
 
 vi.mock('../services/docs.service', () => ({
-  fetchDocsTree: (...args: unknown[]) => fetchDocsTreeMock(...args),
-  fetchDocContent: (...args: unknown[]) => fetchDocContentMock(...args),
-  findFirstMarkdownFile: (...args: unknown[]) => findFirstMarkdownFileMock(...args),
-  getExpandedPathsForDocPath: (...args: unknown[]) => getExpandedPathsForDocPathMock(...args),
+  fetchDocsTree: (...args: Parameters<FetchDocsTreeFn>) => fetchDocsTreeMock(...args),
+  fetchDocContent: (...args: Parameters<FetchDocContentFn>) => fetchDocContentMock(...args),
+  findFirstMarkdownFile: (...args: Parameters<FindFirstMarkdownFileFn>) => findFirstMarkdownFileMock(...args),
+  getExpandedPathsForDocPath: (...args: Parameters<GetExpandedPathsForDocPathFn>) =>
+    getExpandedPathsForDocPathMock(...args),
 }));
 
 const mockTree: DocEntry[] = [

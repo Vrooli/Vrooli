@@ -6,7 +6,7 @@ import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { useToast } from '../../../shared/ui/Toast';
-import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X, AlertCircle } from 'lucide-react';
+import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X } from 'lucide-react';
 import { formatDateOnly } from '../../../shared/lib/dateFormatters';
 import { useAPIKeysForm } from '../hooks/useAPIKeysForm';
 import { getProviderLabel, getProviderDescription } from '../services/apiKeys.service';

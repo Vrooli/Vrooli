@@ -1,30 +1,50 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAdminHome } from './useAdminHome';
-import type { Variant, StripeSettingsResponse, SiteBranding, DownloadApp } from '../../../shared/api';
+import type {
+  Variant,
+  AnalyticsSummary,
+  StripeSettingsResponse,
+  SiteBranding,
+  DownloadApp,
+  listVariants,
+  getStripeSettings,
+  resetDemoData,
+  getBranding,
+  listDownloadAppsAdmin,
+} from '../../../shared/api';
 import type { AdminExperienceSnapshot } from '../../../shared/lib/adminExperience';
+import type { fetchAnalyticsSummary } from '../controllers/analyticsController';
+import type { getAdminExperienceSnapshot } from '../../../shared/lib/adminExperience';
 
 // Mock API calls
-const listVariantsMock = vi.fn();
-const getStripeSettingsMock = vi.fn();
-const resetDemoDataMock = vi.fn();
-const getBrandingMock = vi.fn();
-const listDownloadAppsAdminMock = vi.fn();
+type ListVariantsFn = typeof listVariants;
+type GetStripeSettingsFn = typeof getStripeSettings;
+type ResetDemoDataFn = typeof resetDemoData;
+type GetBrandingFn = typeof getBranding;
+type ListDownloadAppsAdminFn = typeof listDownloadAppsAdmin;
+
+const listVariantsMock = vi.fn<Parameters<ListVariantsFn>, ReturnType<ListVariantsFn>>();
+const getStripeSettingsMock = vi.fn<Parameters<GetStripeSettingsFn>, ReturnType<GetStripeSettingsFn>>();
+const resetDemoDataMock = vi.fn<Parameters<ResetDemoDataFn>, ReturnType<ResetDemoDataFn>>();
+const getBrandingMock = vi.fn<Parameters<GetBrandingFn>, ReturnType<GetBrandingFn>>();
+const listDownloadAppsAdminMock = vi.fn<Parameters<ListDownloadAppsAdminFn>, ReturnType<ListDownloadAppsAdminFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    listVariants: (...args: unknown[]) => listVariantsMock(...args),
-    getStripeSettings: (...args: unknown[]) => getStripeSettingsMock(...args),
-    resetDemoData: (...args: unknown[]) => resetDemoDataMock(...args),
-    getBranding: (...args: unknown[]) => getBrandingMock(...args),
-    listDownloadAppsAdmin: (...args: unknown[]) => listDownloadAppsAdminMock(...args),
+    listVariants: (...args: Parameters<ListVariantsFn>) => listVariantsMock(...args),
+    getStripeSettings: (...args: Parameters<GetStripeSettingsFn>) => getStripeSettingsMock(...args),
+    resetDemoData: (...args: Parameters<ResetDemoDataFn>) => resetDemoDataMock(...args),
+    getBranding: (...args: Parameters<GetBrandingFn>) => getBrandingMock(...args),
+    listDownloadAppsAdmin: (...args: Parameters<ListDownloadAppsAdminFn>) => listDownloadAppsAdminMock(...args),
   };
 });
 
 // Mock analytics controller
-const fetchAnalyticsSummaryMock = vi.fn();
+type FetchAnalyticsSummaryFn = typeof fetchAnalyticsSummary;
+const fetchAnalyticsSummaryMock = vi.fn<Parameters<FetchAnalyticsSummaryFn>, ReturnType<FetchAnalyticsSummaryFn>>();
 
 vi.mock('../controllers/analyticsController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/analyticsController')>(
@@ -32,12 +52,16 @@ vi.mock('../controllers/analyticsController', async () => {
   );
   return {
     ...actual,
-    fetchAnalyticsSummary: (...args: unknown[]) => fetchAnalyticsSummaryMock(...args),
+    fetchAnalyticsSummary: (...args: Parameters<FetchAnalyticsSummaryFn>) => fetchAnalyticsSummaryMock(...args),
   };
 });
 
 // Mock admin experience
-const getAdminExperienceSnapshotMock = vi.fn();
+type GetAdminExperienceSnapshotFn = typeof getAdminExperienceSnapshot;
+const getAdminExperienceSnapshotMock = vi.fn<
+  Parameters<GetAdminExperienceSnapshotFn>,
+  ReturnType<GetAdminExperienceSnapshotFn>
+>();
 
 vi.mock('../../../shared/lib/adminExperience', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/lib/adminExperience')>(
@@ -98,18 +122,29 @@ const mockDownloadApp: DownloadApp = {
   display_order: 0,
 };
 
-const mockAnalytics = {
-  total_visits: 1000,
-  total_conversions: 50,
-  conversion_rate: 5.0,
+const mockResetResponse = {
+  reset: true,
+  timestamp: new Date().toISOString(),
+};
+
+const mockAnalytics: AnalyticsSummary = {
+  total_visitors: 1000,
+  total_downloads: 50,
   variant_stats: [
     {
+      variant_id: 1,
       variant_slug: 'test-variant',
-      visits: 500,
+      variant_name: 'Test Variant',
+      views: 500,
+      cta_clicks: 0,
       conversions: 25,
+      downloads: 10,
       conversion_rate: 5.0,
+      avg_scroll_depth: 72,
     },
   ],
+  top_cta: 'Get Started',
+  top_cta_ctr: 0.05,
 };
 
 const mockExperience: AdminExperienceSnapshot = {
@@ -345,7 +380,7 @@ describe('useAdminHome', () => {
 
   describe('demo data reset', () => {
     it('handles successful demo data reset', async () => {
-      resetDemoDataMock.mockResolvedValue(undefined);
+      resetDemoDataMock.mockResolvedValue(mockResetResponse);
 
       const { result } = renderHook(() => useAdminHome());
 
@@ -390,7 +425,7 @@ describe('useAdminHome', () => {
     });
 
     it('refreshes health and stripe after successful reset', async () => {
-      resetDemoDataMock.mockResolvedValue(undefined);
+      resetDemoDataMock.mockResolvedValue(mockResetResponse);
 
       const { result } = renderHook(() => useAdminHome());
 
@@ -410,9 +445,9 @@ describe('useAdminHome', () => {
     });
 
     it('sets resetting state during reset', async () => {
-      let resolveReset: () => void;
+      let resolveReset: (value: typeof mockResetResponse) => void;
       resetDemoDataMock.mockReturnValue(
-        new Promise<void>((resolve) => {
+        new Promise<typeof mockResetResponse>((resolve) => {
           resolveReset = resolve;
         })
       );
@@ -430,7 +465,7 @@ describe('useAdminHome', () => {
       expect(result.current.resettingDemoData).toBe(true);
 
       await act(async () => {
-        resolveReset!();
+        resolveReset?.(mockResetResponse);
       });
 
       await waitFor(() => {

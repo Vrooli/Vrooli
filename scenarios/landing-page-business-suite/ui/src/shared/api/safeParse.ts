@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+type ZodSchema<T> = z.ZodType<T, z.ZodTypeDef, unknown>;
+
 /**
  * Result type for successful parsing.
  */
@@ -42,7 +44,7 @@ export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
  * }
  */
 export function safeParse<T>(
-  schema: z.ZodSchema<T>,
+  schema: ZodSchema<T>,
   data: unknown,
   context: string
 ): ParseResult<T> {
@@ -89,7 +91,7 @@ export function safeParse<T>(
  * }
  */
 export function parseOrThrow<T>(
-  schema: z.ZodSchema<T>,
+  schema: ZodSchema<T>,
   data: unknown,
   context: string
 ): T {
@@ -120,7 +122,7 @@ export function parseOrThrow<T>(
  * }
  */
 export function parseOrNull<T>(
-  schema: z.ZodSchema<T>,
+  schema: ZodSchema<T>,
   data: unknown,
   context: string
 ): T | null {
@@ -142,7 +144,7 @@ export function parseOrNull<T>(
  * // plans contains only valid PlanOption objects
  */
 export function parseArrayFiltered<T>(
-  schema: z.ZodSchema<T>,
+  schema: ZodSchema<T>,
   data: unknown[],
   context: string
 ): T[] {

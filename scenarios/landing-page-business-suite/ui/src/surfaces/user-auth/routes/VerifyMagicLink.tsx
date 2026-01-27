@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import { verifyMagicLink, isApiError, VerifyMagicLinkResponse } from '../../../shared/api';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 // Session storage key for auth callback params (set in UserLogin)
 const AUTH_CALLBACK_PARAMS_KEY = 'auth_callback_params';
@@ -23,6 +24,20 @@ interface VerifyState {
   status: VerifyStatus;
   error?: string;
   errorCode?: 'expired' | 'used' | 'invalid' | 'network' | 'unknown';
+}
+
+function parseAuthCallbackParams(raw: string): AuthCallbackParams | null {
+  const parsed = safeParseJson(raw);
+  if (!isRecord(parsed)) {
+    return null;
+  }
+  const redirect = parsed.redirect_uri;
+  const app = parsed.app;
+  const state = parsed.state;
+  if (typeof redirect !== 'string' || typeof app !== 'string' || typeof state !== 'string') {
+    return null;
+  }
+  return { redirect_uri: redirect, app, state };
 }
 
 /**
@@ -102,7 +117,10 @@ export function VerifyMagicLink() {
 
       if (storedParams) {
         try {
-          const params: AuthCallbackParams = JSON.parse(storedParams);
+          const params = parseAuthCallbackParams(storedParams);
+          if (!params) {
+            throw new Error('Invalid stored auth params');
+          }
 
           // Clear stored params
           sessionStorage.removeItem(AUTH_CALLBACK_PARAMS_KEY);

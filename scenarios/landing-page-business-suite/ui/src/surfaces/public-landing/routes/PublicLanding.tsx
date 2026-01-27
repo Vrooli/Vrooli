@@ -25,10 +25,8 @@ import { normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
 import {
   buildNavItems,
   hasDownloadTargets,
-  formatDownloadPlatform,
   getDownloadButtonLabel,
   getSectionNavLabel,
-  type NavItem,
 } from '../services/navigation.service';
 
 interface SectionRendererContext {

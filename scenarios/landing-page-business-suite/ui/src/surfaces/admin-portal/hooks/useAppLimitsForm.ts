@@ -71,14 +71,11 @@ export function useAppLimitsForm(): UseAppLimitsFormReturn {
    * Fetch limits from API
    */
   const refreshLimits = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const fetchedLimits = await fetchAppLimits(selectedApp);
       setLimits(fetchedLimits);
       setEditedValues({});
-    } catch (error) {
-      // Error is propagated up - caller can handle via return value
-      throw error;
     } finally {
       setLoading(false);
     }

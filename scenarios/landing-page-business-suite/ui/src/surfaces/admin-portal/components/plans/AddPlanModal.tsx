@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Check, Loader2, Plus, Search, X } from 'lucide-react';
+import { Check, Loader2, Plus, Search } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import {
   Dialog,

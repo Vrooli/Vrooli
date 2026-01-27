@@ -8,6 +8,7 @@ import type {
   LandingSection,
 } from '../../../shared/api';
 import { DOWNLOAD_ANCHOR_ID, getSectionAnchorId } from '../../../shared/lib/sections';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 /**
  * Generate a unique ID for navigation links
@@ -102,12 +103,23 @@ export function createMenuChildLink(): LandingHeaderNavLink {
 /**
  * Parse a navigation target JSON string
  */
-export function parseNavTarget(targetJson: string): { type: string; id?: number; section_type?: string; order?: number } | null {
-  try {
-    return JSON.parse(targetJson);
-  } catch {
+export function parseNavTarget(
+  targetJson: string
+): { type: string; id?: number; section_type?: string; order?: number } | null {
+  const parsed = safeParseJson(targetJson);
+  if (!isRecord(parsed)) {
     return null;
   }
+  const typeValue = parsed.type;
+  if (typeof typeValue !== 'string' || !typeValue) {
+    return null;
+  }
+  return {
+    type: typeValue,
+    id: typeof parsed.id === 'number' ? parsed.id : undefined,
+    section_type: typeof parsed.section_type === 'string' ? parsed.section_type : undefined,
+    order: typeof parsed.order === 'number' ? parsed.order : undefined,
+  };
 }
 
 /**
@@ -132,7 +144,7 @@ export function updateHeaderConfig(
   config: LandingHeaderConfig,
   updater: (draft: LandingHeaderConfig) => void
 ): LandingHeaderConfig {
-  const clone = JSON.parse(JSON.stringify(config)) as LandingHeaderConfig;
+  const clone = structuredClone(config);
   updater(clone);
   return clone;
 }

@@ -1,24 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { StripeSettingsResponse, BundleCatalogEntry, BundleProduct, PlanOption } from '../../../shared/api';
+import type {
+  StripeSettingsResponse,
+  BundleCatalogEntry,
+  BundleProduct,
+  PlanOption,
+} from '../../../shared/api';
 import { useBillingForm } from './useBillingForm';
+import type {
+  loadStripeSettings,
+  saveStripeSettings,
+  loadBundleCatalog,
+  savePriceForm,
+  verifyPriceId,
+  PriceVerificationResult,
+} from '../services/billing.service';
 
 // Mock the billing service
-const loadStripeSettingsMock = vi.fn();
-const saveStripeSettingsMock = vi.fn();
-const loadBundleCatalogMock = vi.fn();
-const savePriceFormMock = vi.fn();
-const verifyPriceIdMock = vi.fn();
+type LoadStripeSettingsFn = typeof loadStripeSettings;
+type SaveStripeSettingsFn = typeof saveStripeSettings;
+type LoadBundleCatalogFn = typeof loadBundleCatalog;
+type SavePriceFormFn = typeof savePriceForm;
+type VerifyPriceIdFn = typeof verifyPriceId;
+
+const loadStripeSettingsMock = vi.fn<Parameters<LoadStripeSettingsFn>, ReturnType<LoadStripeSettingsFn>>();
+const saveStripeSettingsMock = vi.fn<Parameters<SaveStripeSettingsFn>, ReturnType<SaveStripeSettingsFn>>();
+const loadBundleCatalogMock = vi.fn<Parameters<LoadBundleCatalogFn>, ReturnType<LoadBundleCatalogFn>>();
+const savePriceFormMock = vi.fn<Parameters<SavePriceFormFn>, ReturnType<SavePriceFormFn>>();
+const verifyPriceIdMock = vi.fn<Parameters<VerifyPriceIdFn>, ReturnType<VerifyPriceIdFn>>();
 
 vi.mock('../services/billing.service', async () => {
   const actual = await vi.importActual<typeof import('../services/billing.service')>('../services/billing.service');
   return {
     ...actual,
-    loadStripeSettings: (...args: unknown[]) => loadStripeSettingsMock(...args),
-    saveStripeSettings: (...args: unknown[]) => saveStripeSettingsMock(...args),
-    loadBundleCatalog: (...args: unknown[]) => loadBundleCatalogMock(...args),
-    savePriceForm: (...args: unknown[]) => savePriceFormMock(...args),
-    verifyPriceId: (...args: unknown[]) => verifyPriceIdMock(...args),
+    loadStripeSettings: (...args: Parameters<LoadStripeSettingsFn>) => loadStripeSettingsMock(...args),
+    saveStripeSettings: (...args: Parameters<SaveStripeSettingsFn>) => saveStripeSettingsMock(...args),
+    loadBundleCatalog: (...args: Parameters<LoadBundleCatalogFn>) => loadBundleCatalogMock(...args),
+    savePriceForm: (...args: Parameters<SavePriceFormFn>) => savePriceFormMock(...args),
+    verifyPriceId: (...args: Parameters<VerifyPriceIdFn>) => verifyPriceIdMock(...args),
   };
 });
 
@@ -287,7 +306,7 @@ describe('useBillingForm', () => {
 
   describe('price form saving', () => {
     it('saves dirty price form', async () => {
-      savePriceFormMock.mockResolvedValue({});
+      savePriceFormMock.mockResolvedValue(undefined);
       loadBundleCatalogMock.mockResolvedValue({ bundles: mockBundles });
 
       const { result } = renderHook(() => useBillingForm());
@@ -346,7 +365,7 @@ describe('useBillingForm', () => {
     });
 
     it('requires verification when Stripe price ID changes', async () => {
-      savePriceFormMock.mockResolvedValue({});
+      savePriceFormMock.mockResolvedValue(undefined);
       verifyPriceIdMock.mockResolvedValue({ status: 'ok', message: 'Verified' });
 
       const { result } = renderHook(() => useBillingForm());
@@ -401,9 +420,9 @@ describe('useBillingForm', () => {
     });
 
     it('shows checking status during verification', async () => {
-      let resolveVerify: (value: unknown) => void;
+      let resolveVerify: (value: PriceVerificationResult) => void;
       verifyPriceIdMock.mockReturnValue(
-        new Promise((resolve) => {
+        new Promise<PriceVerificationResult>((resolve) => {
           resolveVerify = resolve;
         })
       );
@@ -421,7 +440,7 @@ describe('useBillingForm', () => {
       expect(result.current.priceChecks['test_bundle:price_123']?.status).toBe('checking');
 
       await act(async () => {
-        resolveVerify!({ status: 'ok', message: 'Done' });
+        resolveVerify?.({ status: 'ok', message: 'Done' });
       });
     });
   });

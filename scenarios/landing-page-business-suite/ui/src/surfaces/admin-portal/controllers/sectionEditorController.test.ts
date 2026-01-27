@@ -4,6 +4,11 @@ import type {
   Variant,
   VariantSpace,
   VariantAxes,
+  getSection,
+  updateSection,
+  patchSection,
+  getVariant,
+  getVariantSpace,
 } from '../../../shared/api';
 import {
   buildFormFields,
@@ -15,21 +20,27 @@ import {
 } from './sectionEditorController';
 
 // Mock the API module
-const getSectionMock = vi.fn();
-const updateSectionMock = vi.fn();
-const patchSectionMock = vi.fn();
-const getVariantMock = vi.fn();
-const getVariantSpaceMock = vi.fn();
+type GetSectionFn = typeof getSection;
+type UpdateSectionFn = typeof updateSection;
+type PatchSectionFn = typeof patchSection;
+type GetVariantFn = typeof getVariant;
+type GetVariantSpaceFn = typeof getVariantSpace;
+
+const getSectionMock = vi.fn<Parameters<GetSectionFn>, ReturnType<GetSectionFn>>();
+const updateSectionMock = vi.fn<Parameters<UpdateSectionFn>, ReturnType<UpdateSectionFn>>();
+const patchSectionMock = vi.fn<Parameters<PatchSectionFn>, ReturnType<PatchSectionFn>>();
+const getVariantMock = vi.fn<Parameters<GetVariantFn>, ReturnType<GetVariantFn>>();
+const getVariantSpaceMock = vi.fn<Parameters<GetVariantSpaceFn>, ReturnType<GetVariantSpaceFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getSection: (...args: unknown[]) => getSectionMock(...args),
-    updateSection: (...args: unknown[]) => updateSectionMock(...args),
-    patchSection: (...args: unknown[]) => patchSectionMock(...args),
-    getVariant: (...args: unknown[]) => getVariantMock(...args),
-    getVariantSpace: (...args: unknown[]) => getVariantSpaceMock(...args),
+    getSection: (...args: Parameters<GetSectionFn>) => getSectionMock(...args),
+    updateSection: (...args: Parameters<UpdateSectionFn>) => updateSectionMock(...args),
+    patchSection: (...args: Parameters<PatchSectionFn>) => patchSectionMock(...args),
+    getVariant: (...args: Parameters<GetVariantFn>) => getVariantMock(...args),
+    getVariantSpace: (...args: Parameters<GetVariantSpaceFn>) => getVariantSpaceMock(...args),
   };
 });
 
@@ -141,7 +152,7 @@ describe('sectionEditorController', () => {
 
   describe('persistExistingSectionContent', () => {
     it('updates section and reloads editor state', async () => {
-      updateSectionMock.mockResolvedValue({});
+      updateSectionMock.mockResolvedValue({ success: true, message: 'Updated' });
       getSectionMock.mockResolvedValue({
         ...mockSection,
         content: { title: 'Updated', subtitle: 'New subtitle' },
@@ -164,7 +175,7 @@ describe('sectionEditorController', () => {
 
   describe('updateSectionOrder', () => {
     it('patches section with new order', async () => {
-      patchSectionMock.mockResolvedValue({});
+      patchSectionMock.mockResolvedValue({ success: true });
 
       await updateSectionOrder(42, 5);
 
@@ -225,10 +236,14 @@ describe('sectionEditorController', () => {
 
     it('formats axis labels correctly', async () => {
       getVariantMock.mockResolvedValue(mockVariant);
+      const jtbdAxis = mockVariantSpace.axes.jtbd;
+      if (!jtbdAxis) {
+        throw new Error('Expected jtbd axis to be defined');
+      }
       getVariantSpaceMock.mockResolvedValue({
         ...mockVariantSpace,
         axes: {
-          jtbd: mockVariantSpace.axes.jtbd,
+          jtbd: jtbdAxis,
           targetAudience: {
             _note: 'Target audience',
             variants: [{ id: 'developers', label: 'Developers' }],
@@ -284,7 +299,7 @@ describe('sectionEditorController', () => {
       getVariantMock.mockResolvedValue(mockVariant);
       getVariantSpaceMock.mockResolvedValue({
         ...mockVariantSpace,
-        axes: undefined,
+        axes: {},
       });
 
       const result = await loadVariantContext('control');

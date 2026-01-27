@@ -258,7 +258,9 @@ describe('DocsViewer', () => {
     it('renders the header with title', async () => {
       renderWithRouter(<DocsViewer />);
 
-      expect(screen.getByTestId('docs-header')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('docs-header')).toBeInTheDocument();
+      });
       expect(screen.getByText('Template Documentation')).toBeInTheDocument();
     });
   });

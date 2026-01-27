@@ -7,25 +7,43 @@ import type {
   LandingHeaderConfig,
 } from '../../../shared/api';
 import { useVariantForm } from './useVariantForm';
+import type {
+  loadVariantEditorData,
+  loadVariantSpaceDefinition,
+  loadVariantSnapshot,
+  persistVariant,
+  persistVariantSnapshot,
+  validateVariantForm,
+} from '../controllers/variantEditorController';
 
 // Mock the controller
-const loadVariantEditorDataMock = vi.fn();
-const loadVariantSpaceDefinitionMock = vi.fn();
-const loadVariantSnapshotMock = vi.fn();
-const persistVariantMock = vi.fn();
-const persistVariantSnapshotMock = vi.fn();
-const validateVariantFormMock = vi.fn();
+type LoadVariantEditorDataFn = typeof loadVariantEditorData;
+type LoadVariantSpaceDefinitionFn = typeof loadVariantSpaceDefinition;
+type LoadVariantSnapshotFn = typeof loadVariantSnapshot;
+type PersistVariantFn = typeof persistVariant;
+type PersistVariantSnapshotFn = typeof persistVariantSnapshot;
+type ValidateVariantFormFn = typeof validateVariantForm;
+
+const loadVariantEditorDataMock = vi.fn<Parameters<LoadVariantEditorDataFn>, ReturnType<LoadVariantEditorDataFn>>();
+const loadVariantSpaceDefinitionMock = vi.fn<
+  Parameters<LoadVariantSpaceDefinitionFn>,
+  ReturnType<LoadVariantSpaceDefinitionFn>
+>();
+const loadVariantSnapshotMock = vi.fn<Parameters<LoadVariantSnapshotFn>, ReturnType<LoadVariantSnapshotFn>>();
+const persistVariantMock = vi.fn<Parameters<PersistVariantFn>, ReturnType<PersistVariantFn>>();
+const persistVariantSnapshotMock = vi.fn<Parameters<PersistVariantSnapshotFn>, ReturnType<PersistVariantSnapshotFn>>();
+const validateVariantFormMock = vi.fn<Parameters<ValidateVariantFormFn>, ReturnType<ValidateVariantFormFn>>();
 
 vi.mock('../controllers/variantEditorController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/variantEditorController')>('../controllers/variantEditorController');
   return {
     ...actual,
-    loadVariantEditorData: (...args: unknown[]) => loadVariantEditorDataMock(...args),
-    loadVariantSpaceDefinition: (...args: unknown[]) => loadVariantSpaceDefinitionMock(...args),
-    loadVariantSnapshot: (...args: unknown[]) => loadVariantSnapshotMock(...args),
-    persistVariant: (...args: unknown[]) => persistVariantMock(...args),
-    persistVariantSnapshot: (...args: unknown[]) => persistVariantSnapshotMock(...args),
-    validateVariantForm: (...args: unknown[]) => validateVariantFormMock(...args),
+    loadVariantEditorData: (...args: Parameters<LoadVariantEditorDataFn>) => loadVariantEditorDataMock(...args),
+    loadVariantSpaceDefinition: (...args: Parameters<LoadVariantSpaceDefinitionFn>) => loadVariantSpaceDefinitionMock(...args),
+    loadVariantSnapshot: (...args: Parameters<LoadVariantSnapshotFn>) => loadVariantSnapshotMock(...args),
+    persistVariant: (...args: Parameters<PersistVariantFn>) => persistVariantMock(...args),
+    persistVariantSnapshot: (...args: Parameters<PersistVariantSnapshotFn>) => persistVariantSnapshotMock(...args),
+    validateVariantForm: (...args: Parameters<ValidateVariantFormFn>) => validateVariantFormMock(...args),
   };
 });
 

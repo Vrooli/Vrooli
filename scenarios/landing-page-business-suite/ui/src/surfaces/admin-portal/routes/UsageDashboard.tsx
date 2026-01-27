@@ -2,7 +2,7 @@ import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
 import { LAYOUT } from '../config/layout.constants';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
+import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Activity, Users, Server, Calendar, RefreshCw, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCredits } from '../../../shared/api';

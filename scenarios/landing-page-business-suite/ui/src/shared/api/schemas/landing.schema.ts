@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   BillingIntervalSchema,
-  FlexibleTimestampSchema,
   HeaderBrandingModeSchema,
   HeaderCTAModeSchema,
   HeaderNavLinkTypeSchema,
@@ -10,8 +9,6 @@ import {
   IntroPricingTypeSchema,
   MetadataSchema,
   PlanKindSchema,
-  SectionTypeSchema,
-  VariantStatusSchema,
 } from './common.schema';
 
 /**
@@ -34,21 +31,21 @@ export const PlanOptionSchema = z.object({
   billing_interval: BillingIntervalSchema,
   amount_cents: z.number(),
   currency: z.string(),
-  intro_enabled: z.boolean(),
-  intro_type: IntroPricingTypeSchema,
+  intro_enabled: z.boolean().default(false),
+  intro_type: IntroPricingTypeSchema.optional(),
   intro_amount_cents: z.number().optional(),
   intro_periods: z.number().optional(),
   intro_price_lookup_key: z.string().optional(),
   stripe_price_id: z.string(),
-  monthly_included_credits: z.number(),
-  one_time_bonus_credits: z.number(),
+  monthly_included_credits: z.number().default(0),
+  one_time_bonus_credits: z.number().default(0),
   plan_rank: z.number().optional(),
   bonus_type: z.string().optional(),
-  kind: PlanKindSchema,
+  kind: PlanKindSchema.optional(),
   is_variable_amount: z.boolean().optional(),
-  display_enabled: z.boolean(),
+  display_enabled: z.boolean().default(false),
   bundle_key: z.string().optional(),
-  display_weight: z.number(),
+  display_weight: z.number().default(0),
   metadata: PlanDisplayMetadataSchema.optional(),
 });
 

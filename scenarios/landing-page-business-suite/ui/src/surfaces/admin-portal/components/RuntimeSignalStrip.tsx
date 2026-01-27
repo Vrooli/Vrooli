@@ -4,7 +4,7 @@ import { Button } from '../../../shared/ui/button';
 import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
 import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
 import { useComingSoonToggle } from '../hooks/useComingSoonToggle';
-import { RESOLUTION_LABELS, getResolutionLabel } from '../config/variant.constants';
+import { getResolutionLabel } from '../config/variant.constants';
 
 interface RuntimeSignalStripProps {
   /** Display mode: 'full' shows all details, 'compact' shows single-line expandable badge */

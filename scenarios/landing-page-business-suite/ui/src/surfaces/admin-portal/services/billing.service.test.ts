@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { StripeSettingsResponse, BundleCatalogEntry, BundleProduct, PlanOption } from '../../../shared/api';
+import type {
+  StripeSettingsResponse,
+  BundleCatalogEntry,
+  BundleProduct,
+  PlanOption,
+  getStripeSettings,
+  updateStripeSettings,
+  getBundleCatalog,
+  updateBundlePrice,
+  verifyStripePrice,
+} from '../../../shared/api';
 import {
   loadStripeSettings,
   saveStripeSettings,
@@ -17,21 +27,28 @@ import {
 import type { PriceFormState } from './pricing.service';
 
 // Mock the API module
-const getStripeSettingsMock = vi.fn();
-const updateStripeSettingsMock = vi.fn();
-const getBundleCatalogMock = vi.fn();
-const updateBundlePriceMock = vi.fn();
-const verifyStripePriceMock = vi.fn();
+type GetStripeSettingsFn = typeof getStripeSettings;
+type UpdateStripeSettingsFn = typeof updateStripeSettings;
+type GetBundleCatalogFn = typeof getBundleCatalog;
+type UpdateBundlePriceFn = typeof updateBundlePrice;
+type VerifyStripePriceFn = typeof verifyStripePrice;
+type UpdateBundlePriceResult = Awaited<ReturnType<UpdateBundlePriceFn>>;
+
+const getStripeSettingsMock = vi.fn<Parameters<GetStripeSettingsFn>, ReturnType<GetStripeSettingsFn>>();
+const updateStripeSettingsMock = vi.fn<Parameters<UpdateStripeSettingsFn>, ReturnType<UpdateStripeSettingsFn>>();
+const getBundleCatalogMock = vi.fn<Parameters<GetBundleCatalogFn>, ReturnType<GetBundleCatalogFn>>();
+const updateBundlePriceMock = vi.fn<Parameters<UpdateBundlePriceFn>, ReturnType<UpdateBundlePriceFn>>();
+const verifyStripePriceMock = vi.fn<Parameters<VerifyStripePriceFn>, ReturnType<VerifyStripePriceFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getStripeSettings: (...args: unknown[]) => getStripeSettingsMock(...args),
-    updateStripeSettings: (...args: unknown[]) => updateStripeSettingsMock(...args),
-    getBundleCatalog: (...args: unknown[]) => getBundleCatalogMock(...args),
-    updateBundlePrice: (...args: unknown[]) => updateBundlePriceMock(...args),
-    verifyStripePrice: (...args: unknown[]) => verifyStripePriceMock(...args),
+    getStripeSettings: (...args: Parameters<GetStripeSettingsFn>) => getStripeSettingsMock(...args),
+    updateStripeSettings: (...args: Parameters<UpdateStripeSettingsFn>) => updateStripeSettingsMock(...args),
+    getBundleCatalog: (...args: Parameters<GetBundleCatalogFn>) => getBundleCatalogMock(...args),
+    updateBundlePrice: (...args: Parameters<UpdateBundlePriceFn>) => updateBundlePriceMock(...args),
+    verifyStripePrice: (...args: Parameters<VerifyStripePriceFn>) => verifyStripePriceMock(...args),
   };
 });
 
@@ -65,6 +82,22 @@ const mockPlan: PlanOption = {
   monthly_included_credits: 10000000,
   one_time_bonus_credits: 0,
   plan_rank: 1,
+  display_enabled: true,
+  display_weight: 50,
+};
+
+const mockUpdatedPlan: UpdateBundlePriceResult = {
+  plan_name: 'Test Plan',
+  plan_tier: 'pro',
+  billing_interval: 'month',
+  amount_cents: 9900,
+  currency: 'usd',
+  intro_enabled: false,
+  stripe_price_id: 'price_123',
+  monthly_included_credits: 10000000,
+  one_time_bonus_credits: 0,
+  plan_rank: 1,
+  kind: 'subscription',
   display_enabled: true,
   display_weight: 50,
 };
@@ -180,7 +213,7 @@ describe('billing.service', () => {
 
   describe('savePriceForm', () => {
     it('calls updateBundlePrice with correct payload', async () => {
-      updateBundlePriceMock.mockResolvedValue({});
+      updateBundlePriceMock.mockResolvedValue(mockUpdatedPlan);
 
       const formState: PriceFormState = {
         values: {

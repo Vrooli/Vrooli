@@ -163,7 +163,7 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://example.com';
       const url = new URL(ctaUrl, baseUrl);
       return url.searchParams.get('price_id');
-    } catch (err) {
+    } catch {
       return null;
     }
   };

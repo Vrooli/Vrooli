@@ -2,11 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useProfileForm } from './useProfileForm';
 import type { AdminProfile } from '../../../shared/api';
+import type {
+  fetchAdminProfile,
+  updateAdminEmail,
+  updateAdminPassword,
+} from '../services/profile.service';
 
 // Mock the profile service
-const fetchAdminProfileMock = vi.fn();
-const updateAdminEmailMock = vi.fn();
-const updateAdminPasswordMock = vi.fn();
+type FetchAdminProfileFn = typeof fetchAdminProfile;
+type UpdateAdminEmailFn = typeof updateAdminEmail;
+type UpdateAdminPasswordFn = typeof updateAdminPassword;
+
+const fetchAdminProfileMock = vi.fn<Parameters<FetchAdminProfileFn>, ReturnType<FetchAdminProfileFn>>();
+const updateAdminEmailMock = vi.fn<Parameters<UpdateAdminEmailFn>, ReturnType<UpdateAdminEmailFn>>();
+const updateAdminPasswordMock = vi.fn<Parameters<UpdateAdminPasswordFn>, ReturnType<UpdateAdminPasswordFn>>();
 
 vi.mock('../services/profile.service', async () => {
   const actual = await vi.importActual<typeof import('../services/profile.service')>(
@@ -14,9 +23,9 @@ vi.mock('../services/profile.service', async () => {
   );
   return {
     ...actual,
-    fetchAdminProfile: (...args: unknown[]) => fetchAdminProfileMock(...args),
-    updateAdminEmail: (...args: unknown[]) => updateAdminEmailMock(...args),
-    updateAdminPassword: (...args: unknown[]) => updateAdminPasswordMock(...args),
+    fetchAdminProfile: (...args: Parameters<FetchAdminProfileFn>) => fetchAdminProfileMock(...args),
+    updateAdminEmail: (...args: Parameters<UpdateAdminEmailFn>) => updateAdminEmailMock(...args),
+    updateAdminPassword: (...args: Parameters<UpdateAdminPasswordFn>) => updateAdminPasswordMock(...args),
   };
 });
 

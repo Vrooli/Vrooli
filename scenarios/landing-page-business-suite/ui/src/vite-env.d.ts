@@ -1,6 +1,12 @@
 /// <reference types="vite/client" />
 
-type ProtoSchema<T> = unknown;
+declare global {
+  interface Response {
+    json(): Promise<unknown>;
+  }
+}
+
+type ProtoSchema<_T> = unknown;
 
 declare module '@proto-lprv/billing_pb' {
   export enum SubscriptionState {

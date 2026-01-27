@@ -19,7 +19,7 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__landi
     if (document.referrer) {
       parentOrigin = new URL(document.referrer).origin;
     }
-  } catch (error) {
+  } catch {
     // Unable to parse parent origin - will use default
   }
 
@@ -41,7 +41,12 @@ if (typeof window !== 'undefined' && window.parent !== window && !window.__landi
   window.__landingManagerBridgeInitialized = true;
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root");
+if (!root) {
+  throw new Error("Root element not found");
+}
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />

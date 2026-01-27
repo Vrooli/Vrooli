@@ -107,14 +107,19 @@ const mockAnalyticsSummary = {
   ],
 };
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(mockedCheckAdminSession).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
@@ -144,8 +149,8 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     fetchAnalyticsSpy?.mockRestore();
   });
 
-  it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', () => {
-    renderWithRouter(<AdminHome />);
+  it('[REQ:ADMIN-MODES] should display exactly two modes: Analytics and Customization', async () => {
+    await renderWithAuth(<AdminHome />);
 
     expect(screen.getByTestId('admin-quick-flows')).toBeInTheDocument();
     expect(screen.getByTestId('flow-landing')).toBeInTheDocument();
@@ -156,7 +161,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
 
   it('[REQ:ADMIN-NAV] navigates to quick flow destinations', async () => {
     const user = userEvent.setup();
-    renderWithRouter(<AdminHome />);
+    await renderWithAuth(<AdminHome />);
 
     await user.click(screen.getByTestId('flow-landing'));
     await user.click(screen.getByTestId('flow-billing'));
@@ -170,7 +175,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
   });
 
   it('shows computed stats once health data loads', async () => {
-    renderWithRouter(<AdminHome />);
+    await renderWithAuth(<AdminHome />);
 
     const statsBar = await screen.findByTestId('admin-stats-bar');
     await waitFor(() => {
@@ -185,7 +190,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     const user = userEvent.setup();
 
-    renderWithRouter(<AdminHome />);
+    await renderWithAuth(<AdminHome />);
 
     await user.click(screen.getByTestId('admin-preview-landing'));
     expect(openSpy).toHaveBeenCalledWith('/', '_blank', 'noopener,noreferrer');

@@ -18,7 +18,7 @@ import {
   type UserAuthMeResponse,
 } from './auth';
 import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { createFetchMock, mockResponses, installFetchMock, getFetchCall, parseJsonBody } from '../test-utils/api-mocks';
 
 describe('auth API', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -46,7 +46,7 @@ describe('auth API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('POST');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           email: 'admin@example.com',
           password: 'password123',
         });
@@ -176,7 +176,7 @@ describe('auth API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('PUT');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           current_password: 'oldpassword',
           new_email: 'new@example.com',
         });
@@ -196,7 +196,7 @@ describe('auth API', () => {
         });
 
         const [, options] = getFetchCall(fetchMock);
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           current_password: 'oldpassword',
           new_password: 'newpassword',
         });
@@ -227,7 +227,7 @@ describe('auth API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('POST');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           email: 'user@example.com',
         });
       });
@@ -342,7 +342,7 @@ describe('auth API', () => {
 
         const [, options] = getFetchCall(fetchMock);
         expect(options.method).toBe('POST');
-        expect(JSON.parse(options.body as string)).toEqual({
+        expect(parseJsonBody(options.body)).toEqual({
           refresh_token: 'old_refresh_token',
         });
       });

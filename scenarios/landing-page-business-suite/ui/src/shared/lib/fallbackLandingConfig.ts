@@ -85,5 +85,5 @@ const FALLBACK_CONFIG: LandingConfigResponse = (() => {
 })();
 
 export function getFallbackLandingConfig(): LandingConfigResponse {
-  return JSON.parse(JSON.stringify(FALLBACK_CONFIG));
+  return structuredClone(FALLBACK_CONFIG);
 }

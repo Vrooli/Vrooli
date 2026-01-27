@@ -26,6 +26,9 @@ const inputLargeClassName = `${inputBaseClassName} rounded-xl px-4 py-3`;
 const inputLargeDisabledClassName = `${inputLargeClassName} disabled:opacity-60`;
 const textareaLargeClassName = 'rounded-xl px-4 py-3';
 const surfacePanelClassName = 'rounded-2xl border border-white/10 bg-surface-darker p-4';
+const isPlatformKey = (value: string): value is PlatformKey => PLATFORM_KEYS.includes(value as PlatformKey);
+const isArtifactSource = (value: string): value is PlatformFormValues['artifactSource'] =>
+  value === 'direct' || value === 'managed';
 
 export function DownloadSettings() {
   const {
@@ -71,7 +74,6 @@ export function DownloadSettings() {
     handleTestStorage,
     artifactsLoading,
     artifactsError,
-    setArtifactsError,
     artifactsQuery,
     setArtifactsQuery,
     artifactsPlatform,
@@ -467,7 +469,10 @@ export function DownloadSettings() {
                   />
                   <select
                     value={artifactsPlatform}
-                    onChange={(e) => setArtifactsPlatform(e.target.value as any)}
+                    onChange={(e) => {
+                      const nextValue = e.target.value;
+                      setArtifactsPlatform(isPlatformKey(nextValue) ? nextValue : '');
+                    }}
                     className={inputBaseClassName}
                   >
                     <option value="">All platforms</option>
@@ -523,7 +528,13 @@ export function DownloadSettings() {
                     <label className="text-xs text-slate-500">Platform (optional)</label>
                     <select
                       value={uploadState.platform}
-                      onChange={(e) => setUploadState((prev) => ({ ...prev, platform: e.target.value as any }))}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        setUploadState((prev) => ({
+                          ...prev,
+                          platform: isPlatformKey(nextValue) ? nextValue : '',
+                        }));
+                      }}
                       className={inputBaseClassName}
                     >
                       <option value="">Unspecified</option>
@@ -948,9 +959,12 @@ function AppCard({
                     <select
                       value={platform.artifactSource}
                       disabled={isDisabled}
-                      onChange={(event) =>
-                        onPlatformChange(form.key, platformKey, 'artifactSource', event.target.value as any)
-                      }
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        if (isArtifactSource(nextValue)) {
+                          onPlatformChange(form.key, platformKey, 'artifactSource', nextValue);
+                        }
+                      }}
                       className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
                     >
                       <option value="direct">Paste URL</option>

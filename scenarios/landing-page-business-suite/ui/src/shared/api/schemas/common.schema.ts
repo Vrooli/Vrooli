@@ -32,6 +32,27 @@ export const TrendSchema = z.enum(['up', 'down', 'stable']).optional();
 // Asset category enum
 export const AssetCategorySchema = z.enum(['logo', 'favicon', 'og_image', 'general']);
 
+// Asset schema
+export const AssetSchema = z.object({
+  id: z.number(),
+  filename: z.string(),
+  original_filename: z.string(),
+  mime_type: z.string(),
+  size_bytes: z.number(),
+  storage_path: z.string(),
+  thumbnail_path: z.string().nullable().optional(),
+  alt_text: z.string().nullable().optional(),
+  category: z.string(),
+  uploaded_by: z.string().nullable().optional(),
+  created_at: z.string(),
+  url: z.string(),
+  derivatives: z.record(z.string()).optional(),
+});
+
+export const AssetListSchema = z.object({
+  assets: z.array(AssetSchema).optional(),
+});
+
 // Header branding mode enum
 export const HeaderBrandingModeSchema = z.enum(['none', 'logo', 'name', 'logo_and_name']);
 

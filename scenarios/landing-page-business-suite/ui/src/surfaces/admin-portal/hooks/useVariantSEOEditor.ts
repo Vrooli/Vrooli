@@ -40,7 +40,7 @@ export function useVariantSEOEditor({
     try {
       const editableConfig = await loadVariantSEOConfig(variantSlug, siteBranding);
       setSeoConfig(editableConfig);
-    } catch (err) {
+    } catch {
       setError('Failed to load SEO settings');
     } finally {
       setLoading(false);

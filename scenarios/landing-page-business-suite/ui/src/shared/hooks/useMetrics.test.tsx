@@ -1,12 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useMetrics } from './useMetrics';
+import type { MetricEvent } from '../api/types';
+import type { useLandingVariant } from '../../app/providers/LandingVariantProvider';
 
-const trackMetricMock = vi.fn();
-const useLandingVariantMock = vi.fn();
+const trackMetricMock = vi.fn<[MetricEvent], Promise<{ success: boolean }>>();
+const useLandingVariantMock = vi.fn<[], ReturnType<typeof useLandingVariant>>();
 
 vi.mock('../api', () => ({
-  trackMetric: (...args: unknown[]) => trackMetricMock(...args),
+  trackMetric: (...args: Parameters<typeof trackMetricMock>) => trackMetricMock(...args),
 }));
 
 vi.mock('../../app/providers/LandingVariantProvider', () => ({
@@ -20,7 +22,7 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
   beforeEach(() => {
     trackMetricMock.mockReset();
     useLandingVariantMock.mockReturnValue({
-      variant: { id: 99 },
+      variant: { id: 99, slug: 'control', name: 'Control' },
       config: null,
       loading: false,
       error: null,
@@ -78,7 +80,10 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     result.current.trackCTAClick('primary');
     await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
 
-    const event = trackMetricMock.mock.calls[0][0];
+    const event = trackMetricMock.mock.calls[0]?.[0];
+    if (!event) {
+      throw new Error('Expected metric event payload to be defined');
+    }
     expect(event.session_id).toMatch(/^session_/);
     expect(event.visitor_id).toMatch(/^visitor_/);
     expect(warnSpy).toHaveBeenCalled();
@@ -111,12 +116,18 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     const { result } = renderHook(() => useMetrics());
 
     await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
-    const firstEvent = trackMetricMock.mock.calls[0][0];
+    const firstEvent = trackMetricMock.mock.calls[0]?.[0];
+    if (!firstEvent) {
+      throw new Error('Expected initial metric event payload to be defined');
+    }
 
     trackMetricMock.mockClear();
     result.current.trackDownload({ platform: 'mac' });
     await waitFor(() => expect(trackMetricMock).toHaveBeenCalled());
-    const secondEvent = trackMetricMock.mock.calls[0][0];
+    const secondEvent = trackMetricMock.mock.calls[0]?.[0];
+    if (!secondEvent) {
+      throw new Error('Expected follow-up metric event payload to be defined');
+    }
 
     expect(secondEvent.session_id).toBe(firstEvent.session_id);
     expect(secondEvent.visitor_id).toBe(firstEvent.visitor_id);

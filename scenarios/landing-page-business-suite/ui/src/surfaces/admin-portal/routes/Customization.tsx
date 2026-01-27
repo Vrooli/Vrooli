@@ -25,12 +25,9 @@ const getTrendGlyph = (trend?: VariantStats['trend']) => {
  */
 export function Customization() {
   const {
-    variants,
     activeVariants,
     archivedVariants,
     filteredActiveVariants,
-    analytics,
-    weightDrafts,
     savingWeights,
     totalAssignedWeight,
     weightStatus,

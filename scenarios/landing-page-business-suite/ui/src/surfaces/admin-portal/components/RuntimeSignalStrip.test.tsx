@@ -2,22 +2,39 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
+import type { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import type { LandingConfigResponse } from '../../../shared/api';
 
-const mockUseLandingVariant = vi.fn();
+const mockUseLandingVariant = vi.fn<[], ReturnType<typeof useLandingVariant>>();
 
 vi.mock('../../../app/providers/LandingVariantProvider', () => ({
   useLandingVariant: () => mockUseLandingVariant(),
 }));
 
-const buildContext = (overrides?: Record<string, unknown>) => ({
-  variant: { slug: 'control', name: 'Control' },
-  config: { fallback: false },
+const baseConfig: LandingConfigResponse = {
+  variant: { id: 1, slug: 'control', name: 'Control' },
+  sections: [],
+  downloads: [],
+  header: {
+    branding: { mode: 'logo' },
+    nav: { links: [] },
+    ctas: { primary: { mode: 'inherit_hero' }, secondary: { mode: 'hidden' } },
+    behavior: { sticky: true, hide_on_scroll: false },
+  },
+  fallback: false,
+};
+
+const buildContext = (
+  overrides: Partial<ReturnType<typeof useLandingVariant>> = {}
+): ReturnType<typeof useLandingVariant> => ({
+  variant: { id: 1, slug: 'control', name: 'Control' },
+  config: baseConfig,
   loading: false,
   error: null,
   resolution: 'api_select',
   statusNote: 'Variant selected via weighted API',
   lastUpdated: Date.now(),
-  refresh: vi.fn(),
+  refresh: vi.fn<[], Promise<void>>(),
   ...overrides,
 });
 
@@ -38,7 +55,7 @@ describe('RuntimeSignalStrip [SIGNAL]', () => {
     it('surfaces fallback state and note', () => {
       mockUseLandingVariant.mockReturnValue(
         buildContext({
-          config: { fallback: true },
+          config: { ...baseConfig, fallback: true },
           statusNote: 'API unavailable: timeout',
           resolution: 'fallback',
         })

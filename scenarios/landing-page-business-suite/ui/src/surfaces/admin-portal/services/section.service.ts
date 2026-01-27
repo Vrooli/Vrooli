@@ -1,5 +1,6 @@
 import type { ContentSection, LandingSection } from '../../../shared/api';
 import { getStylingConfig, getVariantStylingGuidance } from '../../../shared/lib/stylingConfig';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 /**
  * Styling configuration singleton for the section editor
@@ -30,8 +31,12 @@ export function loadComparePreference(variantSlug: string): string | null {
     if (!raw) {
       return null;
     }
-    const stored = JSON.parse(raw);
-    return stored?.[variantSlug] ?? null;
+    const stored = safeParseJson(raw);
+    if (!isRecord(stored)) {
+      return null;
+    }
+    const value = stored[variantSlug];
+    return typeof value === 'string' ? value : null;
   } catch {
     return null;
   }
@@ -46,7 +51,15 @@ export function saveComparePreference(variantSlug: string, compareSlug: string |
   }
   try {
     const raw = window.localStorage.getItem(COMPARE_STORAGE_KEY);
-    const stored = raw ? JSON.parse(raw) : {};
+    const parsed = raw ? safeParseJson(raw) : undefined;
+    const stored: Record<string, string> = {};
+    if (isRecord(parsed)) {
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === 'string') {
+          stored[key] = value;
+        }
+      }
+    }
     if (compareSlug) {
       stored[variantSlug] = compareSlug;
     } else {

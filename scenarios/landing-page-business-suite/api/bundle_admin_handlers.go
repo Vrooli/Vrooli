@@ -4,10 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
 
 type bundleCatalogResponse struct {
-	Bundles []BundleCatalogEntry `json:"bundles"`
+	Bundles []bundleCatalogEntryResponse `json:"bundles"`
 }
 
 type updateBundlePriceRequest struct {
@@ -22,6 +24,164 @@ type updateBundlePriceRequest struct {
 	Features       *[]string `json:"features"`
 }
 
+type bundleCatalogEntryResponse struct {
+	Bundle bundleProductResponse `json:"bundle"`
+	Prices []planOptionResponse  `json:"prices"`
+}
+
+type bundleProductResponse struct {
+	BundleKey                string                 `json:"bundle_key"`
+	Name                     string                 `json:"name"`
+	StripeProductID          string                 `json:"stripe_product_id"`
+	CreditsPerUSD            int64                  `json:"credits_per_usd"`
+	DisplayCreditsMultiplier float64                `json:"display_credits_multiplier"`
+	DisplayCreditsLabel      string                 `json:"display_credits_label"`
+	Environment              string                 `json:"environment,omitempty"`
+	Metadata                 map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type planOptionResponse struct {
+	PlanName               string                 `json:"plan_name"`
+	PlanTier               string                 `json:"plan_tier"`
+	BillingInterval        string                 `json:"billing_interval"`
+	AmountCents            int64                  `json:"amount_cents"`
+	Currency               string                 `json:"currency"`
+	IntroEnabled           bool                   `json:"intro_enabled"`
+	IntroType              *string                `json:"intro_type,omitempty"`
+	IntroAmountCents       *int64                 `json:"intro_amount_cents,omitempty"`
+	IntroPeriods           *int32                 `json:"intro_periods,omitempty"`
+	IntroPriceLookupKey    *string                `json:"intro_price_lookup_key,omitempty"`
+	StripePriceID          string                 `json:"stripe_price_id"`
+	MonthlyIncludedCredits int64                  `json:"monthly_included_credits"`
+	OneTimeBonusCredits    int64                  `json:"one_time_bonus_credits"`
+	PlanRank               *int32                 `json:"plan_rank,omitempty"`
+	BonusType              *string                `json:"bonus_type,omitempty"`
+	Kind                   *string                `json:"kind,omitempty"`
+	IsVariableAmount       bool                   `json:"is_variable_amount"`
+	DisplayEnabled         bool                   `json:"display_enabled"`
+	BundleKey              string                 `json:"bundle_key,omitempty"`
+	DisplayWeight          int32                  `json:"display_weight"`
+	Metadata               map[string]interface{} `json:"metadata,omitempty"`
+}
+
+func buildBundleCatalogResponse(entries []BundleCatalogEntry) (bundleCatalogResponse, error) {
+	bundles := make([]bundleCatalogEntryResponse, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Bundle == nil {
+			return bundleCatalogResponse{}, errors.New("bundle catalog entry missing bundle")
+		}
+		bundle := bundleProductResponseFromProto(entry.Bundle)
+		prices := make([]planOptionResponse, 0, len(entry.Prices))
+		for _, price := range entry.Prices {
+			if price == nil {
+				continue
+			}
+			prices = append(prices, planOptionResponseFromProto(price))
+		}
+		bundles = append(bundles, bundleCatalogEntryResponse{
+			Bundle: bundle,
+			Prices: prices,
+		})
+	}
+	return bundleCatalogResponse{Bundles: bundles}, nil
+}
+
+func bundleProductResponseFromProto(bundle *BundleProduct) bundleProductResponse {
+	if bundle == nil {
+		return bundleProductResponse{}
+	}
+	response := bundleProductResponse{
+		BundleKey:                bundle.BundleKey,
+		Name:                     bundle.Name,
+		StripeProductID:          bundle.StripeProductId,
+		CreditsPerUSD:            bundle.CreditsPerUsd,
+		DisplayCreditsMultiplier: bundle.DisplayCreditsMultiplier,
+		DisplayCreditsLabel:      bundle.DisplayCreditsLabel,
+		Environment:              bundle.Environment,
+	}
+	if len(bundle.Metadata) > 0 {
+		response.Metadata = convertProtoMetadataToMap(bundle.Metadata)
+	}
+	return response
+}
+
+func planOptionResponseFromProto(plan *PlanOption) planOptionResponse {
+	if plan == nil {
+		return planOptionResponse{}
+	}
+
+	interval := billingIntervalLabel(plan.BillingInterval)
+	if interval == "unspecified" {
+		interval = "one_time"
+	}
+
+	var introType *string
+	if value := introPricingTypeString(plan.IntroType); value != "" {
+		introType = &value
+	}
+
+	var introPeriods *int32
+	if plan.IntroPeriods > 0 {
+		value := plan.IntroPeriods
+		introPeriods = &value
+	}
+
+	var planRank *int32
+	if plan.PlanRank > 0 {
+		value := plan.PlanRank
+		planRank = &value
+	}
+
+	var bonusType *string
+	if strings.TrimSpace(plan.BonusType) != "" {
+		value := strings.TrimSpace(plan.BonusType)
+		bonusType = &value
+	}
+
+	var kind *string
+	if plan.Kind != landing_page_react_vite_v1.PlanKind_PLAN_KIND_UNSPECIFIED {
+		value := planKindString(plan.Kind)
+		kind = &value
+	}
+
+	response := planOptionResponse{
+		PlanName:               plan.PlanName,
+		PlanTier:               plan.PlanTier,
+		BillingInterval:        interval,
+		AmountCents:            plan.AmountCents,
+		Currency:               plan.Currency,
+		IntroEnabled:           plan.IntroEnabled,
+		IntroType:              introType,
+		IntroAmountCents:       plan.IntroAmountCents,
+		IntroPeriods:           introPeriods,
+		IntroPriceLookupKey:    optionalString(plan.IntroPriceLookupKey),
+		StripePriceID:          plan.StripePriceId,
+		MonthlyIncludedCredits: plan.MonthlyIncludedCredits,
+		OneTimeBonusCredits:    plan.OneTimeBonusCredits,
+		PlanRank:               planRank,
+		BonusType:              bonusType,
+		Kind:                   kind,
+		IsVariableAmount:       plan.IsVariableAmount,
+		DisplayEnabled:         plan.DisplayEnabled,
+		BundleKey:              plan.BundleKey,
+		DisplayWeight:          plan.DisplayWeight,
+	}
+
+	if len(plan.Metadata) > 0 {
+		response.Metadata = convertProtoMetadataToMap(plan.Metadata)
+	}
+
+	return response
+}
+
+func optionalString(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
 func handleAdminBundleCatalog(planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bundles, err := planService.ListBundleCatalog(r.Context())
@@ -30,7 +190,13 @@ func handleAdminBundleCatalog(planService *PlanService) http.HandlerFunc {
 			return
 		}
 
-		writeJSONSuccessData(w, bundleCatalogResponse{Bundles: bundles})
+		response, err := buildBundleCatalogResponse(bundles)
+		if err != nil {
+			writeJSONError(w, http.StatusInternalServerError, "Failed to encode bundle catalog", ApiErrorTypeServerError)
+			return
+		}
+
+		writeJSONSuccessData(w, response)
 	}
 }
 
@@ -72,7 +238,7 @@ func handleAdminUpdateBundlePrice(planService *PlanService, stripe *StripeServic
 			return
 		}
 
-		writeJSONSuccessData(w, updated)
+		writeJSONSuccessData(w, planOptionResponseFromProto(updated))
 	}
 }
 
@@ -254,7 +420,7 @@ func handleAdminCreateBundlePrice(planService *PlanService, stripe *StripeServic
 			return
 		}
 
-		writeJSONSuccessData(w, plan)
+		writeJSONSuccessData(w, planOptionResponseFromProto(plan))
 	}
 }
 

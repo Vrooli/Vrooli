@@ -136,7 +136,7 @@ export function useAdminHome(): UseAdminHomeReturn {
         listVariants(),
         fetchAnalyticsSummary(range)
           .then((data) => ({ ok: true as const, data }))
-          .catch((error) => ({ ok: false as const, error })),
+          .catch((error: unknown) => ({ ok: false as const, error })),
       ]);
 
       if (!analyticsPayload.ok) {

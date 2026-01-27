@@ -30,14 +30,19 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(mockCheckAdminSession).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
@@ -60,8 +65,8 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     setLocation(originalLocation);
   });
 
-  it('[REQ:ADMIN-AUTH] should render login form with email and password fields', () => {
-    renderWithRouter(<AdminLogin />);
+  it('[REQ:ADMIN-AUTH] should render login form with email and password fields', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
@@ -71,7 +76,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
   it('[REQ:ADMIN-AUTH] should call login API with email and password on form submit', async () => {
     const user = userEvent.setup();
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -90,7 +95,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     const user = userEvent.setup();
     mockAdminLogin.mockResolvedValue({ authenticated: true, email: 'admin@test.com' });
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -109,7 +114,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     const user = userEvent.setup();
     mockAdminLogin.mockImplementation(() => Promise.reject(new Error('Invalid')));
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -130,7 +135,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     const user = userEvent.setup();
     mockAdminLogin.mockImplementation(() => new Promise(() => {})); // Never resolves
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -152,7 +157,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
       .mockRejectedValueOnce(new Error('Invalid'))
       .mockResolvedValueOnce({ authenticated: true, email: 'admin@test.com' });
 
-    renderWithRouter(<AdminLogin />);
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');
@@ -179,16 +184,16 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     });
   });
 
-  it('should display security notice about bcrypt hashing', () => {
-    renderWithRouter(<AdminLogin />);
+  it('should display security notice about bcrypt hashing', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     expect(
       screen.getByText(/Secured with bcrypt password hashing and httpOnly cookies/i)
     ).toBeInTheDocument();
   });
 
-  it('should have proper input types for email and password', () => {
-    renderWithRouter(<AdminLogin />);
+  it('should have proper input types for email and password', async () => {
+    await renderWithAuth(<AdminLogin />);
 
     const emailInput = screen.getByTestId('admin-login-email');
     const passwordInput = screen.getByTestId('admin-login-password');

@@ -206,7 +206,7 @@ export function DownloadSection({ content, downloads }: DownloadSectionProps) {
   }, [email, entitlements, entitlementsError, entitlementsLoading]);
 
   const platformKey = recommendedGroup?.platform ?? 'windows';
-  const windowsFallback = PLATFORM_DISPLAY.windows!;
+  const windowsFallback = PLATFORM_DISPLAY.windows ?? { label: 'Windows', icon: <span className="h-8 w-8" /> };
   const platformInfo = PLATFORM_DISPLAY[platformKey] ?? windowsFallback;
   const isRecommended = recommendedGroup?.platform === detectedPlatform;
 

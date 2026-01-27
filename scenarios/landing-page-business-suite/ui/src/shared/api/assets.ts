@@ -1,4 +1,6 @@
 import { API_BASE } from './common';
+import { AssetListSchema, AssetSchema } from './schemas/common.schema';
+import { safeParseJson } from '../lib/utils';
 import type { Asset, AssetCategory } from './types';
 
 export interface UploadAssetOptions {
@@ -42,7 +44,8 @@ export async function uploadAsset(
     throw new Error(text || `Upload failed with status ${response.status}`);
   }
 
-  return response.json();
+  const raw = await response.text();
+  return AssetSchema.parse(safeParseJson(raw));
 }
 
 /**
@@ -97,8 +100,9 @@ export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
     throw new Error(`Failed to list assets: ${response.status}`);
   }
 
-  const data = await response.json();
-  return data.assets || [];
+  const raw = await response.text();
+  const parsed = AssetListSchema.parse(safeParseJson(raw));
+  return parsed.assets ?? [];
 }
 
 /**

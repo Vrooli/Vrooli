@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ConfigSourceSchema, FlexibleTimestampSchema, MetadataSchema } from './common.schema';
+import { ConfigSourceSchema, FlexibleTimestampSchema } from './common.schema';
 import { BundleProductSchema, PlanOptionSchema } from './landing.schema';
 
 /**

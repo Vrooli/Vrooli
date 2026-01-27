@@ -5,7 +5,7 @@ import { ApiError } from './common';
 import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
 
 vi.mock('@bufbuild/protobuf', () => ({
-  fromJson: vi.fn((schema, data) => data),
+  fromJson: <T,>(_schema: unknown, data: T): T => data,
 }));
 
 describe('account API', () => {

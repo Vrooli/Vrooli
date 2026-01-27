@@ -52,6 +52,47 @@ func TestHandleAdminBundleCatalog_Success(t *testing.T) {
 	if len(bundles) == 0 {
 		t.Error("expected at least one bundle in catalog")
 	}
+
+	entry, ok := bundles[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected bundle entry to be an object")
+	}
+
+	bundle, ok := entry["bundle"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected bundle to be an object")
+	}
+	if bundle["bundle_key"] != bundleKey {
+		t.Errorf("expected bundle_key %s, got %v", bundleKey, bundle["bundle_key"])
+	}
+	if bundle["stripe_product_id"] != "prod_catalog" {
+		t.Errorf("expected stripe_product_id prod_catalog, got %v", bundle["stripe_product_id"])
+	}
+
+	prices, ok := entry["prices"].([]interface{})
+	if !ok {
+		t.Fatal("expected prices to be an array")
+	}
+	if len(prices) == 0 {
+		t.Fatal("expected at least one price in catalog")
+	}
+
+	price, ok := prices[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected price to be an object")
+	}
+	if price["billing_interval"] != "month" {
+		t.Errorf("expected billing_interval month, got %v", price["billing_interval"])
+	}
+	if price["intro_enabled"] != false {
+		t.Errorf("expected intro_enabled false, got %v", price["intro_enabled"])
+	}
+	if price["display_enabled"] != true {
+		t.Errorf("expected display_enabled true, got %v", price["display_enabled"])
+	}
+	if price["kind"] != "subscription" {
+		t.Errorf("expected kind subscription, got %v", price["kind"])
+	}
 }
 
 func TestHandleAdminBundleCatalog_EmptyCatalog(t *testing.T) {
@@ -120,6 +161,17 @@ func TestHandleAdminUpdateBundlePrice_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if resp["billing_interval"] != "month" {
+		t.Errorf("expected billing_interval month, got %v", resp["billing_interval"])
+	}
+	if resp["display_enabled"] == nil {
+		t.Errorf("expected display_enabled to be present")
 	}
 }
 
@@ -536,6 +588,17 @@ func TestHandleAdminCreateBundlePrice_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if resp["billing_interval"] != "month" {
+		t.Errorf("expected billing_interval month, got %v", resp["billing_interval"])
+	}
+	if resp["stripe_price_id"] != "price_create" {
+		t.Errorf("expected stripe_price_id price_create, got %v", resp["stripe_price_id"])
 	}
 
 	if _, err := planService.GetPlanByPriceID("price_create"); err != nil {

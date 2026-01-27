@@ -5,6 +5,7 @@ import { Button } from '../../../shared/ui/button';
 import { Input, Textarea } from '../../../shared/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 type FeedbackType = 'refund' | 'bug' | 'feature' | 'general';
 
@@ -15,6 +16,14 @@ interface FeedbackFormData {
   message: string;
   orderId?: string;
 }
+
+type ClassifiedError = {
+  type: 'server' | 'validation' | 'unknown';
+  message: string;
+};
+
+const isClassifiedError = (value: unknown): value is ClassifiedError =>
+  isRecord(value) && typeof value.type === 'string' && typeof value.message === 'string';
 
 const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -85,15 +94,24 @@ export function FeedbackPage() {
 
       if (!response.ok) {
         const status = response.status;
-        const data = await response.json().catch(() => ({}));
+        let errorMessage: string | undefined;
+        try {
+          const raw = await response.text();
+          const parsed = safeParseJson(raw);
+          if (isRecord(parsed) && typeof parsed.error === 'string') {
+            errorMessage = parsed.error;
+          }
+        } catch {
+          // ignore invalid JSON
+        }
 
         if (status >= 500) {
-          throw { type: 'server', message: data.error || 'Our servers are experiencing issues. Please try again later.' };
+          throw { type: 'server', message: errorMessage || 'Our servers are experiencing issues. Please try again later.' };
         }
         if (status === 400 || status === 422) {
-          throw { type: 'validation', message: data.error || 'Please check your input and try again.' };
+          throw { type: 'validation', message: errorMessage || 'Please check your input and try again.' };
         }
-        throw { type: 'unknown', message: data.error || 'Failed to submit feedback' };
+        throw { type: 'unknown', message: errorMessage || 'Failed to submit feedback' };
       }
 
       setSubmitted(true);
@@ -113,13 +131,12 @@ export function FeedbackPage() {
           type: 'network',
           retryable: true,
         });
-      } else if (typeof err === 'object' && err !== null && 'type' in err) {
+      } else if (isClassifiedError(err)) {
         // Classified error from above
-        const classified = err as { type: string; message: string };
         setError({
-          message: classified.message,
-          type: classified.type as FeedbackError['type'],
-          retryable: classified.type !== 'validation',
+          message: err.message,
+          type: err.type as FeedbackError['type'],
+          retryable: err.type !== 'validation',
         });
       } else {
         setError({

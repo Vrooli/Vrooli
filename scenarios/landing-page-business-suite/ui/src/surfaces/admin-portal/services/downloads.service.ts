@@ -3,6 +3,7 @@ import type {
   DownloadAppInput,
   DownloadAsset,
   DownloadStorefront,
+  DownloadStorageSettingsUpdate,
 } from '../../../shared/api';
 import { isFormDirtyNormalized } from '../../../shared/lib/formUtils';
 
@@ -369,8 +370,8 @@ export function buildDefaultCredentialsForm(): CredentialsFormValues {
 export function buildStorageUpdatePayload(
   storageForm: StorageFormValues,
   credentialsForm: CredentialsFormValues
-): Record<string, unknown> {
-  const payload: Record<string, unknown> = {
+): DownloadStorageSettingsUpdate {
+  const payload: DownloadStorageSettingsUpdate = {
     provider: 's3',
     bucket: storageForm.bucket,
     region: storageForm.region,

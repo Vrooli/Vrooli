@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IDisposable, editor as MonacoEditor, Uri as MonacoUri } from 'monaco-editor';
-import type { OnMount } from '@monaco-editor/react';
 import {
   type Variant,
   type ContentSection,
@@ -22,6 +21,8 @@ import {
   type VariantSnapshotPayload,
 } from '../controllers/variantEditorController';
 import { buildDefaultHeaderConfig, normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
+import { VariantSnapshotSchema } from '../../../shared/api/schemas/variants.schema';
+import { safeParseJson } from '../../../shared/lib/utils';
 import { rememberVariantSession } from '../../../shared/lib/adminExperience';
 
 /**
@@ -44,6 +45,8 @@ export interface UseVariantFormProps {
   onSuccess?: (message: string, title?: string) => void;
   onError?: (message: string) => void;
 }
+
+type MonacoApi = typeof import('monaco-editor');
 
 /**
  * Custom hook for managing variant editor form state and operations
@@ -111,7 +114,8 @@ export function useVariantForm({
   /**
    * Handle Monaco editor mount
    */
-  const handleEditorMount: OnMount = useCallback((_editor, monaco) => {
+  const handleEditorMount = useCallback(
+    (_editor: MonacoEditor.IStandaloneCodeEditor, monaco: MonacoApi) => {
     const jsonDefaults = (monaco.languages as typeof monaco.languages & {
       json?: { jsonDefaults?: { setDiagnosticsOptions: (options: unknown) => void } };
     }).json?.jsonDefaults;
@@ -291,8 +295,15 @@ export function useVariantForm({
       setSnapshotSaving(true);
       setSnapshotError(null);
 
-      const parsed = JSON.parse(snapshotDraft) as VariantSnapshotPayload;
-      const saved = await persistVariantSnapshot(slug, parsed);
+      const parsed = safeParseJson(snapshotDraft);
+      if (parsed === undefined) {
+        throw new SyntaxError('Invalid JSON');
+      }
+      const validated = VariantSnapshotSchema.safeParse(parsed);
+      if (!validated.success) {
+        throw new Error('Invalid JSON structure for variant snapshot');
+      }
+      const saved = await persistVariantSnapshot(slug, validated.data as VariantSnapshotPayload);
       setSnapshotDraft(JSON.stringify(saved, null, 2));
       await fetchVariant();
       onSuccess?.('Variant JSON applied successfully', 'JSON saved');

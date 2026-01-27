@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
 import * as api from '../../../shared/api';
+import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 vi.mock('../../../shared/api');
 vi.mock('../components/RuntimeSignalStrip', () => ({
@@ -55,14 +56,19 @@ const mockSummary = {
   ],
 };
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
+const renderWithRouter = (component: React.ReactElement) =>
+  render(
     <BrowserRouter>
       <AdminAuthProvider>
         {component}
       </AdminAuthProvider>
     </BrowserRouter>
   );
+
+const renderWithAuth = async (component: React.ReactElement) => {
+  const utils = renderWithRouter(component);
+  await waitFor(() => expect(vi.mocked(api.checkAdminSession)).toHaveBeenCalled());
+  return utils;
 };
 
 describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () => {
@@ -89,7 +95,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display total visitors metric', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-total-visitors')).toBeInTheDocument();
@@ -98,7 +104,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display average conversion rate across variants', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-conversion-rate')).toBeInTheDocument();
@@ -107,7 +113,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display top CTA with CTR', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-top-cta')).toBeInTheDocument();
@@ -117,7 +123,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-SUMMARY] should display downloads metric', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const downloadsCard = screen.getByTestId('analytics-total-downloads');
@@ -127,7 +133,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('[REQ:METRIC-DETAIL] should display variant performance table', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-variant-performance')).toBeInTheDocument();
@@ -139,17 +145,17 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     });
   });
 
-  it('should handle loading state', () => {
+  it('should handle loading state', async () => {
     vi.mocked(api.getMetricsSummary).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
     expect(screen.getByText('Loading analytics...')).toBeInTheDocument();
   });
 
   it('should render customize shortcut per variant row', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-edit-1')).toBeInTheDocument();
@@ -157,18 +163,18 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('should persist recent analytics filters to localStorage', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const raw = window.localStorage.getItem('landing_admin_experience');
       expect(raw).toBeTruthy();
-      const snapshot = JSON.parse(raw ?? '{}');
-      expect(snapshot.lastAnalytics).toBeTruthy();
+      const parsed = safeParseJson(raw ?? '{}');
+      expect(isRecord(parsed) ? parsed.lastAnalytics : undefined).toBeTruthy();
     });
   });
 
   it('surfaces focus banner with current view context', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       const banner = screen.getByTestId('analytics-focus-banner');
@@ -179,7 +185,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
   });
 
   it('provides hero edit actions from analytics table', async () => {
-    renderWithRouter(<AdminAnalytics />);
+    await renderWithAuth(<AdminAnalytics />);
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-edit-hero-1')).toBeInTheDocument();

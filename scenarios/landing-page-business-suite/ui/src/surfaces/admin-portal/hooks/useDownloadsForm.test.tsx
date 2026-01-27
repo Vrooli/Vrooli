@@ -1,23 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { DownloadApp } from '../../../shared/api';
+import type {
+  DownloadApp,
+  listDownloadAppsAdmin,
+  createDownloadAppAdmin,
+  saveDownloadAppAdmin,
+  deleteDownloadAppAdmin,
+} from '../../../shared/api';
 import { useDownloadsForm } from './useDownloadsForm';
 import { assertDefined } from '../../../shared/test-utils/api-mocks';
 
 // Mock API functions
-const listDownloadAppsAdminMock = vi.fn();
-const createDownloadAppAdminMock = vi.fn();
-const saveDownloadAppAdminMock = vi.fn();
-const deleteDownloadAppAdminMock = vi.fn();
+type ListDownloadAppsAdminFn = typeof listDownloadAppsAdmin;
+type CreateDownloadAppAdminFn = typeof createDownloadAppAdmin;
+type SaveDownloadAppAdminFn = typeof saveDownloadAppAdmin;
+type DeleteDownloadAppAdminFn = typeof deleteDownloadAppAdmin;
+
+const listDownloadAppsAdminMock = vi.fn<Parameters<ListDownloadAppsAdminFn>, ReturnType<ListDownloadAppsAdminFn>>();
+const createDownloadAppAdminMock = vi.fn<Parameters<CreateDownloadAppAdminFn>, ReturnType<CreateDownloadAppAdminFn>>();
+const saveDownloadAppAdminMock = vi.fn<Parameters<SaveDownloadAppAdminFn>, ReturnType<SaveDownloadAppAdminFn>>();
+const deleteDownloadAppAdminMock = vi.fn<Parameters<DeleteDownloadAppAdminFn>, ReturnType<DeleteDownloadAppAdminFn>>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    listDownloadAppsAdmin: (...args: unknown[]) => listDownloadAppsAdminMock(...args),
-    createDownloadAppAdmin: (...args: unknown[]) => createDownloadAppAdminMock(...args),
-    saveDownloadAppAdmin: (...args: unknown[]) => saveDownloadAppAdminMock(...args),
-    deleteDownloadAppAdmin: (...args: unknown[]) => deleteDownloadAppAdminMock(...args),
+    listDownloadAppsAdmin: (...args: Parameters<ListDownloadAppsAdminFn>) => listDownloadAppsAdminMock(...args),
+    createDownloadAppAdmin: (...args: Parameters<CreateDownloadAppAdminFn>) => createDownloadAppAdminMock(...args),
+    saveDownloadAppAdmin: (...args: Parameters<SaveDownloadAppAdminFn>) => saveDownloadAppAdminMock(...args),
+    deleteDownloadAppAdmin: (...args: Parameters<DeleteDownloadAppAdminFn>) => deleteDownloadAppAdminMock(...args),
   };
 });
 
@@ -58,15 +69,46 @@ const mockApp2: DownloadApp = {
   platforms: [],
 };
 
+type DownloadAppInputPayload = Parameters<CreateDownloadAppAdminFn>[0];
+
+const buildDownloadApp = (appKey: string, payload: DownloadAppInputPayload): DownloadApp => ({
+  bundle_key: mockApp.bundle_key,
+  app_key: appKey,
+  name: payload.name,
+  tagline: payload.tagline,
+  description: payload.description,
+  icon_url: payload.icon_url,
+  screenshot_url: payload.screenshot_url,
+  install_overview: payload.install_overview,
+  install_steps: payload.install_steps,
+  storefronts: payload.storefronts ?? [],
+  metadata: payload.metadata,
+  display_order: payload.display_order ?? 0,
+  platforms: payload.platforms.map((platform) => ({
+    bundle_key: mockApp.bundle_key,
+    app_key: appKey,
+    platform: platform.platform,
+    artifact_url: platform.artifact_url,
+    artifact_source: platform.artifact_source,
+    artifact_id: platform.artifact_id,
+    release_version: platform.release_version,
+    release_notes: platform.release_notes,
+    checksum: platform.checksum,
+    requires_entitlement: platform.requires_entitlement ?? false,
+    metadata: platform.metadata,
+  })),
+});
+
 describe('useDownloadsForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp] });
-    createDownloadAppAdminMock.mockImplementation((payload) =>
-      Promise.resolve({ ...mockApp, ...payload })
-    );
+    createDownloadAppAdminMock.mockImplementation((payload) => {
+      const appKey = payload.app_key ?? 'new-app';
+      return Promise.resolve(buildDownloadApp(appKey, payload));
+    });
     saveDownloadAppAdminMock.mockImplementation((key, payload) =>
-      Promise.resolve({ ...mockApp, ...payload, app_key: key })
+      Promise.resolve(buildDownloadApp(key, payload))
     );
     deleteDownloadAppAdminMock.mockResolvedValue({});
     confirmSpy.mockReturnValue(true);

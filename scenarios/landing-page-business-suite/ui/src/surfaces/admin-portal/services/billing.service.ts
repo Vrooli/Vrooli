@@ -54,8 +54,8 @@ export async function loadStripeSettings(): Promise<StripeSettingsResponse> {
  */
 export async function saveStripeSettings(form: StripeFormState): Promise<StripeSettingsResponse> {
   const payload: Record<string, string> = {};
-  (Object.keys(form) as (keyof StripeFormState)[]).forEach((key) => {
-    const value = form[key].trim();
+  (Object.entries(form) as [keyof StripeFormState, string][]).forEach(([key, rawValue]) => {
+    const value = rawValue.trim();
     if (value.length > 0) {
       const apiKey = key === 'dashboardUrl' ? 'dashboard_url' : key.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`);
       payload[apiKey] = value;
@@ -73,7 +73,8 @@ export async function saveStripeSettings(form: StripeFormState): Promise<StripeS
  * Check if any Stripe settings have values entered
  */
 export function hasStripeFormValues(form: StripeFormState): boolean {
-  return Object.values(form).some((value) => value.trim().length > 0);
+  return (Object.entries(form) as [keyof StripeFormState, string][])
+    .some(([, value]) => value.trim().length > 0);
 }
 
 /**
