@@ -61,6 +61,45 @@ func (h *SchemaHandler) GetAvailableNodeTypes(w http.ResponseWriter, r *http.Req
 	})
 }
 
+// GetStepDefinitions handles GET /api/v1/schema/steps
+// Query params:
+//   - types: comma-separated list of step types to include (optional)
+//   - cli_only: if "true", only return CLI-supported step types (optional)
+func (h *SchemaHandler) GetStepDefinitions(w http.ResponseWriter, r *http.Request) {
+	typesParam := strings.TrimSpace(r.URL.Query().Get("types"))
+	cliOnly := strings.TrimSpace(r.URL.Query().Get("cli_only")) == "true"
+
+	// Get all definitions or CLI-only based on query param
+	var allDefs []validator.StepDefinition
+	if cliOnly {
+		allDefs = validator.GetCLISupportedStepDefinitions()
+	} else {
+		allDefs = validator.GetStepDefinitions()
+	}
+
+	// Filter by types if specified
+	var result []validator.StepDefinition
+	if typesParam != "" {
+		requestedTypes := parseNodeTypes(typesParam)
+		requestedSet := make(map[string]bool)
+		for _, t := range requestedTypes {
+			requestedSet[t] = true
+		}
+
+		for _, def := range allDefs {
+			if requestedSet[def.Type] {
+				result = append(result, def)
+			}
+		}
+	} else {
+		result = allDefs
+	}
+
+	RespondSuccess(w, http.StatusOK, map[string]any{
+		"steps": result,
+	})
+}
+
 // parseNodeTypes splits a comma-separated list of node types.
 func parseNodeTypes(s string) []string {
 	if s == "" {

@@ -137,14 +137,28 @@ browser-automation-studio workflow execute \
 
 **Step format:** `--step <type> [positional] [key=value ...]`
 
-| Node Type | Positional | Required Key=Value |
-|-----------|------------|-------------------|
-| navigate | url (or use scenario=) | - |
-| click | selector | - |
-| type | selector | text= |
-| assert | selector | assertMode= |
-| wait | - | durationMs= or selector= |
-| screenshot | - | - |
+For complete step syntax documentation, use:
+```bash
+# List all CLI-supported step types
+browser-automation-studio schema steps --cli-only
+
+# Get details for specific step types
+browser-automation-studio schema steps --types navigate,click,assert
+
+# Get JSON output for programmatic use
+browser-automation-studio schema steps --format json
+```
+
+**Quick reference for common steps:**
+
+| Node Type | Positional | Key Notes |
+|-----------|------------|-----------|
+| navigate | url | Or use scenario=, path= |
+| click | selector | clickCount=, button= |
+| type | selector | text= (required) |
+| assert | selector | assertMode= (required) |
+| wait | (selector) | durationMs= OR selector= |
+| screenshot | (selector) | fullPage= |
 | evaluate | expression | - |
 
 **When to use each approach:**

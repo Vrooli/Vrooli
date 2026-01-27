@@ -30,7 +30,7 @@ func Commands(ctx *appctx.Context) cliapp.CommandGroup {
 
 func runSchema(ctx *appctx.Context, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("usage: %s schema <workflow|node-types>", ctx.Name)
+		return fmt.Errorf("usage: %s schema <workflow|node-types|steps>", ctx.Name)
 	}
 
 	subcommand := args[0]
@@ -39,8 +39,10 @@ func runSchema(ctx *appctx.Context, args []string) error {
 		return runSchemaWorkflow(ctx, args[1:])
 	case "node-types":
 		return runSchemaNodeTypes(ctx, args[1:])
+	case "steps":
+		return runSchemaSteps(ctx, args[1:])
 	default:
-		return fmt.Errorf("unknown schema command: %s (use 'workflow' or 'node-types')", subcommand)
+		return fmt.Errorf("unknown schema command: %s (use 'workflow', 'node-types', or 'steps')", subcommand)
 	}
 }
 

@@ -412,6 +412,7 @@ func main() {
 		} else {
 			r.Get("/schema/workflow", schemaHandler.GetWorkflowSchema)
 			r.Get("/schema/workflow/node-types", schemaHandler.GetAvailableNodeTypes)
+			r.Get("/schema/steps", schemaHandler.GetStepDefinitions)
 		}
 
 		// Project routes
