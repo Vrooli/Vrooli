@@ -81,6 +81,20 @@ func BuildNavigateParams(data map[string]any) *basactions.NavigateParams {
 	if url, ok := data["url"].(string); ok {
 		p.Url = url
 	}
+
+	// Handle scenario-based navigation
+	if scenario, ok := data["scenario"].(string); ok && scenario != "" {
+		p.Scenario = &scenario
+		destType := basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO
+		p.DestinationType = &destType
+	}
+	// Support both "path" (CLI) and "scenarioPath" (proto camelCase)
+	if path, ok := data["path"].(string); ok {
+		p.ScenarioPath = &path
+	} else if path, ok := data["scenarioPath"].(string); ok {
+		p.ScenarioPath = &path
+	}
+
 	if wfs, ok := data["waitForSelector"].(string); ok {
 		p.WaitForSelector = &wfs
 	}
