@@ -75,13 +75,34 @@ For organization patterns, hierarchy rules, and requirements integration, see th
 
 #### Execute a Workflow
 
-There are two ways to execute workflows: from a JSON file or inline with `--step` flags.
+There are three ways to execute workflows: by name (stored workflow), from a JSON file, or inline with `--step` flags.
+
+**By stored workflow name:**
+```bash
+# Execute a workflow stored in BAS by name
+browser-automation-studio workflow execute my-login-workflow --wait
+
+# List available workflows first
+browser-automation-studio workflow list
+```
+
+> **Note:** Workflow names must be unique. If multiple workflows share the same name, execution will fail with "multiple workflows match name". Use `--from-file` instead, or rename workflows to be unique.
 
 **From JSON file:**
+
+> **Note:** The `--from-file` flag requires an **absolute path**. Relative paths will fail with "unable to infer --project-root". Alternatively, use `--project-root` to specify the bas/ directory explicitly.
+
 ```bash
-# Run a workflow from a file
+# Run a workflow from a file (use absolute path)
+browser-automation-studio workflow execute \
+  --from-file /abs/path/to/scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
+  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
+  --wait
+
+# Or use --project-root with relative path
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
+  --project-root /abs/path/to/scenarios/{{TARGET}}/bas \
   --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
   --wait
 
@@ -92,20 +113,15 @@ browser-automation-studio workflow execute \
   --output /tmp/bas/{{TARGET}}/actions/open-project \
   --wait
 
-# Run with parameters
+# Run with parameters (nested in initial_params)
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
-  --params '{"username": "test@example.com"}' \
+  --params '{"initial_params": {"username": "test@example.com"}}' \
   --output /tmp/bas/{{TARGET}}/flows/checkout \
   --wait
-
-# Run with video/trace recording
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
-  --record-video \
-  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
-  --wait
 ```
+
+> **Note:** Custom parameters must be nested in `initial_params`. Example: `--params '{"initial_params": {"username": "test"}}'`
 
 **Inline step execution (for quick tests without JSON files):**
 ```bash
@@ -117,9 +133,10 @@ browser-automation-studio workflow execute \
   --wait
 
 # Navigate to a scenario and assert an element exists
+# Note: Use selector= prefix for attribute selectors containing '='
 browser-automation-studio workflow execute \
   --step navigate scenario=knowledge-observatory path=/dashboard \
-  --step assert "[data-testid='dashboard-container']" assertMode=exists \
+  --step assert selector="[data-testid='dashboard-container']" assertMode=exists \
   --step screenshot \
   --output /tmp/bas/{{TARGET}}/assert-dashboard-container \
   --wait
@@ -130,22 +147,16 @@ browser-automation-studio workflow execute \
   --step type "#email" text=test@example.com \
   --step type "#password" text=secret123 \
   --step click "#submit" \
-  --step assert "[data-testid='dashboard']" assertMode=exists \
+  --step assert selector="[data-testid='dashboard']" assertMode=exists \
   --output /tmp/bas/{{TARGET}}/assert-login-form \
   --wait
 ```
 
+> **Important:** When using CSS attribute selectors like `[data-testid='dashboard']`, prefix with `selector=` to avoid the `=` being parsed as a key-value delimiter.
+
 **Step format:** `--step <type> [positional] [key=value ...]`
 
-| Node Type | Positional | Required Key=Value |
-|-----------|------------|-------------------|
-| navigate | url (or use scenario=) | - |
-| click | selector | - |
-| type | selector | text= |
-| assert | selector | assertMode= |
-| wait | - | durationMs= or selector= |
-| screenshot | - | - |
-| evaluate | expression | - |
+Use `browser-automation-studio schema steps` to see all available step types, their positional arguments, and required/optional key-value parameters. Use `browser-automation-studio schema steps --cli-only` for only CLI-supported steps.
 
 **When to use each approach:**
 
@@ -153,9 +164,23 @@ browser-automation-studio workflow execute \
 |----------|----------|
 | `--step` flags | Quick tests, smoke tests, debugging, simple linear flows |
 | JSON file | Reusable workflows, complex branching, stored in bas/ |
+| Stored name | Workflows already created via UI or API |
 
+#### Workflow Management
 
-#### Get Schema Reference
+```bash
+# List all stored workflows
+browser-automation-studio workflow list
+
+# Validate workflow JSON syntax
+browser-automation-studio workflow lint scenarios/{{TARGET}}/bas/cases/01-foundation/login.json
+```
+
+---
+
+### **5. Schema Reference**
+
+Use schema commands to discover step syntax and workflow structure.
 
 ```bash
 # Get full workflow schema
@@ -166,11 +191,21 @@ browser-automation-studio schema workflow --nodes navigate,click,assert
 
 # List available node types
 browser-automation-studio schema node-types
+
+# Get inline step format reference (positional args, key-value pairs)
+browser-automation-studio schema steps
+
+# Get CLI-supported steps only
+browser-automation-studio schema steps --cli-only
+
+# Get schema in different formats
+browser-automation-studio schema steps --format json
+browser-automation-studio schema steps --format markdown
 ```
 
 ---
 
-### **6. Complete Example: Smoke Test Walkthrough**
+### **6. Example: Smoke Test Cycle**
 
 This example shows the full cycle: run a smoke test and interpret results.
 
@@ -189,7 +224,7 @@ browser-automation-studio workflow execute \
 
 Check results:
 ```bash
-cat /tmp/bas/{{TARGET}}/navigate-dashboard/README.md 
+cat /tmp/bas/{{TARGET}}/navigate-dashboard/README.md
 ```
 
 #### File-Based Approach (for reusable tests)
@@ -206,8 +241,8 @@ browser-automation-studio workflow execute \
 # Check results
 cat /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/README.md
 
-# View screenshot
-open /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/frames/screenshot-001.jpg
+# View screenshots (format: step-NN-<step-id>.png)
+ls /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/screenshots/
 ```
 
 ---
@@ -228,8 +263,11 @@ browser-automation-studio schema node-types
 | `exists` | Element is in DOM |
 | `not_exists` | Element is NOT in DOM |
 | `visible` | Element is visible |
-| `contains_text` | Element contains expected text |
-| `exact_text` | Element text matches exactly |
+| `hidden` | Element is hidden |
+| `text_contains` | Element contains expected text (use `expectedText=`) |
+| `text_equals` | Element text matches exactly (use `expectedText=`) |
+| `attribute_contains` | Attribute contains value (use `attributeName=` and `expectedValue=`) |
+| `attribute_equals` | Attribute matches exactly (use `attributeName=` and `expectedValue=`) |
 
 ---
 
@@ -260,7 +298,7 @@ browser-automation-studio schema node-types
    │                                                       │
    │  "TIMEOUT"                                            │
    │    1. Check network-*.json for slow/failed requests   │
-   │    2. View frames/ for last screenshot                │
+   │    2. View screenshots/ for last screenshot           │
    │    3. Check console-*.json for JS errors              │
    │    4. Increase timeoutMs in the failing node          │
    │    5. Add wait node before the action                 │
@@ -336,7 +374,7 @@ When using BAS for investigation, document findings in `docs/internal/PROBLEMS.m
 ### [Issue Title]
 - **Execution ID:** exec-abc123
 - **Output path:** /tmp/bas/{{TARGET}}/...
-- **Screenshot:** {output-path}/frames/screenshot-005.jpg
+- **Screenshot:** {output-path}/screenshots/step-05-*.png
 - **Root cause:** [What's actually wrong]
 - **Fix:** [What needs to change in source code]
 - **Status:** Pending/Fixed

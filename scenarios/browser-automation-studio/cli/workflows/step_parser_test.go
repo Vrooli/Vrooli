@@ -182,3 +182,120 @@ func TestSetNestedValue(t *testing.T) {
 		t.Errorf("expected maxAttempts=3, got %v", resilience["maxAttempts"])
 	}
 }
+
+func TestParseSteps_AttributeSelector(t *testing.T) {
+	// Attribute selectors like [data-testid='dashboard'] contain '=' but should
+	// be treated as positional arguments, not key-value pairs.
+	args := []string{"--step", "assert", "[data-testid='dashboard']", "assertMode=exists"}
+	steps, _, err := ParseSteps(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(steps))
+	}
+	if steps[0].Positional != "[data-testid='dashboard']" {
+		t.Errorf("expected positional '[data-testid=\"dashboard\"]', got %q", steps[0].Positional)
+	}
+	if steps[0].KVPairs["assertMode"] != "exists" {
+		t.Errorf("expected assertMode=exists, got %q", steps[0].KVPairs["assertMode"])
+	}
+}
+
+func TestParseSteps_AttributeSelectorWithMultipleKV(t *testing.T) {
+	// Test attribute selector with multiple valid KV pairs
+	args := []string{"--step", "assert", "[name='email']", "assertMode=visible", "timeoutMs=5000"}
+	steps, _, err := ParseSteps(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(steps))
+	}
+	if steps[0].Positional != "[name='email']" {
+		t.Errorf("expected positional '[name=\"email\"]', got %q", steps[0].Positional)
+	}
+	if steps[0].KVPairs["assertMode"] != "visible" {
+		t.Errorf("expected assertMode=visible, got %q", steps[0].KVPairs["assertMode"])
+	}
+	if steps[0].KVPairs["timeoutMs"] != "5000" {
+		t.Errorf("expected timeoutMs=5000, got %q", steps[0].KVPairs["timeoutMs"])
+	}
+}
+
+func TestParseSteps_ExplicitSelectorKV(t *testing.T) {
+	// When using selector= explicitly, it should work as a KV pair
+	args := []string{"--step", "click", "selector=[data-testid='submit']"}
+	steps, _, err := ParseSteps(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(steps))
+	}
+	// selector= is a valid KV key, so the whole thing becomes a KV pair
+	if steps[0].KVPairs["selector"] != "[data-testid='submit']" {
+		t.Errorf("expected selector KV pair, got positional=%q, kvpairs=%v", steps[0].Positional, steps[0].KVPairs)
+	}
+}
+
+func TestIsValidKVKey(t *testing.T) {
+	validKeys := []string{
+		"assertMode", "assert_mode",
+		"waitUntil", "wait_until",
+		"selector", "text", "value",
+		"fullPage", "full_page",
+		"timeoutMs", "timeout_ms",
+		"scenario", "path", "url",
+		"resilience.maxAttempts",
+		// Assert attribute parameters
+		"expectedText", "expected_text",
+		"attributeName", "attribute_name",
+		"expectedValue", "expected_value",
+	}
+	for _, key := range validKeys {
+		if !isValidKVKey(key) {
+			t.Errorf("isValidKVKey(%q) = false, want true", key)
+		}
+	}
+
+	invalidKeys := []string{
+		"[data-testid",
+		"data-testid",
+		"'dashboard']",
+		"[name",
+		"randomKey",
+	}
+	for _, key := range invalidKeys {
+		if isValidKVKey(key) {
+			t.Errorf("isValidKVKey(%q) = true, want false", key)
+		}
+	}
+}
+
+func TestParseSteps_AttributeAssertion(t *testing.T) {
+	// Test attribute assertion with attributeName and expectedValue
+	args := []string{"--step", "assert", "a", "assertMode=attribute_contains", "attributeName=href", "expectedValue=iana"}
+	steps, _, err := ParseSteps(args)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(steps))
+	}
+	if steps[0].Type != "assert" {
+		t.Errorf("expected type 'assert', got %q", steps[0].Type)
+	}
+	if steps[0].Positional != "a" {
+		t.Errorf("expected positional 'a', got %q", steps[0].Positional)
+	}
+	if steps[0].KVPairs["assertMode"] != "attribute_contains" {
+		t.Errorf("expected assertMode=attribute_contains, got %q", steps[0].KVPairs["assertMode"])
+	}
+	if steps[0].KVPairs["attributeName"] != "href" {
+		t.Errorf("expected attributeName=href, got %q", steps[0].KVPairs["attributeName"])
+	}
+	if steps[0].KVPairs["expectedValue"] != "iana" {
+		t.Errorf("expected expectedValue=iana, got %q", steps[0].KVPairs["expectedValue"])
+	}
+}

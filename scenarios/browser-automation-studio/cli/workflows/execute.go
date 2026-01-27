@@ -30,6 +30,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	workflow := ""
 
 	paramsRaw := "{}"
+	initialParamsRaw := ""
+	initialStoreRaw := ""
+	envRaw := ""
 	wait := false
 	outputDir := ""         // Legacy: for --output-screenshots (deprecated)
 	outputPath := ""        // New: for --output (export results to folder)
@@ -50,6 +53,24 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--params requires a value")
 			}
 			paramsRaw = args[i+1]
+			i++
+		case "--initial-params":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--initial-params requires a value")
+			}
+			initialParamsRaw = args[i+1]
+			i++
+		case "--initial-store":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--initial-store requires a value")
+			}
+			initialStoreRaw = args[i+1]
+			i++
+		case "--env":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--env requires a value")
+			}
+			envRaw = args[i+1]
 			i++
 		case "--from-file":
 			if i+1 >= len(args) {
@@ -198,6 +219,36 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	var params map[string]any
 	if err := json.Unmarshal([]byte(paramsRaw), &params); err != nil {
 		return fmt.Errorf("invalid JSON for --params")
+	}
+
+	// Normalize params: move unknown fields to initial_params
+	params = normalizeExecutionParams(params)
+
+	// Merge --initial-params if provided
+	if initialParamsRaw != "" {
+		var initialParams map[string]any
+		if err := json.Unmarshal([]byte(initialParamsRaw), &initialParams); err != nil {
+			return fmt.Errorf("invalid JSON for --initial-params")
+		}
+		params = mergeIntoInitialParams(params, initialParams)
+	}
+
+	// Merge --initial-store if provided
+	if initialStoreRaw != "" {
+		var initialStore map[string]any
+		if err := json.Unmarshal([]byte(initialStoreRaw), &initialStore); err != nil {
+			return fmt.Errorf("invalid JSON for --initial-store")
+		}
+		params = mergeIntoInitialStore(params, initialStore)
+	}
+
+	// Merge --env if provided
+	if envRaw != "" {
+		var envVars map[string]any
+		if err := json.Unmarshal([]byte(envRaw), &envVars); err != nil {
+			return fmt.Errorf("invalid JSON for --env")
+		}
+		params = mergeIntoEnv(params, envVars)
 	}
 
 	if projectRoot != "" {
@@ -985,4 +1036,101 @@ func waitForScenarioHealth(ctx context.Context, base string) error {
 		case <-ticker.C:
 		}
 	}
+}
+
+// knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
+var knownExecutionParamFields = map[string]bool{
+	"initial_params": true,
+	"initial_store":  true,
+	"env":            true,
+	"projectRoot":    true,
+	"startUrl":       true,
+	"start_url":      true,
+}
+
+// normalizeExecutionParams moves unknown fields to initial_params.
+// This allows users to pass custom workflow parameters directly in --params
+// without needing to nest them in initial_params.
+func normalizeExecutionParams(params map[string]any) map[string]any {
+	if params == nil {
+		return params
+	}
+
+	// Find unknown fields
+	unknownFields := make(map[string]any)
+	for key, value := range params {
+		if !knownExecutionParamFields[key] {
+			unknownFields[key] = value
+		}
+	}
+
+	// If no unknown fields, return as-is
+	if len(unknownFields) == 0 {
+		return params
+	}
+
+	// Move unknown fields to initial_params
+	initialParams, _ := params["initial_params"].(map[string]any)
+	if initialParams == nil {
+		initialParams = make(map[string]any)
+	}
+
+	for key, value := range unknownFields {
+		// Don't overwrite existing values in initial_params
+		if _, exists := initialParams[key]; !exists {
+			initialParams[key] = value
+		}
+		delete(params, key)
+	}
+
+	params["initial_params"] = initialParams
+	return params
+}
+
+// mergeIntoInitialParams merges additional values into params["initial_params"].
+func mergeIntoInitialParams(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	initialParams, _ := params["initial_params"].(map[string]any)
+	if initialParams == nil {
+		initialParams = make(map[string]any)
+	}
+	for k, v := range values {
+		initialParams[k] = v
+	}
+	params["initial_params"] = initialParams
+	return params
+}
+
+// mergeIntoInitialStore merges additional values into params["initial_store"].
+func mergeIntoInitialStore(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	initialStore, _ := params["initial_store"].(map[string]any)
+	if initialStore == nil {
+		initialStore = make(map[string]any)
+	}
+	for k, v := range values {
+		initialStore[k] = v
+	}
+	params["initial_store"] = initialStore
+	return params
+}
+
+// mergeIntoEnv merges additional values into params["env"].
+func mergeIntoEnv(params map[string]any, values map[string]any) map[string]any {
+	if params == nil {
+		params = make(map[string]any)
+	}
+	env, _ := params["env"].(map[string]any)
+	if env == nil {
+		env = make(map[string]any)
+	}
+	for k, v := range values {
+		env[k] = v
+	}
+	params["env"] = env
+	return params
 }

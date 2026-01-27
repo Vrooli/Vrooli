@@ -18,6 +18,7 @@ import (
 //   - JsonValue wrapping for initial_params, initial_store, env
 //   - executionViewport (camelCase) → viewport_width/viewport_height
 //   - Removes unsupported UI settings (defaultStepTimeoutMs)
+//   - Unknown parameter fields are moved to initial_params
 //
 // Removed transformations:
 //   - execution_params → parameters: Removed 2024-12 after confirming no clients
@@ -33,8 +34,9 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 		return body, nil
 	}
 
-	// 1. JsonValue wrapping for parameter maps
+	// 1. Normalize execution parameters (move unknown fields to initial_params)
 	if params, ok := raw["parameters"].(map[string]any); ok && params != nil {
+		NormalizeExecutionParameters(params)
 		typeconv.NormalizeJsonValueMaps(params, "initial_params", "initial_store", "env")
 	}
 
@@ -47,6 +49,67 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 	raw = normalizeProtoJSONKeys(raw).(map[string]any)
 
 	return json.Marshal(raw)
+}
+
+// knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
+var knownExecutionParamFields = map[string]bool{
+	"initial_params": true,
+	"initialParams":  true,
+	"initial_store":  true,
+	"initialStore":   true,
+	"env":            true,
+	"projectRoot":    true,
+	"project_root":   true,
+	"startUrl":       true,
+	"start_url":      true,
+}
+
+// NormalizeExecutionParameters moves unknown fields in params to initial_params.
+// This allows users to pass custom workflow parameters directly in params
+// without needing to nest them in initial_params.
+//
+// Example:
+//
+//	Input:  {"username": "test", "initial_params": {"existing": "value"}}
+//	Output: {"initial_params": {"existing": "value", "username": "test"}}
+func NormalizeExecutionParameters(params map[string]any) {
+	if params == nil {
+		return
+	}
+
+	// Find unknown fields
+	unknownFields := make(map[string]any)
+	for key, value := range params {
+		if !knownExecutionParamFields[key] {
+			unknownFields[key] = value
+		}
+	}
+
+	// If no unknown fields, return as-is
+	if len(unknownFields) == 0 {
+		return
+	}
+
+	// Move unknown fields to initial_params
+	var initialParams map[string]any
+	if ip, ok := params["initial_params"].(map[string]any); ok {
+		initialParams = ip
+	} else if ip, ok := params["initialParams"].(map[string]any); ok {
+		initialParams = ip
+	}
+	if initialParams == nil {
+		initialParams = make(map[string]any)
+	}
+
+	for key, value := range unknownFields {
+		// Don't overwrite existing values in initial_params
+		if _, exists := initialParams[key]; !exists {
+			initialParams[key] = value
+		}
+		delete(params, key)
+	}
+
+	params["initial_params"] = initialParams
 }
 
 // NormalizeWorkflowSettings normalizes UI-oriented settings in a workflow definition
@@ -65,11 +128,12 @@ func NormalizeWorkflowSettings(flowDef map[string]any) {
 }
 
 // NormalizeWorkflowDefinitionV2 applies V2 compatibility transformations to a workflow definition.
-// This handles both settings normalization and node-level subflow args wrapping.
+// This handles both settings normalization and node-level transformations.
 //
 // Transformations:
 //   - executionViewport → viewport_width/viewport_height in settings
 //   - Removes defaultStepTimeoutMs
+//   - Converts V1 nodes (type+data) to V2 format (action oneof)
 //   - Wraps subflow args into JsonValue oneof shape
 func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 	// Normalize settings
@@ -83,7 +147,7 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		delete(metadata, "reset")
 	}
 
-	// Normalize subflow args in nodes
+	// Normalize nodes
 	nodes, ok := doc["nodes"].([]any)
 	if !ok || len(nodes) == 0 {
 		return
@@ -93,6 +157,11 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		if !ok || node == nil {
 			continue
 		}
+
+		// Transform V1 nodes to V2 format
+		normalizeNodeV1ToV2(node)
+
+		// Handle subflow args wrapping for V2 nodes
 		action, ok := node["action"].(map[string]any)
 		if !ok || action == nil {
 			continue
@@ -112,6 +181,126 @@ func NormalizeWorkflowDefinitionV2(doc map[string]any) {
 		}
 		subflow["args"] = normalized
 	}
+}
+
+// normalizeNodeV1ToV2 converts a V1-format node (type+data) to V2 format (action oneof).
+// V1: { "id": "x", "type": "click", "data": { "selector": "#btn", "label": "My Label" } }
+// V2: { "id": "x", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "#btn" }, "metadata": { "label": "My Label" } } }
+func normalizeNodeV1ToV2(node map[string]any) {
+	// Check if this is a V1 node (has "type" field but no "action" field)
+	stepType, hasType := node["type"].(string)
+	if !hasType || stepType == "" {
+		return
+	}
+	if _, hasAction := node["action"]; hasAction {
+		// Already V2 format
+		return
+	}
+
+	// Extract V1 data
+	data, _ := node["data"].(map[string]any)
+	if data == nil {
+		data = make(map[string]any)
+	}
+
+	// Build V2 action structure
+	actionType := stepTypeToActionType(stepType)
+	paramsKey := stepTypeToParamsKey(stepType)
+	params := normalizeParamsData(stepType, data)
+
+	// Extract label for metadata
+	var metadata map[string]any
+	if label, ok := data["label"].(string); ok && label != "" {
+		metadata = map[string]any{"label": label}
+		delete(params, "label")
+	}
+
+	// Build the action map
+	action := map[string]any{
+		"type": actionType,
+	}
+	if len(params) > 0 {
+		action[paramsKey] = params
+	}
+	if metadata != nil {
+		action["metadata"] = metadata
+	}
+
+	// Replace V1 fields with V2 structure
+	delete(node, "type")
+	delete(node, "data")
+	node["action"] = action
+}
+
+// stepTypeToActionType maps V1 step type strings to V2 ACTION_TYPE enum names.
+func stepTypeToActionType(stepType string) string {
+	mapping := map[string]string{
+		"navigate":   "ACTION_TYPE_NAVIGATE",
+		"click":      "ACTION_TYPE_CLICK",
+		"type":       "ACTION_TYPE_INPUT",
+		"input":      "ACTION_TYPE_INPUT",
+		"assert":     "ACTION_TYPE_ASSERT",
+		"wait":       "ACTION_TYPE_WAIT",
+		"screenshot": "ACTION_TYPE_SCREENSHOT",
+		"evaluate":   "ACTION_TYPE_EVALUATE",
+		"hover":      "ACTION_TYPE_HOVER",
+		"focus":      "ACTION_TYPE_FOCUS",
+		"blur":       "ACTION_TYPE_BLUR",
+		"select":     "ACTION_TYPE_SELECT",
+		"keyboard":   "ACTION_TYPE_KEYBOARD",
+		"shortcut":   "ACTION_TYPE_SHORTCUT",
+		"extract":    "ACTION_TYPE_EXTRACT",
+		"subflow":    "ACTION_TYPE_SUBFLOW",
+		"dragDrop":   "ACTION_TYPE_DRAG_DROP",
+		"drag_drop":  "ACTION_TYPE_DRAG_DROP",
+		"loop":       "ACTION_TYPE_LOOP",
+		"condition":  "ACTION_TYPE_CONDITION",
+		"set":        "ACTION_TYPE_SET",
+		"scroll":     "ACTION_TYPE_SCROLL",
+	}
+	if actionType, ok := mapping[stepType]; ok {
+		return actionType
+	}
+	// Fallback: uppercase with prefix
+	return "ACTION_TYPE_" + strings.ToUpper(stepType)
+}
+
+// stepTypeToParamsKey maps V1 step type to the V2 params field name.
+// Most map directly (click -> click), but "type" -> "input".
+func stepTypeToParamsKey(stepType string) string {
+	mapping := map[string]string{
+		"type":      "input",
+		"dragDrop":  "dragDrop",
+		"drag_drop": "dragDrop",
+	}
+	if key, ok := mapping[stepType]; ok {
+		return key
+	}
+	return stepType
+}
+
+// normalizeParamsData handles field renames between V1 data and V2 params.
+func normalizeParamsData(stepType string, data map[string]any) map[string]any {
+	result := make(map[string]any, len(data))
+	for k, v := range data {
+		result[k] = v
+	}
+
+	// Handle "type" step (input action) field renames
+	if stepType == "type" || stepType == "input" {
+		// V1 uses "text", V2 uses "value"
+		if text, ok := result["text"]; ok {
+			if _, hasValue := result["value"]; !hasValue {
+				result["value"] = text
+			}
+			delete(result, "text")
+		}
+	}
+
+	// Remove "label" as it moves to metadata
+	delete(result, "label")
+
+	return result
 }
 
 // normalizeViewportSettings handles the executionViewport camelCase → snake_case conversion.

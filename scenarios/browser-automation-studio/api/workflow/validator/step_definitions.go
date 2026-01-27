@@ -108,15 +108,17 @@ var stepDefinitions = []StepDefinition{
 			Description: "CSS selector or @selector/ reference to assert on",
 		},
 		RequiredKVs: []KVDef{
-			{Key: "assertMode", Type: "string", Description: "Assertion type: exists, not_exists, visible, contains_text, exact_text"},
+			{Key: "assertMode", Type: "string", Description: "Assertion type: exists, not_exists, visible, hidden, text_contains, text_equals, attribute_contains, attribute_equals"},
 		},
 		OptionalKVs: []KVDef{
-			{Key: "expectedText", Type: "string", Description: "Text to match (for contains_text, exact_text modes)"},
+			{Key: "expectedText", Type: "string", Description: "Text to match (for text_contains, text_equals modes)"},
+			{Key: "attributeName", Type: "string", Description: "Attribute name (for attribute_contains, attribute_equals modes)"},
+			{Key: "expectedValue", Type: "string", Description: "Expected value (for attribute_contains, attribute_equals modes)"},
 			{Key: "timeoutMs", Type: "int", Description: "Max wait time for assertion"},
 		},
 		Examples: []StepExample{
 			{Description: "Assert element exists", CLI: `--step assert "[data-testid='dashboard']" assertMode=exists`},
-			{Description: "Assert text content", CLI: `--step assert "#message" assertMode=contains_text expectedText="Success"`},
+			{Description: "Assert text content", CLI: `--step assert "#message" assertMode=text_contains expectedText="Success"`},
 			{Description: "Assert element not visible", CLI: `--step assert ".loading-spinner" assertMode=not_exists`},
 		},
 		CLISupported: true,

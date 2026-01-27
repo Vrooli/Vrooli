@@ -4,7 +4,109 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/browser-automation-studio/workflow/validator"
 )
+
+// validKVKeys is the set of known parameter keys that can be used as key=value pairs.
+// This is built from step definitions to avoid treating attribute selectors like
+// [data-testid='dashboard'] as key-value pairs.
+var validKVKeys map[string]bool
+
+func init() {
+	validKVKeys = buildValidKVKeys()
+}
+
+// buildValidKVKeys extracts all valid key names from step definitions.
+func buildValidKVKeys() map[string]bool {
+	keys := make(map[string]bool)
+
+	// Common keys used across steps
+	commonKeys := []string{
+		"selector", "text", "value", "label", "timeoutMs", "timeout_ms",
+	}
+	for _, k := range commonKeys {
+		keys[k] = true
+	}
+
+	// Build from step definitions
+	for _, def := range validator.GetStepDefinitions() {
+		// Add required KV keys
+		for _, kv := range def.RequiredKVs {
+			keys[kv.Key] = true
+			// Also add snake_case variant
+			if snakeKey := toSnakeCase(kv.Key); snakeKey != kv.Key {
+				keys[snakeKey] = true
+			}
+		}
+		// Add optional KV keys
+		for _, kv := range def.OptionalKVs {
+			keys[kv.Key] = true
+			// Also add snake_case variant
+			if snakeKey := toSnakeCase(kv.Key); snakeKey != kv.Key {
+				keys[snakeKey] = true
+			}
+		}
+		// Add positional's MapsTo key
+		if def.Positional != nil && def.Positional.MapsTo != "" {
+			keys[def.Positional.MapsTo] = true
+		}
+	}
+
+	// Add scenario-specific keys
+	extraKeys := []string{
+		"scenario", "path", "url", "waitUntil", "wait_until",
+		"assertMode", "assert_mode", "expectedText", "expected_text",
+		"fullPage", "full_page", "durationMs", "duration_ms",
+		"state", "attribute", "outputKey", "output_key",
+		"optionText", "option_text", "optionValue", "option_value",
+		"optionIndex", "option_index", "clickCount", "click_count",
+		"button", "delay", "clear", "name", "expression", "script", "code",
+		"key", "keys", "sourceSelector", "source_selector",
+		"targetSelector", "target_selector",
+		"workflowId", "workflow_id", "workflowPath", "workflow_path",
+	}
+	for _, k := range extraKeys {
+		keys[k] = true
+	}
+
+	return keys
+}
+
+// toSnakeCase converts camelCase to snake_case.
+func toSnakeCase(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if r >= 'A' && r <= 'Z' {
+			if i > 0 {
+				result.WriteByte('_')
+			}
+			result.WriteRune(r + 32) // lowercase
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
+}
+
+// isValidKVKey checks if a key is a known parameter name that should be treated
+// as a key=value pair. This prevents attribute selectors like [data-testid='x']
+// from being incorrectly parsed as key-value pairs.
+func isValidKVKey(key string) bool {
+	// Check direct match
+	if validKVKeys[key] {
+		return true
+	}
+	// Check if it's a nested key (e.g., resilience.maxAttempts)
+	if strings.Contains(key, ".") {
+		parts := strings.SplitN(key, ".", 2)
+		// Allow resilience.* and other known nested patterns
+		if parts[0] == "resilience" {
+			return true
+		}
+	}
+	return false
+}
 
 // StepSpec represents a parsed --step flag.
 type StepSpec struct {
@@ -61,13 +163,20 @@ func parseOneStep(args []string) (*StepSpec, int, error) {
 
 		consumed++
 
-		// Check for key=value
+		// Check for key=value, but only if the key is a valid parameter name.
+		// This prevents attribute selectors like [data-testid='dashboard'] from
+		// being incorrectly parsed as key-value pairs.
 		if idx := strings.Index(arg, "="); idx > 0 {
 			key := arg[:idx]
-			value := arg[idx+1:]
-			step.KVPairs[key] = value
-		} else if step.Positional == "" {
-			// First non-kv is positional
+			if isValidKVKey(key) {
+				value := arg[idx+1:]
+				step.KVPairs[key] = value
+				continue
+			}
+		}
+
+		// Not a valid KV pair - treat as positional
+		if step.Positional == "" {
 			step.Positional = arg
 		} else {
 			return nil, 0, fmt.Errorf("unexpected argument in step '%s': %s", step.Type, arg)

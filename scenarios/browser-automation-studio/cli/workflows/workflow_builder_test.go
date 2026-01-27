@@ -486,3 +486,92 @@ func TestBuildWorkflowFromSteps_WaitForElement(t *testing.T) {
 		t.Errorf("expected selector '#element', got %q", wait["selector"])
 	}
 }
+
+func TestBuildWorkflowFromSteps_AssertAttributeContains(t *testing.T) {
+	steps := []*StepSpec{
+		{
+			Type:       "assert",
+			Positional: "a",
+			KVPairs: map[string]string{
+				"assertMode":    "attribute_contains",
+				"attributeName": "href",
+				"expectedValue": "iana",
+			},
+		},
+	}
+
+	workflow, err := BuildWorkflowFromSteps(steps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	nodes := workflow["nodes"].([]map[string]any)
+	action := nodes[0]["action"].(map[string]any)
+
+	if action["type"] != "ACTION_TYPE_ASSERT" {
+		t.Errorf("expected type 'ACTION_TYPE_ASSERT', got %q", action["type"])
+	}
+
+	assert := action["assert"].(map[string]any)
+	if assert["selector"] != "a" {
+		t.Errorf("expected selector 'a', got %q", assert["selector"])
+	}
+	if assert["mode"] != "ASSERTION_MODE_ATTRIBUTE_CONTAINS" {
+		t.Errorf("expected mode 'ASSERTION_MODE_ATTRIBUTE_CONTAINS', got %q", assert["mode"])
+	}
+	// Check attributeName (protojson uses camelCase)
+	if assert["attributeName"] != "href" {
+		t.Errorf("expected attributeName 'href', got %q (full assert: %+v)", assert["attributeName"], assert)
+	}
+	// Check expected value (should be in JsonValue wrapper with stringValue)
+	expected, ok := assert["expected"].(map[string]any)
+	if !ok {
+		t.Errorf("expected 'expected' to be a map (JsonValue), got %T: %+v", assert["expected"], assert["expected"])
+	} else {
+		if expected["stringValue"] != "iana" {
+			t.Errorf("expected stringValue 'iana', got %q", expected["stringValue"])
+		}
+	}
+}
+
+func TestBuildWorkflowFromSteps_AssertTextContains(t *testing.T) {
+	steps := []*StepSpec{
+		{
+			Type:       "assert",
+			Positional: "#message",
+			KVPairs: map[string]string{
+				"assertMode":   "text_contains",
+				"expectedText": "Success",
+			},
+		},
+	}
+
+	workflow, err := BuildWorkflowFromSteps(steps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	nodes := workflow["nodes"].([]map[string]any)
+	action := nodes[0]["action"].(map[string]any)
+
+	if action["type"] != "ACTION_TYPE_ASSERT" {
+		t.Errorf("expected type 'ACTION_TYPE_ASSERT', got %q", action["type"])
+	}
+
+	assert := action["assert"].(map[string]any)
+	if assert["selector"] != "#message" {
+		t.Errorf("expected selector '#message', got %q", assert["selector"])
+	}
+	if assert["mode"] != "ASSERTION_MODE_TEXT_CONTAINS" {
+		t.Errorf("expected mode 'ASSERTION_MODE_TEXT_CONTAINS', got %q", assert["mode"])
+	}
+	// Check expected value (should be in JsonValue wrapper with stringValue)
+	expected, ok := assert["expected"].(map[string]any)
+	if !ok {
+		t.Errorf("expected 'expected' to be a map (JsonValue), got %T: %+v", assert["expected"], assert["expected"])
+	} else {
+		if expected["stringValue"] != "Success" {
+			t.Errorf("expected stringValue 'Success', got %q", expected["stringValue"])
+		}
+	}
+}

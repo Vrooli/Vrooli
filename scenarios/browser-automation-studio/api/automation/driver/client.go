@@ -950,6 +950,15 @@ func decodeStepOutcome(r io.Reader) (contracts.StepOutcome, error) {
 		}
 	}
 
+	// Extract assertion outcome from ExtractedData if present.
+	// The playwright-driver returns assertion results in extracted_data.assertion,
+	// but the executor expects it in the top-level Assertion field.
+	if out.Assertion == nil && out.ExtractedData != nil {
+		if assertionRaw, ok := out.ExtractedData["assertion"]; ok {
+			out.Assertion = typeconv.ToAssertionOutcome(assertionRaw)
+		}
+	}
+
 	return out, nil
 }
 

@@ -187,30 +187,57 @@ func BuildWaitParams(data map[string]any) *basactions.WaitParams {
 }
 
 // BuildAssertParams converts a data map to AssertParams proto.
-// Supports "assertMode" as alias for "mode".
+// Supports both camelCase (CLI/UI) and snake_case (proto/compiler) field names.
+// Field name aliases:
+// - mode: "mode", "assertMode", "assert_mode"
+// - expected: "expected", "expectedText", "expected_text", "expectedValue", "expected_value"
+// - attributeName: "attributeName", "attribute_name"
+// - caseSensitive: "caseSensitive", "case_sensitive"
+// - failureMessage: "failureMessage", "failure_message"
 func BuildAssertParams(data map[string]any) *basactions.AssertParams {
 	p := &basactions.AssertParams{}
 	if selector, ok := data["selector"].(string); ok {
 		p.Selector = selector
 	}
+	// Mode: check camelCase first, then snake_case
 	if mode, ok := data["mode"].(string); ok {
 		p.Mode = enums.StringToAssertionMode(mode)
 	} else if mode, ok := data["assertMode"].(string); ok {
-		p.Mode = enums.StringToAssertionMode(mode) // "assertMode" alias
+		p.Mode = enums.StringToAssertionMode(mode)
+	} else if mode, ok := data["assert_mode"].(string); ok {
+		p.Mode = enums.StringToAssertionMode(mode)
 	}
+	// Expected: check proto field first, then CLI aliases (camelCase and snake_case)
 	if exp := data["expected"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expectedText"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expected_text"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expectedValue"]; exp != nil {
+		p.Expected = AnyToJsonValue(exp)
+	} else if exp := data["expected_value"]; exp != nil {
 		p.Expected = AnyToJsonValue(exp)
 	}
 	if negated, ok := data["negated"].(bool); ok {
 		p.Negated = &negated
 	}
+	// CaseSensitive: camelCase and snake_case
 	if caseSensitive, ok := data["caseSensitive"].(bool); ok {
 		p.CaseSensitive = &caseSensitive
+	} else if caseSensitive, ok := data["case_sensitive"].(bool); ok {
+		p.CaseSensitive = &caseSensitive
 	}
+	// AttributeName: camelCase and snake_case (critical for attribute assertions)
 	if attrName, ok := data["attributeName"].(string); ok {
 		p.AttributeName = &attrName
+	} else if attrName, ok := data["attribute_name"].(string); ok {
+		p.AttributeName = &attrName
 	}
+	// FailureMessage: camelCase and snake_case
 	if failureMsg, ok := data["failureMessage"].(string); ok {
+		p.FailureMessage = &failureMsg
+	} else if failureMsg, ok := data["failure_message"].(string); ok {
 		p.FailureMessage = &failureMsg
 	}
 	return p
