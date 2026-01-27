@@ -159,7 +159,7 @@ func timelineFrameToEntry(frame export.TimelineFrame) (*bastimeline.TimelineEntr
 
 	// Add assertion to context if present
 	if frame.Assertion != nil {
-		assertion, err := convertAssertion(frame.Assertion)
+		assertion, err := ConvertAssertion(frame.Assertion)
 		if err != nil {
 			return nil, err
 		}
@@ -382,7 +382,9 @@ func convertArtifact(artifact typeconv.TimelineArtifact) (*bastimeline.TimelineA
 	return pb, nil
 }
 
-func convertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.AssertionResult, error) {
+// ConvertAssertion converts an AssertionOutcome contract to a proto AssertionResult.
+// Used by the execution writer to persist assertion data in timeline entries.
+func ConvertAssertion(assertion *autocontracts.AssertionOutcome) (*basbase.AssertionResult, error) {
 	if assertion == nil {
 		return nil, nil
 	}

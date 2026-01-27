@@ -82,6 +82,14 @@ func BuildActionDefinition(stepType string, params map[string]any) (*basactions.
 		action.Params = &basactions.ActionDefinition_Subflow{
 			Subflow: typeconv.BuildSubflowParams(params),
 		}
+	case basactions.ActionType_ACTION_TYPE_EXTRACT:
+		action.Params = &basactions.ActionDefinition_Extract{
+			Extract: typeconv.BuildExtractParams(params),
+		}
+	case basactions.ActionType_ACTION_TYPE_SHORTCUT:
+		action.Params = &basactions.ActionDefinition_Shortcut{
+			Shortcut: typeconv.BuildShortcutParams(params),
+		}
 	}
 
 	// Build metadata if present in params

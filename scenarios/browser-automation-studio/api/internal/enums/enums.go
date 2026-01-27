@@ -58,6 +58,10 @@ func StringToActionType(actionType string) basactions.ActionType {
 		return basactions.ActionType_ACTION_TYPE_LOOP
 	case "conditional":
 		return basactions.ActionType_ACTION_TYPE_CONDITIONAL
+	case "extract":
+		return basactions.ActionType_ACTION_TYPE_EXTRACT
+	case "shortcut":
+		return basactions.ActionType_ACTION_TYPE_SHORTCUT
 	default:
 		return basactions.ActionType_ACTION_TYPE_UNSPECIFIED
 	}

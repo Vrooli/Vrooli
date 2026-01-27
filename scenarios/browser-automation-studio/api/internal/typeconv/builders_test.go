@@ -267,3 +267,129 @@ func TestBuildWaitParams_DurationAlias(t *testing.T) {
 		t.Errorf("expected durationMs 1000, got %d", waitFor)
 	}
 }
+
+func TestBuildExtractParams_Basic(t *testing.T) {
+	data := map[string]any{
+		"selector": "#price",
+	}
+
+	p := BuildExtractParams(data)
+
+	if p.Selector != "#price" {
+		t.Errorf("expected selector '#price', got %q", p.Selector)
+	}
+}
+
+func TestBuildExtractParams_WithAttribute(t *testing.T) {
+	data := map[string]any{
+		"selector":  "a.download-link",
+		"attribute": "href",
+		"outputKey": "downloadUrl",
+	}
+
+	p := BuildExtractParams(data)
+
+	if p.Selector != "a.download-link" {
+		t.Errorf("expected selector 'a.download-link', got %q", p.Selector)
+	}
+	if p.AttributeName == nil || *p.AttributeName != "href" {
+		t.Errorf("expected attributeName 'href', got %v", p.AttributeName)
+	}
+	if p.StoreAs == nil || *p.StoreAs != "downloadUrl" {
+		t.Errorf("expected storeAs 'downloadUrl', got %v", p.StoreAs)
+	}
+	if p.ExtractType == nil || *p.ExtractType != basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE {
+		t.Errorf("expected extractType ATTRIBUTE, got %v", p.ExtractType)
+	}
+}
+
+func TestBuildExtractParams_AttributeNameAlias(t *testing.T) {
+	// Test that attributeName (camelCase) works
+	data := map[string]any{
+		"selector":      "#link",
+		"attributeName": "data-id",
+	}
+
+	p := BuildExtractParams(data)
+
+	if p.AttributeName == nil || *p.AttributeName != "data-id" {
+		t.Errorf("expected attributeName 'data-id', got %v", p.AttributeName)
+	}
+	if p.ExtractType == nil || *p.ExtractType != basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE {
+		t.Errorf("expected extractType ATTRIBUTE, got %v", p.ExtractType)
+	}
+}
+
+func TestBuildExtractParams_StoreAsAliases(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		expected string
+	}{
+		{
+			name:     "outputKey alias",
+			data:     map[string]any{"selector": "#el", "outputKey": "value1"},
+			expected: "value1",
+		},
+		{
+			name:     "storeAs direct",
+			data:     map[string]any{"selector": "#el", "storeAs": "value2"},
+			expected: "value2",
+		},
+		{
+			name:     "store_as snake_case",
+			data:     map[string]any{"selector": "#el", "store_as": "value3"},
+			expected: "value3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := BuildExtractParams(tt.data)
+			if p.StoreAs == nil || *p.StoreAs != tt.expected {
+				t.Errorf("expected storeAs %q, got %v", tt.expected, p.StoreAs)
+			}
+		})
+	}
+}
+
+func TestBuildShortcutParams_Basic(t *testing.T) {
+	data := map[string]any{
+		"keys": "Control+a",
+	}
+
+	p := BuildShortcutParams(data)
+
+	if p.Shortcut != "Control+a" {
+		t.Errorf("expected shortcut 'Control+a', got %q", p.Shortcut)
+	}
+}
+
+func TestBuildShortcutParams_ShortcutAlias(t *testing.T) {
+	// Test that "shortcut" key works directly
+	data := map[string]any{
+		"shortcut": "Meta+Shift+s",
+	}
+
+	p := BuildShortcutParams(data)
+
+	if p.Shortcut != "Meta+Shift+s" {
+		t.Errorf("expected shortcut 'Meta+Shift+s', got %q", p.Shortcut)
+	}
+}
+
+func TestBuildShortcutParams_WithSelector(t *testing.T) {
+	data := map[string]any{
+		"keys":     "Control+c",
+		"selector": "#editor",
+	}
+
+	p := BuildShortcutParams(data)
+
+	if p.Shortcut != "Control+c" {
+		t.Errorf("expected shortcut 'Control+c', got %q", p.Shortcut)
+	}
+	if p.Selector == nil || *p.Selector != "#editor" {
+		t.Errorf("expected selector '#editor', got %v", p.Selector)
+	}
+}

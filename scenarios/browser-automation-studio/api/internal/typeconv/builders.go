@@ -471,3 +471,73 @@ func BuildActionMetadata(data map[string]any) *basactions.ActionMetadata {
 	}
 	return meta
 }
+
+// BuildExtractParams converts a data map to ExtractParams proto.
+// CLI field mappings:
+// - selector (positional) -> Selector
+// - attribute/attributeName -> AttributeName + ExtractType=ATTRIBUTE
+// - outputKey/storeAs -> StoreAs
+// - timeoutMs -> TimeoutMs
+func BuildExtractParams(data map[string]any) *basactions.ExtractParams {
+	p := &basactions.ExtractParams{}
+	if selector, ok := data["selector"].(string); ok {
+		p.Selector = selector
+	}
+	// If attribute is specified, set extract_type to ATTRIBUTE
+	if attr, ok := data["attribute"].(string); ok {
+		p.AttributeName = &attr
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	} else if attrName, ok := data["attributeName"].(string); ok {
+		p.AttributeName = &attrName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	} else if attrName, ok := data["attribute_name"].(string); ok {
+		p.AttributeName = &attrName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_ATTRIBUTE
+		p.ExtractType = &extractType
+	}
+	// outputKey maps to store_as (proto field)
+	if outputKey, ok := data["outputKey"].(string); ok {
+		p.StoreAs = &outputKey
+	} else if storeAs, ok := data["storeAs"].(string); ok {
+		p.StoreAs = &storeAs
+	} else if storeAs, ok := data["store_as"].(string); ok {
+		p.StoreAs = &storeAs
+	}
+	// Property name for PROPERTY extraction
+	if propName, ok := data["propertyName"].(string); ok {
+		p.PropertyName = &propName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_PROPERTY
+		p.ExtractType = &extractType
+	} else if propName, ok := data["property_name"].(string); ok {
+		p.PropertyName = &propName
+		extractType := basactions.ExtractType_EXTRACT_TYPE_PROPERTY
+		p.ExtractType = &extractType
+	}
+	if tm, ok := ToInt32(data["timeoutMs"]); ok {
+		p.TimeoutMs = &tm
+	} else if tm, ok := ToInt32(data["timeout_ms"]); ok {
+		p.TimeoutMs = &tm
+	}
+	return p
+}
+
+// BuildShortcutParams converts a data map to ShortcutParams proto.
+// CLI field mappings:
+// - keys (positional) or shortcut -> Shortcut
+// - selector (optional) -> Selector
+// Example shortcuts: "Control+a", "Meta+Shift+s"
+func BuildShortcutParams(data map[string]any) *basactions.ShortcutParams {
+	p := &basactions.ShortcutParams{}
+	// CLI uses "keys" as positional, proto uses "shortcut"
+	if keys, ok := data["keys"].(string); ok {
+		p.Shortcut = keys
+	} else if shortcut, ok := data["shortcut"].(string); ok {
+		p.Shortcut = shortcut
+	}
+	if selector, ok := data["selector"].(string); ok {
+		p.Selector = &selector
+	}
+	return p
+}

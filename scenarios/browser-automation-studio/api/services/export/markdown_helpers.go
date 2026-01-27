@@ -53,9 +53,20 @@ func calculateStepMetrics(frames []TimelineFrame) (completed, total, failedStep 
 }
 
 // calculateAssertionMetrics calculates assertion pass/fail statistics from timeline frames.
+// Assertions can come from:
+// 1. Dedicated "assert" step types (where frame.StepType == "assert")
+// 2. Assertion outcomes attached to any step (where frame.Assertion != nil)
+// We check both to ensure complete coverage.
 func calculateAssertionMetrics(frames []TimelineFrame) (passed, total int) {
 	for _, frame := range frames {
-		if frame.StepType == "assert" {
+		// Check for assertion outcome attached to any step
+		if frame.Assertion != nil {
+			total++
+			if frame.Assertion.Success {
+				passed++
+			}
+		} else if frame.StepType == "assert" {
+			// Fallback for dedicated assert steps without detailed Assertion data
 			total++
 			if frame.Success {
 				passed++

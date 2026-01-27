@@ -389,10 +389,19 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
 export function toDriverOutcome(
   outcome: StepOutcome,
   screenshotData?: { base64?: string; media_type?: string; width?: number; height?: number },
-  domSnapshot?: DOMSnapshot
+  domSnapshot?: DOMSnapshot,
+  rawExtractedData?: Record<string, unknown>
 ): DriverOutcome {
   // Serialize proto to JSON (produces camelCase field names per proto3 canonical JSON)
   const json = toJson(StepOutcomeSchema, outcome) as Record<string, unknown>;
+
+  // The Go API expects plain JSON for extracted_data, not proto JsonValue wrappers.
+  // Pass raw extracted_data directly to avoid the proto wrapper structure.
+  if (rawExtractedData && Object.keys(rawExtractedData).length > 0) {
+    json['extracted_data'] = rawExtractedData;
+    // Remove the proto-wrapped version
+    delete json['extractedData'];
+  }
 
   // For backward compatibility, add flat screenshot fields
   // The Go API expects these flat fields in addition to the nested screenshot object

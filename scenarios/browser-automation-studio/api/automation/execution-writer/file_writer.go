@@ -1184,6 +1184,28 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		}
 	}
 
+	// Convert assertion outcome to proto format for persistence in timeline.
+	// This enables assertions.md to show detailed assertion results.
+	if outcome.Assertion != nil {
+		assertionResult := &basbase.AssertionResult{
+			Mode:          enums.StringToAssertionMode(outcome.Assertion.Mode),
+			Selector:      outcome.Assertion.Selector,
+			Success:       outcome.Assertion.Success,
+			Negated:       outcome.Assertion.Negated,
+			CaseSensitive: outcome.Assertion.CaseSensitive,
+		}
+		if outcome.Assertion.Message != "" {
+			assertionResult.Message = &outcome.Assertion.Message
+		}
+		if outcome.Assertion.Expected != nil {
+			assertionResult.Expected = anyToJsonValue(outcome.Assertion.Expected)
+		}
+		if outcome.Assertion.Actual != nil {
+			assertionResult.Actual = anyToJsonValue(outcome.Assertion.Actual)
+		}
+		ctx.Assertion = assertionResult
+	}
+
 	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
 		SequenceNum: int32(outcome.StepIndex),

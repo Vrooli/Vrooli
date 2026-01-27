@@ -130,3 +130,82 @@ func TestTimelineToProto(t *testing.T) {
 		t.Fatalf("expected screenshot url propagated")
 	}
 }
+
+func TestConvertAssertion_Nil(t *testing.T) {
+	result, err := ConvertAssertion(nil)
+	if err != nil {
+		t.Fatalf("expected no error for nil input, got %v", err)
+	}
+	if result != nil {
+		t.Fatalf("expected nil result for nil input")
+	}
+}
+
+func TestConvertAssertion_BasicFields(t *testing.T) {
+	assertion := &autocontracts.AssertionOutcome{
+		Mode:          "exists",
+		Selector:      "body",
+		Success:       true,
+		Negated:       false,
+		CaseSensitive: true,
+	}
+
+	result, err := ConvertAssertion(assertion)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result == nil {
+		t.Fatalf("expected non-nil result")
+	}
+	if result.Selector != "body" {
+		t.Fatalf("expected selector 'body', got '%s'", result.Selector)
+	}
+	if !result.Success {
+		t.Fatalf("expected success=true")
+	}
+	if result.Negated {
+		t.Fatalf("expected negated=false")
+	}
+	if !result.CaseSensitive {
+		t.Fatalf("expected case_sensitive=true")
+	}
+}
+
+func TestConvertAssertion_WithMessage(t *testing.T) {
+	msg := "Element not found"
+	assertion := &autocontracts.AssertionOutcome{
+		Mode:     "exists",
+		Selector: "#missing",
+		Success:  false,
+		Message:  msg,
+	}
+
+	result, err := ConvertAssertion(assertion)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Message == nil || *result.Message != msg {
+		t.Fatalf("expected message '%s', got '%v'", msg, result.Message)
+	}
+}
+
+func TestConvertAssertion_WithExpectedActual(t *testing.T) {
+	assertion := &autocontracts.AssertionOutcome{
+		Mode:     "text_equals",
+		Selector: "h1",
+		Success:  false,
+		Expected: "Hello World",
+		Actual:   "Goodbye World",
+	}
+
+	result, err := ConvertAssertion(assertion)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Expected == nil {
+		t.Fatalf("expected Expected to be set")
+	}
+	if result.Actual == nil {
+		t.Fatalf("expected Actual to be set")
+	}
+}
