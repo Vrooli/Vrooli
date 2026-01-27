@@ -14,16 +14,25 @@ import (
 	"time"
 
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/export"
 
 	"github.com/vrooli/api-core/discovery"
 )
 
 func runExecute(ctx *appctx.Context, args []string) error {
+	// Parse --step flags first (before other flag parsing)
+	steps, remainingArgs, err := ParseSteps(args)
+	if err != nil {
+		return fmt.Errorf("invalid step: %w", err)
+	}
+	args = remainingArgs
+
 	workflow := ""
 
 	paramsRaw := "{}"
 	wait := false
-	outputDir := ""
+	outputDir := ""         // Legacy: for --output-screenshots (deprecated)
+	outputPath := ""        // New: for --output (export results to folder)
 	projectRoot := ""
 	adhoc := false
 	requiresVideo := false
@@ -55,6 +64,12 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				return fmt.Errorf("--output-screenshots requires a value")
 			}
 			outputDir = args[i+1]
+			i++
+		case "--output":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--output requires a value")
+			}
+			outputPath = args[i+1]
 			i++
 		case "--project-root":
 			if i+1 >= len(args) {
@@ -108,11 +123,30 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	if strings.TrimSpace(fromFile) == "" && strings.TrimSpace(workflow) == "" {
-		return fmt.Errorf("workflow ID/name or --from-file is required")
+	// Validate that we have a workflow source (steps, file, or ID)
+	hasSteps := len(steps) > 0
+	if !hasSteps && strings.TrimSpace(fromFile) == "" && strings.TrimSpace(workflow) == "" {
+		return fmt.Errorf("workflow ID/name, --from-file, or --step flags are required")
 	}
 
-	if fromFile != "" {
+	// Validate that we don't mix --step with other sources
+	if hasSteps {
+		if strings.TrimSpace(workflow) != "" {
+			return fmt.Errorf("cannot use --step with workflow ID")
+		}
+		if strings.TrimSpace(fromFile) != "" {
+			return fmt.Errorf("cannot use --step with --from-file")
+		}
+	}
+
+	// Force wait mode if --output is specified (export requires completion)
+	if outputPath != "" {
+		wait = true
+	}
+
+	if hasSteps {
+		fmt.Printf("Executing inline workflow with %d steps\n", len(steps))
+	} else if fromFile != "" {
 		fmt.Printf("Executing workflow file: %s\n", fromFile)
 	} else {
 		fmt.Printf("Executing workflow: %s\n", workflow)
@@ -236,9 +270,15 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	}
 
 	var response []byte
+
+	// Force adhoc mode for inline steps
+	if hasSteps {
+		adhoc = true
+	}
+
 	if adhoc {
 		workflowID, err := resolveWorkflowID(ctx, workflow)
-		if fromFile == "" {
+		if fromFile == "" && !hasSteps {
 			if err != nil {
 				return err
 			}
@@ -249,7 +289,15 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			"parameters":          params,
 		}
 
-		if fromFile != "" {
+		if hasSteps {
+			// Build workflow from inline steps
+			flowDef, err := BuildWorkflowFromSteps(steps)
+			if err != nil {
+				return fmt.Errorf("build workflow from steps: %w", err)
+			}
+			payload["flow_definition"] = flowDef
+			payload["metadata"] = flowDef["metadata"]
+		} else if fromFile != "" {
 			data, err := os.ReadFile(fromFile)
 			if err != nil {
 				return fmt.Errorf("file not found: %s", fromFile)
@@ -409,6 +457,14 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		if completed {
 			if !missingExecution {
 				printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+			}
+			// Export results if --output was specified and execution succeeded
+			if outputPath != "" && !failed && !missingExecution {
+				if err := export.ExportExecution(ctx, executionID, outputPath); err != nil {
+					fmt.Printf("WARN: Export failed: %v\n", err)
+				} else {
+					fmt.Printf("\nResults exported to: %s\n", outputPath)
+				}
 			}
 			if seedCleanupToken != "" && !seedCleanupScheduled {
 				if err := cleanupSeedViaTestGenie(seedScenario, seedCleanupToken); err != nil {

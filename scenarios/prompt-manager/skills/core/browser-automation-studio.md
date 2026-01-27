@@ -168,55 +168,100 @@ Every workflow has three parts:
 
 #### Execute a Workflow
 
+There are two ways to execute workflows: from a JSON file or inline with `--step` flags.
+
+**From JSON file:**
 ```bash
-# Run workflow and wait for completion
+# Run a workflow from a file
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
+  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
   --wait
 
 # Run with a starting URL (for workflows without navigate node)
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/actions/open-project.json \
   --start-url http://localhost:3000/ \
+  --output /tmp/bas/{{TARGET}}/actions/open-project \
   --wait
 
 # Run with parameters
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
   --params '{"username": "test@example.com"}' \
+  --output /tmp/bas/{{TARGET}}/bas/flows/checkout \
   --wait
 
 # Run with video/trace recording
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
   --record-video \
+  --output /tmp/bas/{{TARGET}}/cases/01/foundation/login \
   --wait
 ```
 
-#### Check Execution Status
-
+**Inline step execution (for quick tests without JSON files):**
 ```bash
-# List all executions
-browser-automation-studio execution list
+# Simple smoke test
+browser-automation-studio workflow execute \
+  --step navigate "http://localhost:3000/dashboard" waitUntil=networkidle \
+  --step screenshot fullPage=true \
+  --output /tmp/bas/{{TARGET}}/navigate-dashboard \
+  --wait
 
-# List only failed executions
-browser-automation-studio execution list --filter failed
+# Navigate to a scenario and assert an element exists
+browser-automation-studio workflow execute \
+  --step navigate scenario=knowledge-observatory path=/dashboard \
+  --step assert "[data-testid='dashboard-container']" assertMode=exists \
+  --step screenshot \
+  --output /tmp/bas/{{TARGET}}/assert-dashboard-container \
+  --wait
 
-# List running executions
-browser-automation-studio execution list --filter running
+# Fill a form and submit
+browser-automation-studio workflow execute \
+  --step navigate "http://localhost:3000/login" \
+  --step type "#email" text=test@example.com \
+  --step type "#password" text=secret123 \
+  --step click "#submit" \
+  --step assert "[data-testid='dashboard']" assertMode=exists \
+  --output /tmp/bas/{{TARGET}}/assert-login-form \
+  --wait
 ```
 
-#### Export Results
+**Step format:** `--step <type> [positional] [key=value ...]`
+
+| Node Type | Positional | Required Key=Value |
+|-----------|------------|-------------------|
+| navigate | url (or use scenario=) | - |
+| click | selector | - |
+| type | selector | text= |
+| assert | selector | assertMode= |
+| wait | - | durationMs= or selector= |
+| screenshot | - | - |
+| evaluate | expression | - |
+
+**When to use each approach:**
+
+| Approach | Use When |
+|----------|----------|
+| `--step` flags | Quick tests, smoke tests, debugging, simple linear flows |
+| JSON file | Reusable workflows, complex branching, stored in bas/ |
+
+
+#### Get Schema Reference
 
 ```bash
-# Export execution data as JSON
-browser-automation-studio execution export <execution-id> --output result.json
+# Get full workflow schema
+browser-automation-studio schema workflow
 
-# Export to directory (preserves full structure)
-browser-automation-studio execution export <execution-id> --output-dir ./exports/my-run
+# Get schema for specific node types
+browser-automation-studio schema workflow --nodes navigate,click,assert
 
-# Generate HTML replay viewer
-browser-automation-studio execution render <execution-id> --output ./replay-dir
+# Save schema to file
+browser-automation-studio schema workflow --output schema.json
+
+# List available node types
+browser-automation-studio schema node-types
 ```
 
 ---
@@ -263,27 +308,46 @@ cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/console-*
 cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/network-*.json | jq '.[] | select(.status >= 400)'
 ```
 
-#### Interpreting result.json
-
-```json
-{
-  "status": "failed",           // "completed" or "failed"
-  "error": "SELECTOR_NOT_FOUND: @selector/auth.submitButton",
-  "failedNodeId": "click-submit",
-  "executionTimeMs": 4523,
-  "screenshotCount": 3
-}
-```
-
 ---
 
 ### **6. Complete Example: Smoke Test Walkthrough**
 
-This example shows the full cycle: create a workflow, run it, and interpret results.
+This example shows the full cycle: run a smoke test and interpret results.
 
-#### Step 1: Create the Workflow
+#### Quick Approach: Inline Steps
 
-Save this to `/tmp/smoke-test.json`:
+For quick smoke tests, use inline `--step` flags:
+
+```bash
+# Run smoke test with export
+browser-automation-studio workflow execute \
+  --step navigate scenario={{TARGET}} path=/dashboard waitUntil=networkidle \
+  --step screenshot fullPage=true \
+  --output /tmp/bas/{{TARGET}}/navigate-dashboard \
+  --wait
+```
+
+Output:
+```
+Executing inline workflow with 2 steps
+OK: Execution started!
+Execution ID: exec-abc123
+Waiting for completion...
+OK: Execution completed successfully
+
+Results exported to: /tmp/bas/{{TARGET}}/navigate-dashboard
+```
+
+Check results:
+```bash
+cat /tmp/bas/{{TARGET}}/navigate-dashboard/result.json | jq .
+```
+
+#### File-Based Approach (for reusable tests)
+
+For workflows you want to save and reuse, create a JSON file:
+
+Save this to `scenarios/{{TARGET}}/bas/cases/01-foundation/smoke.json`:
 
 ```json
 {
@@ -295,7 +359,6 @@ Save this to `/tmp/smoke-test.json`:
     {
       "id": "navigate",
       "type": "navigate",
-      "position": { "x": 0, "y": 0 },
       "data": {
         "label": "Go to dashboard",
         "destinationType": "scenario",
@@ -307,7 +370,6 @@ Save this to `/tmp/smoke-test.json`:
     {
       "id": "screenshot",
       "type": "screenshot",
-      "position": { "x": 220, "y": 0 },
       "data": {
         "label": "Capture page state",
         "fullPage": true
@@ -320,46 +382,25 @@ Save this to `/tmp/smoke-test.json`:
 }
 ```
 
-#### Step 2: Run the Workflow
-
+Run it:
 ```bash
 browser-automation-studio workflow execute \
-  --from-file /tmp/smoke-test.json \
+  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/smoke.json \
+  /tmp/bas/{{TARGET}}/cases/01-foundation/smoke \
   --wait
 ```
 
-Output will include the execution ID:
-
-```
-Execution started: exec-abc123
-Waiting for completion...
-✓ Execution completed: exec-abc123
-Status: completed
-```
-
-#### Step 3: View the Screenshot
+#### Viewing Results
 
 ```bash
-# Find the screenshot
-ls scenarios/browser-automation-studio/data/recordings/exec-abc123/frames/
+# Check pass/fail status
+cat /tmp/smoke-results/result.json | jq '.status'
 
-# Open it (or use your preferred image viewer)
-open scenarios/browser-automation-studio/data/recordings/exec-abc123/frames/screenshot-001.jpg
-```
+# View screenshot
+open /tmp/smoke-results/frames/screenshot-001.jpg
 
-#### Step 4: Check the Result
-
-```bash
-cat scenarios/browser-automation-studio/data/recordings/exec-abc123/result.json | jq .
-```
-
-If successful:
-```json
-{
-  "status": "completed",
-  "executionTimeMs": 2341,
-  "screenshotCount": 1
-}
+# Check error if failed
+cat /tmp/smoke-results/result.json | jq '.error'
 ```
 
 ---

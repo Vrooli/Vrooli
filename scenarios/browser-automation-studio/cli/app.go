@@ -10,6 +10,7 @@ import (
 	"browser-automation-studio/cli/internal/appctx"
 	"browser-automation-studio/cli/playbooks"
 	"browser-automation-studio/cli/recordings"
+	"browser-automation-studio/cli/schema"
 	"browser-automation-studio/cli/status"
 	"browser-automation-studio/cli/workflows"
 
@@ -87,6 +88,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		workflows.Commands(a.ctx),
 		executions.Commands(a.ctx),
 		recordings.Commands(a.ctx),
+		schema.Commands(a.ctx),
 		{
 			Title: "Configuration",
 			Commands: []cliapp.Command{

@@ -405,6 +405,15 @@ func main() {
 		r.Get("/tools/{name}", toolsHandler.GetTool)
 		r.Post("/tools/execute", toolHandler.Execute)
 
+		// Schema endpoints (for agents to reference workflow schema)
+		schemaHandler, err := handlers.NewSchemaHandler(log)
+		if err != nil {
+			log.WithError(err).Warn("⚠️  Failed to initialize schema handler")
+		} else {
+			r.Get("/schema/workflow", schemaHandler.GetWorkflowSchema)
+			r.Get("/schema/workflow/node-types", schemaHandler.GetAvailableNodeTypes)
+		}
+
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
 		r.Get("/projects", handler.ListProjects)
