@@ -47,7 +47,8 @@ func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {
 			if strings.Contains(step.Command, "export API_PORT=3001 UI_PORT=3000 WS_PORT=3002") {
 				hasExportedPorts = true
 			}
-			if strings.Contains(step.Command, "vrooli scenario start") {
+			// Implementation now uses "restart" to ensure code is rebuilt
+			if strings.Contains(step.Command, "vrooli scenario restart") {
 				hasTargetStart = true
 			}
 		}
