@@ -34,9 +34,23 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 		limit = 5
 	}
 
-	resp, err := h.service.Search(r.Context(), req.Query, limit)
+	output := normalizeSearchOutput(req.Output)
+	if output == "" {
+		http.Error(w, "Output must be 'results', 'combined', or 'both'", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := h.service.SearchWithOptions(r.Context(), req.Query, limit, SearchOptions{
+		Output:      output,
+		Format:      req.Format,
+		RenderLimit: req.RenderLimit,
+	})
 	if err != nil {
 		log.Printf("[aisearch] Search error: %v", err)
+		if outputIncludesCombined(output) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

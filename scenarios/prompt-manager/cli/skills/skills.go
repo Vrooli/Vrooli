@@ -68,30 +68,13 @@ type SyncResponse struct {
 	Hash        string          `json:"hash"`
 }
 
-// DisplayRequest matches the API request for displaying multiple skills
-type DisplayRequest struct {
-	Identifiers  []string `json:"identifiers"`
-	Resolve      string   `json:"resolve,omitempty"`
-	AllowMissing *bool    `json:"allowMissing,omitempty"`
-	Format       string   `json:"format,omitempty"`
-}
-
-// DisplayResponse matches the API response for displaying skills
-type DisplayResponse struct {
-	Combined    string          `json:"combined"`
-	SkillCount  int             `json:"skillCount"`
-	TotalTokens int             `json:"totalTokens"`
-	Format      string          `json:"format"`
-	Resolve     string          `json:"resolve"`
-	Missing     []ReadIssue     `json:"missing,omitempty"`
-	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
-}
-
 // ReadRequest matches the API request for reading multiple skills
 type ReadRequest struct {
 	Identifiers  []string `json:"identifiers"`
 	Resolve      string   `json:"resolve,omitempty"`
 	AllowMissing *bool    `json:"allowMissing,omitempty"`
+	Output       string   `json:"output,omitempty"`
+	Format       string   `json:"format,omitempty"`
 }
 
 // ReadIssue captures missing identifiers
@@ -116,10 +99,15 @@ type ReadAmbiguous struct {
 
 // ReadResponse matches the API response for reading multiple skills
 type ReadResponse struct {
-	Skills    []SkillResponse `json:"skills"`
-	Missing   []ReadIssue     `json:"missing,omitempty"`
-	Ambiguous []ReadAmbiguous `json:"ambiguous,omitempty"`
-	Resolve   string          `json:"resolve"`
+	Skills      []SkillResponse `json:"skills,omitempty"`
+	Combined    string          `json:"combined,omitempty"`
+	SkillCount  int             `json:"skillCount,omitempty"`
+	TotalTokens int             `json:"totalTokens,omitempty"`
+	Format      string          `json:"format,omitempty"`
+	Missing     []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
+	Resolve     string          `json:"resolve"`
+	Output      string          `json:"output,omitempty"`
 }
 
 // VersionResponse matches the API response for versions
@@ -147,7 +135,7 @@ func Commands(ctx appctx.Context) []cliapp.CommandGroup {
 					Name:        "skill",
 					Aliases:     []string{"skills", "s"},
 					NeedsAPI:    true,
-					Description: "Manage skills (list|show|add|update|delete|use|sync|display|rate|versions|revert)",
+					Description: "Manage skills (list|show|read|add|update|delete|use|sync|rate|versions|revert)",
 					Run: func(args []string) error {
 						return route(ctx, args)
 					},
@@ -183,8 +171,6 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdUse(ctx, subArgs)
 	case "sync":
 		return cmdSync(ctx, subArgs)
-	case "display":
-		return cmdDisplay(ctx, subArgs)
 	case "rate":
 		return cmdRate(ctx, subArgs)
 	case "versions", "history":
@@ -202,18 +188,17 @@ func printUsage() error {
 }
 
 func usageText() string {
-	return `Usage: pm skill <subcommand> [args]
+	return `Usage: prompt-manager skill <subcommand> [args]
 
 Subcommands:
   list, ls              List all skills
   show, get <id>        Show skill details
-  read <identifier>...  Output skill content only (for piping)
+  read <identifier>...  Read skills (content or combined output)
   add, create <name>    Create a new skill
   update, edit <id>     Update an existing skill
   delete, rm <id>       Delete a skill
   use, copy <id>        Record usage and copy to clipboard
   sync                  Sync skills with hash-based change detection
-  display <id>...       Display multiple skills
   rate <id> <1-5>       Rate skill effectiveness
   versions, history <id> Show version history
   revert, restore <id> <version>  Revert to a specific version`
@@ -313,24 +298,35 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-// cmdRead outputs only the skill content (for piping to other tools).
+// cmdRead outputs skill content or combined formatted output.
 func cmdRead(ctx appctx.Context, args []string) error {
+	args = reorderFlagArgs(args, map[string]bool{
+		"resolve": true,
+		"output":  true,
+		"format":  true,
+		"sep":     true,
+	})
 	fs := flag.NewFlagSet("read", flag.ContinueOnError)
 	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
 	jsonOut := fs.Bool("json", false, "Output full JSON response")
 	strict := fs.Bool("strict", false, "Fail if any identifier is missing or ambiguous")
 	separator := fs.String("sep", "\n\n---\n\n", "Separator between skills")
+	output := fs.String("output", "auto", "Output mode (skills|combined|both|auto)")
+	format := fs.String("format", "xml", "Combined output format (xml|markdown|json)")
+	copyOut := fs.Bool("copy", false, "Copy combined output to clipboard")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--strict] [--json]")
+		return fmt.Errorf("usage: skill read <identifier> [identifier...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--strict] [--copy] [--json]")
 	}
 
 	req := ReadRequest{
 		Identifiers: fs.Args(),
 		Resolve:     *resolve,
+		Output:      strings.ToLower(strings.TrimSpace(*output)),
+		Format:      strings.ToLower(strings.TrimSpace(*format)),
 	}
 
 	var resp ReadResponse
@@ -344,11 +340,27 @@ func cmdRead(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	for i, skill := range resp.Skills {
-		if i > 0 {
-			fmt.Print(*separator)
+	effectiveOutput := resp.Output
+	if effectiveOutput == "" {
+		effectiveOutput = req.Output
+	}
+	printCombined := outputIncludesCombined(effectiveOutput)
+	printSkills := outputIncludesSkills(effectiveOutput)
+
+	printed := false
+	if printCombined && resp.Combined != "" {
+		fmt.Print(resp.Combined)
+		printed = true
+	}
+
+	if printSkills {
+		for i, skill := range resp.Skills {
+			if printed || i > 0 {
+				fmt.Print(*separator)
+			}
+			fmt.Print(skill.Content)
+			printed = true
 		}
-		fmt.Print(skill.Content)
 	}
 
 	if len(resp.Missing) > 0 {
@@ -368,6 +380,14 @@ func cmdRead(ctx appctx.Context, args []string) error {
 
 	if *strict && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
 		return fmt.Errorf("one or more skills were missing or ambiguous")
+	}
+
+	if printCombined && *copyOut && resp.Combined != "" && clipboard.IsAvailable() {
+		if errMsg := clipboard.Copy(resp.Combined); errMsg == "" {
+			fmt.Printf("\n(Copied to clipboard via %s)\n", clipboard.ToolName())
+		} else {
+			fmt.Printf("\n(%s)\n", errMsg)
+		}
 	}
 
 	return nil
@@ -592,79 +612,6 @@ func cmdSync(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-func cmdDisplay(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("display", flag.ContinueOnError)
-	format := fs.String("format", "xml", "Output format (xml|markdown|json)")
-	resolve := fs.String("resolve", "auto", "Resolution mode (auto|id|file|name)")
-	jsonOut := fs.Bool("json", false, "Output as JSON response")
-	strict := fs.Bool("strict", false, "Fail if any identifier is missing or ambiguous")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: skill display <identifier> [identifier...] [--format=xml|markdown|json] [--resolve=auto|id|file|name] [--strict] [--json]")
-	}
-
-	req := DisplayRequest{
-		Identifiers: fs.Args(),
-		Resolve:     *resolve,
-		Format:      *format,
-	}
-	if *strict {
-		allowMissing := false
-		req.AllowMissing = &allowMissing
-	}
-
-	var resp DisplayResponse
-	if err := ctx.Post("/skills/display", req, &resp); err != nil {
-		return fmt.Errorf("failed to display skills: %w", err)
-	}
-
-	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
-	}
-
-	if resp.SkillCount == 0 && (len(resp.Missing) > 0 || len(resp.Ambiguous) > 0) {
-		var ids []string
-		for _, miss := range resp.Missing {
-			ids = append(ids, miss.Identifier)
-		}
-		for _, amb := range resp.Ambiguous {
-			ids = append(ids, amb.Identifier)
-		}
-		return fmt.Errorf("no skills resolved (missing/ambiguous: %s)", strings.Join(ids, ", "))
-	}
-
-	fmt.Printf("Displayed %d skills (~%d tokens):\n\n", resp.SkillCount, resp.TotalTokens)
-	fmt.Println(resp.Combined)
-
-	if len(resp.Missing) > 0 {
-		var ids []string
-		for _, miss := range resp.Missing {
-			ids = append(ids, miss.Identifier)
-		}
-		fmt.Fprintf(os.Stderr, "\nMissing skills: %s\n", strings.Join(ids, ", "))
-	}
-	if len(resp.Ambiguous) > 0 {
-		var ids []string
-		for _, amb := range resp.Ambiguous {
-			ids = append(ids, amb.Identifier)
-		}
-		fmt.Fprintf(os.Stderr, "\nAmbiguous skills: %s\n", strings.Join(ids, ", "))
-	}
-
-	// Copy to clipboard if available
-	if clipboard.IsAvailable() {
-		if errMsg := clipboard.Copy(resp.Combined); errMsg == "" {
-			fmt.Printf("\n(Copied to clipboard via %s)\n", clipboard.ToolName())
-		}
-	}
-	return nil
-}
-
 func cmdRate(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("rate", flag.ContinueOnError)
 	notes := fs.String("notes", "", "Optional notes about the rating")
@@ -778,4 +725,49 @@ func cmdRevert(ctx appctx.Context, args []string) error {
 
 	fmt.Printf("Reverted to version %d (new version: %d)\n", resp.RevertedTo, resp.NewVersion)
 	return nil
+}
+
+func outputIncludesSkills(output string) bool {
+	switch output {
+	case "skills", "both":
+		return true
+	default:
+		return false
+	}
+}
+
+func outputIncludesCombined(output string) bool {
+	switch output {
+	case "combined", "both":
+		return true
+	default:
+		return false
+	}
+}
+
+func reorderFlagArgs(args []string, flagsWithValues map[string]bool) []string {
+	if len(args) == 0 {
+		return args
+	}
+	var flagArgs []string
+	var positional []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "-") {
+			flagArgs = append(flagArgs, arg)
+			name := strings.TrimLeft(arg, "-")
+			if eq := strings.IndexRune(name, '='); eq != -1 {
+				name = name[:eq]
+			}
+			if flagsWithValues[name] && !strings.Contains(arg, "=") && i+1 < len(args) {
+				flagArgs = append(flagArgs, args[i+1])
+				i++
+			}
+			continue
+		}
+		positional = append(positional, arg)
+	}
+
+	return append(flagArgs, positional...)
 }

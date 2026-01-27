@@ -101,14 +101,22 @@ export interface AISearchResult {
 
 export interface AISearchResponse {
   results: AISearchResult[]
+  combined?: string
+  skillCount?: number
+  totalTokens?: number
+  format?: DisplayFormat
   total: number
   query: string
   method: 'ai' | 'text'
+  output?: 'results' | 'combined' | 'both'
 }
 
 export interface AISearchRequest {
   query: string
   limit?: number
+  output?: 'results' | 'combined' | 'both'
+  format?: DisplayFormat
+  renderLimit?: number
 }
 
 export interface AISearchStatus {
@@ -286,9 +294,9 @@ class ApiClient {
 
   // Display skills
   async displaySkills(identifiers: string[], format: DisplayFormat = 'xml'): Promise<DisplayResponse> {
-    return this.request<DisplayResponse>('/skills/display', {
+    return this.request<DisplayResponse>('/skills/read', {
       method: 'POST',
-      body: JSON.stringify({ identifiers, format }),
+      body: JSON.stringify({ identifiers, output: 'combined', format }),
     })
   }
 
@@ -298,10 +306,10 @@ class ApiClient {
   }
 
   // AI Search - semantic search using Ollama embeddings and Qdrant
-  async aiSearch(query: string, limit = 5): Promise<AISearchResponse> {
+  async aiSearch(query: string, limit = 5, options?: Omit<AISearchRequest, 'query' | 'limit'>): Promise<AISearchResponse> {
     return this.request<AISearchResponse>('/search/ai', {
       method: 'POST',
-      body: JSON.stringify({ query, limit }),
+      body: JSON.stringify({ query, limit, ...options }),
     })
   }
 

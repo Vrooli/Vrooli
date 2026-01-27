@@ -28,7 +28,7 @@ This starts:
 make status
 
 # Or use CLI
-./cli/pm status
+./cli/prompt-manager status
 ```
 
 ## Access the Application
@@ -45,22 +45,22 @@ Open your browser to the UI port shown in the logs. The interface provides:
 
 ```bash
 # Build the CLI
-cd cli && go build -o pm .
+cd cli && go build -o prompt-manager .
 
 # List all skills
-./pm skill list
+./prompt-manager skill list
 
 # Show a specific skill
-./pm skill show <skill-id>
+./prompt-manager skill show <skill-id>
 
 # Use a skill (records usage + copies to clipboard)
-./pm skill use <skill-id>
+./prompt-manager skill use <skill-id>
 
 # Search skills
-./pm search "debugging"
+./prompt-manager search "debugging"
 
 # See all commands
-./pm --help
+./prompt-manager --help
 ```
 
 ### API
@@ -87,7 +87,7 @@ curl "http://localhost:PORT/api/v1/search/skills?q=debugging"
 
 ```bash
 # Via CLI (interactive)
-./pm skill add "My New Skill" --folder=local --tags=debugging,testing
+./prompt-manager skill add "My New Skill" --folder=local --tags=debugging,testing
 
 # Via API
 curl -X POST http://localhost:PORT/api/v1/skills \
@@ -101,7 +101,7 @@ Requires Ollama running with a model loaded.
 
 ```bash
 # Via CLI
-./pm test run <skill-id> --model=llama3.2
+./prompt-manager test run <skill-id> --model=llama3.2
 
 # Via API
 curl -X POST http://localhost:PORT/api/v1/skills/{id}/test \
@@ -113,10 +113,10 @@ curl -X POST http://localhost:PORT/api/v1/skills/{id}/test \
 
 ```bash
 # Via CLI
-./pm skill versions <skill-id>
+./prompt-manager skill versions <skill-id>
 
 # Revert to a previous version
-./pm skill revert <skill-id> 2
+./prompt-manager skill revert <skill-id> 2
 ```
 
 ## Stop the Scenario
@@ -156,5 +156,5 @@ psql -d prompt_manager < initialization/storage/postgres/schema.sql
 
 The CLI auto-detects the API URL from the scenario lifecycle. If running manually:
 ```bash
-./pm --api-base=http://localhost:YOUR_PORT skill list
+./prompt-manager --api-base=http://localhost:YOUR_PORT skill list
 ```

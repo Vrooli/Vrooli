@@ -77,25 +77,6 @@ type UpdateRequest struct {
 	Draft        *bool    `json:"draft,omitempty"`
 }
 
-// DisplayRequest is the request body for displaying multiple skills.
-type DisplayRequest struct {
-	Identifiers  []string `json:"identifiers"`
-	Resolve      string   `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
-	AllowMissing *bool    `json:"allowMissing,omitempty"` // default true
-	Format       string   `json:"format,omitempty"`       // "xml", "markdown", or "json"
-}
-
-// DisplayResponse is the response for displayed skills.
-type DisplayResponse struct {
-	Combined    string          `json:"combined"`
-	SkillCount  int             `json:"skillCount"`
-	TotalTokens int             `json:"totalTokens"`
-	Format      string          `json:"format"`
-	Resolve     string          `json:"resolve"`
-	Missing     []ReadIssue     `json:"missing,omitempty"`
-	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
-}
-
 // Folders defines the valid folder names for skill storage.
 var Folders = []string{"core", "local", "drafts"}
 
@@ -147,6 +128,8 @@ type ReadRequest struct {
 	Identifiers  []string `json:"identifiers"`
 	Resolve      string   `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
 	AllowMissing *bool    `json:"allowMissing,omitempty"` // default true
+	Output       string   `json:"output,omitempty"`       // "skills", "combined", or "both"
+	Format       string   `json:"format,omitempty"`       // "xml", "markdown", or "json" (for combined output)
 }
 
 // ReadIssue captures missing identifiers.
@@ -171,8 +154,13 @@ type ReadAmbiguous struct {
 
 // ReadResponse is the response for reading multiple skills.
 type ReadResponse struct {
-	Skills    []Response      `json:"skills"`
-	Missing   []ReadIssue     `json:"missing,omitempty"`
-	Ambiguous []ReadAmbiguous `json:"ambiguous,omitempty"`
-	Resolve   string          `json:"resolve"`
+	Skills      []Response      `json:"skills,omitempty"`
+	Combined    string          `json:"combined,omitempty"`
+	SkillCount  int             `json:"skillCount,omitempty"`
+	TotalTokens int             `json:"totalTokens,omitempty"`
+	Format      string          `json:"format,omitempty"`
+	Missing     []ReadIssue     `json:"missing,omitempty"`
+	Ambiguous   []ReadAmbiguous `json:"ambiguous,omitempty"`
+	Resolve     string          `json:"resolve"`
+	Output      string          `json:"output,omitempty"`
 }

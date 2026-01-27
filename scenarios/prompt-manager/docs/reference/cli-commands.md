@@ -1,12 +1,12 @@
 # CLI Reference
 
-Complete documentation for the prompt-manager CLI (`pm`).
+Complete documentation for the prompt-manager CLI (`prompt-manager`).
 
 ## Installation
 
 ```bash
 cd scenarios/prompt-manager/cli
-go build -o pm .
+go build -o prompt-manager .
 ```
 
 ## Global Options
@@ -22,14 +22,14 @@ go build -o pm .
 
 | Command | Description |
 |---------|-------------|
-| `pm skill` | Manage skills (CRUD, versions, ratings) |
-| `pm tag` | Manage tags |
-| `pm member` | Manage members |
-| `pm test` | Test skills with Ollama |
-| `pm search` | Search skills |
-| `pm metadata` | Fetch URL metadata |
-| `pm status` | Check API health |
-| `pm configure` | View/update CLI settings |
+| `prompt-manager skill` | Manage skills (CRUD, versions, ratings) |
+| `prompt-manager tag` | Manage tags |
+| `prompt-manager member` | Manage members |
+| `prompt-manager test` | Test skills with Ollama |
+| `prompt-manager search` | Search skills |
+| `prompt-manager metadata` | Fetch URL metadata |
+| `prompt-manager status` | Check API health |
+| `prompt-manager configure` | View/update CLI settings |
 
 ---
 
@@ -37,12 +37,12 @@ go build -o pm .
 
 [CODE: cli/skills/skills.go]
 
-### pm skill list
+### prompt-manager skill list
 
 List all skills with optional filtering.
 
 ```bash
-pm skill list [--folder=core|local|drafts] [--tag=TAG] [--json]
+prompt-manager skill list [--folder=core|local|drafts] [--tag=TAG] [--json]
 ```
 
 **Options:**
@@ -54,31 +54,31 @@ pm skill list [--folder=core|local|drafts] [--tag=TAG] [--json]
 
 **Examples:**
 ```bash
-pm skill list
-pm skill list --folder=core
-pm skill list --tag=debugging --json
+prompt-manager skill list
+prompt-manager skill list --folder=core
+prompt-manager skill list --tag=debugging --json
 ```
 
-### pm skill show
+### prompt-manager skill show
 
 Show details of a specific skill.
 
 ```bash
-pm skill show <id> [--json]
+prompt-manager skill show <id> [--json]
 ```
 
 **Examples:**
 ```bash
-pm skill show debugging
-pm skill show my-skill --json
+prompt-manager skill show debugging
+prompt-manager skill show my-skill --json
 ```
 
-### pm skill add
+### prompt-manager skill add
 
 Create a new skill interactively.
 
 ```bash
-pm skill add <name> [--folder=local|drafts] [--description=...] [--tags=...] [--draft]
+prompt-manager skill add <name> [--folder=local|drafts] [--description=...] [--tags=...] [--draft]
 ```
 
 **Options:**
@@ -93,15 +93,15 @@ Content is read from stdin. End input with Ctrl+D.
 
 **Example:**
 ```bash
-echo "## My Skill Content" | pm skill add "My Skill" --tags=debugging,testing
+echo "## My Skill Content" | prompt-manager skill add "My Skill" --tags=debugging,testing
 ```
 
-### pm skill update
+### prompt-manager skill update
 
 Update an existing skill.
 
 ```bash
-pm skill update <id> [--name=...] [--description=...] [--content=...] [--tags=...] [--draft|--undraft] [--json]
+prompt-manager skill update <id> [--name=...] [--description=...] [--content=...] [--tags=...] [--draft|--undraft] [--json]
 ```
 
 **Options:**
@@ -117,15 +117,15 @@ pm skill update <id> [--name=...] [--description=...] [--content=...] [--tags=..
 
 **Example:**
 ```bash
-pm skill update my-skill --name="Updated Name" --tags=new-tag
+prompt-manager skill update my-skill --name="Updated Name" --tags=new-tag
 ```
 
-### pm skill delete
+### prompt-manager skill delete
 
 Delete a skill (with confirmation).
 
 ```bash
-pm skill delete <id> [--force]
+prompt-manager skill delete <id> [--force]
 ```
 
 **Options:**
@@ -133,76 +133,78 @@ pm skill delete <id> [--force]
 |------|-------------|
 | `--force` | Skip confirmation prompt |
 
-### pm skill use
+### prompt-manager skill use
 
 Record usage and copy skill content to clipboard.
 
 ```bash
-pm skill use <id>
+prompt-manager skill use <id>
 ```
 
 **Example:**
 ```bash
-pm skill use debugging
+prompt-manager skill use debugging
 # Output: Usage recorded! Content copied to clipboard.
 ```
 
-### pm skill sync
+### prompt-manager skill sync
 
 Sync skills with hash-based change detection.
 
 ```bash
-pm skill sync [--tag=TAG] [--json]
+prompt-manager skill sync [--tag=TAG] [--json]
 ```
 
 Returns all skills with a hash for cache invalidation.
 
-### pm skill display
+### prompt-manager skill read
 
-Display multiple skills into a single output.
+Read skills by identifier, with optional combined output formatting.
 
 ```bash
-pm skill display <identifier> [<identifier>...] [--format=xml|markdown|json] [--resolve=auto|id|file|name] [--strict] [--json]
+prompt-manager skill read <identifier> [<identifier>...] [--resolve=auto|id|file|name] [--output=skills|combined|both|auto] [--format=xml|markdown|json] [--sep=STRING] [--strict] [--copy] [--json]
 ```
 
 **Options:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--format` | `xml` | Output format |
+| `--output` | `auto` | Output mode (auto = combined for multiple, skills for single) |
+| `--format` | `xml` | Combined output format |
 | `--resolve` | `auto` | Resolution mode |
+| `--sep` | `\n\n---\n\n` | Separator between skills (skills output) |
 | `--strict` | | Fail if any identifier is missing or ambiguous |
+| `--copy` | | Copy combined output to clipboard |
 | `--json` | | Output full response as JSON |
 
 **Example:**
 ```bash
-pm skill display react-coherence domain-compression --format=markdown
-# Output: Displayed 2 skills (~2500 tokens) copied to clipboard
+prompt-manager skill read react-coherence domain-compression --output=combined --format=markdown --copy
 ```
 
-### pm skill rate
+### prompt-manager skill rate
 
 Rate skill effectiveness (1-5).
 
 ```bash
-pm skill rate <id> <rating> [--notes=...]
+prompt-manager skill rate <id> <rating> [--notes=...]
 ```
 
 **Example:**
 ```bash
-pm skill rate debugging 4 --notes="Very helpful for complex bugs"
+prompt-manager skill rate debugging 4 --notes="Very helpful for complex bugs"
 ```
 
-### pm skill versions
+### prompt-manager skill versions
 
 Show version history for a skill.
 
 ```bash
-pm skill versions <id> [--json]
+prompt-manager skill versions <id> [--json]
 ```
 
 **Example:**
 ```bash
-pm skill versions my-skill
+prompt-manager skill versions my-skill
 # Output:
 # Version History for my-skill (current: v3):
 #   v1 - 2024-01-15 10:00 - My Skill
@@ -210,12 +212,12 @@ pm skill versions my-skill
 #   v3 - 2024-01-20 14:30 - My Skill v3 (current)
 ```
 
-### pm skill revert
+### prompt-manager skill revert
 
 Revert a skill to a specific version.
 
 ```bash
-pm skill revert <id> <version> [--force]
+prompt-manager skill revert <id> <version> [--force]
 ```
 
 **Options:**
@@ -225,7 +227,7 @@ pm skill revert <id> <version> [--force]
 
 **Example:**
 ```bash
-pm skill revert my-skill 2
+prompt-manager skill revert my-skill 2
 # Output: Reverted to version 2 (new version: 4)
 ```
 
@@ -235,25 +237,25 @@ pm skill revert my-skill 2
 
 [CODE: cli/tags/tags.go]
 
-### pm tag list
+### prompt-manager tag list
 
 List all tags.
 
 ```bash
-pm tag list [--json]
+prompt-manager tag list [--json]
 ```
 
-### pm tag create
+### prompt-manager tag create
 
 Create a new tag.
 
 ```bash
-pm tag create <name> [--color=#RRGGBB] [--description=...] [--json]
+prompt-manager tag create <name> [--color=#RRGGBB] [--description=...] [--json]
 ```
 
 **Example:**
 ```bash
-pm tag create performance --color="#FF5733" --description="Performance-related skills"
+prompt-manager tag create performance --color="#FF5733" --description="Performance-related skills"
 ```
 
 ---
@@ -264,28 +266,28 @@ pm tag create performance --color="#FF5733" --description="Performance-related s
 
 Members represent team entities for 3D world visualization.
 
-### pm member list
+### prompt-manager member list
 
 List all members.
 
 ```bash
-pm member list [--json]
+prompt-manager member list [--json]
 ```
 
-### pm member show
+### prompt-manager member show
 
 Show member details.
 
 ```bash
-pm member show <id> [--json]
+prompt-manager member show <id> [--json]
 ```
 
-### pm member create
+### prompt-manager member create
 
 Create a new member.
 
 ```bash
-pm member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--json]
+prompt-manager member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--json]
 ```
 
 **Options:**
@@ -298,23 +300,23 @@ pm member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-
 
 **Example:**
 ```bash
-pm member create "Alice" --body-color="#3B82F6" --skills=debugging,testing
+prompt-manager member create "Alice" --body-color="#3B82F6" --skills=debugging,testing
 ```
 
-### pm member update
+### prompt-manager member update
 
 Update a member.
 
 ```bash
-pm member update <id> [--name=...] [--body-color=...] [--head-color=...] [--accent-color=...] [--skills=...] [--json]
+prompt-manager member update <id> [--name=...] [--body-color=...] [--head-color=...] [--accent-color=...] [--skills=...] [--json]
 ```
 
-### pm member delete
+### prompt-manager member delete
 
 Delete a member (with confirmation).
 
 ```bash
-pm member delete <id> [--force]
+prompt-manager member delete <id> [--force]
 ```
 
 ---
@@ -325,12 +327,12 @@ pm member delete <id> [--force]
 
 Test skills with Ollama LLM.
 
-### pm test run
+### prompt-manager test run
 
 Execute a test against a skill.
 
 ```bash
-pm test run <skill-id> [--model=llama3.2] [--vars=key=value,key2=value2] [--max-tokens=1000] [--temperature=0.7] [--json]
+prompt-manager test run <skill-id> [--model=llama3.2] [--vars=key=value,key2=value2] [--max-tokens=1000] [--temperature=0.7] [--json]
 ```
 
 **Options:**
@@ -344,19 +346,19 @@ pm test run <skill-id> [--model=llama3.2] [--vars=key=value,key2=value2] [--max-
 
 **Example:**
 ```bash
-pm test run debugging --model=llama3.2 --vars="TARGET=src/auth/login.ts"
+prompt-manager test run debugging --model=llama3.2 --vars="TARGET=src/auth/login.ts"
 # Output:
 # Testing skill debugging with llama3.2...
 # Test completed in 2500ms (450 tokens)
 # Response: Based on the debugging skill...
 ```
 
-### pm test history
+### prompt-manager test history
 
 View test history for a skill.
 
 ```bash
-pm test history <skill-id> [--json]
+prompt-manager test history <skill-id> [--json]
 ```
 
 ---
@@ -365,12 +367,12 @@ pm test history <skill-id> [--json]
 
 [CODE: cli/search/search.go]
 
-### pm search
+### prompt-manager search
 
 Search skills by content, name, or tags.
 
 ```bash
-pm search <query> [--tag=...] [--folder=...] [--json]
+prompt-manager search <query> [--tag=...] [--folder=...] [--limit=N] [--text] [--output=results|combined|both] [--format=xml|markdown|json] [--render-limit=N] [--json]
 ```
 
 **Options:**
@@ -378,15 +380,25 @@ pm search <query> [--tag=...] [--folder=...] [--json]
 |------|-------------|
 | `--tag` | Filter by tag |
 | `--folder` | Filter by folder |
+| `--limit` | Maximum number of results |
+| `--text` | Force text-only search (skip AI) |
+| `--output` | Output mode |
+| `--format` | Combined output format |
+| `--render-limit` | Limit number of skills rendered in combined output |
 | `--json` | Output as JSON |
 
 **Example:**
 ```bash
-pm search "debugging" --folder=core
+prompt-manager search "debugging" --folder=core
 # Output:
 # Search Results (3 found):
 #   Debugging - core (0.95) [debugging] [debugging]
 #     → ...systematic debugging approach for...
+```
+
+**Combined output example:**
+```bash
+prompt-manager search "react coherence" --output=combined --format=markdown
 ```
 
 ---
@@ -395,17 +407,17 @@ pm search "debugging" --folder=core
 
 [CODE: cli/metadata/metadata.go]
 
-### pm metadata fetch
+### prompt-manager metadata fetch
 
 Fetch Open Graph metadata from a URL.
 
 ```bash
-pm metadata fetch <url> [--json]
+prompt-manager metadata fetch <url> [--json]
 ```
 
 **Example:**
 ```bash
-pm metadata fetch https://example.com/article
+prompt-manager metadata fetch https://example.com/article
 # Output:
 # URL: https://example.com/article
 # Title: Article Title
@@ -417,20 +429,20 @@ pm metadata fetch https://example.com/article
 
 ## Status & Configuration
 
-### pm status
+### prompt-manager status
 
 Check API health and connectivity.
 
 ```bash
-pm status
+prompt-manager status
 ```
 
-### pm configure
+### prompt-manager configure
 
 View or update CLI settings.
 
 ```bash
-pm configure [api_base=URL] [token=TOKEN]
+prompt-manager configure [api_base=URL] [token=TOKEN]
 ```
 
 ---
@@ -440,7 +452,7 @@ pm configure [api_base=URL] [token=TOKEN]
 Most commands support `--json` for machine-readable output:
 
 ```bash
-pm skill list --json | jq '.[] | .name'
+prompt-manager skill list --json | jq '.[] | .name'
 ```
 
 ## Exit Codes

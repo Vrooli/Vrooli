@@ -36,6 +36,12 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	output := normalizeReadOutput(req.Output, len(req.Identifiers))
+	if output == "" {
+		http.Error(w, "Output must be 'skills', 'combined', 'both', or 'auto'", http.StatusBadRequest)
+		return
+	}
+
 	allowMissing := true
 	if req.AllowMissing != nil {
 		allowMissing = *req.AllowMissing
@@ -47,7 +53,8 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := ReadResponse{Resolve: resolve}
+	resp := ReadResponse{Resolve: resolve, Output: output}
+	var responses []Response
 
 	for _, identifier := range req.Identifiers {
 		matches := resolveIdentifier(identifier, resolve, indexed)
@@ -63,7 +70,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
 				return
 			}
-			resp.Skills = append(resp.Skills, readSkill)
+			responses = append(responses, readSkill)
 		default:
 			resp.Ambiguous = append(resp.Ambiguous, ReadAmbiguous{
 				Identifier: identifier,
@@ -81,6 +88,22 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		json.NewEncoder(w).Encode(resp)
 		return
+	}
+
+	if outputIncludesSkills(output) {
+		resp.Skills = responses
+	}
+
+	if outputIncludesCombined(output) {
+		combined, normalizedFormat, err := RenderCombined(responses, req.Format)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		resp.Combined = combined
+		resp.SkillCount = len(responses)
+		resp.TotalTokens = (len(combined) + 3) / 4
+		resp.Format = normalizedFormat
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -212,6 +235,28 @@ func stripMDExt(path string) string {
 		return path[:len(path)-3]
 	}
 	return path
+}
+
+func normalizeReadOutput(output string, identifierCount int) string {
+	out := strings.ToLower(strings.TrimSpace(output))
+	if out == "" || out == "auto" {
+		if identifierCount > 1 {
+			return "combined"
+		}
+		return "skills"
+	}
+	if out == "skills" || out == "combined" || out == "both" {
+		return out
+	}
+	return ""
+}
+
+func outputIncludesSkills(output string) bool {
+	return output == "skills" || output == "both"
+}
+
+func outputIncludesCombined(output string) bool {
+	return output == "combined" || output == "both"
 }
 
 func (h *Handlers) buildReadResponse(skill indexedSkill) (Response, error) {

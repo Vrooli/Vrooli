@@ -23,6 +23,13 @@ type Service struct {
 	reindex       *reindexState
 }
 
+// SearchOptions controls optional output formatting for AI search responses.
+type SearchOptions struct {
+	Output      string
+	Format      string
+	RenderLimit int
+}
+
 type reindexState struct {
 	mu         sync.Mutex
 	running    bool
@@ -89,7 +96,46 @@ func (s *Service) Search(ctx context.Context, query string, limit int) (*AISearc
 		Total:   len(aiResults),
 		Query:   query,
 		Method:  "ai",
+		Output:  "results",
 	}, nil
+}
+
+// SearchWithOptions performs AI search and optionally renders combined skill output.
+func (s *Service) SearchWithOptions(ctx context.Context, query string, limit int, options SearchOptions) (*AISearchResponse, error) {
+	resp, err := s.Search(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	output := normalizeSearchOutput(options.Output)
+	resp.Output = output
+
+	if !outputIncludesCombined(output) {
+		return resp, nil
+	}
+
+	renderLimit := options.RenderLimit
+	if renderLimit <= 0 || renderLimit > len(resp.Results) {
+		renderLimit = len(resp.Results)
+	}
+
+	ids := make([]string, 0, renderLimit)
+	for i := 0; i < renderLimit; i++ {
+		ids = append(ids, resp.Results[i].ID)
+	}
+
+	responses := s.loadResponsesByIDs(ids)
+	combined, normalizedFormat, err := skills.RenderCombined(responses, options.Format)
+	if err != nil {
+		return nil, err
+	}
+
+	resp.Combined = combined
+	resp.SkillCount = len(responses)
+	resp.TotalTokens = (len(combined) + 3) / 4
+	resp.Format = normalizedFormat
+
+	return resp, nil
 }
 
 // fallbackToTextSearch uses the existing text search when AI is unavailable.
@@ -125,6 +171,7 @@ func (s *Service) fallbackToTextSearch(ctx context.Context, query string, limit 
 		Total:   len(aiResults),
 		Query:   query,
 		Method:  "text",
+		Output:  "results",
 	}, nil
 }
 
@@ -175,6 +222,54 @@ func (s *Service) toAISearchResult(r SearchResult) AISearchResult {
 		Score:        r.Score,
 		ScorePercent: scorePercent,
 	}
+}
+
+func (s *Service) loadResponsesByIDs(ids []string) []skills.Response {
+	responses := make([]skills.Response, 0, len(ids))
+	for _, id := range ids {
+		meta, folder, err := s.skillStore.FindByID(id)
+		if err != nil || meta == nil {
+			continue
+		}
+
+		content, err := s.skillStore.GetContent(folder, meta.File)
+		if err != nil {
+			continue
+		}
+
+		responses = append(responses, skills.Response{
+			ID:          meta.ID,
+			File:        meta.File,
+			Name:        meta.Name,
+			Description: meta.Description,
+			Content:     content,
+			Modes:       meta.Modes,
+			Tags:        meta.Tags,
+			Icon:        meta.Icon,
+			TargetToolID: meta.TargetToolID,
+			Draft:       meta.Draft,
+			Folder:      folder,
+			CreatedAt:   meta.CreatedAt,
+			UpdatedAt:   meta.UpdatedAt,
+		})
+	}
+
+	return responses
+}
+
+func normalizeSearchOutput(output string) string {
+	out := strings.ToLower(strings.TrimSpace(output))
+	if out == "" {
+		return "results"
+	}
+	if out == "results" || out == "combined" || out == "both" {
+		return out
+	}
+	return ""
+}
+
+func outputIncludesCombined(output string) bool {
+	return output == "combined" || output == "both"
 }
 
 // GetStatus returns the availability status of the AI search system.

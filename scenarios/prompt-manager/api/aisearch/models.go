@@ -5,8 +5,11 @@ package aisearch
 
 // AISearchRequest represents a search request.
 type AISearchRequest struct {
-	Query string `json:"query"`
-	Limit int    `json:"limit,omitempty"`
+	Query       string `json:"query"`
+	Limit       int    `json:"limit,omitempty"`
+	Output      string `json:"output,omitempty"`      // "results", "combined", or "both"
+	Format      string `json:"format,omitempty"`      // "xml", "markdown", or "json" (for combined output)
+	RenderLimit int    `json:"renderLimit,omitempty"` // optional override for combined output count
 }
 
 // AISearchResult represents a single search result.
@@ -23,10 +26,15 @@ type AISearchResult struct {
 
 // AISearchResponse wraps search results with metadata.
 type AISearchResponse struct {
-	Results []AISearchResult `json:"results"`
-	Total   int              `json:"total"`
-	Query   string           `json:"query"`
-	Method  string           `json:"method"` // "ai" or "text"
+	Results     []AISearchResult `json:"results,omitempty"`
+	Combined    string           `json:"combined,omitempty"`
+	SkillCount  int              `json:"skillCount,omitempty"`
+	TotalTokens int              `json:"totalTokens,omitempty"`
+	Format      string           `json:"format,omitempty"`
+	Total       int              `json:"total"`
+	Query       string           `json:"query"`
+	Method      string           `json:"method"` // "ai" or "text"
+	Output      string           `json:"output,omitempty"`
 }
 
 // AvailabilityStatus represents the AI search system status.

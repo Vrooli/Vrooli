@@ -272,6 +272,58 @@ Full-text search across skills.
 
 ---
 
+## AI Search
+
+### POST /api/v1/search/ai
+
+Semantic search powered by embeddings, with optional combined output formatting.
+
+**Request Body:**
+```json
+{
+  "query": "react coherence",
+  "limit": 5,
+  "output": "results",
+  "format": "xml",
+  "renderLimit": 3
+}
+```
+
+**Output Options:** `results`, `combined`, `both` (default: `results`)
+**Format Options:** `xml`, `markdown`, `json` (applies when output includes `combined`)
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "id": "react-coherence",
+      "name": "React Coherence",
+      "description": "Architectural patterns for React",
+      "folder": "core",
+      "tags": ["react"],
+      "modes": ["frontend"],
+      "score": 0.92,
+      "scorePercent": 92
+    }
+  ],
+  "combined": "<skills>...</skills>",
+  "skillCount": 3,
+  "totalTokens": 2500,
+  "format": "xml",
+  "total": 1,
+  "query": "react coherence",
+  "method": "ai",
+  "output": "both"
+}
+```
+
+### GET /api/v1/search/ai/status
+
+Returns AI search availability status.
+
+---
+
 ## Sync
 
 ### GET /api/v1/skills/sync
@@ -296,38 +348,52 @@ Get all skills with hash for change detection.
 
 ---
 
-## Display
+## Read
 
-### POST /api/v1/skills/display
+### POST /api/v1/skills/read
 
-Display multiple skills into a single output.
+Read multiple skills by identifier, with optional combined output formatting.
 
 **Request Body:**
 ```json
 {
   "identifiers": ["debugging", "testing", "refactor"],
-  "format": "xml",
   "resolve": "auto",
-  "allowMissing": true
+  "allowMissing": true,
+  "output": "auto",
+  "format": "xml"
 }
 ```
 
-**Format Options:** `xml`, `markdown`, `json`
+**Output Options:** `skills`, `combined`, `both`, `auto` (default: `auto` → combined for multiple identifiers, skills for single)
+**Format Options:** `xml`, `markdown`, `json` (applies when output includes `combined`)
 
 **Response:**
 ```json
 {
+  "skills": [
+    {
+      "id": "debugging",
+      "name": "Debugging",
+      "description": "Systematic debugging approach",
+      "content": "...",
+      "modes": ["agent"],
+      "tags": ["debugging"],
+      "folder": "core"
+    }
+  ],
   "combined": "<skills>...</skills>",
   "skillCount": 3,
   "totalTokens": 2500,
   "format": "xml",
   "resolve": "auto",
+  "output": "both",
   "missing": [],
   "ambiguous": []
 }
 ```
 
-**Use Case:** Display related skills for LLM context.
+**Use Case:** Read skills for piping or generate combined output for LLM context.
 
 ---
 

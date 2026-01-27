@@ -67,7 +67,7 @@ func printUsage() error {
 }
 
 func usageText() string {
-	return `Usage: pm metadata <subcommand> [args]
+	return `Usage: prompt-manager metadata <subcommand> [args]
 
 Subcommands:
   fetch, get <url>    Fetch Open Graph metadata from a URL`

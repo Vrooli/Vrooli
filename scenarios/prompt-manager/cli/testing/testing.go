@@ -91,7 +91,7 @@ func printUsage() error {
 }
 
 func usageText() string {
-	return `Usage: pm test <subcommand> [args]
+	return `Usage: prompt-manager test <subcommand> [args]
 
 Subcommands:
   run, execute <skill-id>    Test a skill with Ollama

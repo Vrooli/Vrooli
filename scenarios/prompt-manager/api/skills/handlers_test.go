@@ -424,26 +424,31 @@ func TestRead_StrictMissingReturnsNotFound(t *testing.T) {
 	}
 }
 
-func TestDisplay_ResolveFileWithoutExtension(t *testing.T) {
+func TestRead_CombinedResolveFileWithoutExtension(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics)
 
 	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
 
-	req := DisplayRequest{Identifiers: []string{"react-coherence"}, Resolve: "file"}
+	req := ReadRequest{
+		Identifiers: []string{"react-coherence"},
+		Resolve:     "file",
+		Output:      "combined",
+		Format:      "xml",
+	}
 	body, _ := json.Marshal(req)
-	r := httptest.NewRequest("POST", "/skills/display", bytes.NewReader(body))
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-	handlers.Display(w, r)
+	handlers.Read(w, r)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("display: expected status 200, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp DisplayResponse
+	var resp ReadResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("display: failed to parse response: %v", err)
+		t.Fatalf("read: failed to parse response: %v", err)
 	}
 
 	if resp.SkillCount != 1 {
@@ -457,28 +462,29 @@ func TestDisplay_ResolveFileWithoutExtension(t *testing.T) {
 	}
 }
 
-func TestDisplay_StrictMissingReturnsNotFound(t *testing.T) {
+func TestRead_CombinedStrictMissingReturnsNotFound(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
 	handlers := NewHandlers(store, metrics)
 
 	allowMissing := false
-	req := DisplayRequest{
+	req := ReadRequest{
 		Identifiers:  []string{"missing"},
 		AllowMissing: &allowMissing,
+		Output:       "combined",
 	}
 	body, _ := json.Marshal(req)
-	r := httptest.NewRequest("POST", "/skills/display", bytes.NewReader(body))
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
 	w := httptest.NewRecorder()
-	handlers.Display(w, r)
+	handlers.Read(w, r)
 
 	if w.Code != http.StatusNotFound {
-		t.Fatalf("display: expected status 404, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("read: expected status 404, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp DisplayResponse
+	var resp ReadResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("display: failed to parse response: %v", err)
+		t.Fatalf("read: failed to parse response: %v", err)
 	}
 
 	if len(resp.Missing) != 1 {

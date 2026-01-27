@@ -97,7 +97,7 @@ export OLLAMA_URL=http://localhost:11434
 
 Test via CLI:
 ```bash
-pm test run debugging --model=llama3.2
+prompt-manager test run debugging --model=llama3.2
 ```
 
 ### Qdrant (Semantic Search)

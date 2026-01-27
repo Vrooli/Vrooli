@@ -94,12 +94,12 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	}
 
 	// Domain commands (noun-verb pattern)
-	groups = append(groups, skills.Commands(a)...)  // pm skill <verb>
-	groups = append(groups, tags.Commands(a))       // pm tag <verb>
-	groups = append(groups, members.Commands(a))    // pm member <verb>
-	groups = append(groups, testing.Commands(a))    // pm test <verb>
-	groups = append(groups, metadata.Commands(a))   // pm metadata <verb>
-	groups = append(groups, search.Commands(a))     // pm search (standalone)
+	groups = append(groups, skills.Commands(a)...)  // prompt-manager skill <verb>
+	groups = append(groups, tags.Commands(a))       // prompt-manager tag <verb>
+	groups = append(groups, members.Commands(a))    // prompt-manager member <verb>
+	groups = append(groups, testing.Commands(a))    // prompt-manager test <verb>
+	groups = append(groups, metadata.Commands(a))   // prompt-manager metadata <verb>
+	groups = append(groups, search.Commands(a))     // prompt-manager search (standalone)
 	groups = append(groups, config)
 
 	return groups

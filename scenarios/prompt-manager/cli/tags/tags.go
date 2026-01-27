@@ -72,7 +72,7 @@ func printUsage() error {
 }
 
 func usageText() string {
-	return `Usage: pm tag <subcommand> [args]
+	return `Usage: prompt-manager tag <subcommand> [args]
 
 Subcommands:
   list, ls              List all tags

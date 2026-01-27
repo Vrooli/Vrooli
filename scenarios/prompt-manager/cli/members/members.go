@@ -96,7 +96,7 @@ func printUsage() error {
 }
 
 func usageText() string {
-	return `Usage: pm member <subcommand> [args]
+	return `Usage: prompt-manager member <subcommand> [args]
 
 Subcommands:
   list, ls              List all members
