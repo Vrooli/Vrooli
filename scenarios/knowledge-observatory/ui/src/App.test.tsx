@@ -5,6 +5,8 @@ import App from "./App";
 
 const mockUseHealthStatus = vi.hoisted(() => vi.fn());
 const mockUseHashRoute = vi.hoisted(() => vi.fn());
+const mockUseDocumentationSummary = vi.hoisted(() => vi.fn());
+const mockUseActivityFeed = vi.hoisted(() => vi.fn());
 
 vi.mock("./shared/hooks/knowledgeHooks", () => ({
   useHealthStatus: mockUseHealthStatus,
@@ -12,6 +14,14 @@ vi.mock("./shared/hooks/knowledgeHooks", () => ({
 
 vi.mock("./shared/hooks/useHashRoute", () => ({
   useHashRoute: mockUseHashRoute,
+}));
+
+vi.mock("./shared/hooks/documentationSummaryHooks", () => ({
+  useDocumentationSummary: mockUseDocumentationSummary,
+}));
+
+vi.mock("./shared/hooks/activityHooks", () => ({
+  useActivityFeed: mockUseActivityFeed,
 }));
 
 describe("App", () => {
@@ -34,6 +44,25 @@ describe("App", () => {
       route: "dashboard",
       navigate: vi.fn(),
     });
+
+    mockUseDocumentationSummary.mockReturnValue({
+      viewModel: {
+        totalScenarios: 3,
+        coverageLabel: "3 of 3 documented",
+        coveragePercentLabel: "100%",
+        coverageTone: "good",
+        averageHealthLabel: "98%",
+        averageHealthTone: "good",
+        manifestCoverageLabel: "100% have manifests",
+        lastModifiedLabel: "1/27/2026",
+      },
+      isLoading: false,
+      hasError: false,
+      errorMessage: "",
+      refetch: vi.fn(),
+    });
+
+    mockUseActivityFeed.mockReturnValue([]);
 
     window.ENV = {
       API_PORT: "17822",

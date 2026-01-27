@@ -203,6 +203,19 @@ body {
     @apply text-xs h-8 px-3;
   }
 
+  .ko-mode-selector {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .ko-mode-button {
+    @apply items-start text-left;
+    min-width: 9rem;
+  }
+
+  .ko-mode-button-compact {
+    min-width: 7rem;
+  }
+
   .ko-alert {
     @apply p-4 border rounded flex items-start gap-3;
   }
@@ -244,6 +257,10 @@ body {
 
   .ko-metric-card {
     @apply p-4 border rounded;
+  }
+
+  .ko-stat-card {
+    @apply space-y-2;
   }
 
   .ko-tone-good {
@@ -558,6 +575,16 @@ body {
     max-height: 240px;
     overflow: auto;
     font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  .ko-snippet {
+    @apply text-xs whitespace-pre-wrap;
+    background-color: rgb(var(--ko-surface-strong) / 0.6);
+    border: 1px solid rgb(var(--ko-border) / 0.5);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+    color: rgb(var(--ko-text));
   }
 
   .ko-viewer-shell {

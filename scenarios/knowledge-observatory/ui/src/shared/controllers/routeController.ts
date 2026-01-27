@@ -12,7 +12,7 @@ const ROUTE_HASHES: Record<Route, string> = {
 
 const ROUTE_TITLES: Record<Route, string> = {
   dashboard: "Dashboard",
-  search: "Semantic Search",
+  search: "Unified Search",
   explorer: "Scenario Explorer",
   viewer: "Document Viewer",
   metrics: "Quality Metrics",

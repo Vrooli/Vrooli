@@ -10,15 +10,17 @@ This guide walks through the UI, CLI, and API to confirm Knowledge Observatory i
 5. Explore graph and metrics panels.
 
 ## UI Walkthrough
-- **Dashboard**: check health, quick actions.
-- **Search**: run a semantic query and inspect result metadata.
-- **Explorer**: browse scenario docs, tree warnings, and health summary.
+- **Dashboard**: run quick search, confirm knowledge + documentation health, review activity feed.
+- **Search**: select semantic, file, text, unified, or deep search modes.
+- **Explorer**: browse scenario docs, tree warnings, health summary, and healing controls.
+- **Viewer**: open document content with preview/mermaid rendering and reset support.
 - **Graph**: explore relationships around a center concept.
 - **Metrics**: review coherence/freshness/redundancy scores.
 
 [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
 [CODE: ui/src/surfaces/search/SearchPage.tsx]
 [CODE: ui/src/surfaces/explorer/ExplorerPage.tsx]
+[CODE: ui/src/surfaces/viewer/ViewerPage.tsx]
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 
@@ -28,6 +30,8 @@ This guide walks through the UI, CLI, and API to confirm Knowledge Observatory i
 knowledge-observatory status
 knowledge-observatory ingest --namespace docs --content "Knowledge Observatory quickstart."
 knowledge-observatory search "quickstart"
+knowledge-observatory docs search-files "**/README.md"
+knowledge-observatory docs health knowledge-observatory
 knowledge-observatory graph --center "quickstart"
 knowledge-observatory health
 ```

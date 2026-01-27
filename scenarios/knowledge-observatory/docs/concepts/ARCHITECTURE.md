@@ -135,6 +135,24 @@ The dashboard, search, graph, and metrics pages are routed by hash.
 [CODE: ui/src/surfaces/graph/GraphPage.tsx]
 [CODE: ui/src/surfaces/metrics/MetricsPage.tsx]
 
+## Unified Search Workspace
+- A single search surface exposes semantic, file, text, unified, and deep search modes.
+- Mode selection persists per session and supports quick-search handoff from the dashboard.
+
+[CODE: ui/src/surfaces/search/SearchPage.tsx]
+[CODE: ui/src/shared/components/SearchModeSelector.tsx]
+[CODE: ui/src/surfaces/search/DocSearchPanelContainer.tsx]
+[CODE: ui/src/surfaces/search/components/DocSearchPanel.tsx]
+
+## Dashboard Intelligence Console
+- Quick search, documentation health, scenario coverage, and activity feed are surfaced in one control panel.
+- Activity feed is backed by lightweight local storage tracking for searches, healing jobs, and doc resets.
+
+[CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
+[CODE: ui/src/surfaces/dashboard/components/QuickSearchPanel.tsx]
+[CODE: ui/src/surfaces/dashboard/components/ActivityFeed.tsx]
+[CODE: ui/src/shared/lib/activityStore.ts]
+
 ## Integrations
 - **Qdrant** vector operations. [CODE: api/internal/adapters/vectorstore/qdrant.go]
 - **Ollama** embedding provider. [CODE: api/internal/adapters/embedder/ollama.go]

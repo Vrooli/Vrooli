@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { DocResetResponse } from "../services/documentationApi";
 import { fetchDocContent, resetDocContent } from "../services/documentationApi";
 import { buildDocMetaViewModel } from "../controllers/viewerController";
+import { recordActivity } from "../lib/activityStore";
 
 export type DocViewMode = "code" | "preview" | "split";
 
@@ -47,6 +48,12 @@ export function useDocViewer(initialPath?: string | null) {
         });
         setResetResult(result);
         if (!config.previewOnly) {
+          recordActivity({
+            type: "doc-reset",
+            title: "Document reset applied",
+            description: trimmed,
+            status: "completed",
+          });
           await query.refetch();
         }
       } catch (error) {

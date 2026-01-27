@@ -1,8 +1,15 @@
 // DOC: docs/reference/api-endpoints.md#search
+import { useEffect, useRef } from "react";
 import { SearchPanel } from "./components/SearchPanel";
 import { useSearchController } from "../../shared/hooks/knowledgeHooks";
 
-export function SearchPanelContainer() {
+export type SearchPanelContainerProps = {
+  prefillQuery?: string | null;
+  autoRun?: boolean;
+};
+
+export function SearchPanelContainer({ prefillQuery, autoRun }: SearchPanelContainerProps) {
+  const appliedRef = useRef(false);
   const {
     query,
     setQuery,
@@ -17,6 +24,15 @@ export function SearchPanelContainer() {
     isClearDisabled,
     viewModel,
   } = useSearchController();
+
+  useEffect(() => {
+    if (!prefillQuery || appliedRef.current) return;
+    appliedRef.current = true;
+    setQuery(prefillQuery);
+    if (autoRun) {
+      runSearch(prefillQuery);
+    }
+  }, [prefillQuery, autoRun, runSearch, setQuery]);
 
   return (
     <SearchPanel

@@ -250,8 +250,7 @@ Fetch status for a healing job by ID.
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--path` | Document path (optional if provided as positional argument) |
-| `--format` | raw, highlighted, or preview (default: raw) |
+| `--job-id` | Healing job ID (optional if provided as positional argument) |
 
 ### docs reset
 

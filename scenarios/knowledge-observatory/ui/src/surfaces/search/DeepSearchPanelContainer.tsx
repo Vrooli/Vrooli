@@ -1,8 +1,15 @@
 // DOC: docs/reference/api-endpoints.md#documentation-deep-search
+import { useEffect, useRef } from "react";
 import { DeepSearchPanel } from "./components/DeepSearchPanel";
 import { useDeepSearchController } from "../../shared/hooks/deepSearchHooks";
 
-export function DeepSearchPanelContainer() {
+export type DeepSearchPanelContainerProps = {
+  prefillQuery?: string | null;
+  autoRun?: boolean;
+};
+
+export function DeepSearchPanelContainer({ prefillQuery, autoRun }: DeepSearchPanelContainerProps) {
+  const appliedRef = useRef(false);
   const {
     query,
     setQuery,
@@ -25,6 +32,15 @@ export function DeepSearchPanelContainer() {
     clear,
     viewModel,
   } = useDeepSearchController();
+
+  useEffect(() => {
+    if (!prefillQuery || appliedRef.current) return;
+    appliedRef.current = true;
+    setQuery(prefillQuery);
+    if (autoRun) {
+      void submit({ query: prefillQuery });
+    }
+  }, [prefillQuery, autoRun, setQuery, submit]);
 
   return (
     <DeepSearchPanel

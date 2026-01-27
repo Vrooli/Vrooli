@@ -11,6 +11,7 @@ This scenario adds permanent capability for:
 - **Quality Monitoring**: Real-time health metrics for knowledge coherence, freshness, and redundancy
 - **Knowledge Visualization**: Interactive graph showing concept relationships
 - **Intelligence Introspection**: Understanding how Vrooli's knowledge evolves over time
+- **Documentation Hub**: Discover, audit, and heal documentation across every scenario
 
 ## 💡 Why This Matters
 
@@ -25,10 +26,10 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 ## 🚀 Features
 
 ### Dashboard
-- Real-time knowledge health metrics
-- Collection statistics and trends
-- Alert system for quality degradation
-- Activity timeline
+- Real-time knowledge + documentation health metrics
+- Scenario documentation coverage snapshots
+- Activity feed for searches and healing jobs
+- Quick search entrypoint for all modes
 
 ### Semantic Search
 - Natural language queries
@@ -47,6 +48,13 @@ Knowledge Observatory solves these problems by providing visibility into the sys
 - **Freshness**: Age and relevance of information
 - **Redundancy**: Detection of duplicate knowledge
 - **Coverage**: Breadth of knowledge domains
+
+### Documentation Hub
+- **File/Text Search**: Find docs by path, filename, or content
+- **Scenario Explorer**: Browse docs by scenario with health warnings
+- **Viewer**: Read markdown with syntax highlighting + Mermaid
+- **Deep Search**: Agent-powered contextual discovery
+- **Healing**: Spawn documentation-healing agents with diff review
 
 ## 🔧 Architecture
 
@@ -93,6 +101,12 @@ knowledge-observatory graph --center "ecosystem-manager"
 
 # Get quality metrics
 knowledge-observatory metrics
+
+# Documentation search & health
+knowledge-observatory docs search-files "**/README.md"
+knowledge-observatory docs search-text "health score"
+knowledge-observatory docs search-deep "How does deep search work?"
+knowledge-observatory docs health knowledge-observatory
 
 # Watch health in real-time
 knowledge-observatory health --watch

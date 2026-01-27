@@ -1,6 +1,6 @@
 // DOC: docs/reference/api-endpoints.md#search
 // DOC: docs/reference/api-endpoints.md#health-metrics
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   buildHealthViewModel,
@@ -10,6 +10,7 @@ import {
   loadKnowledgeMetrics,
   runSearchQuery,
 } from "../controllers/knowledgeController";
+import { recordActivity } from "../lib/activityStore";
 
 const SAMPLE_QUERIES = [
   "recent knowledge health status",
@@ -73,6 +74,7 @@ export function useKnowledgeMetrics() {
 export function useSearchController() {
   const [query, setQuery] = useState("");
   const [searchTrigger, setSearchTrigger] = useState<string | null>(null);
+  const lastRecordedRef = useRef<string | null>(null);
 
   const searchQuery = useQuery({
     queryKey: ["search", searchTrigger],
@@ -106,6 +108,21 @@ export function useSearchController() {
       }),
     [searchQuery.data, searchQuery.error, query]
   );
+
+  useEffect(() => {
+    if (!searchQuery.data || !searchTrigger) return;
+    if (lastRecordedRef.current === searchTrigger) return;
+    lastRecordedRef.current = searchTrigger;
+    recordActivity({
+      type: "semantic-search",
+      title: "Semantic search",
+      description: searchTrigger,
+      status: "completed",
+      meta: {
+        results: `${searchQuery.data.results.length}`,
+      },
+    });
+  }, [searchQuery.data, searchTrigger]);
 
   const trimmedQuery = query.trim();
   const isSubmitDisabled = searchQuery.isLoading || !trimmedQuery;

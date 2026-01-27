@@ -1,6 +1,7 @@
 // DOC: docs/reference/api-endpoints.md#scenario-list
 // DOC: docs/reference/api-endpoints.md#scenario-documentation-tree
 // DOC: docs/reference/api-endpoints.md#documentation-health
+// DOC: docs/reference/api-endpoints.md#documentation-search
 // DOC: docs/reference/api-endpoints.md#documentation-viewer
 // DOC: docs/reference/api-endpoints.md#documentation-deep-search
 import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
@@ -72,6 +73,86 @@ export interface ScenarioDocHealth {
   extra_docs: string[];
   warnings: DocWarning[];
   can_auto_fix: boolean;
+}
+
+export interface DocFileSearchRequest {
+  pattern: string;
+  scope?: string;
+  scenario?: string;
+  base_path?: string;
+  limit?: number;
+  include_content?: boolean;
+}
+
+export interface DocFileSearchResult {
+  path: string;
+  relative_path: string;
+  scenario?: string;
+  size?: number;
+  modified_at?: string;
+  doc_type?: string;
+  content_preview?: string;
+}
+
+export interface DocTextSearchRequest {
+  query: string;
+  scope?: string;
+  scenario?: string;
+  base_path?: string;
+  file_types?: string[];
+  case_sensitive?: boolean;
+  limit?: number;
+  context_lines?: number;
+}
+
+export interface DocTextSearchMatch {
+  path: string;
+  relative_path: string;
+  scenario?: string;
+  line_number?: number;
+  content: string;
+  context_before?: string;
+  context_after?: string;
+}
+
+export interface DocUnifiedSearchRequest {
+  query?: string;
+  pattern?: string;
+  scope?: string;
+  scenario?: string;
+  base_path?: string;
+  limit?: number;
+  include_content?: boolean;
+  file_types?: string[];
+  case_sensitive?: boolean;
+  context_lines?: number;
+  use_semantic?: boolean;
+  semantic_limit?: number;
+  semantic_threshold?: number;
+  semantic_collection?: string;
+  semantic_namespaces?: string[];
+  semantic_visibility?: string[];
+  semantic_tags?: string[];
+}
+
+export interface DocUnifiedSearchResult {
+  source: string;
+  score?: number;
+  path?: string;
+  relative_path?: string;
+  scenario?: string;
+  line_number?: number;
+  snippet?: string;
+  doc_type?: string;
+  content?: string;
+  id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DocUnifiedSearchResponse {
+  results: DocUnifiedSearchResult[];
+  query: string;
+  took_ms: number;
 }
 
 export interface DocResetConfig {
@@ -255,6 +336,58 @@ export async function fetchScenarioDocHealth(scenarioName: string): Promise<Scen
     extra_docs: normalizeStringList(data.extra_docs),
     warnings: normalizeWarnings(data.warnings),
     can_auto_fix: toBoolean(data.can_auto_fix) ?? false,
+  };
+}
+
+export async function searchDocFiles(request: DocFileSearchRequest): Promise<DocFileSearchResult[]> {
+  const url = buildApiUrl("/api/v1/docs/search/files", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc file search failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocFileResults(data);
+}
+
+export async function searchDocText(request: DocTextSearchRequest): Promise<DocTextSearchMatch[]> {
+  const url = buildApiUrl("/api/v1/docs/search/text", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc text search failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  return normalizeDocTextResults(data);
+}
+
+export async function searchDocUnified(request: DocUnifiedSearchRequest): Promise<DocUnifiedSearchResponse> {
+  const url = buildApiUrl("/api/v1/docs/search/unified", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const errorPayload = (await res.json().catch(() => null)) as unknown;
+    throw new Error(parseErrorMessage(errorPayload, `Doc unified search failed: ${res.status}`));
+  }
+  const data = (await res.json().catch(() => null)) as unknown;
+  if (!isRecord(data)) {
+    throw new Error("Invalid unified search response");
+  }
+  return {
+    results: normalizeUnifiedResults(data.results),
+    query: toNonEmptyString(data.query) ?? request.query ?? "",
+    took_ms: toFiniteNumber(data.took_ms) ?? 0,
   };
 }
 
@@ -520,6 +653,73 @@ const normalizeDeepSearchResults = (value: unknown): DeepSearchResult[] => {
         match_reason: matchReason,
         references: normalizeStringList(item.references),
         snippet: toNonEmptyString(item.snippet),
+      },
+    ];
+  });
+};
+
+const normalizeDocFileResults = (value: unknown): DocFileSearchResult[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const path = toNonEmptyString(item.path);
+    const relativePath = toNonEmptyString(item.relative_path);
+    if (!path || !relativePath) return [];
+    return [
+      {
+        path,
+        relative_path: relativePath,
+        scenario: toNonEmptyString(item.scenario),
+        size: toFiniteNumber(item.size),
+        modified_at: toNonEmptyString(item.modified_at),
+        doc_type: toNonEmptyString(item.doc_type),
+        content_preview: toNonEmptyString(item.content_preview),
+      },
+    ];
+  });
+};
+
+const normalizeDocTextResults = (value: unknown): DocTextSearchMatch[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const path = toNonEmptyString(item.path);
+    const relativePath = toNonEmptyString(item.relative_path);
+    const content = toNonEmptyString(item.content);
+    if (!path || !relativePath || content === undefined) return [];
+    return [
+      {
+        path,
+        relative_path: relativePath,
+        scenario: toNonEmptyString(item.scenario),
+        line_number: toFiniteNumber(item.line_number),
+        content,
+        context_before: toNonEmptyString(item.context_before),
+        context_after: toNonEmptyString(item.context_after),
+      },
+    ];
+  });
+};
+
+const normalizeUnifiedResults = (value: unknown): DocUnifiedSearchResult[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const source = toNonEmptyString(item.source);
+    if (!source) return [];
+    return [
+      {
+        source,
+        score: toFiniteNumber(item.score),
+        path: toNonEmptyString(item.path),
+        relative_path: toNonEmptyString(item.relative_path),
+        scenario: toNonEmptyString(item.scenario),
+        line_number: toFiniteNumber(item.line_number),
+        snippet: toNonEmptyString(item.snippet),
+        doc_type: toNonEmptyString(item.doc_type),
+        content: toNonEmptyString(item.content),
+        id: toNonEmptyString(item.id),
+        metadata: isRecord(item.metadata) ? item.metadata : undefined,
       },
     ];
   });

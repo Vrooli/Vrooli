@@ -1,5 +1,5 @@
 // DOC: docs/reference/api-endpoints.md#documentation-healing
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DocHealJob, DocHealRequest } from "../services/documentationApi";
 import {
@@ -8,6 +8,7 @@ import {
   rejectDocHealing,
   startDocHealing,
 } from "../services/documentationApi";
+import { recordActivity } from "../lib/activityStore";
 
 const shouldPollJob = (job?: DocHealJob) => {
   if (!job) return false;
@@ -33,6 +34,7 @@ type DocHealingState = {
 export function useDocHealing(scenarioName: string | null): DocHealingState {
   const [jobId, setJobId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const lastStatusRef = useRef<string | null>(null);
 
   useEffect(() => {
     setJobId(null);
@@ -50,6 +52,12 @@ export function useDocHealing(scenarioName: string | null): DocHealingState {
     onSuccess: (job) => {
       if (job?.job_id) {
         setJobId(job.job_id);
+        recordActivity({
+          type: "doc-healing",
+          title: "Documentation healing job",
+          description: job.scenario_name,
+          status: "running",
+        });
       }
     },
   });
@@ -60,6 +68,12 @@ export function useDocHealing(scenarioName: string | null): DocHealingState {
       if (jobId) {
         queryClient.setQueryData(["docHealJob", jobId], job);
       }
+      recordActivity({
+        type: "doc-healing",
+        title: "Documentation healing approved",
+        description: job?.scenario_name || scenarioName || "",
+        status: "completed",
+      });
     },
   });
 
@@ -70,6 +84,12 @@ export function useDocHealing(scenarioName: string | null): DocHealingState {
       if (jobId) {
         queryClient.setQueryData(["docHealJob", jobId], job);
       }
+      recordActivity({
+        type: "doc-healing",
+        title: "Documentation healing rejected",
+        description: job?.scenario_name || scenarioName || "",
+        status: "failed",
+      });
     },
   });
 
@@ -89,6 +109,21 @@ export function useDocHealing(scenarioName: string | null): DocHealingState {
     }),
     [approveMutation, rejectMutation, startMutation]
   );
+
+  useEffect(() => {
+    const job = jobQuery.data;
+    if (!job?.status || !job.scenario_name) return;
+    if (lastStatusRef.current === job.status) return;
+    lastStatusRef.current = job.status;
+    if (job.status === "needs_review") {
+      recordActivity({
+        type: "doc-healing",
+        title: "Documentation healing ready",
+        description: job.scenario_name,
+        status: "info",
+      });
+    }
+  }, [jobQuery.data]);
 
   return {
     job: jobQuery.data,

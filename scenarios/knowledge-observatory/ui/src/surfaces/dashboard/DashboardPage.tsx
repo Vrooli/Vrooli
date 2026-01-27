@@ -1,15 +1,23 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui-surface
 // DOC: docs/guides/getting-started.md#ui-walkthrough
-import { Activity, AlertCircle, Database, GitGraph, Search } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Activity, BookOpen, FileText, GitGraph, Target } from "lucide-react";
 import { selectors } from "../../consts/selectors";
-import { routeToHash, type Route } from "../../shared/controllers/routeController";
-import type { HealthViewModel } from "../../shared/controllers/knowledgeController";
 import { ErrorBoundary } from "../../shared/components/ErrorBoundary";
 import { PageShell } from "../../shared/components/PageShell";
 import { Panel, PanelHeader } from "../../shared/components/Panel";
 import { SectionErrorState } from "../../shared/components/SectionErrorState";
+import { storeSearchIntent } from "../../shared/controllers/searchIntent";
+import { DEFAULT_SEARCH_MODE, type SearchMode } from "../../shared/controllers/searchModes";
+import type { Route } from "../../shared/controllers/routeController";
+import type { HealthViewModel } from "../../shared/controllers/knowledgeController";
+import { useActivityFeed } from "../../shared/hooks/activityHooks";
+import { useDocumentationSummary } from "../../shared/hooks/documentationSummaryHooks";
 import { Button } from "../../shared/ui/button";
 import { FeatureCardLink } from "./components/FeatureCardLink";
+import { ActivityFeed } from "./components/ActivityFeed";
+import { HealthStatCard } from "./components/HealthStatCard";
+import { QuickSearchPanel } from "./components/QuickSearchPanel";
 
 export type DashboardHealthState = {
   viewModel: HealthViewModel;
@@ -25,8 +33,21 @@ export type DashboardPageProps = {
 };
 
 export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
-  const { viewModel, isLoading, hasError, hasData, refetch } = health;
+  const { viewModel, isLoading, hasError, refetch } = health;
   const { status: healthStatus, service: serviceName, lastUpdated: lastUpdate } = viewModel;
+  const docSummary = useDocumentationSummary();
+  const activityItems = useActivityFeed();
+  const [quickMode, setQuickMode] = useState<SearchMode>(DEFAULT_SEARCH_MODE);
+  const [quickQuery, setQuickQuery] = useState("");
+  const trimmedQuery = quickQuery.trim();
+  const healthTone = hasError ? "poor" : isLoading ? "medium" : "good";
+
+  const handleQuickSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!trimmedQuery) return;
+    storeSearchIntent({ mode: quickMode, value: trimmedQuery });
+    onNavigate("search");
+  };
 
   return (
     <ErrorBoundary
@@ -50,70 +71,51 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
     >
       <PageShell>
         <Panel testId={selectors.dashboard.quickActions}>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h2 className="ko-text-lg font-semibold">Start a Knowledge Check</h2>
-              <p className="ko-text-sm ko-muted mt-1">
-                Jump into the workflows operators use most: search, assess, and explore.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="primary" data-testid={selectors.dashboard.quickSearch}>
-                <a href={routeToHash("search")}>Run a Search</a>
-              </Button>
-              <Button asChild variant="secondary" data-testid={selectors.dashboard.quickMetrics}>
-                <a href={routeToHash("metrics")}>Review Metrics</a>
-              </Button>
-              <Button asChild variant="secondary" data-testid={selectors.dashboard.quickGraph}>
-                <a href={routeToHash("graph")}>Explore Graph</a>
-              </Button>
-            </div>
-          </div>
+          <QuickSearchPanel
+            mode={quickMode}
+            query={quickQuery}
+            onModeChange={setQuickMode}
+            onQueryChange={setQuickQuery}
+            onSubmit={handleQuickSubmit}
+            isSubmitDisabled={!trimmedQuery}
+          />
         </Panel>
 
         <Panel testId={selectors.dashboard.healthSection}>
-          <PanelHeader
-            title="System Health"
-            icon={<Activity className="h-5 w-5 ko-icon" />}
-            className="mb-4"
-          />
-
-          {isLoading && (
-            <div className="ko-stack-xs">
-              <div className="ko-loading-bar"></div>
-              <p className="ko-text-sm ko-muted">Querying knowledge base status...</p>
-            </div>
-          )}
-
-          {hasError && (
-            <div className="ko-alert ko-alert-danger" data-testid={selectors.dashboard.healthError}>
-              <AlertCircle className="h-5 w-5 ko-text-danger mt-0.5" />
-              <div>
-                <p className="ko-alert-title ko-text-danger-strong">Connection Error</p>
-                <p className="ko-text-sm ko-text-danger-muted mt-1">
-                  Unable to reach the API. Confirm the scenario is running, then refresh.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {hasData && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="ko-card p-4">
-                <p className="ko-meta">Status</p>
-                <p className="text-xl font-bold mt-1">{healthStatus}</p>
-              </div>
-              <div className="ko-card p-4">
-                <p className="ko-meta">Service</p>
-                <p className="text-xl font-bold mt-1">{serviceName}</p>
-              </div>
-              <div className="ko-card p-4">
-                <p className="ko-meta">Last Update</p>
-                <p className="ko-text-sm font-semibold mt-1">{lastUpdate}</p>
-              </div>
-            </div>
-          )}
-
+          <PanelHeader title="System Health" icon={<Activity className="h-5 w-5 ko-icon" />} className="mb-4" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <HealthStatCard
+              title="Knowledge Health"
+              value={healthStatus}
+              subtitle={`Service: ${serviceName} · Updated ${lastUpdate}`}
+              tone={healthTone}
+              icon={<Activity className="h-5 w-5 ko-icon" />}
+              isLoading={isLoading}
+              hasError={hasError}
+              errorMessage="Unable to reach the API. Confirm the scenario is running."
+              testId={hasError ? selectors.dashboard.healthError : undefined}
+            />
+            <HealthStatCard
+              title="Documentation Health"
+              value={docSummary.viewModel.averageHealthLabel}
+              subtitle={`${docSummary.viewModel.coverageLabel} · Updated ${docSummary.viewModel.lastModifiedLabel}`}
+              tone={docSummary.viewModel.averageHealthTone}
+              icon={<BookOpen className="h-5 w-5 ko-icon" />}
+              isLoading={docSummary.isLoading}
+              hasError={docSummary.hasError}
+              errorMessage={docSummary.errorMessage}
+            />
+            <HealthStatCard
+              title="Scenario Coverage"
+              value={docSummary.viewModel.coveragePercentLabel}
+              subtitle={docSummary.viewModel.manifestCoverageLabel}
+              tone={docSummary.viewModel.coverageTone}
+              icon={<Target className="h-5 w-5 ko-icon" />}
+              isLoading={docSummary.isLoading}
+              hasError={docSummary.hasError}
+              errorMessage={docSummary.errorMessage}
+            />
+          </div>
           <Button
             className="mt-4"
             variant="primary"
@@ -124,48 +126,61 @@ export function DashboardPage({ health, onNavigate }: DashboardPageProps) {
           </Button>
         </Panel>
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <FeatureCardLink
             route="search"
-            title="Semantic Search"
-            description="Query knowledge base using natural language across all collections"
-            icon={<Search className="h-8 w-8 ko-icon" />}
+            title="Search Docs"
+            description="Run semantic, file, text, unified, or deep searches from one workspace."
+            icon={<FileText className="h-8 w-8 ko-icon" />}
             testId={selectors.dashboard.featureSearch}
           />
           <FeatureCardLink
+            route="explorer"
+            title="Browse Scenarios"
+            description="Audit documentation structure, health, and file trees."
+            icon={<BookOpen className="h-8 w-8 ko-icon" />}
+            testId={selectors.dashboard.featureExplorer}
+          />
+          <FeatureCardLink
             route="graph"
-            title="Knowledge Graph"
-            description="Explore semantic relationships and concept connections"
+            title="View Graph"
+            description="Explore semantic relationships and concept connections."
             icon={<GitGraph className="h-8 w-8 ko-icon" />}
             badge="Preview"
             testId={selectors.dashboard.featureGraph}
           />
           <FeatureCardLink
             route="metrics"
-            title="Quality Metrics"
-            description="Monitor coherence, freshness, and redundancy scores"
-            icon={<Database className="h-8 w-8 ko-icon" />}
+            title="Run Health Audit"
+            description="Review coherence, freshness, and redundancy scores."
+            icon={<Activity className="h-8 w-8 ko-icon" />}
             testId={selectors.dashboard.featureMetrics}
           />
         </section>
 
-        <Panel testId={selectors.dashboard.cliSection}>
-          <PanelHeader title="CLI Commands" className="mb-4" />
-          <div className="ko-stack-xs ko-text-sm">
-            <div className="ko-card p-3">
-              <code className="ko-code">knowledge-observatory search "your query"</code>
-              <p className="ko-subtle ko-text-xs mt-1">Semantic search across knowledge base</p>
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Panel testId={selectors.dashboard.activityFeed}>
+            <PanelHeader title="Activity Feed" className="mb-4" />
+            <ActivityFeed items={activityItems} />
+          </Panel>
+          <Panel testId={selectors.dashboard.cliSection}>
+            <PanelHeader title="CLI Commands" className="mb-4" />
+            <div className="ko-stack-xs ko-text-sm">
+              <div className="ko-card p-3">
+                <code className="ko-code">knowledge-observatory search "your query"</code>
+                <p className="ko-subtle ko-text-xs mt-1">Semantic search across knowledge base</p>
+              </div>
+              <div className="ko-card p-3">
+                <code className="ko-code">knowledge-observatory docs search-files "**/README.md"</code>
+                <p className="ko-subtle ko-text-xs mt-1">Search documentation files by pattern</p>
+              </div>
+              <div className="ko-card p-3">
+                <code className="ko-code">knowledge-observatory docs health knowledge-observatory</code>
+                <p className="ko-subtle ko-text-xs mt-1">Audit documentation health</p>
+              </div>
             </div>
-            <div className="ko-card p-3">
-              <code className="ko-code">knowledge-observatory health --watch</code>
-              <p className="ko-subtle ko-text-xs mt-1">Real-time health monitoring</p>
-            </div>
-            <div className="ko-card p-3">
-              <code className="ko-code">knowledge-observatory graph --center "concept"</code>
-              <p className="ko-subtle ko-text-xs mt-1">Generate knowledge relationship graph</p>
-            </div>
-          </div>
-        </Panel>
+          </Panel>
+        </section>
       </PageShell>
     </ErrorBoundary>
   );

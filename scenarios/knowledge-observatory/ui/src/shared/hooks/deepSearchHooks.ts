@@ -6,6 +6,7 @@ import {
   fetchDeepSearchJob,
   startDeepSearch,
 } from "../services/documentationApi";
+import { recordActivity } from "../lib/activityStore";
 
 const DEFAULT_SCOPE = "global";
 const DEFAULT_MAX_RESULTS = 10;
@@ -24,6 +25,7 @@ export function useDeepSearchController() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pollingRef = useRef<number | null>(null);
+  const lastStatusRef = useRef<string | null>(null);
 
   const isRunning = isActiveStatus(job?.status);
   const hasResults = Boolean(job?.results && job.results.length > 0);
@@ -34,8 +36,8 @@ export function useDeepSearchController() {
     setQuery("");
   }, []);
 
-  const submit = useCallback(async () => {
-    const trimmed = query.trim();
+  const submit = useCallback(async (override?: { query?: string }) => {
+    const trimmed = (override?.query ?? query).trim();
     if (!trimmed) return;
     const normalizedScope = scope.trim() || DEFAULT_SCOPE;
     if (normalizedScope === "scenario" && !scenario.trim()) {
@@ -60,6 +62,15 @@ export function useDeepSearchController() {
       };
       const created = await startDeepSearch(payload);
       setJob(created);
+      recordActivity({
+        type: "deep-search",
+        title: "Deep documentation search",
+        description: trimmed,
+        status: "running",
+        meta: {
+          scope: normalizedScope,
+        },
+      });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -98,6 +109,31 @@ export function useDeepSearchController() {
       }
     };
   }, [job, pollStatus]);
+
+  useEffect(() => {
+    if (!job?.job_id) return;
+    if (lastStatusRef.current === job.status) return;
+    lastStatusRef.current = job.status;
+    if (job.status === "completed") {
+      recordActivity({
+        type: "deep-search",
+        title: "Deep documentation search",
+        description: query.trim() || job.job_id,
+        status: "completed",
+        meta: {
+          results: `${job.results?.length ?? 0}`,
+        },
+      });
+    }
+    if (job.status === "failed") {
+      recordActivity({
+        type: "deep-search",
+        title: "Deep documentation search",
+        description: job.error ?? (query.trim() || job.job_id),
+        status: "failed",
+      });
+    }
+  }, [job, query]);
 
   const viewModel = useMemo(() => {
     return {

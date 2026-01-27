@@ -1,7 +1,7 @@
 # Seams & Architecture Boundaries
 
 ## Last Updated
-2026-01-26
+2026-01-27
 
 ## Integration Seams
 - **Vector store seam**: `ports.VectorStore` enables Qdrant substitution for testing. [CODE: api/internal/ports/ports.go]
@@ -19,6 +19,8 @@
 - **Doc healing job store seam**: Postgres adapter persists doc healing job state. [CODE: api/internal/adapters/dochealingstore/postgres.go]
 - **Doc healing agent seam**: doc healing agent client isolates agent-manager diff/approval calls. [CODE: api/internal/adapters/agentmanager/dochealing_client.go]
 - **Prompt-manager seam**: prompt-manager client retrieves skill content for deep search. [CODE: api/internal/adapters/promptmanager/client.go]
+- **Activity feed seam**: UI-local activity store isolates search/healing event tracking. [CODE: ui/src/shared/lib/activityStore.ts]
+- **Search intent seam**: dashboard quick search hands off intent to search workspace. [CODE: ui/src/shared/controllers/searchIntent.ts]
 
 ## Responsibility Zones
 - **Entry/presentation**: HTTP handlers and UI pages. [CODE: api/server.go] [CODE: ui/src/surfaces/dashboard/DashboardPage.tsx]
