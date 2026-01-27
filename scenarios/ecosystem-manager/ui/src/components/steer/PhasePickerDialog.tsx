@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Search, Check } from 'lucide-react';
+import { Check, Cloud, CloudOff, Loader2, RefreshCw, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { cn, formatPhaseName, normalizeSteerMode } from '@/lib/utils';
 import { usePhaseUsage, type SortOption } from '@/hooks/usePhaseUsage';
+import { useSteerSkills, useSyncSkills } from '@/hooks/useSkills';
 import type { PhaseInfo } from '@/types/api';
 
 interface PhasePickerDialogProps {
@@ -36,6 +38,17 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'most-used', label: 'Most Used' },
 ];
 
+const BUILT_IN_PHASES: PhaseInfo[] = [
+  { name: 'progress', description: 'Advance core objectives and operational targets.' },
+  { name: 'ux', description: 'Improve usability, accessibility, and user flows.' },
+  { name: 'refactor', description: 'Raise code quality without changing behavior.' },
+  { name: 'test', description: 'Expand coverage and harden edge cases.' },
+  { name: 'explore', description: 'Explore options before committing to a path.' },
+  { name: 'polish', description: 'Finalize copy, visuals, and small fixes.' },
+  { name: 'performance', description: 'Profile and optimize slow paths.' },
+  { name: 'security', description: 'Reduce vulnerabilities and tighten validation.' },
+];
+
 export function PhasePickerDialog({
   open,
   onOpenChange,
@@ -52,33 +65,58 @@ export function PhasePickerDialog({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
+  const { data: steerSkills = [], isLoading: skillsLoading, isError: skillsError } = useSteerSkills();
+  const syncSkills = useSyncSkills();
   const { trackUsage, sortByRecent, sortByFrequency, sortByName } = usePhaseUsage();
   const normalizedValue = normalizeSteerMode(value);
+  const promptIsLoading = typeof isLoading === 'boolean' ? isLoading : skillsLoading;
+  const promptHasError = skillsError;
+  const promptHasData = phaseNames.length > 0 || steerSkills.length > 0;
 
-  // Filter by search
-  const filteredPhases = useMemo(() => {
-    if (!search.trim()) return phaseNames;
+  const filterPhases = useCallback(
+    (phases: PhaseInfo[]) => {
+      if (!search.trim()) return phases;
+      const searchLower = search.toLowerCase();
+      return phases.filter((phase) => {
+        const nameLower = phase.name.toLowerCase();
+        const descLower = (phase.description || '').toLowerCase();
+        return nameLower.includes(searchLower) || descLower.includes(searchLower);
+      });
+    },
+    [search]
+  );
 
-    const searchLower = search.toLowerCase();
-    return phaseNames.filter((phase) => {
-      const nameLower = phase.name.toLowerCase();
-      const descLower = (phase.description || '').toLowerCase();
-      return nameLower.includes(searchLower) || descLower.includes(searchLower);
-    });
-  }, [phaseNames, search]);
+  const sortPhases = useCallback(
+    (phases: PhaseInfo[]) => {
+      switch (sortBy) {
+        case 'recent':
+          return sortByRecent(phases);
+        case 'most-used':
+          return sortByFrequency(phases);
+        case 'name':
+        default:
+          return sortByName(phases);
+      }
+    },
+    [sortBy, sortByRecent, sortByFrequency, sortByName]
+  );
 
-  // Apply sort
-  const sortedPhases = useMemo(() => {
-    switch (sortBy) {
-      case 'recent':
-        return sortByRecent(filteredPhases);
-      case 'most-used':
-        return sortByFrequency(filteredPhases);
-      case 'name':
-      default:
-        return sortByName(filteredPhases);
-    }
-  }, [filteredPhases, sortBy, sortByRecent, sortByFrequency, sortByName]);
+  const filteredPromptPhases = useMemo(() => filterPhases(phaseNames), [filterPhases, phaseNames]);
+  const filteredBuiltInPhases = useMemo(() => filterPhases(BUILT_IN_PHASES), [filterPhases]);
+
+  const sortedPromptPhases = useMemo(
+    () => sortPhases(filteredPromptPhases),
+    [filteredPromptPhases, sortPhases]
+  );
+  const sortedBuiltInPhases = useMemo(
+    () => sortPhases(filteredBuiltInPhases),
+    [filteredBuiltInPhases, sortPhases]
+  );
+
+  const combinedPhases = useMemo(
+    () => [...sortedPromptPhases, ...sortedBuiltInPhases],
+    [sortedPromptPhases, sortedBuiltInPhases]
+  );
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -92,10 +130,10 @@ export function PhasePickerDialog({
 
   // Keep focused index in bounds
   useEffect(() => {
-    if (focusedIndex >= sortedPhases.length) {
-      setFocusedIndex(Math.max(0, sortedPhases.length - 1));
+    if (focusedIndex >= combinedPhases.length) {
+      setFocusedIndex(Math.max(0, combinedPhases.length - 1));
     }
-  }, [sortedPhases.length, focusedIndex]);
+  }, [combinedPhases.length, focusedIndex]);
 
   const handleSelect = useCallback(
     (phaseName: string) => {
@@ -114,13 +152,13 @@ export function PhasePickerDialog({
   // Keyboard navigation with grid support
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (sortedPhases.length === 0) return;
+      if (combinedPhases.length === 0) return;
 
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
           // Move down one row (skip GRID_COLUMNS items)
-          setFocusedIndex((prev) => Math.min(prev + GRID_COLUMNS, sortedPhases.length - 1));
+          setFocusedIndex((prev) => Math.min(prev + GRID_COLUMNS, combinedPhases.length - 1));
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -130,7 +168,7 @@ export function PhasePickerDialog({
         case 'ArrowRight':
           e.preventDefault();
           // Move to next item
-          setFocusedIndex((prev) => Math.min(prev + 1, sortedPhases.length - 1));
+          setFocusedIndex((prev) => Math.min(prev + 1, combinedPhases.length - 1));
           break;
         case 'ArrowLeft':
           e.preventDefault();
@@ -139,8 +177,8 @@ export function PhasePickerDialog({
           break;
         case 'Enter':
           e.preventDefault();
-          if (sortedPhases[focusedIndex]) {
-            handleSelect(sortedPhases[focusedIndex].name);
+          if (combinedPhases[focusedIndex]) {
+            handleSelect(combinedPhases[focusedIndex].name);
           }
           break;
         case 'Escape':
@@ -149,7 +187,7 @@ export function PhasePickerDialog({
           break;
       }
     },
-    [sortedPhases, focusedIndex, handleSelect, onOpenChange]
+    [combinedPhases, focusedIndex, handleSelect, onOpenChange]
   );
 
   // Scroll focused item into view
@@ -161,7 +199,13 @@ export function PhasePickerDialog({
     }
   }, [focusedIndex]);
 
-  const currentSortOption = SORT_OPTIONS.find((o) => o.value === sortBy) || SORT_OPTIONS[0];
+  const promptTotal = phaseNames.length;
+  const builtInTotal = BUILT_IN_PHASES.length;
+  const promptFilteredEmpty = !promptIsLoading && !promptHasError && promptTotal > 0 && filteredPromptPhases.length === 0;
+  const promptEmpty = !promptIsLoading && !promptHasError && promptTotal === 0;
+  const promptUnavailable = promptHasError || promptEmpty;
+  const builtInFilteredEmpty = filteredBuiltInPhases.length === 0 && search.trim().length > 0;
+  const totalDisplayed = combinedPhases.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,57 +249,164 @@ export function PhasePickerDialog({
           onKeyDown={handleKeyDown}
           tabIndex={-1}
         >
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full text-slate-400">
-              Loading phases...
-            </div>
-          ) : sortedPhases.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <p>No phases found</p>
-              {search && (
-                <p className="text-sm mt-1">
-                  Try a different search term
-                </p>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+                  {promptUnavailable ? (
+                    <CloudOff className="h-3.5 w-3.5 text-slate-500" />
+                  ) : (
+                    <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+                  )}
+                  <span>Prompt-manager phases</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {promptIsLoading && (
+                    <span className="text-xs text-slate-500">Syncing...</span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => syncSkills.mutate()}
+                    disabled={syncSkills.isPending}
+                  >
+                    {syncSkills.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {promptIsLoading && !promptHasData ? (
+                <div className="flex items-center justify-center h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
+                  Loading prompt-manager phases...
+                </div>
+              ) : promptHasError ? (
+                <div className="flex flex-col items-center justify-center gap-2 h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
+                  <span>Prompt-manager unavailable. Sync to retry.</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => syncSkills.mutate()}
+                    disabled={syncSkills.isPending}
+                  >
+                    {syncSkills.isPending ? 'Syncing...' : 'Sync prompt-manager'}
+                  </Button>
+                </div>
+              ) : promptEmpty ? (
+                <div className="flex flex-col items-center justify-center gap-2 h-32 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
+                  <span>No prompt-manager phases synced yet.</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => syncSkills.mutate()}
+                    disabled={syncSkills.isPending}
+                  >
+                    {syncSkills.isPending ? 'Syncing...' : 'Sync prompt-manager'}
+                  </Button>
+                </div>
+              ) : promptFilteredEmpty ? (
+                <div className="flex items-center justify-center h-24 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
+                  No prompt-manager phases match "{search}"
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sortedPromptPhases.map((phase, index) => (
+                    <button
+                      key={phase.name}
+                      data-index={index}
+                      type="button"
+                      onClick={() => handleSelect(phase.name)}
+                      className={cn(
+                        'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
+                        'hover:bg-slate-800 hover:border-slate-600',
+                        normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
+                        index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
+                      )}
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <span className="font-medium text-sm text-slate-100">
+                          {formatPhaseName(phase.name)}
+                        </span>
+                        {normalizedValue === normalizeSteerMode(phase.name) && (
+                          <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                        )}
+                      </div>
+                      {phase.description && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                          {phase.description}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {sortedPhases.map((phase, index) => (
-                <button
-                  key={phase.name}
-                  data-index={index}
-                  type="button"
-                  onClick={() => handleSelect(phase.name)}
-                  className={cn(
-                    'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
-                    'hover:bg-slate-800 hover:border-slate-600',
-                    normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
-                    index === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
-                  )}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <span className="font-medium text-sm text-slate-100">
-                      {formatPhaseName(phase.name)}
-                    </span>
-                    {normalizedValue === normalizeSteerMode(phase.name) && (
-                      <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
-                    )}
-                  </div>
-                  {phase.description && (
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                      {phase.description}
-                    </p>
-                  )}
-                </button>
-              ))}
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-slate-500">
+                <span>Built-in phases</span>
+              </div>
+
+              {builtInFilteredEmpty ? (
+                <div className="flex items-center justify-center h-24 text-sm text-slate-400 border border-dashed border-slate-700 rounded-lg">
+                  No built-in phases match "{search}"
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sortedBuiltInPhases.map((phase, index) => {
+                    const combinedIndex = sortedPromptPhases.length + index;
+                    return (
+                      <button
+                        key={phase.name}
+                        data-index={combinedIndex}
+                        type="button"
+                        onClick={() => handleSelect(phase.name)}
+                        className={cn(
+                          'flex flex-col items-start p-3 rounded-lg border text-left transition-colors',
+                          'hover:bg-slate-800 hover:border-slate-600',
+                          normalizedValue === normalizeSteerMode(phase.name) && 'border-blue-500 bg-blue-500/10',
+                          combinedIndex === focusedIndex && 'ring-2 ring-blue-500 ring-offset-1 ring-offset-slate-900'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <span className="font-medium text-sm text-slate-100">
+                            {formatPhaseName(phase.name)}
+                          </span>
+                          {normalizedValue === normalizeSteerMode(phase.name) && (
+                            <Check className="h-4 w-4 text-blue-400 ml-auto shrink-0" />
+                          )}
+                        </div>
+                        {phase.description && (
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                            {phase.description}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
+
+            {totalDisplayed === 0 && !promptIsLoading && !promptHasError && (
+              <div className="flex flex-col items-center justify-center h-28 text-slate-400">
+                <p>No phases found</p>
+                {search && <p className="text-sm mt-1">Try a different search term</p>}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer with count */}
         <div className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-700">
-          {sortedPhases.length} of {phaseNames.length} phases
-          {search && ` matching "${search}"`}
+          {totalDisplayed} of {promptTotal + builtInTotal} phases
+          {` • ${sortedPromptPhases.length} prompt-manager`}
+          {` • ${sortedBuiltInPhases.length} built-in`}
+          {search && ` • matching "${search}"`}
         </div>
       </DialogContent>
     </Dialog>

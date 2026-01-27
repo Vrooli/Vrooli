@@ -25,10 +25,6 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 			return fmt.Errorf("phase %d must have maxIterations > 0", i)
 		}
 
-		if len(phase.StopConditions) == 0 {
-			return fmt.Errorf("phase %d must have at least one stop condition", i)
-		}
-
 		for j, condition := range phase.StopConditions {
 			if err := ValidateCondition(condition); err != nil {
 				return fmt.Errorf("phase %d, condition %d: %w", i, j, err)

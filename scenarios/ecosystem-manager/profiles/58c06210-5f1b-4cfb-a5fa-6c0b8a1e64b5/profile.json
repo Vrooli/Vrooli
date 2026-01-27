@@ -1,0 +1,19 @@
+{
+  "id": "58c06210-5f1b-4cfb-a5fa-6c0b8a1e64b5",
+  "name": "UX refactoring - major",
+  "description": "Use when the UX becomes hard to work with, and needs significant refactoring",
+  "phases": [
+    {
+      "id": "phase-1769528342943-0",
+      "mode": "progress",
+      "stop_conditions": null,
+      "max_iterations": 10
+    }
+  ],
+  "quality_gates": null,
+  "created_at": "2026-01-27T15:40:03.913566954Z",
+  "updated_at": "2026-01-27T15:40:03.913566954Z",
+  "tags": [
+    "UX"
+  ]
+}

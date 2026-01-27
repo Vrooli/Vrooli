@@ -208,7 +208,14 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
   };
 
   const handleToggleCollapse = (id: string) => {
-    setCollapsedById((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
+    setCollapsedById((prev) => {
+      const isCollapsed = prev[id] ?? true;
+      const next: Record<string, boolean> = {};
+      phaseIds.forEach((phaseId) => {
+        next[phaseId] = phaseId === id ? !isCollapsed : true;
+      });
+      return next;
+    });
   };
 
   const handleCollapseAll = () => {
@@ -216,16 +223,6 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
       const next = { ...prev };
       phaseIds.forEach((id) => {
         next[id] = true;
-      });
-      return next;
-    });
-  };
-
-  const handleExpandAll = () => {
-    setCollapsedById((prev) => {
-      const next = { ...prev };
-      phaseIds.forEach((id) => {
-        next[id] = false;
       });
       return next;
     });
@@ -240,9 +237,6 @@ export function PhaseList({ phases, onChange }: PhaseListProps) {
         <div className="flex items-center gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={handleCollapseAll} disabled={phases.length === 0}>
             Collapse all
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={handleExpandAll} disabled={phases.length === 0}>
-            Expand all
           </Button>
           <Button type="button" size="sm" onClick={handleAddPhase}>
             <Plus className="h-4 w-4 mr-2" />
