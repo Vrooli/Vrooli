@@ -47,6 +47,17 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("failed to write timeline.json: %w", err)
 	}
 
+	// Generate result.json - a simple summary for quick programmatic access
+	result := buildResultSummary(timeline)
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal result: %w", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(outputDir, "result.json"), resultJSON, 0644); err != nil {
+		return fmt.Errorf("failed to write result.json: %w", err)
+	}
+
 	// Generate markdown files
 	workflowName := workflow.Name
 	if workflowName == "" {
@@ -99,8 +110,8 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 				continue
 			}
 
-			// Extract object name from URL (path after /api/v1/screenshots/)
-			objectName := strings.TrimPrefix(frame.Screenshot.URL, "/")
+			// Extract object name from URL (strip the /api/v1/screenshots/ prefix)
+			objectName := strings.TrimPrefix(frame.Screenshot.URL, "/api/v1/screenshots/")
 
 			// Download screenshot from MinIO (skip if fails - screenshot might not be available)
 			reader, info, err := storageClient.GetScreenshot(ctx, objectName)
@@ -207,4 +218,49 @@ func validateAndPrepareOutputDir(outputDir string) error {
 	}
 
 	return nil
+}
+
+// ResultSummary provides a quick pass/fail summary for programmatic access.
+type ResultSummary struct {
+	Status         string `json:"status"`
+	Success        bool   `json:"success"`
+	ExecutionID    string `json:"execution_id"`
+	DurationMs     int64  `json:"duration_ms"`
+	StepsTotal     int    `json:"steps_total"`
+	StepsCompleted int    `json:"steps_completed"`
+	StepsFailed    int    `json:"steps_failed"`
+	Error          string `json:"error,omitempty"`
+}
+
+// buildResultSummary creates a simple summary from the execution timeline.
+func buildResultSummary(timeline *export.ExecutionTimeline) *ResultSummary {
+	result := &ResultSummary{
+		Status:      timeline.Status,
+		ExecutionID: timeline.ExecutionID.String(),
+		StepsTotal:  len(timeline.Frames),
+	}
+
+	// Determine success from status
+	normalizedStatus := strings.ToLower(strings.TrimPrefix(timeline.Status, "EXECUTION_STATUS_"))
+	result.Success = normalizedStatus == "completed"
+
+	// Calculate duration
+	if timeline.CompletedAt != nil && !timeline.StartedAt.IsZero() {
+		result.DurationMs = timeline.CompletedAt.Sub(timeline.StartedAt).Milliseconds()
+	}
+
+	// Count completed and failed steps, capture first error
+	for _, frame := range timeline.Frames {
+		normalizedFrameStatus := strings.ToLower(strings.TrimPrefix(frame.Status, "STEP_STATUS_"))
+		if normalizedFrameStatus == "completed" {
+			result.StepsCompleted++
+		} else if normalizedFrameStatus == "failed" {
+			result.StepsFailed++
+			if result.Error == "" && frame.Error != "" {
+				result.Error = frame.Error
+			}
+		}
+	}
+
+	return result
 }

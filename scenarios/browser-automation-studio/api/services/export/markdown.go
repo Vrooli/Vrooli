@@ -89,9 +89,22 @@ func GenerateTimelineMarkdown(timeline *ExecutionTimeline, workflowName string) 
 	}
 	sb.WriteString("\n")
 
+	// Quick Start for Programmatic Access
+	sb.WriteString("## Quick Start\n\n")
+	sb.WriteString("For programmatic access:\n\n")
+	sb.WriteString("```bash\n")
+	sb.WriteString("# Check pass/fail\n")
+	sb.WriteString("cat result.json | jq '.success'\n\n")
+	sb.WriteString("# Get error message (if failed)\n")
+	sb.WriteString("cat result.json | jq '.error'\n\n")
+	sb.WriteString("# View execution summary\n")
+	sb.WriteString("cat result.json | jq '{status, steps_completed: .steps_completed, steps_failed: .steps_failed, duration_ms}'\n")
+	sb.WriteString("```\n\n")
+
 	// Artifact Directory
 	sb.WriteString("## Artifacts\n\n")
 	sb.WriteString("This execution generated the following artifacts:\n\n")
+	sb.WriteString("- **result.json** - Quick pass/fail summary for programmatic access\n")
 	sb.WriteString("- **timeline.json** - Full machine-readable execution data\n")
 	sb.WriteString("- **execution-summary.md** - Detailed step-by-step breakdown\n")
 	sb.WriteString("- **console-logs.md** - Console output organized by step\n")

@@ -137,28 +137,14 @@ browser-automation-studio workflow execute \
 
 **Step format:** `--step <type> [positional] [key=value ...]`
 
-For complete step syntax documentation, use:
-```bash
-# List all CLI-supported step types
-browser-automation-studio schema steps --cli-only
-
-# Get details for specific step types
-browser-automation-studio schema steps --types navigate,click,assert
-
-# Get JSON output for programmatic use
-browser-automation-studio schema steps --format json
-```
-
-**Quick reference for common steps:**
-
-| Node Type | Positional | Key Notes |
-|-----------|------------|-----------|
-| navigate | url | Or use scenario=, path= |
-| click | selector | clickCount=, button= |
-| type | selector | text= (required) |
-| assert | selector | assertMode= (required) |
-| wait | (selector) | durationMs= OR selector= |
-| screenshot | (selector) | fullPage= |
+| Node Type | Positional | Required Key=Value |
+|-----------|------------|-------------------|
+| navigate | url (or use scenario=) | - |
+| click | selector | - |
+| type | selector | text= |
+| assert | selector | assertMode= |
+| wait | - | durationMs= or selector= |
+| screenshot | - | - |
 | evaluate | expression | - |
 
 **When to use each approach:**
@@ -184,52 +170,6 @@ browser-automation-studio schema node-types
 
 ---
 
-### **5. Understanding Execution Results**
-
-#### Artifact Location
-
-The `--output` flag determines where artifacts are stored. Always specify an output path:
-
-```
-{output-path}/
-├── result.json                # Final outcome (pass/fail, error messages)
-├── timeline.json              # Step-by-step execution log
-├── frames/                    # Screenshots captured at each step
-│   ├── screenshot-001.jpg
-│   ├── screenshot-002.jpg
-│   └── ...
-└── artifacts/
-    ├── console-{stepId}.json  # Browser console logs
-    ├── network-{stepId}.json  # Network requests/responses
-    └── dom-{stepId}.json      # DOM snapshots
-```
-
-#### Quick Inspection Commands
-
-Replace `{output-path}` with your `--output` value:
-
-```bash
-# Check if execution passed or failed
-cat {output-path}/result.json | jq '.status'
-
-# View error message on failure
-cat {output-path}/result.json | jq '.error'
-
-# Find which step failed
-cat {output-path}/timeline.json | jq '.steps[] | select(.status == "failed")'
-
-# View the last screenshot (often shows failure state)
-ls -t {output-path}/frames/*.jpg | head -1
-
-# Check for JavaScript errors
-cat {output-path}/artifacts/console-*.json | jq '.[] | select(.level == "error")'
-
-# Check for failed network requests
-cat {output-path}/artifacts/network-*.json | jq '.[] | select(.status >= 400)'
-```
-
----
-
 ### **6. Complete Example: Smoke Test Walkthrough**
 
 This example shows the full cycle: run a smoke test and interpret results.
@@ -247,20 +187,9 @@ browser-automation-studio workflow execute \
   --wait
 ```
 
-Output:
-```
-Executing inline workflow with 2 steps
-OK: Execution started!
-Execution ID: exec-abc123
-Waiting for completion...
-OK: Execution completed successfully
-
-Results exported to: /tmp/bas/{{TARGET}}/navigate-dashboard
-```
-
 Check results:
 ```bash
-cat /tmp/bas/{{TARGET}}/navigate-dashboard/result.json | jq .
+cat /tmp/bas/{{TARGET}}/navigate-dashboard/README.md 
 ```
 
 #### File-Based Approach (for reusable tests)
@@ -274,8 +203,8 @@ browser-automation-studio workflow execute \
   --output /tmp/bas/{{TARGET}}/cases/01-foundation/smoke \
   --wait
 
-# Check pass/fail status
-cat /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/result.json | jq '.status'
+# Check results
+cat /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/README.md
 
 # View screenshot
 open /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/frames/screenshot-001.jpg

@@ -455,16 +455,21 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			time.Sleep(5 * time.Second)
 		}
 		if completed {
-			if !missingExecution {
-				printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
-			}
-			// Export results if --output was specified and execution succeeded
-			if outputPath != "" && !failed && !missingExecution {
+			// Export results if --output was specified (works for both success and failure)
+			if outputPath != "" && !missingExecution {
 				if err := export.ExportExecution(ctx, executionID, outputPath); err != nil {
 					fmt.Printf("WARN: Export failed: %v\n", err)
+					// Fall back to printing artifact URLs if export fails
+					if !missingExecution {
+						printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
+					}
 				} else {
 					fmt.Printf("\nResults exported to: %s\n", outputPath)
+					fmt.Printf("Read %s/README.md for details\n", outputPath)
 				}
+			} else if !missingExecution {
+				// No --output specified, print artifact URLs as before
+				printCollectedArtifacts(ctx, executionID, recordingsRoot, failed, requiresVideo, requiresTrace, requiresHAR)
 			}
 			if seedCleanupToken != "" && !seedCleanupScheduled {
 				if err := cleanupSeedViaTestGenie(seedScenario, seedCleanupToken); err != nil {
