@@ -302,6 +302,11 @@ func (r *Repository) InitSchema(ctx context.Context) error {
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			)`},
 		{"create idx_completion_events_chat_created", `CREATE INDEX IF NOT EXISTS idx_completion_events_chat_created ON async_completion_events(chat_id, created_at)`},
+		// Agent mode support: integrate with agent-manager for agentic coding
+		{"add chats.chat_mode", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS chat_mode VARCHAR(20) DEFAULT 'llm'`},
+		{"add chats.agent_run_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS agent_run_id UUID`},
+		{"add chats.agent_task_id", `ALTER TABLE chats ADD COLUMN IF NOT EXISTS agent_task_id UUID`},
+		{"create idx_chats_agent_run_id", `CREATE INDEX IF NOT EXISTS idx_chats_agent_run_id ON chats(agent_run_id) WHERE agent_run_id IS NOT NULL`},
 	}
 
 	for _, m := range migrations {

@@ -156,6 +156,7 @@ export class CacheUpdateManager {
             model: "default",
             preview: "",
             view_mode: "bubble" as const,
+            chat_mode: "llm" as const,
             is_read: true,
             is_starred: false,
             is_archived: false,

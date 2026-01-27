@@ -290,6 +290,20 @@ func ErrAgentManagerError(operation string, err error) *AppError {
 		WithCause(err).WithDetail("operation", operation)
 }
 
+// ErrServiceUnavailable creates a dependency error for unavailable services.
+func ErrServiceUnavailable(service string) *AppError {
+	return NewError(ErrCodeAgentManagerError, CategoryDependency,
+		fmt.Sprintf("%s service is unavailable", service), ActionCheckDependency).
+		WithDetail("service", service)
+}
+
+// ErrExternalService creates a dependency error for external service failures.
+func ErrExternalService(service, message string) *AppError {
+	return NewError(ErrCodeAgentManagerError, CategoryDependency,
+		fmt.Sprintf("%s: %s", service, message), ActionRetryWithBackoff).
+		WithDetail("service", service)
+}
+
 // ErrOllamaUnavailable creates a dependency error for Ollama failures.
 // Note: Ollama is optional, so this may trigger graceful degradation.
 func ErrOllamaUnavailable(err error) *AppError {

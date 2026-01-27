@@ -67,6 +67,12 @@ export interface Chat {
   active_template_id?: string;
   /** Tool IDs suggested by the active template */
   active_template_tool_ids?: string[];
+  /** Chat mode - "llm" for normal chat or "agent" for agent-manager integration */
+  chat_mode: "llm" | "agent";
+  /** Agent run ID when in agent mode */
+  agent_run_id?: string;
+  /** Agent task ID when in agent mode */
+  agent_task_id?: string;
   /** ISO 8601 timestamp of creation */
   created_at: string;
   /** ISO 8601 timestamp of last modification */
@@ -304,7 +310,7 @@ export async function fetchChat(id: string): Promise<ChatWithMessages> {
   return res.json();
 }
 
-export async function createChat(data?: { name?: string; model?: string; view_mode?: string }): Promise<Chat> {
+export async function createChat(data?: { name?: string; model?: string; view_mode?: string; chat_mode?: "llm" | "agent" }): Promise<Chat> {
   const url = buildApiUrl("/chats", { baseUrl: API_BASE });
   const res = await fetch(url, {
     method: "POST",
@@ -2124,6 +2130,218 @@ export async function syncSkills(): Promise<SyncStatus> {
 
   if (!res.ok) {
     throw new Error(`Failed to sync skills: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// =============================================================================
+// Agent Mode Types & API
+// =============================================================================
+
+/** Runner types available for agent mode */
+export type RunnerType = "claude-code" | "codex" | "opencode";
+
+/** Run status for agent runs */
+export type AgentRunStatus =
+  | "pending"
+  | "starting"
+  | "running"
+  | "needs_review"
+  | "complete"
+  | "failed"
+  | "cancelled";
+
+/** Configuration for starting an agent chat session */
+export interface AgentChatConfig {
+  /** Initial message to send to the agent */
+  message: string;
+  /** Runner to use (claude-code, codex, opencode) */
+  runner_type: RunnerType;
+  /** Directory where the agent will operate */
+  project_path: string;
+  /** Optional model override */
+  model?: string;
+  /** Optional max turns limit */
+  max_turns?: number;
+}
+
+/** Response from starting agent mode */
+export interface AgentModeResponse {
+  chat_id: string;
+  task_id: string;
+  run_id: string;
+  session_id?: string;
+}
+
+/** Agent mode status response */
+export interface AgentModeStatus {
+  chat_mode: "llm" | "agent";
+  is_agent: boolean;
+  task_id?: string;
+  run_id?: string;
+  status?: AgentRunStatus;
+  phase?: string;
+  progress_percent?: number;
+  session_id?: string;
+  error_msg?: string;
+  error?: string;
+}
+
+/** Translated event from agent-manager */
+export interface AgentEvent {
+  id: string;
+  type: "message" | "tool_call" | "tool_result" | "status" | "error" | "progress";
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  timestamp: string;
+  sequence: number;
+  // Tool fields
+  tool_name?: string;
+  tool_input?: string;
+  tool_output?: string;
+  tool_success?: boolean;
+  // Status fields
+  run_status?: AgentRunStatus;
+  phase?: string;
+  progress?: number;
+}
+
+/** Response from getting agent events */
+export interface AgentEventsResponse {
+  events: AgentEvent[];
+  run_id: string;
+}
+
+/**
+ * Start agent mode for a chat.
+ * Creates a task and run in agent-manager, switches the chat to agent mode.
+ */
+export async function startAgentMode(
+  chatId: string,
+  config: AgentChatConfig
+): Promise<AgentModeResponse> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/start`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(error.user_message || error.message || `Failed to start agent mode: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Send a message in agent mode.
+ * Continues the existing agent run with a follow-up message.
+ */
+export async function sendAgentMessage(
+  chatId: string,
+  message: string
+): Promise<{ success: boolean; run_id: string }> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/message`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(error.user_message || error.message || `Failed to send agent message: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Get events for an agent run.
+ * @param chatId - The chat ID
+ * @param afterSequence - Only return events after this sequence number
+ */
+export async function getAgentEvents(
+  chatId: string,
+  afterSequence: number = 0
+): Promise<AgentEventsResponse> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/events?after_sequence=${afterSequence}`, {
+    baseUrl: API_BASE
+  });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get agent events: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Get the current status of an agent chat.
+ */
+export async function getAgentStatus(chatId: string): Promise<AgentModeStatus> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/status`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get agent status: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Stop an agent run.
+ */
+export async function stopAgentMode(
+  chatId: string
+): Promise<{ success: boolean; run_id: string }> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/stop`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(error.user_message || error.message || `Failed to stop agent: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Clear agent mode and return to LLM mode.
+ * Stops any running agent and resets the chat state.
+ */
+export async function clearAgentMode(
+  chatId: string
+): Promise<{ success: boolean; chat_mode: "llm" }> {
+  const url = buildApiUrl(`/chats/${chatId}/agent-mode/clear`, { baseUrl: API_BASE });
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(error.user_message || error.message || `Failed to clear agent mode: ${res.status}`);
   }
 
   return res.json();

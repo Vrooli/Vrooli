@@ -61,6 +61,7 @@ const mockChat: api.Chat = {
   preview: "Hello world",
   model: "gpt-4",
   view_mode: "bubble",
+  chat_mode: "llm",
   is_read: true,
   is_archived: false,
   is_starred: false,

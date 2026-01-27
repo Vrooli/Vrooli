@@ -74,6 +74,14 @@ func (h *Handlers) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/chats/{id}/fork", h.ForkChat).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/active-template", h.SetActiveTemplate).Methods("PATCH", "OPTIONS")
 
+	// Agent Mode - Integration with agent-manager for agentic coding
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/start", h.StartAgentMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/message", h.SendAgentMessage).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/events", h.GetAgentEvents).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/status", h.GetAgentStatus).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/stop", h.StopAgentMode).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/v1/chats/{id}/agent-mode/clear", h.ClearAgentMode).Methods("POST", "OPTIONS")
+
 	// Messages and chat state
 	r.HandleFunc("/api/v1/chats/{id}/messages", h.AddMessage).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/v1/chats/{id}/messages/{msgId}/regenerate", h.RegenerateMessage).Methods("POST", "OPTIONS")

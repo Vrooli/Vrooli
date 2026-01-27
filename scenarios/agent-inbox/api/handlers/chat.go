@@ -39,6 +39,7 @@ func (h *Handlers) CreateChat(w http.ResponseWriter, r *http.Request) {
 		Name     string `json:"name"`
 		Model    string `json:"model"`
 		ViewMode string `json:"view_mode"`
+		ChatMode string `json:"chat_mode"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -56,6 +57,9 @@ func (h *Handlers) CreateChat(w http.ResponseWriter, r *http.Request) {
 	if req.ViewMode == "" {
 		req.ViewMode = domain.ViewModeBubble
 	}
+	if req.ChatMode == "" {
+		req.ChatMode = domain.ChatModeLLM
+	}
 
 	// Validate using centralized validation
 	if result := domain.ValidateChatCreate(req.Name, req.Model, req.ViewMode); !result.Valid {
@@ -63,7 +67,13 @@ func (h *Handlers) CreateChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chat, err := h.Repo.CreateChat(r.Context(), req.Name, req.Model, req.ViewMode)
+	// Validate chat mode
+	if !domain.IsValidChatMode(req.ChatMode) {
+		h.WriteAppError(w, r, domain.ErrInvalidInput("invalid chat_mode: must be 'llm' or 'agent'"))
+		return
+	}
+
+	chat, err := h.Repo.CreateChat(r.Context(), req.Name, req.Model, req.ViewMode, req.ChatMode)
 	if err != nil {
 		log.Printf("[ERROR] [%s] CreateChat failed: %v", middleware.GetRequestID(r.Context()), err)
 		h.WriteAppError(w, r, domain.ErrDatabaseError("create chat", err))

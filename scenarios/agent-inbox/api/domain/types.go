@@ -25,6 +25,9 @@ type Chat struct {
 	ActiveLeafMessageID    string    `json:"active_leaf_message_id,omitempty"`    // Current branch leaf for message tree
 	ActiveTemplateID       string    `json:"active_template_id,omitempty"`        // Currently active template (tools remain enabled until used)
 	ActiveTemplateToolIDs  []string  `json:"active_template_tool_ids,omitempty"`  // Tool IDs suggested by active template
+	ChatMode               string    `json:"chat_mode"`                           // "llm" (default) or "agent"
+	AgentRunID             string    `json:"agent_run_id,omitempty"`              // Run ID when in agent mode
+	AgentTaskID            string    `json:"agent_task_id,omitempty"`             // Task ID when in agent mode
 	CreatedAt              time.Time `json:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at"`
 }
@@ -158,6 +161,12 @@ const (
 	StatusCancelled       = "cancelled"
 )
 
+// Chat mode constants
+const (
+	ChatModeLLM   = "llm"   // Default mode using LLM completion
+	ChatModeAgent = "agent" // Agent mode using agent-manager
+)
+
 // Preview constants
 const (
 	// PreviewMaxLength is the maximum length for chat preview text.
@@ -218,6 +227,16 @@ func ValidViewModes() []string {
 // IsValidViewMode checks if a view mode string is valid
 func IsValidViewMode(mode string) bool {
 	return mode == ViewModeBubble || mode == ViewModeCompact
+}
+
+// ValidChatModes returns the list of valid chat modes
+func ValidChatModes() []string {
+	return []string{ChatModeLLM, ChatModeAgent}
+}
+
+// IsValidChatMode checks if a chat mode string is valid
+func IsValidChatMode(mode string) bool {
+	return mode == ChatModeLLM || mode == ChatModeAgent
 }
 
 // ValidRoles returns the list of valid message roles

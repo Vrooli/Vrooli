@@ -17,7 +17,7 @@ import (
 // ListChats returns all chats matching the given filters.
 func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]domain.Chat, error) {
 	query := `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
@@ -41,10 +41,23 @@ func (r *Repository) ListChats(ctx context.Context, archived, starred bool) ([]d
 	for rows.Next() {
 		var c domain.Chat
 		var labelIDs []byte
-		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &c.CreatedAt, &c.UpdatedAt, &labelIDs); err != nil {
+		var chatMode sql.NullString
+		var agentRunID, agentTaskID sql.NullString
+		if err := rows.Scan(&c.ID, &c.Name, &c.Preview, &c.Model, &c.ViewMode, &c.IsRead, &c.IsArchived, &c.IsStarred, &c.ToolsEnabled, &chatMode, &agentRunID, &agentTaskID, &c.CreatedAt, &c.UpdatedAt, &labelIDs); err != nil {
 			continue
 		}
 		c.LabelIDs = parsePostgresArray(string(labelIDs))
+		if chatMode.Valid {
+			c.ChatMode = chatMode.String
+		} else {
+			c.ChatMode = domain.ChatModeLLM // Default to llm mode
+		}
+		if agentRunID.Valid {
+			c.AgentRunID = agentRunID.String
+		}
+		if agentTaskID.Valid {
+			c.AgentTaskID = agentTaskID.String
+		}
 		chats = append(chats, c)
 	}
 
@@ -59,15 +72,17 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 	var webSearchEnabled sql.NullBool
 	var activeTemplateID sql.NullString
 	var activeTemplateToolIDs []byte
+	var chatMode sql.NullString
+	var agentRunID, agentTaskID sql.NullString
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '{}'), c.created_at, c.updated_at,
+		SELECT c.id, c.name, c.preview, c.model, c.view_mode, c.is_read, c.is_archived, c.is_starred, c.tools_enabled, c.web_search_enabled, c.active_leaf_message_id, c.active_template_id, COALESCE(c.active_template_tool_ids, '{}'), c.chat_mode, c.agent_run_id, c.agent_task_id, c.created_at, c.updated_at,
 			COALESCE(array_agg(cl.label_id) FILTER (WHERE cl.label_id IS NOT NULL), '{}') as label_ids
 		FROM chats c
 		LEFT JOIN chat_labels cl ON c.id = cl.chat_id
 		WHERE c.id = $1
 		GROUP BY c.id
-	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
+	`, chatID).Scan(&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode, &chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &webSearchEnabled, &activeLeafMessageID, &activeTemplateID, &activeTemplateToolIDs, &chatMode, &agentRunID, &agentTaskID, &chat.CreatedAt, &chat.UpdatedAt, &labelIDs)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -87,6 +102,17 @@ func (r *Repository) GetChat(ctx context.Context, chatID string) (*domain.Chat, 
 		chat.ActiveTemplateID = activeTemplateID.String
 	}
 	chat.ActiveTemplateToolIDs = parsePostgresArray(string(activeTemplateToolIDs))
+	if chatMode.Valid {
+		chat.ChatMode = chatMode.String
+	} else {
+		chat.ChatMode = domain.ChatModeLLM // Default to llm mode
+	}
+	if agentRunID.Valid {
+		chat.AgentRunID = agentRunID.String
+	}
+	if agentTaskID.Valid {
+		chat.AgentTaskID = agentTaskID.String
+	}
 	return &chat, nil
 }
 
@@ -113,15 +139,19 @@ func (r *Repository) GetChatSettingsWithWebSearch(ctx context.Context, chatID st
 }
 
 // CreateChat creates a new chat with the given parameters.
-func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode string) (*domain.Chat, error) {
+// chatMode defaults to "llm" if empty.
+func (r *Repository) CreateChat(ctx context.Context, name, model, viewMode, chatMode string) (*domain.Chat, error) {
+	if chatMode == "" {
+		chatMode = domain.ChatModeLLM
+	}
 	var chat domain.Chat
 	err := r.db.QueryRowContext(ctx, `
-		INSERT INTO chats (name, model, view_mode)
-		VALUES ($1, $2, $3)
-		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, created_at, updated_at
-	`, name, model, viewMode).Scan(
+		INSERT INTO chats (name, model, view_mode, chat_mode)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, preview, model, view_mode, is_read, is_archived, is_starred, tools_enabled, chat_mode, created_at, updated_at
+	`, name, model, viewMode, chatMode).Scan(
 		&chat.ID, &chat.Name, &chat.Preview, &chat.Model, &chat.ViewMode,
-		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.CreatedAt, &chat.UpdatedAt,
+		&chat.IsRead, &chat.IsArchived, &chat.IsStarred, &chat.ToolsEnabled, &chat.ChatMode, &chat.CreatedAt, &chat.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chat: %w", err)
@@ -286,6 +316,57 @@ func (r *Repository) ClearActiveTemplate(ctx context.Context, chatID string) err
 		UPDATE chats SET active_template_id = NULL, active_template_tool_ids = NULL, updated_at = NOW() WHERE id = $1
 	`, chatID)
 	return err
+}
+
+// Agent Mode Operations
+
+// SetAgentMode updates the chat to agent mode and stores the task/run IDs.
+func (r *Repository) SetAgentMode(ctx context.Context, chatID, taskID, runID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET chat_mode = $1, agent_task_id = $2, agent_run_id = $3, updated_at = NOW() WHERE id = $4
+	`, domain.ChatModeAgent, sql.NullString{String: taskID, Valid: taskID != ""}, sql.NullString{String: runID, Valid: runID != ""}, chatID)
+	return err
+}
+
+// UpdateAgentRunID updates just the run ID for an agent mode chat.
+// Used when continuing a chat creates a new run.
+func (r *Repository) UpdateAgentRunID(ctx context.Context, chatID, runID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET agent_run_id = $1, updated_at = NOW() WHERE id = $2
+	`, sql.NullString{String: runID, Valid: runID != ""}, chatID)
+	return err
+}
+
+// ClearAgentMode resets a chat back to LLM mode.
+func (r *Repository) ClearAgentMode(ctx context.Context, chatID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET chat_mode = $1, agent_task_id = NULL, agent_run_id = NULL, updated_at = NOW() WHERE id = $2
+	`, domain.ChatModeLLM, chatID)
+	return err
+}
+
+// GetAgentMode returns the chat mode and agent IDs for a chat.
+func (r *Repository) GetAgentMode(ctx context.Context, chatID string) (chatMode, taskID, runID string, err error) {
+	var chatModeNull, taskIDNull, runIDNull sql.NullString
+	err = r.db.QueryRowContext(ctx, `SELECT chat_mode, agent_task_id, agent_run_id FROM chats WHERE id = $1`, chatID).Scan(&chatModeNull, &taskIDNull, &runIDNull)
+	if err == sql.ErrNoRows {
+		return domain.ChatModeLLM, "", "", nil
+	}
+	if err != nil {
+		return "", "", "", err
+	}
+	if chatModeNull.Valid {
+		chatMode = chatModeNull.String
+	} else {
+		chatMode = domain.ChatModeLLM
+	}
+	if taskIDNull.Valid {
+		taskID = taskIDNull.String
+	}
+	if runIDNull.Valid {
+		runID = runIDNull.String
+	}
+	return chatMode, taskID, runID, nil
 }
 
 // GetActiveTemplateToolIDs returns the active template's tool IDs for a chat.
