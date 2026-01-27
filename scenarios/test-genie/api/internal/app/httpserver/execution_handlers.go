@@ -23,6 +23,9 @@ type suiteExecutionPayload struct {
 	Phases         []string `json:"phases"`
 	Skip           []string `json:"skip"`
 	FailFast       bool     `json:"failFast"`
+	UIURL          string   `json:"uiUrl"`
+	APIURL         string   `json:"apiUrl"`
+	BrowserlessURL string   `json:"browserlessUrl"`
 }
 
 func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
@@ -40,11 +43,14 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	execRequest := orchestrator.SuiteExecutionRequest{
-		ScenarioName: scenario,
-		Preset:       strings.TrimSpace(payload.Preset),
-		Phases:       payload.Phases,
-		Skip:         payload.Skip,
-		FailFast:     payload.FailFast,
+		ScenarioName:   scenario,
+		Preset:         strings.TrimSpace(payload.Preset),
+		Phases:         payload.Phases,
+		Skip:           payload.Skip,
+		FailFast:       payload.FailFast,
+		UIURL:          strings.TrimSpace(payload.UIURL),
+		APIURL:         strings.TrimSpace(payload.APIURL),
+		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
 	}
 
 	var suiteRequestID *uuid.UUID

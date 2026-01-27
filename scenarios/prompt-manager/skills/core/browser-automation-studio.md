@@ -1,199 +1,459 @@
 ## Steer focus: Browser Automation Studio
 
-Reference for using Browser Automation Studio (BAS) to execute workflows, analyze artifacts, and debug UI automation failures.
+Reference for using Browser Automation Studio (BAS) to execute browser workflows, validate UI behavior, and debug automation failures.
 
-This skill covers **tool usage**. For e2e testing strategy and workflow organization, see the **e2e-testing** skill.
+BAS is a **browser automation tool** that lets you:
+- Run smoke tests to verify pages load correctly
+- Validate that UI elements exist and behave as expected
+- Execute multi-step user journeys
+- Capture screenshots and artifacts for debugging
 
-Required reading:
+This skill covers **tool usage and testability setup**. For e2e testing strategy, workflow organization patterns, and requirements integration, see the **e2e-testing** skill.
+
+Optional reading:
 - `prompt-manager skills read e2e-testing`
 
 ---
 
-### **1. Core Commands Reference**
+### **1. When to Use BAS**
 
-#### Workflow Execution
-
-```bash
-# Execute workflow from file (most common)
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
-  --wait
-
-# Execute subflow/action without navigate node (provide start URL)
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/actions/open-project.json \
-  --start-url http://localhost:8080/ \
-  --wait
-
-# Execute with parameters
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
-  --params '{"username": "test@example.com", "product_id": "123"}' \
-  --wait
-
-# Execute with seed data application
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/02-features/create-project.json \
-  --seed needs-applying \
-  --wait
-
-# Execute and capture video/trace
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
-  --record-video \
-  --record-trace \
-  --wait
+```
+                    What do you need to verify?
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+          ▼                   ▼                   ▼
+    Page loads?        Element exists?      User journey?
+          │                   │                   │
+          ▼                   ▼                   ▼
+    Smoke test         Element check        Flow execution
+    (navigate +        (navigate +          (multi-step
+     screenshot)        assert node)         workflow)
 ```
 
-#### Execution Monitoring
+| Scenario | BAS Approach |
+|----------|--------------|
+| Verify a page loads without errors | Smoke test: navigate + screenshot |
+| Check a button/form/element exists | Element check: navigate + assert |
+| Test login → dashboard flow | Flow execution: multi-step workflow |
+| Debug why a UI test failed | Artifact analysis: screenshots + logs |
+| Validate a bug fix works | Regression test: targeted workflow |
 
-```bash
-# Watch execution in real-time (WebSocket telemetry)
-browser-automation-studio execution watch <execution-id>
-
-# List executions with status filter
-browser-automation-studio execution list
-browser-automation-studio execution list --filter running
-browser-automation-studio execution list --filter failed
-browser-automation-studio execution list --filter completed
-
-# Stop a running execution
-browser-automation-studio execution stop <execution-id>
-```
-
-#### Artifact Export
-
-```bash
-# Export execution data as JSON (replay schema)
-browser-automation-studio execution export <execution-id> --output result.json
-
-# Export to directory (preserves structure)
-browser-automation-studio execution export <execution-id> --output-dir ./exports/my-run
-
-# Generate HTML replay (step-through viewer)
-browser-automation-studio execution render <execution-id> --output ./replay-dir
-
-# Generate video of execution (MP4/WEBM)
-browser-automation-studio execution render-video <execution-id>
-```
+**When NOT to use BAS:**
+- Pure API testing (use integration tests)
+- Unit-level logic (use unit tests)
+- Performance benchmarking (use dedicated tools)
 
 ---
 
-### **2. Artifact Location Map**
+### **2. Setting Up Testability**
 
-All execution artifacts are stored in a consistent structure:
+For BAS to reliably interact with UI elements, components need stable selectors.
 
-```
-scenarios/browser-automation-studio/data/recordings/{executionId}/
-├── result.json                # Final outcome summary
-├── timeline.json              # Step-by-step execution log
-├── frames/                    # Screenshots per step
-│   ├── screenshot-001.jpg
-│   ├── screenshot-002.jpg
-│   └── ...
-└── artifacts/
-    ├── console-{stepId}.json  # Console log events
-    ├── network-{stepId}.json  # Network request/response
-    └── dom-{stepId}.json      # DOM snapshots
-```
+#### Selector Registry (Single Source of Truth)
 
-#### Quick Artifact Inspection
+Every scenario should have a selector registry at `ui/src/constants/selectors.ts`:
 
-```bash
-# View result summary
-cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq .
-
-# Check execution status
-cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq '.status'
-
-# List failed steps
-cat scenarios/browser-automation-studio/data/recordings/<id>/timeline.json | jq '.steps[] | select(.status == "failed")'
-
-# Check console errors
-cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/console-*.json | jq '.[] | select(.level == "error")'
-
-# Check for slow network requests (>2s)
-cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/network-*.json | jq '.[] | select(.duration_ms > 2000)'
-
-# View last screenshot before failure
-ls -t scenarios/browser-automation-studio/data/recordings/<id>/frames/*.jpg | head -1
+```typescript
+// ui/src/constants/selectors.ts
+export const selectors = {
+  dashboard: {
+    container: "dashboard-container",
+    newProjectButton: "dashboard-new-project-button",
+    projectList: "dashboard-project-list",
+  },
+  auth: {
+    loginForm: "auth-login-form",
+    emailInput: "auth-email-input",
+    passwordInput: "auth-password-input",
+    submitButton: "auth-submit-button",
+    errorMessage: "auth-error-message",
+  },
+} as const;
 ```
 
----
+#### Adding Selectors to Components
 
-### **3. AI Navigation (Prompt-Based Testing)**
+```tsx
+import { selectors } from '@/constants/selectors';
 
-AI navigation uses vision models to drive the browser based on natural language goals. The vision agent captures screenshots, annotates elements, and decides actions iteratively.
-
-#### When to Use AI Navigation
-
-| Use Case | Example |
-|----------|---------|
-| Exploratory testing | "Navigate around the app and find any broken links or error states" |
-| Complex multi-step flows | "Complete the checkout process for a standard order" |
-| Smoke testing | "Log in and verify the dashboard loads with data" |
-| Edge case discovery | "Try to break the form validation by entering unusual inputs" |
-| Visual regression detection | "Compare the current layout to expected design" |
-
-#### API Usage
-
-```bash
-# Start AI navigation session (requires active BAS session)
-curl -X POST "http://localhost:${PLAYWRIGHT_DRIVER_PORT}/session/${SESSION_ID}/ai-navigate" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Log in with test@example.com / password123 and navigate to the dashboard",
-    "model": "qwen3-vl-30b",
-    "api_key": "${OPENROUTER_API_KEY}",
-    "max_steps": 20,
-    "callback_url": "http://localhost:${CALLBACK_PORT}/ai-step"
-  }'
-
-# Response includes navigation_id for tracking
-# {"navigation_id": "nav-abc123", "status": "started"}
-
-# Check navigation status
-curl "http://localhost:${API_PORT}/api/v1/ai-navigate/${NAVIGATION_ID}/status"
-
-# Abort in-progress navigation
-curl -X POST "http://localhost:${API_PORT}/api/v1/ai-navigate/${NAVIGATION_ID}/abort"
-
-# Resume paused navigation
-curl -X POST "http://localhost:${API_PORT}/api/v1/ai-navigate/${NAVIGATION_ID}/resume"
+// In your component:
+<button data-testid={selectors.dashboard.newProjectButton}>
+  New Project
+</button>
 ```
 
-#### Available Vision Models
+#### Selector Naming Conventions
 
-| Model | Provider | Best For |
-|-------|----------|----------|
-| `qwen3-vl-30b` | OpenRouter | Cost-effective, general purpose |
-| `gpt-4o` | OpenRouter | Complex reasoning, highest accuracy |
-| `claude-sonnet-4` | Anthropic | Balanced quality/cost |
-| Custom Ollama | Local | Privacy-sensitive, offline testing |
+| Pattern | Example | Use When |
+|---------|---------|----------|
+| `{area}-{element}` | `dashboard-container` | Static elements |
+| `{area}-{element}-{variant}` | `auth-submit-button` | Differentiated elements |
+| `{area}-{item}-{index}` | `project-card-0` | List items |
 
-#### Callback Events
+**Key principles:**
+- Never hardcode `data-testid` strings in workflows - always use the registry
+- Add selectors for any element BAS needs to interact with or verify
+- Use semantic names that describe purpose, not implementation
 
-The vision agent POSTs step events to your callback URL:
+#### Referencing Selectors in Workflows
+
+In BAS workflow JSON, reference selectors with the `@selector/` prefix:
 
 ```json
 {
-  "navigation_id": "nav-abc123",
-  "step": 5,
-  "action": {
-    "type": "click",
-    "target": {"x": 450, "y": 320},
-    "element": "[data-testid='submit-button']"
+  "type": "click",
+  "data": {
+    "selector": "@selector/dashboard.newProjectButton"
+  }
+}
+```
+
+This indirection means workflows survive UI refactors - update the registry once, all workflows follow.
+
+---
+
+### **3. Workflow Location & Structure**
+
+#### Where Workflows Live
+
+```
+scenarios/{{TARGET}}/bas/
+├── registry.json       # Auto-generated manifest (DO NOT edit manually)
+├── actions/            # Atomic reusable steps (NO assertions)
+│   ├── login.json
+│   └── open-project.json
+├── flows/              # User journeys composing actions (NO assertions)
+│   └── checkout-flow.json
+└── cases/              # Test cases WITH assertions
+    ├── 01-foundation/
+    │   └── 01-auth/
+    │       └── login-success.json
+    └── 02-features/
+```
+
+#### Hierarchy Quick Reference
+
+| Directory | Contains Assertions | Reusable | Purpose |
+|-----------|---------------------|----------|---------|
+| `actions/` | NO | YES | Single operations (login, click, fill) |
+| `flows/` | NO | YES | Multi-step journeys |
+| `cases/` | YES | NO | Requirement validation |
+
+See **e2e-testing** skill for detailed organization patterns and requirements integration.
+
+#### Minimal Workflow Anatomy
+
+Every workflow has three parts:
+
+```json
+{
+  "metadata": {
+    "description": "What this workflow validates",
+    "version": 1
   },
-  "screenshot_url": "/artifacts/step-5.jpg",
-  "dom_snapshot": "...",
-  "reasoning": "Found submit button, clicking to proceed",
-  "status": "completed"
+  "nodes": [
+    { "id": "step-1", "type": "navigate", "data": { "..." } },
+    { "id": "step-2", "type": "screenshot", "data": { "..." } }
+  ],
+  "edges": [
+    { "source": "step-1", "target": "step-2" }
+  ]
 }
 ```
 
 ---
 
-### **4. Debugging Decision Tree**
+### **4. Core CLI Commands**
+
+#### Execute a Workflow
+
+```bash
+# Run workflow and wait for completion
+browser-automation-studio workflow execute \
+  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
+  --wait
+
+# Run with a starting URL (for workflows without navigate node)
+browser-automation-studio workflow execute \
+  --from-file scenarios/{{TARGET}}/bas/actions/open-project.json \
+  --start-url http://localhost:3000/ \
+  --wait
+
+# Run with parameters
+browser-automation-studio workflow execute \
+  --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
+  --params '{"username": "test@example.com"}' \
+  --wait
+
+# Run with video/trace recording
+browser-automation-studio workflow execute \
+  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
+  --record-video \
+  --wait
+```
+
+#### Check Execution Status
+
+```bash
+# List all executions
+browser-automation-studio execution list
+
+# List only failed executions
+browser-automation-studio execution list --filter failed
+
+# List running executions
+browser-automation-studio execution list --filter running
+```
+
+#### Export Results
+
+```bash
+# Export execution data as JSON
+browser-automation-studio execution export <execution-id> --output result.json
+
+# Export to directory (preserves full structure)
+browser-automation-studio execution export <execution-id> --output-dir ./exports/my-run
+
+# Generate HTML replay viewer
+browser-automation-studio execution render <execution-id> --output ./replay-dir
+```
+
+---
+
+### **5. Understanding Execution Results**
+
+#### Artifact Location
+
+All execution artifacts are stored in:
+
+```
+scenarios/browser-automation-studio/data/recordings/{executionId}/
+├── result.json                # Final outcome (pass/fail, error messages)
+├── timeline.json              # Step-by-step execution log
+├── frames/                    # Screenshots captured at each step
+│   ├── screenshot-001.jpg
+│   ├── screenshot-002.jpg
+│   └── ...
+└── artifacts/
+    ├── console-{stepId}.json  # Browser console logs
+    ├── network-{stepId}.json  # Network requests/responses
+    └── dom-{stepId}.json      # DOM snapshots
+```
+
+#### Quick Inspection Commands
+
+```bash
+# Check if execution passed or failed
+cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq '.status'
+
+# View error message on failure
+cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq '.error'
+
+# Find which step failed
+cat scenarios/browser-automation-studio/data/recordings/<id>/timeline.json | jq '.steps[] | select(.status == "failed")'
+
+# View the last screenshot (often shows failure state)
+ls -t scenarios/browser-automation-studio/data/recordings/<id>/frames/*.jpg | head -1
+
+# Check for JavaScript errors
+cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/console-*.json | jq '.[] | select(.level == "error")'
+
+# Check for failed network requests
+cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/network-*.json | jq '.[] | select(.status >= 400)'
+```
+
+#### Interpreting result.json
+
+```json
+{
+  "status": "failed",           // "completed" or "failed"
+  "error": "SELECTOR_NOT_FOUND: @selector/auth.submitButton",
+  "failedNodeId": "click-submit",
+  "executionTimeMs": 4523,
+  "screenshotCount": 3
+}
+```
+
+---
+
+### **6. Complete Example: Smoke Test Walkthrough**
+
+This example shows the full cycle: create a workflow, run it, and interpret results.
+
+#### Step 1: Create the Workflow
+
+Save this to `/tmp/smoke-test.json`:
+
+```json
+{
+  "metadata": {
+    "description": "Smoke test - verify dashboard loads",
+    "version": 1
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "type": "navigate",
+      "position": { "x": 0, "y": 0 },
+      "data": {
+        "label": "Go to dashboard",
+        "destinationType": "scenario",
+        "scenario": "{{TARGET}}",
+        "scenarioPath": "/dashboard",
+        "waitUntil": "networkidle0"
+      }
+    },
+    {
+      "id": "screenshot",
+      "type": "screenshot",
+      "position": { "x": 220, "y": 0 },
+      "data": {
+        "label": "Capture page state",
+        "fullPage": true
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate", "target": "screenshot" }
+  ]
+}
+```
+
+#### Step 2: Run the Workflow
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file /tmp/smoke-test.json \
+  --wait
+```
+
+Output will include the execution ID:
+
+```
+Execution started: exec-abc123
+Waiting for completion...
+✓ Execution completed: exec-abc123
+Status: completed
+```
+
+#### Step 3: View the Screenshot
+
+```bash
+# Find the screenshot
+ls scenarios/browser-automation-studio/data/recordings/exec-abc123/frames/
+
+# Open it (or use your preferred image viewer)
+open scenarios/browser-automation-studio/data/recordings/exec-abc123/frames/screenshot-001.jpg
+```
+
+#### Step 4: Check the Result
+
+```bash
+cat scenarios/browser-automation-studio/data/recordings/exec-abc123/result.json | jq .
+```
+
+If successful:
+```json
+{
+  "status": "completed",
+  "executionTimeMs": 2341,
+  "screenshotCount": 1
+}
+```
+
+---
+
+### **7. Common Patterns**
+
+#### Verify Element Exists
+
+```json
+{
+  "metadata": {
+    "description": "Verify submit button is present",
+    "version": 1
+  },
+  "nodes": [
+    {
+      "id": "navigate",
+      "type": "navigate",
+      "data": {
+        "destinationType": "scenario",
+        "scenario": "{{TARGET}}",
+        "scenarioPath": "/login"
+      }
+    },
+    {
+      "id": "assert-button",
+      "type": "assert",
+      "data": {
+        "selector": "@selector/auth.submitButton",
+        "assertMode": "exists",
+        "timeoutMs": 5000,
+        "failureMessage": "Submit button should be present on login page"
+      }
+    }
+  ],
+  "edges": [
+    { "source": "navigate", "target": "assert-button" }
+  ]
+}
+```
+
+#### Verify Element Contains Text
+
+```json
+{
+  "id": "assert-heading",
+  "type": "assert",
+  "data": {
+    "selector": "@selector/dashboard.heading",
+    "assertMode": "contains_text",
+    "expectedText": "Welcome",
+    "timeoutMs": 5000
+  }
+}
+```
+
+#### Wait for Element Before Acting
+
+```json
+{
+  "id": "wait-ready",
+  "type": "wait",
+  "data": {
+    "selector": "@selector/app.loadingSpinner",
+    "state": "hidden",
+    "timeoutMs": 10000
+  }
+}
+```
+
+#### Node Types Reference
+
+| Type | Purpose | Key Fields |
+|------|---------|------------|
+| `navigate` | Go to URL | `scenario`, `scenarioPath`, `waitUntil` |
+| `click` | Click element | `selector` |
+| `type` | Enter text | `selector`, `text`, `clearExisting` |
+| `assert` | Verify condition | `selector`, `assertMode`, `expectedText` |
+| `wait` | Wait for state | `selector`, `state`, `timeoutMs` |
+| `screenshot` | Capture image | `fullPage` |
+
+#### Assert Modes
+
+| Mode | Validates |
+|------|-----------|
+| `exists` | Element is in DOM |
+| `not_exists` | Element is NOT in DOM |
+| `visible` | Element is visible |
+| `contains_text` | Element contains expected text |
+| `exact_text` | Element text matches exactly |
+
+---
+
+### **8. Debugging Failures**
 
 ```
                     Workflow failed?
@@ -202,8 +462,8 @@ The vision agent POSTs step events to your callback URL:
          YES                              NO
           │                                │
           ▼                                ▼
-   Check result.json                 Success - document
-   for error message                 in test report
+   Check result.json                 Success - done
+   for error type
           │
           ▼
    ┌──────────────────────────────────────────────────────┐
@@ -211,19 +471,19 @@ The vision agent POSTs step events to your callback URL:
    ├──────────────────────────────────────────────────────┤
    │                                                       │
    │  "SELECTOR_NOT_FOUND"                                 │
-   │    1. Check selectors.ts registry exists              │
-   │    2. Verify data-testid in component                 │
+   │    1. Check selector exists in selectors.ts           │
+   │    2. Verify data-testid is on the component          │
    │    3. View last screenshot - is element visible?      │
    │    4. Check if element is in iframe/shadow DOM        │
    │                                                       │
    ├──────────────────────────────────────────────────────┤
    │                                                       │
    │  "TIMEOUT"                                            │
-   │    1. Check network-*.json for slow/failed APIs       │
-   │    2. View frames/ for last screenshot before timeout │
+   │    1. Check network-*.json for slow/failed requests   │
+   │    2. View frames/ for last screenshot                │
    │    3. Check console-*.json for JS errors              │
-   │    4. Increase timeoutMs in workflow node             │
-   │    5. Add explicit wait node before action            │
+   │    4. Increase timeoutMs in the failing node          │
+   │    5. Add wait node before the action                 │
    │                                                       │
    ├──────────────────────────────────────────────────────┤
    │                                                       │
@@ -231,148 +491,86 @@ The vision agent POSTs step events to your callback URL:
    │    1. Check expectedText vs actual in result.json     │
    │    2. View DOM snapshot at failing step               │
    │    3. Verify selector targets correct element         │
-   │    4. Check if content is dynamic/async               │
+   │    4. Check if content is dynamic/async loaded        │
    │                                                       │
    ├──────────────────────────────────────────────────────┤
    │                                                       │
    │  "NAVIGATION_ERROR"                                   │
    │    1. Check network-*.json for 4xx/5xx responses      │
-   │    2. Verify scenario is running (vrooli scenario     │
-   │       status {{TARGET}})                              │
+   │    2. Verify scenario is running:                     │
+   │       vrooli scenario status {{TARGET}}               │
    │    3. Check console-*.json for JS errors on load      │
-   │    4. Verify URL/route exists in application          │
+   │    4. Verify the URL/route exists in the application  │
    │                                                       │
    └──────────────────────────────────────────────────────┘
 ```
 
----
-
-### **5. Scenario Workflow Management**
-
-#### Locating Existing Workflows
-
-```bash
-# List all workflow files in a scenario
-find scenarios/{{TARGET}}/bas -name "*.json" -type f
-
-# Check auto-generated registry manifest
-cat scenarios/{{TARGET}}/bas/registry.json | jq '.playbooks[].file'
-
-# Search for workflows by requirement ID
-rg "REQ-AUTH-001" scenarios/{{TARGET}}/bas --type json
-
-# Find workflows that test a specific selector
-rg "@selector/dashboard" scenarios/{{TARGET}}/bas --type json
-```
-
-#### Workflow Hierarchy
-
-```
-bas/
-├── registry.json       # Auto-generated manifest (DO NOT edit manually)
-├── actions/            # Atomic reusable steps (NO assertions)
-│   ├── login.json
-│   └── open-project.json
-├── flows/              # User journeys composing actions (NO assertions)
-│   └── checkout-flow.json
-└── cases/              # Test cases WITH assertions (mirrors PRD)
-    ├── 01-foundation/
-    │   ├── 01-auth/
-    │   │   └── login-success.json
-    │   └── 02-navigation/
-    └── 02-features/
-```
-
 #### Debug Order (Critical)
 
-When debugging failures, work **bottom-up through the hierarchy**:
+When tests fail, debug **bottom-up through the hierarchy**:
 
 1. **Actions first** - Verify atomic steps work in isolation
 2. **Flows second** - Verify composed journeys complete
-3. **Cases last** - Verify assertions against requirements
+3. **Cases last** - Verify assertions match expected behavior
 
-This approach isolates failures to the smallest reproducible unit.
-
-#### Creating Temporary Workflows
-
-For ad-hoc testing, create a minimal workflow:
-
-```json
-{
-  "metadata": {
-    "description": "Quick test - delete after debugging",
-    "version": 1
-  },
-  "nodes": [
-    {
-      "id": "nav",
-      "type": "navigate",
-      "data": {
-        "destinationType": "scenario",
-        "scenario": "{{TARGET}}",
-        "scenarioPath": "/dashboard"
-      }
-    },
-    {
-      "id": "screenshot",
-      "type": "screenshot",
-      "data": {
-        "fullPage": true
-      }
-    }
-  ],
-  "edges": [
-    { "source": "nav", "target": "screenshot" }
-  ]
-}
-```
-
-Save to `/tmp/quick-test.json` and run:
-
-```bash
-browser-automation-studio workflow execute --from-file /tmp/quick-test.json --wait
-```
+This isolates failures to the smallest reproducible unit.
 
 ---
 
-### **6. Maintain Scenario Constraints**
+### **9. When to Create or Update Workflows**
 
-* This skill is for **using** BAS to investigate and validate, not for modifying scenario code
-* Do **not** change workflow files unless specifically debugging them or asked to improve coverage
-* Do **not** modify `ui/src/constants/selectors.ts` without understanding e2e implications
-* Use artifacts to **diagnose** issues, then apply fixes appropriately in source code
-* Never edit `bas/registry.json` manually - it's auto-generated by test-genie
+| Situation | Action |
+|-----------|--------|
+| New feature added | Create smoke test (navigate + screenshot) |
+| New user journey | Create flow in `flows/` |
+| New requirement to validate | Create case in `cases/` with assertions |
+| Bug fix for UI issue | Add regression test targeting the fix |
+| UI refactor | Update selector registry, verify existing workflows pass |
+| Selector changed | Update `selectors.ts`, workflows auto-update via `@selector/` |
+| Flaky test | Investigate root cause, add wait nodes or increase timeouts |
+
+**Workflow creation priority:**
+1. Critical user journeys (login, checkout, core features)
+2. Areas with recent bugs
+3. Complex interactions prone to regression
+4. New features as they're built
 
 ---
 
-### **7. Output Expectations**
+### **10. Maintain Scenario Constraints**
 
-When using BAS for investigation, document your findings:
+* This skill is for **using** BAS to investigate and validate, not modifying BAS itself
+* Do **not** edit `bas/registry.json` manually - it's auto-generated
+* Do **not** hardcode selectors in workflows - always use `@selector/` references
+* Do **not** modify scenario business logic to make tests pass
+* Use artifacts to **diagnose** issues, then fix in source code appropriately
 
-**In `docs/internal/PROBLEMS.md` under E2E Issues section:**
-* Execution IDs for reproducibility
-* Links to specific artifacts (screenshots, logs)
-* Root cause analysis
-* Actionable next steps
+---
 
-**Example entry:**
+### **11. Output Expectations**
+
+When using BAS for investigation, document findings in `docs/internal/PROBLEMS.md` under the E2E Issues section:
+
+**Template:**
 ```markdown
-### Login flow fails on slow networks
+### [Issue Title]
 - **Execution ID:** exec-abc123
 - **Screenshot:** data/recordings/exec-abc123/frames/screenshot-005.jpg
-- **Root cause:** API timeout before spinner appears
-- **Fix:** Add waitForSelector before clicking submit
-- **Status:** Pending fix in auth.tsx
+- **Root cause:** [What's actually wrong]
+- **Fix:** [What needs to change in source code]
+- **Status:** Pending/Fixed
 ```
 
 You may:
 * Execute workflows to validate UI behavior
 * Analyze artifacts to diagnose failures
-* Create temporary workflows for debugging
-* Use AI navigation for exploratory testing
+* Create temporary workflows in `/tmp/` for debugging
+* Update selector registry when adding testability
+* Add `data-testid` attributes to components
 
 You **must**:
-* Document findings with execution IDs
-* Link artifacts for reproducibility
+* Document findings with execution IDs for reproducibility
+* Link artifacts (screenshots, logs) in documentation
 * Identify root causes, not just symptoms
 * Provide actionable remediation steps
+* Use selector registry for all new selectors

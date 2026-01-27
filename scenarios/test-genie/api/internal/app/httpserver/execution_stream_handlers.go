@@ -88,11 +88,14 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 	}
 
 	execRequest := orchestrator.SuiteExecutionRequest{
-		ScenarioName: scenario,
-		Preset:       strings.TrimSpace(payload.Preset),
-		Phases:       payload.Phases,
-		Skip:         payload.Skip,
-		FailFast:     payload.FailFast,
+		ScenarioName:   scenario,
+		Preset:         strings.TrimSpace(payload.Preset),
+		Phases:         payload.Phases,
+		Skip:           payload.Skip,
+		FailFast:       payload.FailFast,
+		UIURL:          strings.TrimSpace(payload.UIURL),
+		APIURL:         strings.TrimSpace(payload.APIURL),
+		BrowserlessURL: strings.TrimSpace(payload.BrowserlessURL),
 	}
 
 	var suiteRequestID *uuid.UUID

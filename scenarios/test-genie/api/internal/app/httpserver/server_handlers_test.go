@@ -337,7 +337,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 	}{
 		{
 			name: "success",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true}`,
+			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551","browserlessUrl":"http://localhost:4110"}`,
 			executor: &stubSuiteExecutor{
 				result: &orchestrator.SuiteExecutionResult{
 					ExecutionID:  uuid.New(),
@@ -353,6 +353,15 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				}
 				if exec.input.SuiteRequestID == nil {
 					t.Fatal("expected suite request ID to be set")
+				}
+				if exec.input.Request.UIURL != "http://localhost:35771" {
+					t.Fatalf("expected uiUrl to pass through, got %s", exec.input.Request.UIURL)
+				}
+				if exec.input.Request.APIURL != "http://localhost:17551" {
+					t.Fatalf("expected apiUrl to pass through, got %s", exec.input.Request.APIURL)
+				}
+				if exec.input.Request.BrowserlessURL != "http://localhost:4110" {
+					t.Fatalf("expected browserlessUrl to pass through, got %s", exec.input.Request.BrowserlessURL)
 				}
 			},
 		},
