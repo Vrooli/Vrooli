@@ -48,19 +48,25 @@ export interface KeyboardShortcutHandlers {
 }
 
 /**
- * Check if the event target is an input element where we shouldn't intercept shortcuts.
- * Allows shortcuts in Monaco editor and certain inputs.
+ * Check if the event target is an editable element where we shouldn't intercept shortcuts.
+ * Includes inputs, textareas, contenteditable surfaces (TipTap/ProseMirror), and Monaco.
  */
 function isInputElement(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false
 
   const tagName = target.tagName.toLowerCase()
-  const isInput = tagName === 'input' || tagName === 'textarea'
+  const isFormField = tagName === 'input' || tagName === 'textarea' || tagName === 'select'
+  const isRoleTextbox = target.getAttribute('role') === 'textbox' || target.closest('[role="textbox"]') !== null
+  const isContentEditable =
+    target.isContentEditable ||
+    target.closest('[contenteditable="true"]') !== null ||
+    target.closest('[contenteditable=""]') !== null ||
+    target.closest('[contenteditable="plaintext-only"]') !== null
 
-  // Allow shortcuts in Monaco editor (which uses contenteditable)
+  // Monaco editor root (also contenteditable in some cases)
   const isMonaco = target.closest('.monaco-editor') !== null
 
-  return isInput && !isMonaco
+  return isFormField || isRoleTextbox || isContentEditable || isMonaco
 }
 
 /**

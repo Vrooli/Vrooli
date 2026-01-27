@@ -227,6 +227,56 @@ describe('useKeyboardShortcuts', () => {
 
       expect(onSave).not.toHaveBeenCalled()
     })
+
+    it('should skip shortcuts when target is contenteditable element', () => {
+      const onOpenSettings = vi.fn()
+      renderHook(() => useKeyboardShortcuts({ onOpenSettings }))
+
+      const keydownCall = addCalls.find((call) => call[0] === 'keydown')
+      const keydownHandler = keydownCall?.[1] as ((e: KeyboardEvent) => void) | undefined
+      if (!keydownHandler || typeof keydownHandler !== 'function') throw new Error('No keydown handler found')
+
+      const editableElement = document.createElement('div')
+      editableElement.setAttribute('contenteditable', 'true')
+
+      const event = new KeyboardEvent('keydown', {
+        key: ',',
+        ctrlKey: false,
+        shiftKey: false,
+        altKey: false,
+      })
+      Object.defineProperty(event, 'target', { value: editableElement })
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() })
+      keydownHandler(event)
+
+      expect(onOpenSettings).not.toHaveBeenCalled()
+    })
+
+    it('should skip shortcuts when target is Monaco editor surface', () => {
+      const onOpenSettings = vi.fn()
+      renderHook(() => useKeyboardShortcuts({ onOpenSettings }))
+
+      const keydownCall = addCalls.find((call) => call[0] === 'keydown')
+      const keydownHandler = keydownCall?.[1] as ((e: KeyboardEvent) => void) | undefined
+      if (!keydownHandler || typeof keydownHandler !== 'function') throw new Error('No keydown handler found')
+
+      const monacoElement = document.createElement('div')
+      monacoElement.classList.add('monaco-editor')
+      const child = document.createElement('div')
+      monacoElement.appendChild(child)
+
+      const event = new KeyboardEvent('keydown', {
+        key: ',',
+        ctrlKey: false,
+        shiftKey: false,
+        altKey: false,
+      })
+      Object.defineProperty(event, 'target', { value: child })
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() })
+      keydownHandler(event)
+
+      expect(onOpenSettings).not.toHaveBeenCalled()
+    })
   })
 
   describe('handler updates', () => {

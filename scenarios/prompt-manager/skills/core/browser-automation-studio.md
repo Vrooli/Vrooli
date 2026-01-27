@@ -8,7 +8,7 @@ BAS is a **browser automation tool** that lets you:
 - Execute multi-step user journeys
 - Capture screenshots and artifacts for debugging
 
-This skill covers **tool usage and testability setup**. For e2e testing strategy, workflow organization patterns, and requirements integration, see the **e2e-testing** skill.
+This skill covers **tool usage**. For e2e testing strategy, workflow organization, selector registry setup, and requirements integration, see the **e2e-testing** skill.
 
 Optional reading:
 - `prompt-manager skills read e2e-testing`
@@ -46,59 +46,9 @@ Optional reading:
 
 ---
 
-### **2. Setting Up Testability**
+### **2. Selector References**
 
-For BAS to reliably interact with UI elements, components need stable selectors.
-
-#### Selector Registry (Single Source of Truth)
-
-Every scenario should have a selector registry at `ui/src/constants/selectors.ts`:
-
-```typescript
-// ui/src/constants/selectors.ts
-export const selectors = {
-  dashboard: {
-    container: "dashboard-container",
-    newProjectButton: "dashboard-new-project-button",
-    projectList: "dashboard-project-list",
-  },
-  auth: {
-    loginForm: "auth-login-form",
-    emailInput: "auth-email-input",
-    passwordInput: "auth-password-input",
-    submitButton: "auth-submit-button",
-    errorMessage: "auth-error-message",
-  },
-} as const;
-```
-
-#### Adding Selectors to Components
-
-```tsx
-import { selectors } from '@/constants/selectors';
-
-// In your component:
-<button data-testid={selectors.dashboard.newProjectButton}>
-  New Project
-</button>
-```
-
-#### Selector Naming Conventions
-
-| Pattern | Example | Use When |
-|---------|---------|----------|
-| `{area}-{element}` | `dashboard-container` | Static elements |
-| `{area}-{element}-{variant}` | `auth-submit-button` | Differentiated elements |
-| `{area}-{item}-{index}` | `project-card-0` | List items |
-
-**Key principles:**
-- Never hardcode `data-testid` strings in workflows - always use the registry
-- Add selectors for any element BAS needs to interact with or verify
-- Use semantic names that describe purpose, not implementation
-
-#### Referencing Selectors in Workflows
-
-In BAS workflow JSON, reference selectors with the `@selector/` prefix:
+BAS workflows use `@selector/` references to target UI elements via `data-testid` attributes. This indirection means workflows survive UI refactors.
 
 ```json
 {
@@ -109,58 +59,15 @@ In BAS workflow JSON, reference selectors with the `@selector/` prefix:
 }
 ```
 
-This indirection means workflows survive UI refactors - update the registry once, all workflows follow.
+For selector registry setup, naming conventions, and component integration, see the **e2e-testing** skill.
 
 ---
 
 ### **3. Workflow Location & Structure**
 
-#### Where Workflows Live
+Workflows live in `scenarios/{{TARGET}}/bas/` (where {{TARGET}} is the scenario you're testing) organized into `actions/`, `flows/`, and `cases/` directories. Use `browser-automation-studio schema workflow` to get the current workflow structure.
 
-```
-scenarios/{{TARGET}}/bas/
-├── registry.json       # Auto-generated manifest (DO NOT edit manually)
-├── actions/            # Atomic reusable steps (NO assertions)
-│   ├── login.json
-│   └── open-project.json
-├── flows/              # User journeys composing actions (NO assertions)
-│   └── checkout-flow.json
-└── cases/              # Test cases WITH assertions
-    ├── 01-foundation/
-    │   └── 01-auth/
-    │       └── login-success.json
-    └── 02-features/
-```
-
-#### Hierarchy Quick Reference
-
-| Directory | Contains Assertions | Reusable | Purpose |
-|-----------|---------------------|----------|---------|
-| `actions/` | NO | YES | Single operations (login, click, fill) |
-| `flows/` | NO | YES | Multi-step journeys |
-| `cases/` | YES | NO | Requirement validation |
-
-See **e2e-testing** skill for detailed organization patterns and requirements integration.
-
-#### Minimal Workflow Anatomy
-
-Every workflow has three parts:
-
-```json
-{
-  "metadata": {
-    "description": "What this workflow validates",
-    "version": 1
-  },
-  "nodes": [
-    { "id": "step-1", "type": "navigate", "data": { "..." } },
-    { "id": "step-2", "type": "screenshot", "data": { "..." } }
-  ],
-  "edges": [
-    { "source": "step-1", "target": "step-2" }
-  ]
-}
-```
+For organization patterns, hierarchy rules, and requirements integration, see the **e2e-testing** skill.
 
 ---
 
@@ -189,14 +96,14 @@ browser-automation-studio workflow execute \
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
   --params '{"username": "test@example.com"}' \
-  --output /tmp/bas/{{TARGET}}/bas/flows/checkout \
+  --output /tmp/bas/{{TARGET}}/flows/checkout \
   --wait
 
 # Run with video/trace recording
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
   --record-video \
-  --output /tmp/bas/{{TARGET}}/cases/01/foundation/login \
+  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
   --wait
 ```
 
@@ -257,9 +164,6 @@ browser-automation-studio schema workflow
 # Get schema for specific node types
 browser-automation-studio schema workflow --nodes navigate,click,assert
 
-# Save schema to file
-browser-automation-studio schema workflow --output schema.json
-
 # List available node types
 browser-automation-studio schema node-types
 ```
@@ -270,10 +174,10 @@ browser-automation-studio schema node-types
 
 #### Artifact Location
 
-All execution artifacts are stored in:
+The `--output` flag determines where artifacts are stored. Always specify an output path:
 
 ```
-scenarios/browser-automation-studio/data/recordings/{executionId}/
+{output-path}/
 ├── result.json                # Final outcome (pass/fail, error messages)
 ├── timeline.json              # Step-by-step execution log
 ├── frames/                    # Screenshots captured at each step
@@ -288,24 +192,26 @@ scenarios/browser-automation-studio/data/recordings/{executionId}/
 
 #### Quick Inspection Commands
 
+Replace `{output-path}` with your `--output` value:
+
 ```bash
 # Check if execution passed or failed
-cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq '.status'
+cat {output-path}/result.json | jq '.status'
 
 # View error message on failure
-cat scenarios/browser-automation-studio/data/recordings/<id>/result.json | jq '.error'
+cat {output-path}/result.json | jq '.error'
 
 # Find which step failed
-cat scenarios/browser-automation-studio/data/recordings/<id>/timeline.json | jq '.steps[] | select(.status == "failed")'
+cat {output-path}/timeline.json | jq '.steps[] | select(.status == "failed")'
 
 # View the last screenshot (often shows failure state)
-ls -t scenarios/browser-automation-studio/data/recordings/<id>/frames/*.jpg | head -1
+ls -t {output-path}/frames/*.jpg | head -1
 
 # Check for JavaScript errors
-cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/console-*.json | jq '.[] | select(.level == "error")'
+cat {output-path}/artifacts/console-*.json | jq '.[] | select(.level == "error")'
 
 # Check for failed network requests
-cat scenarios/browser-automation-studio/data/recordings/<id>/artifacts/network-*.json | jq '.[] | select(.status >= 400)'
+cat {output-path}/artifacts/network-*.json | jq '.[] | select(.status >= 400)'
 ```
 
 ---
@@ -345,144 +251,34 @@ cat /tmp/bas/{{TARGET}}/navigate-dashboard/result.json | jq .
 
 #### File-Based Approach (for reusable tests)
 
-For workflows you want to save and reuse, create a JSON file:
+For workflows you want to save and reuse, create a JSON file in `scenarios/{{TARGET}}/bas/`. Use `browser-automation-studio schema workflow` to get the current workflow structure.
 
-Save this to `scenarios/{{TARGET}}/bas/cases/01-foundation/smoke.json`:
-
-```json
-{
-  "metadata": {
-    "description": "Smoke test - verify dashboard loads",
-    "version": 1
-  },
-  "nodes": [
-    {
-      "id": "navigate",
-      "type": "navigate",
-      "data": {
-        "label": "Go to dashboard",
-        "destinationType": "scenario",
-        "scenario": "{{TARGET}}",
-        "scenarioPath": "/dashboard",
-        "waitUntil": "networkidle0"
-      }
-    },
-    {
-      "id": "screenshot",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture page state",
-        "fullPage": true
-      }
-    }
-  ],
-  "edges": [
-    { "id": "e1", "source": "navigate", "target": "screenshot" }
-  ]
-}
-```
-
-Run it:
 ```bash
+# Run a saved workflow
 browser-automation-studio workflow execute \
   --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/smoke.json \
-  /tmp/bas/{{TARGET}}/cases/01-foundation/smoke \
+  --output /tmp/bas/{{TARGET}}/cases/01-foundation/smoke \
   --wait
-```
 
-#### Viewing Results
-
-```bash
 # Check pass/fail status
-cat /tmp/smoke-results/result.json | jq '.status'
+cat /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/result.json | jq '.status'
 
 # View screenshot
-open /tmp/smoke-results/frames/screenshot-001.jpg
-
-# Check error if failed
-cat /tmp/smoke-results/result.json | jq '.error'
+open /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/frames/screenshot-001.jpg
 ```
 
 ---
 
-### **7. Common Patterns**
+### **7. Node Types & Assert Modes**
 
-#### Verify Element Exists
+For complete node schemas and field definitions, use:
 
-```json
-{
-  "metadata": {
-    "description": "Verify submit button is present",
-    "version": 1
-  },
-  "nodes": [
-    {
-      "id": "navigate",
-      "type": "navigate",
-      "data": {
-        "destinationType": "scenario",
-        "scenario": "{{TARGET}}",
-        "scenarioPath": "/login"
-      }
-    },
-    {
-      "id": "assert-button",
-      "type": "assert",
-      "data": {
-        "selector": "@selector/auth.submitButton",
-        "assertMode": "exists",
-        "timeoutMs": 5000,
-        "failureMessage": "Submit button should be present on login page"
-      }
-    }
-  ],
-  "edges": [
-    { "source": "navigate", "target": "assert-button" }
-  ]
-}
+```bash
+browser-automation-studio schema workflow --nodes navigate,click,assert,wait
+browser-automation-studio schema node-types
 ```
 
-#### Verify Element Contains Text
-
-```json
-{
-  "id": "assert-heading",
-  "type": "assert",
-  "data": {
-    "selector": "@selector/dashboard.heading",
-    "assertMode": "contains_text",
-    "expectedText": "Welcome",
-    "timeoutMs": 5000
-  }
-}
-```
-
-#### Wait for Element Before Acting
-
-```json
-{
-  "id": "wait-ready",
-  "type": "wait",
-  "data": {
-    "selector": "@selector/app.loadingSpinner",
-    "state": "hidden",
-    "timeoutMs": 10000
-  }
-}
-```
-
-#### Node Types Reference
-
-| Type | Purpose | Key Fields |
-|------|---------|------------|
-| `navigate` | Go to URL | `scenario`, `scenarioPath`, `waitUntil` |
-| `click` | Click element | `selector` |
-| `type` | Enter text | `selector`, `text`, `clearExisting` |
-| `assert` | Verify condition | `selector`, `assertMode`, `expectedText` |
-| `wait` | Wait for state | `selector`, `state`, `timeoutMs` |
-| `screenshot` | Capture image | `fullPage` |
-
-#### Assert Modes
+#### Assert Modes Quick Reference
 
 | Mode | Validates |
 |------|-----------|
@@ -596,7 +392,8 @@ When using BAS for investigation, document findings in `docs/internal/PROBLEMS.m
 ```markdown
 ### [Issue Title]
 - **Execution ID:** exec-abc123
-- **Screenshot:** data/recordings/exec-abc123/frames/screenshot-005.jpg
+- **Output path:** /tmp/bas/{{TARGET}}/...
+- **Screenshot:** {output-path}/frames/screenshot-005.jpg
 - **Root cause:** [What's actually wrong]
 - **Fix:** [What needs to change in source code]
 - **Status:** Pending/Fixed
