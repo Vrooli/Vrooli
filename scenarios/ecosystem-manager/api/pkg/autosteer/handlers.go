@@ -16,11 +16,7 @@ type ErrorResponse struct {
 
 // ProfileServiceAPI defines the profile operations used by HTTP handlers.
 type ProfileServiceAPI interface {
-	CreateProfile(profile *AutoSteerProfile) error
-	ListProfiles(tags []string) ([]*AutoSteerProfile, error)
-	GetProfile(id string) (*AutoSteerProfile, error)
-	UpdateProfile(id string, updates *AutoSteerProfile) error
-	DeleteProfile(id string) error
+	ProfileRepository
 	GetTemplates() []*AutoSteerProfile
 }
 

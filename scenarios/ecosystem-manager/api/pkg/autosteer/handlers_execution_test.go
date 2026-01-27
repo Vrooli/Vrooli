@@ -22,12 +22,17 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 	defer cleanupScenario()
 
 	// Initialize services
-	profileService := NewProfileService(pg.db)
-	executionOrchestrator := NewExecutionOrchestratorFromDB(pg.db, vrooliRoot)
+	profilesRoot := t.TempDir()
+	writeMetadata(t, profilesRoot, ProfileMetadataIndex{Profiles: []ProfileMetadata{}})
+	profileRepo, err := NewFileProfileRepository(profilesRoot)
+	if err != nil {
+		t.Fatalf("failed to create profile repo: %v", err)
+	}
+	executionOrchestrator := NewExecutionOrchestratorDefault(profileRepo, pg.db, vrooliRoot)
 	historyService := NewHistoryService(pg.db)
 
 	// Create handlers
-	handlers := NewAutoSteerHandlers(profileService, executionOrchestrator, historyService)
+	handlers := NewAutoSteerHandlers(profileRepo, executionOrchestrator, historyService)
 
 	// Create 2-phase test profile
 	phases := []SteerPhase{
@@ -59,7 +64,7 @@ func TestAutoSteerHandlers_ExecutionFlow(t *testing.T) {
 		},
 	}
 	profile := CreateMultiPhaseProfile(t, "Handler Test", phases)
-	if err := profileService.CreateProfile(profile); err != nil {
+	if err := profileRepo.CreateProfile(profile); err != nil {
 		t.Fatalf("Failed to create profile: %v", err)
 	}
 

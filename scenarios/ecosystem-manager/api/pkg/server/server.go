@@ -52,7 +52,7 @@ type Application struct {
 	db           *sql.DB
 
 	// Auto Steer components
-	autoSteerProfileService   *autosteer.ProfileService
+	autoSteerProfileService   autosteer.ProfileServiceAPI
 	autoSteerExecutionEngine  *autosteer.ExecutionOrchestrator
 	autoSteerHistoryService   *autosteer.HistoryService
 	autoSteerMetricsCollector *autosteer.MetricsCollector
@@ -223,7 +223,7 @@ func (a *Application) initializeComponents() error {
 	// Ensure queue directories exist (aligned with valid queue statuses)
 	for _, dir := range tasks.GetValidStatuses() {
 		fullPath := filepath.Join(queueDir, dir)
-		if err := os.MkdirAll(fullPath, 0755); err != nil {
+		if err := os.MkdirAll(fullPath, 0o755); err != nil {
 			return err
 		}
 	}
@@ -287,15 +287,19 @@ func (a *Application) initializeComponents() error {
 	if err != nil {
 		log.Printf("Warning: Could not get table counts: %v", err)
 	} else {
-		log.Printf("Auto Steer table counts: profiles=%d, executions=%d, active_states=%d",
-			counts["auto_steer_profiles"],
+		log.Printf("Auto Steer table counts: executions=%d, active_states=%d",
 			counts["profile_executions"],
 			counts["profile_execution_state"])
 	}
 
 	a.autoSteerMetricsCollector = autosteer.NewMetricsCollector(a.projectRoot)
-	a.autoSteerProfileService = autosteer.NewProfileService(a.db)
-	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorFromDB(a.db, a.projectRoot)
+	profilesDir := filepath.Join(a.scenarioRoot, "profiles")
+	profileRepo, err := autosteer.NewFileProfileRepository(profilesDir)
+	if err != nil {
+		return fmt.Errorf("auto steer profiles registry unavailable: %w", err)
+	}
+	a.autoSteerProfileService = profileRepo
+	a.autoSteerExecutionEngine = autosteer.NewExecutionOrchestratorDefault(profileRepo, a.db, a.projectRoot)
 	a.autoSteerHistoryService = autosteer.NewHistoryService(a.db)
 	log.Println("✅ Auto Steer components initialized")
 	systemlog.Info("Auto Steer components initialized")

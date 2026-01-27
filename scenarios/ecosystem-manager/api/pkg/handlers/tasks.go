@@ -38,7 +38,7 @@ type TaskHandlers struct {
 	assembler         *prompts.Assembler
 	processor         ProcessorAPI
 	wsManager         *websocket.Manager
-	autoSteerProfiles *autosteer.ProfileService
+	autoSteerProfiles autosteer.ProfileRepository
 	coordinator       *tasks.Coordinator
 	lifecycle         *tasks.Lifecycle
 	queueStateRepo    steering.QueueStateRepository
@@ -67,13 +67,13 @@ func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool 
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
 type taskWithRuntime struct {
 	tasks.TaskItem
-	CurrentProcess          *queue.ProcessInfo `json:"current_process,omitempty"`
-	AutoSteerPhaseIndex     *int               `json:"auto_steer_phase_index,omitempty"`
-	AutoSteerCurrentMode    string             `json:"auto_steer_mode,omitempty"`
-	SteeringQueueIndex      *int               `json:"steering_queue_index,omitempty"`
-	SteeringQueueMode       string             `json:"steering_queue_mode,omitempty"`
-	SteeringQueueTotal      int                `json:"steering_queue_total,omitempty"`
-	SteeringQueueIsExhausted bool              `json:"steering_queue_exhausted,omitempty"`
+	CurrentProcess           *queue.ProcessInfo `json:"current_process,omitempty"`
+	AutoSteerPhaseIndex      *int               `json:"auto_steer_phase_index,omitempty"`
+	AutoSteerCurrentMode     string             `json:"auto_steer_mode,omitempty"`
+	SteeringQueueIndex       *int               `json:"steering_queue_index,omitempty"`
+	SteeringQueueMode        string             `json:"steering_queue_mode,omitempty"`
+	SteeringQueueTotal       int                `json:"steering_queue_total,omitempty"`
+	SteeringQueueIsExhausted bool               `json:"steering_queue_exhausted,omitempty"`
 }
 
 // buildRuntimeIndex returns a map of running processes keyed by task ID for quick enrichment.
@@ -340,7 +340,7 @@ func operationDisplayName(operation string) string {
 }
 
 // NewTaskHandlers creates a new task handlers instance
-func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles *autosteer.ProfileService, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository) *TaskHandlers {
+func NewTaskHandlers(storage tasks.StorageAPI, assembler *prompts.Assembler, processor ProcessorAPI, wsManager *websocket.Manager, autoSteerProfiles autosteer.ProfileRepository, coordinator *tasks.Coordinator, queueStateRepo steering.QueueStateRepository) *TaskHandlers {
 	lc := &tasks.Lifecycle{Store: storage}
 	if coordinator != nil && coordinator.LC != nil {
 		lc = coordinator.LC

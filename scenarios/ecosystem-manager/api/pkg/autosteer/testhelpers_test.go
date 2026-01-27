@@ -93,19 +93,9 @@ func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
 // createTestSchema creates the necessary database tables
 func createTestSchema(db *sql.DB) error {
 	schema := `
-		CREATE TABLE IF NOT EXISTS auto_steer_profiles (
-			id UUID PRIMARY KEY,
-			name VARCHAR(255) NOT NULL UNIQUE,
-			description TEXT,
-			config JSONB NOT NULL,
-			tags TEXT[],
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW()
-		);
-
 		CREATE TABLE IF NOT EXISTS profile_execution_state (
 			task_id UUID PRIMARY KEY,
-			profile_id UUID NOT NULL,
+			profile_id VARCHAR(255) NOT NULL,
 			current_phase_index INTEGER NOT NULL,
 			current_phase_iteration INTEGER NOT NULL,
 			auto_steer_iteration INTEGER NOT NULL DEFAULT 0,
@@ -119,7 +109,7 @@ func createTestSchema(db *sql.DB) error {
 
 		CREATE TABLE IF NOT EXISTS profile_executions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id UUID NOT NULL,
+			profile_id VARCHAR(255) NOT NULL,
 			task_id UUID NOT NULL,
 			scenario_name VARCHAR(255) NOT NULL,
 			start_metrics JSONB,
@@ -131,6 +121,17 @@ func createTestSchema(db *sql.DB) error {
 			user_comments TEXT,
 			user_feedback_at TIMESTAMP,
 			executed_at TIMESTAMP DEFAULT NOW()
+		);
+
+		CREATE TABLE IF NOT EXISTS execution_feedback_entries (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			execution_task_id VARCHAR(255) NOT NULL,
+			category VARCHAR(100) NOT NULL,
+			severity VARCHAR(20) NOT NULL,
+			suggested_action TEXT,
+			comments TEXT,
+			metadata JSONB,
+			created_at TIMESTAMP DEFAULT NOW()
 		);
 
 		CREATE INDEX IF NOT EXISTS idx_profile_executions_profile_id ON profile_executions(profile_id);
@@ -194,7 +195,7 @@ func SetupTestScenario(t *testing.T, scenarioName string) (vrooliRoot string, cl
 	scenarioDir := filepath.Join(tmpDir, "scenarios", scenarioName)
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
@@ -211,7 +212,7 @@ func SetupTestScenario(t *testing.T, scenarioName string) (vrooliRoot string, cl
 	}`
 
 	requirementsPath := filepath.Join(requirementsDir, "index.json")
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Failed to write requirements file: %v", err)
 	}
@@ -246,7 +247,7 @@ func UpdateOperationalTargets(t *testing.T, vrooliRoot, scenarioName string, tot
 		}]
 	}`, joinStrings(targets, ", "))
 
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		t.Fatalf("Failed to update requirements: %v", err)
 	}
 }

@@ -2,11 +2,13 @@ package autosteer
 
 import (
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestTemplates_AllTemplatesValid(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	if len(templates) == 0 {
 		t.Fatal("Expected at least one built-in template")
@@ -176,7 +178,7 @@ func (e *validationError) Error() string {
 }
 
 func TestTemplates_BalancedTemplate(t *testing.T) {
-	template := getBalancedTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Balanced")
 
 	if template.Name != "Balanced" {
 		t.Errorf("Expected name 'Balanced', got %s", template.Name)
@@ -206,7 +208,7 @@ func TestTemplates_BalancedTemplate(t *testing.T) {
 }
 
 func TestTemplates_RapidMVPTemplate(t *testing.T) {
-	template := getRapidMVPTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Rapid MVP")
 
 	if template.Name != "Rapid MVP" {
 		t.Errorf("Expected name 'Rapid MVP', got %s", template.Name)
@@ -231,7 +233,7 @@ func TestTemplates_RapidMVPTemplate(t *testing.T) {
 }
 
 func TestTemplates_ProductionReadyTemplate(t *testing.T) {
-	template := getProductionReadyTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Production Ready")
 
 	if template.Name != "Production Ready" {
 		t.Errorf("Expected name 'Production Ready', got %s", template.Name)
@@ -268,7 +270,7 @@ func TestTemplates_ProductionReadyTemplate(t *testing.T) {
 }
 
 func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
-	template := getRefactorTestFocusTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "Refactor & Test Focus")
 
 	if template.Name != "Refactor & Test Focus" {
 		t.Errorf("Expected name 'Refactor & Test Focus', got %s", template.Name)
@@ -295,7 +297,7 @@ func TestTemplates_RefactorTestFocusTemplate(t *testing.T) {
 }
 
 func TestTemplates_UXExcellenceTemplate(t *testing.T) {
-	template := getUXExcellenceTemplate()
+	template := findTemplateByName(t, loadTemplateProfiles(t), "UX Excellence")
 
 	if template.Name != "UX Excellence" {
 		t.Errorf("Expected name 'UX Excellence', got %s", template.Name)
@@ -338,7 +340,7 @@ func TestTemplates_UXExcellenceTemplate(t *testing.T) {
 }
 
 func TestTemplates_ModeCoverage(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	// Track which modes are used across all templates
 	modeUsage := make(map[SteerMode]int)
@@ -363,7 +365,7 @@ func TestTemplates_ModeCoverage(t *testing.T) {
 }
 
 func TestTemplates_TagsPresent(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	for _, template := range templates {
 		if len(template.Tags) == 0 {
@@ -373,7 +375,7 @@ func TestTemplates_TagsPresent(t *testing.T) {
 }
 
 func TestTemplates_UniqueIDs(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	// Collect all phase IDs across all templates
 	phaseIDs := make(map[string]string) // ID -> template name
@@ -390,7 +392,7 @@ func TestTemplates_UniqueIDs(t *testing.T) {
 }
 
 func TestTemplates_ReasonableStopConditions(t *testing.T) {
-	templates := GetBuiltInTemplates()
+	templates := loadTemplateProfiles(t)
 
 	for _, template := range templates {
 		for phaseIdx, phase := range template.Phases {
@@ -434,4 +436,39 @@ func checkReasonableCondition(t *testing.T, condition StopCondition, templateNam
 			checkReasonableCondition(t, subCondition, templateName, phaseIdx, i)
 		}
 	}
+}
+
+func loadTemplateProfiles(t *testing.T) []*AutoSteerProfile {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to resolve current file path")
+	}
+	profilesDir := filepath.Join(filepath.Dir(file), "..", "..", "..", "profiles")
+
+	repo, err := NewFileProfileRepository(profilesDir)
+	if err != nil {
+		t.Fatalf("failed to load profile registry: %v", err)
+	}
+
+	templates := repo.GetTemplates()
+	if len(templates) == 0 {
+		t.Fatal("expected at least one template in registry")
+	}
+
+	return templates
+}
+
+func findTemplateByName(t *testing.T, templates []*AutoSteerProfile, name string) *AutoSteerProfile {
+	t.Helper()
+
+	for _, template := range templates {
+		if template.Name == name {
+			return template
+		}
+	}
+
+	t.Fatalf("template %q not found", name)
+	return nil
 }

@@ -18,6 +18,22 @@ import (
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
+type stubProfileService struct{}
+
+func (s stubProfileService) CreateProfile(profile *autosteer.AutoSteerProfile) error { return nil }
+func (s stubProfileService) ListProfiles(tags []string) ([]*autosteer.AutoSteerProfile, error) {
+	return []*autosteer.AutoSteerProfile{}, nil
+}
+
+func (s stubProfileService) GetProfile(id string) (*autosteer.AutoSteerProfile, error) {
+	return nil, nil
+}
+func (s stubProfileService) UpdateProfile(id string, updates *autosteer.AutoSteerProfile) error {
+	return nil
+}
+func (s stubProfileService) DeleteProfile(id string) error               { return nil }
+func (s stubProfileService) GetTemplates() []*autosteer.AutoSteerProfile { return nil }
+
 func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	t.Helper()
 
@@ -65,13 +81,13 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	processor.SetCoordinator(coord)
 	recyclerSvc.SetCoordinator(coord)
 
-	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	taskHandlers := handlers.NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil)
 	queueHandlers := handlers.NewQueueHandlers(processor, wsManager, storage, coord)
 	discoveryHandlers := handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers := handlers.NewHealthHandlers(processor, recyclerSvc, queueDir, nil, "test-version")
 	settingsHandlers := handlers.NewSettingsHandlers(processor, wsManager, recyclerSvc)
 	promptsHandlers := handlers.NewPromptsHandlers(assembler)
-	autoSteerHandlers := autosteer.NewAutoSteerHandlers(&autosteer.ProfileService{}, nil, &autosteer.HistoryService{})
+	autoSteerHandlers := autosteer.NewAutoSteerHandlers(stubProfileService{}, nil, &autosteer.HistoryService{})
 
 	app := &Application{
 		storage:           storage,

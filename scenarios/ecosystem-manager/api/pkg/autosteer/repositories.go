@@ -10,7 +10,7 @@ type ProfileRepository interface {
 }
 
 // Compile-time interface assertion
-var _ ProfileRepository = (*ProfileService)(nil)
+var _ ProfileRepository = (*FileProfileRepository)(nil)
 
 // ExecutionStateRepository abstracts persistence and state manipulation for ProfileExecutionState.
 // This interface includes both persistence operations and state helper methods to enable

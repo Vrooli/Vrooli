@@ -9,7 +9,6 @@ import (
 // EnsureTablesExist checks if the auto_steer tables exist and provides helpful error messages
 func EnsureTablesExist(db *sql.DB) error {
 	tables := []string{
-		"auto_steer_profiles",
 		"profile_executions",
 		"profile_execution_state",
 		"execution_feedback_entries",
@@ -62,7 +61,6 @@ func GetTableCounts(db *sql.DB) (map[string]int, error) {
 	counts := make(map[string]int)
 
 	tables := []string{
-		"auto_steer_profiles",
 		"profile_executions",
 		"profile_execution_state",
 	}

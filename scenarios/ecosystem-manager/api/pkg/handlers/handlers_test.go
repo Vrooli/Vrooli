@@ -129,7 +129,7 @@ func createTestHandlers(t *testing.T, tempDir string) (*TaskHandlers, *QueueHand
 	}
 	testRecycler.SetCoordinator(coord)
 
-	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord)
+	taskHandlers := NewTaskHandlers(storage, assembler, processor, wsManager, nil, coord, nil)
 	queueHandlers := NewQueueHandlers(processor, wsManager, storage, coord)
 	healthHandlers := NewHealthHandlers(processor, nil, queueDir, nil, "test-version")
 	discoveryHandlers := NewDiscoveryHandlers(assembler)
@@ -173,17 +173,19 @@ type fakeProcessor struct {
 }
 
 // Lifecycle management
-func (f *fakeProcessor) Start()                                  {}
-func (f *fakeProcessor) Stop()                                   {}
-func (f *fakeProcessor) Pause()                                  {}
+func (f *fakeProcessor) Start()                                    {}
+func (f *fakeProcessor) Stop()                                     {}
+func (f *fakeProcessor) Pause()                                    {}
 func (f *fakeProcessor) ResumeWithReset() queue.ResumeResetSummary { return queue.ResumeResetSummary{} }
-func (f *fakeProcessor) ResumeWithoutReset()                     {}
-func (f *fakeProcessor) Wake()                                   { f.wakeCalled++ }
+func (f *fakeProcessor) ResumeWithoutReset()                       {}
+func (f *fakeProcessor) Wake()                                     { f.wakeCalled++ }
 
 // Queue status and diagnostics
-func (f *fakeProcessor) GetQueueStatus() map[string]any          { return map[string]any{} }
-func (f *fakeProcessor) GetResumeDiagnostics() queue.ResumeDiagnostics { return queue.ResumeDiagnostics{} }
-func (f *fakeProcessor) ProcessQueue()                           {}
+func (f *fakeProcessor) GetQueueStatus() map[string]any { return map[string]any{} }
+func (f *fakeProcessor) GetResumeDiagnostics() queue.ResumeDiagnostics {
+	return queue.ResumeDiagnostics{}
+}
+func (f *fakeProcessor) ProcessQueue() {}
 
 // Task execution control
 func (f *fakeProcessor) TerminateRunningProcess(taskID string) error {
@@ -225,9 +227,11 @@ func (f *fakeProcessor) AutoSteerIntegration() *queue.AutoSteerIntegration { ret
 func (f *fakeProcessor) LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) LoadAllExecutionHistory() ([]queue.ExecutionHistory, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename string) string {
 	return ""
 }
@@ -236,27 +240,35 @@ func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename strin
 func (f *fakeProcessor) LoadInsightReports(taskID string) ([]insights.InsightReport, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) SaveInsightReport(report insights.InsightReport) error {
 	return nil
 }
+
 func (f *fakeProcessor) UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error {
 	return nil
 }
+
 func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
 	return "", nil
 }
+
 func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error) {
 	return nil, nil
 }
+
 func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error) {
 	return nil, nil
 }
@@ -814,7 +826,7 @@ func TestTaskHandlers_UpdateTaskStatus_BackwardsTransition(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	taskHandlers := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
 
 	completed := mustSaveTask(t, taskHandlers.storage, "completed", tasks.TaskItem{
 		ID:        "status-task",
@@ -873,7 +885,7 @@ func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
 	}
 
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, &fakeProcessor{}, wsManager, nil, nil, nil)
 
 	future := time.Now().Add(10 * time.Minute).Format(time.RFC3339)
 	task := mustSaveTask(t, storage, "failed", tasks.TaskItem{
@@ -951,7 +963,7 @@ func TestUpdateTaskHandler_ActiveToPendingTriggersProcessStopsAndWake(t *testing
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "in-progress", tasks.TaskItem{
 		ID:                   "active-task",
@@ -1007,7 +1019,7 @@ func TestUpdateTaskHandler_PendingToActiveTriggersForceStart(t *testing.T) {
 	}
 	fp := &fakeProcessor{}
 	wsManager := websocket.NewManager()
-	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil)
+	handler := NewTaskHandlers(storage, assembler, fp, wsManager, nil, nil, nil)
 
 	task := mustSaveTask(t, storage, "pending", tasks.TaskItem{
 		ID:                   "pending-task",

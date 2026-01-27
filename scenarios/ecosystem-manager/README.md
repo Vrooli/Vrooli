@@ -169,6 +169,8 @@ POST /api/auto-steer/history/{executionId}/feedback
 GET  /api/auto-steer/analytics/{profileId}
 ```
 
+**Profile registry**: Auto Steer profiles live on disk under `scenarios/ecosystem-manager/profiles/` and are indexed by `metadata.json`. Postgres stores only execution state and history.
+
 ### **Configuration**
 ```bash
 # List available operation types

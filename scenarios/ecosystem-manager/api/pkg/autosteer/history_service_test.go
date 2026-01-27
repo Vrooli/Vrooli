@@ -28,7 +28,7 @@ func setupHistoryTestDB(t *testing.T) (*sql.DB, func()) {
 	setupSQL := `
 		CREATE TABLE IF NOT EXISTS profile_executions (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			profile_id UUID NOT NULL,
+			profile_id VARCHAR(255) NOT NULL,
 			task_id UUID NOT NULL,
 			scenario_name VARCHAR(255) NOT NULL,
 			start_metrics JSONB,
@@ -132,7 +132,6 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		900000, // 15 minutes
 		time.Now(),
 	)
-
 	if err != nil {
 		t.Fatalf("Failed to create test execution: %v", err)
 	}

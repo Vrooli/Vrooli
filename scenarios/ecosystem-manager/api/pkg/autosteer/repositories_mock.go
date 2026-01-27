@@ -364,10 +364,10 @@ type MockIterationEvaluatorAPI struct {
 	mu sync.Mutex
 
 	// Configurable return values
-	EvaluateResult                          *IterationEvaluation
-	EvaluateError                           error
-	EvaluateWithoutMetricsCollectionResult  *IterationEvaluation
-	EvaluateWithoutMetricsCollectionError   error
+	EvaluateResult                         *IterationEvaluation
+	EvaluateError                          error
+	EvaluateWithoutMetricsCollectionResult *IterationEvaluation
+	EvaluateWithoutMetricsCollectionError  error
 
 	// Call tracking
 	EvaluateCallCount                         int
@@ -441,17 +441,17 @@ type MockPromptEnhancerAPI struct {
 	mu sync.Mutex
 
 	// Configurable return values
-	ModeSectionResult           string
-	AutoSteerSectionResult      string
-	PhaseTransitionResult       string
-	CompletionMessageResult     string
+	ModeSectionResult       string
+	AutoSteerSectionResult  string
+	PhaseTransitionResult   string
+	CompletionMessageResult string
 
 	// Call tracking
-	GenerateModeSectionCallCount        int
-	GenerateAutoSteerSectionCallCount   int
-	GeneratePhaseTransitionCallCount    int
-	GenerateCompletionMessageCallCount  int
-	LastMode                            SteerMode
+	GenerateModeSectionCallCount       int
+	GenerateAutoSteerSectionCallCount  int
+	GeneratePhaseTransitionCallCount   int
+	GenerateCompletionMessageCallCount int
+	LastMode                           SteerMode
 }
 
 // Compile-time interface assertion
@@ -460,9 +460,9 @@ var _ PromptEnhancerAPI = (*MockPromptEnhancerAPI)(nil)
 // NewMockPromptEnhancerAPI creates a new mock prompt enhancer.
 func NewMockPromptEnhancerAPI() *MockPromptEnhancerAPI {
 	return &MockPromptEnhancerAPI{
-		ModeSectionResult:      "## Mock Mode Section\nFocus on testing.",
-		AutoSteerSectionResult: "## Auto Steer\nMock steering instructions.",
-		PhaseTransitionResult:  "## Phase Transition\nMock transition message.",
+		ModeSectionResult:       "## Mock Mode Section\nFocus on testing.",
+		AutoSteerSectionResult:  "## Auto Steer\nMock steering instructions.",
+		PhaseTransitionResult:   "## Phase Transition\nMock transition message.",
 		CompletionMessageResult: "## Complete\nMock completion message.",
 	}
 }
@@ -524,9 +524,9 @@ type MockPhaseCoordinatorAPI struct {
 	mu sync.Mutex
 
 	// Configurable return values
-	ShouldAdvancePhaseResult        PhaseAdvanceDecision
-	EvaluateQualityGatesResult      []QualityGateEvaluation
-	ShouldHaltOnQualityGatesResult  struct {
+	ShouldAdvancePhaseResult       PhaseAdvanceDecision
+	EvaluateQualityGatesResult     []QualityGateEvaluation
+	ShouldHaltOnQualityGatesResult struct {
 		Halt       bool
 		FailedGate string
 		Message    string
@@ -617,18 +617,3 @@ func (m *MockPhaseCoordinatorAPI) Reset() {
 }
 
 // Helper functions
-
-func hasAnyTag(profileTags, filterTags []string) bool {
-	tagSet := make(map[string]struct{}, len(filterTags))
-	for _, tag := range filterTags {
-		tagSet[tag] = struct{}{}
-	}
-
-	for _, tag := range profileTags {
-		if _, ok := tagSet[tag]; ok {
-			return true
-		}
-	}
-
-	return false
-}

@@ -7,26 +7,23 @@ import (
 	"time"
 )
 
-// NewExecutionOrchestratorFromDB creates a fully wired ExecutionOrchestrator from database connection.
-// This is the primary factory function for production use.
+// NewExecutionOrchestratorDefault creates a fully wired ExecutionOrchestrator with
+// a provided profile repository and Postgres-backed execution state.
 // Does not fail if prompt-manager unavailable - operates in degraded mode.
-func NewExecutionOrchestratorFromDB(db *sql.DB, projectRoot string) *ExecutionOrchestrator {
-	// Create sub-components
-	profileService := NewProfileService(db)
+func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, projectRoot string) *ExecutionOrchestrator {
 	metricsCollector := NewMetricsCollector(projectRoot)
 	conditionEvaluator := NewConditionEvaluator()
 	promptEnhancer := NewPromptEnhancer()
 
-	// Create SRP components
 	stateManager := NewExecutionStateManager(db)
 	phaseCoordinator := NewPhaseCoordinator(conditionEvaluator)
-	iterationEval := NewIterationEvaluator(stateManager, phaseCoordinator, metricsCollector, profileService)
+	iterationEval := NewIterationEvaluator(stateManager, phaseCoordinator, metricsCollector, profileRepo)
 
 	return NewExecutionOrchestrator(
 		stateManager,
 		phaseCoordinator,
 		iterationEval,
-		profileService,
+		profileRepo,
 		metricsCollector,
 		promptEnhancer,
 	)
