@@ -213,8 +213,8 @@ Agent sessions are stateless - when a session ends, all context is lost. For ski
 └─────────────────────────────────────────────┘
 ```
 
-Without READ: Agent duplicates or overwrites prior work
-Without WRITE: Discoveries are lost when session ends
+Without READ: Agent duplicates or overwrites prior work  
+Without WRITE: Discoveries are lost when session ends  
 
 #### Specifying Documentation Patterns
 

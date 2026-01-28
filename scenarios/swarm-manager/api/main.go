@@ -64,6 +64,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -99,7 +100,11 @@ func (s *Server) setupRoutes() {
 
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
-	healthHandler := health.New().Version("1.0.0").Handler()
+	healthHandler := health.New().Version("1.0.0").
+		Check(health.CheckerFunc(func(_ context.Context) health.CheckResult {
+			return health.CheckResult{Name: "database", Connected: true}
+		}), health.Optional).
+		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 

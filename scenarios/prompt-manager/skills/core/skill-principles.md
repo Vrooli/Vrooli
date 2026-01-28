@@ -62,8 +62,7 @@ Every skill must include:
 - **Clear intent statement** at the top (1-2 sentences)
 - **Boundary definition** (what is in scope and out of scope)
 - **Convergence patterns** (decision trees/tables/diagrams) when choices must be consistent
-- **Anti-gaming guidance** that defines what real progress looks like
-- **Output expectations** describing what can/must change or how results must be formatted
+- **Output expectations** describing what can/can't/must change or how results must be formatted
 
 ---
 

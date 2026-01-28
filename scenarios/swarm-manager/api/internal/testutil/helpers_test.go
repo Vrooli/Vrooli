@@ -77,7 +77,9 @@ func TestAssertStatus(t *testing.T) {
 
 func TestDecodeJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
-	rec.WriteString(`{"name": "test", "value": 123}`)
+	if _, err := rec.WriteString(`{"name": "test", "value": 123}`); err != nil {
+		t.Fatalf("Failed to write response: %v", err)
+	}
 
 	type testStruct struct {
 		Name  string `json:"name"`
@@ -96,7 +98,9 @@ func TestDecodeJSON(t *testing.T) {
 func TestReadJSONFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "data.json")
-	os.WriteFile(path, []byte(`{"items": ["a", "b", "c"]}`), 0o644)
+	if err := os.WriteFile(path, []byte(`{"items": ["a", "b", "c"]}`), 0o644); err != nil {
+		t.Fatalf("Failed to write JSON file: %v", err)
+	}
 
 	type testData struct {
 		Items []string `json:"items"`
@@ -111,7 +115,9 @@ func TestReadJSONFile(t *testing.T) {
 func TestAssertFileExists(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "exists.txt")
-	os.WriteFile(path, []byte("content"), 0o644)
+	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+		t.Fatalf("Failed to write file: %v", err)
+	}
 
 	// This should not cause a test failure
 	mockT := &testing.T{}

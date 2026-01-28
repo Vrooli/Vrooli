@@ -634,7 +634,9 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[ideas] get file content: %s/%s (%d bytes)", name, filePath, len(content))
 	w.Header().Set("Content-Type", contentType)
-	w.Write(content)
+	if _, err := w.Write(content); err != nil {
+		log.Printf("[ideas] get file content: failed to write response: %v", err)
+	}
 }
 
 // UploadFile handles file uploads to an idea folder.

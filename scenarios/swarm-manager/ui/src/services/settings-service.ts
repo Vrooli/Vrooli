@@ -64,7 +64,12 @@ const DEFAULT_SETTINGS: Settings = {
   recommendationAutoSync: DEFAULT_AUTOSYNC,
 };
 
-function normalizeSettings(input?: Partial<Settings>): Settings {
+type SettingsPatch = Omit<Partial<Settings>, "recommendationSources" | "recommendationAutoSync"> & {
+  recommendationSources?: Partial<RecommendationSources>;
+  recommendationAutoSync?: Partial<RecommendationAutoSync>;
+};
+
+function normalizeSettings(input?: SettingsPatch): Settings {
   if (!input) return DEFAULT_SETTINGS;
   return {
     theme: input.theme ?? DEFAULT_SETTINGS.theme,
@@ -85,7 +90,7 @@ function normalizeSettings(input?: Partial<Settings>): Settings {
 
 export interface ISettingsService {
   get(): Promise<Settings>;
-  update(patch: Partial<Settings>): Promise<Settings>;
+  update(patch: SettingsPatch): Promise<Settings>;
 }
 
 export function createSettingsService(apiClient: IApiClient = defaultApiClient): ISettingsService {
@@ -99,7 +104,7 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
       return normalizeSettings(parsed.data.settings);
     },
 
-    async update(patch: Partial<Settings>): Promise<Settings> {
+    async update(patch: SettingsPatch): Promise<Settings> {
       const payload = {
         theme: patch.theme,
         recommendationMode: patch.recommendationMode,

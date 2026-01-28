@@ -17,7 +17,7 @@ Required reading:
 
 **Out of scope:**
 - Scenario feature design or refactors
-- Deep architecture guidance that belongs in Steer skills
+- Details of tool implementation (focus should be on *using* the tool)
 
 ---
 

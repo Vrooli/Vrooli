@@ -1279,6 +1279,7 @@ The scenario now has a clean layered seam architecture:
 | API Client | `IApiClient` | `api-client.test.ts` | 12 tests |
 | HTTP Utilities | (functions) | `response_test.go` | 16 tests |
 | Ecosystem Client | `EcosystemClient` | `client_test.go` | 13 tests |
+| ID Generator | `randRead` (package var) | `idgen_test.go` | 2 tests |
 
 ### Future Seam Opportunities
 

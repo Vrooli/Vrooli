@@ -284,8 +284,8 @@ func TestNewHTTPClient(t *testing.T) {
 	if client == nil {
 		t.Fatal("NewHTTPClient() returned nil")
 	}
-	if client.portResolver == nil {
-		t.Error("portResolver is nil")
+	if client.baseURLResolver == nil {
+		t.Error("baseURLResolver is nil")
 	}
 	if client.httpClient == nil {
 		t.Error("httpClient is nil")

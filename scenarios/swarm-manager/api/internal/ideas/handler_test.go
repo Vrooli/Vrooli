@@ -873,8 +873,12 @@ func TestUploadFile_Success(t *testing.T) {
 		t.Fatalf("Failed to create form file: %v", err)
 	}
 	fileContent := "This is test content for upload"
-	part.Write([]byte(fileContent))
-	writer.Close()
+	if _, err := part.Write([]byte(fileContent)); err != nil {
+		t.Fatalf("Failed to write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/api/v1/ideas/upload-test/files", &buf)
 	req = mux.SetURLVars(req, map[string]string{"name": "upload-test"})
@@ -925,12 +929,21 @@ func TestUploadFile_WithPath(t *testing.T) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	part, _ := writer.CreateFormFile("file", "nested.txt")
-	part.Write([]byte("Nested content"))
+	part, err := writer.CreateFormFile("file", "nested.txt")
+	if err != nil {
+		t.Fatalf("Failed to create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("Nested content")); err != nil {
+		t.Fatalf("Failed to write form file: %v", err)
+	}
 
 	// Add path field
-	writer.WriteField("path", "docs/research")
-	writer.Close()
+	if err := writer.WriteField("path", "docs/research"); err != nil {
+		t.Fatalf("Failed to write path field: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/api/v1/ideas/upload-path-test/files", &buf)
 	req = mux.SetURLVars(req, map[string]string{"name": "upload-path-test"})
@@ -960,9 +973,16 @@ func TestUploadFile_IdeaNotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
-	part, _ := writer.CreateFormFile("file", "test.txt")
-	part.Write([]byte("content"))
-	writer.Close()
+	part, err := writer.CreateFormFile("file", "test.txt")
+	if err != nil {
+		t.Fatalf("Failed to create form file: %v", err)
+	}
+	if _, err := part.Write([]byte("content")); err != nil {
+		t.Fatalf("Failed to write form file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Failed to close writer: %v", err)
+	}
 
 	req := httptest.NewRequest("POST", "/api/v1/ideas/nonexistent/files", &buf)
 	req = mux.SetURLVars(req, map[string]string{"name": "nonexistent"})
@@ -1407,7 +1427,7 @@ func (m *mockAgentClient) CreateResearchRun(_ context.Context, req agentmanager.
 
 // [REQ:REQ-P1-004-API] Test research endpoint uses agent-manager client
 func TestResearch_Success(t *testing.T) {
-	h, ideasDir := setupTestHandler(t)
+	_, ideasDir := setupTestHandler(t)
 
 	idea := Idea{
 		Name:        "research-test",
@@ -1429,7 +1449,7 @@ func TestResearch_Success(t *testing.T) {
 		},
 	}
 
-	h = NewHandlerWithClients(ideasDir, nil, agentClient)
+	h := NewHandlerWithClients(ideasDir, nil, agentClient)
 
 	payload := bytes.NewBufferString(`{"prompt":"Focus on feasibility"}`)
 	req := httptest.NewRequest("POST", "/api/v1/ideas/research-test/research", payload)
