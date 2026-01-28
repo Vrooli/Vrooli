@@ -23,7 +23,7 @@
           "navigate": {
             "timeout_ms": 45000,
             "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
-            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
             "scenario": "browser-automation-studio",
             "scenario_path": "/"
           },

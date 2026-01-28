@@ -353,12 +353,22 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			if err != nil {
 				return fmt.Errorf("file not found: %s", fromFile)
 			}
-			var flowDef any
-			if err := json.Unmarshal(data, &flowDef); err != nil {
+			var rawContent map[string]any
+			if err := json.Unmarshal(data, &rawContent); err != nil {
 				return fmt.Errorf("invalid JSON in %s", fromFile)
 			}
+
+			// Extract flow_definition if present (wrapper format from flows/ directory)
+			// Otherwise use the entire file content (direct format from actions/, cases/)
+			var flowDef any
+			if nestedDef, ok := rawContent["flow_definition"]; ok {
+				flowDef = nestedDef
+			} else {
+				flowDef = rawContent
+			}
+
 			payload["flow_definition"] = flowDef
-			payload["metadata"] = buildAdhocMetadata(flowDef, fromFile)
+			payload["metadata"] = buildAdhocMetadata(rawContent, fromFile)
 		} else {
 			workflowDetail, err := getWorkflow(ctx, workflowID)
 			if err != nil {

@@ -445,3 +445,4 @@ scenarios/tidiness-manager/api/report/jscpd-report.json
 scenarios/agent-manager/cli/cli
 scenarios/git-control-tower/cli/cli
 scenarios/knowledge-observatory/cli/cli
+scenarios/browser-automation-studio/cli/browser-automation-studio

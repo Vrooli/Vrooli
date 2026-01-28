@@ -114,9 +114,7 @@
       "name": "Browser Automation Studio",
       "description": "Reference for using BAS CLI to execute workflows, analyze artifacts, and debug UI automation failures",
       "modes": [
-        "Steer",
-        "Test",
-        "Investigation"
+        "Tools"
       ],
       "tags": [
         "skill"
@@ -125,7 +123,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-25T00:00:00Z",
-      "updatedAt": "2026-01-27T14:21:08-05:00"
+      "updatedAt": "2026-01-27T18:29:21-05:00"
     },
     {
       "id": "polish",
@@ -317,9 +315,8 @@
       "name": "Documentation Search",
       "description": "Deep documentation discovery workflow for contextual search, reference following, and relevance ranking.",
       "modes": [
-        "Steer",
-        "Documentation",
-        "Search"
+        "Search",
+        "Documentation"
       ],
       "tags": [
         "skill"
@@ -328,7 +325,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-26T00:00:00Z",
-      "updatedAt": "2026-01-26T00:00:00Z"
+      "updatedAt": "2026-01-27T18:27:13-05:00"
     },
     {
       "id": "assumption-mapping-and-hardening",
@@ -680,7 +677,6 @@
       "name": "Skill Authoring",
       "description": "Guide for creating and updating skills that steer AI agents effectively. Covers convergence patterns, audit sections, and shared mental models.",
       "modes": [
-        "Steer",
         "Meta"
       ],
       "tags": [
@@ -690,7 +686,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-23T00:00:00Z",
-      "updatedAt": "2026-01-24T00:00:00Z"
+      "updatedAt": "2026-01-27T18:27:49-05:00"
     }
   ]
 }

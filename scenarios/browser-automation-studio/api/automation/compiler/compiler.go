@@ -964,6 +964,7 @@ func edgeCondition(edge rawEdge) string {
 }
 
 // resolveNavigateURL resolves destination URLs for navigate nodes with destinationType: "scenario"
+// or when a scenario field is present (for backwards compatibility with legacy workflows).
 func resolveNavigateURL(step *ExecutionStep) error {
 	if step == nil || step.Type != StepNavigate || step.Params == nil {
 		return nil
@@ -974,26 +975,31 @@ func resolveNavigateURL(step *ExecutionStep) error {
 		return nil
 	}
 
-	// Check if this is a scenario destination
-	destinationType, _ := step.Params["destinationType"].(string)
-	if strings.TrimSpace(destinationType) == "" {
-		destinationType, _ = step.Params["destination_type"].(string)
-	}
-	destinationType = strings.TrimSpace(destinationType)
-	isScenario := destinationType == "scenario" || destinationType == "NAVIGATE_DESTINATION_TYPE_SCENARIO"
-	if !isScenario {
-		// Not a scenario destination, no resolution needed
-		return nil
-	}
-
-	// Extract scenario name and path
+	// Extract scenario name and path first (needed for inference check)
 	scenarioName, _ := step.Params["scenario"].(string)
 	scenarioPath, _ := step.Params["scenarioPath"].(string)
 	if strings.TrimSpace(scenarioPath) == "" {
 		scenarioPath, _ = step.Params["scenario_path"].(string)
 	}
-
 	scenarioName = strings.TrimSpace(scenarioName)
+
+	// Check if this is a scenario destination:
+	// 1. Explicit destinationType of "scenario" or "NAVIGATE_DESTINATION_TYPE_SCENARIO"
+	// 2. Or inferred from presence of scenario field (handles legacy/malformed workflows)
+	destinationType, _ := step.Params["destinationType"].(string)
+	if strings.TrimSpace(destinationType) == "" {
+		destinationType, _ = step.Params["destination_type"].(string)
+	}
+	destinationType = strings.TrimSpace(destinationType)
+	isScenario := destinationType == "scenario" ||
+		destinationType == "NAVIGATE_DESTINATION_TYPE_SCENARIO" ||
+		scenarioName != "" // Infer from scenario field presence
+
+	if !isScenario {
+		// Not a scenario destination, no resolution needed
+		return nil
+	}
+
 	if scenarioName == "" {
 		return fmt.Errorf("navigate node with destinationType 'scenario' missing scenario name")
 	}
