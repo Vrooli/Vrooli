@@ -343,6 +343,31 @@ describe("Ideas Service", () => {
     });
   });
 
+  describe("research", () => {
+    it("posts a research request and returns the run metadata", async () => {
+      const mockResponse = {
+        taskId: "task-abc",
+        runId: "run-123",
+        baseUrl: "http://localhost:5555",
+        created: "2026-01-28T02:00:00Z",
+      };
+      vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await service.research("my-idea", { prompt: "Focus on feasibility" });
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("/ideas/my-idea/research", {
+        prompt: "Focus on feasibility",
+      });
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("throws when research response is invalid", async () => {
+      vi.mocked(mockApiClient.post).mockResolvedValue({ run_id: "missing" });
+
+      await expect(service.research("my-idea")).rejects.toThrow("Invalid research response");
+    });
+  });
+
   describe("error handling", () => {
     it("propagates API errors from list", async () => {
       const error = new Error("Network error");

@@ -22,7 +22,7 @@ import { buildMessage, ideaFilesResponseSchema, ideaFileResponseSchema, ideaResp
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { Idea, IdeaFile } from "../types";
+import type { Idea, IdeaFile, ResearchResponse } from "../types";
 
 /**
  * Response from queueing an idea for processing.
@@ -49,6 +49,10 @@ export interface IIdeasService {
   getFileContent(name: string, filePath: string): Promise<string>;
   uploadFile(name: string, file: File, path?: string): Promise<IdeaFile>;
   queue(name: string, operation?: "generator" | "improver"): Promise<QueueResponse>;
+  research(
+    name: string,
+    payload?: { prompt?: string; scopePath?: string; projectRoot?: string }
+  ): Promise<ResearchResponse>;
 }
 
 /**
@@ -154,6 +158,21 @@ export function createIdeasService(
         idea: mapProtoIdea(idea),
         taskId: parsed.taskId ?? "",
       };
+    },
+
+    async research(
+      name: string,
+      payload?: { prompt?: string; scopePath?: string; projectRoot?: string }
+    ): Promise<ResearchResponse> {
+      const data = await apiClient.post<unknown>(
+        API_ENDPOINTS.ideaResearch(name),
+        payload ?? {}
+      );
+      const parsed = data as ResearchResponse;
+      if (!parsed || typeof parsed.runId !== "string") {
+        throw new Error("Invalid research response");
+      }
+      return parsed;
     },
   };
 }

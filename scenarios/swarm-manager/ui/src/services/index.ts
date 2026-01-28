@@ -17,3 +17,11 @@ export type { IIdeasService } from "./ideas-service";
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";
 export type { IScenariosService } from "./scenarios-service";
+
+// Settings
+export { settingsService, createSettingsService } from "./settings-service";
+export type { ISettingsService } from "./settings-service";
+
+// Recommendations
+export { recommendationsService, createRecommendationsService } from "./recommendations-service";
+export type { IRecommendationsService } from "./recommendations-service";

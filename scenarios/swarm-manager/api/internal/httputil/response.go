@@ -66,6 +66,11 @@ func Conflict(w http.ResponseWriter, logPrefix, message string) {
 	Error(w, logPrefix, message, http.StatusConflict)
 }
 
+// ServiceUnavailable writes a 503 Service Unavailable response.
+func ServiceUnavailable(w http.ResponseWriter, logPrefix, message string) {
+	Error(w, logPrefix, message, http.StatusServiceUnavailable)
+}
+
 // ValidatePath checks if a file path is safely within a base directory.
 // Returns true if the path is valid and within baseDir.
 // This prevents path traversal attacks like "../../../etc/passwd".

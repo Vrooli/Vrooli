@@ -4,8 +4,6 @@
 package queue
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/storage"
 )
 
@@ -126,7 +125,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item := Item{
-		ID:      generateID(),
+		ID:      idgen.Generate(),
 		Kind:    strings.TrimSpace(req.Kind),
 		Payload: normalizePayload(req.Payload),
 		Created: time.Now().UTC().Format(time.RFC3339),
@@ -192,11 +191,4 @@ func normalizePayload(payload json.RawMessage) json.RawMessage {
 	return payload
 }
 
-func generateID() string {
-	bytes := make([]byte, 8)
-	if _, err := rand.Read(bytes); err != nil {
-		// Fallback to time-based ID if entropy fails (should be rare).
-		return time.Now().UTC().Format("20060102T150405.000000000")
-	}
-	return hex.EncodeToString(bytes)
-}
+// generateID removed in favor of idgen.Generate()

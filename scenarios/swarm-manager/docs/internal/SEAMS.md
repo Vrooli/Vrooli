@@ -10,29 +10,29 @@ This document captures the architecture seams (integration points, boundaries) a
 
 | Aspect | Documented | Actual | Gap |
 |--------|------------|--------|-----|
-| API endpoints | /ideas, /scenarios, /recommendations, /settings | /ideas, /scenarios, /settings, /queue, /health | Medium - recommendations pending |
-| Persistence | Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) | Ideas/scenarios/settings/queue implemented | Resolved |
+| API endpoints | /ideas, /scenarios, /recommendations, /settings | /ideas, /scenarios, /recommendations, /settings, /queue, /health | Resolved |
+| Persistence | Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) | Ideas/scenarios/settings/queue/recommendations implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
-| UI pages | 4 pages with full functionality | 4 pages with placeholder/skeleton UI | On track - scaffold complete |
-| Integration clients | agent-manager, ecosystem-manager | Dependencies declared, no adapters | Critical - no integration code |
+| UI pages | 4 pages with full functionality | Ideas/Scenarios/Recommendations/Settings fully wired | Resolved |
+| Integration clients | agent-manager, ecosystem-manager | Agent-manager HTTP client + ecosystem-manager seam | Mostly resolved |
 | Domain types | Shared across UI | ✅ Centralized in types/ module | Resolved |
 
 ### Logical vs Physical Gaps
 
-1. **API Layer Gap**
+1. **API Layer Gap** (RESOLVED)
    - Expected: Domain-organized handlers (ideas/, scenarios/, recommendations/, settings/)
-   - Actual: Ideas, scenarios, settings, and queue handlers implemented; recommendations pending
-   - Impact: Recommendations UI remains placeholder
+   - Actual: Ideas, scenarios, settings, queue, and recommendations handlers implemented
+   - Impact: Recommendations UI now fully functional
 
 2. ~~**Selector Registry Gap**~~ (RESOLVED)
    - ~~Expected: `literalSelectors` and `dynamicSelectorDefinitions` populated~~
    - ~~Actual: Both objects are empty `{}`~~
    - Status: Fully populated in Phase 1 (Architecture Alignment)
 
-3. **Business Logic Gap**
+3. **Business Logic Gap** (RESOLVED)
    - Expected: Service layer for idea CRUD, scenario operations, settings/recommendations
-   - Actual: Ideas, scenarios, and settings implemented; recommendations pending
-   - Impact: UI can read/write ideas/scenarios/settings once UI is wired; recommendations remain static
+   - Actual: Ideas, scenarios, settings, and recommendations services implemented
+   - Impact: UI now reads/writes all core domains
 
 ## Seam Definitions
 
@@ -94,16 +94,15 @@ const service = createIdeasService(mockClient);
 // Pattern: Integration clients behind interfaces
 
 type AgentManagerClient interface {
-    SpawnAgent(ctx context.Context, req SpawnRequest) (*Agent, error)
+    CreateResearchRun(ctx context.Context, req ResearchRequest) (ResearchResponse, error)
 }
 
 type EcosystemManagerClient interface {
-    InitializeScenario(ctx context.Context, ideaName string) error
-    ImproveScenario(ctx context.Context, scenarioName string, focus string) error
+    CreateTask(req EcosystemTaskRequest) (string, error)
 }
 ```
 
-**Status**: Interfaces not defined. Dependencies declared in service.json.
+**Status**: Agent-manager HTTP client implemented with filesystem port discovery. Ecosystem-manager seam exists with HTTP fallback.
 
 ### Filesystem Seam
 
@@ -117,6 +116,7 @@ ideas/
 .vrooli/
 └── settings.json     # User/system settings (persisted)
 └── queue.json        # Pending local queue items (persisted)
+└── recommendations.json # Recommendation store (persisted)
 ```
 
 **Status**: Ideas, scenario metadata, settings, and queue storage implemented.
@@ -171,9 +171,9 @@ ideas/
 | ID | Area | Description | Priority | Effort | Status |
 |----|------|-------------|----------|--------|--------|
 | TD-001 | selectors.ts | Selector registry is empty but components use selectors | High | Low | ✅ Resolved (Phase 1) |
-| TD-002 | API | Recommendations endpoints not implemented | Medium | Medium | Open |
-| TD-003 | Integration | No adapter code for agent-manager/ecosystem-manager | High | Medium | Open |
-| TD-004 | Recommendations | Engine and persistence not implemented | Medium | Medium | Open |
+| TD-002 | API | Recommendations endpoints not implemented | Medium | Medium | ✅ Resolved |
+| TD-003 | Integration | No adapter code for agent-manager/ecosystem-manager | High | Medium | ✅ Resolved (agent-manager client + ecosystem seam) |
+| TD-004 | Recommendations | Engine and persistence not implemented | Medium | Medium | ✅ Resolved |
 | TD-006 | UI types | Domain types duplicated in page components | Medium | Low | ✅ Resolved (Phase 2) |
 | TD-007 | UI constants | Status colors/icons defined inline in pages | Low | Low | ✅ Resolved (Phase 2) |
 | TD-008 | API client | Singleton at module scope, hard to substitute in tests | Medium | Medium | ✅ Resolved (Phase 3) |
@@ -194,6 +194,8 @@ ui/src/
 ├── services/          # Data access seams (NEW in Phase 3)
 │   ├── ideas-service.ts      # Ideas CRUD with injectable client
 │   ├── scenarios-service.ts  # Scenarios operations
+│   ├── settings-service.ts   # Settings persistence
+│   ├── recommendations-service.ts # Recommendation operations
 │   └── index.ts              # Barrel export
 ├── types/             # Domain types and constants
 │   ├── domain.ts      # Idea, Scenario, Recommendation, Settings types
@@ -972,7 +974,7 @@ These areas have higher cognitive load but are stable and rarely modified:
 | Aspect | Documented | Actual | Status |
 |--------|------------|--------|--------|
 | UI types module | Domain-organized types | ✅ `types/domain.ts`, `types/constants.ts` | Well-Aligned |
-| UI services layer | Service seams with interfaces | ✅ `services/ideas-service.ts`, `services/scenarios-service.ts` | Well-Aligned |
+| UI services layer | Service seams with interfaces | ✅ `services/ideas-service.ts`, `services/scenarios-service.ts`, `services/settings-service.ts`, `services/recommendations-service.ts` | Well-Aligned |
 | UI lib module | Separated concerns | ✅ `api-client.ts`, `error-utils.ts`, `query-utils.ts` | Well-Aligned |
 | UI config module | Centralized configuration | ✅ `config/index.ts` with 6 groups | Well-Aligned |
 | API structure | Domain-organized internal packages | ✅ `internal/ideas/handler.go` | Well-Aligned |
@@ -982,7 +984,7 @@ These areas have higher cognitive load but are stable and rarely modified:
 
 1. **Removed deprecated `lib/api.ts`**: This file was a backward-compatibility shim marked `@deprecated` that re-exported from `api-client.ts`. No code used it (all imports were from the proper modules). Updated `lib/index.ts` to import directly from `api-client.ts`.
 
-2. **Removed empty `api/internal/scenarios/` directory**: This was a placeholder directory with no files. Empty directories can be confusing and suggest incomplete work. The structure will be created when scenarios endpoints are implemented (OT-P0-005, OT-P0-006).
+2. **Removed empty `api/internal/scenarios/` directory**: This was a placeholder directory with no files. Empty directories can be confusing and suggest incomplete work. (Scenarios endpoints were implemented in later phases.)
 
 3. **Updated SEAMS.md API Module Structure section**: The documentation said "Only main.go exists with all code in one file" but the actual structure had evolved to use `internal/ideas/handler.go`. Updated to reflect current state and added target structure reference for future domains.
 
@@ -1001,7 +1003,7 @@ These areas have higher cognitive load but are stable and rarely modified:
 The codebase structure clearly expresses what swarm-manager does:
 - `ui/src/pages/IdeasPage.tsx` - Ideas management
 - `ui/src/pages/ScenariosPage.tsx` - Scenario catalog
-- `ui/src/pages/RecommendationsPage.tsx` - Recommendation engine (placeholder)
+- `ui/src/pages/RecommendationsPage.tsx` - Recommendation engine
 - `ui/src/pages/SettingsPage.tsx` - User preferences
 - `api/internal/ideas/` - Ideas CRUD backend
 - `cli/app.go` - CLI with Ideas and Health commands

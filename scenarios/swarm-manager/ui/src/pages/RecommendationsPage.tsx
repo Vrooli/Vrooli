@@ -1,72 +1,294 @@
 /**
  * Recommendations Page - Displays system-generated improvement suggestions
- *
- * PURPOSE:
- * Shows actionable recommendations from the recommendation engine. Users can
- * approve, reject, or configure how recommendations are generated.
- *
- * CURRENT STATUS: Placeholder UI
- * This page currently shows only an empty state directing users to Settings.
- * The actual recommendation listing and management will be implemented when
- * the backend recommendation engine (OT-P1-001, OT-P1-002) is complete.
- *
- * FUTURE BEHAVIOR (when implemented):
- * - List pending recommendations sorted by priority
- * - Show recommendation type (test, feature, refactor, docs)
- * - Allow approve/reject actions per recommendation
- * - Filter by scenario, type, or priority
- * - Display recommendation rationale and source data
- *
- * DEPENDENCIES (not yet connected):
- * - recommendation engine backend (P1 feature)
- * - Settings page recommendation mode configuration
- *
- * Experience Architecture (Phase 29):
- * - Empty state provides direct navigation to Settings
- * - Reduces cognitive load by surfacing the action path immediately
- *
- * Related PRD targets: OT-P1-001, OT-P1-002
  */
 
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Filter, Zap, Settings, ArrowRight } from "lucide-react";
+import { Filter, Zap, Settings, ArrowRight, CheckCircle2, XCircle, RefreshCw, ChevronDown } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { ErrorState } from "../components/ui/error-state";
 import { selectors } from "../consts/selectors";
+import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { recommendationsService, settingsService } from "../services";
+import type { Recommendation, RecommendationStatus } from "../types";
+
+const STATUS_OPTIONS: RecommendationStatus[] = ["pending", "approved", "rejected"];
 
 export function RecommendationsPage() {
+  const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<RecommendationStatus | "">("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
+
+  const { data: recommendations, isLoading, error, refetch } = useQuery({
+    queryKey: ["recommendations"],
+    queryFn: () => recommendationsService.list(),
+    ...defaultQueryOptions,
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: recommendationsService.refresh,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RecommendationStatus }) =>
+      recommendationsService.updateStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+    },
+  });
+
+  const refreshError = refreshMutation.isError ? "Failed to refresh recommendations. Please try again." : null;
+  const updateError = updateMutation.isError ? "Failed to update recommendation. Please try again." : null;
+
+  const filteredRecommendations = useMemo(() => {
+    if (!recommendations) return [];
+    let result = recommendations;
+    if (statusFilter) {
+      result = result.filter((rec) => rec.status === statusFilter);
+    }
+    return result;
+  }, [recommendations, statusFilter]);
+
+  const statusSummary = useMemo(() => {
+    if (!recommendations) return { pending: 0, approved: 0, rejected: 0 };
+    return {
+      pending: recommendations.filter((r) => r.status === "pending").length,
+      approved: recommendations.filter((r) => r.status === "approved").length,
+      rejected: recommendations.filter((r) => r.status === "rejected").length,
+    };
+  }, [recommendations]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6" data-testid={selectors.recommendations.page}>
+        <Card padding="lg" centered>
+          <p className="text-slate-400">Loading recommendations...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6" data-testid={selectors.recommendations.page}>
+        <ErrorState error={error as Error} title="Unable to load recommendations" onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (settings?.recommendationMode === "off") {
+    return (
+      <div className="space-y-6" data-testid={selectors.recommendations.page}>
+        <Card padding="lg" centered data-testid={selectors.recommendations.empty}>
+          <Zap className="mx-auto h-12 w-12 text-slate-600" />
+          <h3 className="mt-4 text-lg font-medium text-slate-300">Recommendations are off</h3>
+          <p className="mt-2 text-sm text-slate-400">
+            Enable the recommendation engine in Settings to start receiving suggestions.
+          </p>
+          <Link to="/settings" data-testid={selectors.recommendations.settingsLink}>
+            <Button variant="outline" className="mt-4 group">
+              <Settings className="mr-2 h-4 w-4" />
+              Configure Settings
+              <ArrowRight className="ml-2 h-4 w-4 opacity-0 transition group-hover:opacity-100" />
+            </Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" data-testid={selectors.recommendations.page}>
-      {/* Header actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-semibold">Recommendations</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="Filter functionality coming soon"
-          data-testid={selectors.recommendations.filter}
-        >
-          <Filter className="mr-2 h-4 w-4" />
-          Filter
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refreshMutation.mutate()}
+            data-testid={selectors.recommendations.filter}
+            disabled={refreshMutation.isPending}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={statusFilter ? "border-cyan-500/50" : ""}
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+            {showFilters && (
+              <div className="absolute right-0 top-full z-10 mt-2 w-56 rounded-lg border border-white/10 bg-slate-800 p-3 shadow-xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-200">Filters</span>
+                  {statusFilter && (
+                    <button
+                      onClick={() => setStatusFilter("")}
+                      className="text-xs text-slate-400 hover:text-slate-200"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Status</label>
+                  <div className="relative">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as RecommendationStatus | "")}
+                      className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                    >
+                      <option value="">All statuses</option>
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Empty state - with direct navigation to reduce friction (Phase 29) */}
-      <Card padding="lg" centered data-testid={selectors.recommendations.empty}>
-        <Zap className="mx-auto h-12 w-12 text-slate-600" />
-        <h3 className="mt-4 text-lg font-medium text-slate-300">No recommendations</h3>
-        <p className="mt-2 text-sm text-slate-400">
-          Enable the recommendation engine in Settings to start receiving suggestions
-        </p>
-        <Link to="/settings" data-testid={selectors.recommendations.settingsLink}>
-          <Button variant="outline" className="mt-4 group">
-            <Settings className="mr-2 h-4 w-4" />
-            Configure Settings
-            <ArrowRight className="ml-2 h-4 w-4 opacity-0 transition group-hover:opacity-100" />
-          </Button>
-        </Link>
-      </Card>
+      {(refreshError || updateError) && (
+        <div className="space-y-2">
+          {refreshError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {refreshError}
+            </div>
+          )}
+          {updateError && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {updateError}
+            </div>
+          )}
+        </div>
+      )}
+
+      {recommendations && recommendations.length > 0 && (
+        <div className="flex items-center gap-4 text-sm text-slate-400">
+          <span>{statusSummary.pending} pending</span>
+          <span>{statusSummary.approved} approved</span>
+          <span>{statusSummary.rejected} rejected</span>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {recommendations && recommendations.length === 0 && (
+          <Card padding="lg" centered data-testid={selectors.recommendations.empty}>
+            <Zap className="mx-auto h-12 w-12 text-slate-600" />
+            <h3 className="mt-4 text-lg font-medium text-slate-300">No recommendations</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              The system didn’t find anything to suggest right now.
+            </p>
+          </Card>
+        )}
+
+        {recommendations && recommendations.length > 0 && filteredRecommendations.length === 0 && (
+          <Card padding="lg" centered>
+            <Zap className="mx-auto h-12 w-12 text-slate-600" />
+            <h3 className="mt-4 text-lg font-medium text-slate-300">No matching recommendations</h3>
+            <p className="mt-2 text-sm text-slate-400">Try clearing the filters.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() => setStatusFilter("")}
+            >
+              Clear filters
+            </Button>
+          </Card>
+        )}
+
+        {filteredRecommendations.length > 0 && (
+          <div className="space-y-3" data-testid={selectors.recommendations.list}>
+            {filteredRecommendations.map((rec) => (
+              <RecommendationCard
+                key={rec.id}
+                recommendation={rec}
+                onApprove={() => updateMutation.mutate({ id: rec.id, status: "approved" })}
+                onReject={() => updateMutation.mutate({ id: rec.id, status: "rejected" })}
+                isUpdating={updateMutation.isPending}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+function RecommendationCard({
+  recommendation,
+  onApprove,
+  onReject,
+  isUpdating,
+}: {
+  recommendation: Recommendation;
+  onApprove: () => void;
+  onReject: () => void;
+  isUpdating: boolean;
+}) {
+  const statusColor =
+    recommendation.status === "approved"
+      ? "text-emerald-400"
+      : recommendation.status === "rejected"
+        ? "text-red-400"
+        : "text-yellow-400";
+
+  return (
+    <Card padding="lg" data-testid={selectors.recommendations.cardByName({ name: recommendation.id })}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 text-sm">
+            <span className={`uppercase tracking-wider ${statusColor}`}>{recommendation.status}</span>
+            <span className="text-slate-400">{recommendation.type}</span>
+            <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">P{recommendation.priority}</span>
+          </div>
+          <h3 className="text-base font-medium text-slate-100">{recommendation.scenarioName}</h3>
+          <p className="text-sm text-slate-400">{recommendation.description}</p>
+          <span className="text-xs text-slate-500">{formatRelativeTime(recommendation.created)}</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onApprove}
+            disabled={isUpdating || recommendation.status === "approved"}
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onReject}
+            disabled={isUpdating || recommendation.status === "rejected"}
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            Reject
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }

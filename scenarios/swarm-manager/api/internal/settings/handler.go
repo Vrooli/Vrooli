@@ -9,6 +9,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,20 +21,62 @@ import (
 
 // Settings represents persisted configuration for the scenario.
 type Settings struct {
-	Theme               string `json:"theme"`
-	RecommendationMode  string `json:"recommendationMode"`
-	CustomFocus         string `json:"customFocus,omitempty"`
-	InsightsEnabled     bool   `json:"insightsEnabled"`
-	InsightsAutoAnalyze bool   `json:"insightsAutoAnalyze"`
+	Theme                  string                 `json:"theme"`
+	RecommendationMode     string                 `json:"recommendationMode"`
+	CustomFocus            string                 `json:"customFocus,omitempty"`
+	InsightsEnabled        bool                   `json:"insightsEnabled"`
+	InsightsAutoAnalyze    bool                   `json:"insightsAutoAnalyze"`
+	RecommendationSources  RecommendationSources  `json:"recommendationSources"`
+	RecommendationAutoSync RecommendationAutoSync `json:"recommendationAutoSync"`
+}
+
+// RecommendationSources controls which inputs are used to generate recommendations.
+type RecommendationSources struct {
+	Problems      bool `json:"problems"`
+	Completeness  bool `json:"completeness"`
+	Tests         bool `json:"tests"`
+	Coverage      bool `json:"coverage"`
+	CustomFocus   bool `json:"customFocus"`
+	ScenarioNotes bool `json:"scenarioNotes"`
+}
+
+// RecommendationAutoSync controls automatic refresh behavior.
+type RecommendationAutoSync struct {
+	Enabled      bool   `json:"enabled"`
+	Interval     string `json:"interval"`     // e.g. "15m", "1h"
+	LastRefresh  string `json:"lastRefresh"`  // RFC3339 timestamp
+	NextRefresh  string `json:"nextRefresh"`  // RFC3339 timestamp
+	RefreshScope string `json:"refreshScope"` // "manual" | "scheduled"
 }
 
 // SettingsPatch allows partial updates.
 type SettingsPatch struct {
-	Theme               *string `json:"theme,omitempty"`
-	RecommendationMode  *string `json:"recommendationMode,omitempty"`
-	CustomFocus         *string `json:"customFocus,omitempty"`
-	InsightsEnabled     *bool   `json:"insightsEnabled,omitempty"`
-	InsightsAutoAnalyze *bool   `json:"insightsAutoAnalyze,omitempty"`
+	Theme                  *string                      `json:"theme,omitempty"`
+	RecommendationMode     *string                      `json:"recommendationMode,omitempty"`
+	CustomFocus            *string                      `json:"customFocus,omitempty"`
+	InsightsEnabled        *bool                        `json:"insightsEnabled,omitempty"`
+	InsightsAutoAnalyze    *bool                        `json:"insightsAutoAnalyze,omitempty"`
+	RecommendationSources  *RecommendationSourcesPatch  `json:"recommendationSources,omitempty"`
+	RecommendationAutoSync *RecommendationAutoSyncPatch `json:"recommendationAutoSync,omitempty"`
+}
+
+// RecommendationSourcesPatch allows partial updates of recommendation sources.
+type RecommendationSourcesPatch struct {
+	Problems      *bool `json:"problems,omitempty"`
+	Completeness  *bool `json:"completeness,omitempty"`
+	Tests         *bool `json:"tests,omitempty"`
+	Coverage      *bool `json:"coverage,omitempty"`
+	CustomFocus   *bool `json:"customFocus,omitempty"`
+	ScenarioNotes *bool `json:"scenarioNotes,omitempty"`
+}
+
+// RecommendationAutoSyncPatch allows partial updates of auto sync settings.
+type RecommendationAutoSyncPatch struct {
+	Enabled      *bool   `json:"enabled,omitempty"`
+	Interval     *string `json:"interval,omitempty"`
+	LastRefresh  *string `json:"lastRefresh,omitempty"`
+	NextRefresh  *string `json:"nextRefresh,omitempty"`
+	RefreshScope *string `json:"refreshScope,omitempty"`
 }
 
 // SettingsResponse wraps settings responses for consistency.
@@ -62,24 +105,64 @@ func NewStore(path string) *Store {
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
-		Theme:               "dark",
-		RecommendationMode:  "off",
-		CustomFocus:         "",
-		InsightsEnabled:     false,
-		InsightsAutoAnalyze: false,
+		Theme:                 "dark",
+		RecommendationMode:    "off",
+		CustomFocus:           "",
+		InsightsEnabled:       false,
+		InsightsAutoAnalyze:   false,
+		RecommendationSources: DefaultRecommendationSources(),
+		RecommendationAutoSync: RecommendationAutoSync{
+			Enabled:      false,
+			Interval:     "1h",
+			LastRefresh:  "",
+			NextRefresh:  "",
+			RefreshScope: "manual",
+		},
+	}
+}
+
+// DefaultRecommendationSources returns the baseline recommendation sources.
+func DefaultRecommendationSources() RecommendationSources {
+	return RecommendationSources{
+		Problems:      true,
+		Completeness:  true,
+		Tests:         true,
+		Coverage:      true,
+		CustomFocus:   true,
+		ScenarioNotes: true,
 	}
 }
 
 // Load retrieves settings from disk, returning defaults when missing.
 func (s *Store) Load() (Settings, error) {
-	var settings Settings
-	exists, err := storage.ReadJSON(s.path, &settings)
+	data, err := storage.ReadJSONBytes(s.path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return DefaultSettings(), nil
+		}
 		return Settings{}, err
 	}
-	if !exists {
+
+	if len(data) == 0 {
 		return DefaultSettings(), nil
 	}
+
+	var settings Settings
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return Settings{}, err
+	}
+
+	// Detect missing recommendationSources to backfill defaults for older settings files.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err == nil {
+		if _, ok := raw["recommendationSources"]; !ok {
+			settings.RecommendationSources = DefaultRecommendationSources()
+		}
+		if _, ok := raw["recommendationAutoSync"]; !ok {
+			settings.RecommendationAutoSync = DefaultSettings().RecommendationAutoSync
+		}
+	}
+
 	normalized := normalizeSettings(settings)
 	if err := validateSettings(normalized); err != nil {
 		return Settings{}, err
@@ -104,7 +187,26 @@ func normalizeSettings(settings Settings) Settings {
 		settings.RecommendationMode = "off"
 	}
 	settings.CustomFocus = strings.TrimSpace(settings.CustomFocus)
+	settings.RecommendationSources = normalizeRecommendationSources(settings.RecommendationSources)
+	settings.RecommendationAutoSync = normalizeAutoSync(settings.RecommendationAutoSync)
 	return settings
+}
+
+func normalizeRecommendationSources(sources RecommendationSources) RecommendationSources {
+	if sources == (RecommendationSources{}) {
+		return DefaultRecommendationSources()
+	}
+	return sources
+}
+
+func normalizeAutoSync(sync RecommendationAutoSync) RecommendationAutoSync {
+	if strings.TrimSpace(sync.Interval) == "" {
+		sync.Interval = "1h"
+	}
+	if strings.TrimSpace(sync.RefreshScope) == "" {
+		sync.RefreshScope = "manual"
+	}
+	return sync
 }
 
 func validateSettings(settings Settings) error {
@@ -213,5 +315,50 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.InsightsAutoAnalyze != nil {
 		current.InsightsAutoAnalyze = *patch.InsightsAutoAnalyze
 	}
+	if patch.RecommendationSources != nil {
+		applyRecommendationSources(&current.RecommendationSources, patch.RecommendationSources)
+	}
+	if patch.RecommendationAutoSync != nil {
+		applyAutoSyncPatch(&current.RecommendationAutoSync, patch.RecommendationAutoSync)
+	}
 	return current
+}
+
+func applyRecommendationSources(current *RecommendationSources, patch *RecommendationSourcesPatch) {
+	if patch.Problems != nil {
+		current.Problems = *patch.Problems
+	}
+	if patch.Completeness != nil {
+		current.Completeness = *patch.Completeness
+	}
+	if patch.Tests != nil {
+		current.Tests = *patch.Tests
+	}
+	if patch.Coverage != nil {
+		current.Coverage = *patch.Coverage
+	}
+	if patch.CustomFocus != nil {
+		current.CustomFocus = *patch.CustomFocus
+	}
+	if patch.ScenarioNotes != nil {
+		current.ScenarioNotes = *patch.ScenarioNotes
+	}
+}
+
+func applyAutoSyncPatch(current *RecommendationAutoSync, patch *RecommendationAutoSyncPatch) {
+	if patch.Enabled != nil {
+		current.Enabled = *patch.Enabled
+	}
+	if patch.Interval != nil {
+		current.Interval = strings.TrimSpace(*patch.Interval)
+	}
+	if patch.LastRefresh != nil {
+		current.LastRefresh = strings.TrimSpace(*patch.LastRefresh)
+	}
+	if patch.NextRefresh != nil {
+		current.NextRefresh = strings.TrimSpace(*patch.NextRefresh)
+	}
+	if patch.RefreshScope != nil {
+		current.RefreshScope = strings.TrimSpace(*patch.RefreshScope)
+	}
 }

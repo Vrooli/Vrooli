@@ -28,6 +28,13 @@ export { cn } from "./utils";
 // Formatting Utilities - Pure formatting functions
 export { capitalize, formatDisplayText, formatFileSize, getFileExtension, formatRelativeTime } from "./format-utils";
 
+// Idea Utilities
+export { sanitizeIdeaName, parseTagsInput, tagsToInput } from "./idea-utils";
+
+// Theme Utilities
+export { applyTheme, resolveTheme, watchSystemTheme } from "./theme-utils";
+export type { ThemePreference, ResolvedTheme } from "./theme-utils";
+
 // Error Utilities - Observability and diagnosis
 export {
   categorizeError,

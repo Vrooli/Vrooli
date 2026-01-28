@@ -359,9 +359,9 @@ Added comprehensive test coverage for two complex detail pages that were previou
 - ScenarioDetailsPage: Complex page with optimistic updates and error handling now fully tested
 - Both pages test [REQ:REQ-P0-004] and [REQ:REQ-P0-007] requirements
 
-**Remaining Untested Pages** (low priority - simple/placeholder UI):
-- SettingsPage.tsx (132 lines) - Static UI with no state management (documented limitation)
-- RecommendationsPage.tsx (54 lines) - Placeholder empty state
+**Remaining Untested Pages** (medium priority - now stateful):
+- SettingsPage.tsx - Settings persistence + recommendation controls now implemented; add tests for load/save + error handling
+- RecommendationsPage.tsx - Recommendation list/refresh + status updates implemented; add tests for filters and actions
 
 ---
 
@@ -396,9 +396,9 @@ Added test coverage for two additional components:
 - All API handlers have comprehensive tests (ideas, scenarios, ecosystem, httputil, testutil)
 - CLI has comprehensive tests (app_test.go)
 
-**Remaining Untested** (intentionally excluded - no meaningful logic to test):
-- SettingsPage.tsx - Static placeholder UI, no state management
-- RecommendationsPage.tsx - Placeholder empty state page
+**Remaining Untested** (needs coverage):
+- SettingsPage.tsx - Add tests for persistence, validation, and error display
+- RecommendationsPage.tsx - Add tests for refresh, status updates, and filters
 - Error boundaries (error-boundary.tsx, page-error-boundary.tsx) - Require integration tests to trigger
 - Shadcn primitives (button.tsx, input.tsx, tabs.tsx, search-bar.tsx) - Wrapper components
 

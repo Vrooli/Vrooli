@@ -2,15 +2,18 @@ package ideas
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
 )
 
@@ -1388,4 +1391,52 @@ func TestCreate_InvalidJSON(t *testing.T) {
 	h.Create(w, req)
 
 	testutil.AssertStatusBadRequest(t, w)
+}
+
+type mockAgentClient struct {
+	response agentmanager.ResearchResponse
+}
+
+func (m *mockAgentClient) CreateResearchRun(_ context.Context, req agentmanager.ResearchRequest) (agentmanager.ResearchResponse, error) {
+	if strings.TrimSpace(req.Title) == "" {
+		return agentmanager.ResearchResponse{}, agentmanager.ErrRequestFailed
+	}
+	return m.response, nil
+}
+
+// [REQ:REQ-P1-004-API] Test research endpoint uses agent-manager client
+func TestResearch_Success(t *testing.T) {
+	h, ideasDir := setupTestHandler(t)
+
+	idea := Idea{
+		Name:        "research-test",
+		Title:       "Research Test",
+		Description: "Research this idea",
+		Status:      StatusBacklog,
+		Priority:    3,
+		Tags:        []string{"ai"},
+		Created:     "2026-01-28T00:00:00Z",
+		Updated:     "2026-01-28T00:00:00Z",
+	}
+	createTestIdea(t, ideasDir, idea)
+
+	agentClient := &mockAgentClient{
+		response: agentmanager.ResearchResponse{
+			TaskID:  "task-123",
+			RunID:   "run-456",
+			BaseURL: "http://localhost:1234",
+		},
+	}
+
+	h = NewHandlerWithClients(ideasDir, nil, agentClient)
+
+	payload := bytes.NewBufferString(`{"prompt":"Focus on feasibility"}`)
+	req := httptest.NewRequest("POST", "/api/v1/ideas/research-test/research", payload)
+	req = mux.SetURLVars(req, map[string]string{"name": "research-test"})
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.Research(w, req)
+
+	testutil.AssertStatusCreated(t, w)
 }

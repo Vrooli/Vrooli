@@ -99,6 +99,7 @@ export const literalSelectors = {
     createFirstButton: "create-first-idea",
     empty: "ideas-empty",
     grid: "ideas-grid",
+    noResults: "ideas-no-results",
     // Experience architecture additions (Phase 29)
     continueSection: "ideas-continue-section",
     continueList: "ideas-continue-list",
@@ -119,6 +120,10 @@ export const literalSelectors = {
     editButton: "idea-details-edit",
     deleteButton: "idea-details-delete",
     queueButton: "idea-details-queue",
+    researchButton: "idea-details-research",
+    deleteDialog: "idea-delete-dialog",
+    deleteConfirmButton: "idea-delete-confirm",
+    deleteCancelButton: "idea-delete-cancel",
     fileTree: "idea-details-file-tree",
     filePreview: "idea-details-file-preview",
     fileUpload: "idea-details-file-upload",
@@ -126,6 +131,21 @@ export const literalSelectors = {
     uploadList: "file-upload-list",
     // Experience architecture additions (Phase 29)
     breadcrumb: "idea-details-breadcrumb",
+  },
+  // Idea form dialog selectors
+  ideaForm: {
+    dialog: "idea-form-dialog",
+    titleInput: "idea-form-title",
+    nameInput: "idea-form-name",
+    descriptionInput: "idea-form-description",
+    statusSelect: "idea-form-status",
+    priorityInput: "idea-form-priority",
+    tagsInput: "idea-form-tags",
+    submitButton: "idea-form-submit",
+    cancelButton: "idea-form-cancel",
+    researchDialog: "idea-research-dialog",
+    researchPrompt: "idea-research-prompt",
+    researchSubmit: "idea-research-submit",
   },
   // Scenarios page selectors
   scenarios: {

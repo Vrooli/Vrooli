@@ -1,7 +1,10 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Lightbulb, Package, Zap, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
+import { applyTheme, cn, defaultQueryOptions, watchSystemTheme, type ResolvedTheme } from "../../lib";
+import { settingsService } from "../../services";
 
 interface TabConfig {
   id: string;
@@ -32,6 +35,13 @@ const tabs: TabConfig[] = [
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
 
   const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "ideas";
 
@@ -60,11 +70,37 @@ export function MainLayout() {
     return () => window.removeEventListener("keydown", handleKeyboardNav);
   }, [handleKeyboardNav]);
 
+  useEffect(() => {
+    const theme = settings?.theme ?? "dark";
+    const resolved = applyTheme(theme);
+    setResolvedTheme(resolved);
+
+    if (theme === "system") {
+      return watchSystemTheme((nextResolved) => {
+        applyTheme("system");
+        setResolvedTheme(nextResolved);
+      });
+    }
+
+    return undefined;
+  }, [settings?.theme]);
+
+  const isLight = resolvedTheme === "light";
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50" data-testid={selectors.layout.main}>
+    <div
+      className={cn(
+        "min-h-screen",
+        isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-50"
+      )}
+      data-testid={selectors.layout.main}
+    >
       {/* Desktop Header with Tabs */}
       <header
-        className="hidden md:flex h-16 items-center justify-between border-b border-white/10 px-6"
+        className={cn(
+          "hidden md:flex h-16 items-center justify-between border-b px-6",
+          isLight ? "border-slate-200" : "border-white/10"
+        )}
         data-testid={selectors.layout.header}
       >
         <h1 className="text-xl font-semibold">Swarm Manager</h1>
@@ -78,15 +114,20 @@ export function MainLayout() {
                 onClick={() => navigate(tab.path)}
                 data-testid={tab.testId}
                 title={`${tab.label} (${tab.shortcut})`}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-slate-800 text-cyan-400"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                }`}
+                    ? isLight
+                      ? "bg-slate-200 text-cyan-600"
+                      : "bg-slate-800 text-cyan-400"
+                    : isLight
+                      ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                )}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
-                <span className="hidden lg:inline text-xs text-slate-500 ml-1">({tab.shortcut})</span>
+                <span className={cn("hidden lg:inline text-xs ml-1", isLight ? "text-slate-500" : "text-slate-500")}>({tab.shortcut})</span>
               </button>
             );
           })}
@@ -94,7 +135,7 @@ export function MainLayout() {
       </header>
 
       {/* Mobile Header */}
-      <header className="md:hidden flex h-14 items-center justify-center border-b border-white/10 px-4">
+      <header className={cn("md:hidden flex h-14 items-center justify-center border-b px-4", isLight ? "border-slate-200" : "border-white/10")}>
         <h1 className="text-lg font-semibold">Swarm Manager</h1>
       </header>
 
@@ -105,7 +146,10 @@ export function MainLayout() {
 
       {/* Mobile Bottom Navigation */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-white/10 bg-slate-900/95 backdrop-blur"
+        className={cn(
+          "md:hidden fixed bottom-0 left-0 right-0 h-16 border-t backdrop-blur",
+          isLight ? "border-slate-200 bg-white/95" : "border-white/10 bg-slate-900/95"
+        )}
         data-testid={selectors.layout.mobileNav}
       >
         <div className="flex h-full items-center justify-around">
@@ -117,11 +161,10 @@ export function MainLayout() {
                 key={tab.id}
                 onClick={() => navigate(tab.path)}
                 data-testid={tab.mobileTestId}
-                className={`flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors ${
-                  isActive
-                    ? "text-cyan-400"
-                    : "text-slate-400"
-                }`}
+                className={cn(
+                  "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors",
+                  isActive ? (isLight ? "text-cyan-600" : "text-cyan-400") : isLight ? "text-slate-500" : "text-slate-400"
+                )}
               >
                 <Icon className="h-5 w-5" />
                 {tab.label}

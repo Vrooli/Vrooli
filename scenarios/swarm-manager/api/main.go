@@ -9,11 +9,15 @@
 // for managing the scenario ecosystem: ideas backlog, scenario lifecycle, and
 // recommendations.
 //
-// # Current Status: Ideas CRUD Implemented (File-Based)
+// # Current Status: Ideas/Scenarios/Settings/Recommendations Implemented (File-Based)
 //
 // The API provides:
 //   - Health check endpoints at / and /api/v1/health
 //   - Ideas CRUD endpoints at /api/v1/ideas (GET, POST, PUT, DELETE)
+//   - Idea queue + research endpoints at /api/v1/ideas/{name}/queue and /api/v1/ideas/{name}/research
+//   - Scenario catalog endpoints at /api/v1/scenarios
+//   - Settings persistence at /api/v1/settings
+//   - Recommendations engine at /api/v1/recommendations
 //
 // # Architecture
 //
@@ -30,6 +34,8 @@
 //	GET    /api/v1/ideas/{name}   - Get idea by name
 //	PUT    /api/v1/ideas/{name}   - Update idea
 //	DELETE /api/v1/ideas/{name}   - Delete idea
+//	POST   /api/v1/ideas/{name}/queue    - Queue idea for processing
+//	POST   /api/v1/ideas/{name}/research - Spawn research agent
 //
 // # Scenario Endpoints (P0)
 //
@@ -40,6 +46,13 @@
 //
 //	GET    /api/v1/settings       - Fetch settings
 //	PUT    /api/v1/settings       - Update settings (partial)
+//
+// # Recommendations Endpoints (P1)
+//
+//	GET    /api/v1/recommendations          - List recommendations
+//	POST   /api/v1/recommendations          - Create manual recommendation
+//	POST   /api/v1/recommendations/refresh  - Refresh via engine
+//	PATCH  /api/v1/recommendations/{id}     - Update recommendation status
 //
 // # Queue Endpoints (Local)
 //
@@ -63,6 +76,7 @@ import (
 
 	"swarm-manager/internal/ideas"
 	"swarm-manager/internal/queue"
+	"swarm-manager/internal/recommendations"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 )
@@ -102,6 +116,10 @@ func (s *Server) setupRoutes() {
 	// Settings persistence endpoints
 	settingsHandler := settings.NewHandler("")
 	settingsHandler.RegisterRoutes(s.router)
+
+	// Recommendations endpoints (filesystem-backed engine)
+	recommendationsHandler := recommendations.NewHandler("")
+	recommendationsHandler.RegisterRoutes(s.router)
 
 	// Local queue endpoints (filesystem-backed)
 	queueHandler := queue.NewHandler("")

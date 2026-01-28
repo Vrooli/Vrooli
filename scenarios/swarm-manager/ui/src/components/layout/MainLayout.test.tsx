@@ -1,15 +1,55 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { MainLayout } from "./MainLayout";
+import { settingsService } from "../../services";
+
+vi.mock("../../services", () => ({
+  settingsService: {
+    get: vi.fn(),
+  },
+}));
 
 // [REQ:MOD-P0-008] Test tabbed navigation UI
 describe("MainLayout", () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+      },
+    });
+    vi.clearAllMocks();
+    vi.mocked(settingsService.get).mockResolvedValue({
+      theme: "dark",
+      recommendationMode: "off",
+      customFocus: "",
+      insightsEnabled: false,
+      insightsAutoAnalyze: false,
+      recommendationSources: {
+        problems: true,
+        completeness: true,
+        tests: true,
+        coverage: true,
+        customFocus: true,
+        scenarioNotes: true,
+      },
+      recommendationAutoSync: {
+        enabled: false,
+        interval: "1h",
+      },
+    });
+  });
+
   const renderWithRouter = (initialRoute = "/ideas") => {
     return render(
-      <MemoryRouter initialEntries={[initialRoute]}>
-        <MainLayout />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[initialRoute]}>
+          <MainLayout />
+        </MemoryRouter>
+      </QueryClientProvider>
     );
   };
 

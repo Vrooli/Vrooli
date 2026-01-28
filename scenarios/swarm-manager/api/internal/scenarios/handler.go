@@ -82,6 +82,17 @@ func NewHandler(scenariosDir string) *Handler {
 	return &Handler{scenariosDir: scenariosDir}
 }
 
+// LoadAll exposes scenario listing for non-HTTP consumers (recommendations engine).
+// This keeps data access centralized in the scenarios package.
+func (h *Handler) LoadAll() ([]Scenario, error) {
+	return h.loadAllScenarios()
+}
+
+// Load exposes scenario retrieval for non-HTTP consumers.
+func (h *Handler) Load(name string) (Scenario, error) {
+	return h.loadScenario(name)
+}
+
 func scenarioToProto(s Scenario) *domainpb.Scenario {
 	var completeness *int32
 	if s.CompletenessScore != nil {

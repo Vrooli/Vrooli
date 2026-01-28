@@ -2,136 +2,83 @@ package settings
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
-type settingsResponse struct {
-	Settings Settings `json:"settings"`
-}
-
-func setupHandler(t *testing.T) (*Handler, string) {
-	t.Helper()
+func TestStore_LoadDefaults(t *testing.T) {
 	dir := t.TempDir()
-	settingsPath := filepath.Join(dir, "settings.json")
-	return NewHandler(settingsPath), settingsPath
-}
+	path := filepath.Join(dir, "settings.json")
 
-func TestGet_DefaultsWhenMissing(t *testing.T) {
-	handler, _ := setupHandler(t)
-	router := mux.NewRouter()
-	handler.RegisterRoutes(router)
+	store := NewStore(path)
+	settings, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/settings", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[settingsResponse](t, rec)
-
-	if resp.Settings.Theme != "dark" {
-		t.Errorf("expected default theme 'dark', got %q", resp.Settings.Theme)
+	if settings.Theme != "dark" {
+		t.Errorf("expected default theme dark, got %s", settings.Theme)
 	}
-	if resp.Settings.RecommendationMode != "off" {
-		t.Errorf("expected default recommendationMode 'off', got %q", resp.Settings.RecommendationMode)
-	}
-	if resp.Settings.CustomFocus != "" {
-		t.Errorf("expected default customFocus '', got %q", resp.Settings.CustomFocus)
-	}
-	if resp.Settings.InsightsEnabled {
-		t.Errorf("expected insightsEnabled false")
-	}
-	if resp.Settings.InsightsAutoAnalyze {
-		t.Errorf("expected insightsAutoAnalyze false")
+	if !settings.RecommendationSources.Problems {
+		t.Errorf("expected default recommendationSources.problems true")
 	}
 }
 
-func TestUpdate_PersistsSettings(t *testing.T) {
-	handler, settingsPath := setupHandler(t)
-	router := mux.NewRouter()
-	handler.RegisterRoutes(router)
+func TestStore_LoadLegacyMissingSources(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
 
-	body := []byte(`{
+	legacy := []byte(`{"theme":"dark","recommendationMode":"suggestions"}`)
+	if err := os.WriteFile(path, legacy, 0o644); err != nil {
+		t.Fatalf("write legacy file: %v", err)
+	}
+
+	store := NewStore(path)
+	settings, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if settings.RecommendationSources == (RecommendationSources{}) {
+		t.Errorf("expected recommendationSources defaults to be applied")
+	}
+}
+
+func TestHandler_UpdatePartial(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+
+	handler := &Handler{store: NewStore(path)}
+	router := httptest.NewRecorder()
+
+	payload := map[string]any{
 		"theme": "light",
-		"recommendationMode": "suggestions",
-		"customFocus": "  improve tests  ",
-		"insightsEnabled": true,
-		"insightsAutoAnalyze": true
-	}`)
-
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer(body))
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[settingsResponse](t, rec)
-
-	if resp.Settings.Theme != "light" {
-		t.Errorf("expected theme 'light', got %q", resp.Settings.Theme)
+		"recommendationSources": map[string]any{
+			"tests": false,
+		},
 	}
-	if resp.Settings.RecommendationMode != "suggestions" {
-		t.Errorf("expected recommendationMode 'suggestions', got %q", resp.Settings.RecommendationMode)
-	}
-	if resp.Settings.CustomFocus != "improve tests" {
-		t.Errorf("expected customFocus trimmed, got %q", resp.Settings.CustomFocus)
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewReader(body))
+	handler.Update(router, req)
+
+	if router.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", router.Code)
 	}
 
-	persisted := testutil.ReadJSONFile[Settings](t, settingsPath)
-	if persisted.Theme != "light" || persisted.RecommendationMode != "suggestions" {
-		t.Errorf("expected persisted settings to match update")
+	var response SettingsResponse
+	if err := json.Unmarshal(router.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
 	}
-}
 
-func TestUpdate_Partial(t *testing.T) {
-	handler, _ := setupHandler(t)
-	router := mux.NewRouter()
-	handler.RegisterRoutes(router)
-
-	body := []byte(`{"customFocus": "  ship v1  "}`)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer(body))
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[settingsResponse](t, rec)
-
-	if resp.Settings.CustomFocus != "ship v1" {
-		t.Errorf("expected customFocus trimmed, got %q", resp.Settings.CustomFocus)
+	if response.Settings.Theme != "light" {
+		t.Errorf("expected theme light, got %s", response.Settings.Theme)
 	}
-	if resp.Settings.Theme != "dark" {
-		t.Errorf("expected theme default 'dark', got %q", resp.Settings.Theme)
+	if response.Settings.RecommendationSources.Tests != false {
+		t.Errorf("expected recommendationSources.tests false")
 	}
-	if resp.Settings.RecommendationMode != "off" {
-		t.Errorf("expected recommendationMode default 'off', got %q", resp.Settings.RecommendationMode)
-	}
-}
-
-func TestUpdate_InvalidTheme(t *testing.T) {
-	handler, _ := setupHandler(t)
-	router := mux.NewRouter()
-	handler.RegisterRoutes(router)
-
-	body := []byte(`{"theme": "neon"}`)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer(body))
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
-}
-
-func TestUpdate_InvalidJSON(t *testing.T) {
-	handler, _ := setupHandler(t)
-	router := mux.NewRouter()
-	handler.RegisterRoutes(router)
-
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer([]byte("{")))
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
 }

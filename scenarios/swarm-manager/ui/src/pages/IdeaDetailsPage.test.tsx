@@ -44,6 +44,7 @@ vi.mock("../services", () => ({
     getFileContent: vi.fn(),
     uploadFile: vi.fn(),
     queue: vi.fn(),
+    research: vi.fn(),
   },
 }));
 
@@ -468,6 +469,23 @@ describe("IdeaDetailsPage", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("idea-details-delete")).toBeInTheDocument();
+      });
+    });
+
+    it("opens research dialog when research button clicked", async () => {
+      vi.mocked(ideasService.get).mockResolvedValue(mockIdea);
+      vi.mocked(ideasService.getFiles).mockResolvedValue(mockFiles);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("idea-details-research")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId("idea-details-research"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("idea-research-dialog")).toBeInTheDocument();
+        expect(screen.getByTestId("idea-research-prompt")).toBeInTheDocument();
       });
     });
   });

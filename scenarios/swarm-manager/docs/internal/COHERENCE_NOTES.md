@@ -72,7 +72,7 @@ src/
 **Inconsistencies Identified**:
 - Theme toggle buttons in SettingsPage use inline classes (not extracted)
 - Checkbox inputs use inline styling
-- These are acceptable for now as they're page-specific and the SettingsPage is placeholder UI
+- These are acceptable for now as they're page-specific, but consider extracting if more settings controls are added
 
 ## Priority Actions
 
@@ -82,7 +82,7 @@ src/
 3. ✅ Updated IdeasPage, ScenariosPage, SettingsPage to use shared components
 
 ### Future Recommendations
-1. **Settings State Store** - When implementing settings persistence, add Zustand store
+1. **Settings State Store** - Consider a Zustand store if settings complexity grows further
 2. **Toast Store** - For global notifications
 3. **Theme System** - CSS variables for proper dark/light mode support
 4. **Checkbox Component** - Extract styled checkbox with CVA if more form controls needed
@@ -226,7 +226,7 @@ export function createIdeasService(apiClient: IApiClient = defaultApiClient): II
 - ✅ Format functions use shared utilities (formatDisplayText)
 
 ### Remaining Patterns (Intentionally Unchanged)
-1. **SettingsPage option buttons (6 instances)**: Page is documented as "Static UI without persistence" placeholder. Extracting OptionGroup component would be premature optimization.
+1. **SettingsPage option buttons (6 instances)**: Settings are now stateful; still acceptable inline while control count stays small. Revisit if new groups are added.
 2. **Link wrapper cards in list views**: Must use inline styling due to React hydration constraints with Card inside Link.
 3. **Danger zone border in ScenarioDetailsPage**: Intentionally red border for visual differentiation.
 

@@ -2,42 +2,25 @@
  * Settings Page - User preferences and system configuration
  *
  * PURPOSE:
- * Allows users to configure their UI preferences and system behavior.
+ * Allows users to configure UI preferences and system behavior.
  * Controls the recommendation engine mode, insights engine, and visual theme.
  *
- * CURRENT STATUS: Static UI without persistence
- * The UI elements are rendered but have no state management or persistence.
- * All settings reset on page refresh. This is a known limitation documented
- * in ERROR-SEMANTICS.md under "Settings Flow".
- *
- * FUTURE BEHAVIOR (when implemented):
- * - Theme: Persist to localStorage, apply CSS variables on change
- * - Recommendation Mode: Persist and sync with backend recommendation engine
- *   - "Off": No recommendations generated
- *   - "Suggestions": Generate recommendations for user review
- *   - "YOLO": Auto-approve low-risk recommendations after delay
- * - Custom Focus: Free-text input to guide recommendation priorities
- * - Insights: Toggle pattern detection and auto-analysis features
- * - Save button: Validate and persist all settings atomically
- *
- * DEPENDENCIES (not yet connected):
- * - localStorage for theme persistence
- * - API endpoint for backend settings sync
- * - Settings context for cross-component state
- *
- * Experience Architecture (Phase 29):
- * - Added contextual explanations for each recommendation mode
- * - Reduces cognitive load by explaining implications of each choice
- * - Help users make informed decisions without external documentation
+ * CURRENT STATUS: Persistent via filesystem-backed settings API.
  *
  * Related PRD targets: OT-P1-010
  */
 
-import { HelpCircle, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { HelpCircle, Info, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { ErrorState } from "../components/ui/error-state";
 import { Input } from "../components/ui/input";
 import { selectors } from "../consts/selectors";
+import { defaultQueryOptions } from "../lib";
+import { settingsService } from "../services";
+import type { RecommendationMode, Settings } from "../types";
 
 /** Contextual hints for recommendation modes */
 const REC_MODE_HINTS = {
@@ -47,19 +30,72 @@ const REC_MODE_HINTS = {
 } as const;
 
 export function SettingsPage() {
+  const queryClient = useQueryClient();
+  const { data: settings, isLoading, error, refetch } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => settingsService.get(),
+    ...defaultQueryOptions,
+  });
+
+  const [form, setForm] = useState<Settings | null>(null);
+  const [savedMessage, setSavedMessage] = useState("");
+
+  useEffect(() => {
+    if (settings) {
+      setForm(settings);
+    }
+  }, [settings]);
+
+  const updateMutation = useMutation({
+    mutationFn: settingsService.update,
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["settings"], updated);
+      setForm(updated);
+      setSavedMessage("Settings saved.");
+      setTimeout(() => setSavedMessage(""), 3000);
+    },
+  });
+
+  const isDirty = useMemo(() => {
+    if (!settings || !form) return false;
+    return JSON.stringify(settings) !== JSON.stringify(form);
+  }, [settings, form]);
+
+  const handleModeChange = (mode: RecommendationMode) => {
+    if (!form) return;
+    setForm({ ...form, recommendationMode: mode });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6" data-testid={selectors.settings.page}>
+        <Card padding="lg" centered>
+          <p className="text-slate-400">Loading settings...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6" data-testid={selectors.settings.page}>
+        <ErrorState error={error as Error} title="Unable to load settings" onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (!form) return null;
+
   return (
     <div className="space-y-6" data-testid={selectors.settings.page}>
-      <h2 className="text-xl font-semibold">Settings</h2>
-
-      {/* Settings persistence notice - navigation integrity (Phase 30) */}
-      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-        <Info className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm text-amber-200">Settings preview mode</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Settings persistence is not yet implemented. Changes shown here are for preview only and will reset on page refresh.
-          </p>
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">Settings</h2>
+        {savedMessage && (
+          <div className="flex items-center gap-2 text-sm text-emerald-400">
+            <Info className="h-4 w-4" />
+            {savedMessage}
+          </div>
+        )}
       </div>
 
       {/* Theme Settings */}
@@ -68,20 +104,23 @@ export function SettingsPage() {
         <p className="mt-1 text-sm text-slate-400">Choose your preferred color theme</p>
         <div className="mt-4 flex gap-2">
           <button
-            className="flex-1 rounded-lg border border-cyan-500 bg-slate-900 py-3 text-sm font-medium text-cyan-400"
+            className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "dark" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeDark}
+            onClick={() => setForm({ ...form, theme: "dark" })}
           >
             Dark
           </button>
           <button
-            className="flex-1 rounded-lg border border-white/10 bg-slate-800/50 py-3 text-sm font-medium text-slate-400 hover:border-white/20"
+            className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "light" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeLight}
+            onClick={() => setForm({ ...form, theme: "light" })}
           >
             Light
           </button>
           <button
-            className="flex-1 rounded-lg border border-white/10 bg-slate-800/50 py-3 text-sm font-medium text-slate-400 hover:border-white/20"
+            className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.theme === "system" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
             data-testid={selectors.settings.themeSystem}
+            onClick={() => setForm({ ...form, theme: "system" })}
           >
             System
           </button>
@@ -95,39 +134,91 @@ export function SettingsPage() {
         <div className="mt-4 space-y-3">
           <div className="flex gap-2">
             <button
-              className="flex-1 rounded-lg border border-cyan-500 bg-slate-900 py-3 text-sm font-medium text-cyan-400"
+              className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.recommendationMode === "off" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
               data-testid={selectors.settings.recModeOff}
+              onClick={() => handleModeChange("off")}
             >
               Off
             </button>
             <button
-              className="flex-1 rounded-lg border border-white/10 bg-slate-800/50 py-3 text-sm font-medium text-slate-400 hover:border-white/20"
+              className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.recommendationMode === "suggestions" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
               data-testid={selectors.settings.recModeSuggestions}
+              onClick={() => handleModeChange("suggestions")}
             >
               Suggestions
             </button>
             <button
-              className="flex-1 rounded-lg border border-white/10 bg-slate-800/50 py-3 text-sm font-medium text-slate-400 hover:border-white/20"
+              className={`flex-1 rounded-lg border py-3 text-sm font-medium ${form.recommendationMode === "yolo" ? "border-cyan-500 bg-slate-900 text-cyan-400" : "border-white/10 bg-slate-800/50 text-slate-400 hover:border-white/20"}`}
               data-testid={selectors.settings.recModeYolo}
+              onClick={() => handleModeChange("yolo")}
             >
               YOLO
             </button>
           </div>
-          {/* Contextual hint explaining the selected mode (Phase 29) */}
           <div className="flex items-start gap-2 rounded-lg bg-slate-800/50 px-3 py-2" data-testid={selectors.settings.recModeHint}>
             <HelpCircle className="h-4 w-4 text-slate-500 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-slate-400">{REC_MODE_HINTS.off}</p>
+            <p className="text-xs text-slate-400">{REC_MODE_HINTS[form.recommendationMode]}</p>
           </div>
         </div>
-        <div className="mt-4">
+        <div className="mt-4 space-y-3">
           <label className="block text-sm font-medium text-slate-300">Custom Focus</label>
-          <p className="mt-1 text-xs text-slate-500">Guide the recommendation engine toward specific areas</p>
           <Input
             type="text"
             placeholder="e.g., Focus on test coverage..."
-            className="mt-2"
+            className="mt-1"
             data-testid={selectors.settings.customFocus}
+            value={form.customFocus ?? ""}
+            onChange={(e) => setForm({ ...form, customFocus: e.target.value })}
           />
+        </div>
+        <div className="mt-6 space-y-3">
+          <p className="text-sm font-medium text-slate-300">Recommendation sources</p>
+          {Object.entries(form.recommendationSources).map(([key, value]) => (
+            <label key={key} className="flex items-center gap-3 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={value}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    recommendationSources: { ...form.recommendationSources, [key]: e.target.checked },
+                  })
+                }
+                className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+              />
+              <span className="capitalize">{key.replace(/([A-Z])/g, " $1")}</span>
+            </label>
+          ))}
+        </div>
+        <div className="mt-6 space-y-3">
+          <p className="text-sm font-medium text-slate-300">Auto-refresh</p>
+          <label className="flex items-center gap-3 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={form.recommendationAutoSync.enabled}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  recommendationAutoSync: { ...form.recommendationAutoSync, enabled: e.target.checked },
+                })
+              }
+              className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
+            />
+            <span>Enable scheduled refresh</span>
+          </label>
+          <Input
+            type="text"
+            value={form.recommendationAutoSync.interval}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                recommendationAutoSync: { ...form.recommendationAutoSync, interval: e.target.value },
+              })
+            }
+            className="max-w-xs"
+            placeholder="1h"
+          />
+          <p className="text-xs text-slate-500">Use a duration like 15m, 1h, 6h.</p>
         </div>
       </Card>
 
@@ -141,6 +232,8 @@ export function SettingsPage() {
               type="checkbox"
               className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
               data-testid={selectors.settings.insightsEnabled}
+              checked={form.insightsEnabled}
+              onChange={(e) => setForm({ ...form, insightsEnabled: e.target.checked })}
             />
             <span className="text-sm text-slate-300">Enable insights</span>
           </label>
@@ -149,6 +242,8 @@ export function SettingsPage() {
               type="checkbox"
               className="h-4 w-4 rounded border-white/20 bg-slate-800 text-cyan-500 focus:ring-cyan-500"
               data-testid={selectors.settings.insightsAutoAnalyze}
+              checked={form.insightsAutoAnalyze}
+              onChange={(e) => setForm({ ...form, insightsAutoAnalyze: e.target.checked })}
             />
             <span className="text-sm text-slate-300">Auto-analyze on scenario changes</span>
           </label>
@@ -156,15 +251,24 @@ export function SettingsPage() {
       </Card>
 
       {/* Save Button */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-slate-500 flex items-center gap-2">
+          <RefreshCw className="h-3.5 w-3.5" />
+          Changes are applied after saving.
+        </div>
         <Button
-          disabled
-          title="Settings persistence coming soon"
+          disabled={!isDirty || updateMutation.isPending}
           data-testid={selectors.settings.saveButton}
+          onClick={() => updateMutation.mutate(form)}
         >
-          Save Settings
+          {updateMutation.isPending ? "Saving..." : "Save Settings"}
         </Button>
       </div>
+      {updateMutation.isError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          Failed to save settings. Please try again.
+        </div>
+      )}
     </div>
   );
 }

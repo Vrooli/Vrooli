@@ -167,6 +167,29 @@ export interface Recommendation {
 export type RecommendationMode = "off" | "suggestions" | "yolo";
 
 /**
+ * Recommendation data sources configuration
+ */
+export interface RecommendationSources {
+  problems: boolean;
+  completeness: boolean;
+  tests: boolean;
+  coverage: boolean;
+  customFocus: boolean;
+  scenarioNotes: boolean;
+}
+
+/**
+ * Recommendation auto-sync configuration
+ */
+export interface RecommendationAutoSync {
+  enabled: boolean;
+  interval: string;
+  lastRefresh?: string;
+  nextRefresh?: string;
+  refreshScope?: string;
+}
+
+/**
  * User preferences and configuration
  */
 export interface Settings {
@@ -180,4 +203,18 @@ export interface Settings {
   insightsEnabled: boolean;
   /** Auto-analyze on scenario changes */
   insightsAutoAnalyze: boolean;
+  /** Recommendation data sources */
+  recommendationSources: RecommendationSources;
+  /** Auto-sync for recommendation refresh */
+  recommendationAutoSync: RecommendationAutoSync;
+}
+
+/**
+ * Research agent spawn response
+ */
+export interface ResearchResponse {
+  taskId: string;
+  runId: string;
+  baseUrl: string;
+  created: string;
 }

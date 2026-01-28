@@ -9,6 +9,8 @@ package ideas
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -22,6 +24,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 )
 
@@ -65,6 +68,7 @@ type IdeaFile struct {
 type Handler struct {
 	ideasDir        string
 	ecosystemClient EcosystemClient
+	agentClient     agentmanager.Client
 }
 
 // EcosystemClient is the interface for ecosystem-manager operations.
@@ -95,6 +99,7 @@ func NewHandler(ideasDir string) *Handler {
 	return &Handler{
 		ideasDir:        ideasDir,
 		ecosystemClient: nil, // Uses fallback implementation
+		agentClient:     nil, // Uses fallback implementation
 	}
 }
 
@@ -103,6 +108,14 @@ func NewHandler(ideasDir string) *Handler {
 func NewHandlerWithClient(ideasDir string, client EcosystemClient) *Handler {
 	h := NewHandler(ideasDir)
 	h.ecosystemClient = client
+	return h
+}
+
+// NewHandlerWithClients creates a new ideas handler with custom ecosystem and agent clients.
+func NewHandlerWithClients(ideasDir string, ecosystemClient EcosystemClient, agentClient agentmanager.Client) *Handler {
+	h := NewHandler(ideasDir)
+	h.ecosystemClient = ecosystemClient
+	h.agentClient = agentClient
 	return h
 }
 
@@ -202,6 +215,22 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/ideas/{name}/files", h.UploadFile).Methods("POST")
 	r.HandleFunc("/api/v1/ideas/{name}/files/{filepath:.*}", h.GetFileContent).Methods("GET")
 	r.HandleFunc("/api/v1/ideas/{name}/queue", h.Queue).Methods("POST")
+	r.HandleFunc("/api/v1/ideas/{name}/research", h.Research).Methods("POST")
+}
+
+// ResearchRequest captures optional fields for spawning a research agent.
+type ResearchRequest struct {
+	Prompt      string `json:"prompt,omitempty"`
+	ScopePath   string `json:"scopePath,omitempty"`
+	ProjectRoot string `json:"projectRoot,omitempty"`
+}
+
+// ResearchResponse returns agent-manager identifiers.
+type ResearchResponse struct {
+	TaskID  string `json:"taskId"`
+	RunID   string `json:"runId"`
+	BaseURL string `json:"baseUrl"`
+	Created string `json:"created"`
 }
 
 // List returns all ideas.
@@ -824,6 +853,72 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Research spawns a research agent via agent-manager for the specified idea.
+// [REQ:REQ-P1-004-API] Research agent spawn API
+func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	idea, err := h.loadIdea(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "[ideas] research", "idea not found")
+			return
+		}
+		httputil.InternalError(w, "[ideas] research", "failed to load idea")
+		return
+	}
+
+	var req ResearchRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httputil.BadRequest(w, "[ideas] research", "invalid request body")
+			return
+		}
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		scopePath = filepath.Join(h.ideasDir, idea.Name)
+	}
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	client := h.agentClient
+	if client == nil {
+		client = agentmanager.NewHTTPClient()
+	}
+
+	response, err := client.CreateResearchRun(r.Context(), agentmanager.ResearchRequest{
+		Title:       "Research idea: " + idea.Title,
+		Description: buildResearchDescription(idea),
+		Prompt:      strings.TrimSpace(req.Prompt),
+		ScopePath:   scopePath,
+		ProjectRoot: projectRoot,
+		Tag:         "swarm-manager:idea:" + idea.Name + ":research",
+		CreatedBy:   "swarm-manager",
+	})
+	if err != nil {
+		if errors.Is(err, agentmanager.ErrNotAvailable) {
+			httputil.ServiceUnavailable(w, "[ideas] research", "agent-manager is not available")
+			return
+		}
+		httputil.InternalError(w, "[ideas] research", "failed to spawn research agent")
+		return
+	}
+
+	if err := httputil.JSONWithStatus(w, http.StatusCreated, ResearchResponse{
+		TaskID:  response.TaskID,
+		RunID:   response.RunID,
+		BaseURL: response.BaseURL,
+		Created: response.CreatedAt,
+	}); err != nil {
+		httputil.InternalError(w, "[ideas] research", "failed to encode response")
+	}
+}
+
 // isQueueableStatus checks if an idea can be queued from its current status.
 func isQueueableStatus(status IdeaStatus) bool {
 	switch status {
@@ -945,4 +1040,33 @@ func sanitizeName(name string) string {
 		}
 	}
 	return result.String()
+}
+
+func buildResearchDescription(idea Idea) string {
+	var builder strings.Builder
+	builder.WriteString("Research this scenario idea and summarize actionable next steps.\n\n")
+	builder.WriteString("Title: ")
+	builder.WriteString(idea.Title)
+	builder.WriteString("\n")
+	builder.WriteString("Description: ")
+	if strings.TrimSpace(idea.Description) == "" {
+		builder.WriteString("No description provided.\n")
+	} else {
+		builder.WriteString(idea.Description)
+		builder.WriteString("\n")
+	}
+	builder.WriteString("Status: ")
+	builder.WriteString(string(idea.Status))
+	builder.WriteString("\n")
+	builder.WriteString("Priority: ")
+	builder.WriteString(fmt.Sprintf("%d", idea.Priority))
+	builder.WriteString("\n")
+	if len(idea.Tags) > 0 {
+		builder.WriteString("Tags: ")
+		builder.WriteString(strings.Join(idea.Tags, ", "))
+		builder.WriteString("\n")
+	}
+	builder.WriteString("\nProvide a concise research summary, risks, and recommended next actions. ")
+	builder.WriteString("If applicable, suggest updates to notes or spec.json fields.\n")
+	return builder.String()
 }

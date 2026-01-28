@@ -17,8 +17,8 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useParams, Link } from "react-router-dom";
-import { ChevronRight, Edit, Trash2, Upload, Play, Loader2, Lightbulb } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ChevronRight, Edit, Trash2, Upload, Play, Loader2, Lightbulb, Sparkles } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -26,17 +26,24 @@ import { FileTree } from "../components/ui/file-tree";
 import { FilePreview } from "../components/ui/file-preview";
 import { FileUpload } from "../components/ui/file-upload";
 import { TagList } from "../components/ui/tag-list";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { IdeaFormDialog } from "../components/ideas/idea-form-dialog";
+import { ResearchDialog } from "../components/ideas/research-dialog";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { ideasService } from "../services";
 import { selectors } from "../consts/selectors";
-import { IDEA_STATUS_COLORS, formatIdeaStatus } from "../types";
+import { IDEA_STATUS_COLORS, formatIdeaStatus, type IdeaStatus } from "../types";
 import type { IdeaFile } from "../types";
 
 export function IdeaDetailsPage() {
   const { name } = useParams<{ name: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<IdeaFile | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [showResearch, setShowResearch] = useState(false);
 
   // Fetch idea details
   // Note: queryFn is only called when enabled is true (i.e., name exists)
@@ -102,6 +109,52 @@ export function IdeaDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ["ideas"] });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: (values: { title: string; description: string; status: IdeaStatus; priority: number; tags: string[] }) => {
+      if (!name) throw new Error("Name is required");
+      return ideasService.update(name, {
+        title: values.title,
+        description: values.description,
+        status: values.status,
+        priority: values.priority,
+        tags: values.tags,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ideas", name] });
+      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      setShowEdit(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => {
+      if (!name) throw new Error("Name is required");
+      return ideasService.delete(name);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      navigate("/ideas");
+    },
+  });
+
+  const researchMutation = useMutation({
+    mutationFn: (prompt: string) => {
+      if (!name) throw new Error("Name is required");
+      return ideasService.research(name, { prompt });
+    },
+    onSuccess: () => {
+      setShowResearch(false);
+    },
+  });
+
+  const updateError = updateMutation.isError ? "Failed to update idea. Please try again." : null;
+  const deleteError = deleteMutation.isError ? "Failed to delete idea. Please try again." : null;
+  const researchError = researchMutation.isError
+    ? "Failed to start research. Make sure agent-manager is running."
+    : null;
+  const queueError = queueMutation.isError ? "Failed to queue idea. Please try again." : null;
 
   // Check if idea can be queued (only from backlog, researching, or ready)
   const canQueue = idea && ["backlog", "researching", "ready"].includes(idea.status);
@@ -208,9 +261,8 @@ export function IdeaDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled
-                  title="Edit functionality coming soon"
                   data-testid={selectors.ideaDetails.editButton}
+                  onClick={() => setShowEdit(true)}
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
@@ -218,15 +270,38 @@ export function IdeaDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled
-                  title="Delete functionality coming soon"
                   data-testid={selectors.ideaDetails.deleteButton}
+                  onClick={() => setShowDelete(true)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowResearch(true)}
+                  data-testid={selectors.ideaDetails.researchButton}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Research
+                </Button>
               </div>
             </div>
+
+            {(queueError || deleteError) && (
+              <div className="mt-4 space-y-2">
+                {queueError && (
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                    {queueError}
+                  </div>
+                )}
+                {deleteError && (
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Timestamps - relative format with tooltip for exact date */}
             <div className="mt-4 flex gap-6 border-t border-white/10 pt-4 text-sm text-slate-500">
@@ -300,6 +375,59 @@ export function IdeaDetailsPage() {
           </div>
         </>
       )}
+
+      {idea && (
+        <IdeaFormDialog
+          isOpen={showEdit}
+          mode="edit"
+          initialValues={{
+            name: idea.name,
+            title: idea.title,
+            description: idea.description,
+            status: idea.status,
+            priority: idea.priority,
+            tags: idea.tags,
+          }}
+          isSubmitting={updateMutation.isPending}
+          submitError={updateError}
+          onClose={() => {
+            setShowEdit(false);
+            updateMutation.reset();
+          }}
+          onSubmit={(values) => updateMutation.mutate(values)}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={showDelete}
+        onClose={() => {
+          setShowDelete(false);
+          deleteMutation.reset();
+        }}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Delete Idea"
+        description={`Are you sure you want to delete "${idea?.title || name}"? This will remove the idea folder permanently.`}
+        confirmationText={idea?.name}
+        confirmLabel="Delete Idea"
+        isLoading={deleteMutation.isPending}
+        testIds={{
+          dialog: selectors.ideaDetails.deleteDialog,
+          confirmButton: selectors.ideaDetails.deleteConfirmButton,
+          cancelButton: selectors.ideaDetails.deleteCancelButton,
+        }}
+      />
+
+      <ResearchDialog
+        isOpen={showResearch}
+        isSubmitting={researchMutation.isPending}
+        ideaTitle={idea?.title ?? name ?? ""}
+        errorMessage={researchError}
+        onClose={() => {
+          setShowResearch(false);
+          researchMutation.reset();
+        }}
+        onSubmit={(prompt) => researchMutation.mutate(prompt)}
+      />
     </div>
   );
 }

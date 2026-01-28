@@ -11,6 +11,15 @@ import (
 	"path/filepath"
 )
 
+// ReadJSONBytes reads raw JSON file bytes.
+func ReadJSONBytes(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 // ReadJSON reads a JSON file into the provided destination.
 // Returns (false, nil) when the file does not exist.
 func ReadJSON(path string, dest any) (bool, error) {
