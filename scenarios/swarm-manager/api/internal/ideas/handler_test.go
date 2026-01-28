@@ -14,6 +14,35 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
+type listIdeasResponse struct {
+	Ideas []Idea `json:"ideas"`
+}
+
+type ideaResponse struct {
+	Idea Idea `json:"idea"`
+}
+
+type ideaFilesResponse struct {
+	Files []IdeaFile `json:"files"`
+}
+
+type ideaFileResponse struct {
+	File IdeaFile `json:"file"`
+}
+
+type queueIdeaResponse struct {
+	Idea   Idea   `json:"idea"`
+	TaskID string `json:"task_id"`
+}
+
+type createIdeaRequest struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+}
+
 // setupTestHandler creates a handler with a temporary ideas directory.
 func setupTestHandler(t *testing.T) (*Handler, string) {
 	t.Helper()
@@ -52,9 +81,9 @@ func TestList_Empty(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	ideas := testutil.DecodeJSON[[]Idea](t, w)
-	if len(ideas) != 0 {
-		t.Errorf("Expected empty list, got %d ideas", len(ideas))
+	resp := testutil.DecodeJSON[listIdeasResponse](t, w)
+	if len(resp.Ideas) != 0 {
+		t.Errorf("Expected empty list, got %d ideas", len(resp.Ideas))
 	}
 }
 
@@ -93,13 +122,13 @@ func TestList_WithIdeas(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	ideas := testutil.DecodeJSON[[]Idea](t, w)
-	if len(ideas) != 2 {
-		t.Errorf("Expected 2 ideas, got %d", len(ideas))
+	resp := testutil.DecodeJSON[listIdeasResponse](t, w)
+	if len(resp.Ideas) != 2 {
+		t.Errorf("Expected 2 ideas, got %d", len(resp.Ideas))
 	}
 
 	// Verify sorting by priority
-	if ideas[0].Priority > ideas[1].Priority {
+	if resp.Ideas[0].Priority > resp.Ideas[1].Priority {
 		t.Error("Ideas should be sorted by priority ascending")
 	}
 }
@@ -128,7 +157,8 @@ func TestGet_Found(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	result := testutil.DecodeJSON[Idea](t, w)
+	resp := testutil.DecodeJSON[ideaResponse](t, w)
+	result := resp.Idea
 	if result.Name != "get-test" {
 		t.Errorf("Expected name 'get-test', got '%s'", result.Name)
 	}
@@ -151,7 +181,7 @@ func TestGet_NotFound(t *testing.T) {
 func TestCreate_Success(t *testing.T) {
 	h, ideasDir := setupTestHandler(t)
 
-	payload := CreateIdeaRequest{
+	payload := createIdeaRequest{
 		Name:        "New Test Idea",
 		Title:       "New Test Idea",
 		Description: "A new test idea",
@@ -168,7 +198,8 @@ func TestCreate_Success(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, w)
 
-	result := testutil.DecodeJSON[Idea](t, w)
+	resp := testutil.DecodeJSON[ideaResponse](t, w)
+	result := resp.Idea
 
 	// Name should be sanitized
 	if result.Name != "new-test-idea" {
@@ -188,7 +219,7 @@ func TestCreate_Success(t *testing.T) {
 func TestCreate_MissingFields(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
-	payload := CreateIdeaRequest{
+	payload := createIdeaRequest{
 		Name: "", // Missing
 	}
 	body, _ := json.Marshal(payload)
@@ -216,7 +247,7 @@ func TestCreate_Duplicate(t *testing.T) {
 	}
 	createTestIdea(t, ideasDir, idea)
 
-	payload := CreateIdeaRequest{
+	payload := createIdeaRequest{
 		Name:  "existing",
 		Title: "Duplicate",
 	}
@@ -267,7 +298,8 @@ func TestUpdate_Success(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	result := testutil.DecodeJSON[Idea](t, w)
+	resp := testutil.DecodeJSON[ideaResponse](t, w)
+	result := resp.Idea
 
 	if result.Title != "Updated Title" {
 		t.Errorf("Expected title 'Updated Title', got '%s'", result.Title)
@@ -379,7 +411,7 @@ func TestDelete_Idempotent(t *testing.T) {
 func TestCreate_ReplaySafe(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
-	payload := CreateIdeaRequest{
+	payload := createIdeaRequest{
 		Name:        "replay-test",
 		Title:       "Replay Test",
 		Description: "Testing replay safety",
@@ -439,7 +471,8 @@ func TestUpdate_Idempotent(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w1)
 
-	result1 := testutil.DecodeJSON[Idea](t, w1)
+	resp1 := testutil.DecodeJSON[ideaResponse](t, w1)
+	result1 := resp1.Idea
 
 	// Second update with same payload
 	body2, _ := json.Marshal(update)
@@ -451,7 +484,8 @@ func TestUpdate_Idempotent(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w2)
 
-	result2 := testutil.DecodeJSON[Idea](t, w2)
+	resp2 := testutil.DecodeJSON[ideaResponse](t, w2)
+	result2 := resp2.Idea
 
 	// Core data should be identical (Updated timestamp may differ, which is acceptable)
 	if result1.Title != result2.Title {
@@ -493,7 +527,8 @@ func TestListFiles_Empty(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	files := testutil.DecodeJSON[[]IdeaFile](t, w)
+	resp := testutil.DecodeJSON[ideaFilesResponse](t, w)
+	files := resp.Files
 
 	// Should contain at least spec.json
 	if len(files) < 1 {
@@ -531,7 +566,8 @@ func TestListFiles_WithFiles(t *testing.T) {
 
 	testutil.AssertStatusOK(t, w)
 
-	files := testutil.DecodeJSON[[]IdeaFile](t, w)
+	resp := testutil.DecodeJSON[ideaFilesResponse](t, w)
+	files := resp.Files
 
 	// Should have research (directory), notes.md, spec.json
 	if len(files) != 3 {
@@ -845,7 +881,8 @@ func TestUploadFile_Success(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, w)
 
-	result := testutil.DecodeJSON[IdeaFile](t, w)
+	resp := testutil.DecodeJSON[ideaFileResponse](t, w)
+	result := resp.File
 
 	if result.Name != "test-upload.txt" {
 		t.Errorf("Expected name 'test-upload.txt', got '%s'", result.Name)
@@ -900,7 +937,8 @@ func TestUploadFile_WithPath(t *testing.T) {
 
 	testutil.AssertStatusCreated(t, w)
 
-	result := testutil.DecodeJSON[IdeaFile](t, w)
+	resp := testutil.DecodeJSON[ideaFileResponse](t, w)
+	result := resp.File
 
 	expectedPath := "docs/research/nested.txt"
 	if result.Path != expectedPath {
@@ -1069,43 +1107,6 @@ func TestQueue_InvalidOperation(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, w)
 }
 
-// [REQ:REQ-P0-005] Test QueueRequest structure
-func TestQueueRequest_Structure(t *testing.T) {
-	testCases := []struct {
-		name     string
-		json     string
-		expected QueueRequest
-	}{
-		{
-			name:     "empty",
-			json:     `{}`,
-			expected: QueueRequest{},
-		},
-		{
-			name:     "generator",
-			json:     `{"operation": "generator"}`,
-			expected: QueueRequest{Operation: "generator"},
-		},
-		{
-			name:     "improver",
-			json:     `{"operation": "improver"}`,
-			expected: QueueRequest{Operation: "improver"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var result QueueRequest
-			if err := json.Unmarshal([]byte(tc.json), &result); err != nil {
-				t.Fatalf("Failed to unmarshal: %v", err)
-			}
-			if result.Operation != tc.expected.Operation {
-				t.Errorf("Expected operation %q, got %q", tc.expected.Operation, result.Operation)
-			}
-		})
-	}
-}
-
 // [REQ:REQ-P0-005] Test QueueResponse structure
 func TestQueueResponse_Structure(t *testing.T) {
 	idea := Idea{
@@ -1116,7 +1117,7 @@ func TestQueueResponse_Structure(t *testing.T) {
 		Updated: "2026-01-28T00:00:00Z",
 	}
 
-	response := QueueResponse{
+	response := queueIdeaResponse{
 		Idea:   idea,
 		TaskID: "task-123",
 	}
@@ -1126,13 +1127,13 @@ func TestQueueResponse_Structure(t *testing.T) {
 		t.Fatalf("Failed to marshal QueueResponse: %v", err)
 	}
 
-	var parsed QueueResponse
+	var parsed queueIdeaResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		t.Fatalf("Failed to unmarshal QueueResponse: %v", err)
 	}
 
 	if parsed.TaskID != "task-123" {
-		t.Errorf("Expected taskId 'task-123', got '%s'", parsed.TaskID)
+		t.Errorf("Expected task_id 'task-123', got '%s'", parsed.TaskID)
 	}
 	if parsed.Idea.Name != "test" {
 		t.Errorf("Expected idea name 'test', got '%s'", parsed.Idea.Name)
@@ -1225,9 +1226,9 @@ func TestQueue_Success(t *testing.T) {
 
 	testutil.AssertStatus(t, w, http.StatusAccepted)
 
-	result := testutil.DecodeJSON[QueueResponse](t, w)
+	result := testutil.DecodeJSON[queueIdeaResponse](t, w)
 	if result.TaskID != "task-12345" {
-		t.Errorf("Expected taskId 'task-12345', got '%s'", result.TaskID)
+		t.Errorf("Expected task_id 'task-12345', got '%s'", result.TaskID)
 	}
 	if result.Idea.Status != StatusQueued {
 		t.Errorf("Expected idea status 'queued', got '%s'", result.Idea.Status)
@@ -1277,9 +1278,9 @@ func TestQueue_WithImproverOperation(t *testing.T) {
 
 	testutil.AssertStatus(t, w, http.StatusAccepted)
 
-	result := testutil.DecodeJSON[QueueResponse](t, w)
+	result := testutil.DecodeJSON[queueIdeaResponse](t, w)
 	if result.TaskID != "task-improver-1" {
-		t.Errorf("Expected taskId 'task-improver-1', got '%s'", result.TaskID)
+		t.Errorf("Expected task_id 'task-improver-1', got '%s'", result.TaskID)
 	}
 }
 

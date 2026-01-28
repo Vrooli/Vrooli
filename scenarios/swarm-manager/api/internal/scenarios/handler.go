@@ -9,7 +9,6 @@ package scenarios
 
 import (
 	"encoding/json"
-	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -19,6 +18,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/httputil"
 )
 
@@ -54,13 +56,6 @@ type ScenarioMetadata struct {
 	RecommendationsEnabled bool `json:"recommendationsEnabled"`
 }
 
-// UpdateMetadataRequest contains fields that can be updated via PATCH.
-// [REQ:REQ-P0-007] Request structure for metadata updates
-type UpdateMetadataRequest struct {
-	IsGreenfield           *bool `json:"isGreenfield,omitempty"`
-	RecommendationsEnabled *bool `json:"recommendationsEnabled,omitempty"`
-}
-
 // ServiceJSON represents the structure of a scenario's service.json file.
 type ServiceJSON struct {
 	Profile ServiceProfile `json:"profile"`
@@ -85,6 +80,25 @@ func NewHandler(scenariosDir string) *Handler {
 		scenariosDir = "scenarios"
 	}
 	return &Handler{scenariosDir: scenariosDir}
+}
+
+func scenarioToProto(s Scenario) *domainpb.Scenario {
+	var completeness *int32
+	if s.CompletenessScore != nil {
+		value := int32(*s.CompletenessScore)
+		completeness = &value
+	}
+	return &domainpb.Scenario{
+		Name:                   s.Name,
+		DisplayName:            s.DisplayName,
+		Description:            s.Description,
+		Status:                 string(s.Status),
+		Priority:               int32(s.Priority),
+		CompletenessScore:      completeness,
+		IsGreenfield:           s.IsGreenfield,
+		Tags:                   s.Tags,
+		RecommendationsEnabled: s.RecommendationsEnabled,
+	}
 }
 
 // RegisterRoutes registers the scenarios API routes.
@@ -126,7 +140,14 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	h.sortScenarios(scenarios, sortField, sortOrder)
 
 	log.Printf("[scenarios] list: returning %d scenarios (search=%q, status=%q, tags=%q)", len(scenarios), search, status, tagsParam)
-	httputil.JSON(w, scenarios)
+	protoScenarios := make([]*domainpb.Scenario, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		protoScenarios = append(protoScenarios, scenarioToProto(scenario))
+	}
+	resp := &apipb.ListScenariosResponse{Scenarios: protoScenarios}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] list", "failed to encode response")
+	}
 }
 
 // filterScenarios applies search, status, and tag filters to scenarios.
@@ -221,7 +242,10 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, scenario)
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] get", "failed to encode response")
+	}
 }
 
 // UpdateMetadata updates editable metadata for a scenario.
@@ -245,16 +269,9 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		httputil.BadRequest(w, "[scenarios] update", "failed to read request")
-		return
-	}
-	defer r.Body.Close()
-
-	var req UpdateMetadataRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		httputil.BadRequest(w, "[scenarios] update", "invalid JSON")
+	var req apipb.UpdateScenarioMetadataRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		httputil.BadRequest(w, "[scenarios] update", "invalid request body")
 		return
 	}
 
@@ -287,7 +304,10 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[scenarios] updated: %q (isGreenfield=%v, recommendationsEnabled=%v)", name, scenario.IsGreenfield, scenario.RecommendationsEnabled)
-	httputil.JSON(w, scenario)
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] update", "failed to encode response")
+	}
 }
 
 // loadAllScenarios reads all scenarios from the scenarios directory.
@@ -454,20 +474,6 @@ func (h *Handler) loadScenarioFromPath(scenarioPath string) (Scenario, error) {
 	}, nil
 }
 
-// DeleteRequest contains options for scenario deletion.
-// [REQ:REQ-P0-008] Request structure for deletion with archive option
-type DeleteRequest struct {
-	Archive bool `json:"archive"`
-}
-
-// DeleteResponse contains the result of a deletion operation.
-// [REQ:REQ-P0-008] Response structure for deletion confirmation
-type DeleteResponse struct {
-	Name     string `json:"name"`
-	Archived bool   `json:"archived"`
-	Message  string `json:"message"`
-}
-
 // Delete removes a scenario from the catalog with safeguards.
 // [REQ:REQ-P0-008] DELETE /api/v1/scenarios/{name} endpoint with archive option
 //
@@ -516,17 +522,18 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[scenarios] deleted: %q (archived=%v)", name, archive)
 
-	response := DeleteResponse{
+	message := "Scenario permanently deleted"
+	if archive {
+		message = "Scenario archived to ideas backlog and deleted"
+	}
+	response := &apipb.DeleteScenarioResponse{
 		Name:     name,
 		Archived: archive,
+		Message:  message,
 	}
-	if archive {
-		response.Message = "Scenario archived to ideas backlog and deleted"
-	} else {
-		response.Message = "Scenario permanently deleted"
+	if err := httputil.ProtoJSON(w, response); err != nil {
+		httputil.InternalError(w, "[scenarios] delete", "failed to encode response")
 	}
-
-	httputil.JSON(w, response)
 }
 
 // archiveToIdeas creates an idea entry from a scenario's metadata.

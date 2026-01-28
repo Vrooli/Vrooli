@@ -15,6 +15,8 @@
  * - Scenario lifecycle operations (delegated to ecosystem-manager)
  */
 
+import { UpdateScenarioMetadataRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
+import { buildMessage, deleteScenarioResponseSchema, listScenariosResponseSchema, mapDeleteScenarioResponse, mapProtoScenario, parseProtoResponse, requireProtoField, scenarioResponseSchema, toProtoJson } from "./proto-contracts";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
@@ -44,11 +46,15 @@ export function createScenariosService(
 ): IScenariosService {
   return {
     async list(): Promise<Scenario[]> {
-      return apiClient.get<Scenario[]>(API_ENDPOINTS.scenarios);
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.scenarios);
+      const parsed = parseProtoResponse(listScenariosResponseSchema, data, "scenarios list");
+      return parsed.scenarios.map(mapProtoScenario);
     },
 
     async get(name: string): Promise<Scenario> {
-      return apiClient.get<Scenario>(API_ENDPOINTS.scenarioByName(name));
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.scenarioByName(name));
+      const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
+      return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
     },
 
     /**
@@ -56,7 +62,14 @@ export function createScenariosService(
      * [REQ:REQ-P0-007] PATCH endpoint for scenario metadata management
      */
     async updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario> {
-      return apiClient.patch<Scenario>(API_ENDPOINTS.scenarioByName(name), request);
+      const message = buildMessage(UpdateScenarioMetadataRequestSchema, {
+        isGreenfield: request.isGreenfield,
+        recommendationsEnabled: request.recommendationsEnabled,
+      });
+      const payload = toProtoJson(UpdateScenarioMetadataRequestSchema, message);
+      const data = await apiClient.patch<unknown>(API_ENDPOINTS.scenarioByName(name), payload);
+      const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
+      return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
     },
 
     /**
@@ -67,7 +80,9 @@ export function createScenariosService(
       const endpoint = archive
         ? `${API_ENDPOINTS.scenarioByName(name)}?archive=true`
         : API_ENDPOINTS.scenarioByName(name);
-      return apiClient.delete<DeleteScenarioResponse>(endpoint);
+      const data = await apiClient.delete<unknown>(endpoint);
+      const parsed = parseProtoResponse(deleteScenarioResponseSchema, data, "scenario delete");
+      return mapDeleteScenarioResponse(parsed);
     },
   };
 }

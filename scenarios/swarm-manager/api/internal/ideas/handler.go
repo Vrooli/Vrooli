@@ -19,6 +19,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/httputil"
 )
 
@@ -48,22 +51,13 @@ type Idea struct {
 	Updated     string     `json:"updated"`
 }
 
-// CreateIdeaRequest is the payload for creating a new idea.
-type CreateIdeaRequest struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Priority    int      `json:"priority,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-}
-
 // IdeaFile represents a file or directory within an idea folder.
 // [REQ:REQ-P0-004] File tree data structure for idea details page
 type IdeaFile struct {
 	Name     string     `json:"name"`
 	Path     string     `json:"path"`
 	Type     string     `json:"type"` // "file" or "directory"
-	Size     int64      `json:"size,omitempty"`
+	Size     int64      `json:"size,omitempty,string"`
 	Children []IdeaFile `json:"children,omitempty"`
 }
 
@@ -112,6 +106,91 @@ func NewHandlerWithClient(ideasDir string, client EcosystemClient) *Handler {
 	return h
 }
 
+func validateIdeaStatus(status string) bool {
+	switch status {
+	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "archived":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateCreateIdeaRequest(req *apipb.CreateIdeaRequest) string {
+	if strings.TrimSpace(req.Name) == "" || strings.TrimSpace(req.Title) == "" {
+		return "name and title are required"
+	}
+	if req.Priority != nil {
+		if *req.Priority < 1 || *req.Priority > 10 {
+			return "priority must be between 1 and 10"
+		}
+	}
+	return ""
+}
+
+func validateUpdateIdeaRequest(req *apipb.UpdateIdeaRequest) string {
+	if strings.TrimSpace(req.Title) == "" {
+		return "title is required"
+	}
+	if !validateIdeaStatus(req.Status) {
+		return "status must be a valid idea status"
+	}
+	if req.Priority < 1 || req.Priority > 10 {
+		return "priority must be between 1 and 10"
+	}
+	return ""
+}
+
+func validateQueueIdeaRequest(req *apipb.QueueIdeaRequest) string {
+	if req.Operation == nil || strings.TrimSpace(*req.Operation) == "" {
+		return ""
+	}
+	switch *req.Operation {
+	case "generator", "improver":
+		return ""
+	default:
+		return "operation must be 'generator' or 'improver'"
+	}
+}
+
+func ideaToProto(idea Idea) *domainpb.Idea {
+	return &domainpb.Idea{
+		Name:        idea.Name,
+		Title:       idea.Title,
+		Description: idea.Description,
+		Status:      string(idea.Status),
+		Priority:    int32(idea.Priority),
+		Tags:        idea.Tags,
+		Created:     idea.Created,
+		Updated:     idea.Updated,
+	}
+}
+
+func ideaFilesToProto(files []IdeaFile) []*domainpb.IdeaFile {
+	if len(files) == 0 {
+		return nil
+	}
+	result := make([]*domainpb.IdeaFile, 0, len(files))
+	for _, file := range files {
+		result = append(result, ideaFileToProto(file))
+	}
+	return result
+}
+
+func ideaFileToProto(file IdeaFile) *domainpb.IdeaFile {
+	children := ideaFilesToProto(file.Children)
+	var size *int64
+	if file.Type == "file" {
+		size = &file.Size
+	}
+	return &domainpb.IdeaFile{
+		Name:     file.Name,
+		Path:     file.Path,
+		Type:     file.Type,
+		Size:     size,
+		Children: children,
+	}
+}
+
 // RegisterRoutes registers the ideas API routes.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/ideas", h.List).Methods("GET")
@@ -142,7 +221,15 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return ideas[i].Updated > ideas[j].Updated
 	})
 
-	httputil.JSON(w, ideas)
+	protoIdeas := make([]*domainpb.Idea, 0, len(ideas))
+	for _, idea := range ideas {
+		protoIdeas = append(protoIdeas, ideaToProto(idea))
+	}
+
+	resp := &apipb.ListIdeasResponse{Ideas: protoIdeas}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[ideas] list", "failed to encode response")
+	}
 }
 
 // Get returns a single idea by name.
@@ -161,22 +248,22 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	httputil.JSON(w, idea)
+	resp := &apipb.IdeaResponse{Idea: ideaToProto(idea)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[ideas] get", "failed to encode response")
+	}
 }
 
 // Create creates a new idea.
 // [REQ:REQ-P0-002] POST /api/v1/ideas endpoint
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req CreateIdeaRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	var req apipb.CreateIdeaRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.BadRequest(w, "[ideas] create", "invalid request body")
 		return
 	}
-
-	// Validate required fields
-	if req.Name == "" || req.Title == "" {
-		log.Printf("[ideas] create: missing required fields (hasName=%v, hasTitle=%v)", req.Name != "", req.Title != "")
-		httputil.BadRequest(w, "", "name and title are required")
+	if validationErr := validateCreateIdeaRequest(&req); validationErr != "" {
+		httputil.BadRequest(w, "[ideas] create", validationErr)
 		return
 	}
 
@@ -199,9 +286,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Set defaults
 	now := time.Now().UTC().Format(time.RFC3339)
-	priority := req.Priority
-	if priority == 0 {
-		priority = 5 // Default priority
+	priority := 5
+	if req.Priority != nil {
+		priority = int(*req.Priority)
+	}
+	description := ""
+	if req.Description != nil {
+		description = *req.Description
 	}
 	tags := req.Tags
 	if tags == nil {
@@ -211,7 +302,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	idea := Idea{
 		Name:        name,
 		Title:       req.Title,
-		Description: req.Description,
+		Description: description,
 		Status:      StatusBacklog,
 		Priority:    priority,
 		Tags:        tags,
@@ -229,7 +320,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[ideas] created: %q (priority=%d, status=%s)", name, priority, StatusBacklog)
-	httputil.JSONWithStatus(w, http.StatusCreated, idea)
+	resp := &apipb.IdeaResponse{Idea: ideaToProto(idea)}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+		httputil.InternalError(w, "[ideas] create", "failed to encode response")
+	}
 }
 
 // Update updates an existing idea.
@@ -251,9 +345,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode update payload
-	var update Idea
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+	var update apipb.UpdateIdeaRequest
+	if err := httputil.DecodeProtoJSON(r, &update); err != nil {
 		httputil.BadRequest(w, "[ideas] update", "invalid request body")
+		return
+	}
+	if validationErr := validateUpdateIdeaRequest(&update); validationErr != "" {
+		httputil.BadRequest(w, "[ideas] update", validationErr)
 		return
 	}
 
@@ -264,8 +362,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	// Apply updates (preserve immutable fields)
 	existing.Title = update.Title
 	existing.Description = update.Description
-	existing.Status = update.Status
-	existing.Priority = update.Priority
+	existing.Status = IdeaStatus(update.Status)
+	existing.Priority = int(update.Priority)
 	existing.Tags = update.Tags
 	existing.Updated = time.Now().UTC().Format(time.RFC3339)
 
@@ -283,7 +381,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[ideas] updated: %q", name)
 	}
 
-	httputil.JSON(w, existing)
+	resp := &apipb.IdeaResponse{Idea: ideaToProto(existing)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[ideas] update", "failed to encode response")
+	}
 }
 
 // Delete removes an idea.
@@ -336,7 +437,10 @@ func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[ideas] list files: %q (%d items)", name, len(files))
-	httputil.JSON(w, files)
+	resp := &apipb.IdeaFilesResponse{Files: ideaFilesToProto(files)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[ideas] list files", "failed to encode response")
+	}
 }
 
 // buildFileTree recursively builds a file tree structure.
@@ -593,7 +697,10 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		Size: written,
 	}
 
-	httputil.JSONWithStatus(w, http.StatusCreated, response)
+	resp := &apipb.IdeaFileResponse{File: ideaFileToProto(response)}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+		httputil.InternalError(w, "[ideas] upload file", "failed to encode response")
+	}
 }
 
 // getContentType returns the MIME type for a file extension.
@@ -636,17 +743,6 @@ func getContentType(ext string) string {
 	}
 }
 
-// QueueRequest represents the payload for queueing an idea.
-type QueueRequest struct {
-	Operation string `json:"operation,omitempty"` // "generator" (default) or "improver"
-}
-
-// QueueResponse represents the response after queueing an idea.
-type QueueResponse struct {
-	Idea   Idea   `json:"idea"`
-	TaskID string `json:"taskId"`
-}
-
 // EcosystemTask represents a task in the ecosystem-manager queue.
 type EcosystemTask struct {
 	ID        string `json:"id,omitempty"`
@@ -683,23 +779,24 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse optional request body for operation type
-	var req QueueRequest
+	var req apipb.QueueIdeaRequest
 	if r.Body != nil && r.ContentLength > 0 {
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 			httputil.BadRequest(w, "[ideas] queue", "invalid request body")
 			return
 		}
+		if validationErr := validateQueueIdeaRequest(&req); validationErr != "" {
+			httputil.BadRequest(w, "[ideas] queue", validationErr)
+			return
+		}
 	}
-	if req.Operation == "" {
-		req.Operation = "generator"
-	}
-	if req.Operation != "generator" && req.Operation != "improver" {
-		httputil.BadRequest(w, "", "operation must be 'generator' or 'improver'")
-		return
+	operation := "generator"
+	if req.Operation != nil && *req.Operation != "" {
+		operation = *req.Operation
 	}
 
 	// Create task in ecosystem-manager
-	taskID, err := h.createEcosystemTask(idea, req.Operation)
+	taskID, err := h.createEcosystemTask(idea, operation)
 	if err != nil {
 		log.Printf("[ideas] queue: failed to create ecosystem task for %q: %v", name, err)
 		httputil.InternalError(w, "", "failed to create ecosystem task: "+err.Error())
@@ -716,13 +813,15 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[ideas] queued: %q (status=%s→%s, taskId=%s, operation=%s)", name, oldStatus, StatusQueued, taskID, req.Operation)
+	log.Printf("[ideas] queued: %q (status=%s→%s, taskId=%s, operation=%s)", name, oldStatus, StatusQueued, taskID, operation)
 
-	response := QueueResponse{
-		Idea:   idea,
-		TaskID: taskID,
+	response := &apipb.QueueIdeaResponse{
+		Idea:   ideaToProto(idea),
+		TaskId: taskID,
 	}
-	httputil.JSONWithStatus(w, http.StatusAccepted, response)
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, response); err != nil {
+		httputil.InternalError(w, "[ideas] queue", "failed to encode response")
+	}
 }
 
 // isQueueableStatus checks if an idea can be queued from its current status.

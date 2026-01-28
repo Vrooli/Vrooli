@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/idea.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// IDEAS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports ideas
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager idea management.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// CreateIdeaRequest defines the payload for creating a new idea.
+message CreateIdeaRequest {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description.
+  optional string description = 3;
+
+  // Optional priority override (1-10). Defaults to 5 if omitted.
+  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Optional tags.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+}
+
+// UpdateIdeaRequest defines the payload for updating an idea.
+message UpdateIdeaRequest {
+  // Human-readable title.
+  string title = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description.
+  string description = 2;
+
+  // Lifecycle status.
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+  string status = 3 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "archived"
+  ] }];
+
+  // Priority level (1-10).
+  int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Tags.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+}
+
+// ListIdeasResponse returns all ideas.
+message ListIdeasResponse {
+  repeated Idea ideas = 1;
+}
+
+// IdeaResponse returns a single idea.
+message IdeaResponse {
+  Idea idea = 1;
+}
+
+// IdeaFilesResponse returns the file tree for an idea.
+message IdeaFilesResponse {
+  repeated IdeaFile files = 1;
+}
+
+// IdeaFileResponse returns a single file node.
+message IdeaFileResponse {
+  IdeaFile file = 1;
+}
+
+// QueueIdeaRequest queues an idea for processing.
+message QueueIdeaRequest {
+  // Operation type: generator or improver.
+  // If omitted, defaults to generator.
+  optional string operation = 1 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string = { in: ["generator", "improver"] }
+  ];
+}
+
+// QueueIdeaResponse returns queue results.
+message QueueIdeaResponse {
+  Idea idea = 1;
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+}

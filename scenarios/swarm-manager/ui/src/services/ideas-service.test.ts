@@ -48,7 +48,7 @@ describe("Ideas Service", () => {
           updated: "2026-01-28T00:00:00Z",
         },
       ];
-      vi.mocked(mockApiClient.get).mockResolvedValue(mockIdeas);
+      vi.mocked(mockApiClient.get).mockResolvedValue({ ideas: mockIdeas });
 
       const result = await service.list();
 
@@ -69,7 +69,7 @@ describe("Ideas Service", () => {
         created: "2026-01-28T00:00:00Z",
         updated: "2026-01-28T00:00:00Z",
       };
-      vi.mocked(mockApiClient.get).mockResolvedValue(mockIdea);
+      vi.mocked(mockApiClient.get).mockResolvedValue({ idea: mockIdea });
 
       const result = await service.get("my-idea");
 
@@ -93,18 +93,30 @@ describe("Ideas Service", () => {
         created: "2026-01-28T00:00:00Z",
         updated: "2026-01-28T00:00:00Z",
       };
-      vi.mocked(mockApiClient.post).mockResolvedValue(createdIdea);
+      vi.mocked(mockApiClient.post).mockResolvedValue({ idea: createdIdea });
 
       const result = await service.create(newIdea);
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("/ideas", newIdea);
+      expect(mockApiClient.post).toHaveBeenCalledWith("/ideas", {
+        name: "new-idea",
+        title: "New Idea",
+        description: "A new idea",
+        priority: 1,
+        tags: ["new"],
+      });
       expect(result).toEqual(createdIdea);
     });
   });
 
   describe("update", () => {
     it("puts an updated idea", async () => {
-      const updates = { title: "Updated Title" };
+      const updates = {
+        title: "Updated Title",
+        description: "Original description",
+        status: "backlog" as const,
+        priority: 1,
+        tags: [],
+      };
       const updatedIdea: Idea = {
         name: "my-idea",
         title: "Updated Title",
@@ -115,7 +127,7 @@ describe("Ideas Service", () => {
         created: "2026-01-28T00:00:00Z",
         updated: "2026-01-28T01:00:00Z",
       };
-      vi.mocked(mockApiClient.put).mockResolvedValue(updatedIdea);
+      vi.mocked(mockApiClient.put).mockResolvedValue({ idea: updatedIdea });
 
       const result = await service.update("my-idea", updates);
 
@@ -158,7 +170,29 @@ describe("Ideas Service", () => {
           ],
         },
       ];
-      vi.mocked(mockApiClient.get).mockResolvedValue(mockFiles);
+      vi.mocked(mockApiClient.get).mockResolvedValue({
+        files: [
+          {
+            name: "spec.json",
+            path: "spec.json",
+            type: "file",
+            size: "256",
+          },
+          {
+            name: "research",
+            path: "research",
+            type: "directory",
+            children: [
+              {
+                name: "notes.md",
+                path: "research/notes.md",
+                type: "file",
+                size: "1024",
+              },
+            ],
+          },
+        ],
+      });
 
       const result = await service.getFiles("my-idea");
 
@@ -168,7 +202,7 @@ describe("Ideas Service", () => {
     });
 
     it("returns empty array when idea has no files", async () => {
-      vi.mocked(mockApiClient.get).mockResolvedValue([]);
+      vi.mocked(mockApiClient.get).mockResolvedValue({ files: [] });
 
       const result = await service.getFiles("empty-idea");
 
@@ -209,10 +243,12 @@ describe("Ideas Service", () => {
     it("uploads a file with FormData", async () => {
       const mockFile = new File(["test content"], "test.txt", { type: "text/plain" });
       const mockResponse = {
-        name: "test.txt",
-        path: "test.txt",
-        type: "file" as const,
-        size: 12,
+        file: {
+          name: "test.txt",
+          path: "test.txt",
+          type: "file" as const,
+          size: "12",
+        },
       };
       vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
 
@@ -223,16 +259,23 @@ describe("Ideas Service", () => {
         expect.any(FormData),
         { headers: {} }
       );
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({
+        name: "test.txt",
+        path: "test.txt",
+        type: "file",
+        size: 12,
+      });
     });
 
     it("includes path in FormData when specified", async () => {
       const mockFile = new File(["test content"], "notes.md", { type: "text/markdown" });
       const mockResponse = {
-        name: "notes.md",
-        path: "research/notes.md",
-        type: "file" as const,
-        size: 12,
+        file: {
+          name: "notes.md",
+          path: "research/notes.md",
+          type: "file" as const,
+          size: "12",
+        },
       };
       vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
 
@@ -262,7 +305,7 @@ describe("Ideas Service", () => {
           created: "2026-01-28T00:00:00Z",
           updated: "2026-01-28T01:00:00Z",
         },
-        taskId: "task-12345",
+        task_id: "task-12345",
       };
       vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
 
@@ -287,7 +330,7 @@ describe("Ideas Service", () => {
           created: "2026-01-28T00:00:00Z",
           updated: "2026-01-28T01:00:00Z",
         },
-        taskId: "task-67890",
+        task_id: "task-67890",
       };
       vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
 
@@ -335,7 +378,15 @@ describe("Ideas Service", () => {
       const error = new Error("Not found");
       vi.mocked(mockApiClient.put).mockRejectedValue(error);
 
-      await expect(service.update("missing", { title: "New" })).rejects.toThrow("Not found");
+      await expect(
+        service.update("missing", {
+          title: "New",
+          description: "Updated description",
+          status: "ready",
+          priority: 2,
+          tags: [],
+        })
+      ).rejects.toThrow("Not found");
     });
 
     it("propagates API errors from delete", async () => {

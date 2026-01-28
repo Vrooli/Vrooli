@@ -211,6 +211,16 @@ type Idea struct {
 	Updated     string   `json:"updated"`
 }
 
+// IdeaResponse wraps a single idea response.
+type IdeaResponse struct {
+	Idea Idea `json:"idea"`
+}
+
+// ListIdeasResponse wraps idea list responses.
+type ListIdeasResponse struct {
+	Ideas []Idea `json:"ideas"`
+}
+
 // CreateIdeaRequest is the payload for creating a new idea.
 type CreateIdeaRequest struct {
 	Name        string   `json:"name"`
@@ -228,18 +238,18 @@ func (a *App) cmdIdeasList(_ []string) error {
 		return err
 	}
 
-	var ideas []Idea
-	if err := json.Unmarshal(body, &ideas); err != nil {
+	var response ListIdeasResponse
+	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	if len(ideas) == 0 {
+	if len(response.Ideas) == 0 {
 		fmt.Println("No ideas found.")
 		return nil
 	}
 
-	fmt.Printf("Found %d idea(s):\n\n", len(ideas))
-	for _, idea := range ideas {
+	fmt.Printf("Found %d idea(s):\n\n", len(response.Ideas))
+	for _, idea := range response.Ideas {
 		fmt.Printf("  %s (priority: %d, status: %s)\n", idea.Name, idea.Priority, idea.Status)
 		fmt.Printf("    Title: %s\n", idea.Title)
 		if len(idea.Tags) > 0 {
@@ -263,10 +273,11 @@ func (a *App) cmdIdeasGet(args []string) error {
 		return err
 	}
 
-	var idea Idea
-	if err := json.Unmarshal(body, &idea); err != nil {
+	var response IdeaResponse
+	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
+	idea := response.Idea
 
 	fmt.Printf("Name: %s\n", idea.Name)
 	fmt.Printf("Title: %s\n", idea.Title)
@@ -303,10 +314,11 @@ func (a *App) cmdIdeasCreate(args []string) error {
 		return err
 	}
 
-	var idea Idea
-	if err := json.Unmarshal(body, &idea); err != nil {
+	var response IdeaResponse
+	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
+	idea := response.Idea
 
 	fmt.Printf("Created idea: %s\n", idea.Name)
 	fmt.Printf("  Title: %s\n", idea.Title)
@@ -336,10 +348,11 @@ func (a *App) cmdIdeasUpdate(args []string) error {
 		return err
 	}
 
-	var idea Idea
-	if err := json.Unmarshal(body, &idea); err != nil {
+	var response IdeaResponse
+	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
+	idea := response.Idea
 
 	fmt.Printf("Updated idea: %s\n", idea.Name)
 	fmt.Printf("  Title: %s\n", idea.Title)

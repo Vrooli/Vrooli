@@ -50,7 +50,20 @@ describe("Scenarios Service", () => {
           recommendationsEnabled: true,
         },
       ];
-      vi.mocked(mockApiClient.get).mockResolvedValue(mockScenarios);
+      vi.mocked(mockApiClient.get).mockResolvedValue({
+        scenarios: [
+          {
+            name: "test-scenario",
+            display_name: "Test Scenario",
+            description: "A test scenario",
+            status: "running",
+            priority: 1,
+            is_greenfield: false,
+            tags: ["test"],
+            recommendations_enabled: true,
+          },
+        ],
+      });
 
       const result = await service.list();
 
@@ -59,7 +72,7 @@ describe("Scenarios Service", () => {
     });
 
     it("returns empty array when no scenarios exist", async () => {
-      vi.mocked(mockApiClient.get).mockResolvedValue([]);
+      vi.mocked(mockApiClient.get).mockResolvedValue({ scenarios: [] });
 
       const result = await service.list();
 
@@ -80,7 +93,18 @@ describe("Scenarios Service", () => {
         tags: ["important"],
         recommendationsEnabled: false,
       };
-      vi.mocked(mockApiClient.get).mockResolvedValue(mockScenario);
+      vi.mocked(mockApiClient.get).mockResolvedValue({
+        scenario: {
+          name: "my-scenario",
+          display_name: "My Scenario",
+          description: "A specific scenario",
+          status: "stopped",
+          priority: 2,
+          is_greenfield: true,
+          tags: ["important"],
+          recommendations_enabled: false,
+        },
+      });
 
       const result = await service.get("my-scenario");
 
@@ -104,11 +128,24 @@ describe("Scenarios Service", () => {
         tags: [],
         recommendationsEnabled: true,
       };
-      vi.mocked(mockApiClient.patch).mockResolvedValue(updatedScenario);
+      vi.mocked(mockApiClient.patch).mockResolvedValue({
+        scenario: {
+          name: "my-scenario",
+          display_name: "My Scenario",
+          description: "Updated scenario",
+          status: "running",
+          priority: 1,
+          is_greenfield: true,
+          tags: [],
+          recommendations_enabled: true,
+        },
+      });
 
       const result = await service.updateMetadata("my-scenario", request);
 
-      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", request);
+      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", {
+        is_greenfield: true,
+      });
       expect(result).toEqual(updatedScenario);
       expect(result.isGreenfield).toBe(true);
     });
@@ -127,11 +164,24 @@ describe("Scenarios Service", () => {
         tags: [],
         recommendationsEnabled: false,
       };
-      vi.mocked(mockApiClient.patch).mockResolvedValue(updatedScenario);
+      vi.mocked(mockApiClient.patch).mockResolvedValue({
+        scenario: {
+          name: "my-scenario",
+          display_name: "My Scenario",
+          description: "Updated scenario",
+          status: "running",
+          priority: 1,
+          is_greenfield: false,
+          tags: [],
+          recommendations_enabled: false,
+        },
+      });
 
       const result = await service.updateMetadata("my-scenario", request);
 
-      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", request);
+      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", {
+        recommendations_enabled: false,
+      });
       expect(result).toEqual(updatedScenario);
       expect(result.recommendationsEnabled).toBe(false);
     });
@@ -151,11 +201,25 @@ describe("Scenarios Service", () => {
         tags: ["updated"],
         recommendationsEnabled: false,
       };
-      vi.mocked(mockApiClient.patch).mockResolvedValue(updatedScenario);
+      vi.mocked(mockApiClient.patch).mockResolvedValue({
+        scenario: {
+          name: "my-scenario",
+          display_name: "My Scenario",
+          description: "Updated scenario",
+          status: "stopped",
+          priority: 3,
+          is_greenfield: true,
+          tags: ["updated"],
+          recommendations_enabled: false,
+        },
+      });
 
       const result = await service.updateMetadata("my-scenario", request);
 
-      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", request);
+      expect(mockApiClient.patch).toHaveBeenCalledWith("/scenarios/my-scenario", {
+        is_greenfield: true,
+        recommendations_enabled: false,
+      });
       expect(result).toEqual(updatedScenario);
     });
   });

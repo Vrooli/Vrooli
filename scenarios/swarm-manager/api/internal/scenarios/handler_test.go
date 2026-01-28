@@ -10,6 +10,32 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
+type scenarioPayload struct {
+	Name                   string   `json:"name"`
+	DisplayName            string   `json:"display_name"`
+	Description            string   `json:"description"`
+	Status                 string   `json:"status"`
+	Priority               int      `json:"priority"`
+	CompletenessScore      *int     `json:"completeness_score,omitempty"`
+	IsGreenfield           bool     `json:"is_greenfield"`
+	Tags                   []string `json:"tags"`
+	RecommendationsEnabled bool     `json:"recommendations_enabled"`
+}
+
+type listScenariosResponse struct {
+	Scenarios []scenarioPayload `json:"scenarios"`
+}
+
+type scenarioResponse struct {
+	Scenario scenarioPayload `json:"scenario"`
+}
+
+type deleteScenarioResponse struct {
+	Name     string `json:"name"`
+	Archived bool   `json:"archived"`
+	Message  string `json:"message"`
+}
+
 // setupTestScenarios creates temporary test scenarios using t.TempDir() for automatic cleanup.
 // [REQ:REQ-P0-006] Test scenario catalog listing
 func setupTestScenarios(t *testing.T) string {
@@ -70,9 +96,9 @@ func TestList_Empty(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-	if len(scenarios) != 0 {
-		t.Errorf("expected 0 scenarios, got %d", len(scenarios))
+	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	if len(resp.Scenarios) != 0 {
+		t.Errorf("expected 0 scenarios, got %d", len(resp.Scenarios))
 	}
 }
 
@@ -89,20 +115,20 @@ func TestList_WithScenarios(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-	if len(scenarios) != 3 {
-		t.Errorf("expected 3 scenarios, got %d", len(scenarios))
+	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	if len(resp.Scenarios) != 3 {
+		t.Errorf("expected 3 scenarios, got %d", len(resp.Scenarios))
 	}
 
 	// Should be sorted by priority (1, 3, 5)
-	if scenarios[0].Priority != 1 {
-		t.Errorf("expected first scenario priority 1, got %d", scenarios[0].Priority)
+	if resp.Scenarios[0].Priority != 1 {
+		t.Errorf("expected first scenario priority 1, got %d", resp.Scenarios[0].Priority)
 	}
-	if scenarios[1].Priority != 3 {
-		t.Errorf("expected second scenario priority 3, got %d", scenarios[1].Priority)
+	if resp.Scenarios[1].Priority != 3 {
+		t.Errorf("expected second scenario priority 3, got %d", resp.Scenarios[1].Priority)
 	}
-	if scenarios[2].Priority != 5 {
-		t.Errorf("expected third scenario priority 5 (default), got %d", scenarios[2].Priority)
+	if resp.Scenarios[2].Priority != 5 {
+		t.Errorf("expected third scenario priority 5 (default), got %d", resp.Scenarios[2].Priority)
 	}
 }
 
@@ -132,9 +158,9 @@ func TestList_Search(t *testing.T) {
 
 			testutil.AssertStatusOK(t, rec)
 
-			scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-			if len(scenarios) != tt.expectedCount {
-				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(scenarios))
+			resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+			if len(resp.Scenarios) != tt.expectedCount {
+				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(resp.Scenarios))
 			}
 		})
 	}
@@ -166,9 +192,9 @@ func TestList_FilterByTags(t *testing.T) {
 
 			testutil.AssertStatusOK(t, rec)
 
-			scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-			if len(scenarios) != tt.expectedCount {
-				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(scenarios))
+			resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+			if len(resp.Scenarios) != tt.expectedCount {
+				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(resp.Scenarios))
 			}
 		})
 	}
@@ -186,9 +212,9 @@ func TestList_Sorting(t *testing.T) {
 
 		handler.List(rec, req)
 
-		scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-		if scenarios[0].Name != "another-scenario" {
-			t.Errorf("expected first scenario 'another-scenario', got %s", scenarios[0].Name)
+		resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+		if resp.Scenarios[0].Name != "another-scenario" {
+			t.Errorf("expected first scenario 'another-scenario', got %s", resp.Scenarios[0].Name)
 		}
 	})
 
@@ -198,10 +224,10 @@ func TestList_Sorting(t *testing.T) {
 
 		handler.List(rec, req)
 
-		scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
+		resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
 		// Highest priority number should be first
-		if scenarios[0].Priority != 5 {
-			t.Errorf("expected first scenario priority 5, got %d", scenarios[0].Priority)
+		if resp.Scenarios[0].Priority != 5 {
+			t.Errorf("expected first scenario priority 5, got %d", resp.Scenarios[0].Priority)
 		}
 	})
 }
@@ -222,7 +248,8 @@ func TestGet_Success(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	scenario := testutil.DecodeJSON[Scenario](t, rec)
+	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	scenario := resp.Scenario
 	if scenario.Name != "test-scenario-1" {
 		t.Errorf("expected name 'test-scenario-1', got %s", scenario.Name)
 	}
@@ -262,12 +289,12 @@ func TestScenario_Structure(t *testing.T) {
 
 	handler.List(rec, req)
 
-	scenarios := testutil.DecodeJSON[[]Scenario](t, rec)
-	if len(scenarios) != 1 {
-		t.Fatalf("expected 1 scenario, got %d", len(scenarios))
+	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	if len(resp.Scenarios) != 1 {
+		t.Fatalf("expected 1 scenario, got %d", len(resp.Scenarios))
 	}
 
-	s := scenarios[0]
+	s := resp.Scenarios[0]
 	if s.Name != "test-scenario-2" {
 		t.Errorf("expected name 'test-scenario-2', got %s", s.Name)
 	}
@@ -292,7 +319,7 @@ func TestUpdateMetadata_Success(t *testing.T) {
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
 	// Update recommendations to false
-	body := `{"recommendationsEnabled": false}`
+	body := `{"recommendations_enabled": false}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -301,7 +328,8 @@ func TestUpdateMetadata_Success(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	scenario := testutil.DecodeJSON[Scenario](t, rec)
+	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	scenario := resp.Scenario
 	if scenario.RecommendationsEnabled {
 		t.Error("expected recommendationsEnabled to be false")
 	}
@@ -317,7 +345,7 @@ func TestUpdateMetadata_ToggleGreenfield(t *testing.T) {
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
 	// Toggle greenfield to true for scenario with PRD.md
-	body := `{"isGreenfield": true}`
+	body := `{"is_greenfield": true}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -326,7 +354,8 @@ func TestUpdateMetadata_ToggleGreenfield(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	scenario := testutil.DecodeJSON[Scenario](t, rec)
+	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	scenario := resp.Scenario
 	if !scenario.IsGreenfield {
 		t.Error("expected isGreenfield to be true after toggle")
 	}
@@ -341,7 +370,7 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
-	body := `{"recommendationsEnabled": false}`
+	body := `{"recommendations_enabled": false}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/nonexistent", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -380,20 +409,21 @@ func TestUpdateMetadata_PartialUpdate(t *testing.T) {
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
 	// First update only recommendationsEnabled
-	body1 := `{"recommendationsEnabled": false}`
+	body1 := `{"recommendations_enabled": false}`
 	req1 := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body1))
 	req1.Header.Set("Content-Type", "application/json")
 	rec1 := httptest.NewRecorder()
 	router.ServeHTTP(rec1, req1)
 
 	// Then update only isGreenfield
-	body2 := `{"isGreenfield": true}`
+	body2 := `{"is_greenfield": true}`
 	req2 := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body2))
 	req2.Header.Set("Content-Type", "application/json")
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
 
-	scenario := testutil.DecodeJSON[Scenario](t, rec2)
+	resp2 := testutil.DecodeJSON[scenarioResponse](t, rec2)
+	scenario := resp2.Scenario
 
 	// Both updates should be preserved
 	if !scenario.IsGreenfield {
@@ -414,7 +444,7 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
 	// Update metadata
-	body := `{"recommendationsEnabled": false, "isGreenfield": true}`
+	body := `{"recommendations_enabled": false, "is_greenfield": true}`
 	req := httptest.NewRequest("PATCH", "/api/v1/scenarios/test-scenario-1", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -449,7 +479,8 @@ func TestScenario_RecommendationsEnabledDefault(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	scenario := testutil.DecodeJSON[Scenario](t, rec)
+	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	scenario := resp.Scenario
 
 	// Default should be true (recommendations enabled)
 	if !scenario.RecommendationsEnabled {
@@ -476,7 +507,7 @@ func TestDelete_Success(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	response := testutil.DecodeJSON[DeleteResponse](t, rec)
+	response := testutil.DecodeJSON[deleteScenarioResponse](t, rec)
 	if response.Name != "test-scenario-1" {
 		t.Errorf("expected name 'test-scenario-1', got %q", response.Name)
 	}
@@ -526,7 +557,7 @@ func TestDelete_WithArchive(t *testing.T) {
 
 	testutil.AssertStatusOK(t, rec)
 
-	response := testutil.DecodeJSON[DeleteResponse](t, rec)
+	response := testutil.DecodeJSON[deleteScenarioResponse](t, rec)
 	if !response.Archived {
 		t.Error("expected archived to be true")
 	}
@@ -565,10 +596,10 @@ func TestDelete_Idempotent(t *testing.T) {
 	testutil.AssertStatusNotFound(t, rec2)
 }
 
-// TestDeleteResponse_Structure tests DeleteResponse JSON serialization.
+// TestDeleteResponse_Structure tests DeleteScenarioResponse JSON serialization.
 // [REQ:REQ-P0-008] Test deletion response structure
 func TestDeleteResponse_Structure(t *testing.T) {
-	resp := DeleteResponse{
+	resp := deleteScenarioResponse{
 		Name:     "my-scenario",
 		Archived: true,
 		Message:  "Scenario archived to ideas backlog and deleted",

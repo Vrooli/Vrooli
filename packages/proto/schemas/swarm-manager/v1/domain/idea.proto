@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// IDEAS DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain ideas
+// @imports none (external only: buf.validate)
+// @stability beta
+//
+// Core idea backlog types for Swarm Manager.
+// These types model idea metadata and file tree structures stored in the
+// git-tracked ideas directory.
+//
+// USAGE CONTEXTS:
+//   - API responses for idea CRUD endpoints
+//   - UI data models (ideas list and details)
+//
+// =============================================================================
+
+// Idea represents a proposal for a new scenario.
+message Idea {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Detailed description of the idea.
+  string description = 3;
+
+  // Lifecycle state for the idea.
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+  string status = 4 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "archived"
+  ] }];
+
+  // Priority level (1 = highest, 10 = lowest).
+  // @constraint 1-10
+  int32 priority = 5 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Categorization tags.
+  repeated string tags = 6 [(buf.validate.field).repeated = { unique: true }];
+
+  // RFC3339 timestamp of creation.
+  // @format rfc3339
+  string created = 7 [(buf.validate.field).string.min_len = 1];
+
+  // RFC3339 timestamp of last update.
+  // @format rfc3339
+  string updated = 8 [(buf.validate.field).string.min_len = 1];
+}
+
+// IdeaFile represents a file or directory within an idea folder.
+message IdeaFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from the idea root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // File type: "file" or "directory".
+  // @constraint one of: file, directory
+  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+
+  // File size in bytes (files only).
+  optional int64 size = 4 [(buf.validate.field).int64 = { gte: 0 }];
+
+  // Child nodes (directories only).
+  repeated IdeaFile children = 5;
+}

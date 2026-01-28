@@ -17,6 +17,8 @@
  * DOC: docs/internal/INTENT.md#key-flows
  */
 
+import { CreateIdeaRequestSchema, QueueIdeaRequestSchema, UpdateIdeaRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/ideas_pb";
+import { buildMessage, ideaFilesResponseSchema, ideaFileResponseSchema, ideaResponseSchema, listIdeasResponseSchema, mapProtoIdea, mapProtoIdeaFile, parseProtoResponse, queueIdeaResponseSchema, requireProtoField, toProtoJson } from "./proto-contracts";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
@@ -38,7 +40,10 @@ export interface IIdeasService {
   list(): Promise<Idea[]>;
   get(name: string): Promise<Idea>;
   create(idea: Omit<Idea, "created" | "updated">): Promise<Idea>;
-  update(name: string, idea: Partial<Idea>): Promise<Idea>;
+  update(
+    name: string,
+    idea: Pick<Idea, "title" | "description" | "status" | "priority" | "tags">
+  ): Promise<Idea>;
   delete(name: string): Promise<void>;
   getFiles(name: string): Promise<IdeaFile[]>;
   getFileContent(name: string, filePath: string): Promise<string>;
@@ -65,19 +70,46 @@ export function createIdeasService(
 ): IIdeasService {
   return {
     async list(): Promise<Idea[]> {
-      return apiClient.get<Idea[]>(API_ENDPOINTS.ideas);
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.ideas);
+      const parsed = parseProtoResponse(listIdeasResponseSchema, data, "ideas list");
+      return parsed.ideas.map(mapProtoIdea);
     },
 
     async get(name: string): Promise<Idea> {
-      return apiClient.get<Idea>(`${API_ENDPOINTS.ideas}/${name}`);
+      const data = await apiClient.get<unknown>(`${API_ENDPOINTS.ideas}/${name}`);
+      const parsed = parseProtoResponse(ideaResponseSchema, data, "idea");
+      return mapProtoIdea(requireProtoField(parsed.idea, "idea"));
     },
 
     async create(idea: Omit<Idea, "created" | "updated">): Promise<Idea> {
-      return apiClient.post<Idea>(API_ENDPOINTS.ideas, idea);
+      const message = buildMessage(CreateIdeaRequestSchema, {
+        name: idea.name,
+        title: idea.title,
+        description: idea.description || undefined,
+        priority: idea.priority || undefined,
+        tags: idea.tags,
+      });
+      const payload = toProtoJson(CreateIdeaRequestSchema, message);
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.ideas, payload);
+      const parsed = parseProtoResponse(ideaResponseSchema, data, "idea");
+      return mapProtoIdea(requireProtoField(parsed.idea, "idea"));
     },
 
-    async update(name: string, idea: Partial<Idea>): Promise<Idea> {
-      return apiClient.put<Idea>(`${API_ENDPOINTS.ideas}/${name}`, idea);
+    async update(
+      name: string,
+      idea: Pick<Idea, "title" | "description" | "status" | "priority" | "tags">
+    ): Promise<Idea> {
+      const message = buildMessage(UpdateIdeaRequestSchema, {
+        title: idea.title,
+        description: idea.description,
+        status: idea.status,
+        priority: idea.priority,
+        tags: idea.tags,
+      });
+      const payload = toProtoJson(UpdateIdeaRequestSchema, message);
+      const data = await apiClient.put<unknown>(`${API_ENDPOINTS.ideas}/${name}`, payload);
+      const parsed = parseProtoResponse(ideaResponseSchema, data, "idea");
+      return mapProtoIdea(requireProtoField(parsed.idea, "idea"));
     },
 
     async delete(name: string): Promise<void> {
@@ -85,7 +117,9 @@ export function createIdeasService(
     },
 
     async getFiles(name: string): Promise<IdeaFile[]> {
-      return apiClient.get<IdeaFile[]>(API_ENDPOINTS.ideaFiles(name));
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.ideaFiles(name));
+      const parsed = parseProtoResponse(ideaFilesResponseSchema, data, "idea files");
+      return parsed.files.map(mapProtoIdeaFile);
     },
 
     async getFileContent(name: string, filePath: string): Promise<string> {
@@ -100,18 +134,26 @@ export function createIdeasService(
       if (path) {
         formData.append("path", path);
       }
-      return apiClient.post<IdeaFile>(API_ENDPOINTS.ideaFiles(name), formData, {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.ideaFiles(name), formData, {
         headers: {},
       });
+      const parsed = parseProtoResponse(ideaFileResponseSchema, data, "idea file");
+      return mapProtoIdeaFile(requireProtoField(parsed.file, "idea file"));
     },
 
     async queue(
       name: string,
       operation: "generator" | "improver" = "generator"
     ): Promise<QueueResponse> {
-      return apiClient.post<QueueResponse>(API_ENDPOINTS.ideaQueue(name), {
-        operation,
-      });
+      const message = buildMessage(QueueIdeaRequestSchema, { operation });
+      const payload = toProtoJson(QueueIdeaRequestSchema, message);
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.ideaQueue(name), payload);
+      const parsed = parseProtoResponse(queueIdeaResponseSchema, data, "idea queue");
+      const idea = requireProtoField(parsed.idea, "idea queue");
+      return {
+        idea: mapProtoIdea(idea),
+        taskId: parsed.taskId ?? "",
+      };
     },
   };
 }

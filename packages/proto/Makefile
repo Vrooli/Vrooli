@@ -22,6 +22,10 @@ generate:
 	      gen/python/browser_automation_studio/v1/projects/py.typed \
 	      gen/python/common/py.typed \
 	      gen/python/landing_page_react_vite/py.typed \
+	      gen/python/swarm_manager/py.typed \
+	      gen/python/swarm_manager/v1/py.typed \
+	      gen/python/swarm_manager/v1/api/py.typed \
+	      gen/python/swarm_manager/v1/domain/py.typed \
 	      gen/python/scenario_to_desktop/py.typed \
 	      gen/python/scenario_to_desktop/v1/py.typed \
 	      gen/python/scenario_to_desktop/v1/base/py.typed \

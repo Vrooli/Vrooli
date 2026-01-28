@@ -224,7 +224,7 @@ This is the standard Go pattern for path traversal protection.
 ### Recommended (High Priority)
 
 1. ~~**Fix selector type system** - Refactor `src/consts/selectors.ts` to produce deterministic types~~ ✅ Resolved
-2. **Add Zod validation at API boundaries** - Runtime validation in service layer
+2. ~~**Add Zod validation at API boundaries** - Runtime validation in service layer~~ ✅ Resolved (Proto-backed Zod validation added)
 3. **Implement React Query error boundaries** - Use `QueryErrorResetBoundary` for better error recovery
 
 ### Nice to Have

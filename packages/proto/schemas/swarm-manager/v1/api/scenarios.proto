@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/scenario.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// SCENARIOS API
+// =============================================================================
+//
+// @layer 5
+// @domain api
+// @imports scenarios
+// @stability beta
+//
+// HTTP API contracts for Swarm Manager scenario catalog management.
+//
+// USAGE CONTEXTS:
+//   - UI services validating API responses
+//   - API handlers enforcing request constraints
+//
+// =============================================================================
+
+// ListScenariosResponse returns all scenarios.
+message ListScenariosResponse {
+  repeated Scenario scenarios = 1;
+}
+
+// ScenarioResponse returns a single scenario.
+message ScenarioResponse {
+  Scenario scenario = 1;
+}
+
+// UpdateScenarioMetadataRequest wraps metadata updates for PATCH.
+message UpdateScenarioMetadataRequest {
+  // Optional greenfield toggle.
+  optional bool is_greenfield = 1;
+
+  // Optional recommendations toggle.
+  optional bool recommendations_enabled = 2;
+}
+
+// DeleteScenarioResponse returns deletion results.
+message DeleteScenarioResponse {
+  // Name of the deleted scenario.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Whether the scenario was archived.
+  bool archived = 2;
+
+  // Human-readable message describing the result.
+  string message = 3 [(buf.validate.field).string.min_len = 1];
+}
