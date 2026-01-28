@@ -31,6 +31,7 @@ type Repository interface {
 	CreateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
 	GetWorkflow(ctx context.Context, id uuid.UUID) (*WorkflowIndex, error)
 	GetWorkflowByName(ctx context.Context, name, folderPath string) (*WorkflowIndex, error)
+	GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*WorkflowIndex, error)
 	UpdateWorkflow(ctx context.Context, workflow *WorkflowIndex) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
 	ListWorkflows(ctx context.Context, folderPath string, limit, offset int) ([]*WorkflowIndex, error)
@@ -300,6 +301,18 @@ func (r *repository) GetWorkflowByName(ctx context.Context, name, folderPath str
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to get workflow by name: %w", err)
+	}
+	return &workflow, nil
+}
+
+func (r *repository) GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*WorkflowIndex, error) {
+	query := r.db.Rebind(fmt.Sprintf("SELECT %s FROM workflows WHERE project_id = ? AND name = ? AND folder_path = ?", workflowSelectColumns))
+	var workflow WorkflowIndex
+	if err := r.db.GetContext(ctx, &workflow, query, projectID, name, folderPath); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get workflow by name in project: %w", err)
 	}
 	return &workflow, nil
 }

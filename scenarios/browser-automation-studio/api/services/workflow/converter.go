@@ -23,6 +23,24 @@ type ConvertResult struct {
 	SourcePath string
 }
 
+// ExtractExternalWorkflowMetadata extracts name and folder path from external workflow content
+// without performing a full conversion. This is used for deduplication lookup before conversion.
+func ExtractExternalWorkflowMetadata(content []byte, sourceRelPath string) (name, folderPath string, err error) {
+	if len(content) == 0 {
+		return "", "", errors.New("empty content")
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(content, &raw); err != nil {
+		return "", "", fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	extractedName, _, _ := extractMetadata(raw, sourceRelPath)
+	extractedFolderPath := inferFolderPath(sourceRelPath)
+
+	return extractedName, extractedFolderPath, nil
+}
+
 // ConvertExternalWorkflow converts an external workflow JSON file to native BAS format.
 // External workflows have structure like:
 //
@@ -33,7 +51,11 @@ type ConvertResult struct {
 //	}
 //
 // Native format is WorkflowSummary proto with flow_definition containing nodes/edges.
-func ConvertExternalWorkflow(project *database.ProjectIndex, content []byte, sourceRelPath string) (*ConvertResult, error) {
+//
+// If existingID is provided, it will be used instead of generating a new UUID.
+// This enables deduplication when re-syncing external workflows that already exist
+// in the database with the same name and folder path.
+func ConvertExternalWorkflow(project *database.ProjectIndex, content []byte, sourceRelPath string, existingID *uuid.UUID) (*ConvertResult, error) {
 	if project == nil {
 		return nil, errors.New("project is nil")
 	}
@@ -58,8 +80,13 @@ func ConvertExternalWorkflow(project *database.ProjectIndex, content []byte, sou
 	// Determine folder path from source directory structure
 	folderPath := inferFolderPath(sourceRelPath)
 
-	// Generate new workflow ID
-	workflowID := uuid.New()
+	// Use existing ID if provided (for deduplication), otherwise generate new
+	var workflowID uuid.UUID
+	if existingID != nil {
+		workflowID = *existingID
+	} else {
+		workflowID = uuid.New()
+	}
 	now := autocontracts.NowTimestamp()
 
 	summary := &basapi.WorkflowSummary{

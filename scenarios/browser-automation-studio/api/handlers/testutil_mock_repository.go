@@ -259,6 +259,19 @@ func (r *MockRepository) GetWorkflowByName(_ context.Context, name, folderPath s
 	return nil, database.ErrNotFound
 }
 
+func (r *MockRepository) GetWorkflowByNameInProject(_ context.Context, projectID uuid.UUID, name, folderPath string) (*database.WorkflowIndex, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, w := range r.workflows {
+		if w.ProjectID != nil && *w.ProjectID == projectID && w.Name == name && w.FolderPath == folderPath {
+			copy := *w
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
 func (r *MockRepository) UpdateWorkflow(_ context.Context, workflow *database.WorkflowIndex) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

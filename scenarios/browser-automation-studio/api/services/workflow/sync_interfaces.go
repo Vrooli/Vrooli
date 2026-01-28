@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -30,6 +31,7 @@ type WorkflowSyncRepository interface {
 
 	// Workflow operations
 	ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.WorkflowIndex, error)
+	GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*database.WorkflowIndex, error)
 	CreateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
 	UpdateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error
 	DeleteWorkflow(ctx context.Context, id uuid.UUID) error
@@ -51,15 +53,27 @@ type DBState struct {
 	// WorkflowsByID maps workflow UUID to database record for fast existence checks
 	WorkflowsByID map[uuid.UUID]*database.WorkflowIndex
 
+	// WorkflowsByNameKey maps "projectID:name:folderPath" to workflow for deduplication.
+	// This is used to detect when an external workflow with the same name and folder
+	// already exists in the database, allowing us to reuse its ID instead of creating duplicates.
+	WorkflowsByNameKey map[string]*database.WorkflowIndex
+
 	// AssetsByPath maps relative file path to asset record for deduplication
 	AssetsByPath map[string]*database.AssetIndex
+}
+
+// WorkflowNameKey generates a lookup key for workflow deduplication.
+// The key format is "projectID:name:folderPath" to ensure uniqueness within a project.
+func WorkflowNameKey(projectID uuid.UUID, name, folderPath string) string {
+	return fmt.Sprintf("%s:%s:%s", projectID.String(), name, folderPath)
 }
 
 // NewDBState creates an empty DBState for sync operations.
 func NewDBState() *DBState {
 	return &DBState{
-		WorkflowsByID: make(map[uuid.UUID]*database.WorkflowIndex),
-		AssetsByPath:  make(map[string]*database.AssetIndex),
+		WorkflowsByID:      make(map[uuid.UUID]*database.WorkflowIndex),
+		WorkflowsByNameKey: make(map[string]*database.WorkflowIndex),
+		AssetsByPath:       make(map[string]*database.AssetIndex),
 	}
 }
 
@@ -146,6 +160,16 @@ func (m *MockWorkflowSyncRepository) ListWorkflowsByProject(ctx context.Context,
 		}
 	}
 	return result, nil
+}
+
+func (m *MockWorkflowSyncRepository) GetWorkflowByNameInProject(ctx context.Context, projectID uuid.UUID, name, folderPath string) (*database.WorkflowIndex, error) {
+	for _, w := range m.Workflows {
+		if w.ProjectID != nil && *w.ProjectID == projectID && w.Name == name && w.FolderPath == folderPath {
+			copy := *w
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
 }
 
 func (m *MockWorkflowSyncRepository) CreateWorkflow(ctx context.Context, workflow *database.WorkflowIndex) error {

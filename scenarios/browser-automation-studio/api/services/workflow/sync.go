@@ -127,7 +127,7 @@ func (s *WorkflowService) syncProjectWorkflows(ctx context.Context, projectID uu
 	}
 
 	// Phase 3: Garbage collection
-	return s.garbageCollect(ctx, dbState, seen)
+	return s.garbageCollect(ctx, project, dbState, seen)
 }
 
 // loadDBState loads existing database records into maps for O(1) lookups during sync.
@@ -147,6 +147,11 @@ func (s *WorkflowService) loadDBState(ctx context.Context, projectID uuid.UUID) 
 	state := NewDBState()
 	for _, wf := range dbWorkflows {
 		state.WorkflowsByID[wf.ID] = wf
+		// Also index by name+folder for deduplication of external workflows
+		if wf.ProjectID != nil {
+			key := WorkflowNameKey(*wf.ProjectID, wf.Name, wf.FolderPath)
+			state.WorkflowsByNameKey[key] = wf
+		}
 	}
 	for _, asset := range dbAssets {
 		state.AssetsByPath[asset.FilePath] = asset
@@ -231,7 +236,7 @@ func (s *WorkflowService) syncSingleFile(
 	if strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
 		content, readErr := os.ReadFile(absPath)
 		if readErr == nil && isWorkflowContent(content) {
-			if err := s.syncWorkflowFile(ctx, project, absPath, relPath, content, dbState.WorkflowsByID, seen.WorkflowIDs); err != nil {
+			if err := s.syncWorkflowFile(ctx, project, absPath, relPath, content, dbState, seen.WorkflowIDs); err != nil {
 				s.log.WithError(err).WithField("path", relPath).Warn("Failed to sync workflow file")
 			}
 			return nil
@@ -246,17 +251,43 @@ func (s *WorkflowService) syncSingleFile(
 }
 
 // garbageCollect removes database records for files that no longer exist on disk.
-// This handles: deleted files, moved files, renamed files.
-func (s *WorkflowService) garbageCollect(ctx context.Context, dbState *DBState, seen *SeenState) error {
-	// Remove stale workflows
-	for id := range dbState.WorkflowsByID {
+// This handles: deleted files, moved files, renamed files, and orphaned records.
+//
+// A workflow is considered orphaned if:
+// - It wasn't seen during the filesystem scan AND
+// - Its file_path is empty/null OR the file doesn't exist on disk
+//
+// This approach is conservative: if a workflow has a valid file_path pointing to
+// an existing file (but wasn't scanned due to depth/count limits), we keep it.
+func (s *WorkflowService) garbageCollect(ctx context.Context, project *database.ProjectIndex, dbState *DBState, seen *SeenState) error {
+	// Remove stale/orphaned workflows
+	for id, wf := range dbState.WorkflowsByID {
 		if seen.WorkflowIDs[id] {
 			continue
 		}
-		if err := s.repo.DeleteWorkflow(ctx, id); err != nil {
-			s.log.WithError(err).WithField("workflow_id", id).Warn("Failed to delete stale workflow")
-		} else {
-			s.removeWorkflowPath(id)
+
+		// Check if this workflow has a valid file that still exists
+		// (might be outside sync limits but still valid)
+		shouldDelete := true
+		if wf.FilePath != "" && project != nil {
+			absPath := filepath.Join(project.FolderPath, wf.FilePath)
+			if _, err := os.Stat(absPath); err == nil {
+				// File exists, don't delete - it's just outside our scan range
+				shouldDelete = false
+			}
+		}
+
+		if shouldDelete {
+			if err := s.repo.DeleteWorkflow(ctx, id); err != nil {
+				s.log.WithError(err).WithField("workflow_id", id).Warn("Failed to delete orphaned workflow")
+			} else {
+				s.log.WithFields(logrus.Fields{
+					"workflow_id": id,
+					"name":        wf.Name,
+					"file_path":   wf.FilePath,
+				}).Info("Deleted orphaned workflow")
+				s.removeWorkflowPath(id)
+			}
 		}
 	}
 
@@ -282,12 +313,15 @@ func (s *WorkflowService) garbageCollect(ctx context.Context, dbState *DBState, 
 // External formats are converted IN-PLACE to native format. This is intentional:
 // we want a single normalized format for consistency, and the conversion preserves
 // the semantic content while enabling our tooling.
+//
+// For external workflows, we check if a workflow with the same name and folder path
+// already exists in the database. If so, we reuse its ID to prevent duplicates.
 func (s *WorkflowService) syncWorkflowFile(
 	ctx context.Context,
 	project *database.ProjectIndex,
 	absPath, relPath string,
 	content []byte,
-	dbWorkflowsByID map[uuid.UUID]*database.WorkflowIndex,
+	dbState *DBState,
 	seenWorkflowIDs map[uuid.UUID]bool,
 ) error {
 	// Check if it's native format (has valid UUID in "id" field)
@@ -329,7 +363,27 @@ func (s *WorkflowService) syncWorkflowFile(
 		}
 	} else {
 		// External format - convert IN-PLACE
-		result, convErr := ConvertExternalWorkflow(project, content, relPath)
+		// First, extract metadata to check for existing workflow with same name/folder
+		extractedName, extractedFolderPath, extractErr := ExtractExternalWorkflowMetadata(content, relPath)
+		if extractErr != nil {
+			return fmt.Errorf("extract external workflow metadata: %w", extractErr)
+		}
+
+		// Check if a workflow with this name and folder already exists (deduplication)
+		var existingID *uuid.UUID
+		normalizedFolderPath := normalizeFolderPath(extractedFolderPath)
+		nameKey := WorkflowNameKey(project.ID, extractedName, normalizedFolderPath)
+		if existing, found := dbState.WorkflowsByNameKey[nameKey]; found {
+			existingID = &existing.ID
+			s.log.WithFields(logrus.Fields{
+				"path":        relPath,
+				"workflow_id": existing.ID,
+				"name":        extractedName,
+				"folder_path": normalizedFolderPath,
+			}).Debug("Reusing existing workflow ID for external format conversion")
+		}
+
+		result, convErr := ConvertExternalWorkflow(project, content, relPath, existingID)
 		if convErr != nil {
 			return fmt.Errorf("convert external workflow: %w", convErr)
 		}
@@ -352,6 +406,7 @@ func (s *WorkflowService) syncWorkflowFile(
 		s.log.WithFields(logrus.Fields{
 			"path":        relPath,
 			"workflow_id": workflowID,
+			"reused_id":   existingID != nil,
 		}).Info("Converted external workflow to native format in-place")
 
 		// Cache the path
@@ -361,7 +416,7 @@ func (s *WorkflowService) syncWorkflowFile(
 	seenWorkflowIDs[workflowID] = true
 
 	// Check if workflow exists in DB
-	existing, exists := dbWorkflowsByID[workflowID]
+	existing, exists := dbState.WorkflowsByID[workflowID]
 	if !exists {
 		// Create new workflow index
 		index := &database.WorkflowIndex{
