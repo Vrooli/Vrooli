@@ -90,7 +90,10 @@ browser-automation-studio workflow list
 
 **From JSON file:**
 
-> **Note:** The `--from-file` flag requires an **absolute path**. Relative paths will fail with "unable to infer --project-root". Alternatively, use `--project-root` to specify the bas/ directory explicitly.
+> **Note:** The `--from-file` flag accepts both absolute and relative paths:
+> - **Absolute paths** work from any directory
+> - **Relative paths** are resolved against the current working directory first
+> - If `--project-root` is provided, relative paths are also resolved against it
 
 ```bash
 # Run a workflow from a file (use absolute path)

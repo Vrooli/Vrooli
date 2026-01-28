@@ -349,8 +349,22 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			payload["flow_definition"] = flowDef
 			payload["metadata"] = flowDef["metadata"]
 		} else if fromFile != "" {
-			data, err := os.ReadFile(fromFile)
+			// If --project-root was explicitly provided and fromFile is relative,
+			// try resolving against project-root
+			resolvedFile := fromFile
+			projectRootCandidate := ""
+			if projectRoot != "" && !filepath.IsAbs(fromFile) {
+				projectRootCandidate = filepath.Join(projectRoot, fromFile)
+				if _, err := os.Stat(projectRootCandidate); err == nil {
+					resolvedFile = projectRootCandidate
+				}
+			}
+
+			data, err := os.ReadFile(resolvedFile)
 			if err != nil {
+				if projectRootCandidate != "" && projectRootCandidate != resolvedFile {
+					return fmt.Errorf("file not found: %s (also tried: %s)", fromFile, projectRootCandidate)
+				}
 				return fmt.Errorf("file not found: %s", fromFile)
 			}
 			var rawContent map[string]any
