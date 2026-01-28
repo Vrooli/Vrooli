@@ -1,0 +1,54 @@
+{
+  "description": "Strong confirmation dialog + archive-to-backlog option",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement deletion safeguards including confirmation dialog and option to archive scenarios to backlog instead of permanent deletion",
+      "id": "REQ-P0-008",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Scenario Deletion Workflow",
+      "validation": [
+        {
+          "notes": "Test confirmation dialog",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify archive functionality",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "End-to-end deletion workflow test",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Archive operation completes within 2s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Prevent accidental scenario deletion",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scenario deletion with safeguards"
+}

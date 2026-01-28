@@ -1,0 +1,54 @@
+{
+  "description": "Header tabs (desktop) / bottom-nav (mobile) with four tabs: Ideas, Scenarios, Recommendations, Settings",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "ui",
+      "description": "Implement tabbed navigation with desktop header and mobile bottom navigation containing Ideas, Scenarios, Recommendations, and Settings tabs",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-008",
+      "status": "draft",
+      "title": "Responsive Tab Navigation",
+      "validation": [
+        {
+          "notes": "Test tab rendering",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify responsive breakpoints",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate navigation flow between tabs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Tab switching occurs within 50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can easily navigate between major features",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Tabbed navigation UI"
+}

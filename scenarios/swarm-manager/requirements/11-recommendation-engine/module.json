@@ -1,0 +1,54 @@
+{
+  "description": "Off/suggestions/yolo modes with configurable data sources",
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Implement three-state recommendation engine (Off/suggestions/yolo) with configurable data sources",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Configurable Recommendation Engine",
+      "validation": [
+        {
+          "notes": "Test mode switching",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify data source configuration",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate recommendation generation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Mode changes apply within 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can control recommendation behavior",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Recommendation engine (3-state)"
+}

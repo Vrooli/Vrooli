@@ -1,0 +1,54 @@
+{
+  "description": "Greenfield/brownfield toggle, enable/disable from recommendations",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Allow toggling between greenfield/brownfield modes and enable/disable recommendations for scenarios via UI and API",
+      "id": "REQ-P0-007",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Scenario Metadata Management",
+      "validation": [
+        {
+          "notes": "Test metadata toggle state changes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify API endpoints for metadata updates",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate persistence of metadata changes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Metadata updates complete within 100ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Users can effectively control scenario behavior",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Scenario metadata management"
+}

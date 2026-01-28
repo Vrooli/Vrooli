@@ -1,0 +1,54 @@
+{
+  "description": "Open and track issues against scenarios",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-008",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "description": "Integrate with app-issue-tracker to create and monitor issues against scenarios",
+      "id": "REQ-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "draft",
+      "title": "Issue Tracker Integration",
+      "validation": [
+        {
+          "notes": "Test issue creation",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify status updates",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Validate issue workflow",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issue operations within 1s",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Issues are properly tracked",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "app-issue-tracker integration"
+}
