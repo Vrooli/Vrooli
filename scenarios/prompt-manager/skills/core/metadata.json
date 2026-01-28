@@ -673,11 +673,12 @@
     },
     {
       "id": "skill-authoring",
-      "file": "skill-authoring.md",
-      "name": "Skill Authoring",
-      "description": "Guide for creating and updating skills that steer AI agents effectively. Covers convergence patterns, audit sections, and shared mental models.",
+      "file": "skill-authoring-steer.md",
+      "name": "Steer Skill Authoring",
+      "description": "Authoring guide for Steer skills that drive scenario development loops. Covers convergence patterns, audit sections, and memory continuity.",
       "modes": [
-        "Meta"
+        "Meta",
+        "Steer"
       ],
       "tags": [
         "skill"
@@ -686,7 +687,78 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-23T00:00:00Z",
-      "updatedAt": "2026-01-27T18:27:49-05:00"
+      "updatedAt": "2026-01-28T00:00:00Z"
+    },
+    {
+      "id": "skill-principles",
+      "file": "skill-principles.md",
+      "name": "Skill Principles",
+      "description": "General guidance for skill purpose, category selection, and baseline quality standards.",
+      "modes": [
+        "Meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "BookOpen",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-28T00:00:00Z",
+      "updatedAt": "2026-01-28T00:00:00Z"
+    },
+    {
+      "id": "skill-authoring-search",
+      "file": "skill-authoring-search.md",
+      "name": "Search Skill Authoring",
+      "description": "Authoring guide for Search skills focused on discovery, evidence, and output contracts.",
+      "modes": [
+        "Meta",
+        "Search"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Search",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-28T00:00:00Z",
+      "updatedAt": "2026-01-28T00:00:00Z"
+    },
+    {
+      "id": "skill-authoring-tools",
+      "file": "skill-authoring-tools.md",
+      "name": "Tools Skill Authoring",
+      "description": "Authoring guide for Tools skills covering safe usage, guardrails, and verification.",
+      "modes": [
+        "Meta",
+        "Tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Wrench",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-28T00:00:00Z",
+      "updatedAt": "2026-01-28T00:00:00Z"
+    },
+    {
+      "id": "skill-authoring-meta",
+      "file": "skill-authoring-meta.md",
+      "name": "Meta Skill Authoring",
+      "description": "Authoring guide for Meta skills governing the skill system itself.",
+      "modes": [
+        "Meta",
+        "Meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Settings",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-28T00:00:00Z",
+      "updatedAt": "2026-01-28T12:15:03-05:00"
     }
   ]
 }

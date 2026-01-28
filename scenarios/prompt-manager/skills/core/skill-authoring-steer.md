@@ -2,6 +2,9 @@
 
 Guide for creating and updating skills that steer AI agents effectively. Skills are principle-based guidance documents that help agents make good decisions without dictating exact steps.
 
+Required reading:
+- `prompt-manager skills read skill-principles`
+
 ---
 
 ### **1. The Shared Mental Model Problem**
@@ -130,13 +133,13 @@ Every skill must explicitly define what's IN scope and OUT of scope. This preven
 
 Skills follow a consistent structure that makes them scannable and predictable:
 
-1. **Focus statement** - What this skill steers toward
-2. **Tooling prerequisites** - Required setup (optional)
-3-7. **Core principles** - Numbered sections with convergence patterns where applicable
-8. **Audit section** - Assessment checklist for existing codebases (optional, see below)
-9. **Memory management** - Integration with visited-tracker (optional)
-10. **Scenario constraints** - What's out of scope
-11. **Output expectations** - What can/must be changed
+1. **Focus statement** - What this skill steers toward  
+2. **Tooling prerequisites** - Required setup (optional)  
+3. **Core principles** - Numbered sections with convergence patterns where applicable  
+8. **Audit section** - Assessment checklist for existing codebases (optional, see below)  
+9. **Memory management** - Comment/documentation guidelines and integration with memory-related tools (e.g. visited-tracker, knowledge-observatory)  
+10. **Scenario constraints** - What's out of scope  
+11. **Output expectations** - What can/must be changed  
 
 The exact number of principle sections varies, but the structure should feel consistent.
 
