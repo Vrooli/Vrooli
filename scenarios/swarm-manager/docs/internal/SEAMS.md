@@ -14,7 +14,7 @@ This document captures the architecture seams (integration points, boundaries) a
 | Persistence | Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) | Ideas/scenarios/settings/queue/recommendations implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
 | UI pages | 4 pages with full functionality | Ideas/Scenarios/Recommendations/Settings fully wired | Resolved |
-| Integration clients | agent-manager, ecosystem-manager | Agent-manager HTTP client + ecosystem-manager seam | Mostly resolved |
+| Integration clients | agent-manager, ecosystem-manager | Discovery-based agent-manager + ecosystem-manager clients | ✅ Resolved |
 | Domain types | Shared across UI | ✅ Centralized in types/ module | Resolved |
 
 ### Logical vs Physical Gaps
@@ -98,11 +98,11 @@ type AgentManagerClient interface {
 }
 
 type EcosystemManagerClient interface {
-    CreateTask(req EcosystemTaskRequest) (string, error)
+    CreateTask(ctx context.Context, req ecosystem.CreateTaskRequest) (string, error)
 }
 ```
 
-**Status**: Agent-manager HTTP client implemented with filesystem port discovery. Ecosystem-manager seam exists with HTTP fallback.
+**Status**: Agent-manager and ecosystem-manager HTTP clients implemented with api-core discovery (dynamic ports).
 
 ### Filesystem Seam
 
@@ -1199,30 +1199,28 @@ Critical signals are tested to ensure stable observation:
 
 **Problem**: The `ideas/handler.go` had hardcoded HTTP calls to ecosystem-manager in `createEcosystemTask()`, making it impossible to test the Queue handler without a running ecosystem-manager instance.
 
-**Solution**: Created `EcosystemClient` interface as a testable seam:
+**Solution**: Use `internal/ecosystem` client interface as the seam:
 
 ```go
-// EcosystemClient is the interface for ecosystem-manager operations.
-// This is a seam that allows the integration to be substituted for testing.
-type EcosystemClient interface {
-    CreateTask(req EcosystemTaskRequest) (string, error)
+// Client is the interface for ecosystem-manager operations.
+// This is the seam that allows the integration to be substituted for testing.
+type Client interface {
+    CreateTask(ctx context.Context, req CreateTaskRequest) (string, error)
 }
 ```
 
 **Changes Made**:
-1. Added `EcosystemClient` interface to `ideas/handler.go`
-2. Added `EcosystemTaskRequest` struct for type-safe task creation
-3. Added `ecosystemClient` field to `Handler` struct
-4. Added `NewHandlerWithClient()` factory for dependency injection
-5. Refactored `createEcosystemTask()` to use injected client if available
-6. Kept fallback HTTP implementation for production use
-7. Created separate `internal/ecosystem/` package with full implementation and tests
+1. Centralized integration contract in `internal/ecosystem` package
+2. Added `ecosystem.Client` field to `ideas.Handler` for dependency injection
+3. Refactored `createEcosystemTask()` to use injected client if available
+4. Default client uses `api-core/discovery` for dynamic ports
+5. Tests inject mock client for isolation
 
 **Testing Pattern**:
 ```go
 // In tests, inject a mock client
 mockClient := &mockEcosystemClient{
-    createTaskFunc: func(req EcosystemTaskRequest) (string, error) {
+    createTaskFunc: func(ctx context.Context, req ecosystem.CreateTaskRequest) (string, error) {
         return "task-123", nil
     },
 }

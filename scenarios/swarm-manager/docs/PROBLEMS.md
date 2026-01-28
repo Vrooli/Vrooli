@@ -2,15 +2,7 @@
 
 ## Open Issues
 
-### Architecture Alignment Findings (2026-01-28)
-
-| ID | Component | Severity | Description | Attempts | Blockers |
-|----|-----------|----------|-------------|----------|----------|
-| TD-001 | cli/ | Critical | Missing CLI executable `cli/swarm-manager` - needs `make setup` to build | 0 | Requires build step |
-| ~~TD-002~~ | ~~cli/~~ | ~~Medium~~ | ~~No test file for CLI~~ - RESOLVED: Added cli/app_test.go | 1 | None |
-| TD-003 | api/ | High | No business endpoints beyond /health | 0 | Design needed |
-| TD-004 | api/ | High | Database schema is empty placeholder | 0 | Design needed |
-| TD-005 | integrations/ | High | No adapter code for agent-manager/ecosystem-manager | 0 | Dependent services |
+No known open issues at this time. Use this file to track new defects or risks.
 
 ### PRD Template Deviations (Informational)
 
@@ -94,3 +86,12 @@ These provide valuable domain context and should remain unless PRD template rule
 | P26-004 | ui/pages/IdeasPage.tsx | Added aria-label to icon-only filter button for accessibility (button-name audit) |
 | P26-005 | ui/pages/*.tsx, components/*.tsx | Fixed color contrast by changing text-slate-500 to text-slate-400 for empty state text |
 | P26-006 | Lighthouse accessibility | Score improved from 73% to 97% (above 90% threshold) |
+
+### Phase 30 - Integration & CLI Parity (2026-01-28)
+
+| ID | Component | Resolution |
+|----|-----------|------------|
+| TD-001 | cli/ | CLI binary present after setup; command surface expanded to cover scenarios/recommendations/settings/queue |
+| TD-003 | api/ | Business endpoints implemented across ideas/scenarios/settings/recommendations/queue |
+| TD-004 | api/ | Filesystem-first persistence confirmed; no database schema needed |
+| TD-005 | integrations/ | Agent-manager + ecosystem-manager clients use api-core discovery |

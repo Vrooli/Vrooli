@@ -64,12 +64,12 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 │ HTTP endpoints, request validation, response formatting      │
 │ Technology: Go + Gorilla Mux                                 │
 ├─────────────────────────────────────────────────────────────┤
-│ BUSINESS LOGIC LAYER (to be implemented)                     │
-│ Idea management, scenario operations, recommendation engine  │
-│ Currently: Placeholder, minimal implementation               │
+│ BUSINESS LOGIC LAYER                                         │
+│ Idea/scenario/settings/recommendations/queue orchestration   │
+│ Implemented in internal/* handlers with validation + flows   │
 ├─────────────────────────────────────────────────────────────┤
-│ INTEGRATION LAYER (to be implemented)                        │
-│ Adapters for agent-manager, ecosystem-manager, etc.          │
+│ INTEGRATION LAYER                                            │
+│ Discovery-based adapters for agent-manager, ecosystem-manager│
 │ Pattern: All agent work via agent-manager (never direct)     │
 ├─────────────────────────────────────────────────────────────┤
 │ PERSISTENCE LAYER                                            │
@@ -81,11 +81,11 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Scaffold complete | 4 pages with proper navigation |
-| API Gateway | Ideas/scenarios/settings/queue endpoints | Recommendations pending |
-| Business Logic | Partially implemented | Ideas/scenarios/settings/queue implemented |
-| Integration | Not implemented | Dependencies declared, not connected |
-| Persistence | Filesystem-first | Ideas and scenario metadata stored on disk |
+| Presentation | Functional | 4 pages wired with services and error handling |
+| API Gateway | Implemented | Ideas/scenarios/settings/recommendations/queue endpoints |
+| Business Logic | Implemented | CRUD + queue/research + recommendations engine |
+| Integration | Implemented | Discovery-based agent-manager + ecosystem-manager clients |
+| Persistence | Filesystem-first | Ideas, settings, queue, recommendations stored on disk |
 
 ## Physical Structure
 
@@ -156,12 +156,14 @@ swarm-manager/
 
 ## Integration Strategy
 
+All inter-scenario calls use `api-core/discovery` to resolve dynamic ports at runtime.
+
 ### Required Integrations (P0)
 
 | Integration | Purpose | Pattern |
 |-------------|---------|---------|
-| **agent-manager** | Spawn agents for automated work | All agent operations via this API |
-| **ecosystem-manager** | Initialize/improve scenarios from ideas | Queue ideas → EM processes → Scenario exists |
+| **agent-manager** | Spawn agents for automated work | Discovery-resolved API URL |
+| **ecosystem-manager** | Initialize/improve scenarios from ideas | Discovery-resolved API URL |
 
 ### Optional Integrations (P1)
 

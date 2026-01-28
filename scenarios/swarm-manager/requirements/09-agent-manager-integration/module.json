@@ -9,28 +9,28 @@
       "description": "Implement API client for agent-manager to spawn and manage agents",
       "id": "REQ-P0-010-API",
       "prd_ref": "OT-P0-009",
-      "status": "draft",
+      "status": "implemented",
       "title": "Agent Manager API Client",
       "validation": [
         {
-          "notes": "Test agent spawn requests",
+          "notes": "Test agent spawn requests via discovery-resolved base URL",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify agent lifecycle management API",
+          "notes": "Test resolver failure handling",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_ResolverError",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Agent spawn time under 1s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test HTTP request failure handling",
+          "phase": "unit",
+          "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_RequestError",
+          "status": "passing",
           "type": "test"
         }
       ]

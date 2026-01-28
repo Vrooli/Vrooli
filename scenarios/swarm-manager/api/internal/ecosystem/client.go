@@ -13,13 +13,14 @@
 package ecosystem
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // Task represents a task in the ecosystem-manager queue.
@@ -55,16 +56,19 @@ var (
 type Client interface {
 	// CreateTask creates a task in the ecosystem-manager queue.
 	// Returns the created task ID on success.
-	CreateTask(req CreateTaskRequest) (string, error)
+	CreateTask(ctx context.Context, req CreateTaskRequest) (string, error)
 }
 
 // HTTPClient implements Client using HTTP calls to ecosystem-manager.
 type HTTPClient struct {
-	// portResolver allows injection of port resolution logic for testing.
-	portResolver func() (string, error)
+	// baseURLResolver allows injection of discovery logic for testing.
+	baseURLResolver BaseURLResolver
 	// httpClient allows injection of HTTP client for testing.
 	httpClient HTTPDoer
 }
+
+// BaseURLResolver resolves the base URL for ecosystem-manager.
+type BaseURLResolver func(ctx context.Context) (string, error)
 
 // HTTPDoer is the interface for HTTP operations (allows mocking http.Client).
 type HTTPDoer interface {
@@ -81,23 +85,32 @@ func (d *defaultHTTPDoer) Post(url, contentType string, body *strings.Reader) (*
 // NewHTTPClient creates a new ecosystem-manager HTTP client.
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
-		portResolver: resolveEcosystemPort,
-		httpClient:   &defaultHTTPDoer{},
+		baseURLResolver: resolveEcosystemBaseURL,
+		httpClient:      &defaultHTTPDoer{},
 	}
 }
 
-// NewHTTPClientWithResolver creates an HTTP client with a custom port resolver.
+// NewHTTPClientWithResolver creates an HTTP client with a custom base URL resolver.
 // This is useful for testing.
-func NewHTTPClientWithResolver(resolver func() (string, error), httpClient HTTPDoer) *HTTPClient {
+func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *HTTPClient {
+	if resolver == nil {
+		resolver = resolveEcosystemBaseURL
+	}
+	if httpClient == nil {
+		httpClient = &defaultHTTPDoer{}
+	}
 	return &HTTPClient{
-		portResolver: resolver,
-		httpClient:   httpClient,
+		baseURLResolver: resolver,
+		httpClient:      httpClient,
 	}
 }
 
 // CreateTask creates a task in the ecosystem-manager queue.
-func (c *HTTPClient) CreateTask(req CreateTaskRequest) (string, error) {
-	port, err := c.portResolver()
+func (c *HTTPClient) CreateTask(ctx context.Context, req CreateTaskRequest) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -120,7 +133,7 @@ func (c *HTTPClient) CreateTask(req CreateTaskRequest) (string, error) {
 	}
 
 	// POST to ecosystem-manager
-	url := "http://localhost:" + port + "/api/tasks"
+	url := strings.TrimRight(baseURL, "/") + "/api/tasks"
 	resp, err := c.httpClient.Post(url, "application/json", strings.NewReader(string(taskJSON)))
 	if err != nil {
 		return "", fmt.Errorf("%w: %v", ErrNotAvailable, err)
@@ -140,26 +153,13 @@ func (c *HTTPClient) CreateTask(req CreateTaskRequest) (string, error) {
 	return createdTask.ID, nil
 }
 
-// resolveEcosystemPort finds the ecosystem-manager port from environment or port file.
-func resolveEcosystemPort() (string, error) {
-	// Check environment first
-	if port := os.Getenv("ECOSYSTEM_MANAGER_PORT"); port != "" {
-		return port, nil
-	}
-
-	// Try to read from port file
-	portFile := filepath.Join("scenarios", "ecosystem-manager", ".vrooli", "ports", "API_PORT")
-	data, err := os.ReadFile(portFile)
+// resolveEcosystemBaseURL resolves ecosystem-manager using api-core discovery.
+func resolveEcosystemBaseURL(ctx context.Context) (string, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "ecosystem-manager")
 	if err != nil {
-		return "", ErrNotAvailable
+		return "", fmt.Errorf("%w: %v", ErrNotAvailable, err)
 	}
-
-	port := strings.TrimSpace(string(data))
-	if port == "" {
-		return "", ErrNotAvailable
-	}
-
-	return port, nil
+	return baseURL, nil
 }
 
 // mapPriorityToString converts a numeric priority (1-10) to ecosystem-manager's string format.

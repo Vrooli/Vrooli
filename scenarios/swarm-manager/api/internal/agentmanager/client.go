@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // ResearchRequest describes a research task to be executed by agent-manager.
@@ -40,9 +40,12 @@ type Client interface {
 
 // HTTPClient implements Client using HTTP calls to agent-manager.
 type HTTPClient struct {
-	portResolver func() (string, error)
-	httpClient   HTTPDoer
+	baseURLResolver BaseURLResolver
+	httpClient      HTTPDoer
 }
+
+// BaseURLResolver resolves the base URL for agent-manager.
+type BaseURLResolver func(ctx context.Context) (string, error)
 
 // HTTPDoer allows injecting HTTP client for tests.
 type HTTPDoer interface {
@@ -52,16 +55,22 @@ type HTTPDoer interface {
 // NewHTTPClient creates a new agent-manager HTTP client.
 func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{
-		portResolver: resolveAgentManagerPort,
-		httpClient:   &http.Client{Timeout: 20 * time.Second},
+		baseURLResolver: resolveAgentManagerBaseURL,
+		httpClient:      &http.Client{Timeout: 20 * time.Second},
 	}
 }
 
 // NewHTTPClientWithResolver creates a client with custom resolver (for tests).
-func NewHTTPClientWithResolver(resolver func() (string, error), httpClient HTTPDoer) *HTTPClient {
+func NewHTTPClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer) *HTTPClient {
+	if resolver == nil {
+		resolver = resolveAgentManagerBaseURL
+	}
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 20 * time.Second}
+	}
 	return &HTTPClient{
-		portResolver: resolver,
-		httpClient:   httpClient,
+		baseURLResolver: resolver,
+		httpClient:      httpClient,
 	}
 }
 
@@ -73,12 +82,10 @@ var ErrRequestFailed = errors.New("agent-manager request failed")
 
 // CreateResearchRun creates a task and run in agent-manager.
 func (c *HTTPClient) CreateResearchRun(ctx context.Context, req ResearchRequest) (ResearchResponse, error) {
-	port, err := c.portResolver()
+	baseURL, err := c.baseURLResolver(ctx)
 	if err != nil {
 		return ResearchResponse{}, err
 	}
-
-	baseURL := "http://localhost:" + port
 
 	taskID, err := c.createTask(ctx, baseURL, req)
 	if err != nil {
@@ -219,21 +226,10 @@ func (c *HTTPClient) createRun(ctx context.Context, baseURL, taskID string, req 
 	return result.Run.ID, nil
 }
 
-func resolveAgentManagerPort() (string, error) {
-	if port := os.Getenv("AGENT_MANAGER_PORT"); port != "" {
-		return strings.TrimSpace(port), nil
-	}
-
-	portFile := filepath.Join("scenarios", "agent-manager", ".vrooli", "ports", "API_PORT")
-	data, err := os.ReadFile(portFile)
+func resolveAgentManagerBaseURL(ctx context.Context) (string, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
-		return "", ErrNotAvailable
+		return "", fmt.Errorf("%w: %v", ErrNotAvailable, err)
 	}
-
-	port := strings.TrimSpace(string(data))
-	if port == "" {
-		return "", ErrNotAvailable
-	}
-
-	return port, nil
+	return baseURL, nil
 }

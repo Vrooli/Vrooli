@@ -71,7 +71,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `app.go` | Command registration, API communication | HTTP implementation (uses cli-core) | [CODE: cli/app.go] |
+| `app.go` | Command registration, thin API wrappers | HTTP implementation (uses cli-core) | [CODE: cli/app.go] |
 | `main.go` | Entry point | Application logic | [CODE: cli/main.go] |
 
 ## Key Flows
@@ -131,12 +131,12 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| UI - Ideas Page | Partially wired | Reads ideas; create/edit/delete not yet wired |
-| UI - Scenarios Page | Wired | Lists scenarios with filters and details |
-| UI - Recommendations Page | Static | Empty state only |
-| UI - Settings Page | Static | UI renders, persistence not wired |
-| API | Active | Ideas, scenarios, settings, queue, health |
-| CLI | Partial | Ideas CRUD + status |
+| UI - Ideas Page | Wired | List + create dialog + details + queue/research |
+| UI - Scenarios Page | Wired | List, filters, metadata updates, delete |
+| UI - Recommendations Page | Wired | List + refresh + update status + empty states |
+| UI - Settings Page | Wired | Settings persistence via API |
+| API | Active | Ideas/scenarios/settings/recommendations/queue + health |
+| CLI | Wired | Ideas + scenarios + recommendations + settings + queue |
 
 For detailed progress, see `docs/PROGRESS.md`.
 

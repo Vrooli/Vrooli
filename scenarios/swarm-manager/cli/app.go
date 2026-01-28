@@ -10,10 +10,10 @@
 // for operators and automation scripts. It communicates with the API server
 // and provides human-readable output.
 //
-// # Current Status: Ideas CRUD Implemented
+// # Current Status: Full API Surface Wired
 //
-// The CLI supports full idea management (list, get, create, update, delete)
-// and basic health checking via the status command.
+// The CLI provides thin wrappers for ideas, scenarios, recommendations,
+// settings, and queue endpoints, plus health checks.
 //
 // # Usage
 //
@@ -26,11 +26,23 @@
 //	swarm-manager configure           # Set API base URL and token
 //	swarm-manager --help              # Show all commands
 //
-// # Future Commands (P0)
+// # Scenario Commands
 //
 //	swarm-manager ideas queue         # Queue idea for processing
+//	swarm-manager ideas research      # Spawn research agent for an idea
 //	swarm-manager scenarios list      # List all scenarios
-//	swarm-manager scenarios status    # Show scenario status
+//	swarm-manager scenarios get <name> # Get scenario details
+//	swarm-manager scenarios update <name> <json> # Update scenario metadata
+//	swarm-manager scenarios delete <name> [--archive] # Delete or archive scenario
+//	swarm-manager recommendations list # List recommendations
+//	swarm-manager recommendations refresh # Regenerate recommendations
+//	swarm-manager recommendations create <json> # Create manual recommendation
+//	swarm-manager recommendations update <id> <status> # Update recommendation status
+//	swarm-manager settings get        # Fetch settings
+//	swarm-manager settings update <json> # Update settings
+//	swarm-manager queue list          # List local queue items
+//	swarm-manager queue create <kind> [payload-json] # Enqueue item
+//	swarm-manager queue delete <id>   # Remove item from queue
 //
 // # API Discovery
 //
@@ -44,7 +56,9 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -116,6 +130,45 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 			{Name: "ideas create", NeedsAPI: true, Description: "Create a new idea (args: <json>)", Run: a.cmdIdeasCreate},
 			{Name: "ideas update", NeedsAPI: true, Description: "Update an existing idea (args: <name> <json>)", Run: a.cmdIdeasUpdate},
 			{Name: "ideas delete", NeedsAPI: true, Description: "Delete an idea (args: <name>)", Run: a.cmdIdeasDelete},
+			{Name: "ideas queue", NeedsAPI: true, Description: "Queue an idea for processing (args: <name> [operation])", Run: a.cmdIdeasQueue},
+			{Name: "ideas research", NeedsAPI: true, Description: "Spawn research agent for an idea (args: <name> [json])", Run: a.cmdIdeasResearch},
+		},
+	}
+
+	scenarios := cliapp.CommandGroup{
+		Title: "Scenarios",
+		Commands: []cliapp.Command{
+			{Name: "scenarios list", NeedsAPI: true, Description: "List all scenarios", Run: a.cmdScenariosList},
+			{Name: "scenarios get", NeedsAPI: true, Description: "Get scenario details (args: <name>)", Run: a.cmdScenariosGet},
+			{Name: "scenarios update", NeedsAPI: true, Description: "Update scenario metadata (args: <name> <json>)", Run: a.cmdScenariosUpdate},
+			{Name: "scenarios delete", NeedsAPI: true, Description: "Delete a scenario (args: <name> [--archive])", Run: a.cmdScenariosDelete},
+		},
+	}
+
+	recommendations := cliapp.CommandGroup{
+		Title: "Recommendations",
+		Commands: []cliapp.Command{
+			{Name: "recommendations list", NeedsAPI: true, Description: "List recommendations", Run: a.cmdRecommendationsList},
+			{Name: "recommendations refresh", NeedsAPI: true, Description: "Refresh recommendations", Run: a.cmdRecommendationsRefresh},
+			{Name: "recommendations create", NeedsAPI: true, Description: "Create a manual recommendation (args: <json>)", Run: a.cmdRecommendationsCreate},
+			{Name: "recommendations update", NeedsAPI: true, Description: "Update recommendation status (args: <id> <status>)", Run: a.cmdRecommendationsUpdate},
+		},
+	}
+
+	settings := cliapp.CommandGroup{
+		Title: "Settings",
+		Commands: []cliapp.Command{
+			{Name: "settings get", NeedsAPI: true, Description: "Get current settings", Run: a.cmdSettingsGet},
+			{Name: "settings update", NeedsAPI: true, Description: "Update settings (args: <json>)", Run: a.cmdSettingsUpdate},
+		},
+	}
+
+	queue := cliapp.CommandGroup{
+		Title: "Queue",
+		Commands: []cliapp.Command{
+			{Name: "queue list", NeedsAPI: true, Description: "List queue items", Run: a.cmdQueueList},
+			{Name: "queue create", NeedsAPI: true, Description: "Create a queue item (args: <kind> [payload-json])", Run: a.cmdQueueCreate},
+			{Name: "queue delete", NeedsAPI: true, Description: "Delete a queue item (args: <id>)", Run: a.cmdQueueDelete},
 		},
 	}
 
@@ -126,7 +179,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, ideas, config}
+	return []cliapp.CommandGroup{health, ideas, scenarios, recommendations, settings, queue, config}
 }
 
 // resolveV1Endpoint converts a relative endpoint path to the full API v1 path.
@@ -228,6 +281,85 @@ type CreateIdeaRequest struct {
 	Description string   `json:"description,omitempty"`
 	Priority    int      `json:"priority,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+}
+
+// QueueIdeaResponse wraps queue response for ideas.
+type QueueIdeaResponse struct {
+	Idea   Idea   `json:"idea"`
+	TaskID string `json:"task_id"`
+}
+
+// ResearchResponse represents research run metadata.
+type ResearchResponse struct {
+	TaskID  string `json:"taskId"`
+	RunID   string `json:"runId"`
+	BaseURL string `json:"baseUrl"`
+	Created string `json:"created"`
+}
+
+// Scenario represents a scenario entry in the catalog.
+type Scenario struct {
+	Name                   string   `json:"name"`
+	DisplayName            string   `json:"display_name"`
+	Description            string   `json:"description"`
+	Status                 string   `json:"status"`
+	Priority               int      `json:"priority"`
+	CompletenessScore      *int     `json:"completeness_score,omitempty"`
+	IsGreenfield           bool     `json:"is_greenfield"`
+	Tags                   []string `json:"tags"`
+	RecommendationsEnabled bool     `json:"recommendations_enabled"`
+}
+
+// ScenarioResponse wraps scenario responses.
+type ScenarioResponse struct {
+	Scenario Scenario `json:"scenario"`
+}
+
+// ListScenariosResponse wraps scenario list responses.
+type ListScenariosResponse struct {
+	Scenarios []Scenario `json:"scenarios"`
+}
+
+// DeleteScenarioResponse wraps scenario deletion responses.
+type DeleteScenarioResponse struct {
+	Name     string `json:"name"`
+	Archived bool   `json:"archived"`
+	Message  string `json:"message"`
+}
+
+// Recommendation represents a recommendation item.
+type Recommendation struct {
+	ID          string `json:"id"`
+	Scenario    string `json:"scenarioName"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	Priority    int    `json:"priority"`
+	Created     string `json:"created"`
+	Source      string `json:"source,omitempty"`
+}
+
+// RecommendationResponse wraps recommendation responses.
+type RecommendationResponse struct {
+	Recommendation Recommendation `json:"recommendation"`
+}
+
+// ListRecommendationsResponse wraps recommendation list responses.
+type ListRecommendationsResponse struct {
+	Recommendations []Recommendation `json:"recommendations"`
+}
+
+// QueueItem represents a local queue entry.
+type QueueItem struct {
+	ID      string          `json:"id"`
+	Kind    string          `json:"kind"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+	Created string          `json:"created"`
+}
+
+// QueueListResponse wraps queue list responses.
+type QueueListResponse struct {
+	Items []QueueItem `json:"items"`
 }
 
 // cmdIdeasList lists all ideas.
@@ -375,5 +507,477 @@ func (a *App) cmdIdeasDelete(args []string) error {
 	}
 
 	fmt.Printf("Deleted idea: %s\n", name)
+	return nil
+}
+
+// cmdIdeasQueue queues an idea for processing.
+func (a *App) cmdIdeasQueue(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ideas queue <name> [operation]\n\nOperation: generator|improver")
+	}
+	name := args[0]
+	var payload json.RawMessage
+	if len(args) > 1 {
+		operation := strings.TrimSpace(args[1])
+		if operation != "generator" && operation != "improver" {
+			return fmt.Errorf("invalid operation %q (expected generator or improver)", operation)
+		}
+		body := fmt.Sprintf(`{"operation":"%s"}`, operation)
+		payload = json.RawMessage(body)
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas/"+name+"/queue"), nil, payload)
+	if err != nil {
+		return err
+	}
+
+	var response QueueIdeaResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Queued idea: %s\n", response.Idea.Name)
+	fmt.Printf("  Status: %s\n", response.Idea.Status)
+	fmt.Printf("  Task ID: %s\n", response.TaskID)
+	return nil
+}
+
+// cmdIdeasResearch spawns a research agent for an idea.
+func (a *App) cmdIdeasResearch(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ideas research <name> [json]\n\nExample:\n  ideas research my-idea '{\"prompt\":\"Focus on risks\"}'")
+	}
+	name := args[0]
+	var payload json.RawMessage
+	if len(args) > 1 {
+		jsonStr := strings.Join(args[1:], " ")
+		var req map[string]any
+		if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
+			return fmt.Errorf("invalid JSON: %w", err)
+		}
+		payload = json.RawMessage(jsonStr)
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas/"+name+"/research"), nil, payload)
+	if err != nil {
+		return err
+	}
+
+	var response ResearchResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Research started for idea: %s\n", name)
+	fmt.Printf("  Task ID: %s\n", response.TaskID)
+	fmt.Printf("  Run ID: %s\n", response.RunID)
+	fmt.Printf("  Base URL: %s\n", response.BaseURL)
+	return nil
+}
+
+// cmdScenariosList lists scenarios with optional filters.
+func (a *App) cmdScenariosList(args []string) error {
+	fs := flag.NewFlagSet("scenarios list", flag.ContinueOnError)
+	search := fs.String("search", "", "Filter by name or description")
+	status := fs.String("status", "", "Filter by status (running|stopped|error|unknown)")
+	tags := fs.String("tags", "", "Filter by tags (comma-separated)")
+	sortField := fs.String("sort", "", "Sort by field (priority|name|displayName)")
+	order := fs.String("order", "", "Sort order (asc|desc)")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if strings.TrimSpace(*search) != "" {
+		query.Set("search", strings.TrimSpace(*search))
+	}
+	if strings.TrimSpace(*status) != "" {
+		query.Set("status", strings.TrimSpace(*status))
+	}
+	if strings.TrimSpace(*tags) != "" {
+		query.Set("tags", strings.TrimSpace(*tags))
+	}
+	if strings.TrimSpace(*sortField) != "" {
+		query.Set("sort", strings.TrimSpace(*sortField))
+	}
+	if strings.TrimSpace(*order) != "" {
+		query.Set("order", strings.TrimSpace(*order))
+	}
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/scenarios"), query)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var response ListScenariosResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(response.Scenarios) == 0 {
+		fmt.Println("No scenarios found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d scenario(s):\n\n", len(response.Scenarios))
+	for _, scenario := range response.Scenarios {
+		display := scenario.DisplayName
+		if display == "" {
+			display = scenario.Name
+		}
+		fmt.Printf("  %s (status: %s, priority: %d)\n", scenario.Name, scenario.Status, scenario.Priority)
+		fmt.Printf("    Display: %s\n", display)
+		if scenario.Description != "" {
+			fmt.Printf("    Description: %s\n", scenario.Description)
+		}
+		if len(scenario.Tags) > 0 {
+			fmt.Printf("    Tags: %s\n", strings.Join(scenario.Tags, ", "))
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+// cmdScenariosGet fetches scenario details.
+func (a *App) cmdScenariosGet(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: scenarios get <name>")
+	}
+	name := args[0]
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/scenarios/"+name), nil)
+	if err != nil {
+		return err
+	}
+
+	var response ScenarioResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	scenario := response.Scenario
+
+	fmt.Printf("Name: %s\n", scenario.Name)
+	fmt.Printf("Display Name: %s\n", scenario.DisplayName)
+	fmt.Printf("Description: %s\n", scenario.Description)
+	fmt.Printf("Status: %s\n", scenario.Status)
+	fmt.Printf("Priority: %d\n", scenario.Priority)
+	if scenario.CompletenessScore != nil {
+		fmt.Printf("Completeness: %d\n", *scenario.CompletenessScore)
+	}
+	fmt.Printf("Greenfield: %v\n", scenario.IsGreenfield)
+	fmt.Printf("Recommendations Enabled: %v\n", scenario.RecommendationsEnabled)
+	if len(scenario.Tags) > 0 {
+		fmt.Printf("Tags: %s\n", strings.Join(scenario.Tags, ", "))
+	}
+	return nil
+}
+
+// cmdScenariosUpdate updates scenario metadata.
+func (a *App) cmdScenariosUpdate(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: scenarios update <name> <json>\n\nExample:\n  scenarios update my-scenario '{\"is_greenfield\":true}'")
+	}
+	name := args[0]
+	jsonStr := strings.Join(args[1:], " ")
+
+	var patch map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &patch); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("PATCH", a.resolveV1Endpoint("/scenarios/"+name), nil, json.RawMessage(jsonStr))
+	if err != nil {
+		return err
+	}
+
+	var response ScenarioResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	scenario := response.Scenario
+
+	fmt.Printf("Updated scenario: %s\n", scenario.Name)
+	fmt.Printf("  Greenfield: %v\n", scenario.IsGreenfield)
+	fmt.Printf("  Recommendations Enabled: %v\n", scenario.RecommendationsEnabled)
+	return nil
+}
+
+// cmdScenariosDelete deletes a scenario (optionally archived).
+func (a *App) cmdScenariosDelete(args []string) error {
+	fs := flag.NewFlagSet("scenarios delete", flag.ContinueOnError)
+	archive := fs.Bool("archive", false, "Archive scenario to ideas backlog before deletion")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: scenarios delete <name> [--archive]")
+	}
+	name := fs.Arg(0)
+
+	query := url.Values{}
+	if *archive {
+		query.Set("archive", "true")
+	}
+
+	body, err := a.core.APIClient.Request("DELETE", a.resolveV1Endpoint("/scenarios/"+name), query, nil)
+	if err != nil {
+		return err
+	}
+
+	var response DeleteScenarioResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Println(response.Message)
+	return nil
+}
+
+// cmdRecommendationsList lists recommendations with optional filters.
+func (a *App) cmdRecommendationsList(args []string) error {
+	fs := flag.NewFlagSet("recommendations list", flag.ContinueOnError)
+	status := fs.String("status", "", "Filter by status (pending|approved|rejected)")
+	scenario := fs.String("scenario", "", "Filter by scenario name")
+	recType := fs.String("type", "", "Filter by type (test|feature|refactor|docs)")
+	refresh := fs.Bool("refresh", false, "Force refresh before listing")
+	jsonOut := fs.Bool("json", false, "Output raw JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	query := url.Values{}
+	if strings.TrimSpace(*status) != "" {
+		query.Set("status", strings.TrimSpace(*status))
+	}
+	if strings.TrimSpace(*scenario) != "" {
+		query.Set("scenario", strings.TrimSpace(*scenario))
+	}
+	if strings.TrimSpace(*recType) != "" {
+		query.Set("type", strings.TrimSpace(*recType))
+	}
+	if *refresh {
+		query.Set("refresh", "true")
+	}
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/recommendations"), query)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var response ListRecommendationsResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(response.Recommendations) == 0 {
+		fmt.Println("No recommendations found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d recommendation(s):\n\n", len(response.Recommendations))
+	for _, rec := range response.Recommendations {
+		fmt.Printf("  %s (%s, %s)\n", rec.ID, rec.Status, rec.Type)
+		fmt.Printf("    Scenario: %s\n", rec.Scenario)
+		fmt.Printf("    Priority: %d\n", rec.Priority)
+		fmt.Printf("    Description: %s\n", rec.Description)
+		fmt.Println()
+	}
+	return nil
+}
+
+// cmdRecommendationsRefresh regenerates recommendations.
+func (a *App) cmdRecommendationsRefresh(_ []string) error {
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/recommendations/refresh"), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	var response ListRecommendationsResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Refreshed recommendations (%d total).\n", len(response.Recommendations))
+	return nil
+}
+
+// cmdRecommendationsCreate creates a manual recommendation.
+func (a *App) cmdRecommendationsCreate(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: recommendations create <json>")
+	}
+	jsonStr := strings.Join(args, " ")
+	var req map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/recommendations"), nil, json.RawMessage(jsonStr))
+	if err != nil {
+		return err
+	}
+
+	var response RecommendationResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	rec := response.Recommendation
+
+	fmt.Printf("Created recommendation: %s\n", rec.ID)
+	fmt.Printf("  Scenario: %s\n", rec.Scenario)
+	fmt.Printf("  Status: %s\n", rec.Status)
+	return nil
+}
+
+// cmdRecommendationsUpdate updates recommendation status.
+func (a *App) cmdRecommendationsUpdate(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: recommendations update <id> <status>")
+	}
+	id := args[0]
+	status := strings.TrimSpace(args[1])
+	if status != "pending" && status != "approved" && status != "rejected" {
+		return fmt.Errorf("invalid status %q (expected pending|approved|rejected)", status)
+	}
+
+	payload := fmt.Sprintf(`{"status":"%s"}`, status)
+	body, err := a.core.APIClient.Request("PATCH", a.resolveV1Endpoint("/recommendations/"+id), nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+
+	var response RecommendationResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	rec := response.Recommendation
+
+	fmt.Printf("Updated recommendation: %s\n", rec.ID)
+	fmt.Printf("  Status: %s\n", rec.Status)
+	return nil
+}
+
+// cmdSettingsGet fetches settings.
+func (a *App) cmdSettingsGet(_ []string) error {
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/settings"), nil)
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// cmdSettingsUpdate updates settings.
+func (a *App) cmdSettingsUpdate(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: settings update <json>")
+	}
+	jsonStr := strings.Join(args, " ")
+	var patch map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &patch); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("PUT", a.resolveV1Endpoint("/settings"), nil, json.RawMessage(jsonStr))
+	if err != nil {
+		return err
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// cmdQueueList lists local queue items.
+func (a *App) cmdQueueList(_ []string) error {
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/queue"), nil)
+	if err != nil {
+		return err
+	}
+
+	var response QueueListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(response.Items) == 0 {
+		fmt.Println("No queue items found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d queue item(s):\n\n", len(response.Items))
+	for _, item := range response.Items {
+		fmt.Printf("  %s (%s)\n", item.ID, item.Kind)
+		fmt.Printf("    Created: %s\n", item.Created)
+		if len(item.Payload) > 0 {
+			fmt.Printf("    Payload: %s\n", string(item.Payload))
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+// cmdQueueCreate creates a new queue item.
+func (a *App) cmdQueueCreate(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: queue create <kind> [payload-json]")
+	}
+	kind := strings.TrimSpace(args[0])
+	if kind == "" {
+		return fmt.Errorf("kind is required")
+	}
+
+	payload := map[string]any{
+		"kind": kind,
+	}
+	if len(args) > 1 {
+		raw := strings.Join(args[1:], " ")
+		var parsed json.RawMessage
+		if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+			return fmt.Errorf("invalid payload JSON: %w", err)
+		}
+		payload["payload"] = json.RawMessage(raw)
+	}
+
+	requestBody, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to build request: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/queue"), nil, json.RawMessage(requestBody))
+	if err != nil {
+		return err
+	}
+
+	cliutil.PrintJSON(body)
+	return nil
+}
+
+// cmdQueueDelete removes a queue item.
+func (a *App) cmdQueueDelete(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: queue delete <id>")
+	}
+	id := strings.TrimSpace(args[0])
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+
+	_, err := a.core.APIClient.Request("DELETE", a.resolveV1Endpoint("/queue/"+id), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted queue item: %s\n", id)
 	return nil
 }

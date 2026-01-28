@@ -8,6 +8,7 @@
 package ideas
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/ecosystem"
 	"swarm-manager/internal/httputil"
 )
 
@@ -67,25 +69,8 @@ type IdeaFile struct {
 // Handler provides HTTP handlers for idea operations.
 type Handler struct {
 	ideasDir        string
-	ecosystemClient EcosystemClient
+	ecosystemClient ecosystem.Client
 	agentClient     agentmanager.Client
-}
-
-// EcosystemClient is the interface for ecosystem-manager operations.
-// This is a seam that allows the integration to be substituted for testing.
-// DOC: docs/internal/SEAMS.md#api-to-integration-seam
-type EcosystemClient interface {
-	// CreateTask creates a task in the ecosystem-manager queue.
-	// Returns the created task ID on success.
-	CreateTask(req EcosystemTaskRequest) (string, error)
-}
-
-// EcosystemTaskRequest contains the parameters for creating a task.
-type EcosystemTaskRequest struct {
-	Title     string
-	Operation string // "generator" or "improver"
-	Priority  int    // 1-10, maps to high/medium/low
-	Category  string // Optional category (typically first tag)
 }
 
 // NewHandler creates a new ideas handler.
@@ -98,21 +83,21 @@ func NewHandler(ideasDir string) *Handler {
 	}
 	return &Handler{
 		ideasDir:        ideasDir,
-		ecosystemClient: nil, // Uses fallback implementation
-		agentClient:     nil, // Uses fallback implementation
+		ecosystemClient: nil, // Uses default discovery-backed client
+		agentClient:     nil, // Uses default discovery-backed client
 	}
 }
 
 // NewHandlerWithClient creates a new ideas handler with a custom ecosystem client.
 // This is useful for testing without needing to mock HTTP.
-func NewHandlerWithClient(ideasDir string, client EcosystemClient) *Handler {
+func NewHandlerWithClient(ideasDir string, client ecosystem.Client) *Handler {
 	h := NewHandler(ideasDir)
 	h.ecosystemClient = client
 	return h
 }
 
 // NewHandlerWithClients creates a new ideas handler with custom ecosystem and agent clients.
-func NewHandlerWithClients(ideasDir string, ecosystemClient EcosystemClient, agentClient agentmanager.Client) *Handler {
+func NewHandlerWithClients(ideasDir string, ecosystemClient ecosystem.Client, agentClient agentmanager.Client) *Handler {
 	h := NewHandler(ideasDir)
 	h.ecosystemClient = ecosystemClient
 	h.agentClient = agentClient
@@ -772,17 +757,6 @@ func getContentType(ext string) string {
 	}
 }
 
-// EcosystemTask represents a task in the ecosystem-manager queue.
-type EcosystemTask struct {
-	ID        string `json:"id,omitempty"`
-	Title     string `json:"title"`
-	Type      string `json:"type"`      // "scenario"
-	Operation string `json:"operation"` // "generator" or "improver"
-	Category  string `json:"category,omitempty"`
-	Priority  string `json:"priority"`
-	Status    string `json:"status,omitempty"`
-}
-
 // Queue queues an idea for processing via ecosystem-manager.
 // [REQ:REQ-P0-005] POST /api/v1/ideas/{name}/queue endpoint
 func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
@@ -825,7 +799,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create task in ecosystem-manager
-	taskID, err := h.createEcosystemTask(idea, operation)
+	taskID, err := h.createEcosystemTask(r.Context(), idea, operation)
 	if err != nil {
 		log.Printf("[ideas] queue: failed to create ecosystem task for %q: %v", name, err)
 		httputil.InternalError(w, "", "failed to create ecosystem task: "+err.Error())
@@ -931,8 +905,8 @@ func isQueueableStatus(status IdeaStatus) bool {
 
 // createEcosystemTask creates a task in the ecosystem-manager queue.
 // This method uses the seam pattern - if an ecosystem client is injected,
-// it uses that; otherwise it falls back to direct HTTP calls.
-func (h *Handler) createEcosystemTask(idea Idea, operation string) (string, error) {
+// it uses that; otherwise it uses the default discovery-backed client.
+func (h *Handler) createEcosystemTask(ctx context.Context, idea Idea, operation string) (string, error) {
 	// Build category from tags
 	category := "uncategorized"
 	if len(idea.Tags) > 0 {
@@ -940,7 +914,7 @@ func (h *Handler) createEcosystemTask(idea Idea, operation string) (string, erro
 	}
 
 	// Create the task request
-	req := EcosystemTaskRequest{
+	req := ecosystem.CreateTaskRequest{
 		Title:     "Generate scenario from idea: " + idea.Title,
 		Operation: operation,
 		Priority:  idea.Priority,
@@ -948,84 +922,13 @@ func (h *Handler) createEcosystemTask(idea Idea, operation string) (string, erro
 	}
 
 	// Use injected client if available (seam for testing)
-	if h.ecosystemClient != nil {
-		return h.ecosystemClient.CreateTask(req)
+	client := h.ecosystemClient
+	if client == nil {
+		client = ecosystem.NewHTTPClient()
 	}
 
-	// Fallback to direct HTTP implementation
-	return h.createEcosystemTaskHTTP(req)
+	return client.CreateTask(ctx, req)
 }
-
-// createEcosystemTaskHTTP is the default HTTP implementation.
-// This is the production fallback when no client is injected.
-func (h *Handler) createEcosystemTaskHTTP(req EcosystemTaskRequest) (string, error) {
-	// Get ecosystem-manager port from environment or use default
-	ecosystemPort := os.Getenv("ECOSYSTEM_MANAGER_PORT")
-	if ecosystemPort == "" {
-		// Try to read from port file
-		portFile := filepath.Join("scenarios", "ecosystem-manager", ".vrooli", "ports", "API_PORT")
-		if data, err := os.ReadFile(portFile); err == nil {
-			ecosystemPort = strings.TrimSpace(string(data))
-		}
-	}
-	if ecosystemPort == "" {
-		return "", errEcosystemNotAvailable
-	}
-
-	// Map priority to string
-	priority := "medium"
-	if req.Priority <= 2 {
-		priority = "high"
-	} else if req.Priority >= 8 {
-		priority = "low"
-	}
-
-	task := EcosystemTask{
-		Title:     req.Title,
-		Type:      "scenario",
-		Operation: req.Operation,
-		Category:  req.Category,
-		Priority:  priority,
-	}
-
-	// POST to ecosystem-manager
-	taskJSON, err := json.Marshal(task)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := http.Post(
-		"http://localhost:"+ecosystemPort+"/api/tasks",
-		"application/json",
-		strings.NewReader(string(taskJSON)),
-	)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return "", errEcosystemTaskFailed
-	}
-
-	// Parse response to get task ID
-	var createdTask EcosystemTask
-	if err := json.NewDecoder(resp.Body).Decode(&createdTask); err != nil {
-		return "", err
-	}
-
-	return createdTask.ID, nil
-}
-
-// Sentinel errors for ecosystem-manager integration
-var (
-	errEcosystemNotAvailable = errType("ecosystem-manager not available")
-	errEcosystemTaskFailed   = errType("failed to create task in ecosystem-manager")
-)
-
-type errType string
-
-func (e errType) Error() string { return string(e) }
 
 // sanitizeName converts a name to a folder-safe format.
 func sanitizeName(name string) string {

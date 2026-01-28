@@ -14,6 +14,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/ecosystem"
 	"swarm-manager/internal/testutil"
 )
 
@@ -1176,11 +1177,11 @@ func TestQueueableStatuses(t *testing.T) {
 
 // mockEcosystemClient is a test double for the EcosystemClient interface.
 type mockEcosystemClient struct {
-	createTaskFn func(req EcosystemTaskRequest) (string, error)
+	createTaskFn func(ctx context.Context, req ecosystem.CreateTaskRequest) (string, error)
 }
 
-func (m *mockEcosystemClient) CreateTask(req EcosystemTaskRequest) (string, error) {
-	return m.createTaskFn(req)
+func (m *mockEcosystemClient) CreateTask(ctx context.Context, req ecosystem.CreateTaskRequest) (string, error) {
+	return m.createTaskFn(ctx, req)
 }
 
 // [REQ:REQ-P0-005] Test queue idea success with mocked ecosystem client
@@ -1203,7 +1204,7 @@ func TestQueue_Success(t *testing.T) {
 
 	// Create mock ecosystem client that returns success
 	mockClient := &mockEcosystemClient{
-		createTaskFn: func(req EcosystemTaskRequest) (string, error) {
+		createTaskFn: func(_ context.Context, req ecosystem.CreateTaskRequest) (string, error) {
 			// Verify the request was built correctly
 			if req.Priority != 2 {
 				t.Errorf("Expected priority 2, got %d", req.Priority)
@@ -1257,7 +1258,7 @@ func TestQueue_WithImproverOperation(t *testing.T) {
 
 	// Create mock ecosystem client that verifies improver operation
 	mockClient := &mockEcosystemClient{
-		createTaskFn: func(req EcosystemTaskRequest) (string, error) {
+		createTaskFn: func(_ context.Context, req ecosystem.CreateTaskRequest) (string, error) {
 			if req.Operation != "improver" {
 				t.Errorf("Expected operation 'improver', got %s", req.Operation)
 			}
@@ -1304,8 +1305,8 @@ func TestQueue_EcosystemError(t *testing.T) {
 
 	// Create mock ecosystem client that returns an error
 	mockClient := &mockEcosystemClient{
-		createTaskFn: func(req EcosystemTaskRequest) (string, error) {
-			return "", errEcosystemNotAvailable
+		createTaskFn: func(_ context.Context, req ecosystem.CreateTaskRequest) (string, error) {
+			return "", ecosystem.ErrNotAvailable
 		},
 	}
 

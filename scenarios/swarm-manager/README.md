@@ -88,18 +88,30 @@ ideas/
 ## CLI Commands
 
 ```bash
-swarm-manager ideas list [--status STATUS]
-swarm-manager ideas create NAME --title TITLE
-swarm-manager ideas queue ID
+swarm-manager ideas list
+swarm-manager ideas get <name>
+swarm-manager ideas create '<json>'
+swarm-manager ideas update <name> '<json>'
+swarm-manager ideas delete <name>
+swarm-manager ideas queue <name> [operation]
+swarm-manager ideas research <name> '<json>'
 
-swarm-manager scenarios list
-swarm-manager scenarios show ID
-swarm-manager scenarios delete ID [--archive]
+swarm-manager scenarios list [--search ... --status ... --tags ...]
+swarm-manager scenarios get <name>
+swarm-manager scenarios update <name> '<json>'
+swarm-manager scenarios delete <name> [--archive]
 
-swarm-manager recommendations list
-swarm-manager recommendations approve ID
+swarm-manager recommendations list [--status ... --scenario ... --type ...]
+swarm-manager recommendations refresh
+swarm-manager recommendations create '<json>'
+swarm-manager recommendations update <id> <status>
 
-swarm-manager settings show
+swarm-manager settings get
+swarm-manager settings update '<json>'
+
+swarm-manager queue list
+swarm-manager queue create <kind> '<payload-json>'
+swarm-manager queue delete <id>
 ```
 
 ## Integration Points

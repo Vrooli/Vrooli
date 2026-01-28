@@ -1,6 +1,7 @@
 package ecosystem
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -31,7 +32,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           CreateTaskRequest
-		portResolver  func() (string, error)
+		baseResolver  BaseURLResolver
 		httpResponse  *http.Response
 		httpError     error
 		wantTaskID    string
@@ -46,7 +47,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				Priority:  1,
 				Category:  "test",
 			},
-			portResolver: func() (string, error) { return "12345", nil },
+			baseResolver: func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
 			httpResponse: makeResponse(http.StatusCreated, Task{ID: "task-123"}),
 			wantTaskID:   "task-123",
 		},
@@ -57,7 +58,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				Operation: "improver",
 				Priority:  5,
 			},
-			portResolver: func() (string, error) { return "12345", nil },
+			baseResolver: func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
 			httpResponse: makeResponse(http.StatusOK, Task{ID: "task-456"}),
 			wantTaskID:   "task-456",
 		},
@@ -68,7 +69,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				Operation: "generator",
 				Priority:  1,
 			},
-			portResolver: func() (string, error) { return "", ErrNotAvailable },
+			baseResolver: func(_ context.Context) (string, error) { return "", ErrNotAvailable },
 			wantErrType:  ErrNotAvailable,
 		},
 		{
@@ -78,7 +79,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				Operation: "generator",
 				Priority:  1,
 			},
-			portResolver:  func() (string, error) { return "12345", nil },
+			baseResolver:  func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
 			httpError:     errors.New("connection refused"),
 			wantErrType:   ErrNotAvailable,
 			wantErrSubstr: "connection refused",
@@ -90,7 +91,7 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				Operation: "generator",
 				Priority:  1,
 			},
-			portResolver: func() (string, error) { return "12345", nil },
+			baseResolver: func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
 			httpResponse: makeResponse(http.StatusInternalServerError, nil),
 			wantErrType:  ErrTaskCreationFailed,
 		},
@@ -107,9 +108,9 @@ func TestHTTPClient_CreateTask(t *testing.T) {
 				},
 			}
 
-			client := NewHTTPClientWithResolver(tt.portResolver, mockHTTP)
+			client := NewHTTPClientWithResolver(tt.baseResolver, mockHTTP)
 
-			taskID, err := client.CreateTask(tt.req)
+			taskID, err := client.CreateTask(context.Background(), tt.req)
 
 			if tt.wantErrType != nil {
 				if err == nil {
@@ -199,11 +200,11 @@ func TestHTTPClient_CreateTask_ResponseDecodeError(t *testing.T) {
 	}
 
 	client := NewHTTPClientWithResolver(
-		func() (string, error) { return "12345", nil },
+		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
 		mockHTTP,
 	)
 
-	_, err := client.CreateTask(CreateTaskRequest{
+	_, err := client.CreateTask(context.Background(), CreateTaskRequest{
 		Title:     "Test",
 		Operation: "generator",
 		Priority:  1,
@@ -234,17 +235,16 @@ func TestHTTPClient_CreateTask_RequestConstruction(t *testing.T) {
 	}
 
 	client := NewHTTPClientWithResolver(
-		func() (string, error) { return "54321", nil },
+		func(_ context.Context) (string, error) { return "http://localhost:54321", nil },
 		mockHTTP,
 	)
 
-	_, err := client.CreateTask(CreateTaskRequest{
+	_, err := client.CreateTask(context.Background(), CreateTaskRequest{
 		Title:     "My Test Task",
 		Operation: "improver",
 		Priority:  2,
 		Category:  "testing",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

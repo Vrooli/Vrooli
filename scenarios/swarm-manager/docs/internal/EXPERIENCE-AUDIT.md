@@ -59,14 +59,14 @@ The product is a **command center for scenario lifecycle management**, bridging 
 **Current Steps** (7 clicks + typing):
 1. Land on Ideas tab (default landing page) ✓
 2. Click "New Idea" button
-3. (Creates idea - endpoint exists but form UI not implemented)
+3. Fill out modal form and create idea
 4. Navigate to idea details page
 5. Add context files via upload
 6. Click "Queue for Processing"
 7. Confirm (if dialog exists)
 
 **Friction Points**:
-- **F1-MECHANICAL**: "New Idea" button exists but idea creation form is not implemented (clicking does nothing)
+- **F1-MECHANICAL**: ✅ Resolved — "New Idea" opens the create dialog
 - **F1-COGNITIVE**: User must remember idea names to find them later; no "recent ideas" or "continue working" affordance
 - **F1-DISCOVERABILITY**: No visual indication of which ideas are recently accessed or in-progress
 
@@ -132,7 +132,7 @@ The product is a **command center for scenario lifecycle management**, bridging 
 
 | ID | Category | Flow | Severity | Description |
 |----|----------|------|----------|-------------|
-| F1-MECHANICAL | Mechanical | Create Idea | HIGH | "New Idea" button not implemented |
+| F1-MECHANICAL | Mechanical | Create Idea | RESOLVED | "New Idea" dialog implemented |
 | F1-COGNITIVE | Cognitive | Create Idea | MEDIUM | No recent ideas or "continue" affordance |
 | F1-DISCOVERABILITY | Discoverability | Create Idea | LOW | No visual prominence for active ideas |
 | F4-COGNITIVE | Cognitive | Return | HIGH | Must remember context, no resume flow |
@@ -146,7 +146,7 @@ The product is a **command center for scenario lifecycle management**, bridging 
 
 | Aspect | Current | Ideal |
 |--------|---------|-------|
-| Entry | "New Idea" button (broken) | Working modal/form |
+| Entry | "New Idea" button opens modal | Working modal/form |
 | Creation | N/A | Quick inline creation with defaults |
 | Navigation | Manual search after creation | Auto-navigate to new idea |
 | Queuing | Works well | Works well |
@@ -226,7 +226,7 @@ The product is a **command center for scenario lifecycle management**, bridging 
 
 ### Future Loops (Higher Effort)
 
-1. **Implement idea creation modal** (OT-P0-002 - partially implemented via API, needs UI form)
+1. **Implement idea creation modal** ✅ Implemented (UI form wired to API)
    - Would resolve F1-MECHANICAL completely
    - Requires form validation, API integration
 
@@ -511,14 +511,14 @@ Root (/)
 
 | Control | Page | Issue | Status |
 |---------|------|-------|--------|
-| "New Idea" button | IdeasPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Create First Idea" button | IdeasPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Filter" button | IdeasPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Edit" button | IdeaDetailsPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Delete" button | IdeaDetailsPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Filter" button | RecommendationsPage | Did nothing | **Fixed**: Disabled with tooltip |
-| "Save Settings" button | SettingsPage | Did nothing | **Fixed**: Disabled with tooltip |
-| Theme/mode buttons | SettingsPage | No state persistence | **Fixed**: Added preview notice |
+| "New Idea" button | IdeasPage | No modal | **Fixed**: Opens create dialog |
+| "Create First Idea" button | IdeasPage | No action | **Fixed**: Opens create dialog |
+| "Filter" button | IdeasPage | No action | **Fixed**: Opens filter menu |
+| "Edit" button | IdeaDetailsPage | No action | **Fixed**: Opens edit dialog |
+| "Delete" button | IdeaDetailsPage | No action | **Fixed**: Opens delete confirmation |
+| "Filter" button | RecommendationsPage | No action | **Fixed**: Opens filter menu |
+| "Save Settings" button | SettingsPage | No action | **Fixed**: Persists settings |
+| Theme/mode buttons | SettingsPage | No state persistence | **Fixed**: Persisted via settings API |
 
 ### Back/Forward Coherence
 
@@ -561,7 +561,7 @@ Root (/)
 
 ### Remaining Navigation Opportunities
 
-1. **Implement idea creation modal** - Would enable "New Idea" button
+1. **Implement idea creation modal** ✅ Implemented
 2. **Implement idea edit/delete** - Would enable those buttons on IdeaDetailsPage
 3. **Implement filter functionality** - Would enable filter buttons on Ideas/Recommendations
 4. **Implement settings persistence** - Would enable Save Settings button
@@ -570,7 +570,7 @@ Root (/)
 
 ## Remaining Opportunities (Future Loops)
 
-1. **Implement idea creation modal** - F1-MECHANICAL would be fully resolved
+1. **Implement idea creation modal** ✅ F1-MECHANICAL resolved
 2. **Add dashboard/overview tab** - For at-a-glance ecosystem health
 3. **Quick-actions on hover** - Scenario/idea card inline actions
 4. **Scenario logs viewer in UI** - Eliminate need to use CLI for logs

@@ -103,12 +103,40 @@ func TestIdeasCommandsRegistered(t *testing.T) {
 	}{
 		{"ideas list no-api", []string{"ideas", "list"}, true}, // Will fail without API but command should be found
 		{"ideas get no-args", []string{"ideas", "get"}, true},  // Will fail without args
+		{"ideas queue no-args", []string{"ideas", "queue"}, true},
+		{"ideas research no-args", []string{"ideas", "research"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Just verify the app doesn't panic when trying to run these commands
 			// The actual command execution will fail without a real API
+			_ = app.Run(tt.args)
+		})
+	}
+}
+
+// Test scenario and recommendation commands are registered.
+func TestScenarioCommandsRegistered(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"scenarios list no-api", []string{"scenarios", "list"}},
+		{"scenarios get no-args", []string{"scenarios", "get"}},
+		{"recommendations list no-api", []string{"recommendations", "list"}},
+		{"recommendations update no-args", []string{"recommendations", "update"}},
+		{"settings get no-api", []string{"settings", "get"}},
+		{"queue list no-api", []string{"queue", "list"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			_ = app.Run(tt.args)
 		})
 	}
@@ -228,6 +256,113 @@ func TestCmdIdeasCreateValidation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "required") {
 		t.Errorf("Error should contain 'required', got: %v", err)
+	}
+}
+
+func TestCmdIdeasQueueValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdIdeasQueue([]string{})
+	if err == nil {
+		t.Error("cmdIdeasQueue with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdIdeasQueue([]string{"idea-name", "invalid"})
+	if err == nil {
+		t.Error("cmdIdeasQueue with invalid operation should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid operation") {
+		t.Errorf("Error should contain 'invalid operation', got: %v", err)
+	}
+}
+
+func TestCmdIdeasResearchValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdIdeasResearch([]string{})
+	if err == nil {
+		t.Error("cmdIdeasResearch with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdIdeasResearch([]string{"idea-name", "{invalid"})
+	if err == nil {
+		t.Error("cmdIdeasResearch with invalid JSON should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid JSON") {
+		t.Errorf("Error should contain 'invalid JSON', got: %v", err)
+	}
+}
+
+func TestCmdScenariosGetValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdScenariosGet([]string{})
+	if err == nil {
+		t.Error("cmdScenariosGet with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+}
+
+func TestCmdRecommendationsUpdateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdRecommendationsUpdate([]string{})
+	if err == nil {
+		t.Error("cmdRecommendationsUpdate with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdRecommendationsUpdate([]string{"rec-1", "bad"})
+	if err == nil {
+		t.Error("cmdRecommendationsUpdate with invalid status should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid status") {
+		t.Errorf("Error should contain 'invalid status', got: %v", err)
+	}
+}
+
+func TestCmdQueueCreateValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	err = app.cmdQueueCreate([]string{})
+	if err == nil {
+		t.Error("cmdQueueCreate with no args should return error")
+	}
+	if !strings.Contains(err.Error(), "usage") {
+		t.Errorf("Error should contain 'usage', got: %v", err)
+	}
+
+	err = app.cmdQueueCreate([]string{"build", "{invalid"})
+	if err == nil {
+		t.Error("cmdQueueCreate with invalid payload JSON should return error")
+	}
+	if !strings.Contains(err.Error(), "invalid payload JSON") {
+		t.Errorf("Error should contain 'invalid payload JSON', got: %v", err)
 	}
 }
 
@@ -452,7 +587,6 @@ func TestCmdIdeasUpdate_TwoArgs(t *testing.T) {
 
 	// With exactly 2 args, should try to make API call (fail without server)
 	err = app.cmdIdeasUpdate([]string{"idea-name", `{"title":"New Title"}`})
-
 	// Should fail with network error, not usage or JSON error
 	if err != nil {
 		if strings.Contains(err.Error(), "usage") {
