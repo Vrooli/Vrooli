@@ -5,22 +5,15 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "core",
-      "description": "Implement three-state recommendation engine (Off/suggestions/yolo) with configurable data sources",
-      "id": "REQ-P1-001",
+      "category": "api",
+      "description": "Implement three-state recommendation engine backend (Off/suggestions/yolo) with core logic and data source integration",
+      "id": "REQ-P1-001-ENGINE",
       "prd_ref": "OT-P1-001",
       "status": "draft",
-      "title": "Configurable Recommendation Engine",
+      "title": "Recommendation Engine Core",
       "validation": [
         {
-          "notes": "Test mode switching",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify data source configuration",
+          "notes": "Test mode switching logic",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -36,6 +29,26 @@
         {
           "notes": "Mode changes apply within 100ms",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P1-001-ENGINE"
+      ],
+      "description": "Implement configurable data sources for recommendation engine (PROBLEMS.md, completeness scores, test results, etc.)",
+      "id": "REQ-P1-001-CONFIG",
+      "prd_ref": "OT-P1-001",
+      "status": "draft",
+      "title": "Recommendation Data Source Configuration",
+      "validation": [
+        {
+          "notes": "Verify data source configuration persistence",
+          "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"

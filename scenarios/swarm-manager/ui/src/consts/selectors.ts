@@ -2,12 +2,8 @@
  * Vrooli Ascension selector registry
  *
  * This file is the single source of truth for every selector used by the UI and
- * by Vrooli Ascension workflows. We deliberately model selectors as two
- * declarative maps (one literal, one dynamic) and rely on a small helper to
- * produce the typed `selectors` export plus the manifest consumed by workflow
- * linting. Do not hand-roll selector helpers or change this structure—update the
- * maps below so UI code, automation flows, and the manifest builder all stay in
- * sync across every scenario.
+ * by Vrooli Ascension workflows. Selectors are defined as typed constant objects
+ * to ensure TypeScript can statically verify all accesses.
  *
  * ## Auto-Generated Manifest
  *
@@ -21,8 +17,9 @@
  * DO NOT manually edit `selectors.manifest.json` - your changes will be overwritten!
  */
 
-type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
-type LiteralNode = string | LiteralSelectorTree;
+// =============================================================================
+// Dynamic Selector Types
+// =============================================================================
 
 type ParamType = "string" | "number" | "enum";
 
@@ -33,16 +30,6 @@ type ParamDefinition =
 
 type ParamSchema = Readonly<Record<string, ParamDefinition>>;
 
-type ParamValueType<T extends ParamDefinition> = T extends { type: "number" }
-  ? number
-  : T extends { type: "enum"; values: readonly (infer V)[] }
-  ? V
-  : string;
-
-type ParamValues<P extends ParamSchema | undefined> = P extends ParamSchema
-  ? { [K in keyof P]: ParamValueType<P[K]> }
-  : Record<string, never>;
-
 interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefined> {
   readonly kind: "dynamic-selector";
   readonly description: string;
@@ -51,91 +38,273 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
   readonly selectorPattern?: string;
 }
 
-type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
-};
+// =============================================================================
+// Literal Selectors - Static test IDs with deterministic types
+// =============================================================================
 
-type DynamicSelectorTree = DynamicSelectorBranch;
+/**
+ * Literal (static) selectors organized by UI area.
+ * Each value is a data-testid string.
+ */
+export const literalSelectors = {
+  // Layout selectors
+  layout: {
+    main: "main-layout",
+    header: "header",
+    desktopTabs: "desktop-tabs",
+    mobileNav: "mobile-nav",
+  },
+  // Error state selectors (shared across pages)
+  error: {
+    container: "error-state",
+    icon: "error-icon",
+    title: "error-title",
+    message: "error-message",
+    retryButton: "error-retry",
+  },
+  // Error boundary selectors (for runtime errors)
+  errorBoundary: {
+    container: "error-boundary",
+    title: "error-boundary-title",
+    message: "error-boundary-message",
+    refreshButton: "error-boundary-refresh",
+  },
+  // Not Found page selectors
+  notFound: {
+    page: "not-found-page",
+    title: "not-found-title",
+    message: "not-found-message",
+    homeButton: "not-found-home",
+  },
+  // Desktop tab selectors
+  tabs: {
+    ideas: "tab-ideas",
+    scenarios: "tab-scenarios",
+    recommendations: "tab-recommendations",
+    settings: "tab-settings",
+  },
+  // Mobile tab selectors
+  mobileTabs: {
+    ideas: "mobile-tab-ideas",
+    scenarios: "mobile-tab-scenarios",
+    recommendations: "mobile-tab-recommendations",
+    settings: "mobile-tab-settings",
+  },
+  // Ideas page selectors
+  ideas: {
+    page: "ideas-page",
+    search: "ideas-search",
+    filter: "ideas-filter",
+    createButton: "create-idea",
+    createFirstButton: "create-first-idea",
+    empty: "ideas-empty",
+    grid: "ideas-grid",
+    // Experience architecture additions (Phase 29)
+    continueSection: "ideas-continue-section",
+    continueList: "ideas-continue-list",
+    summaryStats: "ideas-summary-stats",
+    readyCount: "ideas-ready-count",
+    cliHint: "ideas-cli-hint",
+    // Iteration 5 additions
+    statusLegend: "ideas-status-legend",
+    welcomeHint: "ideas-welcome-hint",
+  },
+  // Idea details page selectors
+  ideaDetails: {
+    page: "idea-details-page",
+    header: "idea-details-header",
+    title: "idea-details-title",
+    description: "idea-details-description",
+    backButton: "idea-details-back",
+    editButton: "idea-details-edit",
+    deleteButton: "idea-details-delete",
+    queueButton: "idea-details-queue",
+    fileTree: "idea-details-file-tree",
+    filePreview: "idea-details-file-preview",
+    fileUpload: "idea-details-file-upload",
+    uploadDropzone: "file-upload-dropzone",
+    uploadList: "file-upload-list",
+    // Experience architecture additions (Phase 29)
+    breadcrumb: "idea-details-breadcrumb",
+  },
+  // Scenarios page selectors
+  scenarios: {
+    page: "scenarios-page",
+    search: "scenarios-search",
+    filter: "scenarios-filter",
+    filterDropdown: "scenarios-filter-dropdown",
+    statusFilter: "scenarios-status-filter",
+    count: "scenarios-count",
+    empty: "scenarios-empty",
+    noResults: "scenarios-no-results",
+    list: "scenarios-list",
+    // Experience architecture additions (Phase 29)
+    statusSummary: "scenarios-status-summary",
+    runningCount: "scenarios-running-count",
+    stoppedCount: "scenarios-stopped-count",
+    errorCount: "scenarios-error-count",
+  },
+  // Scenario details page selectors
+  // [REQ:REQ-P0-007] Selectors for scenario metadata management UI
+  // [REQ:REQ-P0-008] Selectors for scenario deletion UI
+  scenarioDetails: {
+    page: "scenario-details-page",
+    header: "scenario-details-header",
+    title: "scenario-details-title",
+    description: "scenario-details-description",
+    backButton: "scenario-details-back",
+    metadataSection: "scenario-details-metadata",
+    greenfieldToggle: "scenario-greenfield-toggle",
+    recommendationsToggle: "scenario-recommendations-toggle",
+    saveButton: "scenario-details-save",
+    priority: "scenario-details-priority",
+    tags: "scenario-details-tags",
+    status: "scenario-details-status",
+    deleteButton: "scenario-details-delete",
+    deleteDialog: "scenario-delete-dialog",
+    deleteConfirmButton: "scenario-delete-confirm",
+    deleteCancelButton: "scenario-delete-cancel",
+    archiveCheckbox: "scenario-delete-archive",
+    // Experience architecture additions (Phase 29)
+    breadcrumb: "scenario-details-breadcrumb",
+    // Iteration 5 additions
+    cliHint: "scenario-details-cli-hint",
+  },
+  // Recommendations page selectors
+  recommendations: {
+    page: "recommendations-page",
+    filter: "recommendations-filter",
+    empty: "recommendations-empty",
+    list: "recommendations-list",
+    // Experience architecture additions (Phase 29)
+    settingsLink: "recommendations-settings-link",
+  },
+  // Settings page selectors
+  settings: {
+    page: "settings-page",
+    themeSettings: "theme-settings",
+    themeDark: "theme-dark",
+    themeLight: "theme-light",
+    themeSystem: "theme-system",
+    recommendationSettings: "recommendation-settings",
+    recModeOff: "rec-mode-off",
+    recModeSuggestions: "rec-mode-suggestions",
+    recModeYolo: "rec-mode-yolo",
+    customFocus: "custom-focus",
+    insightsSettings: "insights-settings",
+    insightsEnabled: "insights-enabled",
+    insightsAutoAnalyze: "insights-auto-analyze",
+    saveButton: "settings-save",
+    // Experience architecture additions (Phase 29)
+    recModeHint: "rec-mode-hint",
+  },
+} as const;
 
-type DynamicSelectorFn<P extends ParamSchema | undefined> = keyof ParamValues<P> extends never
-  ? () => string
-  : (params: ParamValues<P>) => string;
-
-type DynamicBranchResult<D extends DynamicSelectorTree> = {
-  [K in keyof D]: D[K] extends DynamicSelectorDefinition<infer P>
-  ? DynamicSelectorFn<P>
-  : D[K] extends DynamicSelectorTree
-  ? DynamicBranchResult<D[K]>
-  : never;
-};
-
-type SelectorTreeResult<
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
-> = {
-  [K in keyof L]: L[K] extends string
-    ? string
-    : SelectorTreeResult<
-        Extract<L[K], LiteralSelectorTree>,
-        K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
-      >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+// =============================================================================
+// Dynamic Selectors - Parameterized selectors for data-driven elements
+// =============================================================================
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
     return String(values[token]);
   });
 
+const defineDynamicSelector = <P extends ParamSchema | undefined>(
+  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
+): DynamicSelectorDefinition<P> => ({
+  ...definition,
+  kind: "dynamic-selector",
+});
+
+// Dynamic selector definitions (used for manifest generation)
+export const dynamicSelectorDefinitions = {
+  ideas: {
+    cardByName: defineDynamicSelector({
+      description: "Idea card filtered by name",
+      testIdPattern: "idea-card-${name}",
+      params: { name: { type: "string" } },
+    }),
+  },
+  scenarios: {
+    cardByName: defineDynamicSelector({
+      description: "Scenario card filtered by name",
+      testIdPattern: "scenario-card-${name}",
+      params: { name: { type: "string" } },
+    }),
+  },
+  recommendations: {
+    cardByName: defineDynamicSelector({
+      description: "Recommendation card filtered by name",
+      testIdPattern: "recommendation-card-${name}",
+      params: { name: { type: "string" } },
+    }),
+  },
+} as const;
+
+// =============================================================================
+// Dynamic Selector Functions
+// =============================================================================
+
+/**
+ * Dynamic selectors - functions that generate test IDs from parameters
+ */
+export const dynamicSelectors = {
+  ideas: {
+    cardByName: (params: { name: string }) =>
+      formatTemplate("idea-card-${name}", params, "ideas.cardByName"),
+  },
+  scenarios: {
+    cardByName: (params: { name: string }) =>
+      formatTemplate("scenario-card-${name}", params, "scenarios.cardByName"),
+  },
+  recommendations: {
+    cardByName: (params: { name: string }) =>
+      formatTemplate("recommendation-card-${name}", params, "recommendations.cardByName"),
+  },
+} as const;
+
+// =============================================================================
+// Combined Selectors Export
+// =============================================================================
+
+/**
+ * Combined selector registry - literal selectors merged with dynamic functions.
+ * This is the primary export for UI components.
+ *
+ * Usage:
+ * - Literal: selectors.ideas.page
+ * - Dynamic: selectors.ideas.cardByName({ name: "my-idea" })
+ */
+export const selectors = {
+  ...literalSelectors,
+  ideas: {
+    ...literalSelectors.ideas,
+    ...dynamicSelectors.ideas,
+  },
+  scenarios: {
+    ...literalSelectors.scenarios,
+    ...dynamicSelectors.scenarios,
+  },
+  recommendations: {
+    ...literalSelectors.recommendations,
+    ...dynamicSelectors.recommendations,
+  },
+} as const;
+
+export type Selectors = typeof selectors;
+
+// =============================================================================
+// Manifest Generation (for workflow tools)
+// =============================================================================
+
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
-
-const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
-  raw: Record<string, string | number>,
-  path: string,
-) => {
-  const schema = definition.params ?? ({} as ParamSchema);
-  const normalized: Record<string, string | number> = {};
-
-  for (const key of Object.keys(schema)) {
-    if (!(key in raw)) {
-      throw new Error(`Selector '${path}' is missing parameter '${key}'`);
-    }
-    const definitionEntry = schema[key];
-    const value = raw[key];
-    if (definitionEntry.type === "number") {
-      if (typeof value !== "number") {
-        throw new Error(`Selector '${path}' parameter '${key}' must be numeric`);
-      }
-      normalized[key] = value;
-      continue;
-    }
-    if (definitionEntry.type === "enum") {
-      if (!definitionEntry.values.includes(value)) {
-        throw new Error(
-          `Selector '${path}' parameter '${key}' must be one of: ${definitionEntry.values.join(", ")}`,
-        );
-      }
-      normalized[key] = value;
-      continue;
-    }
-    normalized[key] = value;
-  }
-
-  const extras = Object.keys(raw).filter((key) => !(key in schema));
-  if (extras.length > 0) {
-    throw new Error(`Selector '${path}' received unknown parameter(s): ${extras.join(", ")}`);
-  }
-
-  return normalized;
-};
+type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 
 const flattenLiteralSelectors = (
   tree: LiteralSelectorTree,
@@ -152,13 +321,20 @@ const flattenLiteralSelectors = (
       };
       continue;
     }
-    flattenLiteralSelectors(value, nextPath, target);
+    flattenLiteralSelectors(value as LiteralSelectorTree, nextPath, target);
   }
   return target;
 };
 
+const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
+  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition<ParamSchema | undefined>).kind === "dynamic-selector");
+
+type DynamicSelectorBranch = {
+  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<ParamSchema | undefined>;
+};
+
 const flattenDynamicSelectors = (
-  tree: DynamicSelectorTree,
+  tree: DynamicSelectorBranch,
   prefix: string[] = [],
   target: Record<string, {
     description: string;
@@ -185,110 +361,12 @@ const flattenDynamicSelectors = (
       };
       continue;
     }
-    flattenDynamicSelectors(value, nextPath, target);
+    flattenDynamicSelectors(value as DynamicSelectorBranch, nextPath, target);
   }
   return target;
 };
 
-const mergeLiteralAndDynamicNodes = (
-  literalNode: LiteralSelectorTree | undefined,
-  dynamicNode: DynamicSelectorTree | undefined,
-  path: string[] = [],
-): Record<string, unknown> => {
-  const merged: Record<string, unknown> = {};
-  const keys = new Set([
-    ...Object.keys(literalNode ?? {}),
-    ...Object.keys(dynamicNode ?? {}),
-  ]);
-
-  keys.forEach((key) => {
-    const literalValue: LiteralNode | undefined = literalNode?.[key];
-    const dynamicValue = dynamicNode?.[key];
-    const nextPath = [...path, key];
-
-    if (typeof literalValue === "string") {
-      merged[key] = literalValue;
-      return;
-    }
-
-    if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
-        nextPath,
-      );
-      return;
-    }
-
-    if (dynamicValue) {
-      if (isDynamicDefinition(dynamicValue)) {
-        merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
-        return;
-      }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
-    }
-  });
-
-  return merged;
+export const selectorsManifest = {
+  selectors: flattenLiteralSelectors(literalSelectors),
+  dynamicSelectors: flattenDynamicSelectors(dynamicSelectorDefinitions),
 };
-
-const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
-  path: string,
-) => {
-  return (params?: Record<string, string | number>) => {
-    const normalized = normalizeParams(definition, params ?? {}, path);
-    const template = definition.testIdPattern ?? definition.selectorPattern;
-    if (!template) {
-      throw new Error(`Selector '${path}' is missing both testIdPattern and selectorPattern`);
-    }
-    return formatTemplate(template, normalized, path);
-  };
-};
-
-const defineDynamicSelector = <P extends ParamSchema | undefined>(
-  definition: Omit<DynamicSelectorDefinition<P>, "kind">,
-): DynamicSelectorDefinition<P> => ({
-  ...definition,
-  kind: "dynamic-selector",
-});
-
-const createSelectorRegistry = <
-  L extends LiteralSelectorTree,
-  D extends DynamicSelectorTree,
->(literalTree: L, dynamicTree: D) => {
-  const selectors = mergeLiteralAndDynamicNodes(literalTree, dynamicTree) as SelectorTreeResult<L, D>;
-  const manifest = {
-    selectors: flattenLiteralSelectors(literalTree),
-    dynamicSelectors: flattenDynamicSelectors(dynamicTree),
-  };
-  return { selectors, manifest };
-};
-
-const literalSelectors: LiteralSelectorTree = {
-  /*
-  Example literal selectors:
-  dashboard: {
-    newProjectButton: 'dashboard-new-project-button',
-  },
-  */
-};
-
-const dynamicSelectorDefinitions: DynamicSelectorTree = {
-  /*
-  Example dynamic selectors:
-  projects: {
-    cardByName: defineDynamicSelector({
-      description: 'Project card filtered by name',
-      selectorPattern: '[data-testid="project-card"][data-project-name="${name}"]',
-      params: { name: { type: 'string' } },
-    }),
-  },
-  */
-};
-
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
-
-export const selectors = registry.selectors;
-export type Selectors = typeof selectors;
-export const selectorsManifest = registry.manifest;

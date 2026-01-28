@@ -117,4 +117,4 @@ swarm-manager settings show
 - [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
 - [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred ideas
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research notes and uniqueness analysis
-- [requirements/](./requirements/) - Requirement tracking modules
+- [requirements/README.md](./requirements/README.md) - Requirement tracking modules

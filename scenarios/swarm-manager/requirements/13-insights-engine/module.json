@@ -5,30 +5,23 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "core",
-      "description": "Implement insights engine to generate self-improvement suggestions based on system patterns",
-      "id": "REQ-P1-003",
+      "category": "api",
+      "description": "Implement insights engine backend for pattern detection and suggestion generation",
+      "id": "REQ-P1-003-ENGINE",
       "prd_ref": "OT-P1-003",
       "status": "draft",
-      "title": "System Pattern Insights Engine",
+      "title": "Insights Pattern Detection Engine",
       "validation": [
         {
-          "notes": "Test pattern detection",
+          "notes": "Test pattern detection algorithms",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify suggestion generation",
+          "notes": "Verify suggestion generation quality",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate insight quality",
-          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
@@ -36,6 +29,26 @@
         {
           "notes": "Pattern analysis within 5s",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-003-ENGINE"
+      ],
+      "description": "Display insights and self-improvement suggestions in the UI",
+      "id": "REQ-P1-003-UI",
+      "prd_ref": "OT-P1-003",
+      "status": "draft",
+      "title": "Insights Display Interface",
+      "validation": [
+        {
+          "notes": "Validate insight quality in UI",
+          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"

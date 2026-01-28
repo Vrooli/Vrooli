@@ -12,56 +12,84 @@
       "description": "Implement REST API endpoints for creating, reading, updating and deleting ideas with proper validation and error handling",
       "id": "REQ-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Idea CRUD API Endpoints",
       "validation": [
         {
-          "notes": "Test all CRUD operations with valid inputs",
+          "notes": "Test List returns empty array when no ideas exist",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestList_Empty",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify error handling for invalid inputs",
+          "notes": "Test List returns all ideas sorted by priority",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestList_WithIdeas",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test response formats and status codes",
+          "notes": "Test Get returns single idea by name",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestGet_Found",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end API flow testing",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Get returns 404 for non-existent idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGet_NotFound",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "API response time \u003c200ms for all operations",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Create successfully creates idea with sanitized name",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestCreate_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "All CRUD operations work as specified",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Create validates required fields",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestCreate_MissingFields",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Proper error messages returned",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Create returns 409 for duplicate names",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestCreate_Duplicate",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test Update modifies idea fields",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUpdate_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test Update returns 404 for non-existent idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUpdate_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test Delete removes idea directory",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestDelete_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test Delete returns 404 for non-existent idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestDelete_NotFound",
+          "status": "passing",
           "type": "test"
         }
       ]
@@ -74,42 +102,63 @@
       "description": "Implement CLI commands for idea management supporting all CRUD operations",
       "id": "REQ-P0-003",
       "prd_ref": "OT-P0-002",
-      "status": "draft",
+      "status": "implemented",
       "title": "Idea CLI Commands",
       "validation": [
         {
-          "notes": "Test all CLI commands with valid inputs",
+          "notes": "Test ideas commands are registered in CLI",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/app_test.go::TestIdeasCommandsRegistered",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify error handling and exit codes",
+          "notes": "Test Idea struct JSON marshaling for CLI display",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "cli/app_test.go::TestIdeaStruct",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test CLI commands against real API",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test CreateIdeaRequest struct JSON marshaling",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCreateIdeaRequestStruct",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "CLI commands complete in \u003c1s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test ideas get command validates arguments",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCmdIdeasGetValidation",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "All specified CLI commands work as documented",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test ideas create command validates arguments and JSON",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCmdIdeasCreateValidation",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test ideas update command validates arguments and JSON",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCmdIdeasUpdateValidation",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test ideas delete command validates arguments",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestCmdIdeasDeleteValidation",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test ideas endpoint path resolution",
+          "phase": "unit",
+          "ref": "cli/app_test.go::TestIdeasEndpointResolution",
+          "status": "passing",
           "type": "test"
         }
       ]

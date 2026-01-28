@@ -5,22 +5,15 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "ui",
-      "description": "Implement settings modal for theme, recommendation engine, and insights configuration",
-      "id": "REQ-P1-010",
+      "category": "api",
+      "description": "Implement API endpoints for settings persistence (theme, recommendation engine, insights config)",
+      "id": "REQ-P1-010-API",
       "prd_ref": "OT-P1-010",
       "status": "draft",
-      "title": "Settings Configuration Modal",
+      "title": "Settings Persistence API",
       "validation": [
         {
-          "notes": "Test settings persistence",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Verify UI updates",
+          "notes": "Test settings persistence API",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -36,6 +29,26 @@
         {
           "notes": "Settings apply within 200ms",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-010-API"
+      ],
+      "description": "Implement settings modal UI for theme, recommendation engine, and insights configuration",
+      "id": "REQ-P1-010-UI",
+      "prd_ref": "OT-P1-010",
+      "status": "draft",
+      "title": "Settings Configuration Modal",
+      "validation": [
+        {
+          "notes": "Verify UI updates reflect settings changes",
+          "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"

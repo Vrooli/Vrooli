@@ -5,30 +5,23 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "integration",
-      "description": "Integrate with knowledge-observatory to view and manage PROBLEMS.md files",
-      "id": "REQ-P1-006",
+      "category": "api",
+      "description": "Implement API integration with knowledge-observatory for PROBLEMS.md file operations",
+      "id": "REQ-P1-006-API",
       "prd_ref": "OT-P1-006",
       "status": "draft",
-      "title": "Knowledge Observatory Integration",
+      "title": "Knowledge Observatory API Integration",
       "validation": [
         {
-          "notes": "Test file viewing",
+          "notes": "Test file viewing API",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify pruning actions",
+          "notes": "Verify pruning actions via API",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate file management workflow",
-          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
@@ -36,6 +29,26 @@
         {
           "notes": "File operations within 1s",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-006-API"
+      ],
+      "description": "Display PROBLEMS.md file viewer and pruning interface",
+      "id": "REQ-P1-006-UI",
+      "prd_ref": "OT-P1-006",
+      "status": "draft",
+      "title": "PROBLEMS.md Management Interface",
+      "validation": [
+        {
+          "notes": "Validate file management workflow in UI",
+          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"

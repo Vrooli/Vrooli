@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../.vrooli/schemas/docs-manifest.schema.json",
+  "version": "1.0.0",
+  "scenario": "swarm-manager",
+  "generated_at": "2026-01-28T00:30:00-05:00",
+  "navigation": {
+    "title": "Swarm Manager Documentation",
+    "items": [
+      {
+        "title": "Overview",
+        "path": "../README.md"
+      },
+      {
+        "title": "Quick Start",
+        "path": "QUICKSTART.md",
+        "description": "Get running in 5 minutes"
+      },
+      {
+        "title": "Product Requirements",
+        "path": "../PRD.md"
+      },
+      {
+        "title": "Concepts",
+        "children": [
+          {
+            "title": "Architecture",
+            "path": "concepts/ARCHITECTURE.md",
+            "description": "Mental model, domain concepts, logical layers, and physical structure"
+          }
+        ]
+      },
+      {
+        "title": "Reference",
+        "children": [
+          {
+            "title": "Configuration",
+            "path": "reference/configuration.md",
+            "description": "Tunable levers and environment variables"
+          }
+        ]
+      },
+      {
+        "title": "Internal",
+        "visibility": "developers-only",
+        "children": [
+          {
+            "title": "Architecture Seams",
+            "path": "internal/SEAMS.md",
+            "description": "Integration points, boundaries, technical debt register"
+          },
+          {
+            "title": "Error Semantics",
+            "path": "internal/ERROR-SEMANTICS.md",
+            "description": "Error categories, recovery paths, graceful degradation"
+          },
+          {
+            "title": "Intent",
+            "path": "internal/INTENT.md",
+            "description": "Scenario purpose, design philosophy, modification guide"
+          },
+          {
+            "title": "Temporal Flows",
+            "path": "internal/TEMPORAL-FLOWS.md",
+            "description": "Async operations, retry logic, timing patterns, state transitions"
+          },
+          {
+            "title": "System Invariants",
+            "path": "internal/INVARIANTS.md",
+            "description": "Idempotency guarantees, replay safety, critical system invariants"
+          }
+        ]
+      },
+      {
+        "title": "Operations",
+        "children": [
+          {
+            "title": "Progress Log",
+            "path": "PROGRESS.md",
+            "description": "Development progress history"
+          },
+          {
+            "title": "Problems & Issues",
+            "path": "PROBLEMS.md",
+            "description": "Known issues, deferred work, blockers"
+          },
+          {
+            "title": "Research Notes",
+            "path": "RESEARCH.md",
+            "description": "Research findings and references"
+          }
+        ]
+      },
+      {
+        "title": "Requirements",
+        "path": "../requirements/README.md",
+        "description": "Requirement modules linked to PRD targets"
+      }
+    ]
+  },
+  "health": {
+    "last_audit": "2026-01-28",
+    "mental_model_documented": true,
+    "architecture_documented": true,
+    "seams_documented": true,
+    "code_doc_references": 12,
+    "orphaned_docs": 0,
+    "broken_references": 0
+  }
+}

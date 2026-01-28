@@ -1,3 +1,45 @@
+// Package main provides the Swarm Manager CLI.
+//
+// DOC: docs/internal/INTENT.md#cli-components
+// DOC: docs/internal/INTENT.md#flow-3-cli-health-check
+// DOC: docs/internal/SEAMS.md#change-axes
+//
+// # Purpose
+//
+// The CLI provides terminal access to Swarm Manager functionality, primarily
+// for operators and automation scripts. It communicates with the API server
+// and provides human-readable output.
+//
+// # Current Status: Ideas CRUD Implemented
+//
+// The CLI supports full idea management (list, get, create, update, delete)
+// and basic health checking via the status command.
+//
+// # Usage
+//
+//	swarm-manager status              # Check API health
+//	swarm-manager ideas list          # List all ideas
+//	swarm-manager ideas get <name>    # Get a single idea
+//	swarm-manager ideas create <json> # Create new idea
+//	swarm-manager ideas update <name> <json> # Update an idea
+//	swarm-manager ideas delete <name> # Delete an idea
+//	swarm-manager configure           # Set API base URL and token
+//	swarm-manager --help              # Show all commands
+//
+// # Future Commands (P0)
+//
+//	swarm-manager ideas queue         # Queue idea for processing
+//	swarm-manager scenarios list      # List all scenarios
+//	swarm-manager scenarios status    # Show scenario status
+//
+// # API Discovery
+//
+// The CLI automatically discovers the API URL via:
+//  1. --api-base flag
+//  2. SWARM_MANAGER_API_BASE env var
+//  3. vrooli scenario port detection
+//
+// Related PRD targets: OT-P0-002 (ideas CRUD), OT-P0-005 (scenario catalog)
 package main
 
 import (
@@ -66,6 +108,17 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
+	ideas := cliapp.CommandGroup{
+		Title: "Ideas",
+		Commands: []cliapp.Command{
+			{Name: "ideas list", NeedsAPI: true, Description: "List all ideas", Run: a.cmdIdeasList},
+			{Name: "ideas get", NeedsAPI: true, Description: "Get a single idea by name (args: <name>)", Run: a.cmdIdeasGet},
+			{Name: "ideas create", NeedsAPI: true, Description: "Create a new idea (args: <json>)", Run: a.cmdIdeasCreate},
+			{Name: "ideas update", NeedsAPI: true, Description: "Update an existing idea (args: <name> <json>)", Run: a.cmdIdeasUpdate},
+			{Name: "ideas delete", NeedsAPI: true, Description: "Delete an idea (args: <name>)", Run: a.cmdIdeasDelete},
+		},
+	}
+
 	config := cliapp.CommandGroup{
 		Title: "Configuration",
 		Commands: []cliapp.Command{
@@ -73,22 +126,31 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, config}
+	return []cliapp.CommandGroup{health, ideas, config}
 }
 
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
+// resolveV1Endpoint converts a relative endpoint path to the full API v1 path.
+//
+// This handles the case where the base URL may or may not include /api/v1.
+// For example:
+//   - Base: "http://localhost:3000", path: "/health" → "/api/v1/health"
+//   - Base: "http://localhost:3000/api/v1", path: "/health" → "/health"
+//
+// The function ensures commands can use simple paths like "/health" without
+// worrying about the configured base URL format.
+func (a *App) resolveV1Endpoint(endpointPath string) string {
+	endpointPath = strings.TrimSpace(endpointPath)
+	if endpointPath == "" {
 		return ""
 	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
+	if !strings.HasPrefix(endpointPath, "/") {
+		endpointPath = "/" + endpointPath
 	}
 	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
 	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
+		return endpointPath
 	}
-	return "/api/v1" + v1Path
+	return "/api/v1" + endpointPath
 }
 
 type healthResponse struct {
@@ -103,8 +165,12 @@ type healthResponse struct {
 	Operations map[string]any    `json:"operations,omitempty"`
 }
 
+// cmdStatus checks the API health and displays the result.
+//
+// Output includes service status, version, readiness, and dependency health.
+// For unstructured responses, it falls back to printing raw JSON.
 func (a *App) cmdStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/health"), nil)
 	if err != nil {
 		return err
 	}
@@ -129,5 +195,172 @@ func (a *App) cmdStatus(_ []string) error {
 	}
 
 	cliutil.PrintJSON(body)
+	return nil
+}
+
+// Idea represents a proposal for a new scenario.
+// [REQ:REQ-P0-003] Idea data structure for CLI display
+type Idea struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Status      string   `json:"status"`
+	Priority    int      `json:"priority"`
+	Tags        []string `json:"tags"`
+	Created     string   `json:"created"`
+	Updated     string   `json:"updated"`
+}
+
+// CreateIdeaRequest is the payload for creating a new idea.
+type CreateIdeaRequest struct {
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+}
+
+// cmdIdeasList lists all ideas.
+// [REQ:REQ-P0-003] CLI ideas list command
+func (a *App) cmdIdeasList(_ []string) error {
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/ideas"), nil)
+	if err != nil {
+		return err
+	}
+
+	var ideas []Idea
+	if err := json.Unmarshal(body, &ideas); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if len(ideas) == 0 {
+		fmt.Println("No ideas found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d idea(s):\n\n", len(ideas))
+	for _, idea := range ideas {
+		fmt.Printf("  %s (priority: %d, status: %s)\n", idea.Name, idea.Priority, idea.Status)
+		fmt.Printf("    Title: %s\n", idea.Title)
+		if len(idea.Tags) > 0 {
+			fmt.Printf("    Tags: %s\n", strings.Join(idea.Tags, ", "))
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+// cmdIdeasGet retrieves a single idea by name.
+// [REQ:REQ-P0-003] CLI ideas get command
+func (a *App) cmdIdeasGet(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ideas get <name>")
+	}
+	name := args[0]
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/ideas/"+name), nil)
+	if err != nil {
+		return err
+	}
+
+	var idea Idea
+	if err := json.Unmarshal(body, &idea); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Name: %s\n", idea.Name)
+	fmt.Printf("Title: %s\n", idea.Title)
+	fmt.Printf("Description: %s\n", idea.Description)
+	fmt.Printf("Status: %s\n", idea.Status)
+	fmt.Printf("Priority: %d\n", idea.Priority)
+	if len(idea.Tags) > 0 {
+		fmt.Printf("Tags: %s\n", strings.Join(idea.Tags, ", "))
+	}
+	fmt.Printf("Created: %s\n", idea.Created)
+	fmt.Printf("Updated: %s\n", idea.Updated)
+	return nil
+}
+
+// cmdIdeasCreate creates a new idea.
+// [REQ:REQ-P0-003] CLI ideas create command
+func (a *App) cmdIdeasCreate(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ideas create <json>\n\nExample:\n  ideas create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"description\":\"Description here\"}'")
+	}
+
+	jsonStr := strings.Join(args, " ")
+	var req CreateIdeaRequest
+	if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	if req.Name == "" || req.Title == "" {
+		return fmt.Errorf("name and title are required fields")
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas"), nil, json.RawMessage(jsonStr))
+	if err != nil {
+		return err
+	}
+
+	var idea Idea
+	if err := json.Unmarshal(body, &idea); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Created idea: %s\n", idea.Name)
+	fmt.Printf("  Title: %s\n", idea.Title)
+	fmt.Printf("  Status: %s\n", idea.Status)
+	fmt.Printf("  Priority: %d\n", idea.Priority)
+	return nil
+}
+
+// cmdIdeasUpdate updates an existing idea.
+// [REQ:REQ-P0-003] CLI ideas update command
+func (a *App) cmdIdeasUpdate(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: ideas update <name> <json>\n\nExample:\n  ideas update my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
+	}
+
+	name := args[0]
+	jsonStr := strings.Join(args[1:], " ")
+
+	// Validate JSON
+	var update map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &update); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("PUT", a.resolveV1Endpoint("/ideas/"+name), nil, json.RawMessage(jsonStr))
+	if err != nil {
+		return err
+	}
+
+	var idea Idea
+	if err := json.Unmarshal(body, &idea); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Updated idea: %s\n", idea.Name)
+	fmt.Printf("  Title: %s\n", idea.Title)
+	fmt.Printf("  Status: %s\n", idea.Status)
+	fmt.Printf("  Priority: %d\n", idea.Priority)
+	return nil
+}
+
+// cmdIdeasDelete deletes an idea.
+// [REQ:REQ-P0-003] CLI ideas delete command
+func (a *App) cmdIdeasDelete(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: ideas delete <name>")
+	}
+	name := args[0]
+
+	_, err := a.core.APIClient.Request("DELETE", a.resolveV1Endpoint("/ideas/"+name), nil, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Deleted idea: %s\n", name)
 	return nil
 }

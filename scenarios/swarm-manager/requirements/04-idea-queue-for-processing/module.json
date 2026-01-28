@@ -5,57 +5,147 @@
   "priority": "P0",
   "requirements": [
     {
-      "category": "integration",
+      "category": "api",
       "dependencies": [
         "REQ-P0-001",
         "REQ-P0-002"
       ],
-      "description": "Implement queueing system for idea processing via ecosystem-manager integration",
-      "id": "REQ-P0-005",
+      "description": "Implement API endpoint for queueing ideas for processing via ecosystem-manager integration",
+      "id": "REQ-P0-005-API",
       "prd_ref": "OT-P0-004",
-      "status": "draft",
-      "title": "Idea Processing Queue",
+      "status": "implemented",
+      "title": "Idea Queue API",
       "validation": [
         {
-          "notes": "Test queue operations",
+          "notes": "Test queue endpoint returns 404 for non-existent idea",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_IdeaNotFound",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify ecosystem-manager API calls",
+          "notes": "Test queue rejects already-queued ideas",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_AlreadyQueued",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end processing flow test",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test queue rejects in-progress ideas",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_InProgress",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Queue operations complete in \u003c100ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test queue rejects completed ideas",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_Completed",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Ideas are processed in order",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test queue rejects invalid operation type",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_InvalidOperation",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Processing status is tracked correctly",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test QueueRequest structure serialization",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueueRequest_Structure",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test QueueResponse structure serialization",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueueResponse_Structure",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test queueable status detection for idea states",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueueableStatuses",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test queue success with mocked ecosystem client",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test queue with improver operation",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_WithImproverOperation",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test queue handles ecosystem errors",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_EcosystemError",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-005-API"
+      ],
+      "description": "Implement UI controls for queueing ideas for processing from the idea details page",
+      "id": "REQ-P0-005-UI",
+      "prd_ref": "OT-P0-004",
+      "status": "implemented",
+      "title": "Idea Queue UI Controls",
+      "validation": [
+        {
+          "notes": "UI service queue method interface defined",
+          "phase": "unit",
+          "ref": "ui/src/services/ideas-service.ts::IIdeasService.queue",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "UI endpoint for idea queue defined",
+          "phase": "unit",
+          "ref": "ui/src/lib/api-endpoints.ts::ideaQueue",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Queue button in IdeaDetailsPage",
+          "phase": "unit",
+          "ref": "ui/src/pages/IdeaDetailsPage.tsx::queueMutation",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Queue button selector defined",
+          "phase": "unit",
+          "ref": "ui/src/consts/selectors.ts::ideaDetails.queueButton",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Idea details page tests queue button visibility",
+          "phase": "unit",
+          "ref": "ui/src/pages/IdeaDetailsPage.test.tsx::shows queue button for backlog status",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Idea details page tests queue button for ready status",
+          "phase": "unit",
+          "ref": "ui/src/pages/IdeaDetailsPage.test.tsx::shows queue button for ready status",
+          "status": "passing",
           "type": "test"
         }
       ]

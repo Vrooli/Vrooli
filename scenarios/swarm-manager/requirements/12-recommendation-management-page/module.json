@@ -5,30 +5,23 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "ui",
-      "description": "Create management page for viewing pending recommendations with approve/reject actions",
-      "id": "REQ-P1-002",
+      "category": "api",
+      "description": "Implement API endpoints for listing, approving, and rejecting recommendations",
+      "id": "REQ-P1-002-API",
       "prd_ref": "OT-P1-002",
       "status": "draft",
-      "title": "Recommendation Management Interface",
+      "title": "Recommendation Management API",
       "validation": [
         {
-          "notes": "Test recommendation listing",
+          "notes": "Test recommendation listing endpoint",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify approval actions",
+          "notes": "Verify approval/rejection actions",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "End-to-end recommendation workflow",
-          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
@@ -36,6 +29,26 @@
         {
           "notes": "List loads within 1s",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-002-API"
+      ],
+      "description": "Create management page UI for viewing pending recommendations with approve/reject controls",
+      "id": "REQ-P1-002-UI",
+      "prd_ref": "OT-P1-002",
+      "status": "draft",
+      "title": "Recommendation Management Interface",
+      "validation": [
+        {
+          "notes": "End-to-end recommendation workflow",
+          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"

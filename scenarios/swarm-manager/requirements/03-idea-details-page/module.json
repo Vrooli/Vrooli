@@ -5,77 +5,265 @@
   "priority": "P0",
   "requirements": [
     {
-      "category": "ui",
+      "category": "api",
       "dependencies": [
         "REQ-P0-002"
       ],
-      "description": "Create a web UI page showing idea details with file tree view, drag-and-drop file upload capability, and preview support for markdown, code, and images",
-      "id": "REQ-P0-004",
+      "description": "Implement API endpoints for listing files, getting file content, and uploading files to ideas",
+      "id": "REQ-P0-004-API",
       "prd_ref": "OT-P0-003",
-      "status": "draft",
+      "status": "implemented",
+      "title": "Idea Files API",
+      "validation": [
+        {
+          "notes": "Test API endpoint returns files list",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestListFiles_Empty",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API endpoint handles multiple files and directories",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestListFiles_WithFiles",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API endpoint returns 404 for non-existent idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestListFiles_NotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test IdeaFile struct JSON serialization",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestIdeaFile_Structure",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint returns text content",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_TextFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint handles nested files",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_NestedFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint returns 404 for missing idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_IdeaNotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint returns 404 for missing file",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_FileNotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file content endpoint blocks path traversal",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_PathTraversal",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file upload success",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file upload to subdirectory",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_WithPath",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file upload returns 404 for missing idea",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_IdeaNotFound",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test API file upload returns 400 for missing file",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_NoFile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test content type detection",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGetContentType",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-004-API"
+      ],
+      "description": "Create UI page showing idea details with file tree view, drag-and-drop file upload, and preview for markdown/code/images",
+      "id": "REQ-P0-004-UI",
+      "prd_ref": "OT-P0-003",
+      "status": "implemented",
       "title": "Idea Details UI Page",
       "validation": [
         {
-          "notes": "Test file tree component rendering",
+          "notes": "Test file tree component rendering - empty state",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::displays empty state when no files",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify drag-and-drop functionality",
+          "notes": "Test file tree component renders files",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders file list correctly",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test preview renderers for all supported file types",
+          "notes": "Test file tree directories expand/collapse",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders directories that can be expanded",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test file upload flow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test file selection callback",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::calls onFileSelect when file is clicked",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify preview generation pipeline",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test file size formatting",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::displays file size in human-readable format",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Page load time \u003c1s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test selected file highlighting",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::highlights selected file",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Preview generation \u003c500ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test nested directory structure",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-tree.test.tsx::renders nested directories correctly",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "UI matches design specifications",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test file preview renders with file name",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders file preview with file name",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "All file types preview correctly",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test file preview renders markdown content",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders markdown content correctly",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders code files with code view",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders code files with code view",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders plain text",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders plain text for unknown file types",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file preview renders image preview",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-preview.test.tsx::renders image preview for image files",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload dropzone renders",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::renders upload dropzone",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload handles file selection",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::handles file selection via input",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload shows upload list",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows upload list when files are added",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload success state",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows success state after successful upload",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload error state",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::shows error state when upload fails",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload retry functionality",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::allows retry on failed upload",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload drag and drop",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::handles drop event",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test file upload onComplete callback",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/file-upload.test.tsx::calls onUploadComplete after successful upload",
+          "status": "passing",
           "type": "test"
         }
       ]

@@ -1,45 +1,107 @@
-import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { fetchHealth } from "./lib/api";
+/**
+ * Main Application Component
+ *
+ * Wraps the app with:
+ * - Error Boundary: Catches runtime errors and shows recovery UI
+ * - BrowserRouter: Client-side routing
+ * - 404 handler: Catches unknown routes
+ *
+ * ╔════════════════════════════════════════════════════════════════╗
+ * ║  ERROR HANDLING LAYERS                                         ║
+ * ║                                                                ║
+ * ║  1. ErrorBoundary (App) - catches catastrophic errors         ║
+ * ║  2. PageErrorBoundary - isolates page-level crashes           ║
+ * ║  3. API Client (ApiError) - catches HTTP/network errors       ║
+ * ║  4. ErrorState component - displays user-friendly messages    ║
+ * ║  5. NotFoundPage - handles invalid routes                     ║
+ * ╚════════════════════════════════════════════════════════════════╝
+ */
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ErrorBoundary } from "./components/ui/error-boundary";
+import { PageErrorBoundary } from "./components/ui/page-error-boundary";
+import { MainLayout } from "./components/layout/MainLayout";
+import { IdeasPage } from "./pages/IdeasPage";
+import { IdeaDetailsPage } from "./pages/IdeaDetailsPage";
+import { ScenariosPage } from "./pages/ScenariosPage";
+import { ScenarioDetailsPage } from "./pages/ScenarioDetailsPage";
+import { RecommendationsPage } from "./pages/RecommendationsPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+
+/**
+ * Optional error logging callback.
+ * In production, this could send errors to a logging service.
+ */
+function handleError(error: Error, _errorInfo: React.ErrorInfo) {
+  // In development, errors are already logged by ErrorBoundary
+  // In production, this could send to a service like Sentry
+  if (import.meta.env.PROD) {
+    // Future: send to error tracking service
+    console.error("[App] Production error:", error.message);
+  }
+}
 
 export default function App() {
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["health"],
-    queryFn: fetchHealth
-  });
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur">
-        <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Scenario Template</p>
-        <h1 className="mt-3 text-3xl font-semibold">Swarm Manager</h1>
-        <p className="mt-2 text-slate-300">
-          This starter UI is intentionally minimal. Replace it with your scenario-specific
-          experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.
-        </p>
-
-        <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
-          <p className="text-sm font-medium text-slate-400">API Health</p>
-          {isLoading && <p className="mt-2 text-slate-200">Checking API status…</p>}
-          {error && (
-            <p className="mt-2 text-red-400">
-              Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.
-            </p>
-          )}
-          {data && (
-            <div className="mt-2 text-sm text-slate-200">
-              <p>Status: {data.status}</p>
-              <p>Service: {data.service}</p>
-              <p>Timestamp: {new Date(data.timestamp).toLocaleString()}</p>
-            </div>
-          )}
-          <Button className="mt-4" onClick={() => refetch()}>
-            Refresh
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    </div>
+    <ErrorBoundary onError={handleError}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
+            <Route index element={<Navigate to="/ideas" replace />} />
+            <Route
+              path="ideas"
+              element={
+                <PageErrorBoundary pageName="Ideas">
+                  <IdeasPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="ideas/:name"
+              element={
+                <PageErrorBoundary pageName="Idea Details">
+                  <IdeaDetailsPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="scenarios"
+              element={
+                <PageErrorBoundary pageName="Scenarios">
+                  <ScenariosPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="scenarios/:name"
+              element={
+                <PageErrorBoundary pageName="Scenario Details">
+                  <ScenarioDetailsPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="recommendations"
+              element={
+                <PageErrorBoundary pageName="Recommendations">
+                  <RecommendationsPage />
+                </PageErrorBoundary>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <PageErrorBoundary pageName="Settings">
+                  <SettingsPage />
+                </PageErrorBoundary>
+              }
+            />
+            {/* 404 handler - catches all unknown routes */}
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

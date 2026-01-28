@@ -5,47 +5,93 @@
   "priority": "P0",
   "requirements": [
     {
-      "category": "ui",
-      "description": "Implement deletion safeguards including confirmation dialog and option to archive scenarios to backlog instead of permanent deletion",
-      "id": "REQ-P0-008",
+      "category": "api",
+      "description": "Implement DELETE API endpoint with optional archive-to-ideas-backlog functionality",
+      "id": "REQ-P0-008-API",
       "prd_ref": "OT-P0-007",
-      "status": "draft",
-      "title": "Scenario Deletion Workflow",
+      "status": "implemented",
+      "title": "Scenario Deletion API",
       "validation": [
         {
-          "notes": "Test confirmation dialog",
+          "notes": "Test successful scenario deletion",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify archive functionality",
+          "notes": "Test deletion of non-existent scenario returns 404",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_NotFound",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "End-to-end deletion workflow test",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test deletion with archive to ideas backlog",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_WithArchive",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Archive operation completes within 2s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test deletion idempotency (second delete returns 404)",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDelete_Idempotent",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Prevent accidental scenario deletion",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test DeleteResponse structure serialization",
+          "phase": "unit",
+          "ref": "api/internal/scenarios/handler_test.go::TestDeleteResponse_Structure",
+          "status": "passing",
           "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": ["REQ-P0-008-API"],
+      "description": "Implement deletion safeguards including confirmation dialog and option to archive scenarios to backlog",
+      "id": "REQ-P0-008-UI",
+      "prd_ref": "OT-P0-007",
+      "status": "implemented",
+      "title": "Scenario Deletion UI Workflow",
+      "validation": [
+        {
+          "notes": "UI service delete method interface",
+          "phase": "unit",
+          "ref": "ui/src/services/scenarios-service.ts::IScenariosService.delete",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Delete button in ScenarioDetailsPage",
+          "phase": "unit",
+          "ref": "ui/src/pages/ScenarioDetailsPage.tsx::deleteMutation",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Confirmation dialog component",
+          "phase": "unit",
+          "ref": "ui/src/components/ui/confirm-dialog.tsx::ConfirmDialog",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Delete dialog selectors defined",
+          "phase": "unit",
+          "ref": "ui/src/consts/selectors.ts::scenarioDetails.deleteButton",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "DeleteScenarioResponse type",
+          "phase": "unit",
+          "ref": "ui/src/types/domain.ts::DeleteScenarioResponse",
+          "status": "passing",
+          "type": "code"
         }
       ]
     }

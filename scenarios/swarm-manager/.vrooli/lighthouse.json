@@ -1,4 +1,6 @@
 {
+  "$schema": "../../../../.vrooli/schemas/lighthouse.schema.json",
+  "version": "1.0.0",
   "_metadata": {
     "description": "Baseline Lighthouse config for the React + Vite template",
     "last_updated": "2025-11-08T00:00:00Z"

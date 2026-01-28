@@ -5,29 +5,22 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "integration",
-      "description": "Integrate with scenario-completeness-scoring to display scenario completion scores",
-      "id": "REQ-P1-007",
+      "category": "api",
+      "description": "Implement API integration with scenario-completeness-scoring for fetching scores",
+      "id": "REQ-P1-007-API",
       "prd_ref": "OT-P1-007",
       "status": "draft",
-      "title": "Scenario Completeness Integration",
+      "title": "Completeness Scoring API Integration",
       "validation": [
         {
-          "notes": "Test score fetching",
+          "notes": "Test score fetching API",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify display formatting",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate score accuracy",
+          "notes": "Validate score accuracy from API",
           "phase": "integration",
           "ref": "",
           "status": "pending",
@@ -36,6 +29,26 @@
         {
           "notes": "Score updates within 500ms",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-007-API"
+      ],
+      "description": "Display completeness scores in the scenario catalog and details views",
+      "id": "REQ-P1-007-UI",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Completeness Score Display",
+      "validation": [
+        {
+          "notes": "Verify display formatting in UI",
+          "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"

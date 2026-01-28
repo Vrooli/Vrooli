@@ -14,16 +14,16 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Idea backlog file structure | Git-tracked folder-per-idea with spec.json + context files in scenarios/swarm-manager/ideas/
-- [ ] OT-P0-002 | Idea backlog CRUD | Create, read, update, delete ideas via API and CLI
-- [ ] OT-P0-003 | Idea details page | File tree view, drag-and-drop upload, preview for markdown/code/images
-- [ ] OT-P0-004 | Idea queue for processing | Queue ideas for initialization/implementation via ecosystem-manager
-- [ ] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
-- [ ] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle, enable/disable from recommendations
-- [ ] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
-- [ ] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with four tabs: Ideas, Scenarios, Recommendations, Settings
+- [x] OT-P0-001 | Idea backlog file structure | Git-tracked folder-per-idea with spec.json + context files in scenarios/swarm-manager/ideas/
+- [x] OT-P0-002 | Idea backlog CRUD | Create, read, update, delete ideas via API and CLI
+- [x] OT-P0-003 | Idea details page | File tree view, drag-and-drop upload, preview for markdown/code/images
+- [x] OT-P0-004 | Idea queue for processing | Queue ideas for initialization/implementation via ecosystem-manager
+- [x] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
+- [x] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle, enable/disable from recommendations
+- [x] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
+- [x] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with four tabs: Ideas, Scenarios, Recommendations, Settings
 - [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
-- [ ] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from ideas via ecosystem-manager
+- [x] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from ideas via ecosystem-manager
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Recommendation engine (3-state) | Off/suggestions/yolo modes with configurable data sources

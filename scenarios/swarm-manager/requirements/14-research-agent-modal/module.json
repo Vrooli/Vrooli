@@ -5,37 +5,50 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "ui",
-      "description": "Add modal interface for spawning research agents from idea details page",
-      "id": "REQ-P1-004",
+      "category": "api",
+      "description": "Implement API endpoint for spawning research agents with idea context",
+      "id": "REQ-P1-004-API",
       "prd_ref": "OT-P1-004",
       "status": "draft",
-      "title": "Research Agent Modal",
+      "title": "Research Agent Spawn API",
       "validation": [
         {
-          "notes": "Test modal rendering",
+          "notes": "Verify agent creation via API",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Verify agent creation",
-          "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Validate research workflow",
+          "notes": "Validate research workflow API",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Modal opens within 100ms",
+          "notes": "Agent spawn within 1s",
           "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-004-API"
+      ],
+      "description": "Add modal interface for configuring and spawning research agents from idea details page",
+      "id": "REQ-P1-004-UI",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Research Agent Modal Interface",
+      "validation": [
+        {
+          "notes": "Test modal rendering and controls",
+          "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"

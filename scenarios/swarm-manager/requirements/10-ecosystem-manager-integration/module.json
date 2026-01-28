@@ -5,46 +5,108 @@
   "priority": "P0",
   "requirements": [
     {
-      "category": "integration",
-      "description": "Integrate with ecosystem-manager for scenario initialization and improvement based on ideas",
-      "id": "REQ-P0-011",
+      "category": "api",
+      "description": "Implement ecosystem client and API integration for creating tasks in ecosystem-manager",
+      "id": "REQ-P0-011-API",
       "prd_ref": "OT-P0-010",
-      "status": "draft",
-      "title": "Ecosystem Manager Integration",
+      "status": "implemented",
+      "title": "Ecosystem Manager API Client",
       "validation": [
         {
-          "notes": "Test scenario initialization",
+          "notes": "Test ecosystem client creates tasks successfully",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Verify improvement workflows",
+          "notes": "Test ecosystem client handles port resolution failure",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate idea to scenario flow",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test priority mapping from numeric to string format",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Initialization completes within 3s",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test priority mapping boundary values",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString_Boundaries",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Ideas successfully convert to scenarios",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test response decode error handling",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test request construction verification",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_RequestConstruction",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Test default HTTP client creation",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client_test.go::TestNewHTTPClient",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "EcosystemClient interface defined for seam pattern",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler.go::EcosystemClient",
+          "status": "passing",
+          "type": "code"
+        },
+        {
+          "notes": "Ecosystem client seam implementation",
+          "phase": "unit",
+          "ref": "api/internal/ecosystem/client.go::Client",
+          "status": "passing",
+          "type": "code"
+        }
+      ]
+    },
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-011-API"
+      ],
+      "description": "Queue handler integration with ecosystem-manager for idea processing via initializer/improver operations",
+      "id": "REQ-P0-011-QUEUE",
+      "prd_ref": "OT-P0-010",
+      "status": "implemented",
+      "title": "Ecosystem Queue Integration",
+      "validation": [
+        {
+          "notes": "Queue handler creates ecosystem task for idea processing",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Queue handler uses improver operation type",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_WithImproverOperation",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Queue handler handles ecosystem errors gracefully",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestQueue_EcosystemError",
+          "status": "passing",
           "type": "test"
         }
       ]

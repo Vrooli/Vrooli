@@ -5,15 +5,15 @@
   "priority": "P1",
   "requirements": [
     {
-      "category": "integration",
-      "description": "Integrate with visited-tracker for campaign-based context cleanup",
-      "id": "REQ-P1-005",
+      "category": "api",
+      "description": "Implement API integration with visited-tracker for campaign-based visit tracking and cleanup triggers",
+      "id": "REQ-P1-005-API",
       "prd_ref": "OT-P1-005",
       "status": "draft",
-      "title": "Visited Tracker Integration",
+      "title": "Visited Tracker API Integration",
       "validation": [
         {
-          "notes": "Test visit tracking",
+          "notes": "Test visit tracking API calls",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -27,15 +27,28 @@
           "type": "test"
         },
         {
-          "notes": "Validate cleanup effectiveness",
-          "phase": "integration",
+          "notes": "Cleanup completes within 2s",
+          "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
-        },
+        }
+      ]
+    },
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P1-005-API"
+      ],
+      "description": "Display campaign management UI for context cleanup operations",
+      "id": "REQ-P1-005-UI",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Campaign Management Interface",
+      "validation": [
         {
-          "notes": "Cleanup completes within 2s",
-          "phase": "performance",
+          "notes": "Validate cleanup effectiveness in UI",
+          "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"

@@ -6,59 +6,79 @@
   "requirements": [
     {
       "category": "core",
-      "description": "Implement a Git-tracked directory structure where each idea has its own folder containing a spec.json file and optional context files under scenarios/swarm-manager/ideas/",
-      "id": "REQ-P0-001",
+      "description": "Implement a Git-tracked directory structure where each idea has its own folder containing a spec.json file under scenarios/swarm-manager/ideas/",
+      "id": "REQ-P0-001-STRUCTURE",
       "prd_ref": "OT-P0-001",
-      "status": "draft",
-      "title": "Git-based Idea Storage Structure",
+      "status": "implemented",
+      "title": "Git-based Idea Folder Structure",
       "validation": [
         {
-          "notes": "Verify folder creation with correct structure",
+          "notes": "Test Create successfully creates idea folder with spec.json",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestCreate_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test spec.json schema validation",
+          "notes": "Test idea data structure matches spec.json schema",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "ref": "api/internal/ideas/handler.go::Idea",
+          "status": "passing",
+          "type": "code"
         },
         {
-          "notes": "Verify Git tracking status of new files",
+          "notes": "Test name sanitization for folder-safe names",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/ideas/handler_test.go::TestSanitizeName",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test complete folder creation flow with file system",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test List loads ideas from folder structure",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestList_WithIdeas",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001-STRUCTURE"
+      ],
+      "description": "Validate spec.json schema requirements including name, title, description, status, priority, tags, created, and updated fields",
+      "id": "REQ-P0-001-SCHEMA",
+      "prd_ref": "OT-P0-001",
+      "status": "implemented",
+      "title": "spec.json Schema Validation",
+      "validation": [
+        {
+          "notes": "Test Get loads single idea from folder with all fields",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestGet_Found",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Folder creation completes in \u003c100ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Delete removes idea folder",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestDelete_Success",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Directory structure follows specified pattern",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test Create validates required fields",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestCreate_MissingFields",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "All files are properly Git tracked",
-          "phase": "business",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test sanitization handles edge cases including unicode",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestSanitizeName_EdgeCases",
+          "status": "passing",
           "type": "test"
         }
       ]
