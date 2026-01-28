@@ -67,8 +67,7 @@ ideas/
 ## Dependencies
 
 ### Required Resources
-- **PostgreSQL** - Metadata storage, idea state, settings
-- **Redis** - Real-time updates, session management, queue state
+- **None** - Swarm Manager is filesystem-only for single-user local ops
 
 ### Required Scenarios
 - **agent-manager** - Spawning agents for automated work
@@ -85,8 +84,6 @@ ideas/
 | `API_PORT` | Go API server port |
 | `UI_PORT` | React UI port |
 | `WS_PORT` | WebSocket for real-time updates |
-| `DATABASE_URL` | PostgreSQL connection |
-| `REDIS_URL` | Redis connection |
 
 ## CLI Commands
 

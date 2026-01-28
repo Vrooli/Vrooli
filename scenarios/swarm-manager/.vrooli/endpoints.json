@@ -26,6 +26,70 @@
       "cli_mapping": {
         "command": "swarm-manager status"
       }
+    },
+    {
+      "id": "settings_get",
+      "path": "/api/v1/settings",
+      "method": "GET",
+      "summary": "Fetch settings",
+      "description": "Returns filesystem-backed settings for the scenario",
+      "category": "settings",
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "object"
+        }
+      }
+    },
+    {
+      "id": "settings_update",
+      "path": "/api/v1/settings",
+      "method": "PUT",
+      "summary": "Update settings",
+      "description": "Applies partial settings updates and persists to disk",
+      "category": "settings",
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "object"
+        }
+      }
+    },
+    {
+      "id": "queue_list",
+      "path": "/api/v1/queue",
+      "method": "GET",
+      "summary": "List queue items",
+      "description": "Returns local queue items persisted on disk",
+      "category": "queue",
+      "response": {
+        "type": "object",
+        "properties": {
+          "items": "array"
+        }
+      }
+    },
+    {
+      "id": "queue_create",
+      "path": "/api/v1/queue",
+      "method": "POST",
+      "summary": "Create queue item",
+      "description": "Enqueues a local queue item",
+      "category": "queue",
+      "response": {
+        "type": "object",
+        "properties": {
+          "item": "object"
+        }
+      }
+    },
+    {
+      "id": "queue_delete",
+      "path": "/api/v1/queue/{id}",
+      "method": "DELETE",
+      "summary": "Delete queue item",
+      "description": "Removes a queue item by ID (idempotent)",
+      "category": "queue"
     }
   ],
   "cli_commands": [

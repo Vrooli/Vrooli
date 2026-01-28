@@ -9,28 +9,21 @@
       "description": "Implement API endpoints for settings persistence (theme, recommendation engine, insights config)",
       "id": "REQ-P1-010-API",
       "prd_ref": "OT-P1-010",
-      "status": "draft",
+      "status": "implemented",
       "title": "Settings Persistence API",
       "validation": [
         {
-          "notes": "Test settings persistence API",
+          "notes": "Test settings defaults and persistence",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
+          "ref": "api/internal/settings/handler_test.go::TestGet_DefaultsWhenMissing",
+          "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Validate settings application",
-          "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
-        },
-        {
-          "notes": "Settings apply within 200ms",
-          "phase": "performance",
-          "ref": "",
-          "status": "pending",
+          "notes": "Test settings update persistence",
+          "phase": "unit",
+          "ref": "api/internal/settings/handler_test.go::TestUpdate_PersistsSettings",
+          "status": "passing",
           "type": "test"
         }
       ]

@@ -39,23 +39,22 @@
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort
-- [ ] OT-P2-002 | Pattern recognition | Use Qdrant for semantic similarity and pattern detection
+- [ ] OT-P2-002 | Pattern recognition | Heuristic similarity and pattern detection (filesystem-only)
 - [ ] OT-P2-003 | Analytics dashboard | Usage metrics, agent performance, scenario health trends
 - [ ] OT-P2-004 | Batch operations | Bulk actions on ideas and scenarios
 - [ ] OT-P2-005 | Webhooks | External integrations for notifications and triggers
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Gin), React UI (Vite, TypeScript), Go CLI (Cobra)
-- Data + storage expectations: PostgreSQL (metadata, state), Redis (real-time, queues), filesystem (git-tracked idea files)
+- Data + storage expectations: Filesystem only (git-tracked idea folders, `.vrooli/settings.json`, `.vrooli/queue.json`)
 - Integration strategy: All agent work via agent-manager, all scenario ops via ecosystem-manager, never direct calls
 - Non-goals / guardrails: No kanban/Trello UI, no direct agent spawning, no embedded scenario implementation code, no complex workflow builders, no multi-user auth
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: PostgreSQL, Redis
-- Optional resources (P2): Qdrant for pattern recognition
+- Required resources: None (filesystem-only persistence)
 - Scenario dependencies (required): agent-manager, ecosystem-manager
 - Scenario dependencies (optional P1): knowledge-observatory, visited-tracker, scenario-completeness-scoring, app-issue-tracker, test-genie, prompt-manager
-- Operational risks: Tight coupling with ecosystem-manager API stability; recommendation engine complexity
+- Operational risks: Tight coupling with ecosystem-manager API stability; filesystem integrity for settings/queue; recommendation engine complexity
 - Launch sequencing: P0 core CRUD and UI → P0 integrations → P1 recommendation engine → P1 integrations → P2 analytics
 
 ## 🎨 UX & Branding

@@ -62,28 +62,6 @@ Component mounts
   → Component renders based on state
 ```
 
-### 3. Database Connection (API Server)
-
-**Location**: `api/main.go`
-
-| Setting | Value | Purpose |
-|---------|-------|---------|
-| `MaxAttempts` | 3 | Quick fail for optional DB |
-| `BaseDelay` | 500ms | Initial retry delay |
-| `MaxDelay` | 2,000ms | Cap on exponential growth |
-
-**Flow**:
-```
-Server starts
-  → Check POSTGRES_DB env var
-  → If set: attempt connection
-    → On failure: retry with backoff (up to 3x)
-    → If all fail: continue in file-only mode
-  → Start HTTP server
-```
-
-**Graceful Degradation**: The API continues serving file-based operations even when PostgreSQL is unavailable.
-
 ## State Transition Ordering
 
 ### Page Load Sequence

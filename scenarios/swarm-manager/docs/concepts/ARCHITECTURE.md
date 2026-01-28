@@ -73,7 +73,7 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 │ Pattern: All agent work via agent-manager (never direct)     │
 ├─────────────────────────────────────────────────────────────┤
 │ PERSISTENCE LAYER                                            │
-│ PostgreSQL (metadata), Redis (queues), Filesystem (ideas/)   │
+│ Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,10 +82,10 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 | Layer | Status | Notes |
 |-------|--------|-------|
 | Presentation | Scaffold complete | 4 pages with proper navigation |
-| API Gateway | Health endpoint only | No business endpoints implemented |
-| Business Logic | Not implemented | Empty placeholder |
+| API Gateway | Ideas/scenarios/settings/queue endpoints | Recommendations pending |
+| Business Logic | Partially implemented | Ideas/scenarios/settings/queue implemented |
 | Integration | Not implemented | Dependencies declared, not connected |
-| Persistence | Schema placeholder | No tables defined |
+| Persistence | Filesystem-first | Ideas and scenario metadata stored on disk |
 
 ## Physical Structure
 
@@ -130,8 +130,7 @@ swarm-manager/
 │   ├── index.json
 │   └── NN-target-name/module.json
 │
-├── initialization/           # Database setup
-│   └── postgres/schema.sql   # (placeholder)
+├── initialization/           # Scenario initialization assets
 │
 ├── docs/                     # Documentation
 │   ├── concepts/             # Mental models, architecture
@@ -190,9 +189,7 @@ swarm-manager/
 - `/api/v1/settings/*` - User preferences
 
 ### Data Boundaries
-- **Filesystem** (`ideas/`): Git-tracked idea specifications (source of truth)
-- **PostgreSQL**: Metadata, settings, cached scenario state
-- **Redis**: Real-time updates, queue state, session management
+- **Filesystem** (`ideas/`, `.vrooli/settings.json`, `.vrooli/queue.json`): Source of truth for local state
 
 ## Design Principles
 

@@ -185,27 +185,7 @@
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "swarm-manager"
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "description": "Real-time updates, session management, queue state"
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": false,
-        "required": false,
-        "description": "Pattern recognition and semantic similarity (P2)"
-      }
-    },
+    "resources": {},
     "scenarios": {
       "agent-manager": {
         "enabled": true,

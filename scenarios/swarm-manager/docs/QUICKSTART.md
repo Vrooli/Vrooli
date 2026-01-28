@@ -4,7 +4,6 @@ Get Swarm Manager running in 5 minutes.
 
 ## Prerequisites
 
-- Docker and Docker Compose
 - Node.js 18+ (for UI development)
 - Go 1.21+ (for API/CLI development)
 - Vrooli CLI installed (`vrooli` command available)
@@ -102,9 +101,8 @@ swarm-manager configure
 
 ### API won't start
 
-1. Check if PostgreSQL is running: `docker ps | grep postgres`
-2. Check logs: `make logs`
-3. Verify port 15000 is available: `lsof -i :15000`
+1. Check logs: `make logs`
+2. Verify port 15000 is available: `lsof -i :15000`
 
 ### UI shows connection errors
 

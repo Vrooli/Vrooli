@@ -10,8 +10,8 @@ This document captures the architecture seams (integration points, boundaries) a
 
 | Aspect | Documented | Actual | Gap |
 |--------|------------|--------|-----|
-| API endpoints | /ideas, /scenarios, /recommendations, /settings | /health only | Critical - no business logic |
-| Database schema | PostgreSQL tables for ideas, settings | Empty schema placeholder | Critical - no persistence |
+| API endpoints | /ideas, /scenarios, /recommendations, /settings | /ideas, /scenarios, /settings, /queue, /health | Medium - recommendations pending |
+| Persistence | Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) | Ideas/scenarios/settings/queue implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
 | UI pages | 4 pages with full functionality | 4 pages with placeholder/skeleton UI | On track - scaffold complete |
 | Integration clients | agent-manager, ecosystem-manager | Dependencies declared, no adapters | Critical - no integration code |
@@ -20,9 +20,9 @@ This document captures the architecture seams (integration points, boundaries) a
 ### Logical vs Physical Gaps
 
 1. **API Layer Gap**
-   - Expected: Domain-organized handlers (ideas/, scenarios/, recommendations/)
-   - Actual: Single main.go with health endpoint only
-   - Impact: Cannot serve business operations
+   - Expected: Domain-organized handlers (ideas/, scenarios/, recommendations/, settings/)
+   - Actual: Ideas, scenarios, settings, and queue handlers implemented; recommendations pending
+   - Impact: Recommendations UI remains placeholder
 
 2. ~~**Selector Registry Gap**~~ (RESOLVED)
    - ~~Expected: `literalSelectors` and `dynamicSelectorDefinitions` populated~~
@@ -30,9 +30,9 @@ This document captures the architecture seams (integration points, boundaries) a
    - Status: Fully populated in Phase 1 (Architecture Alignment)
 
 3. **Business Logic Gap**
-   - Expected: Service layer for idea CRUD, scenario operations
-   - Actual: None implemented
-   - Impact: UI cannot interact with backend meaningfully
+   - Expected: Service layer for idea CRUD, scenario operations, settings/recommendations
+   - Actual: Ideas, scenarios, and settings implemented; recommendations pending
+   - Impact: UI can read/write ideas/scenarios/settings once UI is wired; recommendations remain static
 
 ## Seam Definitions
 
@@ -88,23 +88,6 @@ const service = createIdeasService(mockClient);
 
 **Status**: ✅ Service layer implemented. Tests refactored to use service seam.
 
-### API-to-Database Seam
-
-```go
-// Location: api/main.go (to be extracted to api/db/)
-// Pattern: Repository interfaces
-
-type IdeaRepository interface {
-    List(ctx context.Context) ([]Idea, error)
-    Get(ctx context.Context, name string) (*Idea, error)
-    Create(ctx context.Context, idea *Idea) error
-    Update(ctx context.Context, idea *Idea) error
-    Delete(ctx context.Context, name string) error
-}
-```
-
-**Status**: Not implemented. PostgreSQL connection exists but no repositories.
-
 ### API-to-Integration Seam
 
 ```go
@@ -130,9 +113,13 @@ ideas/
     ├── spec.json     # Required: metadata
     ├── notes.md      # Optional: context
     └── research/     # Optional: supporting files
+
+.vrooli/
+└── settings.json     # User/system settings (persisted)
+└── queue.json        # Pending local queue items (persisted)
 ```
 
-**Status**: Directory exists but empty. No filesystem operations implemented.
+**Status**: Ideas, scenario metadata, settings, and queue storage implemented.
 
 ## Architectural Decisions
 
@@ -184,10 +171,9 @@ ideas/
 | ID | Area | Description | Priority | Effort | Status |
 |----|------|-------------|----------|--------|--------|
 | TD-001 | selectors.ts | Selector registry is empty but components use selectors | High | Low | ✅ Resolved (Phase 1) |
-| TD-002 | API | No business endpoints beyond /health | High | Medium | Open |
-| TD-003 | Database | Schema is empty placeholder | High | Medium | Open |
-| TD-004 | Integration | No adapter code for agent-manager/ecosystem-manager | High | Medium | Open |
-| TD-005 | Ideas filesystem | No file operations implemented | Medium | Low | Open |
+| TD-002 | API | Recommendations endpoints not implemented | Medium | Medium | Open |
+| TD-003 | Integration | No adapter code for agent-manager/ecosystem-manager | High | Medium | Open |
+| TD-004 | Recommendations | Engine and persistence not implemented | Medium | Medium | Open |
 | TD-006 | UI types | Domain types duplicated in page components | Medium | Low | ✅ Resolved (Phase 2) |
 | TD-007 | UI constants | Status colors/icons defined inline in pages | Low | Low | ✅ Resolved (Phase 2) |
 | TD-008 | API client | Singleton at module scope, hard to substitute in tests | Medium | Medium | ✅ Resolved (Phase 3) |
@@ -292,7 +278,7 @@ api/
 
 ### Health Checks
 
-- API: `/health` with database dependency check
+- API: `/health` with filesystem-only readiness
 - UI: `/health` via server.js static serving
 - Both: Defined in service.json health config
 
@@ -429,9 +415,9 @@ When adding new functionality, use these established extension points:
 - TD-001: Selector registry is now fully populated
 
 **Identified Gaps**:
-- API business logic missing (TD-002)
-- Database schema empty (TD-003)
-- Integration adapters missing (TD-004)
+- Recommendations endpoints missing (TD-002)
+- Integration adapters missing (TD-003)
+- Recommendation engine/persistence missing (TD-004)
 
 ### 2026-01-28 - Phase 2: Boundary-of-Responsibility Enforcement
 

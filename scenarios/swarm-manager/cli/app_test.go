@@ -343,10 +343,6 @@ func TestHealthResponseStruct(t *testing.T) {
 		Version:   "0.1.0",
 		Readiness: true,
 		Timestamp: "2026-01-28T00:00:00Z",
-		Deps: map[string]string{
-			"postgres": "ok",
-			"redis":    "ok",
-		},
 	}
 
 	data, err := json.Marshal(resp)
@@ -368,11 +364,8 @@ func TestHealthResponseStruct(t *testing.T) {
 	if !parsed.Readiness {
 		t.Error("Readiness should be true")
 	}
-	if len(parsed.Deps) != 2 {
-		t.Errorf("Expected 2 dependencies, got %d", len(parsed.Deps))
-	}
-	if parsed.Deps["postgres"] != "ok" {
-		t.Errorf("postgres dep = %q, want %q", parsed.Deps["postgres"], "ok")
+	if len(parsed.Deps) != 0 {
+		t.Errorf("Expected 0 dependencies, got %d", len(parsed.Deps))
 	}
 }
 
@@ -380,7 +373,7 @@ func TestHealthResponseStruct(t *testing.T) {
 func TestHealthResponseWithError(t *testing.T) {
 	resp := healthResponse{
 		Status:  "error",
-		Error:   "database connection failed",
+		Error:   "storage read failed",
 		Message: "Service degraded",
 	}
 
@@ -390,7 +383,7 @@ func TestHealthResponseWithError(t *testing.T) {
 	}
 
 	jsonStr := string(data)
-	if !strings.Contains(jsonStr, `"error":"database connection failed"`) {
+	if !strings.Contains(jsonStr, `"error":"storage read failed"`) {
 		t.Error("JSON should contain error field")
 	}
 	if !strings.Contains(jsonStr, `"message":"Service degraded"`) {

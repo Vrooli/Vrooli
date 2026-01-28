@@ -7,7 +7,6 @@ toolchain go1.24.12
 require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11

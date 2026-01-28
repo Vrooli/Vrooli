@@ -64,7 +64,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `main.go` | Server setup, routes, database connection | Business logic (delegated) | [CODE: api/main.go] |
+| `main.go` | Server setup, routes, filesystem-only persistence | Business logic (delegated) | [CODE: api/main.go] |
 | Health handler | Readiness/liveness checks | Domain operations | [CODE: api/main.go:69] |
 
 ### CLI Components
@@ -79,7 +79,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 ### Flow 1: Viewing Ideas
 
 ```
-User → IdeasPage → ideasService.list() → ApiClient.get() → API /ideas → Database
+User → IdeasPage → ideasService.list() → ApiClient.get() → API /ideas → Filesystem
                                                                   ↓
 User ← IdeasPage (render) ← useQuery ← Promise<Idea[]> ←──────────┘
 ```
@@ -89,7 +89,7 @@ User ← IdeasPage (render) ← useQuery ← Promise<Idea[]> ←─────�
 ### Flow 2: Checking Scenario Status
 
 ```
-User → scenariosService.list() → ApiClient.get() → API /scenarios → Database
+User → scenariosService.list() → ApiClient.get() → API /scenarios → Filesystem
                                                                 ↓
 User ← ScenariosPage (render) ← useQuery ← Promise<Scenario[]> ←┘
 ```
@@ -131,12 +131,12 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| UI - Ideas Page | Placeholder | Shows UI, no API data |
-| UI - Scenarios Page | Placeholder | Shows UI, no API data |
+| UI - Ideas Page | Partially wired | Reads ideas; create/edit/delete not yet wired |
+| UI - Scenarios Page | Wired | Lists scenarios with filters and details |
 | UI - Recommendations Page | Static | Empty state only |
-| UI - Settings Page | Static | UI renders, no persistence |
-| API | Minimal | Health endpoint only |
-| CLI | Minimal | Status command only |
+| UI - Settings Page | Static | UI renders, persistence not wired |
+| API | Active | Ideas, scenarios, settings, queue, health |
+| CLI | Partial | Ideas CRUD + status |
 
 For detailed progress, see `docs/PROGRESS.md`.
 
