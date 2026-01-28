@@ -401,7 +401,7 @@ func (r *FileProfileRepository) buildIndexLocked() ProfileMetadataIndex {
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
-		if strings.ToLower(entries[i].Name) == strings.ToLower(entries[j].Name) {
+		if strings.EqualFold(entries[i].Name, entries[j].Name) {
 			return entries[i].ID < entries[j].ID
 		}
 		return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)

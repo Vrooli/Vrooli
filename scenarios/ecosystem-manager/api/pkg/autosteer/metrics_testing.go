@@ -3,6 +3,7 @@ package autosteer
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -78,7 +79,7 @@ func (c *TestMetricsCollector) getGoTestCoverage(scenarioName string) float64 {
 		return 0
 	}
 	if err != nil {
-		// Tests may fail, but we can still get coverage
+		log.Printf("Warning: go test coverage command failed: %v", err)
 	}
 
 	// Parse coverage from output
@@ -180,7 +181,7 @@ func (c *TestMetricsCollector) runTypeScriptTests(scenarioName string) float64 {
 
 	// Run with timeout
 	if err := cmd.Run(); err != nil || ctx.Err() == context.DeadlineExceeded {
-		// Tests may fail, but coverage might still be generated
+		log.Printf("Warning: UI test coverage command failed or timed out")
 	}
 
 	// Try to read coverage summary
@@ -243,7 +244,7 @@ func (c *TestMetricsCollector) getIntegrationTestCoverage(scenarioName string) f
 func (c *TestMetricsCollector) countIntegrationTests(testPath string) int {
 	count := 0
 
-	filepath.Walk(testPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(testPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -254,7 +255,9 @@ func (c *TestMetricsCollector) countIntegrationTests(testPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk test path for test metrics: %v", err)
+	}
 
 	return count
 }
@@ -269,7 +272,7 @@ func (c *TestMetricsCollector) runIntegrationTests(scenarioName string) int {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Some tests may fail
+		log.Printf("Warning: integration tests command failed: %v", err)
 	}
 
 	// Parse BATS output for passing tests
@@ -363,7 +366,7 @@ func (c *TestMetricsCollector) countPlaybooks(playbooksPath string) int {
 func (c *TestMetricsCollector) countPlaybookFiles(playbooksPath string) int {
 	count := 0
 
-	filepath.Walk(playbooksPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(playbooksPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -373,7 +376,9 @@ func (c *TestMetricsCollector) countPlaybookFiles(playbooksPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk playbooks path for test metrics: %v", err)
+	}
 
 	return count
 }
@@ -384,7 +389,7 @@ func (c *TestMetricsCollector) countEdgeCases(scenarioName string) int {
 	scenarioPath := filepath.Join(c.projectRoot, "scenarios", scenarioName)
 
 	// Search for edge case patterns in test files
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -426,7 +431,9 @@ func (c *TestMetricsCollector) countEdgeCases(scenarioName string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for test coverage: %v", err)
+	}
 
 	return count
 }
@@ -440,7 +447,7 @@ func (c *TestMetricsCollector) detectFlakyTests(scenarioName string) int {
 	count := 0
 	scenarioPath := filepath.Join(c.projectRoot, "scenarios", scenarioName)
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -483,7 +490,9 @@ func (c *TestMetricsCollector) detectFlakyTests(scenarioName string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for test documentation: %v", err)
+	}
 
 	return count
 }

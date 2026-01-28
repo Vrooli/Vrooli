@@ -102,9 +102,6 @@ func (qp *Processor) GenerateInsightReportForTask(taskID string, limit int, stat
 	if report.GeneratedAt.IsZero() {
 		report.GeneratedAt = time.Now()
 	}
-	if report.ID == "" {
-		// ID will be generated when saved
-	}
 
 	// Save the report
 	if err := qp.SaveInsightReport(*report); err != nil {
@@ -552,9 +549,6 @@ func (qp *Processor) GenerateInsightReportWithCustomPrompt(taskID string, limit 
 	report.GeneratedBy = "insight-generator"
 	if report.GeneratedAt.IsZero() {
 		report.GeneratedAt = time.Now()
-	}
-	if report.ID == "" {
-		// ID will be generated when saved
 	}
 
 	// Save the report

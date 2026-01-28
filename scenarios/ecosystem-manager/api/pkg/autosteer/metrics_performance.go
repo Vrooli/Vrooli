@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,7 +49,10 @@ func (c *PerformanceMetricsCollector) getBundleSize(scenarioName string) float64
 	// Check if dist directory exists
 	if _, err := os.Stat(distPath); os.IsNotExist(err) {
 		// Try to build if dist doesn't exist
-		c.buildUI(scenarioName)
+		if err := c.buildUI(scenarioName); err != nil {
+			log.Printf("Warning: failed to build UI for bundle size: %v", err)
+			return -1
+		}
 	}
 
 	// Recalculate directory size

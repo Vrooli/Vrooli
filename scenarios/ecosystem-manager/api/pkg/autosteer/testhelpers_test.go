@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -50,28 +49,36 @@ func SetupTestDatabase(t *testing.T) (*PostgresContainer, func()) {
 	// Get connection string
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to get connection string: %v", err)
 	}
 
 	// Connect to database
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	// Wait for database to be ready
 	if err := db.Ping(); err != nil {
 		db.Close()
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to ping database: %v", err)
 	}
 
 	// Create schema
 	if err := createTestSchema(db); err != nil {
 		db.Close()
-		pgContainer.Terminate(ctx)
+		if termErr := pgContainer.Terminate(ctx); termErr != nil {
+			t.Logf("Failed to terminate postgres container: %v", termErr)
+		}
 		t.Fatalf("Failed to create schema: %v", err)
 	}
 
@@ -148,7 +155,7 @@ func createTestSchema(db *sql.DB) error {
 func CreateTestProfile(t *testing.T, name string, mode SteerMode, maxIterations int) *AutoSteerProfile {
 	t.Helper()
 
-	skillName := strings.Title(strings.ReplaceAll(string(mode), "_", " "))
+	skillName := titleize(strings.ReplaceAll(string(mode), "_", " "))
 
 	return &AutoSteerProfile{
 		Name:        name,
@@ -294,24 +301,6 @@ func abs(x float64) float64 {
 		return -x
 	}
 	return x
-}
-
-// testPhasePromptsDir returns a directory containing phase prompt markdown files for tests.
-func testPhasePromptsDir(t *testing.T) string {
-	t.Helper()
-
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatalf("unable to determine caller location for prompt discovery")
-	}
-
-	// Prefer real prompts if available
-	dir := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "prompts", "phases"))
-	if _, err := os.Stat(dir); err != nil {
-		t.Fatalf("phase prompts directory not found at %s: %v", dir, err)
-	}
-
-	return dir
 }
 
 // WaitForCondition polls until a condition is met or timeout

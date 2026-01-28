@@ -4,7 +4,7 @@
  */
 
 import { Eye, Trash2, PlayCircle, CheckCircle2, Lock, Snowflake } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ElapsedTimer } from './ElapsedTimer';
 import type { Task } from '../../types/api';
 
@@ -98,10 +98,10 @@ function CooldownCountdown({ until }: { until: string }) {
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }, [until]);
 
-  const computeRemaining = () => {
+  const computeRemaining = useCallback(() => {
     if (!target) return 0;
     return Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000));
-  };
+  }, [target]);
 
   const [remaining, setRemaining] = useState<number>(() => computeRemaining());
 
@@ -112,7 +112,7 @@ function CooldownCountdown({ until }: { until: string }) {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [until]);
+  }, [computeRemaining, until]);
 
   if (!target || remaining <= 0) return null;
 

@@ -64,6 +64,24 @@ func writeTransitionError(w http.ResponseWriter, prefix string, err error) bool 
 	return true
 }
 
+func (h *TaskHandlers) maybeInitializeAutoSteer(task *tasks.TaskItem) {
+	if task == nil || strings.TrimSpace(task.AutoSteerProfileID) == "" {
+		return
+	}
+	if h.processor == nil || h.processor.AutoSteerIntegration() == nil {
+		return
+	}
+
+	scenarioName := strings.TrimSpace(queue.GetScenarioNameFromTask(task))
+	if scenarioName == "" {
+		scenarioName = strings.TrimSpace(task.Target)
+	}
+
+	if err := h.processor.AutoSteerIntegration().InitializeAutoSteer(task, scenarioName); err != nil {
+		systemlog.Warnf("Auto Steer initialization failed for task %s after update/create: %v", task.ID, err)
+	}
+}
+
 // taskWithRuntime decorates a task with live execution metadata without mutating persisted files.
 type taskWithRuntime struct {
 	tasks.TaskItem
@@ -697,6 +715,8 @@ func (h *TaskHandlers) CreateTaskHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	h.maybeInitializeAutoSteer(&task)
+
 	if h.processor != nil {
 		h.processor.Wake()
 	}
@@ -905,6 +925,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	systemlog.Infof("Task %s updated successfully", taskID)
+	h.maybeInitializeAutoSteer(updated)
 
 	writeJSON(w, map[string]any{
 		"success": true,

@@ -1,10 +1,7 @@
 package queue
 
 import (
-	"bytes"
-	"encoding/json"
 	"log"
-	"os"
 	"strings"
 	"time"
 
@@ -63,35 +60,6 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 func detectMaxTurnsExceeded(output string) bool {
 	lower := strings.ToLower(output)
 	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
-}
-
-// fileExistsAndNotEmpty checks if a file exists and has content.
-// This is a shared utility used by ExecutionManager.
-func fileExistsAndNotEmpty(path string) bool {
-	if strings.TrimSpace(path) == "" {
-		return false
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.Size() > 0
-}
-
-// isValidClaudeConfig checks if a byte slice contains valid Claude config JSON.
-// This is a shared utility used by ExecutionManager.
-func isValidClaudeConfig(data []byte) bool {
-	trimmed := bytes.TrimSpace(data)
-	if len(trimmed) == 0 {
-		return false
-	}
-
-	var parsed map[string]any
-	if err := json.Unmarshal(trimmed, &parsed); err != nil {
-		return false
-	}
-
-	return true
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients

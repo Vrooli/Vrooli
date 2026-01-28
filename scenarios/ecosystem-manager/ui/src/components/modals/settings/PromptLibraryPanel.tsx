@@ -163,7 +163,7 @@ export function PromptLibraryPanel() {
     } else {
       setDraft('');
     }
-  }, [file?.id, file?.content, selectedSkill]);
+  }, [file, selectedSkill]);
 
   // Find current info for the metadata panel
   const currentLocalFile: PromptFileInfo | undefined = files.find((f) => f.id === selectedId);

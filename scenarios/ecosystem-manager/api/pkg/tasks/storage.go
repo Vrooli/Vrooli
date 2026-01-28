@@ -202,7 +202,7 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 
 		var raw map[string]any
 		if err := yaml.Unmarshal(data, &raw); err != nil {
-			// Silent - not critical for operation
+			log.Printf("Warning: failed to parse raw task data from %s: %v", file, err)
 		}
 
 		var item TaskItem
@@ -434,7 +434,7 @@ func (s *Storage) ResyncStatuses() error {
 
 			var raw map[string]any
 			if err := yaml.Unmarshal(data, &raw); err != nil {
-				// Not fatal; continue with best-effort
+				log.Printf("Warning: failed to parse raw task data from %s: %v", filePath, err)
 			}
 
 			var task TaskItem

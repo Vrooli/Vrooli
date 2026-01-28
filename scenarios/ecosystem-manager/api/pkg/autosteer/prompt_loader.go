@@ -333,7 +333,7 @@ func (l *PromptLoader) FormatConditionProgress(conditions []StopCondition, metri
 // FormatModeContent formats the mode content with the steer focus header.
 func FormatModeContent(mode SteerMode, content string) string {
 	// Normalize mode name: "refactor" -> "Refactor"
-	modeName := strings.Title(strings.ReplaceAll(string(mode), "_", " "))
+	modeName := titleize(strings.ReplaceAll(string(mode), "_", " "))
 	return fmt.Sprintf("## Steer focus: %s\n\n%s", modeName, content)
 }
 

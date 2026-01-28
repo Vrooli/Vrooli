@@ -50,22 +50,59 @@ func (r *PostgresExecutionStateRepository) Get(taskID string) (*ProfileExecution
 		return nil, fmt.Errorf("failed to query execution state: %w", err)
 	}
 
-	if err := json.Unmarshal(phaseHistoryJSON, &state.PhaseHistory); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal phase history: %w", err)
+	phaseHistoryMissing := isNullJSON(phaseHistoryJSON)
+	if !phaseHistoryMissing {
+		if err := json.Unmarshal(phaseHistoryJSON, &state.PhaseHistory); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal phase history: %w", err)
+		}
+	} else {
+		state.PhaseHistory = []PhaseExecution{}
 	}
 
-	if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
+	metricsMissing := isNullJSON(metricsJSON)
+	if !metricsMissing {
+		if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
+		}
 	}
 
-	if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
+	phaseStartMissing := isNullJSON(phaseStartMetricsJSON)
+	if !phaseStartMissing {
+		if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
+		}
+	}
+
+	if metricsMissing && !phaseStartMissing {
+		state.Metrics = state.PhaseStartMetrics
 	}
 
 	if phaseStartedAt.Valid {
 		state.PhaseStartedAt = phaseStartedAt.Time
 	} else {
 		state.PhaseStartedAt = state.StartedAt
+	}
+
+	if state.Metrics.Timestamp.IsZero() {
+		if !state.LastUpdated.IsZero() {
+			state.Metrics.Timestamp = state.LastUpdated
+		} else {
+			state.Metrics.Timestamp = state.StartedAt
+		}
+	}
+
+	if phaseStartMissing {
+		state.PhaseStartMetrics = state.Metrics
+	}
+
+	if state.PhaseStartMetrics.Timestamp.IsZero() {
+		if !state.PhaseStartedAt.IsZero() {
+			state.PhaseStartMetrics.Timestamp = state.PhaseStartedAt
+		} else if !state.StartedAt.IsZero() {
+			state.PhaseStartMetrics.Timestamp = state.StartedAt
+		} else {
+			state.PhaseStartMetrics.Timestamp = state.LastUpdated
+		}
 	}
 
 	return &state, nil

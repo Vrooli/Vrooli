@@ -233,7 +233,7 @@ func (p *PromptEnhancer) getKeyImprovements(phaseExec PhaseExecution) []string {
 func (p *PromptEnhancer) formatImprovement(metric string, delta float64) string {
 	// Format metric name nicely
 	metricName := strings.ReplaceAll(metric, "_", " ")
-	metricName = strings.Title(metricName)
+		metricName = titleize(metricName)
 
 	// Format delta with sign and appropriate precision
 	sign := "+"

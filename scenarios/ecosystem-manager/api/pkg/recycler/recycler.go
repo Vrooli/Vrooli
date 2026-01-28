@@ -1,7 +1,6 @@
 package recycler
 
 import (
-	"fmt"
 	"log"
 	"strings"
 	"sync"
@@ -9,21 +8,13 @@ import (
 
 	"sync/atomic"
 
-	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
 	"github.com/ecosystem-manager/api/pkg/settings"
-	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
 // status buckets processed by the recycler.
 var recycleStatuses = []string{"completed", "failed"}
-
-// terminal statuses assigned when thresholds are hit.
-const (
-	statusCompletedFinalized = "completed-finalized"
-	statusFailedBlocked      = "failed-blocked"
-)
 
 // enabledFor constants control which task types are eligible.
 const (
@@ -47,7 +38,6 @@ type Recycler struct {
 	failureAttempts map[string]int
 	cooldownTimers  map[string]struct{}
 	active          bool
-	sweepOnly       bool
 	coordinator     *tasks.Coordinator
 
 	retryDelay func(int) time.Duration
@@ -532,153 +522,6 @@ func (r *Recycler) Stats() Stats {
 	}
 }
 
-func (r *Recycler) processCompletedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
-	now := timeutil.NowRFC3339()
-
-	if !task.ProcessorAutoRequeue {
-		log.Printf("Recycler skipping task %s (auto-requeue disabled)", task.ID)
-		return nil
-	}
-
-	// Get metrics classification (NEW - this is the source of truth)
-	// Use Title as fallback if Target is empty (generator tasks use title as scenario name)
-	scenarioName := task.Target
-	if scenarioName == "" {
-		scenarioName = task.Title
-	}
-
-	metricsResult, err := getCompletenessClassification(scenarioName)
-	if err != nil {
-		log.Printf("Completeness check failed for %s: %v", scenarioName, err)
-		// Fallback: treat as early stage if metrics unavailable
-		metricsResult = CompletenessResult{
-			Classification: "early_stage",
-			Score:          0,
-		}
-	}
-
-	// Use structured results for recycler info
-	taskResults := tasks.FromMap(task.Results)
-	taskResults.SetRecyclerInfo(metricsResult.Classification, now)
-	task.Results = taskResults.ToMap()
-
-	// NEW: Use metrics classification directly (no legacy mapping)
-	classification := strings.ToLower(metricsResult.Classification)
-	switch classification {
-	case "production_ready":
-		task.ConsecutiveCompletionClaims++ // 96-100: full increment (3x → finalize)
-	case "nearly_ready":
-		task.ConsecutiveCompletionClaims += 0.5 // 81-95: partial increment (6x → finalize)
-	default:
-		task.ConsecutiveCompletionClaims = 0 // <81: reset
-	}
-	task.ConsecutiveFailures = 0
-
-	// Recycler no longer mutates user notes; rely on agent-facing artifacts instead
-	task.UpdatedAt = now
-
-	if shouldFinalize(task.ConsecutiveCompletionClaims, cfg.CompletionThreshold) {
-		task.Status = statusCompletedFinalized
-		task.CurrentPhase = "finalized"
-		task.ProcessorAutoRequeue = false
-		if task.CompletedAt == "" {
-			task.CompletedAt = now
-		}
-		if err := r.persistTask(task, statusCompletedFinalized); err != nil {
-			return err
-		}
-		r.broadcast(task, "task_finalized")
-		log.Printf("Recycler finalized task %s after %.1f consecutive completion claims", task.ID, task.ConsecutiveCompletionClaims)
-		return nil
-	}
-
-	// Requeue
-	task.Status = "pending"
-	task.CurrentPhase = ""
-	task.StartedAt = ""
-	task.CompletedAt = ""
-
-	// CRITICAL: Convert Generator tasks to Improver after first completion
-	// Generator creates NEW resources/scenarios, Improver enhances EXISTING ones
-	// Once a task completes successfully once, the target exists and should be improved, not regenerated
-	if task.Operation == "generator" {
-		task.Operation = "improver"
-		log.Printf("Recycler converted task %s from generator to improver (completion count: %d)", task.ID, task.CompletionCount)
-		systemlog.Infof("Task %s converted from generator to improver after completion", task.ID)
-	}
-
-	if err := r.persistTask(task, "pending"); err != nil {
-		return err
-	}
-	r.broadcast(task, "task_recycled")
-	log.Printf("Recycler requeued completed task %s", task.ID)
-	return nil
-}
-
-func (r *Recycler) processFailedTask(task *tasks.TaskItem, cfg settings.RecyclerSettings) error {
-	now := timeutil.NowRFC3339()
-
-	if !task.ProcessorAutoRequeue {
-		log.Printf("Recycler skipping task %s (auto-requeue disabled)", task.ID)
-		return nil
-	}
-
-	// Failure streak increments regardless of summarizer outcome.
-	task.ConsecutiveFailures++
-	task.ConsecutiveCompletionClaims = 0
-
-	// Use structured results for recycler info; do not mutate user notes
-	taskResults := tasks.FromMap(task.Results)
-	taskResults.SetRecyclerInfo("failed", now)
-	task.Results = taskResults.ToMap()
-
-	task.UpdatedAt = now
-
-	if shouldFinalize(float64(task.ConsecutiveFailures), cfg.FailureThreshold) {
-		task.Status = statusFailedBlocked
-		task.CurrentPhase = "blocked"
-		task.ProcessorAutoRequeue = false
-		if err := r.persistTask(task, statusFailedBlocked); err != nil {
-			return err
-		}
-		r.broadcast(task, "task_blocked")
-		log.Printf("Recycler blocked task %s after %d consecutive failures", task.ID, task.ConsecutiveFailures)
-		return nil
-	}
-
-	// Requeue the failure for another attempt.
-	task.Status = "pending"
-	task.CurrentPhase = ""
-	task.StartedAt = ""
-	task.CompletedAt = ""
-
-	if err := r.persistTask(task, "pending"); err != nil {
-		return err
-	}
-	r.broadcast(task, "task_recycled")
-	log.Printf("Recycler requeued failed task %s (failure streak %d)", task.ID, task.ConsecutiveFailures)
-	return nil
-}
-
-func (r *Recycler) persistTask(task *tasks.TaskItem, targetStatus string) error {
-	if _, _, err := r.storage.MoveTaskTo(task.ID, targetStatus); err != nil {
-		return fmt.Errorf("move task %s to %s: %w", task.ID, targetStatus, err)
-	}
-	// Use SkipCleanup since MoveTaskTo already cleaned up duplicates
-	if err := r.storage.SaveQueueItemSkipCleanup(*task, targetStatus); err != nil {
-		return fmt.Errorf("save task %s in %s: %w", task.ID, targetStatus, err)
-	}
-	if targetStatus == "pending" {
-		r.mu.Lock()
-		wake := r.wake
-		r.mu.Unlock()
-		if wake != nil {
-			wake()
-		}
-	}
-	return nil
-}
-
 func (r *Recycler) broadcast(task *tasks.TaskItem, event string) {
 	if r == nil || r.wsManager == nil || task == nil {
 		return
@@ -695,31 +538,6 @@ func (r *Recycler) broadcast(task *tasks.TaskItem, event string) {
 			"task":       task,
 		})
 	}
-}
-
-func ensureResultsMap(task *tasks.TaskItem) {
-	if task.Results == nil {
-		task.Results = make(map[string]any)
-	}
-}
-
-func extractOutput(results map[string]any) string {
-	if results == nil {
-		return ""
-	}
-	if raw, ok := results["output"]; ok {
-		if text, ok := raw.(string); ok {
-			return text
-		}
-	}
-	return ""
-}
-
-func shouldFinalize(streak float64, threshold int) bool {
-	if threshold <= 0 {
-		return false
-	}
-	return streak >= float64(threshold)
 }
 
 func isTypeEnabled(taskType string, enabled string) bool {

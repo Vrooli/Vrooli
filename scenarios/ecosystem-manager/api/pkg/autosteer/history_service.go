@@ -62,7 +62,6 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 	if filters.EndDate != nil {
 		query += fmt.Sprintf(" AND executed_at <= $%d", argIndex)
 		args = append(args, filters.EndDate)
-		argIndex++
 	}
 
 	query += " ORDER BY executed_at DESC"

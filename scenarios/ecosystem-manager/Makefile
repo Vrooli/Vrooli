@@ -5,7 +5,7 @@
 #
 # Usage:
 #   make           - Show help
-#   make run       - Start ecosystem manager
+#   make start     - Start ecosystem manager
 #   make stop      - Stop ecosystem manager  
 #   make dev       - Start in development mode
 #   make test      - Run all tests
@@ -13,7 +13,7 @@
 #   make queue     - Show queue status
 #   make clean     - Clean build artifacts
 
-.PHONY: help run stop dev test test-api test-ui logs logs-follow status clean build queue queue-pending queue-progress validate fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start run stop dev test test-api test-ui logs logs-follow status clean build queue queue-pending queue-progress validate fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -36,7 +36,7 @@ help: ## Show this help message
 	@echo "  make <command>"
 	@echo ""
 	@echo "$(YELLOW)Essential Commands:$(RESET)"
-	@grep -E '^(run|stop|dev|test|logs|queue|help):.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^(start|stop|dev|test|logs|queue|help):.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Additional Commands:$(RESET)"
@@ -45,12 +45,14 @@ help: ## Show this help message
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/ecosystem-manager directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run ecosystem-manager'"
+	@echo "    Always use 'make start' or 'vrooli scenario start ecosystem-manager'"
 
-run: ## Start ecosystem manager (uses Vrooli lifecycle)
+start: ## Start ecosystem manager (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting Ecosystem Manager...$(RESET)"
 	@echo "$(CYAN)This manages resource and scenario generation/improvement$(RESET)"
-	@vrooli scenario run $(SCENARIO_NAME)
+	@vrooli scenario start $(SCENARIO_NAME)
+
+run: start ## Alias for start (legacy)
 
 stop: ## Stop ecosystem manager
 	@echo "$(YELLOW)⏹️  Stopping Ecosystem Manager...$(RESET)"

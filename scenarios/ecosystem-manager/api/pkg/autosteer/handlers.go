@@ -44,18 +44,22 @@ type HistoryServiceAPI interface {
 func writeError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	if err := json.NewEncoder(w).Encode(ErrorResponse{
 		Error:   http.StatusText(statusCode),
 		Message: message,
 		Code:    statusCode,
-	})
+	}); err != nil {
+		// Response already has headers; best-effort logging only.
+	}
 }
 
 // writeJSON writes a successful JSON response
 func writeJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		// Response already has headers; best-effort logging only.
+	}
 }
 
 // AutoSteerHandlers handles HTTP requests for Auto Steer functionality
@@ -106,8 +110,7 @@ func (h *AutoSteerHandlers) ListProfiles(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profiles)
+	writeJSON(w, http.StatusOK, profiles)
 }
 
 // GetProfile handles GET /api/auto-steer/profiles/:id
@@ -121,8 +124,7 @@ func (h *AutoSteerHandlers) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profile)
+	writeJSON(w, http.StatusOK, profile)
 }
 
 // UpdateProfile handles PUT /api/auto-steer/profiles/:id
@@ -147,8 +149,7 @@ func (h *AutoSteerHandlers) UpdateProfile(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(profile)
+	writeJSON(w, http.StatusOK, profile)
 }
 
 // DeleteProfile handles DELETE /api/auto-steer/profiles/:id
@@ -168,8 +169,7 @@ func (h *AutoSteerHandlers) DeleteProfile(w http.ResponseWriter, r *http.Request
 func (h *AutoSteerHandlers) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	templates := h.profileService.GetTemplates()
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(templates)
+	writeJSON(w, http.StatusOK, templates)
 }
 
 // StartExecution handles POST /api/auto-steer/execution/start
@@ -330,8 +330,7 @@ func (h *AutoSteerHandlers) GetExecutionState(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(state)
+	writeJSON(w, http.StatusOK, state)
 }
 
 // GetMetrics handles GET /api/auto-steer/metrics/:taskId
@@ -350,8 +349,7 @@ func (h *AutoSteerHandlers) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(state.Metrics)
+	writeJSON(w, http.StatusOK, state.Metrics)
 }
 
 // GetHistory handles GET /api/auto-steer/history
@@ -371,8 +369,7 @@ func (h *AutoSteerHandlers) GetHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(history)
+	writeJSON(w, http.StatusOK, history)
 }
 
 // GetExecution handles GET /api/auto-steer/history/:executionId
@@ -386,8 +383,7 @@ func (h *AutoSteerHandlers) GetExecution(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(execution)
+	writeJSON(w, http.StatusOK, execution)
 }
 
 // SubmitFeedback handles POST /api/auto-steer/history/:executionId/feedback
@@ -448,6 +444,5 @@ func (h *AutoSteerHandlers) GetProfileAnalytics(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(analytics)
+	writeJSON(w, http.StatusOK, analytics)
 }

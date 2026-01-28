@@ -569,11 +569,7 @@ func (qp *Processor) GetSlotSnapshot() SlotSnapshot {
 	externalActive := qp.getExternalActiveTaskIDs()
 	internalRunning := qp.getInternalRunningTaskIDs()
 	snap := qp.computeSlotSnapshot(internalRunning, externalActive)
-	return SlotSnapshot{
-		Slots:     snap.Slots,
-		Running:   snap.Running,
-		Available: snap.Available,
-	}
+	return SlotSnapshot(snap)
 }
 
 // IsRunning returns whether the processor is currently running.

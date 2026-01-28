@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ecosystem-manager/api/pkg/internal/timeutil"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 )
 
 // QueueResetter is a minimal interface for resetting steering queue state.
@@ -100,7 +101,7 @@ func (c *Coordinator) applyRuntimeEffects(taskID string, effects TransitionEffec
 	}
 	if effects.TerminateProcess {
 		if err := c.Runtime.TerminateRunningProcess(taskID); err != nil {
-			// Avoid failing caller flows for termination errors; log via systemlog when available.
+			systemlog.Warnf("Coordinator failed to terminate process for task %s: %v", taskID, err)
 		}
 	}
 	if effects.ForceStart {

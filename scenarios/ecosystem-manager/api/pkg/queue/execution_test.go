@@ -154,6 +154,7 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 
 	// Goroutine 2: Task completion (unregisters then finalizes)
 	wg.Add(1)
+	finalizeErrCh := make(chan error, 1)
 	go func() {
 		defer wg.Done()
 
@@ -163,7 +164,7 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 		// processor.finalizeTaskStatus(&task, "completed")
 
 		// NEW FIXED CODE does:
-		processor.finalizeTaskStatus(&task, "completed") // finalize FIRST
+		finalizeErrCh <- processor.finalizeTaskStatus(&task, "completed") // finalize FIRST
 		time.Sleep(20 * time.Millisecond)                // ensure overlap
 		processor.unregisterExecution(task.ID)           // unregister AFTER
 	}()
@@ -177,6 +178,9 @@ func TestTaskCompletionRaceCondition(t *testing.T) {
 
 	if caught {
 		t.Error("RACE CONDITION DETECTED: Reconciliation moved task during completion")
+	}
+	if finalizeErr := <-finalizeErrCh; finalizeErr != nil {
+		t.Fatalf("finalizeTaskStatus failed: %v", finalizeErr)
 	}
 
 	// Verify final state: task should be in completed

@@ -106,8 +106,12 @@ func (im *InsightManager) SaveInsightReport(report insights.InsightReport) error
 		"suggestion_count": len(report.Suggestions),
 		"generated_by":     report.GeneratedBy,
 	}
-	metadataData, _ := json.MarshalIndent(metadata, "", "  ")
-	os.WriteFile(metadataPath, metadataData, 0o644)
+	metadataData, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		log.Printf("Warning: failed to marshal insight metadata: %v", err)
+	} else if err := os.WriteFile(metadataPath, metadataData, 0o644); err != nil {
+		log.Printf("Warning: failed to write insight metadata: %v", err)
+	}
 
 	log.Printf("Saved insight report %s for task %s (%d patterns, %d suggestions)",
 		report.ID, report.TaskID, len(report.Patterns), len(report.Suggestions))

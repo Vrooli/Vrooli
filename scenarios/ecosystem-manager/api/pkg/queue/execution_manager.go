@@ -182,7 +182,9 @@ func (em *ExecutionManager) ExecuteTask(ctx context.Context, task tasks.TaskItem
 
 	// Update task phase
 	task.CurrentPhase = "prompt_assembled"
-	em.storage.SaveQueueItemSkipCleanup(task, "in-progress")
+	if err := em.storage.SaveQueueItemSkipCleanup(task, "in-progress"); err != nil {
+		log.Printf("Warning: Failed to persist prompt_assembled phase for task %s: %v", task.ID, err)
+	}
 	em.broadcastUpdate("task_progress", task)
 
 	// Log prompt size
@@ -609,6 +611,7 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 }
 
 // handleNonZeroExit handles non-zero exit codes from Claude Code.
+//nolint:unused // Reserved for future integration with non-zero exit handling.
 func (em *ExecutionManager) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int, elapsed time.Duration) (*tasks.ClaudeCodeResponse, bool) {
 	if detectMaxTurnsExceeded(combinedOutput) {
 		msg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", maxTurns)
@@ -1025,6 +1028,7 @@ func (em *ExecutionManager) loadExecutionHistory(taskID string) ([]ExecutionHist
 
 // Helper methods for clean outputs
 
+//nolint:unused // Reserved for future output normalization pipeline.
 func (em *ExecutionManager) saveCleanOutputs(taskID, executionID, execDir, prompt, combinedOutput, finalMessage, transcriptFile, lastMessageFile string) (string, string, string) {
 	makeRel := func(filename string) string {
 		return filepath.Join(taskID, "executions", executionID, filename)
@@ -1074,6 +1078,7 @@ func (em *ExecutionManager) saveCleanOutputs(taskID, executionID, execDir, promp
 	return cleanRel, lastRel, transcriptRel
 }
 
+//nolint:unused // Reserved for future transcript handling.
 func (em *ExecutionManager) writeFallbackTranscript(path, prompt, finalMessage, combinedOutput string) error {
 	if strings.TrimSpace(path) == "" {
 		return nil
@@ -1132,8 +1137,35 @@ func (em *ExecutionManager) writeFallbackTranscript(path, prompt, finalMessage, 
 	return nil
 }
 
+func fileExistsAndNotEmpty(path string) bool {
+	if strings.TrimSpace(path) == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if info.IsDir() {
+		return false
+	}
+	return info.Size() > 0
+}
+
+func isValidClaudeConfig(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return false
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return false
+	}
+	return parsed != nil
+}
+
 // Claude config validation
 
+//nolint:unused // Reserved for future Claude config validation.
 func (em *ExecutionManager) ensureValidClaudeConfig() error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -1178,6 +1210,7 @@ func (em *ExecutionManager) ensureValidClaudeConfig() error {
 	return nil
 }
 
+//nolint:unused // Reserved for future Claude config reset.
 func (em *ExecutionManager) resetClaudeConfig(path string, original []byte) error {
 	trimmed := bytes.TrimSpace(original)
 	if len(trimmed) > 0 {

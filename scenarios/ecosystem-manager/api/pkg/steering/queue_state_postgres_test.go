@@ -8,6 +8,13 @@ import (
 
 // Tests for PostgresQueueStateRepository nil handling
 
+func mustSaveQueueState(t *testing.T, repo QueueStateRepository, state *QueueState) {
+	t.Helper()
+	if err := repo.Save(state); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+}
+
 func TestPostgresQueueStateRepository_Get_NilDB(t *testing.T) {
 	repo := NewPostgresQueueStateRepository(nil)
 
@@ -64,7 +71,7 @@ func TestInMemoryQueueStateRepository_Get_Found(t *testing.T) {
 
 	original := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux"})
 	original.CurrentIndex = 1
-	repo.Save(original)
+	mustSaveQueueState(t, repo, original)
 
 	state, err := repo.Get("task-1")
 	if err != nil {
@@ -88,7 +95,7 @@ func TestInMemoryQueueStateRepository_Get_ReturnsCopy(t *testing.T) {
 	repo := NewInMemoryQueueStateRepository()
 
 	original := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux"})
-	repo.Save(original)
+	mustSaveQueueState(t, repo, original)
 
 	// Get the state and modify it
 	state1, _ := repo.Get("task-1")
@@ -136,7 +143,7 @@ func TestInMemoryQueueStateRepository_Save_StoresCopy(t *testing.T) {
 	repo := NewInMemoryQueueStateRepository()
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux"})
-	repo.Save(state)
+	mustSaveQueueState(t, repo, state)
 
 	// Modify original after save
 	state.CurrentIndex = 99
@@ -157,12 +164,12 @@ func TestInMemoryQueueStateRepository_Save_Update(t *testing.T) {
 
 	// Save initial state
 	state1 := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
-	repo.Save(state1)
+	mustSaveQueueState(t, repo, state1)
 
 	// Update with new state
 	state2 := NewQueueState("task-1", []autosteer.SteerMode{"ux", "test"})
 	state2.CurrentIndex = 1
-	repo.Save(state2)
+	mustSaveQueueState(t, repo, state2)
 
 	// Retrieved should have updated values
 	retrieved, _ := repo.Get("task-1")
@@ -178,7 +185,7 @@ func TestInMemoryQueueStateRepository_Delete(t *testing.T) {
 	repo := NewInMemoryQueueStateRepository()
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
-	repo.Save(state)
+	mustSaveQueueState(t, repo, state)
 
 	err := repo.Delete("task-1")
 	if err != nil {

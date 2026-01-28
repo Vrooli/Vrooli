@@ -12,7 +12,8 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
+    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

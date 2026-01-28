@@ -14,6 +14,13 @@ func TestQueueProvider_Strategy(t *testing.T) {
 	}
 }
 
+func saveQueueState(t *testing.T, repo QueueStateRepository, state *QueueState) {
+	t.Helper()
+	if err := repo.Save(state); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+}
+
 func TestQueueProvider_Initialize(t *testing.T) {
 	repo := NewInMemoryQueueStateRepository()
 	provider := NewQueueProvider(repo, nil)
@@ -51,7 +58,7 @@ func TestQueueProvider_Initialize_AlreadyExists(t *testing.T) {
 	// Pre-populate state
 	existingState := NewQueueState("task-1", []autosteer.SteerMode{"refactor"})
 	existingState.CurrentIndex = 0
-	repo.Save(existingState)
+	saveQueueState(t, repo, existingState)
 
 	task := &tasks.TaskItem{
 		ID:            "task-1",
@@ -90,7 +97,7 @@ func TestQueueProvider_GetCurrentMode(t *testing.T) {
 	provider := NewQueueProvider(repo, nil)
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux", "test"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{ID: "task-1"}
 
@@ -136,7 +143,7 @@ func TestQueueProvider_AfterExecution_Advance(t *testing.T) {
 	provider := NewQueueProvider(repo, nil)
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux", "test"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{ID: "task-1"}
 
@@ -168,7 +175,7 @@ func TestQueueProvider_AfterExecution_Exhausted(t *testing.T) {
 
 	// Queue with only one item
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{ID: "task-1"}
 
@@ -193,7 +200,7 @@ func TestQueueProvider_Reset(t *testing.T) {
 	provider := NewQueueProvider(repo, nil)
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	err := provider.Reset("task-1")
 	if err != nil {
@@ -343,7 +350,7 @@ func TestQueueProvider_EnhancePrompt(t *testing.T) {
 
 	// Pre-initialize state
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress", "ux", "test"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{
 		ID:            "task-1",
@@ -409,7 +416,7 @@ func TestQueueProvider_EnhancePrompt_Exhausted(t *testing.T) {
 	// Create exhausted state
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
 	state.Advance() // Now exhausted
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{
 		ID:            "task-1",
@@ -430,7 +437,7 @@ func TestQueueProvider_EnhancePrompt_NilEnhancer(t *testing.T) {
 	provider := NewQueueProvider(repo, nil)
 
 	state := NewQueueState("task-1", []autosteer.SteerMode{"progress"})
-	repo.Save(state)
+	saveQueueState(t, repo, state)
 
 	task := &tasks.TaskItem{
 		ID:            "task-1",
@@ -515,7 +522,7 @@ func TestQueueProvider_EnhancePrompt_QueueProgressInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			state := NewQueueState("task-"+tt.name, tt.queue)
 			state.CurrentIndex = tt.currentIndex
-			repo.Save(state)
+			saveQueueState(t, repo, state)
 
 			task := &tasks.TaskItem{
 				ID:            "task-" + tt.name,

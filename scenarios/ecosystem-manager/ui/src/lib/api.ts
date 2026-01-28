@@ -461,6 +461,18 @@ function getApiBase(): Promise<string> {
   return apiBasePromise;
 }
 
+export class ApiError extends Error {
+  status: number;
+  body?: string;
+
+  constructor(status: number, message: string, body?: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 class ApiClient {
   private apiBase: string | null = null;
 
@@ -488,7 +500,10 @@ class ApiClient {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`API Error (${response.status}): ${errorText}`);
+      const message = errorText
+        ? `API Error (${response.status}): ${errorText}`
+        : `API Error (${response.status})`;
+      throw new ApiError(response.status, message, errorText);
     }
 
     return response.json();

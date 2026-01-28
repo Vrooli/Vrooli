@@ -530,13 +530,6 @@ func (a *Application) registerVisitedTrackerRoutes(api *mux.Router) {
 
 type requestIDContextKey struct{}
 
-func requestIDFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(requestIDContextKey{}).(string); ok {
-		return v
-	}
-	return ""
-}
-
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqID := r.Header.Get("X-Request-ID")

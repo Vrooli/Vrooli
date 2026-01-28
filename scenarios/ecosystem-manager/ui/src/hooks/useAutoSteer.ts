@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import type { AutoSteerProfile, AutoSteerExecutionState } from '@/types/api';
 
@@ -44,8 +44,7 @@ export function useAutoSteerExecutionState(taskId?: string) {
         return await api.getAutoSteerExecutionState(taskId as string);
       } catch (err: any) {
         // Treat missing state as undefined instead of leaving stale data around.
-        const status = err?.status ?? err?.response?.status;
-        if (status === 404) return undefined;
+        if (err instanceof ApiError && err.status === 404) return undefined;
         throw err;
       }
     },

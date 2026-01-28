@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -170,7 +171,7 @@ func TestProcessorWithMockedDependencies(t *testing.T) {
 	}
 
 	// Test agent service - verify IsAvailable returns mock value
-	if !processor.agentSvc.IsAvailable(nil) {
+	if !processor.agentSvc.IsAvailable(context.TODO()) {
 		t.Error("Expected mock agent service to be injected - IsAvailable returned false")
 	}
 	if mockAgentSvc.Calls.IsAvailable != 1 {
@@ -232,7 +233,7 @@ func TestProcessorAgentServiceInteraction(t *testing.T) {
 	})
 
 	// Verify agent service is accessible and mock values work
-	if !processor.agentSvc.IsAvailable(nil) {
+	if !processor.agentSvc.IsAvailable(context.TODO()) {
 		t.Error("Expected mock agent service to report as available")
 	}
 	if mockAgentSvc.Calls.IsAvailable != 1 {

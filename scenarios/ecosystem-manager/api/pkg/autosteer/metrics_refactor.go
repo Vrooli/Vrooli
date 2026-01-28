@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -261,7 +262,7 @@ func (c *RefactorMetricsCollector) estimateGoComplexity(apiPath string) float64 
 	totalComplexity := 0
 	functionCount := 0
 
-	filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(apiPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -289,7 +290,9 @@ func (c *RefactorMetricsCollector) estimateGoComplexity(apiPath string) float64 
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk API path for complexity estimate: %v", err)
+	}
 
 	if functionCount == 0 {
 		return 0
@@ -310,7 +313,7 @@ func (c *RefactorMetricsCollector) calculateTSComplexity(scenarioName string) fl
 	totalComplexity := 0
 	functionCount := 0
 
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -339,7 +342,9 @@ func (c *RefactorMetricsCollector) calculateTSComplexity(scenarioName string) fl
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk source path for refactor metrics: %v", err)
+	}
 
 	if functionCount == 0 {
 		return 0
@@ -399,7 +404,7 @@ func (c *RefactorMetricsCollector) estimateDuplication(scenarioPath string) floa
 	duplicateBytes := int64(0)
 	hashSizes := make(map[string]int64)
 
-	_ = filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -440,7 +445,9 @@ func (c *RefactorMetricsCollector) estimateDuplication(scenarioPath string) floa
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for refactor metrics: %v", err)
+	}
 
 	if totalBytes == 0 {
 		return 0
@@ -473,7 +480,7 @@ func (c *RefactorMetricsCollector) countTechDebt(scenarioName string) int {
 func (c *RefactorMetricsCollector) countTODOs(scenarioPath string) int {
 	count := 0
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -502,7 +509,9 @@ func (c *RefactorMetricsCollector) countTODOs(scenarioPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for refactor analysis: %v", err)
+	}
 
 	return count
 }
@@ -513,7 +522,7 @@ func (c *RefactorMetricsCollector) countUnusedFiles(scenarioPath string) int {
 	// Real implementation would need dependency analysis
 	count := 0
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -529,7 +538,9 @@ func (c *RefactorMetricsCollector) countUnusedFiles(scenarioPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for refactor sizing: %v", err)
+	}
 
 	return count
 }
@@ -538,7 +549,7 @@ func (c *RefactorMetricsCollector) countUnusedFiles(scenarioPath string) int {
 func (c *RefactorMetricsCollector) countLargeFiles(scenarioPath string) int {
 	count := 0
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -563,7 +574,9 @@ func (c *RefactorMetricsCollector) countLargeFiles(scenarioPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for refactor delta: %v", err)
+	}
 
 	return count
 }
@@ -572,7 +585,7 @@ func (c *RefactorMetricsCollector) countLargeFiles(scenarioPath string) int {
 func (c *RefactorMetricsCollector) countDeepNesting(scenarioPath string) int {
 	count := 0
 
-	filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(scenarioPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -606,7 +619,9 @@ func (c *RefactorMetricsCollector) countDeepNesting(scenarioPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk scenario path for refactor lint hints: %v", err)
+	}
 
 	return count
 }

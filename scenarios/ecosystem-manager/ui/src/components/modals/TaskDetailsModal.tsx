@@ -29,7 +29,7 @@ import { Save, Archive, Trash2, RefreshCw, ChevronsUpDown, AlertCircle, Database
 import { useQuery } from '@tanstack/react-query';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTaskMutations';
 import { useAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerExecution, useSeekAutoSteerExecution } from '@/hooks/useAutoSteer';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { markdownToHtml } from '@/lib/markdown';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
@@ -261,6 +261,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const [autoSteerExpanded, setAutoSteerExpanded] = useState(false);
   const [phaseDraft, setPhaseDraft] = useState(0);
   const [iterationDraft, setIterationDraft] = useState(0);
+  const [autoSteerInitError, setAutoSteerInitError] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [pendingQueuePosition, setPendingQueuePosition] = useState<number | null>(null);
   // Track the expected position after a successful API call (separate from pending for timing)
@@ -275,12 +276,14 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
     [profiles],
   );
+  const hasAutoSteerProfile = autoSteerProfileId !== AUTO_STEER_NONE;
   const {
     data: autoSteerState,
     isFetching: isAutoSteerStateLoading,
-    isError: autoSteerStateError,
+    isError: isAutoSteerStateError,
+    error: autoSteerStateError,
     refetch: refetchAutoSteerState,
-  } = useAutoSteerExecutionState(task && autoSteerProfileId !== AUTO_STEER_NONE ? task.id : undefined);
+  } = useAutoSteerExecutionState(task && hasAutoSteerProfile ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const seekAutoSteer = useSeekAutoSteerExecution();
   const { data: phaseNames = [] } = useMergedPhaseNames();
@@ -305,10 +308,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     enabled: !!task,
     staleTime: 10000,
   });
-  const executions = Array.isArray(rawExecutions)
-    ? rawExecutions
-    : (rawExecutions as any)?.executions ?? [];
   const sortedExecutions = useMemo(() => {
+    const executions = Array.isArray(rawExecutions)
+      ? rawExecutions
+      : (rawExecutions as any)?.executions ?? [];
     return [...executions].sort((a, b) => {
       const aTime = a?.start_time ? new Date(a.start_time).getTime() : 0;
       const bTime = b?.start_time ? new Date(b.start_time).getTime() : 0;
@@ -317,7 +320,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
       }
       return bTime - aTime;
     });
-  }, [executions]);
+  }, [rawExecutions]);
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
   const canSeekAutoSteer = Boolean(task && autoSteerState);
@@ -330,19 +333,27 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   };
 
   // Initialize form when the task identity changes (avoid clobbering in-flight edits)
-  useEffect(() => {
-    if (!task) return;
-
+  const taskSeed = useMemo(() => {
+    if (!task) return null;
     const derivedTarget = (Array.isArray(task.target) && task.target.length > 0)
       ? task.target[0]
       : task.title;
-    setTargetName(derivedTarget || '');
-    setPriority(task.priority);
+    return {
+      id: task.id,
+      derivedTarget,
+      priority: task.priority,
+      autoRequeue: task.auto_requeue || false,
+      steeringConfig: deriveSteeringConfig(task),
+    };
+  }, [task]);
 
-    // Use deriveSteeringConfig to initialize unified steering state
-    setSteeringConfig(deriveSteeringConfig(task));
-    setAutoRequeue(task.auto_requeue || false);
-  }, [task?.id]);
+  useEffect(() => {
+    if (!taskSeed) return;
+    setTargetName(taskSeed.derivedTarget || '');
+    setPriority(taskSeed.priority);
+    setSteeringConfig(taskSeed.steeringConfig);
+    setAutoRequeue(taskSeed.autoRequeue);
+  }, [taskSeed]);
 
   // Keep notes in sync without clobbering in-progress edits
   useEffect(() => {
@@ -577,6 +588,15 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const currentPhaseIterationRaw = autoSteerState?.current_phase_iteration ?? 0;
   const selectedPhase = activeProfile?.phases?.[phaseDraft];
   const selectedPhaseMaxIterations = selectedPhase?.max_iterations ?? 1;
+  const autoSteerStateMissing =
+    hasAutoSteerProfile && !autoSteerState && !isAutoSteerStateLoading && !isAutoSteerStateError;
+  const autoSteerStateErrorMessage = isAutoSteerStateError
+    ? autoSteerStateError instanceof ApiError
+      ? autoSteerStateError.message
+      : autoSteerStateError instanceof Error
+        ? autoSteerStateError.message
+        : 'Unable to load Auto Steer state.'
+    : null;
 
   useEffect(() => {
     if (!autoSteerState) return;
@@ -589,6 +609,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [autoSteerState, activeProfile?.phases?.length]);
 
   useEffect(() => {
+    if (autoSteerState) {
+      setAutoSteerInitError(null);
+    }
+  }, [autoSteerState]);
+
+  useEffect(() => {
     if (!selectedPhase) return;
     if (iterationDraft > selectedPhaseMaxIterations) {
       setIterationDraft(selectedPhaseMaxIterations);
@@ -596,6 +622,48 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [selectedPhase, selectedPhaseMaxIterations, iterationDraft]);
 
   if (!task) return null;
+
+  const resolveScenarioName = () => {
+    if (normalizedTarget) {
+      return normalizedTarget;
+    }
+    if (Array.isArray(task.target) && task.target.length > 0) {
+      return task.target[0];
+    }
+    return '';
+  };
+
+  const initializeAutoSteerIfMissing = async () => {
+    if (!task || !hasAutoSteerProfile || autoSteerState) return false;
+    const scenarioName = resolveScenarioName();
+    if (!scenarioName) {
+      setAutoSteerInitError('Unable to determine scenario name for Auto Steer initialization.');
+      return false;
+    }
+
+    const resolvedPhaseIndex = Math.min(
+      Math.max(phaseDraft, 0),
+      Math.max((activeProfile?.phases?.length ?? 1) - 1, 0)
+    );
+    const resolvedPhaseIteration = Math.min(iterationDraft, selectedPhaseMaxIterations);
+
+    setAutoSteerInitError(null);
+    try {
+      await seekAutoSteer.mutateAsync({
+        taskId: task.id,
+        phaseIndex: resolvedPhaseIndex,
+        phaseIteration: resolvedPhaseIteration,
+        profileId: autoSteerProfileId !== AUTO_STEER_NONE ? autoSteerProfileId : undefined,
+        scenarioName,
+      });
+      await refetchAutoSteerState();
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setAutoSteerInitError(message);
+      return false;
+    }
+  };
 
   const handleResetAutoSteer = async () => {
     if (!task) return;
@@ -648,6 +716,13 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
         id: task.id,
         updates,
       });
+
+      if (hasAutoSteerProfile && !autoSteerState) {
+        const initialized = await initializeAutoSteerIfMissing();
+        if (!initialized) {
+          alert('Auto Steer did not initialize. Check system logs for details.');
+        }
+      }
 
       lastSyncedNotesRef.current = updates.notes ?? notes.trim();
       setNotesDirty(false);
@@ -844,16 +919,19 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           variant="ghost"
                           className="p-2"
                           onClick={async () => {
-                            if (task) {
-                              await Promise.allSettled([
-                                refetchAutoSteerState(),
-                                refetchExecutions?.(),
-                              ]);
-                            } else {
+                            if (!task) {
                               await refetchAutoSteerState();
+                              return;
                             }
+                            if (autoSteerStateMissing) {
+                              await initializeAutoSteerIfMissing();
+                            }
+                            await Promise.allSettled([
+                              refetchAutoSteerState(),
+                              refetchExecutions?.(),
+                            ]);
                           }}
-                          disabled={isAutoSteerStateLoading || isFetchingExecutions}
+                          disabled={isAutoSteerStateLoading || isFetchingExecutions || seekAutoSteer.isPending}
                           aria-label="Refresh Auto Steer status"
                         >
                           <RefreshCw className="h-4 w-4" />
@@ -975,9 +1053,34 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                       </div>
                     )}
 
-                    {autoSteerStateError && (
-                      <div className="text-amber-400 text-[11px]">
-                        No active Auto Steer state yet. It will initialize on next run.
+                    {autoSteerStateErrorMessage && (
+                      <div className="text-red-400 text-[11px]">
+                        Failed to load Auto Steer state: {autoSteerStateErrorMessage}
+                      </div>
+                    )}
+                    {autoSteerStateMissing && (
+                      <div className="flex flex-wrap items-center gap-2 text-amber-400 text-[11px]">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        <span>No active Auto Steer state yet. Click initialize or run the task to create it.</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-[11px]"
+                          disabled={seekAutoSteer.isPending}
+                          onClick={async () => {
+                            const initialized = await initializeAutoSteerIfMissing();
+                            if (!initialized) {
+                              alert('Auto Steer did not initialize. Check system logs for details.');
+                            }
+                          }}
+                        >
+                          Initialize now
+                        </Button>
+                      </div>
+                    )}
+                    {autoSteerInitError && (
+                      <div className="text-red-400 text-[11px]">
+                        Auto Steer initialization failed: {autoSteerInitError}
                       </div>
                     )}
                   </div>

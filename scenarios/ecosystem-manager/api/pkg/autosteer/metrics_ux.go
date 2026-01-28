@@ -3,6 +3,7 @@ package autosteer
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,7 +67,7 @@ func (c *UXMetricsCollector) estimateAccessibilityFromCode(srcPath string) float
 	accessibleComponents := 0
 
 	// Walk through all TSX/JSX files
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -104,7 +105,9 @@ func (c *UXMetricsCollector) estimateAccessibilityFromCode(srcPath string) float
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk UI source for accessibility scan: %v", err)
+	}
 
 	if totalComponents == 0 {
 		return 50.0 // Default score for scenarios without clear component structure
@@ -156,7 +159,7 @@ func (c *UXMetricsCollector) countResponsiveBreakpoints(scenarioName string) int
 	breakpointSet := make(map[string]bool)
 
 	// Walk through CSS, SCSS, and styled-component files
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -181,7 +184,9 @@ func (c *UXMetricsCollector) countResponsiveBreakpoints(scenarioName string) int
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk UI source for breakpoints: %v", err)
+	}
 
 	return len(breakpointSet)
 }
@@ -217,7 +222,7 @@ func (c *UXMetricsCollector) countUserFlows(scenarioName string) int {
 func (c *UXMetricsCollector) countPlaybookFiles(playbooksPath string) int {
 	count := 0
 
-	filepath.Walk(playbooksPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(playbooksPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -227,7 +232,9 @@ func (c *UXMetricsCollector) countPlaybookFiles(playbooksPath string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk playbooks for UX metrics: %v", err)
+	}
 
 	return count
 }
@@ -242,7 +249,7 @@ func (c *UXMetricsCollector) countLoadingStates(scenarioName string) int {
 
 	loadingStateCount := 0
 
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -278,7 +285,9 @@ func (c *UXMetricsCollector) countLoadingStates(scenarioName string) int {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk UI source for loading states: %v", err)
+	}
 
 	return loadingStateCount
 }
@@ -294,7 +303,7 @@ func (c *UXMetricsCollector) assessErrorHandling(scenarioName string) float64 {
 	totalAsyncOps := 0
 	handledErrors := 0
 
-	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -337,7 +346,9 @@ func (c *UXMetricsCollector) assessErrorHandling(scenarioName string) float64 {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		log.Printf("Warning: failed to walk UI source for error handling: %v", err)
+	}
 
 	if totalAsyncOps == 0 {
 		return 100.0 // No async ops means no error handling needed
@@ -366,8 +377,7 @@ func (c *UXMetricsCollector) RunAxeAccessibility(url string) (float64, error) {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		// axe returns non-zero if violations found, but output is still valid
-		// Continue processing
+		log.Printf("Warning: axe accessibility scan returned error: %v", err)
 	}
 
 	var result struct {

@@ -85,7 +85,10 @@ func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r 
 	w.WriteHeader(resp.StatusCode)
 
 	// Stream response body
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to stream visited-tracker response: %v", err), http.StatusBadGateway)
+		return
+	}
 }
 
 // ListCampaignsHandler proxies GET /api/v1/campaigns?target=<path>
@@ -128,7 +131,10 @@ func (h *VisitedTrackerHandlers) GetVisitedTrackerUIPortHandler(w http.ResponseW
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }
 
 // GetCampaignsForTargetHandler returns campaigns filtered by target location
@@ -206,5 +212,8 @@ func (h *VisitedTrackerHandlers) GetCampaignsForTargetHandler(w http.ResponseWri
 	if filtered == nil {
 		filtered = make([]map[string]interface{}, 0)
 	}
-	json.NewEncoder(w).Encode(filtered)
+	if err := json.NewEncoder(w).Encode(filtered); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
+		return
+	}
 }

@@ -1,6 +1,7 @@
 package autosteer
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -56,23 +57,59 @@ func (m *ExecutionStateManager) Get(taskID string) (*ProfileExecutionState, erro
 		return nil, fmt.Errorf("failed to query execution state: %w", err)
 	}
 
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(phaseHistoryJSON, &state.PhaseHistory); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal phase history: %w", err)
+	phaseHistoryMissing := isNullJSON(phaseHistoryJSON)
+	if !phaseHistoryMissing {
+		if err := json.Unmarshal(phaseHistoryJSON, &state.PhaseHistory); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal phase history: %w", err)
+		}
+	} else {
+		state.PhaseHistory = []PhaseExecution{}
 	}
 
-	if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
+	metricsMissing := isNullJSON(metricsJSON)
+	if !metricsMissing {
+		if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
+		}
 	}
 
-	if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
+	phaseStartMissing := isNullJSON(phaseStartMetricsJSON)
+	if !phaseStartMissing {
+		if err := json.Unmarshal(phaseStartMetricsJSON, &state.PhaseStartMetrics); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal phase start metrics: %w", err)
+		}
+	}
+
+	if metricsMissing && !phaseStartMissing {
+		state.Metrics = state.PhaseStartMetrics
 	}
 
 	if phaseStartedAt.Valid {
 		state.PhaseStartedAt = phaseStartedAt.Time
 	} else {
 		state.PhaseStartedAt = state.StartedAt
+	}
+
+	if state.Metrics.Timestamp.IsZero() {
+		if !state.LastUpdated.IsZero() {
+			state.Metrics.Timestamp = state.LastUpdated
+		} else {
+			state.Metrics.Timestamp = state.StartedAt
+		}
+	}
+
+	if phaseStartMissing {
+		state.PhaseStartMetrics = state.Metrics
+	}
+
+	if state.PhaseStartMetrics.Timestamp.IsZero() {
+		if !state.PhaseStartedAt.IsZero() {
+			state.PhaseStartMetrics.Timestamp = state.PhaseStartedAt
+		} else if !state.StartedAt.IsZero() {
+			state.PhaseStartMetrics.Timestamp = state.StartedAt
+		} else {
+			state.PhaseStartMetrics.Timestamp = state.LastUpdated
+		}
 	}
 
 	return &state, nil
@@ -125,7 +162,6 @@ func (m *ExecutionStateManager) Save(state *ProfileExecutionState) error {
 		state.StartedAt,
 		state.LastUpdated,
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to save execution state: %w", err)
 	}
@@ -238,7 +274,6 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 		totalDuration,
 		time.Now(),
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to insert profile execution: %w", err)
 	}
@@ -280,4 +315,9 @@ func (m *ExecutionStateManager) IncrementIteration(state *ProfileExecutionState,
 	state.CurrentPhaseIteration++
 	state.Metrics = newMetrics
 	state.LastUpdated = time.Now()
+}
+
+func isNullJSON(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	return len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null"))
 }
