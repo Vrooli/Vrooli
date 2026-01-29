@@ -148,9 +148,12 @@ export function IdeasPage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-400">Status</label>
+                  <label htmlFor="ideas-status-filter" className="text-xs text-slate-400">
+                    Status
+                  </label>
                   <div className="relative">
                     <select
+                      id="ideas-status-filter"
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value as IdeaStatus | "")}
                       className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
@@ -202,7 +205,11 @@ export function IdeasPage() {
           <span>
             Showing results for <span className="text-slate-200">"{searchTerm}"</span>
           </span>
-          <button onClick={() => setSearchTerm("")} className="text-slate-400 hover:text-slate-200">
+          <button
+            onClick={() => setSearchTerm("")}
+            className="text-slate-400 hover:text-slate-200"
+            aria-label="Clear search"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -244,7 +251,7 @@ export function IdeasPage() {
                 Create First Idea
               </Button>
               {/* CLI hint - helps users who may not know about alternative methods */}
-              <div className="flex items-center gap-2 text-xs text-slate-500" data-testid={selectors.ideas.cliHint}>
+              <div className="flex items-center gap-2 text-xs text-slate-400" data-testid={selectors.ideas.cliHint}>
                 <Terminal className="h-3.5 w-3.5" />
                 <span>Or use CLI: <code className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-slate-400">swarm-manager idea create</code></span>
               </div>
@@ -322,7 +329,7 @@ export function IdeasPage() {
                       <span
                         className={`inline-block h-2 w-2 rounded-full ${IDEA_STATUS_COLORS[idea.status] ?? "bg-slate-500"}`}
                       />
-                      <span className="text-xs uppercase tracking-wider text-slate-500">
+                      <span className="text-xs uppercase tracking-wider text-slate-400">
                         {formatIdeaStatus(idea.status)}
                       </span>
                     </div>
@@ -337,7 +344,7 @@ export function IdeasPage() {
                     maxTags={displayLimitsConfig.ideaCardMaxTags}
                     className="mt-3"
                   />
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
                     <span title={new Date(idea.updated).toLocaleString()}>{formatRelativeTime(idea.updated)}</span>
                     <ArrowRight className="h-4 w-4 opacity-0 transition group-hover:opacity-100" />
                   </div>

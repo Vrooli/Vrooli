@@ -30,7 +30,7 @@ export function StatusLegend({
     <div className="relative" data-testid={testId}>
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-slate-200 transition-colors"
         aria-expanded={isExpanded}
         aria-label={`${isExpanded ? "Hide" : "Show"} status legend`}
       >

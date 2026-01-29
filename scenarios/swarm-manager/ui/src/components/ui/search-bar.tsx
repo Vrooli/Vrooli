@@ -31,12 +31,16 @@ export function SearchBar({
   className,
   ...props
 }: SearchBarProps) {
+  const ariaLabel =
+    props["aria-label"] ?? (typeof props.placeholder === "string" ? props.placeholder : "Search");
+
   return (
     <div className={widthClass}>
       <Input
         type="text"
         leftIcon={<Search className="h-4 w-4" />}
         className={className}
+        aria-label={ariaLabel}
         {...props}
       />
     </div>

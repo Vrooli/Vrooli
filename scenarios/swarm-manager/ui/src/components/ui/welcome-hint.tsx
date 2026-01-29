@@ -56,31 +56,31 @@ export function WelcomeHint({ "data-testid": testId }: WelcomeHintProps) {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-cyan-300">Welcome to Swarm Manager</span>
           </div>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-300">
             Your command center for managing the Vrooli scenario ecosystem.
           </p>
           <div className="flex flex-wrap gap-4 text-xs">
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-slate-300">
               <Lightbulb className="h-3.5 w-3.5 text-cyan-400" />
               <span><strong className="text-slate-300">Ideas</strong> - Track what to build</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-slate-300">
               <Package className="h-3.5 w-3.5 text-cyan-400" />
               <span><strong className="text-slate-300">Scenarios</strong> - Monitor what's running</span>
             </div>
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-slate-300">
               <Zap className="h-3.5 w-3.5 text-cyan-400" />
               <span><strong className="text-slate-300">Recommendations</strong> - Auto-suggestions</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded bg-slate-800/50 px-2.5 py-1.5 text-xs text-slate-400 w-fit">
+          <div className="flex items-center gap-2 rounded bg-slate-800/50 px-2.5 py-1.5 text-xs text-slate-300 w-fit">
             <Keyboard className="h-3.5 w-3.5" />
             <span>Keyboard shortcuts: Press <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-slate-300">1</kbd>-<kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-slate-300">4</kbd> to switch tabs</span>
           </div>
         </div>
         <button
           onClick={handleDismiss}
-          className="p-1 text-slate-500 hover:text-slate-300 transition-colors"
+          className="p-1 text-slate-300 hover:text-slate-200 transition-colors"
           aria-label="Dismiss welcome hint"
         >
           <X className="h-4 w-4" />

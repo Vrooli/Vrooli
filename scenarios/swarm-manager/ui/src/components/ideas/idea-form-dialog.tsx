@@ -129,8 +129,11 @@ export function IdeaFormDialog({
 
         <div className="mt-6 space-y-4">
           <div>
-            <label className="text-sm font-medium text-slate-300">Title</label>
+            <label htmlFor="idea-form-title" className="text-sm font-medium text-slate-300">
+              Title
+            </label>
             <Input
+              id="idea-form-title"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
               placeholder="Idea title"
@@ -141,8 +144,11 @@ export function IdeaFormDialog({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-300">Name</label>
+            <label htmlFor="idea-form-name" className="text-sm font-medium text-slate-300">
+              Name
+            </label>
             <Input
+              id="idea-form-name"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -160,8 +166,11 @@ export function IdeaFormDialog({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-300">Description</label>
+            <label htmlFor="idea-form-description" className="text-sm font-medium text-slate-300">
+              Description
+            </label>
             <textarea
+              id="idea-form-description"
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
@@ -177,8 +186,11 @@ export function IdeaFormDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-slate-300">Priority (1-10)</label>
+              <label htmlFor="idea-form-priority" className="text-sm font-medium text-slate-300">
+                Priority (1-10)
+              </label>
               <Input
+                id="idea-form-priority"
                 type="number"
                 min={1}
                 max={10}
@@ -194,9 +206,12 @@ export function IdeaFormDialog({
             </div>
             {isEditMode ? (
               <div>
-                <label className="text-sm font-medium text-slate-300">Status</label>
+                <label htmlFor="idea-form-status" className="text-sm font-medium text-slate-300">
+                  Status
+                </label>
                 <div className="relative mt-2">
                   <select
+                    id="idea-form-status"
                     value={status}
                     onChange={(e) => {
                       setStatus(e.target.value as IdeaStatus);
@@ -223,8 +238,11 @@ export function IdeaFormDialog({
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-300">Tags</label>
+            <label htmlFor="idea-form-tags" className="text-sm font-medium text-slate-300">
+              Tags
+            </label>
             <Input
+              id="idea-form-tags"
               value={tagsInput}
               onChange={(e) => {
                 setTagsInput(e.target.value);

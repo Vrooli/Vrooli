@@ -70,7 +70,7 @@ type IdeaFile struct {
 type Handler struct {
 	ideasDir        string
 	ecosystemClient ecosystem.Client
-	agentClient     agentmanager.Client
+	agentService    agentmanager.Service
 }
 
 // NewHandler creates a new ideas handler.
@@ -84,7 +84,7 @@ func NewHandler(ideasDir string) *Handler {
 	return &Handler{
 		ideasDir:        ideasDir,
 		ecosystemClient: nil, // Uses default discovery-backed client
-		agentClient:     nil, // Uses default discovery-backed client
+		agentService:    nil, // Uses default discovery-backed service
 	}
 }
 
@@ -96,11 +96,11 @@ func NewHandlerWithClient(ideasDir string, client ecosystem.Client) *Handler {
 	return h
 }
 
-// NewHandlerWithClients creates a new ideas handler with custom ecosystem and agent clients.
-func NewHandlerWithClients(ideasDir string, ecosystemClient ecosystem.Client, agentClient agentmanager.Client) *Handler {
+// NewHandlerWithClients creates a new ideas handler with custom ecosystem and agent services.
+func NewHandlerWithClients(ideasDir string, ecosystemClient ecosystem.Client, agentService agentmanager.Service) *Handler {
 	h := NewHandler(ideasDir)
 	h.ecosystemClient = ecosystemClient
-	h.agentClient = agentClient
+	h.agentService = agentService
 	return h
 }
 
@@ -862,18 +862,19 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		projectRoot = "."
 	}
 
-	client := h.agentClient
-	if client == nil {
-		client = agentmanager.NewHTTPClient()
+	service := h.agentService
+	if service == nil {
+		h.agentService = agentmanager.NewAgentService(agentmanager.DefaultServiceConfig())
+		service = h.agentService
 	}
 
-	response, err := client.CreateResearchRun(r.Context(), agentmanager.ResearchRequest{
+	response, err := service.SpawnResearch(r.Context(), agentmanager.ResearchSpawnRequest{
+		IdeaName:    idea.Name,
 		Title:       "Research idea: " + idea.Title,
 		Description: buildResearchDescription(idea),
 		Prompt:      strings.TrimSpace(req.Prompt),
 		ScopePath:   scopePath,
 		ProjectRoot: projectRoot,
-		Tag:         "swarm-manager:idea:" + idea.Name + ":research",
 		CreatedBy:   "swarm-manager",
 	})
 	if err != nil {

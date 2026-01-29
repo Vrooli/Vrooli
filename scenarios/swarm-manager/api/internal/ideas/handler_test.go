@@ -1414,15 +1414,26 @@ func TestCreate_InvalidJSON(t *testing.T) {
 	testutil.AssertStatusBadRequest(t, w)
 }
 
-type mockAgentClient struct {
-	response agentmanager.ResearchResponse
+type mockAgentService struct {
+	response agentmanager.RunResult
 }
 
-func (m *mockAgentClient) CreateResearchRun(_ context.Context, req agentmanager.ResearchRequest) (agentmanager.ResearchResponse, error) {
+func (m *mockAgentService) IsEnabled() bool                    { return true }
+func (m *mockAgentService) IsAvailable(_ context.Context) bool { return true }
+func (m *mockAgentService) ResolveURL(_ context.Context) (string, error) {
+	return "http://localhost:1234", nil
+}
+func (m *mockAgentService) GetProfileID() string { return "" }
+
+func (m *mockAgentService) SpawnResearch(_ context.Context, req agentmanager.ResearchSpawnRequest) (agentmanager.RunResult, error) {
 	if strings.TrimSpace(req.Title) == "" {
-		return agentmanager.ResearchResponse{}, agentmanager.ErrRequestFailed
+		return agentmanager.RunResult{}, agentmanager.ErrRequestFailed
 	}
 	return m.response, nil
+}
+
+func (m *mockAgentService) SpawnRecommendation(_ context.Context, _ agentmanager.RecommendationSpawnRequest) (agentmanager.RunResult, error) {
+	return agentmanager.RunResult{}, nil
 }
 
 // [REQ:REQ-P1-004-API] Test research endpoint uses agent-manager client
@@ -1441,15 +1452,15 @@ func TestResearch_Success(t *testing.T) {
 	}
 	createTestIdea(t, ideasDir, idea)
 
-	agentClient := &mockAgentClient{
-		response: agentmanager.ResearchResponse{
+	agentService := &mockAgentService{
+		response: agentmanager.RunResult{
 			TaskID:  "task-123",
 			RunID:   "run-456",
 			BaseURL: "http://localhost:1234",
 		},
 	}
 
-	h := NewHandlerWithClients(ideasDir, nil, agentClient)
+	h := NewHandlerWithClients(ideasDir, nil, agentService)
 
 	payload := bytes.NewBufferString(`{"prompt":"Focus on feasibility"}`)
 	req := httptest.NewRequest("POST", "/api/v1/ideas/research-test/research", payload)

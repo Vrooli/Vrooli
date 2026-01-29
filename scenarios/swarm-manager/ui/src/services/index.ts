@@ -25,3 +25,7 @@ export type { ISettingsService } from "./settings-service";
 // Recommendations
 export { recommendationsService, createRecommendationsService } from "./recommendations-service";
 export type { IRecommendationsService } from "./recommendations-service";
+
+// Agent Manager
+export { agentManagerService, createAgentManagerService } from "./agent-manager-service";
+export type { IAgentManagerService } from "./agent-manager-service";

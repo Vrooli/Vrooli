@@ -18,6 +18,7 @@
 //   - Scenario catalog endpoints at /api/v1/scenarios
 //   - Settings persistence at /api/v1/settings
 //   - Recommendations engine at /api/v1/recommendations
+//   - Agent-manager status at /api/v1/agent-manager/status
 //
 // # Architecture
 //
@@ -53,6 +54,11 @@
 //	POST   /api/v1/recommendations          - Create manual recommendation
 //	POST   /api/v1/recommendations/refresh  - Refresh via engine
 //	PATCH  /api/v1/recommendations/{id}     - Update recommendation status
+//	POST   /api/v1/recommendations/{id}/start - Spawn agent run for recommendation
+//
+// # Agent-manager Endpoints
+//
+//	GET /api/v1/agent-manager/status - Agent-manager availability and profile status
 //
 // # Queue Endpoints (Local)
 //
@@ -67,6 +73,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -75,6 +83,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/ideas"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/recommendations"
@@ -83,13 +92,23 @@ import (
 )
 
 type Server struct {
-	router *mux.Router
+	router   *mux.Router
+	agentSvc *agentmanager.AgentService
 }
 
 // NewServer initializes routes. Database connection is optional.
 func NewServer() *Server {
+	agentEnabled := strings.ToLower(strings.TrimSpace(os.Getenv("AGENT_MANAGER_ENABLED"))) != "false"
+	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
+		ProfileName: getEnvDefault("AGENT_MANAGER_PROFILE_NAME", "swarm-manager"),
+		ProfileKey:  getEnvDefault("AGENT_MANAGER_PROFILE_KEY", "swarm-manager"),
+		Timeout:     30 * time.Second,
+		Enabled:     agentEnabled,
+	})
+
 	srv := &Server{
-		router: mux.NewRouter(),
+		router:   mux.NewRouter(),
+		agentSvc: agentSvc,
 	}
 	srv.setupRoutes()
 	return srv
@@ -110,7 +129,7 @@ func (s *Server) setupRoutes() {
 
 	// Ideas CRUD endpoints
 	// [REQ:REQ-P0-002] Ideas backlog management
-	ideasHandler := ideas.NewHandler("")
+	ideasHandler := ideas.NewHandlerWithClients("", nil, s.agentSvc)
 	ideasHandler.RegisterRoutes(s.router)
 
 	// Scenarios catalog endpoints
@@ -123,8 +142,17 @@ func (s *Server) setupRoutes() {
 	settingsHandler.RegisterRoutes(s.router)
 
 	// Recommendations endpoints (filesystem-backed engine)
-	recommendationsHandler := recommendations.NewHandler("")
+	recommendationsHandler := recommendations.NewHandlerWithServices(
+		recommendations.NewStore(""),
+		recommendations.NewEngine(""),
+		settings.NewStore(""),
+		s.agentSvc,
+	)
 	recommendationsHandler.RegisterRoutes(s.router)
+
+	// Agent-manager status endpoint
+	agentManagerHandler := agentmanager.NewHandler(s.agentSvc)
+	agentManagerHandler.RegisterRoutes(s.router)
 
 	// Local queue endpoints (filesystem-backed)
 	queueHandler := queue.NewHandler("")
@@ -156,10 +184,26 @@ func main() {
 	log.Printf("Running in filesystem-only mode")
 	srv := NewServer()
 
+	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
+		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		if err := srv.agentSvc.Initialize(initCtx, agentmanager.DefaultProfileConfig()); err != nil {
+			log.Printf("[agent-manager] Warning: failed to initialize profile: %v", err)
+		}
+		cancel()
+	}
+
 	// Start server with graceful shutdown (port from API_PORT env var)
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func getEnvDefault(key, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	return value
 }

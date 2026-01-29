@@ -45,7 +45,7 @@ export function TagList({ tags, maxTags = 3, className = "" }: TagListProps) {
         </span>
       ))}
       {hiddenCount > 0 && (
-        <span className="text-xs text-slate-500">+{hiddenCount}</span>
+        <span className="text-xs text-slate-400">+{hiddenCount}</span>
       )}
     </div>
   );

@@ -91,10 +91,16 @@ const service = createIdeasService(mockClient);
 ### API-to-Integration Seam
 
 ```go
-// Pattern: Integration clients behind interfaces
+// Pattern: Integration services behind interfaces
 
-type AgentManagerClient interface {
-    CreateResearchRun(ctx context.Context, req ResearchRequest) (ResearchResponse, error)
+type AgentManagerService interface {
+    IsEnabled() bool
+    IsAvailable(ctx context.Context) bool
+    ResolveURL(ctx context.Context) (string, error)
+    GetProfileID() string
+
+    SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
+    SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error)
 }
 
 type EcosystemManagerClient interface {
@@ -102,7 +108,7 @@ type EcosystemManagerClient interface {
 }
 ```
 
-**Status**: Agent-manager and ecosystem-manager HTTP clients implemented with api-core discovery (dynamic ports).
+**Status**: Agent-manager service seam implemented; handlers depend on the service interface while HTTP/proto details stay in the integration layer.
 
 ### Filesystem Seam
 

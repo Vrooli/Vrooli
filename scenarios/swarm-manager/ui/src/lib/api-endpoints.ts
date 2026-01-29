@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
   scenarioByName: (name: string) => `/scenarios/${name}`,
   recommendations: "/recommendations",
   recommendationsRefresh: "/recommendations/refresh",
+  recommendationsStart: (id: string) => `/recommendations/${id}/start`,
+  agentManagerStatus: "/agent-manager/status",
   settings: "/settings",
   health: "/health",
 } as const;

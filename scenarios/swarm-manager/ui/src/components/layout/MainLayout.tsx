@@ -122,12 +122,14 @@ export function MainLayout() {
                       : "bg-slate-800 text-cyan-400"
                     : isLight
                       ? "text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-300 hover:text-slate-100 hover:bg-slate-800/50"
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
-                <span className={cn("hidden lg:inline text-xs ml-1", isLight ? "text-slate-500" : "text-slate-500")}>({tab.shortcut})</span>
+                <span className={cn("hidden lg:inline text-xs ml-1", isLight ? "text-slate-500" : "text-slate-400")}>
+                  ({tab.shortcut})
+                </span>
               </button>
             );
           })}
@@ -163,7 +165,7 @@ export function MainLayout() {
                 data-testid={tab.mobileTestId}
                 className={cn(
                   "flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors",
-                  isActive ? (isLight ? "text-cyan-600" : "text-cyan-400") : isLight ? "text-slate-500" : "text-slate-400"
+                  isActive ? (isLight ? "text-cyan-600" : "text-cyan-400") : isLight ? "text-slate-500" : "text-slate-300"
                 )}
               >
                 <Icon className="h-5 w-5" />

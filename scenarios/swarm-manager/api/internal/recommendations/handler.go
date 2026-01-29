@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/scenarios"
@@ -45,19 +46,32 @@ const (
 
 // Recommendation represents a suggestion for improving a scenario.
 type Recommendation struct {
-	ID          string               `json:"id"`
-	Scenario    string               `json:"scenarioName"`
-	Type        RecommendationType   `json:"type"`
-	Description string               `json:"description"`
-	Status      RecommendationStatus `json:"status"`
-	Priority    int                  `json:"priority"`
-	Created     string               `json:"created"`
-	Source      string               `json:"source,omitempty"` // generated|manual
+	ID           string               `json:"id"`
+	Scenario     string               `json:"scenarioName"`
+	Type         RecommendationType   `json:"type"`
+	Description  string               `json:"description"`
+	Status       RecommendationStatus `json:"status"`
+	Priority     int                  `json:"priority"`
+	Created      string               `json:"created"`
+	Source       string               `json:"source,omitempty"` // generated|manual
+	TaskID       string               `json:"taskId,omitempty"`
+	RunID        string               `json:"runId,omitempty"`
+	StartedAt    string               `json:"startedAt,omitempty"`
+	StartedBy    string               `json:"startedBy,omitempty"`
+	AutoApproved bool                 `json:"autoApproved,omitempty"`
 }
 
 // RecommendationPatch updates an existing recommendation.
 type RecommendationPatch struct {
 	Status *RecommendationStatus `json:"status,omitempty"`
+}
+
+// StartRequest allows optional overrides when starting a recommendation.
+type StartRequest struct {
+	Prompt      string `json:"prompt,omitempty"`
+	ScopePath   string `json:"scopePath,omitempty"`
+	ProjectRoot string `json:"projectRoot,omitempty"`
+	CreatedBy   string `json:"createdBy,omitempty"`
 }
 
 // ListResponse wraps recommendation listings.
@@ -245,6 +259,7 @@ type Handler struct {
 	store         *Store
 	engine        *Engine
 	settingsStore *settings.Store
+	agentService  agentmanager.Service
 }
 
 // NewHandler creates a new recommendations handler.
@@ -253,6 +268,17 @@ func NewHandler(path string) *Handler {
 		store:         NewStore(path),
 		engine:        NewEngine(""),
 		settingsStore: settings.NewStore(""),
+		agentService:  nil,
+	}
+}
+
+// NewHandlerWithServices creates a new recommendations handler with injected dependencies.
+func NewHandlerWithServices(store *Store, engine *Engine, settingsStore *settings.Store, agentService agentmanager.Service) *Handler {
+	return &Handler{
+		store:         store,
+		engine:        engine,
+		settingsStore: settingsStore,
+		agentService:  agentService,
 	}
 }
 
@@ -262,6 +288,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/recommendations", h.Create).Methods("POST")
 	r.HandleFunc("/api/v1/recommendations/refresh", h.Refresh).Methods("POST")
 	r.HandleFunc("/api/v1/recommendations/{id}", h.Update).Methods("PATCH")
+	r.HandleFunc("/api/v1/recommendations/{id}/start", h.Start).Methods("POST")
 }
 
 // List returns recommendations, generating them if needed.
@@ -433,10 +460,138 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Start spawns an agent run for a recommendation.
+func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(mux.Vars(r)["id"])
+	if id == "" {
+		httputil.BadRequest(w, "[recommendations] start", "id is required")
+		return
+	}
+
+	var req StartRequest
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httputil.BadRequest(w, "[recommendations] start", "invalid request body")
+			return
+		}
+	}
+
+	cfg, err := h.settingsStore.Load()
+	if err != nil {
+		httputil.InternalError(w, "[recommendations] start", "failed to load settings")
+		return
+	}
+
+	if cfg.RecommendationMode == "off" {
+		httputil.Conflict(w, "[recommendations] start", "recommendation mode is off")
+		return
+	}
+
+	items, err := h.store.Load()
+	if err != nil {
+		httputil.InternalError(w, "[recommendations] start", "failed to load recommendations")
+		return
+	}
+
+	rec := findByID(items, id)
+	if rec.ID == "" {
+		httputil.NotFound(w, "[recommendations] start", "recommendation not found")
+		return
+	}
+
+	if strings.TrimSpace(rec.TaskID) != "" || strings.TrimSpace(rec.RunID) != "" {
+		httputil.Conflict(w, "[recommendations] start", "recommendation already started")
+		return
+	}
+
+	service := h.agentService
+	if service == nil {
+		service = agentmanager.NewAgentService(agentmanager.DefaultServiceConfig())
+		h.agentService = service
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		if strings.TrimSpace(rec.Scenario) != "" {
+			scopePath = filepath.Join("scenarios", rec.Scenario)
+		} else {
+			scopePath = "."
+		}
+	}
+
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	result, err := service.SpawnRecommendation(r.Context(), agentmanager.RecommendationSpawnRequest{
+		RecommendationID: rec.ID,
+		Scenario:         rec.Scenario,
+		Type:             string(rec.Type),
+		Description:      rec.Description,
+		Prompt:           strings.TrimSpace(req.Prompt),
+		ScopePath:        scopePath,
+		ProjectRoot:      projectRoot,
+		CreatedBy:        createdBy,
+	})
+	if err != nil {
+		if errors.Is(err, agentmanager.ErrNotAvailable) {
+			httputil.ServiceUnavailable(w, "[recommendations] start", "agent-manager is not available")
+			return
+		}
+		httputil.InternalError(w, "[recommendations] start", "failed to start recommendation")
+		return
+	}
+
+	startedAt := result.CreatedAt
+	if strings.TrimSpace(startedAt) == "" {
+		startedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	rec.TaskID = result.TaskID
+	rec.RunID = result.RunID
+	rec.StartedAt = startedAt
+
+	startedBy := "user"
+	if cfg.RecommendationMode == "yolo" {
+		if rec.Status == StatusPending {
+			rec.Status = StatusApproved
+		}
+		rec.AutoApproved = true
+		startedBy = "yolo"
+	}
+	rec.StartedBy = startedBy
+
+	for i := range items {
+		if items[i].ID == rec.ID {
+			items[i] = rec
+			break
+		}
+	}
+
+	if err := h.store.Save(items); err != nil {
+		httputil.InternalError(w, "[recommendations] start", "failed to persist recommendations")
+		return
+	}
+
+	if err := httputil.JSONWithStatus(w, http.StatusCreated, RecommendationResponse{Recommendation: rec}); err != nil {
+		httputil.InternalError(w, "[recommendations] start", "failed to encode response")
+	}
+}
+
 func normalizeList(items []Recommendation) []Recommendation {
 	for i := range items {
 		items[i].Scenario = strings.TrimSpace(items[i].Scenario)
 		items[i].Description = strings.TrimSpace(items[i].Description)
+		items[i].TaskID = strings.TrimSpace(items[i].TaskID)
+		items[i].RunID = strings.TrimSpace(items[i].RunID)
+		items[i].StartedAt = strings.TrimSpace(items[i].StartedAt)
+		items[i].StartedBy = strings.TrimSpace(items[i].StartedBy)
 		if items[i].Status == "" {
 			items[i].Status = StatusPending
 		}
@@ -580,6 +735,21 @@ func mergeRecommendations(existing, generated []Recommendation) []Recommendation
 			rec.Created = prior.Created
 			if prior.Source != "" {
 				rec.Source = prior.Source
+			}
+			if prior.TaskID != "" {
+				rec.TaskID = prior.TaskID
+			}
+			if prior.RunID != "" {
+				rec.RunID = prior.RunID
+			}
+			if prior.StartedAt != "" {
+				rec.StartedAt = prior.StartedAt
+			}
+			if prior.StartedBy != "" {
+				rec.StartedBy = prior.StartedBy
+			}
+			if prior.AutoApproved {
+				rec.AutoApproved = true
 			}
 		}
 		merged = append(merged, rec)

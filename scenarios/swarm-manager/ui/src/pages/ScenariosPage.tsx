@@ -120,6 +120,7 @@ export function ScenariosPage() {
               onClick={() => setShowFilters(!showFilters)}
               data-testid={selectors.scenarios.filter}
               className={activeFilterCount > 0 ? "border-cyan-500/50" : ""}
+              aria-label="Filter scenarios"
             >
               <Filter className="h-4 w-4" />
               {activeFilterCount > 0 && (
@@ -149,9 +150,12 @@ export function ScenariosPage() {
 
                 {/* Status filter */}
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-400">Status</label>
+                  <label htmlFor="scenarios-status-filter" className="text-xs text-slate-400">
+                    Status
+                  </label>
                   <div className="relative">
                     <select
+                      id="scenarios-status-filter"
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value as ScenarioStatus | "")}
                       className="w-full appearance-none rounded-md border border-white/10 bg-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
@@ -176,7 +180,7 @@ export function ScenariosPage() {
           {searchTerm && (
             <span className="flex items-center gap-1 rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
               Search: "{searchTerm.slice(0, 15)}{searchTerm.length > 15 ? '...' : ''}"
-              <button onClick={() => setSearchTerm("")} className="ml-1 hover:text-white">
+              <button onClick={() => setSearchTerm("")} className="ml-1 hover:text-white" aria-label="Clear search">
                 <X className="h-3 w-3" />
               </button>
             </span>
@@ -184,7 +188,11 @@ export function ScenariosPage() {
           {statusFilter && (
             <span className="flex items-center gap-1 rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
               Status: {statusFilter}
-              <button onClick={() => setStatusFilter("")} className="ml-1 hover:text-white">
+              <button
+                onClick={() => setStatusFilter("")}
+                className="ml-1 hover:text-white"
+                aria-label="Clear status filter"
+              >
                 <X className="h-3 w-3" />
               </button>
             </span>

@@ -155,6 +155,27 @@ export interface Recommendation {
   priority: number;
   /** ISO timestamp of creation */
   created: string;
+  /** Optional agent-manager task id when started */
+  taskId?: string;
+  /** Optional agent-manager run id when started */
+  runId?: string;
+  /** ISO timestamp when started */
+  startedAt?: string;
+  /** Source of start action */
+  startedBy?: string;
+  /** Whether auto-approved (YOLO) */
+  autoApproved?: boolean;
+}
+
+// ============================================================================
+// Agent Manager Domain
+// ============================================================================
+
+export interface AgentManagerStatus {
+  enabled: boolean;
+  available: boolean;
+  url?: string;
+  profileId?: string;
 }
 
 // ============================================================================

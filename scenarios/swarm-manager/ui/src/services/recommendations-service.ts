@@ -16,6 +16,11 @@ const recommendationSchema = z.object({
   status: z.enum(["pending", "approved", "rejected"]),
   priority: z.number(),
   created: z.string(),
+  taskId: z.string().optional(),
+  runId: z.string().optional(),
+  startedAt: z.string().optional(),
+  startedBy: z.string().optional(),
+  autoApproved: z.boolean().optional(),
 });
 
 const listSchema = z.object({
@@ -30,6 +35,7 @@ export interface IRecommendationsService {
   list(): Promise<Recommendation[]>;
   refresh(): Promise<Recommendation[]>;
   updateStatus(id: string, status: RecommendationStatus): Promise<Recommendation>;
+  start(id: string): Promise<Recommendation>;
 }
 
 export function createRecommendationsService(apiClient: IApiClient = defaultApiClient): IRecommendationsService {
@@ -54,6 +60,15 @@ export function createRecommendationsService(apiClient: IApiClient = defaultApiC
 
     async updateStatus(id: string, status: RecommendationStatus): Promise<Recommendation> {
       const data = await apiClient.patch<unknown>(`${API_ENDPOINTS.recommendations}/${id}`, { status });
+      const parsed = updateSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error("Invalid recommendation response");
+      }
+      return parsed.data.recommendation;
+    },
+
+    async start(id: string): Promise<Recommendation> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.recommendationsStart(id), {});
       const parsed = updateSchema.safeParse(data);
       if (!parsed.success) {
         throw new Error("Invalid recommendation response");

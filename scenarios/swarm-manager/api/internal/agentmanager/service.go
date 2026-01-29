@@ -1,0 +1,383 @@
+// Package agentmanager provides a higher-level integration seam for agent-manager.
+//
+// This service hides HTTP/proto details from handlers and owns profile setup,
+// tagging, and spawn orchestration for Swarm Manager.
+package agentmanager
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"strings"
+	"sync"
+	"time"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/durationpb"
+)
+
+// Service defines the seam handlers depend on.
+type Service interface {
+	IsEnabled() bool
+	IsAvailable(ctx context.Context) bool
+	ResolveURL(ctx context.Context) (string, error)
+	GetProfileID() string
+
+	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
+	SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error)
+}
+
+// AgentService implements the Service interface.
+type AgentService struct {
+	client      *HTTPClient
+	profileName string
+	profileKey  string
+	profileID   string
+	mu          sync.RWMutex
+	enabled     bool
+}
+
+// AgentServiceConfig contains configuration for the agent service.
+type AgentServiceConfig struct {
+	ProfileName string
+	ProfileKey  string
+	Timeout     time.Duration
+	Enabled     bool
+}
+
+// DefaultServiceConfig returns a baseline configuration for Swarm Manager.
+func DefaultServiceConfig() AgentServiceConfig {
+	return AgentServiceConfig{
+		ProfileName: "swarm-manager",
+		ProfileKey:  "swarm-manager",
+		Timeout:     30 * time.Second,
+		Enabled:     true,
+	}
+}
+
+// NewAgentService creates a new agent service.
+func NewAgentService(cfg AgentServiceConfig) *AgentService {
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = 30 * time.Second
+	}
+	client := NewHTTPClientWithTimeout(cfg.Timeout)
+	return &AgentService{
+		client:      client,
+		profileName: strings.TrimSpace(cfg.ProfileName),
+		profileKey:  strings.TrimSpace(cfg.ProfileKey),
+		enabled:     cfg.Enabled,
+	}
+}
+
+// IsEnabled returns whether agent-manager integration is enabled.
+func (s *AgentService) IsEnabled() bool {
+	return s.enabled
+}
+
+// IsAvailable checks if agent-manager is reachable.
+func (s *AgentService) IsAvailable(ctx context.Context) bool {
+	if !s.enabled {
+		return false
+	}
+	ok, err := s.client.Health(ctx)
+	return err == nil && ok
+}
+
+// ResolveURL returns the current agent-manager base URL.
+func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
+	if !s.enabled {
+		return "", fmt.Errorf("agent-manager not enabled")
+	}
+	return s.client.ResolveURL(ctx)
+}
+
+// Initialize ensures the agent profile exists.
+// Call this at startup to create/update the swarm-manager profile.
+func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error {
+	if !s.enabled {
+		return nil
+	}
+	if cfg == nil {
+		cfg = DefaultProfileConfig()
+	}
+
+	resp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
+		ProfileKey:     s.profileKey,
+		Defaults:       s.buildProfile(cfg),
+		UpdateExisting: false,
+	})
+	if err != nil {
+		return fmt.Errorf("ensure profile: %w", err)
+	}
+
+	s.mu.Lock()
+	if resp.Profile != nil {
+		s.profileID = resp.Profile.Id
+	}
+	s.mu.Unlock()
+
+	if resp.Created {
+		log.Printf("[agent-manager] Created profile '%s' (id=%s)", s.profileName, s.profileID)
+	} else {
+		log.Printf("[agent-manager] Resolved profile '%s' (id=%s)", s.profileName, s.profileID)
+	}
+
+	return nil
+}
+
+// ProfileConfig contains agent profile configuration.
+type ProfileConfig struct {
+	RunnerType       domainpb.RunnerType
+	Model            string
+	ModelPreset      domainpb.ModelPreset
+	MaxTurns         int32
+	TimeoutSeconds   int32
+	AllowedTools     []string
+	SkipPermissions  bool
+	RequiresSandbox  bool
+	RequiresApproval bool
+}
+
+// DefaultProfileConfig returns the default configuration for swarm-manager agents.
+func DefaultProfileConfig() *ProfileConfig {
+	return &ProfileConfig{
+		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
+		MaxTurns:    60,
+		// 15 minute timeout for research and implementation prep.
+		TimeoutSeconds: 900,
+		AllowedTools: []string{
+			"Read",
+			"Write",
+			"Edit",
+			"Glob",
+			"Grep",
+			"Bash",
+		},
+		SkipPermissions:  false,
+		RequiresSandbox:  false,
+		RequiresApproval: true,
+	}
+}
+
+func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
+	return &domainpb.AgentProfile{
+		Name:                 s.profileName,
+		ProfileKey:           s.profileKey,
+		Description:          "Agent profile for swarm-manager research and recommendations",
+		RunnerType:           cfg.RunnerType,
+		Model:                cfg.Model,
+		ModelPreset:          cfg.ModelPreset,
+		MaxTurns:             cfg.MaxTurns,
+		Timeout:              durationpb.New(time.Duration(cfg.TimeoutSeconds) * time.Second),
+		AllowedTools:         cfg.AllowedTools,
+		SkipPermissionPrompt: cfg.SkipPermissions,
+		RequiresSandbox:      cfg.RequiresSandbox,
+		RequiresApproval:     cfg.RequiresApproval,
+		CreatedBy:            "swarm-manager",
+	}
+}
+
+func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
+	if s.profileKey == "" {
+		return nil
+	}
+	return &apipb.ProfileRef{
+		ProfileKey: s.profileKey,
+		Defaults:   s.buildProfile(DefaultProfileConfig()),
+	}
+}
+
+// GetProfileID returns the current profile ID.
+func (s *AgentService) GetProfileID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.profileID
+}
+
+// ResearchSpawnRequest describes a request to spawn an idea research agent.
+type ResearchSpawnRequest struct {
+	IdeaName    string
+	Title       string
+	Description string
+	Prompt      string
+	ScopePath   string
+	ProjectRoot string
+	CreatedBy   string
+}
+
+// RecommendationSpawnRequest describes a request to spawn a recommendation agent.
+type RecommendationSpawnRequest struct {
+	RecommendationID string
+	Scenario         string
+	Type             string
+	Description      string
+	Prompt           string
+	ScopePath        string
+	ProjectRoot      string
+	CreatedBy        string
+}
+
+// RunResult returns agent-manager identifiers.
+type RunResult struct {
+	TaskID    string
+	RunID     string
+	BaseURL   string
+	CreatedAt string
+}
+
+// SpawnResearch creates a research task/run in agent-manager.
+func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error) {
+	if !s.enabled {
+		return RunResult{}, ErrNotAvailable
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		if req.IdeaName != "" {
+			title = "Research idea: " + req.IdeaName
+		} else {
+			title = "Research idea"
+		}
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		scopePath = "."
+	}
+
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	task := &domainpb.Task{
+		Title:       title,
+		Description: strings.TrimSpace(req.Description),
+		ScopePath:   scopePath,
+		ProjectRoot: projectRoot,
+		CreatedBy:   createdBy,
+	}
+
+	createdTask, err := s.client.CreateTask(ctx, task)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	tag := buildResearchTag(req.IdeaName)
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		Force:      true,
+	}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		runReq.Prompt = &prompt
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	baseURL, _ := s.ResolveURL(ctx)
+
+	return RunResult{
+		TaskID:    createdTask.Id,
+		RunID:     run.Id,
+		BaseURL:   baseURL,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+// SpawnRecommendation creates a recommendation task/run in agent-manager.
+func (s *AgentService) SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error) {
+	if !s.enabled {
+		return RunResult{}, ErrNotAvailable
+	}
+
+	title := strings.TrimSpace(req.Scenario)
+	if title == "" {
+		title = "Recommendation"
+	} else {
+		title = "Recommendation: " + title
+	}
+	if req.Type != "" {
+		title = fmt.Sprintf("%s (%s)", title, strings.TrimSpace(req.Type))
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		scopePath = "."
+	}
+
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	task := &domainpb.Task{
+		Title:       title,
+		Description: strings.TrimSpace(req.Description),
+		ScopePath:   scopePath,
+		ProjectRoot: projectRoot,
+		CreatedBy:   createdBy,
+	}
+
+	createdTask, err := s.client.CreateTask(ctx, task)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	tag := buildRecommendationTag(req.RecommendationID)
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		Force:      true,
+	}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		runReq.Prompt = &prompt
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	baseURL, _ := s.ResolveURL(ctx)
+
+	return RunResult{
+		TaskID:    createdTask.Id,
+		RunID:     run.Id,
+		BaseURL:   baseURL,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func buildResearchTag(ideaName string) string {
+	ideaName = strings.TrimSpace(ideaName)
+	if ideaName == "" {
+		return "swarm-manager:idea:research"
+	}
+	return fmt.Sprintf("swarm-manager:idea:%s:research", ideaName)
+}
+
+func buildRecommendationTag(recID string) string {
+	recID = strings.TrimSpace(recID)
+	if recID == "" {
+		return "swarm-manager:rec"
+	}
+	return fmt.Sprintf("swarm-manager:rec:%s", recID)
+}

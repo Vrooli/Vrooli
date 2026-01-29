@@ -43,9 +43,37 @@
       "description": "End-to-end integration with agent-manager for automated task workflows",
       "id": "REQ-P0-010-WORKFLOW",
       "prd_ref": "OT-P0-009",
-      "status": "draft",
+      "status": "implemented",
       "title": "Agent Workflow Integration",
       "validation": [
+        {
+          "notes": "Agent service default profile configuration is validated",
+          "phase": "unit",
+          "ref": "api/internal/agentmanager/service_test.go::TestDefaultProfileConfig",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Agent service profile build wiring is validated",
+          "phase": "unit",
+          "ref": "api/internal/agentmanager/service_test.go::TestBuildProfile",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Ideas research uses agent-manager service seam",
+          "phase": "unit",
+          "ref": "api/internal/ideas/handler_test.go::TestResearch_Success",
+          "status": "passing",
+          "type": "test"
+        },
+        {
+          "notes": "Recommendation start workflow spawns agent runs",
+          "phase": "unit",
+          "ref": "api/internal/recommendations/start_test.go::TestHandler_StartRecommendationSuccess",
+          "status": "passing",
+          "type": "test"
+        },
         {
           "notes": "End-to-end agent workflow test",
           "phase": "integration",
