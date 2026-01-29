@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo } from "react";
+import { Suspense, lazy, useEffect, useMemo } from "react";
 import { ErrorBoundary } from "./shared/components/ErrorBoundary";
 import { AppHeader } from "./shared/components/AppHeader";
 import { HeaderFallback } from "./shared/components/HeaderFallback";
@@ -20,9 +20,21 @@ const MetricsPage = lazy(() =>
 const SearchPage = lazy(() =>
   import("./surfaces/search/SearchPage").then((module) => ({ default: module.SearchPage }))
 );
-const ViewerPage = lazy(() =>
-  import("./surfaces/viewer/ViewerPage").then((module) => ({ default: module.ViewerPage }))
-);
+
+// Viewer is now integrated into Explorer - redirect old viewer URLs
+function ViewerRedirect({ onNavigate }: { onNavigate: (route: "explorer") => void }) {
+  useEffect(() => {
+    // Redirect viewer route to explorer
+    onNavigate("explorer");
+  }, [onNavigate]);
+  return (
+    <PageShell>
+      <div className="ko-card p-6">
+        <p className="ko-text-sm ko-muted">Redirecting to Explorer...</p>
+      </div>
+    </PageShell>
+  );
+}
 
 // AI_CHECK: REACT_STABILITY=6 | LAST: 2026-01-25
 
@@ -58,7 +70,7 @@ export default function App() {
         {route === "dashboard" && <DashboardPage health={healthState} onNavigate={navigate} />}
         {route === "search" && <SearchPage onNavigate={navigate} />}
         {route === "explorer" && <ExplorerPage onNavigate={navigate} />}
-        {route === "viewer" && <ViewerPage onNavigate={navigate} />}
+        {route === "viewer" && <ViewerRedirect onNavigate={navigate} />}
         {route === "metrics" && <MetricsPage onNavigate={navigate} />}
         {route === "graph" && <GraphPage onNavigate={navigate} />}
       </Suspense>

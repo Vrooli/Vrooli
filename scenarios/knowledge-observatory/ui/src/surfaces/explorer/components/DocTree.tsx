@@ -4,11 +4,18 @@ import { AlertTriangle, ChevronDown, ChevronRight, FileText, Folder, RefreshCw }
 import { Button } from "../../../shared/ui/button";
 import { selectors } from "../../../consts/selectors";
 import type { DocTreeNode } from "../../../shared/services/documentationApi";
+import type { HealthTone } from "../../../shared/controllers/documentationController";
 
 const severityClasses: Record<string, string> = {
   error: "ko-warning-pill-error",
   warning: "ko-warning-pill-warning",
   info: "ko-warning-pill-info",
+};
+
+const toneClasses: Record<HealthTone, string> = {
+  good: "ko-tone-good",
+  medium: "ko-tone-medium",
+  poor: "ko-tone-poor",
 };
 
 export type DocTreeProps = {
@@ -19,6 +26,12 @@ export type DocTreeProps = {
   hasError: boolean;
   errorMessage: string;
   onRefresh: () => void;
+  /** Health score label to display in header (e.g., "85%") */
+  healthScoreLabel?: string;
+  /** Health tone for styling the badge */
+  healthTone?: HealthTone;
+  /** Called when health badge is clicked */
+  onHealthClick?: () => void;
 };
 
 export function DocTree({
@@ -29,6 +42,9 @@ export function DocTree({
   hasError,
   errorMessage,
   onRefresh,
+  healthScoreLabel,
+  healthTone,
+  onHealthClick,
 }: DocTreeProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -71,14 +87,29 @@ export function DocTree({
     return <div className="ko-panel p-4 ko-text-sm ko-muted">Select a scenario to view documentation.</div>;
   }
 
+  const toneClass = healthTone ? toneClasses[healthTone] : "";
+
   return (
     <div className="ko-stack-sm" data-testid={selectors.explorer.docTree}>
-      <div className="flex items-center justify-between">
-        <span className="ko-text-xs ko-subtle">Root: {tree.path}</span>
-        <Button onClick={onRefresh} variant="outline" size="compact">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+      <div className="ko-doctree-header">
+        <div className="ko-doctree-header-info">
+          <span className="ko-text-xs ko-subtle">Root: {tree.path}</span>
+        </div>
+        <div className="ko-doctree-header-actions">
+          {healthScoreLabel && onHealthClick && (
+            <button
+              type="button"
+              className={`ko-health-badge-button ${toneClass}`}
+              onClick={onHealthClick}
+              aria-label="View documentation health details"
+            >
+              Health {healthScoreLabel}
+            </button>
+          )}
+          <Button onClick={onRefresh} variant="outline" size="compact">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="ko-tree">
