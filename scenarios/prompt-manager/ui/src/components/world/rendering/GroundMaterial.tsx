@@ -8,7 +8,7 @@ import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import type { GroundMaterialConfig } from '@/types/environment'
 import { getGroundTextureSet } from '@/lib/groundTextures'
-import { bindGroundShader, syncGroundShader, type GroundShaderConfig } from '@/lib/groundShader'
+import { bindGroundShader, syncGroundShader, type GroundShaderConfig } from '@/lib/shaders/groundShader'
 
 interface GroundMaterialProps {
   material: GroundMaterialConfig

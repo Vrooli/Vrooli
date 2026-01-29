@@ -1,89 +1,64 @@
 /**
- * Extracts GLSL code from groundShader for validation testing.
- * Simulates Three.js MeshStandardMaterial shader chunks and applies
- * the same injections that bindGroundShader performs.
+ * Ground Shader GLSL Injection Strings
+ *
+ * SINGLE SOURCE OF TRUTH: Both production (groundShader.ts) and
+ * tests import from this file. Never duplicate these strings elsewhere.
+ *
+ * These strings are injected into Three.js MeshStandardMaterial shaders
+ * via onBeforeCompile to add:
+ * - World position/normal varyings for triplanar projection
+ * - Custom texture sampling with stochastic tiling
+ * - Macro variation overlay for reduced repetition
  */
 
 /**
- * Simplified Three.js MeshStandardMaterial vertex shader structure.
- * Uses WebGL 1 / GLSL ES 1.0 syntax (no version directive, attribute/varying).
- * Three.js uses this format by default.
+ * Marker comment to prevent double-injection.
+ * Checked before applying transforms in onBeforeCompile.
  */
-const BASE_VERTEX_SHADER = `precision highp float;
+export const GROUND_SHADER_MARKER = '/* GROUND_SHADER_INJECTED */'
 
-// Three.js built-in attributes
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-
-// Three.js built-in uniforms
-uniform mat4 modelMatrix;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform mat3 normalMatrix;
-
-// Outputs
-varying vec2 vUv;
-
-#include <common>
-
-void main() {
-  vUv = uv;
-  vec3 transformed = position;
-  #include <worldpos_vertex>
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
-}
-`
-
-/**
- * Simplified Three.js MeshStandardMaterial fragment shader structure.
- * Uses WebGL 1 / GLSL ES 1.0 syntax (no version directive, varying).
- * Three.js r150+ uses vMapUv for map textures.
- */
-const BASE_FRAGMENT_SHADER = `precision highp float;
-
-// Three.js built-in uniforms
-uniform sampler2D map;
-uniform vec3 diffuse;
-
-// Inputs (Three.js r150+ uses vMapUv for map textures)
-varying vec2 vMapUv;
-
-#define USE_MAP
-
-#include <common>
-
-void main() {
-  vec4 diffuseColor = vec4(diffuse, 1.0);
-  #include <map_fragment>
-  gl_FragColor = diffuseColor;
-}
-`
-
-/**
- * Marker comment to prevent double-injection
- */
-const GROUND_SHADER_MARKER = '/* GROUND_SHADER_INJECTED */'
+// =============================================================================
+// VERTEX SHADER INJECTIONS
+// =============================================================================
 
 /**
  * Vertex shader injection - adds world position and normal varyings.
+ * Injected after #include <common>.
  */
-const VERTEX_COMMON_INJECTION = `
+export const VERTEX_COMMON_INJECTION = `
 ${GROUND_SHADER_MARKER}
 varying vec3 vGroundWorldPosition;
-varying vec3 vGroundWorldNormal;
-`
-
-const VERTEX_WORLDPOS_INJECTION = `
-vec4 groundWorldPosition = modelMatrix * vec4( transformed, 1.0 );
-vGroundWorldPosition = groundWorldPosition.xyz;
-vGroundWorldNormal = normalize( normalMatrix * normal );
-`
+varying vec3 vGroundWorldNormal;`
 
 /**
- * Fragment shader injection - adds all custom uniforms and GLSL functions.
+ * Vertex shader injection - calculates world position and normal.
+ * Injected after #include <worldpos_vertex>.
  */
-const FRAGMENT_COMMON_INJECTION = `
+export const VERTEX_WORLDPOS_INJECTION = `
+vec4 groundWorldPosition = modelMatrix * vec4( transformed, 1.0 );
+vGroundWorldPosition = groundWorldPosition.xyz;
+vGroundWorldNormal = normalize( normalMatrix * normal );`
+
+// =============================================================================
+// FRAGMENT SHADER INJECTIONS
+// =============================================================================
+
+/**
+ * Fragment shader injection - uniforms and GLSL sampling functions.
+ * Injected after #include <common>.
+ *
+ * Uniforms:
+ * - uBaseUvRepeat: Texture repeat factor for UV projection
+ * - uBaseWorldScale: Scale factor for triplanar world-space projection
+ * - uMacroUvRepeat/uMacroWorldScale: Same for macro variation texture
+ * - uMacroIntensity: Strength of macro variation effect (0-1)
+ * - uUseTriplanar: 1.0 for triplanar, 0.0 for UV projection
+ * - uRotation: Texture rotation in radians
+ * - uTriplanarSharpness: Blend sharpness for triplanar (higher = sharper)
+ * - uStochasticEnabled: 1.0 to enable stochastic tiling
+ * - uMacroMap: Macro variation texture sampler
+ */
+export const FRAGMENT_COMMON_INJECTION = `
 ${GROUND_SHADER_MARKER}
 uniform float uBaseUvRepeat;
 uniform float uBaseWorldScale;
@@ -159,62 +134,63 @@ vec4 sampleProjected(sampler2D tex, vec2 uv, vec3 worldPos, vec3 normal, float u
   vec4 planar = texture2D(tex, uvSample);
   vec4 tri = sampleTriplanar(tex, worldPos, normal, worldScale, rotation, sharpness);
   return mix(planar, tri, useTriplanar);
-}
-`
+}`
 
 /**
  * Fragment shader map_fragment replacement - custom texture sampling.
- * Uses vMapUv (Three.js r150+ naming) instead of vUv.
+ * Uses vMapUv (Three.js r150+ naming convention).
+ * Replaces #include <map_fragment>.
  */
-const FRAGMENT_MAP_INJECTION = `
+export const FRAGMENT_MAP_INJECTION = `
   // Three.js r150+ uses vMapUv for map textures
   vec4 groundColor = sampleProjected(map, vMapUv, vGroundWorldPosition, normalize(vGroundWorldNormal), uBaseUvRepeat, uBaseWorldScale, uRotation, uUseTriplanar, uTriplanarSharpness);
   diffuseColor *= groundColor;
 
   vec4 macroSample = sampleProjected(uMacroMap, vMapUv, vGroundWorldPosition, normalize(vGroundWorldNormal), uMacroUvRepeat, uMacroWorldScale, uRotation, uUseTriplanar, uTriplanarSharpness);
   float macroFactor = 1.0 + (macroSample.r - 0.5) * 2.0 * uMacroIntensity;
-  diffuseColor.rgb *= macroFactor;
-`
+  diffuseColor.rgb *= macroFactor;`
+
+// =============================================================================
+// BUNDLED EXPORTS
+// =============================================================================
 
 /**
- * Extracts the complete GLSL shaders with all injections applied.
- * This simulates what Three.js does at runtime with onBeforeCompile.
- * Produces compilable GLSL for WebGL 1 testing.
+ * All injection strings bundled for convenience.
+ * Use this when you need all injections together.
  */
-export function extractGroundShaderGLSL(): { vertex: string; fragment: string } {
-  // Apply vertex shader injections
-  let vertex = BASE_VERTEX_SHADER
-    .replace('#include <common>', VERTEX_COMMON_INJECTION)
-    .replace('#include <worldpos_vertex>', VERTEX_WORLDPOS_INJECTION)
-
-  // Apply fragment shader injections
-  let fragment = BASE_FRAGMENT_SHADER
-    .replace('#include <common>', FRAGMENT_COMMON_INJECTION)
-    .replace('#include <map_fragment>', FRAGMENT_MAP_INJECTION)
-
-  return { vertex, fragment }
-}
+export const GROUND_SHADER_INJECTIONS = {
+  marker: GROUND_SHADER_MARKER,
+  vertexCommon: VERTEX_COMMON_INJECTION,
+  vertexWorldpos: VERTEX_WORLDPOS_INJECTION,
+  fragmentCommon: FRAGMENT_COMMON_INJECTION,
+  fragmentMap: FRAGMENT_MAP_INJECTION,
+} as const
 
 /**
- * Extracts GLSL that can be compiled standalone by WebGL.
- * Removes any Three.js-specific constructs.
+ * Uniform names for type-safe iteration and validation.
  */
-export function extractCompilableGLSL(): { vertex: string; fragment: string } {
-  const { vertex, fragment } = extractGroundShaderGLSL()
+export const GROUND_SHADER_UNIFORMS = [
+  'uBaseUvRepeat',
+  'uBaseWorldScale',
+  'uMacroUvRepeat',
+  'uMacroWorldScale',
+  'uMacroIntensity',
+  'uUseTriplanar',
+  'uRotation',
+  'uTriplanarSharpness',
+  'uStochasticEnabled',
+  'uMacroMap',
+] as const
 
-  // The extracted shaders should already be compilable since we replaced
-  // the #include directives with actual code
-  return { vertex, fragment }
-}
+export type GroundShaderUniform = (typeof GROUND_SHADER_UNIFORMS)[number]
 
 /**
- * Returns the raw injection strings for inspection.
+ * GLSL function names defined in FRAGMENT_COMMON_INJECTION.
  */
-export function getShaderInjections() {
-  return {
-    vertexCommon: VERTEX_COMMON_INJECTION,
-    vertexWorldpos: VERTEX_WORLDPOS_INJECTION,
-    fragmentCommon: FRAGMENT_COMMON_INJECTION,
-    fragmentMap: FRAGMENT_MAP_INJECTION,
-  }
-}
+export const GROUND_SHADER_FUNCTIONS = [
+  'rotateUv',
+  'hash22',
+  'sampleStochastic',
+  'sampleTriplanar',
+  'sampleProjected',
+] as const

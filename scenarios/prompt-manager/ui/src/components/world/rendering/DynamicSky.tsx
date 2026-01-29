@@ -9,6 +9,7 @@ import * as THREE from 'three'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { SKYBOX_PRESETS } from '@/config/environments'
 import type { TimeOfDay } from '@/types/environment'
+import { SKY_VERTEX_SHADER, SKY_FRAGMENT_SHADER } from '@/lib/shaders/glsl/sky.glsl'
 
 interface DynamicSkyProps {
   /** Override the time of day */
@@ -40,35 +41,8 @@ function createGradientMaterial(colors: string[]): THREE.ShaderMaterial {
       offset: { value: 0.5 },
       exponent: { value: 0.6 },
     },
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 middleColor;
-      uniform vec3 bottomColor;
-      uniform float offset;
-      uniform float exponent;
-      varying vec3 vWorldPosition;
-
-      void main() {
-        float h = normalize(vWorldPosition).y;
-
-        // Smoothstep for gradient transitions
-        float topFactor = smoothstep(0.0, 1.0, pow(max(h - offset, 0.0) / (1.0 - offset), exponent));
-        float bottomFactor = smoothstep(0.0, 1.0, pow(max(-h + offset, 0.0) / (1.0 + offset), exponent));
-
-        vec3 color = mix(middleColor, topColor, topFactor);
-        color = mix(color, bottomColor, bottomFactor);
-
-        gl_FragColor = vec4(color, 1.0);
-      }
-    `,
+    vertexShader: SKY_VERTEX_SHADER,
+    fragmentShader: SKY_FRAGMENT_SHADER,
     side: THREE.BackSide,
     depthWrite: false,
   })
