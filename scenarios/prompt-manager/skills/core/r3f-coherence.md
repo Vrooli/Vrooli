@@ -529,3 +529,216 @@ You **must**:
 * Document significant optimizations in commit messages
 
 **Avoid superficial changes that don't measurably improve performance or code clarity.**
+
+---
+
+### **12. Testing R3F Components**
+
+Testing React Three Fiber components requires specialized utilities because:
+- Standard React Testing Library can't handle WebGL context
+- Animation tests need frame loop simulation
+- Store patterns differ from typical React patterns
+
+#### **Testing Pyramid for R3F**
+
+```
+              /\
+             /  \  Integration Tests
+            /    \  (shader + material binding, full render cycles)
+           /──────\
+          /        \  Component Tests
+         /          \  (animation behavior, store connectivity)
+        /────────────\
+       /              \  Unit Tests
+      /                \  (store logic, utility functions, selectors)
+     /────────────────────\
+```
+
+**Bottom Layer (Unit Tests):**
+- Zustand store actions and selectors
+- Utility functions (color conversion, math helpers)
+- GLSL validation (syntax, uniforms, varyings)
+
+**Middle Layer (Component Tests):**
+- Animation behavior via frame simulation
+- Store connectivity patterns
+- Prop handling and memoization
+
+**Top Layer (Integration Tests):**
+- Shader binding to materials
+- Full render → animate → update cycles
+- Multi-component interactions
+
+#### **Test Utility Reference**
+
+The following utilities should be available in `@/test/`:
+
+| Utility | File | Purpose |
+|---------|------|---------|
+| `FrameLoopSimulator` | `r3f-test-utils.ts` | Simulate useFrame callbacks |
+| `RenderTracker` | `r3f-test-utils.ts` | Track component re-renders |
+| `createMockMesh()` | `r3f-test-utils.ts` | Lightweight mesh stub |
+| `createMockPointerEvent()` | `r3f-test-utils.ts` | Simulate R3F pointer events |
+| `simulateDragSequence()` | `r3f-test-utils.ts` | Full drag interaction simulation |
+| `takeStoreSnapshot()` | `r3f-store-test-utils.ts` | Capture store state |
+| `diffSnapshots()` | `r3f-store-test-utils.ts` | Compare before/after states |
+| `assertOnlyFieldsChanged()` | `r3f-store-test-utils.ts` | Verify selective updates |
+| `StoreSubscriptionTracker` | `r3f-store-test-utils.ts` | Track subscription events |
+| `MutationTracker` | `r3f-store-test-utils.ts` | Track ref vs state mutations |
+| `R3FTestHarness` | `r3f-component-harness.tsx` | Provider for R3F components |
+
+#### **Animation Testing Pattern**
+
+Test that animations use refs (not state) and are frame-rate independent:
+
+```tsx
+import { FrameLoopSimulator, createMockMesh } from '@/test/r3f-test-utils'
+
+it('uses delta for frame-rate independent animation', () => {
+  const simulator = new FrameLoopSimulator()
+  const meshRef = { current: createMockMesh() }
+
+  // Register animation callback (mimics component's useFrame)
+  simulator.registerCallback((_, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * 2 // 2 radians per second
+    }
+  })
+
+  // Simulate 1 second at 60fps
+  simulator.tickFrames(60, 1/60)
+  const rotation60fps = meshRef.current.rotation.y
+
+  // Reset and test at 30fps
+  meshRef.current.rotation.y = 0
+  simulator.reset()
+
+  simulator.registerCallback((_, delta) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += delta * 2
+    }
+  })
+
+  simulator.tickFrames(30, 1/30)
+  const rotation30fps = meshRef.current.rotation.y
+
+  // Both should reach ~2 radians (same elapsed time)
+  expect(Math.abs(rotation60fps - rotation30fps)).toBeLessThan(0.01)
+})
+```
+
+#### **Store Integration Testing Pattern**
+
+Test that components use getState() in useFrame (not subscriptions):
+
+```tsx
+import { StoreSubscriptionTracker } from '@/test/r3f-store-test-utils'
+import { useLODStore } from '@/stores/lodStore'
+
+it('uses getState() in animation loop', () => {
+  const tracker = new StoreSubscriptionTracker(useLODStore)
+
+  // Simulate 60 frames of animation
+  tickFrames(60)
+
+  // Should have minimal subscription events
+  // (getState() doesn't trigger subscriptions)
+  expect(tracker.getEventCount()).toBeLessThan(5)
+
+  tracker.dispose()
+})
+```
+
+#### **Snapshot Testing for Store Actions**
+
+Test store actions only change expected fields:
+
+```tsx
+import {
+  takeStoreSnapshot,
+  assertOnlyFieldsChanged,
+} from '@/test/r3f-store-test-utils'
+
+it('setPosition only updates position field', () => {
+  const before = takeStoreSnapshot(useCameraStore)
+
+  useCameraStore.getState().setPosition([5, 10, 15])
+
+  const after = takeStoreSnapshot(useCameraStore)
+
+  // Should ONLY change position, nothing else
+  assertOnlyFieldsChanged(before, after, ['position'])
+})
+```
+
+#### **Interaction Testing Pattern**
+
+Test R3F pointer events:
+
+```tsx
+import {
+  createMockPointerEvent,
+  simulateDragSequence,
+} from '@/test/r3f-test-utils'
+
+it('handles drag sequence correctly', () => {
+  const onDragStart = vi.fn()
+  const onDrag = vi.fn()
+  const onDragEnd = vi.fn()
+
+  simulateDragSequence(
+    {
+      onPointerDown: onDragStart,
+      onPointerMove: onDrag,
+      onPointerUp: onDragEnd,
+    },
+    {
+      startPoint: [0, 0, 0],
+      endPoint: [5, 0, 0],
+      steps: 10,
+    }
+  )
+
+  expect(onDragStart).toHaveBeenCalledTimes(1)
+  expect(onDrag).toHaveBeenCalledTimes(10)
+  expect(onDragEnd).toHaveBeenCalledTimes(1)
+})
+```
+
+#### **What NOT to Test in Unit Tests**
+
+| Skip | Why | Test At |
+|------|-----|---------|
+| Visual appearance | Requires WebGL context | Manual/screenshot tests |
+| WebGL rendering | No GPU in test env | Integration tests with gl mock |
+| Complex scene composition | Too many moving parts | E2E tests |
+| Performance metrics | Unreliable in CI | Benchmarks with real GPU |
+
+#### **Quick Reference: R3F Testing Patterns**
+
+| Pattern | When to Use | Key Assertion |
+|---------|-------------|---------------|
+| Frame simulation | Animation tests | `simulator.tickFrames(n)` then check ref values |
+| Render tracking | Performance tests | `tracker.assertMaxRenders(n)` |
+| Store snapshots | Action tests | `assertOnlyFieldsChanged(before, after, ['field'])` |
+| Subscription tracking | useFrame patterns | `tracker.getEventCount() < 5` |
+| Mutation tracking | Ref vs state | `tracker.assertRefBasedAnimation()` |
+| Pointer events | Interaction tests | `simulateDragSequence()` |
+
+#### **Running R3F Tests**
+
+```bash
+# Run all tests
+cd scenarios/{{TARGET}} && make test
+
+# Run specific R3F component tests
+cd scenarios/{{TARGET}}/ui && npx vitest run --reporter=verbose
+
+# Run with coverage (utilities should be excluded)
+cd scenarios/{{TARGET}}/ui && npx vitest run --coverage
+
+# Watch mode for development
+cd scenarios/{{TARGET}}/ui && npx vitest --watch
+```
+
+---

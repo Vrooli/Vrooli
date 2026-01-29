@@ -95,7 +95,7 @@ const mergeLiteralNodes = (
 }
 
 const createSelectorRegistry = <L extends LiteralSelectorTree>(literalTree: L) => {
-  const selectors = mergeLiteralNodes(literalTree) as any
+  const selectors = mergeLiteralNodes(literalTree) as L
   const manifest = {
     selectors: flattenLiteralSelectors(literalTree),
     dynamicSelectors: {},

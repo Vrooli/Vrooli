@@ -70,7 +70,7 @@ export function GroundMaterial({ material, groundSize, fallbackColor }: GroundMa
       baseWorldScale: 1 / tileSize,
       macroUvRepeat: groundSize / macroScale,
       macroWorldScale: 1 / macroScale,
-      macroIntensity: macroConfig.enabled !== false ? (macroConfig.intensity ?? DEFAULT_MACRO_INTENSITY) : 0,
+      macroIntensity: macroConfig.enabled ? macroConfig.intensity : 0,
       macroMap: textureSet.macro,
       triplanarSharpness: DEFAULT_TRIPLANAR_SHARPNESS,
       stochasticEnabled: textureConfig.stochasticEnabled ?? true,
@@ -115,16 +115,14 @@ export function GroundMaterial({ material, groundSize, fallbackColor }: GroundMa
     })
 
     // Also configure macro texture
-    if (textureSet.macro) {
-      textureSet.macro.wrapS = THREE.RepeatWrapping
-      textureSet.macro.wrapT = THREE.RepeatWrapping
-      textureSet.macro.needsUpdate = true
-    }
+    textureSet.macro.wrapS = THREE.RepeatWrapping
+    textureSet.macro.wrapT = THREE.RepeatWrapping
+    textureSet.macro.needsUpdate = true
   }, [textureSet, baseUvRepeat, rotation, maxAnisotropy])
 
   // Bind shader on material creation (once)
   useEffect(() => {
-    if (!mat || !shaderConfig || shaderBoundRef.current) return
+    if (!shaderConfig || shaderBoundRef.current) return
     bindGroundShader(mat, shaderConfig)
     shaderBoundRef.current = true
     materialRef.current = mat
@@ -139,7 +137,7 @@ export function GroundMaterial({ material, groundSize, fallbackColor }: GroundMa
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      mat?.dispose()
+      mat.dispose()
       shaderBoundRef.current = false
     }
   }, [mat])
