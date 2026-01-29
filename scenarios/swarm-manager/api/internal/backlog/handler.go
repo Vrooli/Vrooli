@@ -86,6 +86,7 @@ type BacklogFile struct {
 type Handler struct {
 	rootDir      string
 	agentService agentmanager.Service
+	promptLoader *PromptLoader
 }
 
 // NewHandler creates a new backlog handler.
@@ -97,6 +98,7 @@ func NewHandler(rootDir string) *Handler {
 	return &Handler{
 		rootDir:      rootDir,
 		agentService: nil, // Uses default discovery-backed service
+		promptLoader: NewPromptLoader(rootDir),
 	}
 }
 
@@ -925,7 +927,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		service = h.agentService
 	}
 
-	prompt := buildResearchPrompt(item, mode)
+	prompt := h.buildResearchPromptFromLoader(item, mode)
 	if strings.TrimSpace(req.Prompt) != "" {
 		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(req.Prompt)
 	}
@@ -1054,7 +1056,7 @@ func (h *Handler) spawnProcessingAgent(ctx context.Context, item BacklogItem, op
 	}
 
 	scopePath := h.itemDir(item.Kind, item.Name)
-	prompt := buildProcessingPrompt(item, operation)
+	prompt := h.buildProcessingPromptFromLoader(item, operation)
 	if prompt == "" {
 		prompt = "Use the backlog item folder as context and complete the requested work."
 	}
@@ -1226,6 +1228,32 @@ func buildResearchPrompt(item BacklogItem, mode ResearchMode) string {
 	return builder.String()
 }
 
+// buildResearchPromptFromLoader loads a research prompt from external files and applies template substitution.
+// Falls back to the inline buildResearchPrompt if loading fails.
+func (h *Handler) buildResearchPromptFromLoader(item BacklogItem, mode ResearchMode) string {
+	// Determine the category and prompt name based on mode
+	var category PromptCategory
+	var promptName string
+
+	switch mode {
+	case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance:
+		category = PromptCategoryWorkflow
+		promptName = ResearchPromptName(mode, item.Kind)
+	default:
+		category = PromptCategoryResearch
+		promptName = ResearchPromptName(mode, item.Kind)
+	}
+
+	template, err := h.promptLoader.Load(category, promptName)
+	if err != nil {
+		// Fall back to inline prompt
+		return buildResearchPrompt(item, mode)
+	}
+
+	itemFolder := h.itemDir(item.Kind, item.Name)
+	return h.promptLoader.Build(template, item, itemFolder)
+}
+
 func buildProcessingTitle(item BacklogItem, operation string) string {
 	label := strings.TrimSpace(item.Title)
 	if label == "" {
@@ -1291,6 +1319,28 @@ func buildProcessingPrompt(item BacklogItem, operation string) string {
 	}
 	builder.WriteString(buildProcessingDescription(item, operation))
 	return builder.String()
+}
+
+// buildProcessingPromptFromLoader loads a processing prompt from external files and applies template substitution.
+// Falls back to the inline buildProcessingPrompt if loading fails.
+func (h *Handler) buildProcessingPromptFromLoader(item BacklogItem, operation string) string {
+	promptName := ProcessingPromptName(item.Kind)
+
+	template, err := h.promptLoader.Load(PromptCategoryProcessing, promptName)
+	if err != nil {
+		// Fall back to inline prompt
+		return buildProcessingPrompt(item, operation)
+	}
+
+	itemFolder := h.itemDir(item.Kind, item.Name)
+	prompt := h.promptLoader.Build(template, item, itemFolder)
+
+	// Append operation hint if this is an improver operation
+	if strings.TrimSpace(operation) == "improver" {
+		prompt = prompt + "\n\nOperation hint: improver (focus on improving an existing scenario).\n"
+	}
+
+	return prompt
 }
 
 func getContentType(ext string) string {
