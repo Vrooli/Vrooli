@@ -22,7 +22,7 @@ import {
 import { createTipTapExtensions, getEditorProseClasses, useTipTapContent } from './tiptap'
 import { useLinkManagement, LinkDialog } from './links'
 import { TipTapToolbar } from './toolbar'
-import { type EditorType } from './SkillContentEditor'
+import { type EditorType, type ViewMode } from './SkillContentEditor'
 
 export interface TipTapEditorProps {
   /** The markdown content value */
@@ -37,6 +37,10 @@ export interface TipTapEditorProps {
   editorType?: EditorType
   /** Callback when editor type changes */
   onEditorTypeChange?: (type: EditorType) => void
+  /** Current view mode (edit/preview/split) */
+  viewMode?: ViewMode
+  /** Callback when view mode changes */
+  onViewModeChange?: (mode: ViewMode) => void
   /** Additional CSS classes */
   className?: string
 }
@@ -55,6 +59,8 @@ export function TipTapEditor({
   placeholder = 'Start writing your prompt...',
   editorType,
   onEditorTypeChange,
+  viewMode,
+  onViewModeChange,
   className,
 }: TipTapEditorProps) {
   // Track if we've set initial content to avoid re-setting on every render
@@ -162,6 +168,8 @@ export function TipTapEditor({
           onRemoveLink={linkManagement.removeLink}
           editorType={editorType}
           onEditorTypeChange={onEditorTypeChange}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
         />
       )}
 

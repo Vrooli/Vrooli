@@ -364,3 +364,57 @@ class ApiClient {
 }
 
 export const api = new ApiClient()
+
+// -----------------------------------------------------------------------------
+// Link Preview API Functions
+// -----------------------------------------------------------------------------
+
+export interface LinkPreviewData {
+  title?: string
+  description?: string
+  image?: string
+  favicon?: string
+  site_name?: string
+}
+
+/**
+ * Fetch OpenGraph metadata preview for a URL.
+ * @param url - The URL to fetch preview for
+ * @returns Preview data or null if unavailable
+ */
+export async function fetchLinkPreview(url: string): Promise<LinkPreviewData | null> {
+  const apiUrl = buildApiUrl(`/og-metadata?url=${encodeURIComponent(url)}`, {
+    baseUrl: API_BASE,
+  })
+
+  const res = await fetch(apiUrl, {
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  })
+
+  if (res.status === 204) {
+    // No content - preview unavailable
+    return null
+  }
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch link preview: ${res.status}`)
+  }
+
+  const data = (await res.json()) as {
+    title?: string
+    description?: string
+    image?: string
+    favicon?: string
+    siteName?: string
+    site_name?: string
+  }
+
+  return {
+    title: data.title,
+    description: data.description,
+    image: data.image,
+    favicon: data.favicon,
+    site_name: data.siteName ?? data.site_name,
+  }
+}

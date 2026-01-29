@@ -5,6 +5,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { ExternalLink, Globe, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { fetchLinkPreview } from '@/lib/api'
 
 interface OGMetadata {
   url: string
@@ -13,28 +14,13 @@ interface OGMetadata {
   image: string
   siteName: string
   favicon: string
+  type?: string
 }
 
 interface LinkPreviewTooltipProps {
   url: string
   position: { x: number; y: number }
   onClose: () => void
-}
-
-/**
- * Fetch OG metadata from the API.
- */
-async function fetchOGMetadata(url: string): Promise<OGMetadata | null> {
-  try {
-    const apiUrl = `/api/v1/og-metadata?url=${encodeURIComponent(url)}`
-    const response = await fetch(apiUrl)
-    if (!response.ok) {
-      return null
-    }
-    return (await response.json()) as OGMetadata
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -54,11 +40,18 @@ export function LinkPreviewTooltip({ url, position, onClose }: LinkPreviewToolti
       setIsLoading(true)
       setError(false)
 
-      const data = await fetchOGMetadata(url)
+      const data = await fetchLinkPreview(url)
 
       if (!cancelled) {
         if (data) {
-          setMetadata(data)
+          setMetadata({
+            url,
+            title: data.title ?? '',
+            description: data.description ?? '',
+            image: data.image ?? '',
+            siteName: data.site_name ?? '',
+            favicon: data.favicon ?? '',
+          })
         } else {
           setError(true)
         }

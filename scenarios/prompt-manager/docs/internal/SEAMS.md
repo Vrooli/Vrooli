@@ -17,6 +17,14 @@ Each package follows the same pattern:
 4. **Query** - Domain logic for filtering and transformations
 5. **Handlers** - HTTP request handling (depends on interfaces, not concrete types)
 
+## Architecture Alignment
+
+Recent seam and boundary refinements:
+- **UI preview seam**: Markdown rendering is isolated under `ui/src/components/markdown`, separate from the markdown ↔ HTML conversion pipeline in `ui/src/services/content`.
+- **Editor view modes**: `SkillContentEditor` owns the Edit/Preview/Split selection while editors (Monaco/TipTap) only handle editing concerns.
+- **Link preview seam**: `fetchLinkPreview` in `ui/src/lib/api.ts` centralizes OG metadata fetching for both rich editor tooltips and markdown preview links.
+- **Split resizing seam**: `useResizableSplitPanel` encapsulates split-view resizing behavior to keep layout logic out of editor rendering.
+
 ## Testing Seams
 
 ### 1. skills.SkillStore (Interface)
@@ -532,6 +540,29 @@ function renderWithClient(ui: React.ReactElement) {
 test('renders skills', async () => {
   const { getByText } = renderWithClient(<App />)
   await waitFor(() => expect(getByText('Test Skill')).toBeInTheDocument())
+})
+```
+
+### 5. Markdown Preview Rendering
+
+**Location:** `ui/src/components/markdown`
+
+**Purpose:** Render markdown content for preview/split views without requiring HTML round-trip conversion.
+
+**Testing Strategy:**
+- Render `MarkdownRenderer` with representative markdown and verify DOM output.
+- Validate code blocks and inline code behaviors independently of TipTap.
+- Mock `fetchLinkPreview` to test link preview rendering in isolation.
+
+**Example:**
+```typescript
+import { render, screen } from '@testing-library/react'
+import { MarkdownRenderer } from '@/components/markdown'
+
+test('renders markdown preview', () => {
+  render(<MarkdownRenderer content={'# Title\\n\\nParagraph'} />)
+  expect(screen.getByText('Title')).toBeInTheDocument()
+  expect(screen.getByText('Paragraph')).toBeInTheDocument()
 })
 ```
 

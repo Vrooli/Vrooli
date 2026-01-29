@@ -15,6 +15,8 @@ import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 import Editor, { useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
 import { AlertTriangle, Code, Type, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MarkdownRenderer } from '@/components/markdown'
+import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { TipTapEditor } from './TipTapEditor'
 import {
   validateMarkdown,
@@ -24,6 +26,7 @@ import {
 } from '@/services/content/validation'
 
 export type EditorType = 'code' | 'wysiwyg'
+export type ViewMode = 'edit' | 'preview' | 'split'
 
 const STORAGE_KEY = 'pm.editorType'
 
@@ -71,6 +74,61 @@ export function EditorToggle({ editorType, onEditorTypeChange, className }: Edit
   )
 }
 
+interface ViewToggleProps {
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+  className?: string
+}
+
+/**
+ * Shared toggle component for switching between Edit, Preview, and Split views.
+ */
+export function ViewToggle({ viewMode, onViewModeChange, className }: ViewToggleProps) {
+  return (
+    <div className={cn('flex items-center gap-1 bg-muted rounded-lg p-0.5', className)}>
+      <button
+        type="button"
+        onClick={() => onViewModeChange('edit')}
+        className={cn(
+          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
+          viewMode === 'edit'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Edit view"
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        onClick={() => onViewModeChange('preview')}
+        className={cn(
+          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
+          viewMode === 'preview'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Preview view"
+      >
+        Preview
+      </button>
+      <button
+        type="button"
+        onClick={() => onViewModeChange('split')}
+        className={cn(
+          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
+          viewMode === 'split'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Split view"
+      >
+        Split
+      </button>
+    </div>
+  )
+}
+
 interface SkillContentEditorProps {
   value: string
   onChange: (value: string) => void
@@ -89,6 +147,12 @@ export function SkillContentEditor({
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monaco = useMonaco()
+  const {
+    width: splitWidth,
+    isResizing: isSplitResizing,
+    containerRef: splitContainerRef,
+    handleResizeStart: handleSplitResizeStart,
+  } = useResizableSplitPanel()
 
   // Initialize editor type from localStorage
   const [editorType, setEditorType] = useState<EditorType>(() => {
@@ -96,6 +160,7 @@ export function SkillContentEditor({
     const stored = localStorage.getItem(STORAGE_KEY)
     return stored === 'wysiwyg' ? 'wysiwyg' : 'code'
   })
+  const [viewMode, setViewMode] = useState<ViewMode>('edit')
 
   // State for markdown validation - issues persist across mode switches
   const [validationIssues, setValidationIssues] = useState<MarkdownIssue[]>([])
@@ -169,6 +234,7 @@ export function SkillContentEditor({
         // Block switch if round-trip validation fails (content would be corrupted)
         if (roundTripResult && !roundTripResult.isStable) {
           setShowRoundTripWarning(true)
+          setViewMode('preview')
           return // Block the switch
         }
 
@@ -186,6 +252,7 @@ export function SkillContentEditor({
   const handleForceRichMode = useCallback(() => {
     setShowRoundTripWarning(false)
     setEditorType('wysiwyg')
+    setViewMode('edit')
   }, [])
 
   // Handle editor mount
@@ -211,6 +278,18 @@ export function SkillContentEditor({
       onChange(newValue)
     },
     [onChange]
+  )
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+  }, [])
+
+  const previewPane = (
+    <div className="flex-1 overflow-y-auto bg-card">
+      <div className="p-4">
+        <MarkdownRenderer content={value} />
+      </div>
+    </div>
   )
 
   return (
@@ -266,14 +345,102 @@ export function SkillContentEditor({
           error && 'ring-1 ring-red-500'
         )}
       >
-        {editorType === 'code' ? (
+        {viewMode === 'preview' ? (
           <div className="flex flex-col h-full">
-            {/* Monaco header bar with toggle */}
-            <div className="flex-shrink-0 flex items-center justify-end px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
+            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-card border-b border-border">
               <EditorToggle
                 editorType={editorType}
                 onEditorTypeChange={handleEditorTypeChange}
               />
+              <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+            </div>
+            {previewPane}
+          </div>
+        ) : viewMode === 'split' ? (
+          <div
+            ref={splitContainerRef}
+            className={cn('flex h-full', isSplitResizing && 'select-none')}
+          >
+            <div className="flex-shrink-0 flex flex-col h-full" style={{ width: splitWidth }}>
+              {editorType === 'code' ? (
+                <div className="flex flex-col h-full">
+                  {/* Monaco header bar with toggle */}
+                  <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
+                    <EditorToggle
+                      editorType={editorType}
+                      onEditorTypeChange={handleEditorTypeChange}
+                    />
+                    <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+                  </div>
+                  <div className="flex-1">
+                    <Editor
+                      height="100%"
+                      defaultLanguage="markdown"
+                      value={value}
+                      onChange={handleMonacoChange}
+                      onMount={handleEditorMount}
+                      theme="vs-dark"
+                      options={{
+                        minimap: { enabled: false },
+                        wordWrap: 'on',
+                        lineNumbers: 'on',
+                        fontSize: 13,
+                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                        tabSize: 2,
+                        scrollBeyondLastLine: false,
+                        padding: { top: 12, bottom: 12 },
+                        renderLineHighlight: 'line',
+                        cursorBlinking: 'smooth',
+                        smoothScrolling: true,
+                        scrollbar: {
+                          vertical: 'auto',
+                          horizontal: 'auto',
+                          verticalScrollbarSize: 8,
+                          horizontalScrollbarSize: 8,
+                        },
+                        overviewRulerBorder: false,
+                        hideCursorInOverviewRuler: true,
+                        folding: true,
+                        foldingStrategy: 'indentation',
+                        automaticLayout: true,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <TipTapEditor
+                  value={value}
+                  onChange={handleTipTapChange}
+                  placeholder="Start writing your skill content..."
+                  editorType={editorType}
+                  onEditorTypeChange={handleEditorTypeChange}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  className="h-full"
+                />
+              )}
+            </div>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize editor preview split"
+              tabIndex={0}
+              onMouseDown={handleSplitResizeStart}
+              className="relative flex-shrink-0 w-3 cursor-col-resize group"
+            >
+              <div className="absolute right-1 top-0 h-full w-0.5 bg-border group-hover:bg-primary/50 transition-colors" />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col">{previewPane}</div>
+          </div>
+        ) : editorType === 'code' ? (
+          <div className="flex flex-col h-full">
+            {/* Monaco header bar with toggle */}
+            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
+              <EditorToggle
+                editorType={editorType}
+                onEditorTypeChange={handleEditorTypeChange}
+              />
+              <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
             </div>
             <div className="flex-1">
               <Editor
@@ -317,6 +484,8 @@ export function SkillContentEditor({
             placeholder="Start writing your skill content..."
             editorType={editorType}
             onEditorTypeChange={handleEditorTypeChange}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
             className="h-full"
           />
         )}

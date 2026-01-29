@@ -30,7 +30,7 @@ import { ToolbarButton, ToolbarDivider } from './ToolbarButton'
 import { ToolbarDropdown, DropdownItem } from '../ToolbarDropdown'
 import { useToolbarActions } from './useToolbarActions'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { EditorToggle, type EditorType } from '../SkillContentEditor'
+import { EditorToggle, ViewToggle, type EditorType, type ViewMode } from '../SkillContentEditor'
 
 export interface TipTapToolbarProps {
   /** The TipTap editor instance */
@@ -43,6 +43,10 @@ export interface TipTapToolbarProps {
   editorType?: EditorType
   /** Callback when editor type changes */
   onEditorTypeChange?: (type: EditorType) => void
+  /** Current view mode (edit/preview/split) */
+  viewMode?: ViewMode
+  /** Callback when view mode changes */
+  onViewModeChange?: (mode: ViewMode) => void
 }
 
 /**
@@ -54,6 +58,8 @@ export function TipTapToolbar({
   onRemoveLink,
   editorType,
   onEditorTypeChange,
+  viewMode,
+  onViewModeChange,
 }: TipTapToolbarProps) {
   const actions = useToolbarActions(editor)
   const isMobile = useIsMobile()
@@ -66,6 +72,8 @@ export function TipTapToolbar({
         onRemoveLink={onRemoveLink}
         editorType={editorType}
         onEditorTypeChange={onEditorTypeChange}
+        viewMode={viewMode}
+        onViewModeChange={onViewModeChange}
       />
     )
   }
@@ -77,6 +85,8 @@ export function TipTapToolbar({
       onRemoveLink={onRemoveLink}
       editorType={editorType}
       onEditorTypeChange={onEditorTypeChange}
+      viewMode={viewMode}
+      onViewModeChange={onViewModeChange}
     />
   )
 }
@@ -87,6 +97,8 @@ interface ToolbarContentProps {
   onRemoveLink: () => void
   editorType?: EditorType
   onEditorTypeChange?: (type: EditorType) => void
+  viewMode?: ViewMode
+  onViewModeChange?: (mode: ViewMode) => void
 }
 
 /**
@@ -98,6 +110,8 @@ function MobileToolbar({
   onRemoveLink,
   editorType,
   onEditorTypeChange,
+  viewMode,
+  onViewModeChange,
 }: ToolbarContentProps) {
   return (
     <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
@@ -193,7 +207,12 @@ function MobileToolbar({
       {editorType && onEditorTypeChange && (
         <>
           <div className="flex-1" />
-          <EditorToggle editorType={editorType} onEditorTypeChange={onEditorTypeChange} />
+          <div className="flex items-center gap-2">
+            <EditorToggle editorType={editorType} onEditorTypeChange={onEditorTypeChange} />
+            {viewMode && onViewModeChange && (
+              <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            )}
+          </div>
         </>
       )}
     </div>
@@ -209,6 +228,8 @@ function DesktopToolbar({
   onRemoveLink,
   editorType,
   onEditorTypeChange,
+  viewMode,
+  onViewModeChange,
 }: ToolbarContentProps) {
   return (
     <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
@@ -279,7 +300,12 @@ function DesktopToolbar({
       {editorType && onEditorTypeChange && (
         <>
           <div className="flex-1" />
-          <EditorToggle editorType={editorType} onEditorTypeChange={onEditorTypeChange} />
+          <div className="flex items-center gap-2">
+            <EditorToggle editorType={editorType} onEditorTypeChange={onEditorTypeChange} />
+            {viewMode && onViewModeChange && (
+              <ViewToggle viewMode={viewMode} onViewModeChange={onViewModeChange} />
+            )}
+          </div>
         </>
       )}
     </div>
