@@ -67,6 +67,9 @@ function ensureFreeTier(pricing: PricingOverview | null, fallbackPricing: Pricin
   return merged;
 }
 
+// Tiers that support intro pricing (first month $1)
+const INTRO_ELIGIBLE_TIERS = ['solo', 'pro', 'studio', 'business'];
+
 function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
   const amount = typeof option.amount_cents === 'number' ? option.amount_cents : 0;
   const hasAmount = amount > 0;
@@ -81,8 +84,15 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
     typeof option.bonus_type === 'string' && option.bonus_type.trim().toLowerCase() !== 'none'
       ? option.bonus_type.replace('_', ' ')
       : undefined;
+
+  // Determine intro pricing badge for monthly plans
+  const tierLower = (option.plan_tier || '').toLowerCase();
+  const isIntroEligible = interval === 'month' && INTRO_ELIGIBLE_TIERS.includes(tierLower) && hasAmount;
+  const introBadge = isIntroEligible ? 'First month $1' : undefined;
+
   const badge =
     badgeOverride ||
+    introBadge ||
     (option.intro_enabled && introAmount
       ? `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`
       : bonusLabel);
@@ -106,9 +116,11 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
   const ctaText =
     typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0
       ? (metadata.cta_label as string)
-      : option.intro_enabled
-        ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
-        : 'Choose plan';
+      : isIntroEligible
+        ? 'Start for $1'
+        : option.intro_enabled
+          ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
+          : 'Choose plan';
 
   const highlighted = metadata.highlight === true ? true : fallbackHighlight;
   const directDownloadCTA = isFree || option.kind === 'supporter_contribution';

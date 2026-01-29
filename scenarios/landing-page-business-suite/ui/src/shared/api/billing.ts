@@ -20,6 +20,12 @@ import {
   VerifyStripePriceResponseSchema,
   StripeImportPreviewSchema,
   StripeImportResultSchema,
+  ListCouponsResponseSchema,
+  StripeCouponSchema,
+  CouponUsageStatsListSchema,
+  type StripeCoupon,
+  type ListCouponsResponse,
+  type CouponUsageStats,
 } from './schemas/billing.schema';
 import { PlanOptionSchema } from './schemas/landing.schema';
 
@@ -342,5 +348,84 @@ export function createBundlePrice(bundleKey: string, payload: CreateBundlePriceP
 export function deleteBundlePrice(bundleKey: string, priceId: string) {
   return apiCall(`/admin/bundles/${encodeURIComponent(bundleKey)}/prices/${encodeURIComponent(priceId)}`, {
     method: 'DELETE',
+  });
+}
+
+// Coupon Management Types
+export interface CreateCouponPayload {
+  id?: string;
+  name?: string;
+  amount_off?: number;
+  percent_off?: number;
+  currency?: string;
+  duration: 'once' | 'repeating' | 'forever';
+  duration_in_months?: number;
+  max_redemptions?: number;
+  redeem_by?: number;
+}
+
+export type { StripeCoupon, ListCouponsResponse, CouponUsageStats };
+
+/**
+ * List all coupons from Stripe.
+ */
+export function listCoupons(): Promise<ListCouponsResponse> {
+  return apiCall<ListCouponsResponse>('/admin/coupons').then((resp) => {
+    const validated = parseOrNull(ListCouponsResponseSchema, resp, 'ListCouponsResponse');
+    if (!validated) {
+      throw new Error('Invalid coupons list response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Create a new coupon in Stripe.
+ */
+export function createCoupon(payload: CreateCouponPayload): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>('/admin/coupons', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Get a single coupon from Stripe.
+ */
+export function getCoupon(couponId: string): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>(`/admin/coupons/${encodeURIComponent(couponId)}`).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Delete a coupon from Stripe.
+ */
+export function deleteCoupon(couponId: string): Promise<void> {
+  return apiCall(`/admin/coupons/${encodeURIComponent(couponId)}`, {
+    method: 'DELETE',
+  }).then(() => undefined);
+}
+
+/**
+ * Get coupon usage statistics from local database.
+ */
+export function getCouponUsage(): Promise<CouponUsageStats[]> {
+  return apiCall<CouponUsageStats[]>('/admin/coupons/usage').then((resp) => {
+    const validated = parseOrNull(CouponUsageStatsListSchema, resp, 'CouponUsageStats[]');
+    if (!validated) {
+      throw new Error('Invalid coupon usage response');
+    }
+    return validated;
   });
 }

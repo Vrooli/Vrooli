@@ -354,3 +354,21 @@ CREATE TABLE IF NOT EXISTS credit_reservations (
 
 CREATE INDEX IF NOT EXISTS idx_credit_reservations_user ON credit_reservations(user_identity, status);
 CREATE INDEX IF NOT EXISTS idx_credit_reservations_expires ON credit_reservations(expires_at) WHERE status = 'pending';
+
+-- Intro pricing flag on users table (coupon-based intro pricing)
+-- Tracks whether user has ever used the $1 intro offer
+ALTER TABLE users ADD COLUMN IF NOT EXISTS has_used_intro BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_users_has_used_intro ON users(has_used_intro);
+
+-- Intro coupon usage audit table
+-- Records when intro coupons are applied for audit and debugging
+CREATE TABLE IF NOT EXISTS intro_coupon_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    stripe_customer_id VARCHAR(255),
+    coupon_id VARCHAR(255) NOT NULL,
+    plan_tier VARCHAR(50),
+    subscription_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_intro_coupon_usage_email ON intro_coupon_usage(email);

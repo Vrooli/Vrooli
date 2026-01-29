@@ -17,6 +17,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   Bot,
+  Tag,
 } from 'lucide-react';
 import type { NavigationConfig } from './navigation.types';
 
@@ -134,6 +135,14 @@ export const NAVIGATION_CONFIG: NavigationConfig = {
           icon: Key,
           path: '/admin/api-keys',
           testId: 'nav-api-keys',
+        },
+        {
+          id: 'coupons',
+          name: 'Coupons',
+          description: 'Manage discount codes and intro pricing',
+          icon: Tag,
+          path: '/admin/coupons',
+          testId: 'nav-coupons',
         },
       ],
     },
@@ -264,6 +273,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   '/admin/tiers': 'Plans',
   '/admin/tier-limits': 'Tier Limits',
   '/admin/api-keys': 'AI Keys',
+  '/admin/coupons': 'Coupons',
   '/admin/billing': 'Stripe',
   '/admin/billing-home': 'Billing Dashboard',
   '/admin/accounts': 'Accounts',

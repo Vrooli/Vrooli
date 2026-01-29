@@ -25,15 +25,16 @@ import (
 
 // StripeService handles Stripe payment integration
 type StripeService struct {
-	db               *sql.DB
-	planService      *PlanService
-	paymentSettings  *PaymentSettingsService
-	checkoutCacheTTL time.Duration
-	httpClient       *http.Client
-	apiBase          string
-	mu               sync.RWMutex
-	runtimeConfig    stripeRuntimeConfig
-	configLoader     stripeConfigLoader
+	db                *sql.DB
+	planService       *PlanService
+	paymentSettings   *PaymentSettingsService
+	checkoutCacheTTL  time.Duration
+	httpClient        *http.Client
+	apiBase           string
+	mu                sync.RWMutex
+	runtimeConfig     stripeRuntimeConfig
+	configLoader      stripeConfigLoader
+	introCouponConfig IntroCouponConfig
 }
 
 type stripeRuntimeConfig struct {
@@ -54,6 +55,48 @@ const (
 	sessionTypeCreditsTopup          = "credits_topup"
 	sessionTypeSupporterContribution = "supporter_contribution"
 )
+
+// IntroCouponConfig holds the configuration for intro pricing coupons.
+// Coupons are created in Stripe Dashboard with duration=once.
+type IntroCouponConfig struct {
+	Enabled   bool              // Whether intro pricing is enabled
+	CouponMap map[string]string // tier -> coupon_id mapping
+}
+
+// loadIntroCouponConfig loads intro coupon configuration from environment variables.
+func loadIntroCouponConfig() IntroCouponConfig {
+	enabled := strings.ToLower(strings.TrimSpace(os.Getenv("INTRO_ENABLED"))) == "true"
+	if !enabled {
+		return IntroCouponConfig{Enabled: false}
+	}
+
+	couponMap := make(map[string]string)
+	tierEnvMap := map[string]string{
+		"solo":     "INTRO_COUPON_SOLO",
+		"pro":      "INTRO_COUPON_PRO",
+		"studio":   "INTRO_COUPON_STUDIO",
+		"business": "INTRO_COUPON_BUSINESS",
+	}
+
+	for tier, envVar := range tierEnvMap {
+		if couponID := strings.TrimSpace(os.Getenv(envVar)); couponID != "" {
+			couponMap[tier] = couponID
+		}
+	}
+
+	return IntroCouponConfig{
+		Enabled:   enabled && len(couponMap) > 0,
+		CouponMap: couponMap,
+	}
+}
+
+// GetCouponForTier returns the coupon ID for a given plan tier, or empty string if none.
+func (c *IntroCouponConfig) GetCouponForTier(tier string) string {
+	if !c.Enabled || c.CouponMap == nil {
+		return ""
+	}
+	return c.CouponMap[strings.ToLower(strings.TrimSpace(tier))]
+}
 
 // StripeConfigError indicates missing or invalid Stripe configuration.
 type StripeConfigError struct {
@@ -158,10 +201,11 @@ func NewStripeServiceWithSettings(db *sql.DB, planService *PlanService, paymentS
 	}
 
 	service := &StripeService{
-		db:               db,
-		planService:      planService,
-		paymentSettings:  paymentSettings,
-		checkoutCacheTTL: 60 * time.Second,
+		db:                db,
+		planService:       planService,
+		paymentSettings:   paymentSettings,
+		checkoutCacheTTL:  60 * time.Second,
+		introCouponConfig: loadIntroCouponConfig(),
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -172,6 +216,15 @@ func NewStripeServiceWithSettings(db *sql.DB, planService *PlanService, paymentS
 		logStructured("failed to initialize Stripe config", map[string]interface{}{
 			"level": "warn",
 			"error": err.Error(),
+		})
+	}
+
+	// Log intro coupon config status
+	if service.introCouponConfig.Enabled {
+		logStructured("intro_coupon_config_loaded", map[string]interface{}{
+			"level":        "info",
+			"enabled":      true,
+			"coupon_count": len(service.introCouponConfig.CouponMap),
 		})
 	}
 
@@ -477,7 +530,7 @@ func classifyStripeError(err error) (int, string, string, bool) {
 		switch {
 		case apiErr.Status == http.StatusUnauthorized || apiErr.Status == http.StatusForbidden:
 			return http.StatusBadRequest, ApiErrorTypeValidation,
-				"Stripe authentication failed. Check the restricted key in Billing settings.", true
+				"Stripe authentication failed. If using a restricted key, ensure it has the required permissions (e.g., Coupons > Read/Write for coupon operations).", true
 		case apiErr.Status == http.StatusNotFound || strings.EqualFold(apiErr.Code, "resource_missing"):
 			return http.StatusBadRequest, ApiErrorTypeValidation,
 				"Stripe resource not found. Verify the Stripe price or product ID.", true
@@ -654,6 +707,32 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 		values.Set("customer", existingCustomerID)
 	}
 
+	// Apply intro coupon for eligible monthly subscriptions
+	var appliedCouponID string
+	if mode == "subscription" && plan.BillingInterval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH && customerEmail != "" {
+		eligible, eligErr := s.checkIntroEligibility(ctx, customerEmail)
+		if eligErr != nil {
+			logStructuredError("intro_eligibility_check_failed", map[string]interface{}{
+				"email": customerEmail,
+				"error": eligErr.Error(),
+			})
+			// Continue without intro pricing on error
+		} else if eligible {
+			couponID := s.introCouponConfig.GetCouponForTier(plan.PlanTier)
+			if couponID != "" {
+				values.Set("discounts[0][coupon]", couponID)
+				values.Set("metadata[intro_coupon_applied]", couponID)
+				appliedCouponID = couponID
+				logStructured("intro_coupon_applying", map[string]interface{}{
+					"level":     "info",
+					"email":     customerEmail,
+					"coupon_id": couponID,
+					"plan_tier": plan.PlanTier,
+				})
+			}
+		}
+	}
+
 	body, err := s.doStripeForm(ctx, http.MethodPost, "/v1/checkout/sessions", values)
 	if err != nil {
 		return nil, fmt.Errorf("create checkout for price %s: %w", priceID, err)
@@ -685,6 +764,9 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 		"bundle_key": plan.BundleKey,
 		"plan_tier":  plan.PlanTier,
 		"kind":       plan.Kind.String(),
+	}
+	if appliedCouponID != "" {
+		meta["intro_coupon_applied"] = appliedCouponID
 	}
 	metaBytes, _ := json.Marshal(meta)
 
@@ -1600,9 +1682,36 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 	customerID, _ := obj["customer"].(string)
 	customerEmail, _ := obj["customer_email"].(string)
 	priceID := s.extractInvoicePriceID(obj)
+	billingReason, _ := obj["billing_reason"].(string)
 
 	if err := s.persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, "active"); err != nil {
 		return err
+	}
+
+	// Check if this is a subscription creation with an intro coupon
+	// billing_reason == "subscription_create" indicates first invoice
+	if billingReason == "subscription_create" && customerEmail != "" {
+		couponID := s.extractIntroCouponFromInvoice(obj)
+		if couponID != "" {
+			// Determine plan tier from price
+			planTier := ""
+			if priceID != "" {
+				if plan, err := s.planService.GetPlanByPriceID(priceID); err == nil {
+					planTier = plan.PlanTier
+				}
+			}
+
+			if err := s.markIntroUsed(context.Background(), customerEmail, customerID, couponID, planTier, subscriptionID); err != nil {
+				logStructuredError("mark_intro_used_failed", map[string]interface{}{
+					"email":           customerEmail,
+					"customer_id":     customerID,
+					"coupon_id":       couponID,
+					"subscription_id": subscriptionID,
+					"error":           err.Error(),
+				})
+				// Don't fail the webhook - intro tracking is non-critical
+			}
+		}
 	}
 
 	// Proactively refresh from Stripe if we have an ID to backfill details
@@ -1612,6 +1721,68 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 		}
 	}
 	return nil
+}
+
+// extractIntroCouponFromInvoice extracts the intro coupon ID from an invoice object.
+// Returns empty string if no intro coupon was applied.
+func (s *StripeService) extractIntroCouponFromInvoice(obj map[string]interface{}) string {
+	// Check discount object (single discount)
+	if discount, ok := obj["discount"].(map[string]interface{}); ok {
+		if coupon, ok := discount["coupon"].(map[string]interface{}); ok {
+			if couponID, ok := coupon["id"].(string); ok {
+				if s.isIntroCoupon(couponID) {
+					return couponID
+				}
+			}
+		}
+	}
+
+	// Check discounts array (multiple discounts)
+	if discounts, ok := obj["discounts"].([]interface{}); ok {
+		for _, d := range discounts {
+			if discountMap, ok := d.(map[string]interface{}); ok {
+				if coupon, ok := discountMap["coupon"].(map[string]interface{}); ok {
+					if couponID, ok := coupon["id"].(string); ok {
+						if s.isIntroCoupon(couponID) {
+							return couponID
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check total_discount_amounts for coupon references
+	if tdAmounts, ok := obj["total_discount_amounts"].([]interface{}); ok {
+		for _, tda := range tdAmounts {
+			if tdaMap, ok := tda.(map[string]interface{}); ok {
+				if discount, ok := tdaMap["discount"].(map[string]interface{}); ok {
+					if coupon, ok := discount["coupon"].(map[string]interface{}); ok {
+						if couponID, ok := coupon["id"].(string); ok {
+							if s.isIntroCoupon(couponID) {
+								return couponID
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// isIntroCoupon checks if a coupon ID matches one of our configured intro coupons.
+func (s *StripeService) isIntroCoupon(couponID string) bool {
+	if !s.introCouponConfig.Enabled {
+		return false
+	}
+	for _, configuredID := range s.introCouponConfig.CouponMap {
+		if configuredID == couponID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *StripeService) handleInvoicePaymentFailed(obj map[string]interface{}) error {
@@ -1873,6 +2044,106 @@ func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error
 	return nil
 }
 
+// checkIntroEligibility checks if a user is eligible for the intro pricing coupon.
+// Returns true if the user has never used the intro offer before.
+func (s *StripeService) checkIntroEligibility(ctx context.Context, email string) (bool, error) {
+	email = NormalizeEmail(email)
+	if email == "" {
+		// No email means we can't track eligibility, so don't apply intro
+		return false, nil
+	}
+
+	// Check if user exists and has already used intro
+	var hasUsedIntro sql.NullBool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT has_used_intro FROM users WHERE email = $1
+	`, email).Scan(&hasUsedIntro)
+
+	if err == sql.ErrNoRows {
+		// New user - eligible for intro
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check intro eligibility: %w", err)
+	}
+
+	// User exists - check if they've used intro
+	if hasUsedIntro.Valid && hasUsedIntro.Bool {
+		return false, nil // Already used intro
+	}
+
+	return true, nil // Eligible
+}
+
+// markIntroUsed marks that a user has used their intro pricing offer.
+// This should be called after successful payment with an intro coupon.
+func (s *StripeService) markIntroUsed(ctx context.Context, email, customerID, couponID, planTier, subscriptionID string) error {
+	email = NormalizeEmail(email)
+	if email == "" {
+		return errors.New("email required to mark intro used")
+	}
+
+	// Start a transaction to ensure consistency
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Update the user's has_used_intro flag (upsert)
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO users (email, has_used_intro, stripe_customer_id)
+		VALUES ($1, TRUE, $2)
+		ON CONFLICT (email) DO UPDATE SET
+			has_used_intro = TRUE,
+			stripe_customer_id = COALESCE(NULLIF($2, ''), users.stripe_customer_id),
+			updated_at = NOW()
+	`, email, customerID)
+	if err != nil {
+		return fmt.Errorf("update user intro flag: %w", err)
+	}
+
+	// Record in audit table
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO intro_coupon_usage (email, stripe_customer_id, coupon_id, plan_tier, subscription_id)
+		VALUES ($1, $2, $3, $4, $5)
+	`, email, customerID, couponID, planTier, subscriptionID)
+	if err != nil {
+		return fmt.Errorf("insert intro coupon usage: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	// Also update Stripe customer metadata as backup
+	if customerID != "" {
+		go func() {
+			values := url.Values{}
+			values.Set("metadata[has_used_intro]", "true")
+			values.Set("metadata[intro_coupon_id]", couponID)
+			_, updateErr := s.doStripeForm(context.Background(), http.MethodPost, "/v1/customers/"+url.PathEscape(customerID), values)
+			if updateErr != nil {
+				logStructuredError("stripe_customer_metadata_update_failed", map[string]interface{}{
+					"customer_id": customerID,
+					"error":       updateErr.Error(),
+				})
+			}
+		}()
+	}
+
+	logStructured("intro_coupon_marked_used", map[string]interface{}{
+		"level":           "info",
+		"email":           email,
+		"customer_id":     customerID,
+		"coupon_id":       couponID,
+		"plan_tier":       planTier,
+		"subscription_id": subscriptionID,
+	})
+
+	return nil
+}
+
 // StripeImportPreview provides a preview of products/prices available for import from Stripe.
 type StripeImportPreview struct {
 	BundleKey          string                    `json:"bundle_key,omitempty"`
@@ -2081,6 +2352,274 @@ func (s *StripeService) fetchStripePricesForProduct(ctx context.Context, product
 	}
 
 	return prices, nil
+}
+
+// StripeCoupon represents a Stripe coupon for admin management.
+type StripeCoupon struct {
+	ID               string   `json:"id"`
+	Name             string   `json:"name,omitempty"`
+	AmountOff        *int64   `json:"amount_off,omitempty"`
+	PercentOff       *float64 `json:"percent_off,omitempty"`
+	Currency         string   `json:"currency,omitempty"`
+	Duration         string   `json:"duration"`
+	DurationInMonths *int     `json:"duration_in_months,omitempty"`
+	MaxRedemptions   *int     `json:"max_redemptions,omitempty"`
+	RedeemBy         *int64   `json:"redeem_by,omitempty"`
+	TimesRedeemed    int      `json:"times_redeemed"`
+	Valid            bool     `json:"valid"`
+	Created          int64    `json:"created"`
+	IsIntroCoupon    bool     `json:"is_intro_coupon"`
+	IntroTier        string   `json:"intro_tier,omitempty"`
+}
+
+// CreateCouponRequest contains parameters for creating a new coupon.
+type CreateCouponRequest struct {
+	ID               string   `json:"id,omitempty"`
+	Name             string   `json:"name,omitempty"`
+	AmountOff        *int64   `json:"amount_off,omitempty"`
+	PercentOff       *float64 `json:"percent_off,omitempty"`
+	Currency         string   `json:"currency,omitempty"`
+	Duration         string   `json:"duration"`
+	DurationInMonths *int     `json:"duration_in_months,omitempty"`
+	MaxRedemptions   *int     `json:"max_redemptions,omitempty"`
+	RedeemBy         *int64   `json:"redeem_by,omitempty"`
+}
+
+// ListCoupons fetches all coupons from Stripe.
+func (s *StripeService) ListCoupons(ctx context.Context) ([]StripeCoupon, error) {
+	values := url.Values{}
+	values.Set("limit", "100")
+	path := "/v1/coupons?" + values.Encode()
+
+	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Data []struct {
+			ID               string   `json:"id"`
+			Name             string   `json:"name"`
+			AmountOff        *int64   `json:"amount_off"`
+			PercentOff       *float64 `json:"percent_off"`
+			Currency         string   `json:"currency"`
+			Duration         string   `json:"duration"`
+			DurationInMonths *int     `json:"duration_in_months"`
+			MaxRedemptions   *int     `json:"max_redemptions"`
+			RedeemBy         *int64   `json:"redeem_by"`
+			TimesRedeemed    int      `json:"times_redeemed"`
+			Valid            bool     `json:"valid"`
+			Created          int64    `json:"created"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decode stripe coupons: %w", err)
+	}
+
+	coupons := make([]StripeCoupon, 0, len(resp.Data))
+	for _, c := range resp.Data {
+		coupon := StripeCoupon{
+			ID:               c.ID,
+			Name:             c.Name,
+			AmountOff:        c.AmountOff,
+			PercentOff:       c.PercentOff,
+			Currency:         c.Currency,
+			Duration:         c.Duration,
+			DurationInMonths: c.DurationInMonths,
+			MaxRedemptions:   c.MaxRedemptions,
+			RedeemBy:         c.RedeemBy,
+			TimesRedeemed:    c.TimesRedeemed,
+			Valid:            c.Valid,
+			Created:          c.Created,
+		}
+		// Check if this coupon is configured for intro pricing
+		coupon.IsIntroCoupon, coupon.IntroTier = s.checkIntroCouponMapping(c.ID)
+		coupons = append(coupons, coupon)
+	}
+
+	return coupons, nil
+}
+
+// GetCoupon fetches a single coupon from Stripe by ID.
+func (s *StripeService) GetCoupon(ctx context.Context, couponID string) (*StripeCoupon, error) {
+	if strings.TrimSpace(couponID) == "" {
+		return nil, errors.New("coupon ID is required")
+	}
+
+	path := "/v1/coupons/" + url.PathEscape(couponID)
+	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var c struct {
+		ID               string   `json:"id"`
+		Name             string   `json:"name"`
+		AmountOff        *int64   `json:"amount_off"`
+		PercentOff       *float64 `json:"percent_off"`
+		Currency         string   `json:"currency"`
+		Duration         string   `json:"duration"`
+		DurationInMonths *int     `json:"duration_in_months"`
+		MaxRedemptions   *int     `json:"max_redemptions"`
+		RedeemBy         *int64   `json:"redeem_by"`
+		TimesRedeemed    int      `json:"times_redeemed"`
+		Valid            bool     `json:"valid"`
+		Created          int64    `json:"created"`
+	}
+	if err := json.Unmarshal(body, &c); err != nil {
+		return nil, fmt.Errorf("decode stripe coupon: %w", err)
+	}
+
+	coupon := &StripeCoupon{
+		ID:               c.ID,
+		Name:             c.Name,
+		AmountOff:        c.AmountOff,
+		PercentOff:       c.PercentOff,
+		Currency:         c.Currency,
+		Duration:         c.Duration,
+		DurationInMonths: c.DurationInMonths,
+		MaxRedemptions:   c.MaxRedemptions,
+		RedeemBy:         c.RedeemBy,
+		TimesRedeemed:    c.TimesRedeemed,
+		Valid:            c.Valid,
+		Created:          c.Created,
+	}
+	coupon.IsIntroCoupon, coupon.IntroTier = s.checkIntroCouponMapping(c.ID)
+
+	return coupon, nil
+}
+
+// CreateCoupon creates a new coupon in Stripe.
+func (s *StripeService) CreateCoupon(ctx context.Context, req CreateCouponRequest) (*StripeCoupon, error) {
+	// Validate discount type
+	if req.AmountOff == nil && req.PercentOff == nil {
+		return nil, errors.New("either amount_off or percent_off is required")
+	}
+	if req.AmountOff != nil && req.PercentOff != nil {
+		return nil, errors.New("cannot specify both amount_off and percent_off")
+	}
+
+	// Validate duration
+	duration := strings.TrimSpace(req.Duration)
+	if duration == "" {
+		return nil, errors.New("duration is required")
+	}
+	if duration != "once" && duration != "repeating" && duration != "forever" {
+		return nil, errors.New("duration must be once, repeating, or forever")
+	}
+	if duration == "repeating" && (req.DurationInMonths == nil || *req.DurationInMonths <= 0) {
+		return nil, errors.New("duration_in_months is required for repeating coupons")
+	}
+
+	// Build form values
+	values := url.Values{}
+	values.Set("duration", duration)
+
+	if id := strings.TrimSpace(req.ID); id != "" {
+		values.Set("id", id)
+	}
+	if name := strings.TrimSpace(req.Name); name != "" {
+		values.Set("name", name)
+	}
+	if req.AmountOff != nil {
+		values.Set("amount_off", strconv.FormatInt(*req.AmountOff, 10))
+		currency := strings.ToLower(strings.TrimSpace(req.Currency))
+		if currency == "" {
+			currency = "usd"
+		}
+		values.Set("currency", currency)
+	}
+	if req.PercentOff != nil {
+		values.Set("percent_off", strconv.FormatFloat(*req.PercentOff, 'f', 2, 64))
+	}
+	if req.DurationInMonths != nil && duration == "repeating" {
+		values.Set("duration_in_months", strconv.Itoa(*req.DurationInMonths))
+	}
+	if req.MaxRedemptions != nil && *req.MaxRedemptions > 0 {
+		values.Set("max_redemptions", strconv.Itoa(*req.MaxRedemptions))
+	}
+	if req.RedeemBy != nil && *req.RedeemBy > 0 {
+		values.Set("redeem_by", strconv.FormatInt(*req.RedeemBy, 10))
+	}
+
+	body, err := s.doStripeForm(ctx, http.MethodPost, "/v1/coupons", values)
+	if err != nil {
+		return nil, err
+	}
+
+	var c struct {
+		ID               string   `json:"id"`
+		Name             string   `json:"name"`
+		AmountOff        *int64   `json:"amount_off"`
+		PercentOff       *float64 `json:"percent_off"`
+		Currency         string   `json:"currency"`
+		Duration         string   `json:"duration"`
+		DurationInMonths *int     `json:"duration_in_months"`
+		MaxRedemptions   *int     `json:"max_redemptions"`
+		RedeemBy         *int64   `json:"redeem_by"`
+		TimesRedeemed    int      `json:"times_redeemed"`
+		Valid            bool     `json:"valid"`
+		Created          int64    `json:"created"`
+	}
+	if err := json.Unmarshal(body, &c); err != nil {
+		return nil, fmt.Errorf("decode stripe coupon: %w", err)
+	}
+
+	coupon := &StripeCoupon{
+		ID:               c.ID,
+		Name:             c.Name,
+		AmountOff:        c.AmountOff,
+		PercentOff:       c.PercentOff,
+		Currency:         c.Currency,
+		Duration:         c.Duration,
+		DurationInMonths: c.DurationInMonths,
+		MaxRedemptions:   c.MaxRedemptions,
+		RedeemBy:         c.RedeemBy,
+		TimesRedeemed:    c.TimesRedeemed,
+		Valid:            c.Valid,
+		Created:          c.Created,
+	}
+	coupon.IsIntroCoupon, coupon.IntroTier = s.checkIntroCouponMapping(c.ID)
+
+	return coupon, nil
+}
+
+// DeleteCoupon deletes a coupon from Stripe.
+func (s *StripeService) DeleteCoupon(ctx context.Context, couponID string) error {
+	if strings.TrimSpace(couponID) == "" {
+		return errors.New("coupon ID is required")
+	}
+
+	path := "/v1/coupons/" + url.PathEscape(couponID)
+	_, err := s.doStripeRequest(ctx, http.MethodDelete, path, nil, "")
+	return err
+}
+
+// checkIntroCouponMapping checks if a coupon ID matches a configured intro coupon.
+// Returns (isIntro, tier) where tier is the plan tier name if matched.
+func (s *StripeService) checkIntroCouponMapping(couponID string) (bool, string) {
+	if !s.introCouponConfig.Enabled || s.introCouponConfig.CouponMap == nil {
+		return false, ""
+	}
+	for tier, configuredID := range s.introCouponConfig.CouponMap {
+		if configuredID == couponID {
+			return true, tier
+		}
+	}
+	return false, ""
+}
+
+// GetIntroCouponMap returns the configured intro coupon mapping.
+func (s *StripeService) GetIntroCouponMap() map[string]string {
+	if !s.introCouponConfig.Enabled || s.introCouponConfig.CouponMap == nil {
+		return nil
+	}
+	// Return a copy to prevent external modification
+	result := make(map[string]string, len(s.introCouponConfig.CouponMap))
+	for k, v := range s.introCouponConfig.CouponMap {
+		result[k] = v
+	}
+	return result
 }
 
 // FetchStripePriceDetails fetches full details for a single price from Stripe.

@@ -33,6 +33,7 @@ import { AppLimitsSettings } from './surfaces/admin-portal/routes/AppLimitsSetti
 import { UsageDashboard } from './surfaces/admin-portal/routes/UsageDashboard';
 import { AppsManagement } from './surfaces/admin-portal/routes/AppsManagement';
 import { TiersManagement } from './surfaces/admin-portal/routes/TiersManagement';
+import { CouponsManagement } from './surfaces/admin-portal/routes/CouponsManagement';
 import { UserAccounts } from './surfaces/admin-portal/routes/UserAccounts';
 import { LandingDashboard } from './surfaces/admin-portal/routes/LandingDashboard';
 import { BillingDashboard } from './surfaces/admin-portal/routes/BillingDashboard';
@@ -355,6 +356,14 @@ export default function App() {
                     element={(
                       <AdminRoute name="TiersManagement">
                         <TiersManagement />
+                      </AdminRoute>
+                    )}
+                  />
+                  <Route
+                    path="/admin/coupons"
+                    element={(
+                      <AdminRoute name="CouponsManagement">
+                        <CouponsManagement />
                       </AdminRoute>
                     )}
                   />

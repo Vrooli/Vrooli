@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Info,
+  Tag,
 } from 'lucide-react';
 import { LAYOUT } from '../config/layout.constants';
 import { useAdminHome } from '../hooks/useAdminHome';
@@ -54,7 +55,7 @@ export function BillingDashboard() {
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500 mb-4">
             Quick flows
           </p>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <QuickFlowCard
               title="Configure Stripe"
               description="Set up Stripe API keys for payment processing"
@@ -82,6 +83,15 @@ export function BillingDashboard() {
               iconColor="text-blue-300"
               onClick={() => navigate('/admin/api-keys')}
               testId="flow-api-keys"
+            />
+            <QuickFlowCard
+              title="Coupons"
+              description="Manage discount codes and intro pricing"
+              icon={Tag}
+              iconBg="bg-emerald-500/20"
+              iconColor="text-emerald-300"
+              onClick={() => navigate('/admin/coupons')}
+              testId="flow-coupons"
             />
           </div>
         </div>
