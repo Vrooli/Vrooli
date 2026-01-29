@@ -67,6 +67,7 @@ Create `scenarios/{{TARGET}}/ui/eslint.config.js` with protective comments:
 
 ```js
 import js from "@eslint/js";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -82,8 +83,17 @@ export default tseslint.config(
       },
     },
     plugins: {
+      "import": importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+    },
+    settings: {
+      "import/resolver": {
+        typescript: {
+          alwaysTryTypes: true,
+          project: "./tsconfig.json",
+        },
+      },
     },
     rules: {
       // ════════════════════════════════════════════════════════════════════════
@@ -117,6 +127,11 @@ export default tseslint.config(
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",
 
+      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+      // These runtime errors are extremely hard to debug in production (minified variable names).
+      // Requires eslint-plugin-import and eslint-import-resolver-typescript
+      "import/no-cycle": "error",
+
       // ════════════════════════════════════════════════════════════════════════
       // STANDARD RULES (can be adjusted if needed)
       // ════════════════════════════════════════════════════════════════════════
@@ -139,7 +154,7 @@ export default tseslint.config(
 Ensure required dev dependencies are installed:
 ```bash
 cd scenarios/{{TARGET}}/ui
-pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh
+pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh eslint-plugin-import eslint-import-resolver-typescript
 ```
 
 #### **Step 4: Run linting and fix errors**
@@ -169,6 +184,7 @@ The following rules exist because **UI crashes are the #1 production issue**. Th
 | `react-hooks/rules-of-hooks` | eslint.config.js | React Error #310 (early returns before hooks) |
 | `@typescript-eslint/no-non-null-assertion` | eslint.config.js | `!` operator that hides null bugs |
 | `@typescript-eslint/no-explicit-any` | eslint.config.js | `any` type that disables all checking |
+| `import/no-cycle` | eslint.config.js | Circular dependencies causing "Cannot access X before initialization" |
 
 **When you encounter errors from these rules:**
 
