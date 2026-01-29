@@ -34,6 +34,7 @@ import { DraftToggle } from '../shared/DraftToggle'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
+import { selectors } from '@/constants/selectors'
 
 interface SkillEditorPanelProps {
   // Current state
@@ -133,7 +134,10 @@ export function SkillEditorPanel({
     <div className={cn('h-full', className)}>
       <div className="flex flex-col h-full bg-card/50">
         {/* Header with all metadata */}
-        <div className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2">
+        <div
+          className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
+          data-testid={selectors.editor.header}
+        >
           {/* Row 1: Close, Icon, Name, Draft toggle, Unsaved indicator, Actions */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">

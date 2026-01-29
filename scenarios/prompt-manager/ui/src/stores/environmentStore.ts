@@ -87,6 +87,10 @@ const DEFAULT_ENVIRONMENT: EnvironmentConfig = {
     size: 30,
     divisions: 30,
     position: 0,
+    material: {
+      type: 'solid',
+      color: '#1e293b',
+    },
   },
   boundary: {
     visible: true,

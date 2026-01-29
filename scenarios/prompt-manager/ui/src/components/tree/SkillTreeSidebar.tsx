@@ -28,6 +28,7 @@ import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { getAISearchStatus } from '@/services/skillService'
+import { selectors } from '@/constants/selectors'
 
 interface SkillTreeSidebarProps {
   treeNodes: TreeNode[]
@@ -291,6 +292,7 @@ export function SkillTreeSidebar({
         'flex flex-col h-full border-r border-border w-full bg-card/50',
         className
       )}
+      data-testid={selectors.sidebar.container}
     >
       {/* Header with tabs */}
       <div className="flex-shrink-0 border-b border-border">
@@ -361,6 +363,7 @@ export function SkillTreeSidebar({
               'transition-colors',
               skillSelectionMode && 'cursor-default'
             )}
+            data-testid={selectors.sidebar.tabSkills}
           >
             <Search className="h-3.5 w-3.5" />
             Skills
@@ -376,6 +379,7 @@ export function SkillTreeSidebar({
               'transition-colors',
               skillSelectionMode && 'opacity-50 cursor-not-allowed'
             )}
+            data-testid={selectors.sidebar.tabMembers}
           >
             <User className="h-3.5 w-3.5" />
             Members
@@ -552,6 +556,7 @@ export function SkillTreeSidebar({
                   'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
                   'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
                 )}
+                data-testid={selectors.sidebar.newSkillButton}
               >
                 <Plus className="h-4 w-4" />
                 New Skill

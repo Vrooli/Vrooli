@@ -1,3 +1,16 @@
 {
-  "skills": null
+  "skills": [
+    {
+      "id": "new-skill",
+      "file": "new-skill.md",
+      "name": "New Skill",
+      "description": "",
+      "modes": [],
+      "tags": [],
+      "targetToolId": null,
+      "draft": true,
+      "createdAt": "2026-01-29T01:00:46-05:00",
+      "updatedAt": "2026-01-29T01:00:46-05:00"
+    }
+  ]
 }

@@ -58,6 +58,8 @@ ui/src/
 │   └── rendering/
 │       ├── RenderPipeline.tsx      # Post-processing (bloom, vignette, SMAA)
 │       └── EnvironmentSetup.tsx    # HDR environment + contact shadows
+│       ├── GroundSurface.tsx       # Grid/plane ground composition
+│       └── GroundMaterial.tsx      # Textured ground materials + shader wiring
 │
 ├── stores/                  # Zustand state management
 │   ├── cameraStore.ts       # Position, zoom, modes (freeform/zoomed/top-down)
@@ -113,7 +115,7 @@ WorldCanvas
 │       ├── Environment
 │       │   ├── Stars (dark mode)
 │       │   ├── Fog
-│       │   └── Grid
+│       │   └── GroundSurface (grid or textured plane)
 │       │
 │       ├── OrbitControls
 │       │
@@ -143,6 +145,15 @@ WorldCanvas
 ```
 
 ---
+
+## Ground Texturing Pipeline
+
+Ground rendering is split into two responsibilities:
+
+- `GroundSurface` decides **what** to render (grid vs plane) based on environment config.
+- `GroundMaterial` wires **how** it renders by applying procedural texture sets and shader projection via `ui/src/lib/groundTextures.ts` + `ui/src/lib/groundShader.ts`.
+
+This keeps world composition free of shader/material concerns and makes texture tuning a local change.
 
 ## GeometricMember Anatomy
 

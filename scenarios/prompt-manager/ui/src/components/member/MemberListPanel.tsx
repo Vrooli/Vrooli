@@ -6,6 +6,7 @@ import { Plus, User, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMemberData } from '@/hooks/useMemberData'
 import { DEFAULT_MEMBER_COLORS } from '@/types/member'
+import { selectors } from '@/constants/selectors'
 
 interface MemberListPanelProps {
   selectedMemberId: string | null
@@ -54,7 +55,10 @@ export function MemberListPanel({
   }
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div
+      className={cn('flex flex-col h-full', className)}
+      data-testid={selectors.members.list}
+    >
       {/* Member list */}
       <div className="flex-1 overflow-y-auto py-1">
         {members.length === 0 ? (

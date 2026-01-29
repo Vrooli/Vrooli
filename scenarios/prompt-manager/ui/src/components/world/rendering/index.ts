@@ -10,6 +10,7 @@ export { DynamicLighting } from './DynamicLighting'
 export { DynamicFog } from './DynamicFog'
 export { useFogColor } from '@/stores/environmentStore'
 export { DynamicSky, CelestialBody } from './DynamicSky'
+export { GroundSurface } from './GroundSurface'
 
 // Individual effects for custom compositions
 export { BloomEffect } from './effects/BloomEffect'

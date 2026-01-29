@@ -56,6 +56,23 @@ _No significant debt identified._
 
 ---
 
+## E2E Issues
+
+| Area | Issue | Impact | Recommendation |
+|------|-------|--------|----------------|
+| UI smoke coverage | Smoke tests cover load, scene switching, and new-skill editor open only | Medium | Add BAS cases for skill editing (save/discard), search filtering, and member creation flows |
+| Requirements linkage | BAS workflows not linked to requirements JSON | Low | Add automation validation entries once requirements are formalized |
+
+### Missing data-testid attributes in production bundle (Fixed)
+- **Execution ID:** ebf858ab-d3d0-4b9a-b2f6-6e4a11c11a87
+- **Output path:** `/tmp/bas/prompt-manager/world-ui-loads`
+- **Screenshot:** `/tmp/bas/prompt-manager/world-ui-loads/screenshots/step-02-wait-world-canvas.png`
+- **Root cause:** prompt-manager UI was serving a stale production bundle built before data-testid attributes were added, so BAS selectors could not resolve.
+- **Fix:** rebuilt the UI bundle (`pnpm run build`) and restarted the scenario to serve the updated `ui/dist`.
+- **Status:** Fixed (validated by successful BAS runs: `7d145946-73b2-4562-9378-b6363a6dd499`, `d9baa7b8-a171-4cd8-a2ff-ff794b57ecfb`, `1cfc4bc0-869a-4d18-ba43-2afadb6c450e`)
+
+---
+
 ## Stability Issues
 
 _None identified._

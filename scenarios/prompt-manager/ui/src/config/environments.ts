@@ -126,6 +126,23 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
     color: '#228B22',
     size: 100,
     position: 0,
+    material: {
+      type: 'texture',
+      color: '#2f6b3a',
+      texture: {
+        id: 'grass',
+        tileSize: 4,
+        projection: 'triplanar',
+        normalScale: 0.7,
+        roughnessIntensity: 0.9,
+        aoIntensity: 0.6,
+        macroVariation: {
+          enabled: true,
+          scale: 18,
+          intensity: 0.35,
+        },
+      },
+    },
   },
   'indoor-office': {
     visible: true,
@@ -133,6 +150,23 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
     color: '#808080',
     size: 50,
     position: 0,
+    material: {
+      type: 'texture',
+      color: '#7a7a7a',
+      texture: {
+        id: 'concrete',
+        tileSize: 3,
+        projection: 'uv',
+        normalScale: 0.45,
+        roughnessIntensity: 0.75,
+        aoIntensity: 0.5,
+        macroVariation: {
+          enabled: true,
+          scale: 12,
+          intensity: 0.2,
+        },
+      },
+    },
   },
   'abstract-space': {
     visible: true,
@@ -141,10 +175,18 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
     size: 30,
     divisions: 30,
     position: 0,
+    material: {
+      type: 'solid',
+      color: '#1e293b',
+    },
   },
   custom: {
     visible: false,
     type: 'none',
+    material: {
+      type: 'solid',
+      color: '#2f2f2f',
+    },
   },
 }
 

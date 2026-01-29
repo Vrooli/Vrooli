@@ -146,6 +146,8 @@ React-based SPA with:
 
 See [3D World Architecture](3D-WORLD-ARCHITECTURE.md) for visualization details.
 
+The 3D world’s ground rendering now has a dedicated seam: `GroundSurface` composes grid vs textured planes, while `ui/src/lib/groundTextures.ts` and `ui/src/lib/groundShader.ts` own procedural texture generation and projection logic. This keeps shader/material concerns out of `WorldScene` and makes ground visuals configurable without touching scene orchestration.
+
 ### Skill Content Editing
 
 The skill editor supports two coordinated viewing states over the same markdown source:

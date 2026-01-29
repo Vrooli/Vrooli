@@ -84,6 +84,49 @@ export interface GroundConfig {
   divisions?: number
   /** Y position of ground */
   position?: number
+  /** Material configuration for textured/solid ground surfaces */
+  material?: GroundMaterialConfig
+}
+
+export type GroundMaterialType = 'solid' | 'texture'
+
+export type GroundTextureId = 'grass' | 'concrete' | 'wood-plank' | 'stone' | 'metal-panel'
+
+export type GroundProjection = 'uv' | 'triplanar'
+
+export interface GroundMacroVariationConfig {
+  enabled: boolean
+  /** World units per macro texture tile */
+  scale: number
+  /** Intensity multiplier (0-1 recommended) */
+  intensity: number
+}
+
+export interface GroundTextureConfig {
+  /** Texture set identifier */
+  id: GroundTextureId
+  /** World units per texture tile */
+  tileSize?: number
+  /** UV rotation in radians */
+  rotation?: number
+  /** Projection mode for textures */
+  projection?: GroundProjection
+  /** Normal map intensity multiplier */
+  normalScale?: number
+  /** Roughness multiplier applied to the material */
+  roughnessIntensity?: number
+  /** Ambient occlusion intensity multiplier */
+  aoIntensity?: number
+  /** Macro variation overlay settings */
+  macroVariation?: GroundMacroVariationConfig
+}
+
+export interface GroundMaterialConfig {
+  type: GroundMaterialType
+  /** Solid color fallback or tint */
+  color?: string
+  /** Texture-based material settings */
+  texture?: GroundTextureConfig
 }
 
 /**

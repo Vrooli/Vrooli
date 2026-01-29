@@ -20,7 +20,7 @@ import { DragPlane, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
-import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody } from './rendering'
+import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, GroundSurface } from './rendering'
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
@@ -151,29 +151,12 @@ export function WorldScene({
       <DragPlane y={groundY} size={dragPlaneSize} />
       <PlacementPlane y={groundY} size={dragPlaneSize} />
 
-      {/* Grid helper - respects environment ground config */}
-      {groundConfig.visible && groundConfig.type === 'grid' && (
-        <gridHelper
-          args={[
-            groundConfig.size ?? 30,
-            groundConfig.divisions ?? 30,
-            groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
-            groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
-          ]}
-          position={[0, groundY, 0]}
-        />
-      )}
-      {/* Ground plane for non-grid environments */}
-      {groundConfig.visible && groundConfig.type === 'plane' && (
-        <mesh
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, groundY, 0]}
-          receiveShadow
-        >
-          <planeGeometry args={[groundConfig.size ?? 100, groundConfig.size ?? 100]} />
-          <meshStandardMaterial color={groundConfig.color ?? '#228B22'} />
-        </mesh>
-      )}
+      {/* Ground surface (grid or textured plane) */}
+      <GroundSurface
+        ground={groundConfig}
+        groundY={groundY}
+        isDarkMode={isDarkMode}
+      />
 
       {/* World boundary outline */}
       <BoundaryOutline groundSize={groundSize} />

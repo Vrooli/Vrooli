@@ -35,6 +35,7 @@ import { EnvironmentSetup } from './rendering/EnvironmentSetup'
 import { MaterialProvider } from './materials/MaterialProvider'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { WorldErrorProvider } from './WorldErrorProvider'
+import { selectors } from '@/constants/selectors'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
@@ -306,6 +307,7 @@ export function WorldCanvas({
   return (
     <div
       className={`relative w-full h-full bg-background ${className || ''}`}
+      data-testid={selectors.world.canvas}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >

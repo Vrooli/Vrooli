@@ -9,20 +9,21 @@ import { Button } from '@/components/ui/button'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
 import type { TimeOfDay, SceneType } from '@/types/environment'
+import { selectors } from '@/constants/selectors'
 
 // Stable icon references
-const TIME_OF_DAY_CONFIG: { time: TimeOfDay; icon: React.ReactNode; label: string }[] = [
-  { time: 'morning', icon: <Sunrise className="h-4 w-4" />, label: 'Morning' },
-  { time: 'noon', icon: <Sun className="h-4 w-4" />, label: 'Noon' },
-  { time: 'sunset', icon: <Sunset className="h-4 w-4" />, label: 'Sunset' },
-  { time: 'night', icon: <Moon className="h-4 w-4" />, label: 'Night' },
+const TIME_OF_DAY_CONFIG: { time: TimeOfDay; icon: React.ReactNode; label: string; testId: string }[] = [
+  { time: 'morning', icon: <Sunrise className="h-4 w-4" />, label: 'Morning', testId: selectors.environment.timeMorning },
+  { time: 'noon', icon: <Sun className="h-4 w-4" />, label: 'Noon', testId: selectors.environment.timeNoon },
+  { time: 'sunset', icon: <Sunset className="h-4 w-4" />, label: 'Sunset', testId: selectors.environment.timeSunset },
+  { time: 'night', icon: <Moon className="h-4 w-4" />, label: 'Night', testId: selectors.environment.timeNight },
 ]
 
 // Scene type configurations
-const SCENE_TYPE_CONFIG: { type: SceneType; icon: React.ReactNode; label: string }[] = [
-  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space' },
-  { type: 'outdoor-park', icon: <Trees className="h-4 w-4" />, label: 'Park' },
-  { type: 'indoor-office', icon: <Building2 className="h-4 w-4" />, label: 'Office' },
+const SCENE_TYPE_CONFIG: { type: SceneType; icon: React.ReactNode; label: string; testId: string }[] = [
+  { type: 'abstract-space', icon: <Sparkles className="h-4 w-4" />, label: 'Space', testId: selectors.environment.sceneSpace },
+  { type: 'outdoor-park', icon: <Trees className="h-4 w-4" />, label: 'Park', testId: selectors.environment.scenePark },
+  { type: 'indoor-office', icon: <Building2 className="h-4 w-4" />, label: 'Office', testId: selectors.environment.sceneOffice },
 ]
 
 interface EnvironmentControlsProps {
@@ -83,11 +84,14 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
   }, [syncWithTheme, setSyncWithTheme])
 
   return (
-    <div className={`flex flex-col gap-2 p-2 bg-slate-800/80 border border-slate-700 rounded-lg ${className ?? ''}`}>
+    <div
+      className={`flex flex-col gap-2 p-2 bg-slate-800/80 border border-slate-700 rounded-lg ${className ?? ''}`}
+      data-testid={selectors.environment.controls}
+    >
       {/* Time of Day Row */}
       <div className="flex items-center gap-1">
         <span className="text-xs text-slate-400 w-12">Time:</span>
-        {TIME_OF_DAY_CONFIG.map(({ time, icon, label }) => (
+        {TIME_OF_DAY_CONFIG.map(({ time, icon, label, testId }) => (
           <Button
             key={time}
             variant="ghost"
@@ -99,6 +103,9 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title={label}
+            data-testid={testId}
+            aria-pressed={preferredTimeOfDay === time}
+            data-active={preferredTimeOfDay === time}
           >
             {icon}
           </Button>
@@ -108,7 +115,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
       {/* Scene Type Row */}
       <div className="flex items-center gap-1">
         <span className="text-xs text-slate-400 w-12">Scene:</span>
-        {SCENE_TYPE_CONFIG.map(({ type, icon, label }) => (
+        {SCENE_TYPE_CONFIG.map(({ type, icon, label, testId }) => (
           <Button
             key={type}
             variant="ghost"
@@ -120,6 +127,9 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
                 : 'text-slate-400 hover:text-slate-200'
             }`}
             title={label}
+            data-testid={testId}
+            aria-pressed={sceneType === type}
+            data-active={sceneType === type}
           >
             {icon}
           </Button>
