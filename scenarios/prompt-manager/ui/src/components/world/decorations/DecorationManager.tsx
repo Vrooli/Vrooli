@@ -82,20 +82,3 @@ export function DecorationManager({
 /**
  * Hook to add decoration at a position
  */
-export function useAddDecoration() {
-  return useDecorationStore((state) => state.addDecoration)
-}
-
-/**
- * Hook to remove decoration
- */
-export function useRemoveDecoration() {
-  return useDecorationStore((state) => state.removeDecoration)
-}
-
-/**
- * Hook to toggle decoration light
- */
-export function useToggleDecorationLight() {
-  return useDecorationStore((state) => state.toggleLight)
-}

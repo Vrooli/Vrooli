@@ -4,9 +4,11 @@
 
 export { RenderPipeline } from './RenderPipeline'
 export { EnvironmentSetup } from './EnvironmentSetup'
-export { ShadowSystem, useShadowConfig } from './ShadowSystem'
+export { ShadowSystem } from './ShadowSystem'
+export { useShadowConfig } from '@/stores/graphicsStore'
 export { DynamicLighting } from './DynamicLighting'
-export { DynamicFog, useFogColor } from './DynamicFog'
+export { DynamicFog } from './DynamicFog'
+export { useFogColor } from '@/stores/environmentStore'
 export { DynamicSky, CelestialBody } from './DynamicSky'
 
 // Individual effects for custom compositions

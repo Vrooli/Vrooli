@@ -155,6 +155,7 @@ export function SkillManagerLayout() {
   const {
     currentSkill,
     formState,
+    originalContent,
     updateField,
     validation,
     isDirty,
@@ -614,6 +615,7 @@ export function SkillManagerLayout() {
             <SkillEditorPanel
               currentSkill={currentSkill}
               formState={formState}
+              originalContent={originalContent}
               validation={validation}
               allSkills={skills}
               isDirty={isDirty}

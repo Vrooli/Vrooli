@@ -43,6 +43,7 @@ interface UsePromptEditorReturn {
   // Current editor state
   currentSkill: Skill | null
   formState: NormalizedFormState
+  originalContent: string | null
 
   // Form operations
   updateField: <K extends keyof NormalizedFormState>(field: K, value: NormalizedFormState[K]) => void
@@ -401,11 +402,13 @@ export function usePromptEditor({
 
   // Return empty state if no form state available
   const effectiveFormState = formState ?? createEmptyNormalizedState()
+  const originalContent = originalState?.content ?? null
 
   return {
     // Current editor state
     currentSkill,
     formState: effectiveFormState,
+    originalContent,
 
     // Form operations
     updateField,

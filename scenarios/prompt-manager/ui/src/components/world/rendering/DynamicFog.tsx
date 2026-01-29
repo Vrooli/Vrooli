@@ -41,7 +41,3 @@ export function DynamicFog({ config }: DynamicFogProps) {
 /**
  * Hook to get the current fog color (useful for background matching)
  */
-export function useFogColor(): string {
-  const fog = useEnvironmentStore(selectCurrentFog)
-  return fog?.color ?? '#0f172a'
-}

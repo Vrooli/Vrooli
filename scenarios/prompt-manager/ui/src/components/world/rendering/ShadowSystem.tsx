@@ -59,13 +59,3 @@ export function ShadowSystem({
 /**
  * Helper hook to get shadow configuration for lights
  */
-export function useShadowConfig() {
-  const config = useGraphicsStore((state) => state.config)
-
-  return {
-    enabled: config.shadows,
-    mapSize: config.shadowMapSize,
-    bias: -0.0001,
-    normalBias: 0.02,
-  }
-}

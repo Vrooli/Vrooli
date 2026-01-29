@@ -243,6 +243,20 @@ export function useFurnitureList(): FurnitureInstance[] {
 }
 
 /**
+ * Hook to add furniture at a position.
+ */
+export function useAddFurniture() {
+  return useFurnitureStore((state) => state.addFurniture)
+}
+
+/**
+ * Hook to remove furniture.
+ */
+export function useRemoveFurniture() {
+  return useFurnitureStore((state) => state.removeFurniture)
+}
+
+/**
  * Hook to check if a member is seated
  */
 export function useIsMemberSeated(memberId: string): boolean {

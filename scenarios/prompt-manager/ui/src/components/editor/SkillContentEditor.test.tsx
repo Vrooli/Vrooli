@@ -53,6 +53,12 @@ vi.mock('@monaco-editor/react', () => ({
       </div>
     )
   },
+  DiffEditor: ({ original, modified }: {
+    original: string
+    modified: string
+  }) => (
+    <div data-testid="monaco-diff-editor" data-original={original} data-modified={modified} />
+  ),
   useMonaco: () => mockMonaco,
 }))
 
@@ -214,6 +220,52 @@ describe('SkillContentEditor', () => {
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
       expect(screen.getByText('Preview content')).toBeInTheDocument()
+    })
+  })
+
+  describe('diff mode', () => {
+    it('should show diff toggle only when dirty and original value is provided', () => {
+      const { rerender } = render(
+        <SkillContentEditor
+          {...defaultProps}
+          originalValue="Original"
+          isDirty
+          onSave={vi.fn()}
+        />
+      )
+
+      expect(screen.getByLabelText('Toggle diff')).toBeInTheDocument()
+
+      rerender(
+        <SkillContentEditor
+          {...defaultProps}
+          originalValue="Original"
+          isDirty={false}
+          onSave={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByLabelText('Toggle diff')).not.toBeInTheDocument()
+    })
+
+    it('should render diff editor when diff toggle is activated', () => {
+      render(
+        <SkillContentEditor
+          value="Modified"
+          originalValue="Original"
+          onChange={vi.fn()}
+          isDirty
+          onSave={vi.fn()}
+          onDiscard={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByLabelText('Toggle diff'))
+
+      expect(screen.getByTestId('monaco-diff-editor')).toBeInTheDocument()
+      expect(screen.getByLabelText('Discard changes')).toBeInTheDocument()
+      expect(screen.getByTestId('monaco-diff-editor')).toHaveAttribute('data-original', 'Original')
+      expect(screen.getByTestId('monaco-diff-editor')).toHaveAttribute('data-modified', 'Modified')
     })
   })
 

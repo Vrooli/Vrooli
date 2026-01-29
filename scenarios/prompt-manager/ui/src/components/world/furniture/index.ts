@@ -3,5 +3,6 @@
  */
 
 export { FurnitureItem } from './FurnitureItem'
-export { FurnitureManager, useAddFurniture, useRemoveFurniture } from './FurnitureManager'
+export { FurnitureManager } from './FurnitureManager'
+export { useAddFurniture, useRemoveFurniture } from '@/stores/furnitureStore'
 export { FurnitureContextMenu } from './FurnitureContextMenu'

@@ -189,6 +189,14 @@ export function useIsDegraded(): boolean {
 }
 
 /**
+ * Hook for checking if performance is degraded.
+ * Alias for useIsDegraded to keep external API stable.
+ */
+export function useIsPerformanceDegraded(): boolean {
+  return useIsDegraded()
+}
+
+/**
  * Hook for getting current FPS.
  */
 export function useCurrentFPS(): number {

@@ -3,9 +3,5 @@
  */
 
 export { DecorationItem } from './DecorationItem'
-export {
-  DecorationManager,
-  useAddDecoration,
-  useRemoveDecoration,
-  useToggleDecorationLight,
-} from './DecorationManager'
+export { DecorationManager } from './DecorationManager'
+export { useAddDecoration, useRemoveDecoration, useToggleDecorationLight } from '@/stores/decorationStore'

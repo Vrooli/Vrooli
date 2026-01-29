@@ -216,6 +216,14 @@ export const selectCurrentFog = (state: EnvironmentStore) =>
   state.current?.fog ?? null
 
 /**
+ * Hook to get the current fog color (useful for background matching).
+ */
+export function useFogColor(): string {
+  const fog = useEnvironmentStore(selectCurrentFog)
+  return fog?.color ?? '#0f172a'
+}
+
+/**
  * Helper to get time-of-day based environment preset
  */
 export function getTimeOfDayPreset(timeOfDay: TimeOfDay): DreiEnvironmentPreset {

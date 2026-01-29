@@ -97,7 +97,3 @@ export function PerformanceMonitor({
 /**
  * Hook for checking if performance monitoring is degraded.
  */
-export function useIsPerformanceDegraded(): boolean {
-  const { isDegraded } = useFPSMonitor({ enabled: true, autoAdjust: false })
-  return isDegraded
-}

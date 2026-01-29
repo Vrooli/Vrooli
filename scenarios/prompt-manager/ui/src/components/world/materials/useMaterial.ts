@@ -2,7 +2,7 @@
  * useMaterial hook for accessing material presets and creating materials.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useContext } from 'react'
 import * as THREE from 'three'
 import { useGraphicsStore } from '@/stores/graphicsStore'
 import {
@@ -12,6 +12,7 @@ import {
   type PhysicalPresetName,
   type MaterialPreset,
 } from './presets'
+import { MaterialContext, type MaterialCache } from './MaterialContext'
 
 interface UseMaterialOptions {
   /** Override color */
@@ -158,4 +159,40 @@ export function useMaterialMap<T extends Record<string, StandardPresetName | Phy
  */
 export function useMaterialQuality() {
   return useGraphicsStore((state) => state.config.materialQuality)
+}
+
+/**
+ * Hook to access the material cache.
+ */
+export function useMaterialCache(): MaterialCache {
+  const context = useContext(MaterialContext)
+
+  if (!context) {
+    throw new Error('useMaterialCache must be used within a MaterialProvider')
+  }
+
+  return context
+}
+
+/**
+ * Hook to get a cached material.
+ * Falls back to creating a new material if cache isn't available.
+ */
+export function useCachedMaterial(preset: StandardPresetName, color: string): THREE.Material {
+  const context = useContext(MaterialContext)
+
+  return useMemo(() => {
+    if (context) {
+      return context.getMaterial(preset, color)
+    }
+
+    // Fallback: create material without caching
+    const presetData = MATERIAL_PRESETS[preset]
+    return new THREE.MeshStandardMaterial({
+      color,
+      metalness: presetData.metalness,
+      roughness: presetData.roughness,
+      envMapIntensity: 'envMapIntensity' in presetData ? presetData.envMapIntensity : 1.0,
+    })
+  }, [context, preset, color])
 }

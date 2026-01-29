@@ -89,8 +89,9 @@ export function GeometricMember({
 
   // Cleanup LOD tracking on unmount
   useEffect(() => {
+    const objectId = objectIdRef.current
     return () => {
-      useLODStore.getState().removeObject(objectIdRef.current)
+      useLODStore.getState().removeObject(objectId)
     }
   }, [])
 

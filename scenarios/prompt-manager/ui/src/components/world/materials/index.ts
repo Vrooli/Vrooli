@@ -15,6 +15,12 @@ export {
   type EmissiveMaterialPreset,
 } from './presets'
 
-export { useMaterial, useMaterialMap, useMaterialQuality } from './useMaterial'
+export {
+  useMaterial,
+  useMaterialMap,
+  useMaterialQuality,
+  useMaterialCache,
+  useCachedMaterial,
+} from './useMaterial'
 
-export { MaterialProvider, useMaterialCache, useCachedMaterial } from './MaterialProvider'
+export { MaterialProvider } from './MaterialProvider'

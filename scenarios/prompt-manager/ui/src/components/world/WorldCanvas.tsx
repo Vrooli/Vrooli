@@ -34,7 +34,7 @@ import { RenderPipeline } from './rendering/RenderPipeline'
 import { EnvironmentSetup } from './rendering/EnvironmentSetup'
 import { MaterialProvider } from './materials/MaterialProvider'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
-import { WorldErrorProvider } from './WorldErrorContext'
+import { WorldErrorProvider } from './WorldErrorProvider'
 
 // Default camera values (moved outside component to satisfy exhaustive-deps)
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]

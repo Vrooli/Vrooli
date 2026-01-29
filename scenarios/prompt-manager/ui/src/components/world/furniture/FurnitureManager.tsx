@@ -80,13 +80,3 @@ export function FurnitureManager({
 /**
  * Hook to add furniture at a position
  */
-export function useAddFurniture() {
-  return useFurnitureStore((state) => state.addFurniture)
-}
-
-/**
- * Hook to remove furniture
- */
-export function useRemoveFurniture() {
-  return useFurnitureStore((state) => state.removeFurniture)
-}

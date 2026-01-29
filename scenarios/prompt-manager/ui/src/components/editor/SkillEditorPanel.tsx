@@ -39,6 +39,7 @@ interface SkillEditorPanelProps {
   // Current state
   currentSkill: Skill | null
   formState: NormalizedFormState
+  originalContent?: string | null
   validation: ValidationResult
 
   // All skills for skill tree
@@ -81,6 +82,7 @@ interface SkillEditorPanelProps {
 export function SkillEditorPanel({
   currentSkill,
   formState,
+  originalContent,
   validation,
   allSkills = [],
   isDirty,
@@ -240,6 +242,7 @@ export function SkillEditorPanel({
         <div className="flex-1 overflow-hidden">
           <SkillContentEditor
             value={formState.content}
+            originalValue={originalContent ?? undefined}
             onChange={(v) => onFieldChange('content', v)}
             error={validation.errors.content}
             isDirty={isDirty}
@@ -250,6 +253,7 @@ export function SkillEditorPanel({
             canRedo={canRedo}
             onSave={onSave}
             onSaveAll={onSaveAll}
+            onDiscard={onDiscard}
             isSaving={isSaving}
             isValid={validation.valid}
             className="h-full"

@@ -86,13 +86,15 @@ export function useAssetDisposal({
 
   // Cleanup on unmount
   useEffect(() => {
+    const trackedIds = trackedIdsRef.current
+    const store = storeRef.current
     return () => {
       if (autoDisposeOnUnmount) {
         // Dispose all assets tracked by this instance
-        for (const id of trackedIdsRef.current) {
-          storeRef.current.disposeAsset(id)
+        for (const id of trackedIds) {
+          store.disposeAsset(id)
         }
-        trackedIdsRef.current.clear()
+        trackedIds.clear()
       }
     }
   }, [autoDisposeOnUnmount])

@@ -69,6 +69,9 @@ export function TipTapEditor({
   canRedo,
   onSave,
   onSaveAll,
+  onDiscard,
+  onToggleDiff,
+  isDiffMode,
   isSaving,
   isValid,
   className,
@@ -188,6 +191,9 @@ export function TipTapEditor({
           canRedo={canRedo}
           onSave={onSave}
           onSaveAll={onSaveAll}
+          onDiscard={onDiscard}
+          onToggleDiff={onToggleDiff}
+          isDiffMode={isDiffMode}
           isSaving={isSaving}
           isValid={isValid}
         />

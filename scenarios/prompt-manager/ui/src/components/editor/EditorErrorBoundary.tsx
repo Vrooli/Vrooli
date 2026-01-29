@@ -6,10 +6,9 @@
  */
 
 import { Component, type ReactNode, type ErrorInfo } from 'react'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { EditorErrorFallback } from './EditorErrorFallback'
 
-export interface EditorErrorBoundaryProps {
+interface EditorErrorBoundaryProps {
   /** Child components to render */
   children: ReactNode
   /** Optional fallback render function */
@@ -57,7 +56,7 @@ export class EditorErrorBoundary extends Component<
       }
 
       return (
-        <DefaultErrorFallback
+        <EditorErrorFallback
           error={this.state.error}
           onReset={this.handleReset}
           className={this.props.className}
@@ -67,59 +66,4 @@ export class EditorErrorBoundary extends Component<
 
     return this.props.children
   }
-}
-
-interface DefaultErrorFallbackProps {
-  error: Error
-  onReset: () => void
-  className?: string
-}
-
-/**
- * Default error fallback UI.
- */
-function DefaultErrorFallback({
-  error,
-  onReset,
-  className,
-}: DefaultErrorFallbackProps) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center p-8',
-        'bg-card rounded-lg border border-destructive/30',
-        'text-center',
-        className
-      )}
-    >
-      <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-      <h3 className="text-lg font-semibold text-foreground mb-2">
-        Editor Error
-      </h3>
-      <p className="text-sm text-muted-foreground mb-4 max-w-md">
-        Something went wrong with the editor. This might be due to invalid
-        content or a temporary issue.
-      </p>
-      <details className="text-xs text-muted-foreground mb-4 max-w-md">
-        <summary className="cursor-pointer hover:text-foreground">
-          Technical details
-        </summary>
-        <pre className="mt-2 p-2 bg-muted rounded text-left overflow-auto">
-          {error.message}
-        </pre>
-      </details>
-      <button
-        type="button"
-        onClick={onReset}
-        className={cn(
-          'flex items-center gap-2 px-4 py-2',
-          'bg-primary hover:bg-primary/90 text-primary-foreground',
-          'rounded-lg transition-colors'
-        )}
-      >
-        <RefreshCw className="h-4 w-4" />
-        Try Again
-      </button>
-    </div>
-  )
 }

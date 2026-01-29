@@ -75,6 +75,9 @@ export function TipTapToolbar({
   canRedo,
   onSave,
   onSaveAll,
+  onDiscard,
+  onToggleDiff,
+  isDiffMode,
   isSaving,
   isValid,
 }: TipTapToolbarProps) {
@@ -89,6 +92,9 @@ export function TipTapToolbar({
     canRedo,
     onSave,
     onSaveAll,
+    onDiscard,
+    onToggleDiff,
+    isDiffMode,
     isSaving,
     isValid,
   }
@@ -147,7 +153,11 @@ function MobileToolbar({
   editorActions,
 }: ToolbarContentProps) {
   const hasEditorActions = Boolean(
-    editorActions?.onUndo || editorActions?.onRedo || editorActions?.onSave || editorActions?.onSaveAll
+    editorActions?.onUndo ||
+      editorActions?.onRedo ||
+      editorActions?.onSave ||
+      editorActions?.onSaveAll ||
+      editorActions?.onToggleDiff
   )
 
   return (
@@ -276,7 +286,11 @@ function DesktopToolbar({
   editorActions,
 }: ToolbarContentProps) {
   const hasEditorActions = Boolean(
-    editorActions?.onUndo || editorActions?.onRedo || editorActions?.onSave || editorActions?.onSaveAll
+    editorActions?.onUndo ||
+      editorActions?.onRedo ||
+      editorActions?.onSave ||
+      editorActions?.onSaveAll ||
+      editorActions?.onToggleDiff
   )
 
   return (

@@ -39,7 +39,7 @@ export function FurnitureContextMenu({
 
   // Get furniture config
   const config = furniture ? FURNITURE_CONFIGS[furniture.type] : null
-  const seats = config?.seats ?? []
+  const seats = useMemo(() => config?.seats ?? [], [config])
   const hasSeat = seats.length > 0
 
   // Find which seats are occupied

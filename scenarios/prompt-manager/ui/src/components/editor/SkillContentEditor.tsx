@@ -13,8 +13,8 @@
  */
 
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
-import Editor, { useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
-import { AlertTriangle, Code, Eye, Files, Redo2, Save, Type, Undo2, X } from 'lucide-react'
+import Editor, { DiffEditor, useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
+import { AlertTriangle, Code, Diff, Eye, Files, Redo2, RotateCcw, Save, Type, Undo2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/markdown'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
@@ -119,6 +119,9 @@ export interface EditorActionState {
   canRedo?: boolean
   onSave?: () => void
   onSaveAll?: () => void
+  onDiscard?: () => void
+  onToggleDiff?: () => void
+  isDiffMode?: boolean
   isSaving?: boolean
   isValid?: boolean
 }
@@ -137,16 +140,22 @@ export function EditorActionButtons({
   canRedo = false,
   onSave,
   onSaveAll,
+  onDiscard,
+  onToggleDiff,
+  isDiffMode = false,
   isSaving = false,
   isValid = true,
   variant = 'light',
   className,
 }: EditorActionButtonsProps) {
-  const hasActions = Boolean(onUndo || onRedo || onSave || onSaveAll)
+  const hasActions = Boolean(onUndo || onRedo || onSave || onSaveAll || onDiscard || onToggleDiff)
   if (!hasActions) return null
 
   const canSaveBtn = Boolean(onSave) && isDirty && !isSaving && isValid
   const canSaveAll = Boolean(onSaveAll) && dirtyCount > 1 && !isSaving
+  const canShowDiff = Boolean(onToggleDiff) && isDirty
+  const canToggleDiff = canShowDiff && !isSaving
+  const canDiscard = Boolean(onDiscard) && isDirty && !isSaving
 
   const baseClass =
     variant === 'dark'
@@ -213,6 +222,47 @@ export function EditorActionButtons({
           <Save className="h-4 w-4" />
         </button>
       )}
+      {canShowDiff && (
+        <button
+          type="button"
+          onClick={onToggleDiff}
+          disabled={!canToggleDiff}
+          className={cn(
+            'h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+            canToggleDiff
+              ? isDiffMode
+                ? variant === 'dark'
+                  ? 'bg-white/10 text-white'
+                  : 'bg-primary/20 text-primary'
+                : baseClass
+              : disabledClass
+          )}
+          title={isDiffMode ? 'Hide diff' : 'Show diff'}
+          aria-label="Toggle diff"
+          aria-pressed={isDiffMode}
+        >
+          <Diff className="h-4 w-4" />
+        </button>
+      )}
+      {isDiffMode && onDiscard && (
+        <button
+          type="button"
+          onClick={onDiscard}
+          disabled={!canDiscard}
+          className={cn(
+            'h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+            canDiscard
+              ? variant === 'dark'
+                ? 'text-rose-300 hover:text-white hover:bg-rose-500/20'
+                : 'text-rose-600 hover:text-rose-700 hover:bg-rose-50'
+              : disabledClass
+          )}
+          title="Discard changes"
+          aria-label="Discard changes"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+      )}
       {onSaveAll && dirtyCount > 1 && (
         <button
           type="button"
@@ -238,6 +288,7 @@ export function EditorActionButtons({
 
 interface SkillContentEditorProps extends EditorActionState {
   value: string
+  originalValue?: string | null
   onChange: (value: string) => void
   error?: string
   className?: string
@@ -248,6 +299,7 @@ interface SkillContentEditorProps extends EditorActionState {
  */
 export function SkillContentEditor({
   value,
+  originalValue,
   onChange,
   error,
   isDirty = false,
@@ -258,6 +310,7 @@ export function SkillContentEditor({
   canRedo = false,
   onSave,
   onSaveAll,
+  onDiscard,
   isSaving = false,
   isValid = true,
   className,
@@ -279,6 +332,7 @@ export function SkillContentEditor({
     return stored === 'wysiwyg' ? 'wysiwyg' : 'code'
   })
   const [viewMode, setViewMode] = useState<ViewMode>('edit')
+  const [isDiffMode, setIsDiffMode] = useState(false)
 
   // State for markdown validation - issues persist across mode switches
   const [validationIssues, setValidationIssues] = useState<MarkdownIssue[]>([])
@@ -294,6 +348,16 @@ export function SkillContentEditor({
       localStorage.setItem(STORAGE_KEY, editorType)
     }
   }, [editorType])
+
+  useEffect(() => {
+    if (!isDirty) {
+      setIsDiffMode(false)
+    }
+  }, [isDirty])
+
+  useEffect(() => {
+    setIsDiffMode(false)
+  }, [originalValue])
 
   // Validate markdown content whenever value changes (regardless of mode)
   // Issues persist so we can warn when switching modes
@@ -402,6 +466,10 @@ export function SkillContentEditor({
     setViewMode(mode)
   }, [])
 
+  const handleToggleDiff = useCallback(() => {
+    setIsDiffMode((prev) => !prev)
+  }, [])
+
   const previewPane = (
     <div className="flex-1 overflow-y-auto bg-card">
       <div className="p-4">
@@ -410,7 +478,11 @@ export function SkillContentEditor({
     </div>
   )
 
-  const headerVariant: 'light' | 'dark' = editorType === 'code' ? 'dark' : 'light'
+  const headerVariant: 'light' | 'dark' = isDiffMode
+    ? 'dark'
+    : editorType === 'code'
+      ? 'dark'
+      : 'light'
   const editorActionState: EditorActionState = {
     isDirty,
     dirtyCount,
@@ -420,6 +492,9 @@ export function SkillContentEditor({
     canRedo,
     onSave,
     onSaveAll,
+    onDiscard,
+    onToggleDiff: originalValue !== null && originalValue !== undefined ? handleToggleDiff : undefined,
+    isDiffMode,
     isSaving,
     isValid,
   }
@@ -438,11 +513,13 @@ export function SkillContentEditor({
           onEditorTypeChange={handleEditorTypeChange}
           variant={variant}
         />
-        <ViewToggle
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          variant={variant}
-        />
+        {!isDiffMode && (
+          <ViewToggle
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            variant={variant}
+          />
+        )}
       </div>
     </div>
   )
@@ -500,7 +577,45 @@ export function SkillContentEditor({
           error && 'ring-1 ring-red-500'
         )}
       >
-        {viewMode === 'preview' && isMobile ? (
+        {isDiffMode && originalValue !== null && originalValue !== undefined ? (
+          <div className="flex flex-col h-full">
+            {renderHeader('dark')}
+            <div className="flex-1">
+              <DiffEditor
+                height="100%"
+                language="markdown"
+                original={originalValue}
+                modified={value}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  originalEditable: false,
+                  renderSideBySide: !isMobile,
+                  minimap: { enabled: false },
+                  wordWrap: 'on',
+                  lineNumbers: 'on',
+                  fontSize: 13,
+                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                  scrollBeyondLastLine: false,
+                  renderLineHighlight: 'line',
+                  cursorBlinking: 'smooth',
+                  smoothScrolling: true,
+                  scrollbar: {
+                    vertical: 'auto',
+                    horizontal: 'auto',
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8,
+                  },
+                  overviewRulerBorder: false,
+                  hideCursorInOverviewRuler: true,
+                  folding: true,
+                  foldingStrategy: 'indentation',
+                  automaticLayout: true,
+                }}
+              />
+            </div>
+          </div>
+        ) : viewMode === 'preview' && isMobile ? (
           <div className="flex flex-col h-full">
             {renderHeader(headerVariant)}
             {previewPane}
@@ -620,8 +735,8 @@ export function SkillContentEditor({
             placeholder="Start writing your skill content..."
             editorType={editorType}
             onEditorTypeChange={handleEditorTypeChange}
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
+            viewMode={isDiffMode ? undefined : viewMode}
+            onViewModeChange={isDiffMode ? undefined : handleViewModeChange}
             {...editorActionState}
             className="h-full"
           />
