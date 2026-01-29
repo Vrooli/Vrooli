@@ -418,6 +418,30 @@ export function deleteCoupon(couponId: string): Promise<void> {
 }
 
 /**
+ * Update coupon payload. Note: Stripe only allows updating the name.
+ */
+export interface UpdateCouponPayload {
+  name?: string;
+}
+
+/**
+ * Update a coupon in Stripe (only name can be updated).
+ */
+export function updateCoupon(couponId: string, payload: UpdateCouponPayload): Promise<StripeCoupon> {
+  return apiCall<StripeCoupon>(`/admin/coupons/${encodeURIComponent(couponId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then((resp) => {
+    const validated = parseOrNull(StripeCouponSchema, resp, 'StripeCoupon');
+    if (!validated) {
+      throw new Error('Invalid coupon response');
+    }
+    return validated;
+  });
+}
+
+/**
  * Get coupon usage statistics from local database.
  */
 export function getCouponUsage(): Promise<CouponUsageStats[]> {
@@ -425,6 +449,101 @@ export function getCouponUsage(): Promise<CouponUsageStats[]> {
     const validated = parseOrNull(CouponUsageStatsListSchema, resp, 'CouponUsageStats[]');
     if (!validated) {
       throw new Error('Invalid coupon usage response');
+    }
+    return validated;
+  });
+}
+
+// Coupon-Plan Mapping Types
+export interface CouponMappingsResponse {
+  mappings: Record<string, string>; // priceID -> couponID
+}
+
+const CouponMappingsResponseSchema = z.object({
+  mappings: z.record(z.string(), z.string()),
+});
+
+/**
+ * Get all coupon-to-plan mappings.
+ */
+export function getCouponMappings(): Promise<CouponMappingsResponse> {
+  return apiCall<CouponMappingsResponse>('/admin/coupon-mappings').then((resp) => {
+    const validated = parseOrNull(CouponMappingsResponseSchema, resp, 'CouponMappingsResponse');
+    if (!validated) {
+      throw new Error('Invalid coupon mappings response');
+    }
+    return validated;
+  });
+}
+
+/**
+ * Assign a coupon to a specific plan.
+ */
+export function setCouponForPlan(priceId: string, couponId: string): Promise<void> {
+  return apiCall(`/admin/plans/${encodeURIComponent(priceId)}/coupon`, {
+    method: 'PUT',
+    body: JSON.stringify({ coupon_id: couponId }),
+  }).then(() => undefined);
+}
+
+/**
+ * Remove the coupon assignment from a specific plan.
+ */
+export function removeCouponFromPlan(priceId: string): Promise<void> {
+  return apiCall(`/admin/plans/${encodeURIComponent(priceId)}/coupon`, {
+    method: 'DELETE',
+  }).then(() => undefined);
+}
+
+// Stripe Coupon Import Types
+export interface CouponImportPreviewItem {
+  id: string;
+  name?: string;
+  amount_off?: number | null;
+  percent_off?: number | null;
+  currency?: string;
+  duration: 'once' | 'repeating' | 'forever';
+  duration_in_months?: number | null;
+  times_redeemed: number;
+  valid: boolean;
+  exists_locally: boolean;
+}
+
+export interface CouponImportPreview {
+  coupons: CouponImportPreviewItem[];
+  total_coupons: number;
+  existing_count: number;
+  new_count: number;
+}
+
+const CouponImportPreviewItemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().optional(),
+  amount_off: z.number().nullable().optional(),
+  percent_off: z.number().nullable().optional(),
+  currency: z.string().optional(),
+  duration: z.enum(['once', 'repeating', 'forever']),
+  duration_in_months: z.number().nullable().optional(),
+  times_redeemed: z.number().int().nonnegative(),
+  valid: z.boolean(),
+  exists_locally: z.boolean(),
+});
+
+const CouponImportPreviewSchema = z.object({
+  coupons: z.array(CouponImportPreviewItemSchema),
+  total_coupons: z.number().int().nonnegative(),
+  existing_count: z.number().int().nonnegative(),
+  new_count: z.number().int().nonnegative(),
+});
+
+/**
+ * Get a preview of coupons available to import from Stripe.
+ */
+export function getStripeCouponPreview(): Promise<CouponImportPreview> {
+  return apiCall<CouponImportPreview>('/admin/stripe/coupons-preview').then((resp) => {
+    const validated = parseOrNull(CouponImportPreviewSchema, resp, 'CouponImportPreview');
+    if (!validated) {
+      throw new Error('Invalid coupon import preview response');
     }
     return validated;
   });

@@ -12,7 +12,7 @@ import {
   type PriceFormState,
   type PriceFormValues,
 } from '../../services/pricing.service';
-import type { BundleCatalogEntry } from '../../../../shared/api';
+import type { BundleCatalogEntry, StripeCoupon } from '../../../../shared/api';
 import { PriceFormCard } from './PriceFormCard';
 import { PriceReadOnlyCard } from './PriceReadOnlyCard';
 import { PlanPreview } from './PlanPreview';
@@ -37,6 +37,12 @@ export interface BundleCardProps {
   onDeletePlan?: (bundleKey: string, priceId: string) => void;
   onReorderPlans?: (bundleKey: string, orderedPriceIds: string[]) => void;
   onAddPlan?: (bundleKey: string) => void;
+  // Coupon mapping props
+  availableCoupons?: StripeCoupon[];
+  couponMappings?: Record<string, string>; // priceID -> couponID
+  onAssignCoupon?: (priceId: string, couponId: string) => Promise<{ success: boolean; error?: string }>;
+  onUnassignCoupon?: (priceId: string) => Promise<{ success: boolean; error?: string }>;
+  couponSaving?: boolean;
 }
 
 export function BundleCard({
@@ -53,6 +59,11 @@ export function BundleCard({
   onDeletePlan,
   onReorderPlans,
   onAddPlan,
+  availableCoupons,
+  couponMappings,
+  onAssignCoupon,
+  onUnassignCoupon,
+  couponSaving,
 }: BundleCardProps) {
   const visiblePrices = useMemo(
     () => filterPricesByTab(entry.prices, pricingTab, includeDemoPlaceholders),
@@ -253,6 +264,11 @@ export function BundleCard({
                 );
               }
 
+              const assignedCouponId = couponMappings?.[priceIdentifier];
+              const assignedCoupon = assignedCouponId
+                ? availableCoupons?.find((c) => c.id === assignedCouponId)
+                : undefined;
+
               return (
                 <PriceFormCard
                   key={key}
@@ -277,6 +293,11 @@ export function BundleCard({
                   onDragEnd={handleDragEnd}
                   isDragging={draggingId === priceIdentifier}
                   isDragOver={dragOverId === priceIdentifier}
+                  availableCoupons={availableCoupons}
+                  assignedCoupon={assignedCoupon}
+                  onAssignCoupon={onAssignCoupon}
+                  onUnassignCoupon={onUnassignCoupon}
+                  couponSaving={couponSaving}
                 />
               );
             })}
@@ -336,6 +357,11 @@ export function BundleCard({
                 );
               }
 
+              const assignedCouponIdMobile = couponMappings?.[priceIdentifier];
+              const assignedCouponMobile = assignedCouponIdMobile
+                ? availableCoupons?.find((c) => c.id === assignedCouponIdMobile)
+                : undefined;
+
               return (
                 <PriceFormCard
                   key={key}
@@ -360,6 +386,11 @@ export function BundleCard({
                   onDragEnd={handleDragEnd}
                   isDragging={draggingId === priceIdentifier}
                   isDragOver={dragOverId === priceIdentifier}
+                  availableCoupons={availableCoupons}
+                  assignedCoupon={assignedCouponMobile}
+                  onAssignCoupon={onAssignCoupon}
+                  onUnassignCoupon={onUnassignCoupon}
+                  couponSaving={couponSaving}
                 />
               );
             })}

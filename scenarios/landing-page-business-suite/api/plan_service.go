@@ -3,14 +3,11 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"unicode"
 
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -55,11 +52,6 @@ type StripeImportResult struct {
 	Overwritten int      `json:"overwritten"`
 	Skipped     int      `json:"skipped"`
 	Errors      []string `json:"errors,omitempty"`
-}
-
-type bundleProductRecord struct {
-	ID     int64
-	Bundle *BundleProduct
 }
 
 // NewPlanService creates a PlanService with a PlanStore.
@@ -472,35 +464,29 @@ func (s *PlanService) DeletePlan(priceID string) error {
 	return s.planStore.DeletePlan(priceID)
 }
 
+// GetCouponMappings returns all coupon-to-plan mappings.
+func (s *PlanService) GetCouponMappings() map[string]string {
+	return s.planStore.GetCouponMappings()
+}
+
+// GetCouponForPlan returns the coupon ID assigned to a specific price.
+func (s *PlanService) GetCouponForPlan(priceID string) string {
+	return s.planStore.GetCouponForPlan(priceID)
+}
+
+// SetCouponForPlan assigns a coupon to a specific price.
+func (s *PlanService) SetCouponForPlan(priceID, couponID string) error {
+	return s.planStore.SetCouponForPlan(priceID, couponID)
+}
+
+// RemoveCouponFromPlan removes the coupon assignment from a specific price.
+func (s *PlanService) RemoveCouponFromPlan(priceID string) error {
+	return s.planStore.RemoveCouponFromPlan(priceID)
+}
+
 // ReloadPlans reloads plans from the JSON file.
 func (s *PlanService) ReloadPlans() error {
 	return s.planStore.LoadAll()
-}
-
-// Helper functions for metadata conversion and enum mapping
-
-func parseMetadata(metadataBytes []byte) map[string]*commonv1.JsonValue {
-	if len(metadataBytes) == 0 {
-		return nil
-	}
-
-	var meta map[string]interface{}
-	if err := json.Unmarshal(metadataBytes, &meta); err != nil {
-		logStructured("plan metadata unmarshal failed", map[string]interface{}{
-			"level": "warn",
-			"error": err.Error(),
-		})
-		return nil
-	}
-
-	result := make(map[string]*commonv1.JsonValue, len(meta))
-	for key, value := range meta {
-		if jv := toJsonValue(value); jv != nil {
-			result[key] = jv
-		}
-	}
-
-	return result
 }
 
 // toJsonValue converts a Go value to a commonv1.JsonValue.
@@ -551,18 +537,6 @@ func toJsonValue(v any) *commonv1.JsonValue {
 	default:
 		return nil
 	}
-}
-
-// jsonValueToMap converts a map of JsonValue to a map of any for JSON marshaling.
-func jsonValueToMap(m map[string]*commonv1.JsonValue) map[string]any {
-	if m == nil {
-		return nil
-	}
-	result := make(map[string]any, len(m))
-	for k, v := range m {
-		result[k] = jsonValueToAny(v)
-	}
-	return result
 }
 
 // jsonValueToAny converts a JsonValue to a Go any type.
@@ -907,36 +881,3 @@ func billingIntervalLabel(interval landing_page_react_vite_v1.BillingInterval) s
 	}
 }
 
-func mapIntroPricingType(raw sql.NullString) landing_page_react_vite_v1.IntroPricingType {
-	if !raw.Valid {
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
-	}
-
-	value := strings.TrimSpace(strings.ToLower(raw.String))
-	switch value {
-	case "", "unspecified", "none":
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
-	case "percentage", "percent", "pct":
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
-	case "flat_amount", "flat-amount", "flat", "amount":
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
-	default:
-		if parsed, err := strconv.Atoi(value); err == nil {
-			switch landing_page_react_vite_v1.IntroPricingType(parsed) {
-			case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE:
-				return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
-			case landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT:
-				return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
-			}
-		}
-		return landing_page_react_vite_v1.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
-	}
-}
-
-// clonePlanOption creates a deep copy of a PlanOption.
-func clonePlanOption(p *PlanOption) *PlanOption {
-	if p == nil {
-		return nil
-	}
-	return proto.Clone(p).(*PlanOption)
-}

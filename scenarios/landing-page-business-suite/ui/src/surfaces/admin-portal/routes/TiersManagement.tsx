@@ -7,6 +7,7 @@ import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useBillingForm } from '../hooks/useBillingForm';
 import { useStripeImport } from '../hooks/useStripeImport';
+import { useCouponMappings } from '../hooks/useCouponMappings';
 import { normalizeInterval } from '../services/pricing.service';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 
@@ -39,6 +40,9 @@ export function TiersManagement() {
 
   // Stripe import modal
   const stripeImport = useStripeImport(loadBundles);
+
+  // Coupon mappings for plan-coupon assignment
+  const couponMappings = useCouponMappings();
 
   // Add plan modal state
   const [addPlanModalOpen, setAddPlanModalOpen] = useState(false);
@@ -174,6 +178,11 @@ export function TiersManagement() {
           priceChecks={priceChecks}
           onAddPlan={handleOpenAddPlan}
           defaultBundleKey={defaultBundleKey}
+          availableCoupons={couponMappings.availableCoupons}
+          couponMappings={couponMappings.mappings}
+          onAssignCoupon={couponMappings.assignCoupon}
+          onUnassignCoupon={couponMappings.unassignCoupon}
+          couponSaving={couponMappings.saving}
         />
       </div>
 

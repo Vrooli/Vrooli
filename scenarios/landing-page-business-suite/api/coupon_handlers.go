@@ -160,6 +160,178 @@ func handleAdminDeleteCoupon(stripe *StripeService) http.HandlerFunc {
 	}
 }
 
+// handleAdminUpdateCoupon updates a coupon in Stripe.
+// Note: Stripe only allows updating the name field on existing coupons.
+func handleAdminUpdateCoupon(stripe *StripeService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if stripe == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Stripe service unavailable", ApiErrorTypeServerError)
+			return
+		}
+
+		couponID, ok := getPathParam(r, "coupon_id")
+		if !ok || strings.TrimSpace(couponID) == "" {
+			writeJSONError(w, http.StatusBadRequest, "Coupon ID is required", ApiErrorTypeValidation)
+			return
+		}
+
+		var req UpdateCouponRequest
+		if !decodeJSONBody(w, r, &req) {
+			return
+		}
+
+		coupon, err := stripe.UpdateCoupon(r.Context(), couponID, req)
+		if err != nil {
+			logStructuredError("admin_update_coupon_failed", map[string]interface{}{
+				"error":     err.Error(),
+				"coupon_id": couponID,
+			})
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, "Failed to update coupon", ApiErrorTypeServerError)
+			return
+		}
+
+		logStructured("admin_coupon_updated", map[string]interface{}{
+			"coupon_id": couponID,
+			"name":      req.Name,
+		})
+
+		writeJSONSuccessData(w, coupon)
+	}
+}
+
+// CouponMappingsResponse contains the coupon-to-plan mappings.
+type CouponMappingsResponse struct {
+	Mappings map[string]string `json:"mappings"` // priceID -> couponID
+}
+
+// SetCouponForPlanRequest is the payload for assigning a coupon to a plan.
+type SetCouponForPlanRequest struct {
+	CouponID string `json:"coupon_id"`
+}
+
+// handleAdminGetCouponMappings returns all coupon-to-plan mappings.
+func handleAdminGetCouponMappings(planService *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if planService == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Plan service unavailable", ApiErrorTypeServerError)
+			return
+		}
+
+		mappings := planService.GetCouponMappings()
+		writeJSONSuccessData(w, CouponMappingsResponse{Mappings: mappings})
+	}
+}
+
+// handleAdminSetCouponForPlan assigns a coupon to a specific plan.
+func handleAdminSetCouponForPlan(planService *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if planService == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Plan service unavailable", ApiErrorTypeServerError)
+			return
+		}
+
+		priceID, ok := getPathParam(r, "price_id")
+		if !ok || strings.TrimSpace(priceID) == "" {
+			writeJSONError(w, http.StatusBadRequest, "Price ID is required", ApiErrorTypeValidation)
+			return
+		}
+
+		var req SetCouponForPlanRequest
+		if !decodeJSONBody(w, r, &req) {
+			return
+		}
+
+		if strings.TrimSpace(req.CouponID) == "" {
+			writeJSONError(w, http.StatusBadRequest, "coupon_id is required", ApiErrorTypeValidation)
+			return
+		}
+
+		err := planService.SetCouponForPlan(priceID, req.CouponID)
+		if err != nil {
+			logStructuredError("admin_set_coupon_for_plan_failed", map[string]interface{}{
+				"error":     err.Error(),
+				"price_id":  priceID,
+				"coupon_id": req.CouponID,
+			})
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "not found") {
+				writeJSONError(w, http.StatusNotFound, errMsg, ApiErrorTypeNotFound)
+				return
+			}
+			writeJSONError(w, http.StatusBadRequest, errMsg, ApiErrorTypeValidation)
+			return
+		}
+
+		logStructured("admin_coupon_assigned_to_plan", map[string]interface{}{
+			"price_id":  priceID,
+			"coupon_id": req.CouponID,
+		})
+
+		writeJSONSuccess(w, "Coupon assigned to plan successfully")
+	}
+}
+
+// handleAdminRemoveCouponFromPlan removes the coupon assignment from a plan.
+func handleAdminRemoveCouponFromPlan(planService *PlanService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if planService == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Plan service unavailable", ApiErrorTypeServerError)
+			return
+		}
+
+		priceID, ok := getPathParam(r, "price_id")
+		if !ok || strings.TrimSpace(priceID) == "" {
+			writeJSONError(w, http.StatusBadRequest, "Price ID is required", ApiErrorTypeValidation)
+			return
+		}
+
+		err := planService.RemoveCouponFromPlan(priceID)
+		if err != nil {
+			logStructuredError("admin_remove_coupon_from_plan_failed", map[string]interface{}{
+				"error":    err.Error(),
+				"price_id": priceID,
+			})
+			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
+			return
+		}
+
+		logStructured("admin_coupon_removed_from_plan", map[string]interface{}{
+			"price_id": priceID,
+		})
+
+		writeJSONSuccess(w, "Coupon removed from plan successfully")
+	}
+}
+
+// handleAdminStripeCouponsPreview returns a preview of coupons available to import from Stripe.
+func handleAdminStripeCouponsPreview(stripe *StripeService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if stripe == nil {
+			writeJSONError(w, http.StatusServiceUnavailable, "Stripe service unavailable", ApiErrorTypeServerError)
+			return
+		}
+
+		preview, err := stripe.GetCouponImportPreview(r.Context())
+		if err != nil {
+			logStructuredError("admin_coupon_import_preview_failed", map[string]interface{}{
+				"error": err.Error(),
+			})
+			if status, errType, message, ok := classifyStripeError(err); ok {
+				writeJSONError(w, status, message, errType)
+				return
+			}
+			writeJSONError(w, http.StatusInternalServerError, "Failed to get coupon import preview", ApiErrorTypeServerError)
+			return
+		}
+
+		writeJSONSuccessData(w, preview)
+	}
+}
+
 // handleAdminCouponUsage returns usage statistics for intro coupons from the local database.
 func handleAdminCouponUsage(stripe *StripeService, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

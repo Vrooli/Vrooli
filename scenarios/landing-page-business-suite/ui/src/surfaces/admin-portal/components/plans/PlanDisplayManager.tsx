@@ -5,7 +5,7 @@ import { Callout } from '../Callout';
 import { LAYOUT } from '../../config/layout.constants';
 import { IntervalTabs, type IntervalTab } from './IntervalTabs';
 import { BundleCard } from './BundleCard';
-import type { BundleCatalogEntry } from '../../../../shared/api';
+import type { BundleCatalogEntry, StripeCoupon } from '../../../../shared/api';
 import type { PriceFormState, PriceFormValues } from '../../services/pricing.service';
 
 interface PriceVerificationResult {
@@ -35,6 +35,12 @@ export interface PlanDisplayManagerProps {
   priceChecks: Record<string, PriceVerificationResult>;
   // Add plan handler
   onAddPlan?: (bundleKey: string) => void;
+  // Coupon mapping props
+  availableCoupons?: StripeCoupon[];
+  couponMappings?: Record<string, string>; // priceID -> couponID
+  onAssignCoupon?: (priceId: string, couponId: string) => Promise<{ success: boolean; error?: string }>;
+  onUnassignCoupon?: (priceId: string) => Promise<{ success: boolean; error?: string }>;
+  couponSaving?: boolean;
 }
 
 export function PlanDisplayManager({
@@ -57,6 +63,11 @@ export function PlanDisplayManager({
   onReorderPlans,
   priceChecks,
   onAddPlan,
+  availableCoupons,
+  couponMappings,
+  onAssignCoupon,
+  onUnassignCoupon,
+  couponSaving,
 }: PlanDisplayManagerProps) {
   const canAddPlan = Boolean(onAddPlan && defaultBundleKey);
 
@@ -132,6 +143,11 @@ export function PlanDisplayManager({
             onDeletePlan={onDeletePlan}
             onReorderPlans={onReorderPlans}
             onAddPlan={onAddPlan}
+            availableCoupons={availableCoupons}
+            couponMappings={couponMappings}
+            onAssignCoupon={onAssignCoupon}
+            onUnassignCoupon={onUnassignCoupon}
+            couponSaving={couponSaving}
           />
         ))}
       </div>

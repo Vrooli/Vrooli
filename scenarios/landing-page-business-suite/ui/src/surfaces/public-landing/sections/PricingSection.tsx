@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { useMetrics } from '../../../shared/hooks/useMetrics';
-import { createCheckoutSession, type PlanOption, type PricingOverview } from '../../../shared/api';
+import { createCheckoutSession, type PlanOption, type PricingOverview, type StripeCoupon } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { normalizeInterval } from '../../../shared/lib/pricingIntervals';
 import { getFallbackLandingConfig } from '../../../shared/lib/fallbackLandingConfig';
+import { formatDiscountBadge, getCouponSummary } from '../../../shared/lib/pricingCalculations';
 
 interface PricingTier {
   name: string;
@@ -26,6 +27,10 @@ interface PricingSectionProps {
     tiers?: PricingTier[];
   };
   pricingOverview?: PricingOverview;
+  /** Optional coupon mappings (priceID -> couponID) for showing discount badges */
+  couponMappings?: Record<string, string>;
+  /** Optional available coupons for looking up coupon details */
+  availableCoupons?: StripeCoupon[];
 }
 
 function formatCurrency(amount: number, currency = 'usd') {
@@ -67,10 +72,16 @@ function ensureFreeTier(pricing: PricingOverview | null, fallbackPricing: Pricin
   return merged;
 }
 
-// Tiers that support intro pricing (first month $1)
-const INTRO_ELIGIBLE_TIERS = ['solo', 'pro', 'studio', 'business'];
+interface BuildTierOptions {
+  option: PlanOption;
+  bundle: PricingOverview['bundle'];
+  fallbackHighlight: boolean;
+  interval: 'month' | 'year';
+  /** Optional coupon assigned to this plan for discount badge display */
+  assignedCoupon?: StripeCoupon;
+}
 
-function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle'], fallbackHighlight: boolean, interval: 'month' | 'year') {
+function buildTierFromPlan({ option, bundle, fallbackHighlight, interval, assignedCoupon }: BuildTierOptions) {
   const amount = typeof option.amount_cents === 'number' ? option.amount_cents : 0;
   const hasAmount = amount > 0;
   const isFree = amount === 0;
@@ -85,17 +96,17 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
       ? option.bonus_type.replace('_', ' ')
       : undefined;
 
-  // Determine intro pricing badge for monthly plans
-  const tierLower = (option.plan_tier || '').toLowerCase();
-  const isIntroEligible = interval === 'month' && INTRO_ELIGIBLE_TIERS.includes(tierLower) && hasAmount;
-  const introBadge = isIntroEligible ? 'First month $1' : undefined;
+  // Determine intro pricing badge - prioritize assigned coupon, then plan's intro settings
+  let introBadge: string | undefined;
+  if (assignedCoupon && hasAmount) {
+    // Use shared utility to format coupon discount badge
+    introBadge = formatDiscountBadge(amount, assignedCoupon, interval);
+  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+    // Fall back to plan's native intro pricing config
+    introBadge = `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`;
+  }
 
-  const badge =
-    badgeOverride ||
-    introBadge ||
-    (option.intro_enabled && introAmount
-      ? `${formatCurrency(introAmount, option.currency)} intro for ${option.intro_periods || 1} month${option.intro_periods === 1 ? '' : 's'}`
-      : bonusLabel);
+  const badge = badgeOverride || introBadge || bonusLabel;
 
   const features = [
     `${formatCredits(option.monthly_included_credits, bundle.display_credits_multiplier, creditsLabel)} included`,
@@ -113,14 +124,19 @@ function buildTierFromPlan(option: PlanOption, bundle: PricingOverview['bundle']
       : Number.isFinite(option.plan_rank)
         ? `Plan rank #${option.plan_rank}`
         : 'Flexible access';
-  const ctaText =
-    typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0
-      ? (metadata.cta_label as string)
-      : isIntroEligible
-        ? 'Start for $1'
-        : option.intro_enabled
-          ? `Start ${formatCurrency(introAmount ?? option.amount_cents, option.currency)} intro`
-          : 'Choose plan';
+
+  // Determine CTA text - prioritize assigned coupon info
+  let ctaText: string;
+  if (typeof metadata.cta_label === 'string' && metadata.cta_label.trim().length > 0) {
+    ctaText = metadata.cta_label as string;
+  } else if (assignedCoupon && hasAmount) {
+    // Show coupon-aware CTA
+    ctaText = `Start with ${getCouponSummary(assignedCoupon)}`;
+  } else if (option.intro_enabled && introAmount !== undefined && introAmount !== null) {
+    ctaText = `Start ${formatCurrency(introAmount, option.currency)} intro`;
+  } else {
+    ctaText = 'Choose plan';
+  }
 
   const highlighted = metadata.highlight === true ? true : fallbackHighlight;
   const directDownloadCTA = isFree || option.kind === 'supporter_contribution';
@@ -150,7 +166,7 @@ function getTierFeatures(tier: PricingTier): string[] {
   return [];
 }
 
-export function PricingSection({ content, pricingOverview }: PricingSectionProps) {
+export function PricingSection({ content, pricingOverview, couponMappings, availableCoupons }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
   const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [stickyDismissed, setStickyDismissed] = useState(false);
@@ -310,13 +326,37 @@ export function PricingSection({ content, pricingOverview }: PricingSectionProps
       return a.amount_cents - b.amount_cents;
     });
 
+  // Helper to find assigned coupon for a plan
+  const findAssignedCoupon = (priceId: string): StripeCoupon | undefined => {
+    if (!couponMappings || !availableCoupons) return undefined;
+    const couponId = couponMappings[priceId];
+    if (!couponId) return undefined;
+    return availableCoupons.find((c) => c.id === couponId);
+  };
+
   const monthlyTiers =
     bundle && monthlyPlans.length > 0
-      ? sortByAmount(monthlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'month'))
+      ? sortByAmount(monthlyPlans).map((option, index) =>
+          buildTierFromPlan({
+            option,
+            bundle,
+            fallbackHighlight: index === 0,
+            interval: 'month',
+            assignedCoupon: findAssignedCoupon(option.stripe_price_id),
+          })
+        )
       : [];
   const yearlyTiers =
     bundle && yearlyPlans.length > 0
-      ? sortByAmount(yearlyPlans).map((option, index) => buildTierFromPlan(option, bundle, index === 0, 'year'))
+      ? sortByAmount(yearlyPlans).map((option, index) =>
+          buildTierFromPlan({
+            option,
+            bundle,
+            fallbackHighlight: index === 0,
+            interval: 'year',
+            assignedCoupon: findAssignedCoupon(option.stripe_price_id),
+          })
+        )
       : [];
 
   const freeTier: PricingTier = {

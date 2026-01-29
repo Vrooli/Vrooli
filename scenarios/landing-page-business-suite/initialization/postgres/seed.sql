@@ -12,7 +12,9 @@ INSERT INTO admin_users (email, password_hash) VALUES
 ('admin@localhost', '$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG')
 ON CONFLICT (email) DO NOTHING;
 
--- Bundle products & prices (business suite)
+-- Bundle products configuration (defines bundle structure; prices come from Stripe import)
+-- NOTE: Prices are no longer seeded here. Use the admin UI to import plans from Stripe.
+-- Plans are stored in .vrooli/plans.json after import.
 INSERT INTO bundle_products (bundle_key, bundle_name, stripe_product_id, credits_per_usd, display_credits_multiplier, display_credits_label, environment, metadata)
 VALUES
 ('business_suite', 'Vrooli Business Suite (Silent Founder OS)', 'prod_business_suite', 1000000, 0.001, 'credits', 'production', '{"description":"Vrooli Ascension today; expanding suite tomorrow"}')
@@ -23,46 +25,6 @@ ON CONFLICT (bundle_key) DO UPDATE SET
     display_credits_multiplier = EXCLUDED.display_credits_multiplier,
     display_credits_label = EXCLUDED.display_credits_label,
     metadata = EXCLUDED.metadata,
-    updated_at = NOW();
-
-WITH prod AS (
-    SELECT id FROM bundle_products WHERE bundle_key = 'business_suite'
-)
-INSERT INTO bundle_prices (
-    product_id, stripe_price_id, plan_name, plan_tier, billing_interval, amount_cents, currency,
-    intro_enabled, intro_type, intro_amount_cents, intro_periods, intro_price_lookup_key,
-    monthly_included_credits, one_time_bonus_credits, plan_rank, bonus_type, kind, is_variable_amount, display_enabled, metadata, display_weight
-) VALUES
-((SELECT id FROM prod), 'price_free_monthly', 'Free Monthly', 'free', 'month', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 50, 0, 0, 'none', 'subscription', FALSE, TRUE, '{"features":["50 runs/month","Replay viewer (watermark)"],"badge":"Start free"}', 5),
-((SELECT id FROM prod), 'price_solo_monthly', 'Solo Monthly', 'solo', 'month', 2900, 'usd', FALSE, NULL, NULL, 0, NULL, 200, 0, 1, 'none', 'subscription', FALSE, TRUE, '{"features":["200 runs/month","MP4 export (watermark)","Async support"],"cta_label":"Upgrade to Solo"}', 20),
-((SELECT id FROM prod), 'price_pro_monthly', 'Pro Monthly', 'pro', 'month', 7900, 'usd', FALSE, NULL, NULL, 0, NULL, 1000000, 0, 2, 'none', 'subscription', FALSE, TRUE, '{"features":["Unlimited runs (fair use)","MP4 without watermark","CI hooks","Limited agent loops","Early UX metrics access"],"badge":"Recommended","highlight":true}', 40),
-((SELECT id FROM prod), 'price_studio_monthly', 'Studio Monthly', 'studio', 'month', 19900, 'usd', FALSE, NULL, NULL, 0, NULL, 2000000, 0, 3, 'none', 'subscription', FALSE, TRUE, '{"features":["Custom branding in replays","More agent loop concurrency","Multi-seat","Priority support"]}', 25),
-((SELECT id FROM prod), 'price_business_monthly', 'Business Monthly', 'business', 'month', 49900, 'usd', FALSE, NULL, NULL, 0, NULL, 4000000, 0, 4, 'none', 'subscription', FALSE, TRUE, '{"features":["Unlimited agent loops","API + webhooks","Reliability options"]}', 10),
-((SELECT id FROM prod), 'price_solo_yearly', 'Solo Yearly', 'solo', 'year', 29000, 'usd', FALSE, NULL, NULL, 0, NULL, 200, 0, 1, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["2 months free equivalent","MP4 export (watermark)"]}', 10),
-((SELECT id FROM prod), 'price_pro_yearly', 'Pro Yearly', 'pro', 'year', 79000, 'usd', FALSE, NULL, NULL, 0, NULL, 1000000, 0, 2, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["MP4 without watermark","CI hooks","Limited agent loops"]}', 20),
-((SELECT id FROM prod), 'price_studio_yearly', 'Studio Yearly', 'studio', 'year', 199000, 'usd', FALSE, NULL, NULL, 0, NULL, 2000000, 0, 3, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Custom branding in replays","More agent loop concurrency","Multi-seat studio"]}', 30),
-((SELECT id FROM prod), 'price_business_yearly', 'Business Yearly', 'business', 'year', 499000, 'usd', FALSE, NULL, NULL, 0, NULL, 4000000, 0, 4, 'yearly_bonus', 'subscription', FALSE, TRUE, '{"features":["Unlimited agent loops","API + webhooks","Reliability + SSO prep"]}', 5),
-((SELECT id FROM prod), 'price_credits_topup', 'Credits Top-Up', 'credits', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'credits_topup', TRUE, TRUE, '{"description":"Add credits via Stripe checkout"}', 5),
-((SELECT id FROM prod), 'price_supporter_contribution', 'Supporter Contribution', 'donation', 'one_time', 0, 'usd', FALSE, NULL, NULL, 0, NULL, 0, 0, 0, 'none', 'supporter_contribution', TRUE, TRUE, '{"grants_credits": false, "grants_entitlements": false, "description":"Support Vrooli Ascension"}', 1)
-ON CONFLICT (stripe_price_id) DO UPDATE SET
-    plan_name = EXCLUDED.plan_name,
-    plan_tier = EXCLUDED.plan_tier,
-    billing_interval = EXCLUDED.billing_interval,
-    amount_cents = EXCLUDED.amount_cents,
-    intro_enabled = EXCLUDED.intro_enabled,
-    intro_type = EXCLUDED.intro_type,
-    intro_amount_cents = EXCLUDED.intro_amount_cents,
-    intro_periods = EXCLUDED.intro_periods,
-    intro_price_lookup_key = EXCLUDED.intro_price_lookup_key,
-    monthly_included_credits = EXCLUDED.monthly_included_credits,
-    one_time_bonus_credits = EXCLUDED.one_time_bonus_credits,
-    plan_rank = EXCLUDED.plan_rank,
-    bonus_type = EXCLUDED.bonus_type,
-    kind = EXCLUDED.kind,
-    is_variable_amount = EXCLUDED.is_variable_amount,
-    metadata = EXCLUDED.metadata,
-    display_enabled = EXCLUDED.display_enabled,
-    display_weight = EXCLUDED.display_weight,
     updated_at = NOW();
 
 -- Download apps + platform installers

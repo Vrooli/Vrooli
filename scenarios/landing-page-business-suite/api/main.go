@@ -268,7 +268,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/coupons", s.requireAdmin(handleAdminCreateCoupon(s.stripeService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/coupons/usage", s.requireAdmin(handleAdminCouponUsage(s.stripeService, s.db))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminGetCoupon(s.stripeService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminUpdateCoupon(s.stripeService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminDeleteCoupon(s.stripeService))).Methods("DELETE")
+	// Coupon-plan mapping endpoints
+	s.router.HandleFunc("/api/v1/admin/coupon-mappings", s.requireAdmin(handleAdminGetCouponMappings(s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/plans/{price_id}/coupon", s.requireAdmin(handleAdminSetCouponForPlan(s.planService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/plans/{price_id}/coupon", s.requireAdmin(handleAdminRemoveCouponFromPlan(s.planService))).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/admin/stripe/coupons-preview", s.requireAdmin(handleAdminStripeCouponsPreview(s.stripeService))).Methods("GET")
 
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)

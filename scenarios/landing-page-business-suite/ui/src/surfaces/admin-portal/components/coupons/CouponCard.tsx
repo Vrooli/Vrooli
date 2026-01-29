@@ -1,4 +1,4 @@
-import { Trash2, Tag, Clock, Infinity, Repeat, AlertTriangle } from 'lucide-react';
+import { Trash2, Tag, Clock, Infinity as InfinityIcon, Repeat, AlertTriangle, Pencil } from 'lucide-react';
 import { Card, CardContent } from '../../../../shared/ui/card';
 import { Button } from '../../../../shared/ui/button';
 import type { StripeCoupon, CouponUsageStats } from '../../../../shared/api/billing';
@@ -7,6 +7,7 @@ interface CouponCardProps {
   coupon: StripeCoupon;
   usageStats?: CouponUsageStats;
   onDelete: (couponId: string) => Promise<{ success: boolean; error?: string }>;
+  onEdit?: (coupon: StripeCoupon) => void;
   isDeleting: boolean;
 }
 
@@ -45,7 +46,7 @@ function getDurationBadge(coupon: StripeCoupon): { label: string; icon: React.Re
     case 'forever':
       return {
         label: 'Forever',
-        icon: <Infinity className="h-3 w-3" />,
+        icon: <InfinityIcon className="h-3 w-3" />,
         color: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
       };
     default:
@@ -68,7 +69,7 @@ function formatDate(timestamp: number): string {
   });
 }
 
-export function CouponCard({ coupon, usageStats, onDelete, isDeleting }: CouponCardProps) {
+export function CouponCard({ coupon, usageStats, onDelete, onEdit, isDeleting }: CouponCardProps) {
   const durationBadge = getDurationBadge(coupon);
   const usageCount = usageStats?.total_uses ?? 0;
 
@@ -124,16 +125,30 @@ export function CouponCard({ coupon, usageStats, onDelete, isDeleting }: CouponC
               {durationBadge.label}
             </span>
 
-            {/* Delete button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {/* Action buttons */}
+            <div className="flex items-center gap-1">
+              {onEdit && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onEdit(coupon)}
+                  className="text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0"
+                  title="Edit coupon"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 p-0"
+                title="Delete coupon"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 

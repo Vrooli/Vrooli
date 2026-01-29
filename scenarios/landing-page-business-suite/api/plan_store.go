@@ -52,13 +52,14 @@ var _ PlanStorer = (*PlanStore)(nil)
 // loaded from JSON files. It serves as the single source of truth for plans,
 // replacing the previous database-backed plan storage.
 type PlanStore struct {
-	mu         sync.RWMutex
-	bundle     *BundleProduct
-	plans      []*PlanOption
-	plansPath  string
-	displayEnv string
-	bundleKey  string
-	updatedAt  time.Time
+	mu             sync.RWMutex
+	bundle         *BundleProduct
+	plans          []*PlanOption
+	couponMappings map[string]string // priceID -> couponID
+	plansPath      string
+	displayEnv     string
+	bundleKey      string
+	updatedAt      time.Time
 }
 
 var (
@@ -73,9 +74,10 @@ var (
 
 // plansFileFormat represents the JSON file structure for plans.
 type plansFileFormat struct {
-	Bundle    bundleFileFormat `json:"bundle"`
-	Plans     []planFileFormat `json:"plans"`
-	UpdatedAt string           `json:"updated_at,omitempty"`
+	Bundle         bundleFileFormat  `json:"bundle"`
+	Plans          []planFileFormat  `json:"plans"`
+	CouponMappings map[string]string `json:"coupon_mappings,omitempty"` // priceID -> couponID
+	UpdatedAt      string            `json:"updated_at,omitempty"`
 }
 
 type bundleFileFormat struct {
@@ -117,10 +119,11 @@ func NewPlanStore(plansPath string) *PlanStore {
 	bundleKey := stringsTrimOrDefault(os.Getenv("BUNDLE_KEY"), "business_suite")
 	env := stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
 	return &PlanStore{
-		plans:      make([]*PlanOption, 0),
-		plansPath:  plansPath,
-		displayEnv: env,
-		bundleKey:  bundleKey,
+		plans:          make([]*PlanOption, 0),
+		couponMappings: make(map[string]string),
+		plansPath:      plansPath,
+		displayEnv:     env,
+		bundleKey:      bundleKey,
 	}
 }
 
@@ -141,10 +144,11 @@ func NewPlanStoreWithOptions(opts PlanStoreOptions) *PlanStore {
 		env = stringsTrimOrDefault(os.Getenv("BUNDLE_ENVIRONMENT"), "production")
 	}
 	return &PlanStore{
-		plans:      make([]*PlanOption, 0),
-		plansPath:  opts.PlansPath,
-		displayEnv: env,
-		bundleKey:  bundleKey,
+		plans:          make([]*PlanOption, 0),
+		couponMappings: make(map[string]string),
+		plansPath:      opts.PlansPath,
+		displayEnv:     env,
+		bundleKey:      bundleKey,
 	}
 }
 
@@ -255,13 +259,25 @@ func (ps *PlanStore) LoadAll() error {
 		}
 	}
 
+	// Load coupon mappings
+	couponMappings := make(map[string]string)
+	if fileData.CouponMappings != nil {
+		for priceID, couponID := range fileData.CouponMappings {
+			if strings.TrimSpace(priceID) != "" && strings.TrimSpace(couponID) != "" {
+				couponMappings[strings.TrimSpace(priceID)] = strings.TrimSpace(couponID)
+			}
+		}
+	}
+
 	ps.bundle = bundle
 	ps.plans = plans
+	ps.couponMappings = couponMappings
 
 	logStructured("plans_loaded", map[string]interface{}{
-		"path":       ps.plansPath,
-		"plan_count": len(ps.plans),
-		"bundle_key": ps.bundle.BundleKey,
+		"path":           ps.plansPath,
+		"plan_count":     len(ps.plans),
+		"bundle_key":     ps.bundle.BundleKey,
+		"coupon_mapping_count": len(ps.couponMappings),
 	})
 
 	return nil
@@ -339,6 +355,16 @@ func (ps *PlanStore) savePlansLocked() error {
 		}
 
 		fileData.Plans = append(fileData.Plans, planFile)
+	}
+
+	// Convert coupon mappings (only include non-empty mappings)
+	if len(ps.couponMappings) > 0 {
+		fileData.CouponMappings = make(map[string]string)
+		for priceID, couponID := range ps.couponMappings {
+			if strings.TrimSpace(priceID) != "" && strings.TrimSpace(couponID) != "" {
+				fileData.CouponMappings[priceID] = couponID
+			}
+		}
 	}
 
 	// Ensure directory exists
@@ -460,6 +486,83 @@ func (ps *PlanStore) GetPlanByPriceID(priceID string) (*PlanOption, error) {
 	}
 
 	return nil, fmt.Errorf("price %s not found", priceID)
+}
+
+// GetCouponMappings returns all coupon-to-plan mappings.
+func (ps *PlanStore) GetCouponMappings() map[string]string {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	result := make(map[string]string, len(ps.couponMappings))
+	for priceID, couponID := range ps.couponMappings {
+		result[priceID] = couponID
+	}
+	return result
+}
+
+// GetCouponForPlan returns the coupon ID assigned to a specific price, or empty string if none.
+func (ps *PlanStore) GetCouponForPlan(priceID string) string {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	priceID = strings.TrimSpace(priceID)
+	if priceID == "" {
+		return ""
+	}
+	return ps.couponMappings[priceID]
+}
+
+// SetCouponForPlan assigns a coupon to a specific price. Returns error if price doesn't exist.
+func (ps *PlanStore) SetCouponForPlan(priceID, couponID string) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	priceID = strings.TrimSpace(priceID)
+	couponID = strings.TrimSpace(couponID)
+
+	if priceID == "" {
+		return fmt.Errorf("price id is required")
+	}
+	if couponID == "" {
+		return fmt.Errorf("coupon id is required")
+	}
+
+	// Verify the price exists
+	found := false
+	for _, plan := range ps.plans {
+		if plan.StripePriceId == priceID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("price %s not found", priceID)
+	}
+
+	if ps.couponMappings == nil {
+		ps.couponMappings = make(map[string]string)
+	}
+	ps.couponMappings[priceID] = couponID
+
+	return ps.savePlansLocked()
+}
+
+// RemoveCouponFromPlan removes the coupon assignment from a specific price.
+func (ps *PlanStore) RemoveCouponFromPlan(priceID string) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	priceID = strings.TrimSpace(priceID)
+	if priceID == "" {
+		return fmt.Errorf("price id is required")
+	}
+
+	if ps.couponMappings == nil {
+		return nil // Nothing to remove
+	}
+
+	delete(ps.couponMappings, priceID)
+	return ps.savePlansLocked()
 }
 
 // GetPricingOverview returns a complete pricing overview for the frontend.

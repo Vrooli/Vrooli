@@ -1,5 +1,5 @@
 import { useMemo, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
-import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2, Tag, X } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Textarea } from '../../../../shared/ui/input';
 import { Card, CardContent, CardHeader } from '../../../../shared/ui/card';
@@ -12,7 +12,8 @@ import {
   type PriceFormState,
   type PriceFormValues,
 } from '../../services/pricing.service';
-import type { PlanOption } from '../../../../shared/api';
+import type { PlanOption, StripeCoupon } from '../../../../shared/api';
+import { formatDiscountPreview, getCouponSummary } from '../../../../shared/lib/pricingCalculations';
 
 interface PriceVerificationResult {
   status: string;
@@ -41,6 +42,12 @@ export interface PriceFormCardProps {
   onDragEnd?: () => void;
   isDragging?: boolean;
   isDragOver?: boolean;
+  // Coupon mapping props
+  availableCoupons?: StripeCoupon[];
+  assignedCoupon?: StripeCoupon;
+  onAssignCoupon?: (priceId: string, couponId: string) => Promise<{ success: boolean; error?: string }>;
+  onUnassignCoupon?: (priceId: string) => Promise<{ success: boolean; error?: string }>;
+  couponSaving?: boolean;
 }
 
 export function PriceFormCard({
@@ -65,6 +72,11 @@ export function PriceFormCard({
   onDragEnd,
   isDragging,
   isDragOver,
+  availableCoupons,
+  assignedCoupon,
+  onAssignCoupon,
+  onUnassignCoupon,
+  couponSaving,
 }: PriceFormCardProps) {
   const dirty = isPriceFormDirty(formState);
   const demoPlan = formState.demo;
@@ -326,6 +338,71 @@ export function PriceFormCard({
               placeholder={'One feature per line\nDesktop downloads included\nWhite-glove onboarding'}
             />
           </FormField>
+
+          {/* Coupon assignment section */}
+          {availableCoupons && onAssignCoupon && onUnassignCoupon && !demoPlan && (
+            <FormField label="Intro Coupon">
+              <div className="space-y-2">
+                {assignedCoupon ? (
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30">
+                    <Tag className="h-4 w-4 text-emerald-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-emerald-200 truncate">
+                        {assignedCoupon.name || assignedCoupon.id}
+                      </p>
+                      <p className="text-xs text-emerald-300/70">
+                        {getCouponSummary(assignedCoupon)}
+                      </p>
+                      {price.amount_cents > 0 && (
+                        <p className="text-xs text-emerald-300 mt-0.5">
+                          {formatDiscountPreview(price.amount_cents, assignedCoupon)}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-emerald-300 hover:text-white hover:bg-emerald-500/20"
+                      onClick={async () => {
+                        await onUnassignCoupon(priceIdentifier);
+                      }}
+                      disabled={couponSaving}
+                    >
+                      {couponSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <select
+                    className={cn(inputClassName, 'cursor-pointer')}
+                    value=""
+                    onChange={async (e) => {
+                      if (e.target.value) {
+                        await onAssignCoupon(priceIdentifier, e.target.value);
+                      }
+                    }}
+                    disabled={couponSaving || availableCoupons.length === 0}
+                  >
+                    <option value="">
+                      {availableCoupons.length === 0 ? 'No coupons available' : 'Select a coupon...'}
+                    </option>
+                    {availableCoupons.map((coupon) => (
+                      <option key={coupon.id} value={coupon.id}>
+                        {coupon.name || coupon.id} - {getCouponSummary(coupon)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-xs text-slate-400">
+                  Assign a Stripe coupon to apply during checkout for new customers on this plan.
+                </p>
+              </div>
+            </FormField>
+          )}
 
           {formState.error && (
             <p className="mt-3 text-sm text-rose-300">{formState.error}</p>

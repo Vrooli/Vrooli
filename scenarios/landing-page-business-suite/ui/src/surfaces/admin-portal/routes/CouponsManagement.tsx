@@ -1,12 +1,15 @@
-import { Tag, Plus, RefreshCcw, CheckCircle, AlertTriangle, Settings } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Tag, Plus, RefreshCcw, CheckCircle, AlertTriangle, Settings, Download } from 'lucide-react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { Callout } from '../components/Callout';
 import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
-import { CouponCard, CreateCouponModal } from '../components/coupons';
+import { CouponCard, CreateCouponModal, EditCouponModal, ImportCouponModal } from '../components/coupons';
 import { useCouponsManagement, type CouponFilter } from '../hooks/useCouponsManagement';
+import { useCouponImport } from '../hooks/useCouponImport';
+import { updateCoupon, type StripeCoupon } from '../../../shared/api/billing';
 
 const filterOptions: { value: CouponFilter; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -36,6 +39,43 @@ export function CouponsManagement() {
     handleCreate,
     handleDelete,
   } = useCouponsManagement();
+
+  const couponImport = useCouponImport();
+
+  // Edit modal state
+  const [editingCoupon, setEditingCoupon] = useState<StripeCoupon | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const handleOpenEdit = useCallback((coupon: StripeCoupon) => {
+    setEditingCoupon(coupon);
+    setEditModalOpen(true);
+  }, []);
+
+  const handleCloseEdit = useCallback(() => {
+    setEditModalOpen(false);
+    setEditingCoupon(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(
+    async (couponId: string, name: string): Promise<{ success: boolean; error?: string }> => {
+      setEditSaving(true);
+      try {
+        await updateCoupon(couponId, { name });
+        // Refresh the list to show updated name
+        await loadCoupons();
+        return { success: true };
+      } catch (err) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Failed to update coupon',
+        };
+      } finally {
+        setEditSaving(false);
+      }
+    },
+    [loadCoupons]
+  );
 
   // Create a map for quick lookup of usage stats
   const usageStatsMap = Object.fromEntries(usageStats.map((s) => [s.coupon_id, s]));
@@ -94,6 +134,15 @@ export function CouponsManagement() {
             >
               <Plus className="h-4 w-4" />
               Create Coupon
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={couponImport.openModal}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              View Stripe Coupons
             </Button>
             <Button
               variant="outline"
@@ -191,6 +240,7 @@ export function CouponsManagement() {
                 coupon={coupon}
                 usageStats={usageStatsMap[coupon.id]}
                 onDelete={handleDelete}
+                onEdit={handleOpenEdit}
                 isDeleting={deletingId === coupon.id}
               />
             ))}
@@ -222,6 +272,18 @@ export function CouponsManagement() {
         onCreate={handleCreate}
         creating={creating}
         error={createError}
+      />
+
+      {/* Import modal */}
+      <ImportCouponModal couponImport={couponImport} />
+
+      {/* Edit modal */}
+      <EditCouponModal
+        coupon={editingCoupon}
+        isOpen={editModalOpen}
+        onClose={handleCloseEdit}
+        onSave={handleSaveEdit}
+        saving={editSaving}
       />
     </AdminLayout>
   );

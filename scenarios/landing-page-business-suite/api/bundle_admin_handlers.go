@@ -392,22 +392,7 @@ func handleAdminCreateBundlePrice(planService *PlanService, stripe *StripeServic
 			return
 		}
 
-		input := CreateBundlePriceInput{
-			StripePriceID:          req.StripePriceID,
-			PlanName:               req.PlanName,
-			PlanTier:               req.PlanTier,
-			BillingInterval:        req.BillingInterval,
-			AmountCents:            req.AmountCents,
-			Currency:               req.Currency,
-			DisplayWeight:          req.DisplayWeight,
-			DisplayEnabled:         req.DisplayEnabled,
-			MonthlyIncludedCredits: req.MonthlyIncludedCredits,
-			Subtitle:               req.Subtitle,
-			Badge:                  req.Badge,
-			CtaLabel:               req.CtaLabel,
-			Highlight:              req.Highlight,
-			Features:               req.Features,
-		}
+		input := CreateBundlePriceInput(req)
 
 		var fetcher StripePriceFetcher
 		if stripe != nil {
