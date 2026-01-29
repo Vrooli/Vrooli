@@ -18,7 +18,7 @@ func TestHandler_CreateInvalidRequests(t *testing.T) {
 	dir := t.TempDir()
 	handler := &Handler{
 		store:         NewStore(filepath.Join(dir, "recs.json")),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(filepath.Join(dir, "settings.json")),
 	}
 
@@ -47,7 +47,7 @@ func TestHandler_UpdateErrorCases(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(storePath),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(filepath.Join(dir, "settings.json")),
 	}
 
@@ -87,7 +87,7 @@ func TestHandler_RefreshModeOff(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(filepath.Join(dir, "recs.json")),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 

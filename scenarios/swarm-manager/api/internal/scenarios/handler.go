@@ -1,15 +1,18 @@
 // Package scenarios provides HTTP handlers for scenario catalog management.
 //
-// Scenarios are read from the Vrooli ecosystem's scenarios directory and their
-// service.json files. This handler provides read and update access to the scenario
-// catalog with optional filtering, search, and metadata management.
+// Scenarios are sourced from the Vrooli CLI (vrooli scenario list), then enriched
+// with local metadata (priority, greenfield toggle, recommendations enablement).
+// This handler provides read and update access to the scenario catalog with optional
+// filtering, search, and metadata management.
 //
 // Related PRD targets: OT-P0-005, OT-P0-006
 package scenarios
 
 import (
+	"context"
 	"encoding/json"
-	"io/fs"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +37,8 @@ const (
 	StatusUnknown ScenarioStatus = "unknown"
 )
 
+var errScenarioNameRequired = errors.New("scenario name is required")
+
 // Scenario represents a deployed application in the Vrooli ecosystem.
 // [REQ:REQ-P0-006] Scenario data structure for catalog listing
 // [REQ:REQ-P0-007] Includes metadata for greenfield toggle and recommendations
@@ -56,21 +61,12 @@ type ScenarioMetadata struct {
 	RecommendationsEnabled bool `json:"recommendationsEnabled"`
 }
 
-// ServiceJSON represents the structure of a scenario's service.json file.
-type ServiceJSON struct {
-	Profile ServiceProfile `json:"profile"`
-}
-
-// ServiceProfile contains the profile section of service.json.
-type ServiceProfile struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-}
-
 // Handler provides HTTP handlers for scenario operations.
 type Handler struct {
 	scenariosDir string
+	source       Source
+	lifecycle    Lifecycle
+	completeness CompletenessSource
 }
 
 // NewHandler creates a new scenarios handler.
@@ -79,18 +75,55 @@ func NewHandler(scenariosDir string) *Handler {
 	if scenariosDir == "" {
 		scenariosDir = "scenarios"
 	}
-	return &Handler{scenariosDir: scenariosDir}
+	return NewHandlerWithDeps(
+		scenariosDir,
+		NewCLIProvider(defaultCLITimeout),
+		NewCLILifecycle(),
+		NewCLICompletenessSource(defaultCompletenessTimeout),
+	)
+}
+
+// NewHandlerWithSource creates a scenarios handler with a custom source.
+func NewHandlerWithSource(scenariosDir string, source Source) *Handler {
+	return NewHandlerWithDeps(
+		scenariosDir,
+		source,
+		NewCLILifecycle(),
+		NewCLICompletenessSource(defaultCompletenessTimeout),
+	)
+}
+
+// NewHandlerWithDeps creates a scenarios handler with injected dependencies.
+func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle, completeness CompletenessSource) *Handler {
+	if scenariosDir == "" {
+		scenariosDir = "scenarios"
+	}
+	if source == nil {
+		source = NewCLIProvider(defaultCLITimeout)
+	}
+	if lifecycle == nil {
+		lifecycle = NewCLILifecycle()
+	}
+	if completeness == nil {
+		completeness = NewCLICompletenessSource(defaultCompletenessTimeout)
+	}
+	return &Handler{
+		scenariosDir: scenariosDir,
+		source:       source,
+		lifecycle:    lifecycle,
+		completeness: completeness,
+	}
 }
 
 // LoadAll exposes scenario listing for non-HTTP consumers (recommendations engine).
 // This keeps data access centralized in the scenarios package.
 func (h *Handler) LoadAll() ([]Scenario, error) {
-	return h.loadAllScenarios()
+	return h.loadAllScenarios(context.Background())
 }
 
 // Load exposes scenario retrieval for non-HTTP consumers.
 func (h *Handler) Load(name string) (Scenario, error) {
-	return h.loadScenario(name)
+	return h.loadScenario(context.Background(), name)
 }
 
 func scenarioToProto(s Scenario) *domainpb.Scenario {
@@ -118,6 +151,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/scenarios/{name}/start", h.Start).Methods("POST")
+	r.HandleFunc("/api/v1/scenarios/{name}/stop", h.Stop).Methods("POST")
+	r.HandleFunc("/api/v1/scenarios/{name}/restart", h.Restart).Methods("POST")
 }
 
 // List returns all scenarios with optional search and filter parameters.
@@ -130,7 +166,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 //   - sort: Sort field (priority, name, displayName) - default: priority
 //   - order: Sort order (asc, desc) - default: asc for priority, asc for name
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	scenarios, err := h.loadAllScenarios()
+	scenarios, err := h.loadAllScenarios(r.Context())
 	if err != nil {
 		httputil.InternalError(w, "[scenarios] list", "failed to load scenarios")
 		return
@@ -243,7 +279,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	scenario, err := h.loadScenario(name)
+	scenario, err := h.loadScenario(r.Context(), name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			httputil.NotFound(w, "", "scenario not found")
@@ -271,10 +307,12 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	// Verify scenario exists
-	scenarioPath := filepath.Join(h.scenariosDir, name)
-	serviceJSONPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	if _, err := os.Stat(serviceJSONPath); os.IsNotExist(err) {
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] update", "failed to load scenarios from CLI")
+		return
+	}
+	if !found {
 		httputil.NotFound(w, "", "scenario not found")
 		return
 	}
@@ -287,8 +325,8 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load existing metadata
-	metadata, err := h.loadMetadata(name)
-	if err != nil && !os.IsNotExist(err) {
+	metadata, _, err := h.loadMetadata(source.Path)
+	if err != nil {
 		httputil.InternalError(w, "[scenarios] update", "failed to load metadata")
 		return
 	}
@@ -302,17 +340,18 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save updated metadata
-	if err := h.saveMetadata(name, metadata); err != nil {
+	if err := h.saveMetadata(source.Path, metadata); err != nil {
 		httputil.InternalError(w, "[scenarios] update", "failed to save metadata")
 		return
 	}
 
 	// Return updated scenario
-	scenario, err := h.loadScenario(name)
+	scenario, err := h.loadScenarioFromSource(source)
 	if err != nil {
 		httputil.InternalError(w, "[scenarios] update", "failed to load scenario")
 		return
 	}
+	applyCompletenessScore(&scenario, h.getCompletenessScores(r.Context()))
 
 	log.Printf("[scenarios] updated: %q (isGreenfield=%v, recommendationsEnabled=%v)", name, scenario.IsGreenfield, scenario.RecommendationsEnabled)
 	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
@@ -321,58 +360,82 @@ func (h *Handler) UpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// loadAllScenarios reads all scenarios from the scenarios directory.
-func (h *Handler) loadAllScenarios() ([]Scenario, error) {
-	var scenarios []Scenario
-
-	err := filepath.WalkDir(h.scenariosDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			if os.IsNotExist(err) && path == h.scenariosDir {
-				return nil
-			}
-			return err
-		}
-
-		// Only look at .vrooli/service.json files in immediate subdirectories
-		if d.IsDir() && path != h.scenariosDir {
-			serviceJSONPath := filepath.Join(path, ".vrooli", "service.json")
-			if _, err := os.Stat(serviceJSONPath); err == nil {
-				scenario, err := h.loadScenarioFromPath(path)
-				if err == nil {
-					scenarios = append(scenarios, scenario)
-				} else {
-					log.Printf("[scenarios] load: skipping %q due to error: %v", path, err)
-				}
-			}
-			return fs.SkipDir // Don't descend further
-		}
-		return nil
-	})
+// loadAllScenarios reads all scenarios from the CLI source.
+func (h *Handler) loadAllScenarios(ctx context.Context) ([]Scenario, error) {
+	sources, err := h.source.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if scenarios == nil {
-		scenarios = []Scenario{}
+	var scores map[string]int
+	if len(sources) > 0 {
+		scores = h.getCompletenessScores(ctx)
+	}
+	scenarios := make([]Scenario, 0, len(sources))
+	for _, source := range sources {
+		scenario, err := h.loadScenarioFromSource(source)
+		if err != nil {
+			log.Printf("[scenarios] load: skipping %q due to error: %v", source.Name, err)
+			continue
+		}
+		applyCompletenessScore(&scenario, scores)
+		scenarios = append(scenarios, scenario)
 	}
 	return scenarios, nil
 }
 
 // loadScenario reads a single scenario by name.
-func (h *Handler) loadScenario(name string) (Scenario, error) {
-	scenarioPath := filepath.Join(h.scenariosDir, name)
-	return h.loadScenarioFromPath(scenarioPath)
+func (h *Handler) loadScenario(ctx context.Context, name string) (Scenario, error) {
+	source, found, err := h.findScenarioSource(ctx, name)
+	if err != nil {
+		return Scenario{}, err
+	}
+	if !found {
+		return Scenario{}, os.ErrNotExist
+	}
+	scenario, err := h.loadScenarioFromSource(source)
+	if err != nil {
+		return Scenario{}, err
+	}
+	applyCompletenessScore(&scenario, h.getCompletenessScores(ctx))
+	return scenario, nil
+}
+
+func (h *Handler) findScenarioSource(ctx context.Context, name string) (ScenarioSource, bool, error) {
+	sources, err := h.source.List(ctx)
+	if err != nil {
+		return ScenarioSource{}, false, err
+	}
+	trimmed := strings.TrimSpace(name)
+	for _, source := range sources {
+		if source.Name == trimmed {
+			return source, true, nil
+		}
+	}
+	return ScenarioSource{}, false, nil
+}
+
+func (h *Handler) getCompletenessScores(ctx context.Context) map[string]int {
+	if h.completeness == nil {
+		return nil
+	}
+	scores, err := h.completeness.Scores(ctx)
+	if err != nil {
+		log.Printf("[scenarios] completeness: failed to load scores: %v", err)
+		return nil
+	}
+	return scores
 }
 
 // metadataPath returns the path to the metadata file for a scenario.
-func (h *Handler) metadataPath(name string) string {
-	return filepath.Join(h.scenariosDir, name, ".vrooli", "metadata.json")
+func metadataPath(scenarioPath string) string {
+	return filepath.Join(scenarioPath, ".vrooli", "metadata.json")
 }
 
 // loadMetadata reads the metadata for a scenario.
 // [REQ:REQ-P0-007] Load editable metadata from .vrooli/metadata.json
-func (h *Handler) loadMetadata(name string) (ScenarioMetadata, error) {
-	metaPath := h.metadataPath(name)
+func (h *Handler) loadMetadata(scenarioPath string) (ScenarioMetadata, bool, error) {
+	metaPath := metadataPath(scenarioPath)
 	data, err := os.ReadFile(metaPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -380,22 +443,22 @@ func (h *Handler) loadMetadata(name string) (ScenarioMetadata, error) {
 			return ScenarioMetadata{
 				IsGreenfield:           false,
 				RecommendationsEnabled: true, // Enabled by default
-			}, nil
+			}, false, nil
 		}
-		return ScenarioMetadata{}, err
+		return ScenarioMetadata{}, false, err
 	}
 
 	var metadata ScenarioMetadata
 	if err := json.Unmarshal(data, &metadata); err != nil {
-		return ScenarioMetadata{}, err
+		return ScenarioMetadata{}, true, err
 	}
-	return metadata, nil
+	return metadata, true, nil
 }
 
 // saveMetadata writes the metadata for a scenario.
 // [REQ:REQ-P0-007] Persist editable metadata to .vrooli/metadata.json
-func (h *Handler) saveMetadata(name string, metadata ScenarioMetadata) error {
-	metaPath := h.metadataPath(name)
+func (h *Handler) saveMetadata(scenarioPath string, metadata ScenarioMetadata) error {
+	metaPath := metadataPath(scenarioPath)
 
 	// Ensure .vrooli directory exists
 	dir := filepath.Dir(metaPath)
@@ -411,26 +474,33 @@ func (h *Handler) saveMetadata(name string, metadata ScenarioMetadata) error {
 	return os.WriteFile(metaPath, data, 0o644)
 }
 
-// loadScenarioFromPath reads a scenario from its directory.
+// loadScenarioFromSource maps CLI metadata into a Scenario enriched with local data.
 // [REQ:REQ-P0-007] Includes metadata for greenfield and recommendations settings
-func (h *Handler) loadScenarioFromPath(scenarioPath string) (Scenario, error) {
-	name := filepath.Base(scenarioPath)
-	serviceJSONPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
+func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error) {
+	name := strings.TrimSpace(source.Name)
+	if name == "" {
+		return Scenario{}, errors.New("scenario name missing")
+	}
+	scenarioPath := strings.TrimSpace(source.Path)
+	if scenarioPath == "" {
+		return Scenario{}, errors.New("scenario path missing")
+	}
 
-	data, err := os.ReadFile(serviceJSONPath)
-	if err != nil {
+	if _, err := os.Stat(scenarioPath); err != nil {
 		return Scenario{}, err
 	}
 
-	var serviceJSON ServiceJSON
-	if err := json.Unmarshal(data, &serviceJSON); err != nil {
-		return Scenario{}, err
-	}
+	displayName := name
+	description := strings.TrimSpace(source.Description)
 
-	// Determine display name
-	displayName := serviceJSON.Profile.Name
-	if displayName == "" {
-		displayName = name
+	status := normalizeScenarioStatus(source.Status)
+
+	// Read priority from lighthouse.json if available
+	priority := loadPriorityFromLighthouse(scenarioPath)
+
+	tags := source.Tags
+	if tags == nil {
+		tags = []string{}
 	}
 
 	// Determine default greenfield status (check for PRD.md)
@@ -440,43 +510,27 @@ func (h *Handler) loadScenarioFromPath(scenarioPath string) (Scenario, error) {
 		defaultGreenfield = false
 	}
 
-	// Determine status (check for running processes - simplified for now)
-	status := StatusUnknown
-
-	// Read priority from lighthouse.json if available
-	priority := 5 // Default priority
-	lighthousePath := filepath.Join(scenarioPath, ".vrooli", "lighthouse.json")
-	if lighthouseData, err := os.ReadFile(lighthousePath); err == nil {
-		var lighthouse struct {
-			Priority int `json:"priority"`
-		}
-		if err := json.Unmarshal(lighthouseData, &lighthouse); err == nil && lighthouse.Priority > 0 {
-			priority = lighthouse.Priority
-		}
-	}
-
-	tags := serviceJSON.Profile.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
 	// Load metadata for editable fields
-	// [REQ:REQ-P0-007] Apply metadata overrides for greenfield and recommendations
-	metadata, _ := h.loadMetadata(name)
+	metadata, metaExists, err := h.loadMetadata(scenarioPath)
+	if err != nil {
+		log.Printf("[scenarios] metadata: failed to load for %q: %v", name, err)
+		metadata = ScenarioMetadata{
+			IsGreenfield:           false,
+			RecommendationsEnabled: true,
+		}
+		metaExists = false
+	}
 
 	// Use metadata values; metadata file stores explicit user choices
-	// If metadata file doesn't exist, loadMetadata returns defaults
 	isGreenfield := metadata.IsGreenfield
-	// If no metadata file exists and PRD.md doesn't exist, it's greenfield
-	metaPath := h.metadataPath(name)
-	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+	if !metaExists {
 		isGreenfield = defaultGreenfield
 	}
 
 	return Scenario{
 		Name:                   name,
 		DisplayName:            displayName,
-		Description:            serviceJSON.Profile.Description,
+		Description:            description,
 		Status:                 status,
 		Priority:               priority,
 		IsGreenfield:           isGreenfield,
@@ -498,11 +552,26 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
 
-	// Verify scenario exists
-	scenarioPath := filepath.Join(h.scenariosDir, name)
-	serviceJSONPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	if _, err := os.Stat(serviceJSONPath); os.IsNotExist(err) {
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] delete", "failed to load scenarios from CLI")
+		return
+	}
+	if !found {
 		httputil.NotFound(w, "", "scenario not found")
+		return
+	}
+	scenarioPath := strings.TrimSpace(source.Path)
+	if scenarioPath == "" {
+		httputil.InternalError(w, "[scenarios] delete", "scenario path missing from CLI output")
+		return
+	}
+	if _, err := os.Stat(scenarioPath); err != nil {
+		if os.IsNotExist(err) {
+			httputil.NotFound(w, "", "scenario not found")
+			return
+		}
+		httputil.InternalError(w, "[scenarios] delete", "failed to access scenario directory")
 		return
 	}
 
@@ -510,7 +579,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	archive := r.URL.Query().Get("archive") == "true"
 
 	// Load scenario data before deletion (for archive or logging)
-	scenario, err := h.loadScenario(name)
+	scenario, err := h.loadScenarioFromSource(source)
 	if err != nil {
 		httputil.InternalError(w, "[scenarios] delete", "failed to load scenario data")
 		return
@@ -518,7 +587,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// If archiving, create an idea entry first
 	if archive {
-		if err := h.archiveToIdeas(scenario); err != nil {
+		if err := h.archiveToIdeas(scenario, scenarioPath); err != nil {
 			httputil.InternalError(w, "[scenarios] delete", "failed to archive scenario")
 			return
 		}
@@ -547,12 +616,87 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Start starts a scenario via the Vrooli CLI.
+func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
+	h.handleLifecycleAction(w, r, "start")
+}
+
+// Stop stops a scenario via the Vrooli CLI.
+func (h *Handler) Stop(w http.ResponseWriter, r *http.Request) {
+	h.handleLifecycleAction(w, r, "stop")
+}
+
+// Restart restarts a scenario via the Vrooli CLI.
+func (h *Handler) Restart(w http.ResponseWriter, r *http.Request) {
+	h.handleLifecycleAction(w, r, "restart")
+}
+
+func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, action string) {
+	vars := mux.Vars(r)
+	name := strings.TrimSpace(vars["name"])
+	if name == "" {
+		httputil.BadRequest(w, "[scenarios] "+action, "name is required")
+		return
+	}
+	if h.lifecycle == nil {
+		httputil.InternalError(w, "[scenarios] "+action, "scenario lifecycle is unavailable")
+		return
+	}
+
+	_, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] "+action, "failed to load scenarios from CLI")
+		return
+	}
+	if !found {
+		httputil.NotFound(w, "", "scenario not found")
+		return
+	}
+
+	var actionErr error
+	switch action {
+	case "start":
+		actionErr = h.lifecycle.Start(r.Context(), name)
+	case "stop":
+		actionErr = h.lifecycle.Stop(r.Context(), name)
+	case "restart":
+		actionErr = h.lifecycle.Restart(r.Context(), name)
+	default:
+		httputil.BadRequest(w, "[scenarios] "+action, "unsupported action")
+		return
+	}
+	if actionErr != nil {
+		if errors.Is(actionErr, errScenarioNameRequired) {
+			httputil.BadRequest(w, "[scenarios] "+action, "name is required")
+			return
+		}
+		httputil.InternalError(w, "[scenarios] "+action, "failed to "+action+" scenario")
+		return
+	}
+
+	scenario, err := h.loadScenario(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] "+action, "failed to load scenario")
+		return
+	}
+
+	resp := &apipb.ScenarioResponse{Scenario: scenarioToProto(scenario)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] "+action, "failed to encode response")
+	}
+}
+
 // archiveToIdeas creates an idea entry from a scenario's metadata.
 // [REQ:REQ-P0-008] Archive functionality for scenario preservation
-func (h *Handler) archiveToIdeas(scenario Scenario) error {
+func (h *Handler) archiveToIdeas(scenario Scenario, scenarioPath string) error {
+	ideaRoot, err := deriveIdeasRoot(scenarioPath)
+	if err != nil {
+		return err
+	}
+
 	// Create idea directory structure
 	ideaName := scenario.Name + "-archived"
-	ideaDir := filepath.Join(h.scenariosDir, "..", "swarm-manager", "ideas", ideaName)
+	ideaDir := filepath.Join(ideaRoot, ideaName)
 
 	// Ensure parent directory exists
 	if err := os.MkdirAll(ideaDir, 0o755); err != nil {
@@ -578,6 +722,57 @@ func (h *Handler) archiveToIdeas(scenario Scenario) error {
 
 	specPath := filepath.Join(ideaDir, "spec.json")
 	return os.WriteFile(specPath, data, 0o644)
+}
+
+func normalizeScenarioStatus(status string) ScenarioStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "running":
+		return StatusRunning
+	case "stopped":
+		return StatusStopped
+	case "error":
+		return StatusError
+	default:
+		return StatusUnknown
+	}
+}
+
+func loadPriorityFromLighthouse(scenarioPath string) int {
+	priority := 5 // Default priority
+	lighthousePath := filepath.Join(scenarioPath, ".vrooli", "lighthouse.json")
+	if lighthouseData, err := os.ReadFile(lighthousePath); err == nil {
+		var lighthouse struct {
+			Priority int `json:"priority"`
+		}
+		if err := json.Unmarshal(lighthouseData, &lighthouse); err == nil && lighthouse.Priority > 0 {
+			priority = lighthouse.Priority
+		}
+	}
+	return priority
+}
+
+func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
+	if scenario == nil || scores == nil {
+		return
+	}
+	score, ok := scores[scenario.Name]
+	if !ok {
+		return
+	}
+	scenario.CompletenessScore = &score
+}
+
+func deriveIdeasRoot(scenarioPath string) (string, error) {
+	cleaned := filepath.Clean(scenarioPath)
+	parts := strings.Split(filepath.ToSlash(cleaned), "/scenarios/")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("unable to derive ideas root from scenario path %q", scenarioPath)
+	}
+	root := parts[0]
+	if root == "" {
+		root = string(filepath.Separator)
+	}
+	return filepath.Join(root, "scenarios", "swarm-manager", "ideas"), nil
 }
 
 // hasAnyTag checks if the scenario has any of the filter tags.

@@ -85,7 +85,7 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 | API Gateway | Implemented | Ideas/scenarios/settings/recommendations/queue endpoints |
 | Business Logic | Implemented | CRUD + queue/research + recommendations engine |
 | Integration | Implemented | Discovery-based agent-manager + ecosystem-manager clients |
-| Persistence | Filesystem-first | Ideas, settings, queue, recommendations stored on disk |
+| Persistence | Filesystem-first | Ideas, settings, queue, recommendations stored on disk; scenario inventory sourced from Vrooli CLI |
 
 ## Physical Structure
 

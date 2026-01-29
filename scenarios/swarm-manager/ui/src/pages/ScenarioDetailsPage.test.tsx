@@ -35,6 +35,10 @@ vi.mock("../services", () => ({
     list: vi.fn(),
     get: vi.fn(),
     updateMetadata: vi.fn(),
+    delete: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    restart: vi.fn(),
   },
 }));
 
@@ -454,6 +458,41 @@ describe("ScenarioDetailsPage", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Error")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("scenario actions", () => {
+    it("renders start/stop/restart buttons", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-start")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("scenario-details-stop")).toBeInTheDocument();
+      expect(screen.getByTestId("scenario-details-restart")).toBeInTheDocument();
+    });
+
+    it("calls start when start button is clicked", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue({
+        ...mockScenario,
+        status: "stopped" as const,
+      });
+      vi.mocked(scenariosService.start).mockResolvedValue({
+        ...mockScenario,
+        status: "running" as const,
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-details-start")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId("scenario-details-start"));
+
+      await waitFor(() => {
+        expect(scenariosService.start).toHaveBeenCalledWith("test-scenario");
       });
     });
   });

@@ -64,7 +64,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `main.go` | Server setup, routes, filesystem-only persistence | Business logic (delegated) | [CODE: api/main.go] |
+| `main.go` | Server setup, routes, filesystem persistence for ideas/settings/queue/recommendations; CLI-sourced scenario inventory | Business logic (delegated) | [CODE: api/main.go] |
 | Health handler | Readiness/liveness checks | Domain operations | [CODE: api/main.go:69] |
 
 ### CLI Components
@@ -89,9 +89,9 @@ User ← IdeasPage (render) ← useQuery ← Promise<Idea[]> ←─────�
 ### Flow 2: Checking Scenario Status
 
 ```
-User → scenariosService.list() → ApiClient.get() → API /scenarios → Filesystem
-                                                                ↓
-User ← ScenariosPage (render) ← useQuery ← Promise<Scenario[]> ←┘
+User → scenariosService.list() → ApiClient.get() → API /scenarios → Vrooli CLI + completeness CLI
+                                                                     ↓
+User ← ScenariosPage (render) ← useQuery ← Promise<Scenario[]> ←─────┘
 ```
 
 **Key invariant**: Scenarios always show current status (running/stopped/error).

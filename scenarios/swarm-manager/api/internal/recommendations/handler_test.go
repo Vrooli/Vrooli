@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 )
 
@@ -33,7 +34,10 @@ func TestEngine_GenerateProblemsRecommendation(t *testing.T) {
 		t.Fatalf("write problems: %v", err)
 	}
 
-	engine := NewEngine(dir)
+	sources := []scenarios.ScenarioSource{
+		makeScenarioSource("demo", "Demo scenario", scenarioDir, "demo"),
+	}
+	engine := newTestEngine(dir, sources)
 	cfg := settings.DefaultSettings()
 	cfg.RecommendationMode = "suggestions"
 
@@ -63,7 +67,7 @@ func TestHandler_ListModeOffReturnsEmpty(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(recPath),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 
@@ -90,7 +94,7 @@ func TestHandler_CreateAndUpdate(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(recPath),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(filepath.Join(dir, "settings.json")),
 	}
 

@@ -2,6 +2,7 @@ package scenarios
 
 import (
 	"bytes"
+	"context"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -36,15 +37,75 @@ type deleteScenarioResponse struct {
 	Message  string `json:"message"`
 }
 
+type stubSource struct {
+	scenarios []ScenarioSource
+	err       error
+}
+
+func (s stubSource) List(_ context.Context) ([]ScenarioSource, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.scenarios, nil
+}
+
+type stubCompleteness struct {
+	scores map[string]int
+	err    error
+}
+
+func (s stubCompleteness) Scores(_ context.Context) (map[string]int, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.scores == nil {
+		return map[string]int{}, nil
+	}
+	return s.scores, nil
+}
+
+type stubLifecycle struct {
+	startCalls   []string
+	stopCalls    []string
+	restartCalls []string
+	err          error
+}
+
+func (s *stubLifecycle) Start(_ context.Context, name string) error {
+	s.startCalls = append(s.startCalls, name)
+	return s.err
+}
+
+func (s *stubLifecycle) Stop(_ context.Context, name string) error {
+	s.stopCalls = append(s.stopCalls, name)
+	return s.err
+}
+
+func (s *stubLifecycle) Restart(_ context.Context, name string) error {
+	s.restartCalls = append(s.restartCalls, name)
+	return s.err
+}
+
+func newTestHandler(root string, scenarios []ScenarioSource) *Handler {
+	return NewHandlerWithDeps(
+		filepath.Join(root, "scenarios"),
+		stubSource{scenarios: scenarios},
+		&stubLifecycle{},
+		stubCompleteness{scores: map[string]int{}},
+	)
+}
+
 // setupTestScenarios creates temporary test scenarios using t.TempDir() for automatic cleanup.
 // [REQ:REQ-P0-006] Test scenario catalog listing
-func setupTestScenarios(t *testing.T) string {
+func setupTestScenarios(t *testing.T) (string, []ScenarioSource) {
 	t.Helper()
 
-	dir := t.TempDir()
+	root := t.TempDir()
+	scenariosDir := filepath.Join(root, "scenarios")
 
 	// Create test scenario 1 (has PRD.md, so not greenfield)
-	scenario1Dir := filepath.Join(dir, "test-scenario-1", ".vrooli")
+	scenario1Path := filepath.Join(scenariosDir, "test-scenario-1")
+	scenario1Dir := filepath.Join(scenario1Path, ".vrooli")
 	testutil.WriteJSONFile(t, filepath.Join(scenario1Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Test Scenario One",
@@ -55,10 +116,11 @@ func setupTestScenarios(t *testing.T) string {
 	testutil.WriteJSONFile(t, filepath.Join(scenario1Dir, "lighthouse.json"), map[string]int{
 		"priority": 1,
 	})
-	testutil.WriteFile(t, filepath.Join(dir, "test-scenario-1", "PRD.md"), "# PRD")
+	testutil.WriteFile(t, filepath.Join(scenario1Path, "PRD.md"), "# PRD")
 
 	// Create test scenario 2 (no PRD.md, so greenfield)
-	scenario2Dir := filepath.Join(dir, "test-scenario-2", ".vrooli")
+	scenario2Path := filepath.Join(scenariosDir, "test-scenario-2")
+	scenario2Dir := filepath.Join(scenario2Path, ".vrooli")
 	testutil.WriteJSONFile(t, filepath.Join(scenario2Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Test Scenario Two",
@@ -71,7 +133,8 @@ func setupTestScenarios(t *testing.T) string {
 	})
 
 	// Create test scenario 3 (no priority set - uses default)
-	scenario3Dir := filepath.Join(dir, "another-scenario", ".vrooli")
+	scenario3Path := filepath.Join(scenariosDir, "another-scenario")
+	scenario3Dir := filepath.Join(scenario3Path, ".vrooli")
 	testutil.WriteJSONFile(t, filepath.Join(scenario3Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Another Scenario",
@@ -80,15 +143,38 @@ func setupTestScenarios(t *testing.T) string {
 		},
 	})
 
-	return dir
+	sources := []ScenarioSource{
+		{
+			Name:        "test-scenario-1",
+			Description: "First test scenario",
+			Path:        scenario1Path,
+			Status:      "running",
+			Tags:        []string{"api", "backend"},
+		},
+		{
+			Name:        "test-scenario-2",
+			Description: "Second test scenario for frontend",
+			Path:        scenario2Path,
+			Status:      "stopped",
+			Tags:        []string{"ui", "frontend"},
+		},
+		{
+			Name:        "another-scenario",
+			Description: "Another test scenario",
+			Path:        scenario3Path,
+			Status:      "error",
+			Tags:        []string{"api", "testing"},
+		},
+	}
+
+	return root, sources
 }
 
 // TestList_Empty tests listing with no scenarios.
 // [REQ:REQ-P0-006] Test empty scenario list
 func TestList_Empty(t *testing.T) {
-	dir := t.TempDir()
-
-	handler := NewHandler(dir)
+	root := t.TempDir()
+	handler := newTestHandler(root, nil)
 	req := httptest.NewRequest("GET", "/api/v1/scenarios", nil)
 	rec := httptest.NewRecorder()
 
@@ -105,9 +191,8 @@ func TestList_Empty(t *testing.T) {
 // TestList_WithScenarios tests listing scenarios.
 // [REQ:REQ-P0-006] Test scenario list with data
 func TestList_WithScenarios(t *testing.T) {
-	dir := setupTestScenarios(t)
-
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 	req := httptest.NewRequest("GET", "/api/v1/scenarios", nil)
 	rec := httptest.NewRecorder()
 
@@ -135,8 +220,8 @@ func TestList_WithScenarios(t *testing.T) {
 // TestList_Search tests search filtering.
 // [REQ:REQ-P0-006] Test search functionality
 func TestList_Search(t *testing.T) {
-	dir := setupTestScenarios(t)
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 
 	tests := []struct {
 		name          string
@@ -169,8 +254,8 @@ func TestList_Search(t *testing.T) {
 // TestList_FilterByTags tests tag filtering.
 // [REQ:REQ-P0-006] Test tag filter functionality
 func TestList_FilterByTags(t *testing.T) {
-	dir := setupTestScenarios(t)
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 
 	tests := []struct {
 		name          string
@@ -203,8 +288,8 @@ func TestList_FilterByTags(t *testing.T) {
 // TestList_Sorting tests sort parameter.
 // [REQ:REQ-P0-006] Test priority sorting
 func TestList_Sorting(t *testing.T) {
-	dir := setupTestScenarios(t)
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 
 	t.Run("sort by name ascending", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/scenarios?sort=name&order=asc", nil)
@@ -235,9 +320,9 @@ func TestList_Sorting(t *testing.T) {
 // TestGet_Success tests getting a single scenario.
 // [REQ:REQ-P0-006] Test scenario detail endpoint
 func TestGet_Success(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Get).Methods("GET")
 
@@ -253,8 +338,8 @@ func TestGet_Success(t *testing.T) {
 	if scenario.Name != "test-scenario-1" {
 		t.Errorf("expected name 'test-scenario-1', got %s", scenario.Name)
 	}
-	if scenario.DisplayName != "Test Scenario One" {
-		t.Errorf("expected display name 'Test Scenario One', got %s", scenario.DisplayName)
+	if scenario.DisplayName != "test-scenario-1" {
+		t.Errorf("expected display name 'test-scenario-1', got %s", scenario.DisplayName)
 	}
 	if scenario.IsGreenfield {
 		t.Error("expected IsGreenfield false (PRD.md exists)")
@@ -264,9 +349,9 @@ func TestGet_Success(t *testing.T) {
 // TestGet_NotFound tests getting a non-existent scenario.
 // [REQ:REQ-P0-006] Test scenario not found
 func TestGet_NotFound(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Get).Methods("GET")
 
@@ -281,9 +366,9 @@ func TestGet_NotFound(t *testing.T) {
 // TestScenario_Structure tests the Scenario struct fields.
 // [REQ:REQ-P0-006] Test scenario data structure
 func TestScenario_Structure(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	req := httptest.NewRequest("GET", "/api/v1/scenarios?search=test-scenario-2", nil)
 	rec := httptest.NewRecorder()
 
@@ -312,9 +397,9 @@ func TestScenario_Structure(t *testing.T) {
 // TestUpdateMetadata_Success tests successful metadata update.
 // [REQ:REQ-P0-007] Test scenario metadata update endpoint
 func TestUpdateMetadata_Success(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -338,9 +423,9 @@ func TestUpdateMetadata_Success(t *testing.T) {
 // TestUpdateMetadata_ToggleGreenfield tests greenfield toggle.
 // [REQ:REQ-P0-007] Test greenfield metadata toggle
 func TestUpdateMetadata_ToggleGreenfield(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -364,9 +449,9 @@ func TestUpdateMetadata_ToggleGreenfield(t *testing.T) {
 // TestUpdateMetadata_NotFound tests updating non-existent scenario.
 // [REQ:REQ-P0-007] Test metadata update for missing scenario
 func TestUpdateMetadata_NotFound(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -383,9 +468,9 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 // TestUpdateMetadata_InvalidJSON tests invalid JSON handling.
 // [REQ:REQ-P0-007] Test metadata update with invalid JSON
 func TestUpdateMetadata_InvalidJSON(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -402,9 +487,9 @@ func TestUpdateMetadata_InvalidJSON(t *testing.T) {
 // TestUpdateMetadata_PartialUpdate tests that partial updates work.
 // [REQ:REQ-P0-007] Test partial metadata update
 func TestUpdateMetadata_PartialUpdate(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -437,9 +522,9 @@ func TestUpdateMetadata_PartialUpdate(t *testing.T) {
 // TestUpdateMetadata_PersistsToDisk tests that metadata is persisted.
 // [REQ:REQ-P0-007] Test metadata persistence to disk
 func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.UpdateMetadata).Methods("PATCH")
 
@@ -453,7 +538,7 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 	testutil.AssertStatusOK(t, rec)
 
 	// Verify metadata file was created
-	metaPath := filepath.Join(dir, "test-scenario-1", ".vrooli", "metadata.json")
+	metaPath := filepath.Join(root, "scenarios", "test-scenario-1", ".vrooli", "metadata.json")
 	testutil.AssertFileExists(t, metaPath)
 
 	metadata := testutil.ReadJSONFile[ScenarioMetadata](t, metaPath)
@@ -468,9 +553,9 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 // TestScenario_RecommendationsEnabledDefault tests default recommendations value.
 // [REQ:REQ-P0-007] Test default recommendationsEnabled value
 func TestScenario_RecommendationsEnabledDefault(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Get).Methods("GET")
 
@@ -491,14 +576,14 @@ func TestScenario_RecommendationsEnabledDefault(t *testing.T) {
 // TestDelete_Success tests successful scenario deletion.
 // [REQ:REQ-P0-008] Test scenario deletion endpoint
 func TestDelete_Success(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
 
 	// Verify scenario exists before deletion
-	scenarioPath := filepath.Join(dir, "test-scenario-1")
+	scenarioPath := filepath.Join(root, "scenarios", "test-scenario-1")
 	testutil.AssertFileExists(t, filepath.Join(scenarioPath, ".vrooli", "service.json"))
 
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1", nil)
@@ -525,9 +610,9 @@ func TestDelete_Success(t *testing.T) {
 // TestDelete_NotFound tests deletion of non-existent scenario.
 // [REQ:REQ-P0-008] Test deletion of missing scenario
 func TestDelete_NotFound(t *testing.T) {
-	dir := t.TempDir()
+	root := t.TempDir()
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, nil)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
 
@@ -541,13 +626,13 @@ func TestDelete_NotFound(t *testing.T) {
 // TestDelete_WithArchive tests deletion with archive option.
 // [REQ:REQ-P0-008] Test scenario archive to ideas backlog
 func TestDelete_WithArchive(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
 	// Create ideas directory for swarm-manager
-	ideasDir := filepath.Join(dir, "..", "swarm-manager", "ideas")
+	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
 	testutil.MakeDir(t, ideasDir)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
 
@@ -566,7 +651,7 @@ func TestDelete_WithArchive(t *testing.T) {
 	}
 
 	// Verify scenario directory was removed
-	scenarioPath := filepath.Join(dir, "test-scenario-1")
+	scenarioPath := filepath.Join(root, "scenarios", "test-scenario-1")
 	testutil.AssertFileNotExists(t, scenarioPath)
 
 	// Verify idea was created (relative path depends on handler implementation)
@@ -577,9 +662,9 @@ func TestDelete_WithArchive(t *testing.T) {
 // TestDelete_Idempotent tests that delete is idempotent (second delete returns 404).
 // [REQ:REQ-P0-008] Test deletion idempotency
 func TestDelete_Idempotent(t *testing.T) {
-	dir := setupTestScenarios(t)
+	root, sources := setupTestScenarios(t)
 
-	handler := NewHandler(dir)
+	handler := newTestHandler(root, sources)
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/scenarios/{name}", handler.Delete).Methods("DELETE")
 

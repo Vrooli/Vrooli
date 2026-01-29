@@ -126,6 +126,8 @@ func (s *Store) Save(items []Recommendation) error {
 // Engine generates recommendations based on filesystem data.
 type Engine struct {
 	scenariosDir string
+	source       scenarios.Source
+	completeness scenarios.CompletenessSource
 }
 
 // NewEngine creates a recommendation engine.
@@ -133,12 +135,49 @@ func NewEngine(scenariosDir string) *Engine {
 	if strings.TrimSpace(scenariosDir) == "" {
 		scenariosDir = "scenarios"
 	}
-	return &Engine{scenariosDir: scenariosDir}
+	return &Engine{
+		scenariosDir: scenariosDir,
+		source:       scenarios.NewCLIProvider(20 * time.Second),
+		completeness: scenarios.NewCLICompletenessSource(30 * time.Second),
+	}
+}
+
+// NewEngineWithSource creates a recommendation engine with a custom scenario source.
+func NewEngineWithSource(scenariosDir string, source scenarios.Source) *Engine {
+	if strings.TrimSpace(scenariosDir) == "" {
+		scenariosDir = "scenarios"
+	}
+	if source == nil {
+		source = scenarios.NewCLIProvider(20 * time.Second)
+	}
+	return &Engine{
+		scenariosDir: scenariosDir,
+		source:       source,
+		completeness: scenarios.NewCLICompletenessSource(30 * time.Second),
+	}
+}
+
+// NewEngineWithDeps creates a recommendation engine with custom dependencies.
+func NewEngineWithDeps(scenariosDir string, source scenarios.Source, completeness scenarios.CompletenessSource) *Engine {
+	if strings.TrimSpace(scenariosDir) == "" {
+		scenariosDir = "scenarios"
+	}
+	if source == nil {
+		source = scenarios.NewCLIProvider(20 * time.Second)
+	}
+	if completeness == nil {
+		completeness = scenarios.NewCLICompletenessSource(30 * time.Second)
+	}
+	return &Engine{
+		scenariosDir: scenariosDir,
+		source:       source,
+		completeness: completeness,
+	}
 }
 
 // Generate produces recommendations based on settings and filesystem signals.
 func (e *Engine) Generate(cfg settings.Settings) ([]Recommendation, error) {
-	handler := scenarios.NewHandler(e.scenariosDir)
+	handler := scenarios.NewHandlerWithDeps(e.scenariosDir, e.source, nil, e.completeness)
 	catalog, err := handler.LoadAll()
 	if err != nil {
 		return nil, err

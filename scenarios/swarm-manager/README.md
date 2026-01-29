@@ -67,7 +67,7 @@ ideas/
 ## Dependencies
 
 ### Required Resources
-- **None** - Swarm Manager is filesystem-only for single-user local ops
+- **None** - Filesystem persistence is used for ideas, settings, queue, and recommendations. Scenario inventory is sourced from the Vrooli CLI.
 
 ### Required Scenarios
 - **agent-manager** - Spawning agents for automated work

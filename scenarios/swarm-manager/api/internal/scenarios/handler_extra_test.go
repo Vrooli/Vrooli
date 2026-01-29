@@ -10,8 +10,8 @@ import (
 )
 
 func TestHandler_LoadAllAndLoad(t *testing.T) {
-	dir := setupTestScenarios(t)
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 
 	all, err := handler.LoadAll()
 	if err != nil {
@@ -34,8 +34,8 @@ func TestHandler_LoadAllAndLoad(t *testing.T) {
 }
 
 func TestHandler_RegisterRoutes(t *testing.T) {
-	dir := setupTestScenarios(t)
-	handler := NewHandler(dir)
+	root, sources := setupTestScenarios(t)
+	handler := newTestHandler(root, sources)
 
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)

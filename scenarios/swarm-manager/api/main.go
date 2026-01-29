@@ -42,6 +42,9 @@
 //
 //	GET    /api/v1/scenarios      - List all scenarios (supports search, filter, sort)
 //	GET    /api/v1/scenarios/{name} - Get scenario details
+//	POST   /api/v1/scenarios/{name}/start - Start scenario via CLI
+//	POST   /api/v1/scenarios/{name}/stop - Stop scenario via CLI
+//	POST   /api/v1/scenarios/{name}/restart - Restart scenario via CLI
 //
 // # Settings Endpoints (P1)
 //

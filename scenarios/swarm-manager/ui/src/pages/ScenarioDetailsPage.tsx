@@ -18,7 +18,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal } from "lucide-react";
+import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -90,6 +90,23 @@ export function ScenarioDetailsPage() {
     },
   });
 
+  const actionMutation = useMutation({
+    mutationFn: async (action: "start" | "stop" | "restart") => {
+      if (!name) throw new Error("Name is required");
+      if (action === "start") {
+        return scenariosService.start(name);
+      }
+      if (action === "stop") {
+        return scenariosService.stop(name);
+      }
+      return scenariosService.restart(name);
+    },
+    onSuccess: (updatedScenario) => {
+      queryClient.setQueryData(["scenarios", name], updatedScenario);
+      queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+    },
+  });
+
   // Toggle handlers with optimistic updates
   const handleGreenfieldToggle = () => {
     const newValue = !localGreenfield;
@@ -145,6 +162,12 @@ export function ScenarioDetailsPage() {
 
   // Get status icon
   const StatusIcon = scenario ? (SCENARIO_STATUS_ICONS[scenario.status] || Circle) : Circle;
+  const isRunning = scenario?.status === "running";
+  const isStopped = scenario?.status === "stopped";
+  const actionInFlight = actionMutation.isPending ? actionMutation.variables : null;
+  const actionError = actionMutation.isError
+    ? `Failed to ${actionMutation.variables ?? "run action"}. Please try again.`
+    : null;
 
   return (
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
@@ -238,6 +261,58 @@ export function ScenarioDetailsPage() {
                       />
                     </div>
                     <span className="text-sm text-slate-400">{scenario.completenessScore}%</span>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-end gap-2" data-testid={selectors.scenarioDetails.actionsSection}>
+                  <Button
+                    variant={isRunning ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => actionMutation.mutate("start")}
+                    disabled={actionMutation.isPending || isRunning}
+                    data-testid={selectors.scenarioDetails.startButton}
+                  >
+                    {actionInFlight === "start" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-2 h-4 w-4" />
+                    )}
+                    Start
+                  </Button>
+                  <Button
+                    variant={isStopped ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => actionMutation.mutate("stop")}
+                    disabled={actionMutation.isPending || isStopped}
+                    data-testid={selectors.scenarioDetails.stopButton}
+                  >
+                    {actionInFlight === "stop" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Square className="mr-2 h-4 w-4" />
+                    )}
+                    Stop
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => actionMutation.mutate("restart")}
+                    disabled={actionMutation.isPending}
+                    data-testid={selectors.scenarioDetails.restartButton}
+                  >
+                    {actionInFlight === "restart" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Restart
+                  </Button>
+                </div>
+                {actionError && (
+                  <div
+                    className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs text-red-400"
+                    data-testid={selectors.scenarioDetails.actionError}
+                  >
+                    {actionError}
                   </div>
                 )}
               </div>

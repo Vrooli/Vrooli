@@ -174,6 +174,11 @@ export const literalSelectors = {
     description: "scenario-details-description",
     backButton: "scenario-details-back",
     metadataSection: "scenario-details-metadata",
+    actionsSection: "scenario-details-actions",
+    startButton: "scenario-details-start",
+    stopButton: "scenario-details-stop",
+    restartButton: "scenario-details-restart",
+    actionError: "scenario-details-action-error",
     greenfieldToggle: "scenario-greenfield-toggle",
     recommendationsToggle: "scenario-recommendations-toggle",
     saveButton: "scenario-details-save",
@@ -256,6 +261,21 @@ export const dynamicSelectorDefinitions = {
       testIdPattern: "scenario-card-${name}",
       params: { name: { type: "string" } },
     }),
+    actionStart: defineDynamicSelector({
+      description: "Scenario start action button",
+      testIdPattern: "scenario-action-start-${name}",
+      params: { name: { type: "string" } },
+    }),
+    actionStop: defineDynamicSelector({
+      description: "Scenario stop action button",
+      testIdPattern: "scenario-action-stop-${name}",
+      params: { name: { type: "string" } },
+    }),
+    actionRestart: defineDynamicSelector({
+      description: "Scenario restart action button",
+      testIdPattern: "scenario-action-restart-${name}",
+      params: { name: { type: "string" } },
+    }),
   },
   recommendations: {
     cardByName: defineDynamicSelector({
@@ -281,6 +301,12 @@ export const dynamicSelectors = {
   scenarios: {
     cardByName: (params: { name: string }) =>
       formatTemplate("scenario-card-${name}", params, "scenarios.cardByName"),
+    actionStart: (params: { name: string }) =>
+      formatTemplate("scenario-action-start-${name}", params, "scenarios.actionStart"),
+    actionStop: (params: { name: string }) =>
+      formatTemplate("scenario-action-stop-${name}", params, "scenarios.actionStop"),
+    actionRestart: (params: { name: string }) =>
+      formatTemplate("scenario-action-restart-${name}", params, "scenarios.actionRestart"),
   },
   recommendations: {
     cardByName: (params: { name: string }) =>

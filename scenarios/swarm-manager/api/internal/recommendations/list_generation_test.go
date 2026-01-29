@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
 )
@@ -45,7 +46,9 @@ func TestHandler_ListGeneratesWhenEmpty(t *testing.T) {
 	storePath := filepath.Join(root, "recs.json")
 	handler := &Handler{
 		store:         NewStore(storePath),
-		engine:        NewEngine(scenariosDir),
+		engine:        newTestEngine(scenariosDir, []scenarios.ScenarioSource{
+			makeScenarioSource("demo", "Demo", scenarioPath, "demo"),
+		}),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 
@@ -72,7 +75,7 @@ func TestHandler_ListSettingsLoadError(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(filepath.Join(dir, "recs.json")),
-		engine:        NewEngine(dir),
+		engine:        newTestEngine(dir, nil),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 

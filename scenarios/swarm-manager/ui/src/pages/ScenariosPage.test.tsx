@@ -39,6 +39,10 @@ vi.mock("../services", () => ({
     list: vi.fn(),
     get: vi.fn(),
     updateMetadata: vi.fn(),
+    delete: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    restart: vi.fn(),
   },
 }));
 

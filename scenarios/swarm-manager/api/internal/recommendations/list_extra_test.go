@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/testutil"
 )
@@ -71,7 +72,9 @@ func TestHandler_ListRefreshMergesRecommendations(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(storePath),
-		engine:        NewEngine(scenariosDir),
+		engine:        newTestEngine(scenariosDir, []scenarios.ScenarioSource{
+			makeScenarioSource("demo", "Demo", scenarioPath, "demo"),
+		}),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 
@@ -109,7 +112,7 @@ func TestHandler_ListLoadError(t *testing.T) {
 
 	handler := &Handler{
 		store:         NewStore(badPath),
-		engine:        NewEngine(root),
+		engine:        newTestEngine(root, nil),
 		settingsStore: settings.NewStore(settingsPath),
 	}
 

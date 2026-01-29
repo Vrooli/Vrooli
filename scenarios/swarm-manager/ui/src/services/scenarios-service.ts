@@ -7,12 +7,12 @@
  * Responsibilities:
  * - Scenario listing and details
  * - Scenario metadata updates
+ * - Scenario lifecycle actions (start/stop/restart)
  * - Request/response transformation if needed
  *
  * NOT responsible for:
  * - HTTP implementation details (delegated to api client)
  * - UI state or caching (delegated to React Query)
- * - Scenario lifecycle operations (delegated to ecosystem-manager)
  */
 
 import { UpdateScenarioMetadataRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
@@ -33,6 +33,9 @@ export interface IScenariosService {
   get(name: string): Promise<Scenario>;
   updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario>;
   delete(name: string, archive?: boolean): Promise<DeleteScenarioResponse>;
+  start(name: string): Promise<Scenario>;
+  stop(name: string): Promise<Scenario>;
+  restart(name: string): Promise<Scenario>;
 }
 
 /**
@@ -83,6 +86,24 @@ export function createScenariosService(
       const data = await apiClient.delete<unknown>(endpoint);
       const parsed = parseProtoResponse(deleteScenarioResponseSchema, data, "scenario delete");
       return mapDeleteScenarioResponse(parsed);
+    },
+
+    async start(name: string): Promise<Scenario> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioStart(name), {});
+      const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
+      return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
+    },
+
+    async stop(name: string): Promise<Scenario> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioStop(name), {});
+      const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
+      return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
+    },
+
+    async restart(name: string): Promise<Scenario> {
+      const data = await apiClient.post<unknown>(API_ENDPOINTS.scenarioRestart(name), {});
+      const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
+      return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
     },
   };
 }

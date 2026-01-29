@@ -59,7 +59,7 @@ func TestHandler_StartRecommendationSuccess(t *testing.T) {
 
 	handler := NewHandlerWithServices(
 		NewStore(storePath),
-		NewEngine(dir),
+		newTestEngine(dir, nil),
 		settings.NewStore(settingsPath),
 		&mockAgentService{result: agentmanager.RunResult{TaskID: "task-1", RunID: "run-1", CreatedAt: "2026-01-28T12:00:00Z"}},
 	)
@@ -114,7 +114,7 @@ func TestHandler_StartRecommendationAgentUnavailable(t *testing.T) {
 
 	handler := NewHandlerWithServices(
 		NewStore(storePath),
-		NewEngine(dir),
+		newTestEngine(dir, nil),
 		settings.NewStore(settingsPath),
 		&mockAgentService{err: agentmanager.ErrNotAvailable},
 	)
@@ -154,7 +154,7 @@ func TestHandler_StartRecommendationAlreadyStarted(t *testing.T) {
 
 	handler := NewHandlerWithServices(
 		NewStore(storePath),
-		NewEngine(dir),
+		newTestEngine(dir, nil),
 		settings.NewStore(settingsPath),
 		&mockAgentService{},
 	)
@@ -193,7 +193,7 @@ func TestHandler_StartRecommendationModeOff(t *testing.T) {
 
 	handler := NewHandlerWithServices(
 		NewStore(storePath),
-		NewEngine(dir),
+		newTestEngine(dir, nil),
 		settings.NewStore(settingsPath),
 		&mockAgentService{},
 	)
@@ -232,7 +232,7 @@ func TestHandler_StartRecommendationYoloAutoApprove(t *testing.T) {
 
 	handler := NewHandlerWithServices(
 		NewStore(storePath),
-		NewEngine(dir),
+		newTestEngine(dir, nil),
 		settings.NewStore(settingsPath),
 		&mockAgentService{result: agentmanager.RunResult{TaskID: "task-5", RunID: "run-5"}},
 	)

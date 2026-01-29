@@ -175,7 +175,7 @@ ReactDOM.createRoot(rootElement).render(...);
 
 1. ~~**CLI command structure** - `cli/app.go` has command handlers that could benefit from consistent error handling patterns similar to httputil~~ (Reviewed: Already clean with idiomatic Go error wrapping via `fmt.Errorf("%w")`, consistent JSON unmarshalling, and clear separation of concerns)
 2. ~~**Service layer duplication** - UI service files (`ideas-service.ts`, `scenarios-service.ts`) have similar fetch patterns that could be unified~~ (Reviewed: Already clean with dependency injection pattern)
-3. ~~**Config loading duplication** - Both ideas and scenarios handlers read JSON config files (spec.json, service.json, lighthouse.json) with similar patterns~~ (Reviewed Phase 23 Iter 4: Patterns are domain-specific with different error handling and defaults. `ideas/handler.go` reads spec.json; `scenarios/handler.go` reads service.json, lighthouse.json, metadata.json with fallback defaults. A generic ReadJSON utility would not reduce complexity since each has context-specific logic.)
+3. ~~**Config loading duplication** - Both ideas and scenarios handlers read JSON config files (spec.json, lighthouse.json, metadata.json) with similar patterns~~ (Reviewed Phase 23 Iter 4: Patterns are domain-specific with different error handling and defaults. `ideas/handler.go` reads spec.json; `scenarios/handler.go` reads lighthouse.json and metadata.json to enrich CLI-sourced scenario data. A generic ReadJSON utility would not reduce complexity since each has context-specific logic.)
 
 **Priority: Low**
 

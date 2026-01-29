@@ -248,4 +248,96 @@ describe("Scenarios Service", () => {
       ).rejects.toThrow("Bad request");
     });
   });
+
+  describe("lifecycle actions", () => {
+    it("starts a scenario via the correct endpoint", async () => {
+      const mockScenario: Scenario = {
+        name: "api-server",
+        displayName: "API Server",
+        description: "Backend service",
+        status: "running",
+        priority: 1,
+        isGreenfield: false,
+        tags: [],
+        recommendationsEnabled: true,
+      };
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        scenario: {
+          name: "api-server",
+          display_name: "API Server",
+          description: "Backend service",
+          status: "running",
+          priority: 1,
+          is_greenfield: false,
+          tags: [],
+          recommendations_enabled: true,
+        },
+      });
+
+      const result = await service.start("api-server");
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("/scenarios/api-server/start", {});
+      expect(result).toEqual(mockScenario);
+    });
+
+    it("stops a scenario via the correct endpoint", async () => {
+      const mockScenario: Scenario = {
+        name: "api-server",
+        displayName: "API Server",
+        description: "Backend service",
+        status: "stopped",
+        priority: 1,
+        isGreenfield: false,
+        tags: [],
+        recommendationsEnabled: true,
+      };
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        scenario: {
+          name: "api-server",
+          display_name: "API Server",
+          description: "Backend service",
+          status: "stopped",
+          priority: 1,
+          is_greenfield: false,
+          tags: [],
+          recommendations_enabled: true,
+        },
+      });
+
+      const result = await service.stop("api-server");
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("/scenarios/api-server/stop", {});
+      expect(result).toEqual(mockScenario);
+    });
+
+    it("restarts a scenario via the correct endpoint", async () => {
+      const mockScenario: Scenario = {
+        name: "api-server",
+        displayName: "API Server",
+        description: "Backend service",
+        status: "running",
+        priority: 1,
+        isGreenfield: false,
+        tags: [],
+        recommendationsEnabled: true,
+      };
+      vi.mocked(mockApiClient.post).mockResolvedValue({
+        scenario: {
+          name: "api-server",
+          display_name: "API Server",
+          description: "Backend service",
+          status: "running",
+          priority: 1,
+          is_greenfield: false,
+          tags: [],
+          recommendations_enabled: true,
+        },
+      });
+
+      const result = await service.restart("api-server");
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("/scenarios/api-server/restart", {});
+      expect(result).toEqual(mockScenario);
+    });
+  });
 });

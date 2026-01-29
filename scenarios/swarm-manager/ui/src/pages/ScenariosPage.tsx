@@ -19,10 +19,10 @@
  * - Helps ecosystem reviewers quickly understand ecosystem state
  */
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Filter, Package, ArrowRight, Circle, X, ChevronDown } from "lucide-react";
+import { useState, useMemo, type MouseEvent } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { Filter, Package, ArrowRight, Circle, X, ChevronDown, Play, Square, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
@@ -42,6 +42,8 @@ export function ScenariosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ScenarioStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: scenarios, isLoading, error, refetch } = useQuery({
     queryKey: ["scenarios"],
@@ -80,6 +82,48 @@ export function ScenariosPage() {
       return a.name.localeCompare(b.name);
     });
   }, [scenarios, searchTerm, statusFilter]);
+
+  type ScenarioAction = "start" | "stop" | "restart";
+
+  const actionMutation = useMutation({
+    mutationFn: ({ name, action }: { name: string; action: ScenarioAction }) => {
+      if (action === "start") {
+        return scenariosService.start(name);
+      }
+      if (action === "stop") {
+        return scenariosService.stop(name);
+      }
+      return scenariosService.restart(name);
+    },
+    onSuccess: (updatedScenario) => {
+      queryClient.setQueryData(["scenarios"], (existing?: typeof scenarios) => {
+        if (!existing) return existing;
+        return existing.map((scenario) =>
+          scenario.name === updatedScenario.name ? updatedScenario : scenario
+        );
+      });
+      queryClient.setQueryData(["scenarios", updatedScenario.name], updatedScenario);
+    },
+  });
+
+  const actionError = actionMutation.isError
+    ? `Failed to ${actionMutation.variables?.action ?? "run action"}. Please try again.`
+    : null;
+
+  const isActionPending = (scenarioName: string, action: ScenarioAction) =>
+    actionMutation.isPending &&
+    actionMutation.variables?.name === scenarioName &&
+    actionMutation.variables?.action === action;
+
+  const handleAction = (
+    event: MouseEvent<HTMLButtonElement>,
+    scenarioName: string,
+    action: ScenarioAction
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    actionMutation.mutate({ name: scenarioName, action });
+  };
 
   // Count active filters for badge
   const activeFilterCount = (statusFilter ? 1 : 0);
@@ -255,6 +299,13 @@ export function ScenariosPage() {
 
       {/* Scenarios list */}
       <div className="space-y-4">
+        {actionError && (
+          <Card padding="sm">
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+              {actionError}
+            </div>
+          </Card>
+        )}
         {isLoading && (
           <Card padding="lg" centered>
             <p className="text-slate-400">Loading scenarios...</p>
@@ -305,11 +356,19 @@ export function ScenariosPage() {
             {filteredScenarios.map((scenario) => {
               const StatusIcon = SCENARIO_STATUS_ICONS[scenario.status] || Circle;
               return (
-                <Link
+                <div
                   key={scenario.name}
-                  to={`/scenarios/${scenario.name}`}
                   className="group block cursor-pointer rounded-xl border border-white/10 bg-slate-800/30 p-4 transition hover:border-cyan-500/50 hover:bg-slate-800/50"
                   data-testid={selectors.scenarios.cardByName({ name: scenario.name })}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => navigate(`/scenarios/${scenario.name}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      navigate(`/scenarios/${scenario.name}`);
+                    }
+                  }}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-1">
@@ -331,11 +390,11 @@ export function ScenariosPage() {
                         className="mt-2"
                       />
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                        P{scenario.priority}
-                      </span>
-                      {scenario.completenessScore !== undefined && (
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                      P{scenario.priority}
+                    </span>
+                    {scenario.completenessScore !== undefined && (
                         <div className="flex items-center gap-1">
                           <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-700">
                             <div
@@ -346,10 +405,57 @@ export function ScenariosPage() {
                           <span className="text-xs text-slate-400">{scenario.completenessScore}%</span>
                         </div>
                       )}
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={(event) => handleAction(event, scenario.name, "start")}
+                          disabled={actionMutation.isPending || scenario.status === "running"}
+                          data-testid={selectors.scenarios.actionStart({ name: scenario.name })}
+                        >
+                          {isActionPending(scenario.name, "start") ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Play className="mr-1 h-3 w-3" />
+                          )}
+                          Start
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={(event) => handleAction(event, scenario.name, "stop")}
+                          disabled={actionMutation.isPending || scenario.status === "stopped"}
+                          data-testid={selectors.scenarios.actionStop({ name: scenario.name })}
+                        >
+                          {isActionPending(scenario.name, "stop") ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Square className="mr-1 h-3 w-3" />
+                          )}
+                          Stop
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={(event) => handleAction(event, scenario.name, "restart")}
+                          disabled={actionMutation.isPending}
+                          data-testid={selectors.scenarios.actionRestart({ name: scenario.name })}
+                        >
+                          {isActionPending(scenario.name, "restart") ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Restart
+                        </Button>
+                      </div>
                       <ArrowRight className="h-4 w-4 text-slate-500 opacity-0 transition group-hover:opacity-100" />
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
