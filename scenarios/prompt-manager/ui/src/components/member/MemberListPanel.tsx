@@ -84,6 +84,8 @@ export function MemberListPanel({
                 'hover:bg-muted/50 transition-colors',
                 selectedMemberId === member.id && 'bg-primary/10'
               )}
+              data-testid={selectors.members.row}
+              data-member-id={member.id}
             >
               {/* Member preview */}
               <div
@@ -134,6 +136,7 @@ export function MemberListPanel({
             'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
             'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
           )}
+          data-testid={selectors.members.newButton}
         >
           <Plus className="h-4 w-4" />
           New Member

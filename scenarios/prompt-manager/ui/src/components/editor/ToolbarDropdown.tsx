@@ -24,6 +24,8 @@ interface ToolbarDropdownProps {
   align?: 'left' | 'right'
   /** Additional class names for the trigger button */
   className?: string
+  /** Optional data-testid for the trigger button */
+  testId?: string
 }
 
 /**
@@ -37,6 +39,7 @@ export function ToolbarDropdown({
   showChevron = true,
   align = 'left',
   className,
+  testId,
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -88,6 +91,7 @@ export function ToolbarDropdown({
         )}
         title={label}
         aria-label={label}
+        data-testid={testId}
       >
         {icon}
         {showChevron && (
@@ -119,6 +123,7 @@ interface DropdownItemProps {
   disabled?: boolean
   icon: ReactNode
   label: string
+  testId?: string
 }
 
 /**
@@ -130,6 +135,7 @@ export function DropdownItem({
   disabled = false,
   icon,
   label,
+  testId,
 }: DropdownItemProps) {
   return (
     <button
@@ -143,6 +149,7 @@ export function DropdownItem({
           : 'text-foreground hover:bg-muted',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
+      data-testid={testId}
     >
       <span className="w-4 h-4 flex items-center justify-center">{icon}</span>
       <span>{label}</span>

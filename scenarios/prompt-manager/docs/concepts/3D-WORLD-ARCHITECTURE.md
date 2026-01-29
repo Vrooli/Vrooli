@@ -155,6 +155,133 @@ Ground rendering is split into two responsibilities:
 
 This keeps world composition free of shader/material concerns and makes texture tuning a local change.
 
+### Texture Generation Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    TEXTURE GENERATION PIPELINE                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────┐    ┌─────────────────┐    ┌──────────────────┐   │
+│  │   PRESETS    │───▶│  FBM NOISE GEN  │───▶│  DataTexture     │   │
+│  │              │    │  (Procedural)   │    │  (512×512)       │   │
+│  │ • grass      │    │                 │    │                   │   │
+│  │ • concrete   │    │  Multi-octave   │    │  RGBA pixels     │   │
+│  │ • wood-plank │    │  Perlin noise   │    │  stored in GPU   │   │
+│  │ • stone      │    │                 │    │                   │   │
+│  │ • metal-panel│    └─────────────────┘    └──────────────────┘   │
+│  └──────────────┘                                                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Five Texture Maps Per Surface
+
+Each ground texture generates **5 maps** that work together:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     TEXTURE SET (e.g., "grass")                     │
+├─────────────┬─────────────┬─────────────┬─────────────┬────────────┤
+│   ALBEDO    │   NORMAL    │  ROUGHNESS  │     AO      │   MACRO    │
+│  (color)    │  (bumps)    │  (shine)    │  (shadows)  │ (variation)│
+│             │             │             │             │            │
+│  512×512    │   512×512   │   512×512   │   512×512   │  256×256   │
+│  sRGB       │  Linear     │  Linear     │  Linear     │  Linear    │
+└─────────────┴─────────────┴─────────────┴─────────────┴────────────┘
+```
+
+### Rendering Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        RENDERING FLOW                                │
+│                                                                      │
+│  ┌─────────────────┐                                                │
+│  │ GroundSurface   │  Decides: grid, plane, or none                 │
+│  └────────┬────────┘                                                │
+│           ▼                                                          │
+│  ┌─────────────────┐                                                │
+│  │ GroundMaterial  │  Creates MeshStandardMaterial + custom shader  │
+│  └────────┬────────┘                                                │
+│           ▼                                                          │
+│  ┌─────────────────────────────────────────────────────────┐        │
+│  │  bindGroundShader() + syncGroundShader()                │        │
+│  │  ┌─────────────────────────────────────────────────┐    │        │
+│  │  │  • Triplanar projection (no stretching)         │    │        │
+│  │  │  • Macro variation overlay (breaks repetition)  │    │        │
+│  │  │  • Stochastic tiling (random rotation per tile) │    │        │
+│  │  └─────────────────────────────────────────────────┘    │        │
+│  └─────────────────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Anti-Tiling Techniques
+
+The system uses multiple techniques to eliminate visible texture repetition:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     ANTI-TILING TECHNIQUES                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. MACRO VARIATION OVERLAY                                         │
+│     ─────────────────────────                                       │
+│     Large-scale FBM noise texture (256×256) applied as tint         │
+│     multiplier to break up uniform coloring.                        │
+│                                                                      │
+│     Config: macroVariation.enabled, .scale, .intensity              │
+│                                                                      │
+│  2. STOCHASTIC TILING                                               │
+│     ────────────────────                                            │
+│     Per-tile random 90° rotation using hash function.               │
+│     Eliminates visible pattern repetition.                          │
+│                                                                      │
+│     ┌─────┬─────┬─────┐    Each tile gets random rotation:         │
+│     │  0° │ 90° │180° │    hash22(tileId) → rotation angle          │
+│     ├─────┼─────┼─────┤                                             │
+│     │270° │  0° │ 90° │    Result: No visible tiling artifacts      │
+│     └─────┴─────┴─────┘                                             │
+│                                                                      │
+│     Config: stochasticEnabled (default: true)                       │
+│                                                                      │
+│  3. TRIPLANAR PROJECTION                                            │
+│     ──────────────────────                                          │
+│     Samples texture from 3 orthogonal planes (X, Y, Z)              │
+│     and blends based on surface normal. Eliminates                  │
+│     stretching on vertical surfaces.                                │
+│                                                                      │
+│     Config: projection: 'triplanar' | 'uv'                          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | GroundTextureId | required | grass, concrete, wood-plank, stone, metal-panel |
+| `tileSize` | number | 4 | World units per texture tile |
+| `rotation` | number | 0 | UV rotation in radians |
+| `projection` | 'uv' \| 'triplanar' | 'uv' | Texture projection method |
+| `normalScale` | number | 0.6 | Normal map intensity |
+| `stochasticEnabled` | boolean | true | Hash-based anti-tiling |
+| `macroVariation.enabled` | boolean | true | Large-scale color variation |
+| `macroVariation.scale` | number | 20 | World units per macro tile |
+| `macroVariation.intensity` | number | 0.15 | Variation strength (0-1) |
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `lib/groundTextures.ts` | Procedural texture generation + caching |
+| `lib/groundShader.ts` | Custom shader injection, stochastic + triplanar |
+| `rendering/GroundMaterial.tsx` | Wires shader to material |
+| `rendering/GroundSurface.tsx` | Ground plane composition |
+| `types/environment.ts` | TypeScript interfaces |
+
+[CODE: ui/src/lib/groundTextures.ts]
+[CODE: ui/src/lib/groundShader.ts]
+
 ## GeometricMember Anatomy
 
 The `GeometricMember` is a procedurally generated 3D character built with Three.js primitives:

@@ -119,6 +119,8 @@ export interface GroundTextureConfig {
   aoIntensity?: number
   /** Macro variation overlay settings */
   macroVariation?: GroundMacroVariationConfig
+  /** Enable stochastic tiling to eliminate visible repetition (default: true) */
+  stochasticEnabled?: boolean
 }
 
 export interface GroundMaterialConfig {

@@ -168,6 +168,8 @@ export function SkillEditorPanel({
                   error={validation.errors.name}
                   as="h2"
                   className="text-foreground"
+                  displayTestId={selectors.editor.nameDisplay}
+                  inputTestId={selectors.editor.nameInput}
                 />
               </div>
             </div>
@@ -182,7 +184,10 @@ export function SkillEditorPanel({
 
               {/* Unsaved indicator */}
               {isDirty && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0"
+                  data-testid={selectors.editor.unsavedIndicator}
+                >
                   Unsaved
                 </div>
               )}
@@ -194,12 +199,14 @@ export function SkillEditorPanel({
                 showChevron={false}
                 align="right"
                 className="p-1.5 rounded-lg"
+                testId={selectors.editor.actionsMenu}
               >
                 <DropdownItem
                   onClick={onDiscard}
                   disabled={!canDiscard}
                   icon={<RotateCcw className="h-4 w-4" />}
                   label="Discard changes"
+                  testId={selectors.editor.discardAction}
                 />
                 <DropdownItem
                   onClick={onDelete}

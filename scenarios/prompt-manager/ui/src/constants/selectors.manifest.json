@@ -13,6 +13,22 @@
       "testId": "skill-sidebar-tab-members",
       "selector": "[data-testid=\"skill-sidebar-tab-members\"]"
     },
+    "sidebar.searchInput": {
+      "testId": "skill-sidebar-search-input",
+      "selector": "[data-testid=\"skill-sidebar-search-input\"]"
+    },
+    "sidebar.emptyState": {
+      "testId": "skill-sidebar-empty-state",
+      "selector": "[data-testid=\"skill-sidebar-empty-state\"]"
+    },
+    "sidebar.skillRow": {
+      "testId": "skill-sidebar-skill-row",
+      "selector": "[data-testid=\"skill-sidebar-skill-row\"]"
+    },
+    "sidebar.expandAllButton": {
+      "testId": "skill-sidebar-expand-all",
+      "selector": "[data-testid=\"skill-sidebar-expand-all\"]"
+    },
     "sidebar.newSkillButton": {
       "testId": "skill-sidebar-new-skill",
       "selector": "[data-testid=\"skill-sidebar-new-skill\"]"
@@ -21,13 +37,57 @@
       "testId": "skill-editor-header",
       "selector": "[data-testid=\"skill-editor-header\"]"
     },
+    "editor.nameDisplay": {
+      "testId": "skill-editor-name-display",
+      "selector": "[data-testid=\"skill-editor-name-display\"]"
+    },
+    "editor.nameInput": {
+      "testId": "skill-editor-name-input",
+      "selector": "[data-testid=\"skill-editor-name-input\"]"
+    },
+    "editor.unsavedIndicator": {
+      "testId": "skill-editor-unsaved-indicator",
+      "selector": "[data-testid=\"skill-editor-unsaved-indicator\"]"
+    },
+    "editor.actionsMenu": {
+      "testId": "skill-editor-actions-menu",
+      "selector": "[data-testid=\"skill-editor-actions-menu\"]"
+    },
+    "editor.discardAction": {
+      "testId": "skill-editor-discard-action",
+      "selector": "[data-testid=\"skill-editor-discard-action\"]"
+    },
+    "editor.saveButton": {
+      "testId": "skill-editor-save-button",
+      "selector": "[data-testid=\"skill-editor-save-button\"]"
+    },
+    "editor.saveAllButton": {
+      "testId": "skill-editor-save-all-button",
+      "selector": "[data-testid=\"skill-editor-save-all-button\"]"
+    },
+    "editor.discardButton": {
+      "testId": "skill-editor-discard-button",
+      "selector": "[data-testid=\"skill-editor-discard-button\"]"
+    },
     "members.list": {
       "testId": "member-list",
       "selector": "[data-testid=\"member-list\"]"
     },
+    "members.newButton": {
+      "testId": "member-new-button",
+      "selector": "[data-testid=\"member-new-button\"]"
+    },
+    "members.row": {
+      "testId": "member-row",
+      "selector": "[data-testid=\"member-row\"]"
+    },
     "world.canvas": {
       "testId": "world-canvas",
       "selector": "[data-testid=\"world-canvas\"]"
+    },
+    "world.stats": {
+      "testId": "world-stats",
+      "selector": "[data-testid=\"world-stats\"]"
     },
     "environment.controls": {
       "testId": "environment-controls",

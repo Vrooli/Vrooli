@@ -15,6 +15,7 @@ import type { TreeNode as TreeNodeType } from '@/types/editor'
 import type { Skill } from '@/types'
 import { countDirtyInSubtree } from '@/services/treeService'
 import { useEditorStore } from '@/stores/editorStore'
+import { selectors } from '@/constants/selectors'
 
 type SelectionState = 'none' | 'partial' | 'all'
 
@@ -206,6 +207,8 @@ export function TreeNodeComponent({
             : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
       style={{ paddingLeft }}
+      data-testid={selectors.sidebar.skillRow}
+      data-skill-id={node.itemId ?? undefined}
     >
       {showCheckbox && (
         <SelectionCheckbox

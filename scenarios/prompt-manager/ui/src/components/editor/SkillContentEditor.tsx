@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/markdown'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { selectors } from '@/constants/selectors'
 import { TipTapEditor } from './TipTapEditor'
 import {
   validateMarkdown,
@@ -218,6 +219,7 @@ export function EditorActionButtons({
           )}
           title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
           aria-label="Save"
+          data-testid={selectors.editor.saveButton}
         >
           <Save className="h-4 w-4" />
         </button>
@@ -259,6 +261,7 @@ export function EditorActionButtons({
           )}
           title="Discard changes"
           aria-label="Discard changes"
+          data-testid={selectors.editor.discardButton}
         >
           <RotateCcw className="h-4 w-4" />
         </button>
@@ -278,6 +281,7 @@ export function EditorActionButtons({
           )}
           title={`Save all ${dirtyCount} pending changes (Ctrl+Shift+S)`}
           aria-label="Save all"
+          data-testid={selectors.editor.saveAllButton}
         >
           <Files className="h-4 w-4" />
         </button>

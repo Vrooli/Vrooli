@@ -18,6 +18,8 @@ interface InlineEditableTextProps {
   className?: string
   inputClassName?: string
   disabled?: boolean
+  displayTestId?: string
+  inputTestId?: string
 }
 
 /**
@@ -32,6 +34,8 @@ export function InlineEditableText({
   className,
   inputClassName,
   disabled,
+  displayTestId,
+  inputTestId,
 }: InlineEditableTextProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
@@ -129,6 +133,7 @@ export function InlineEditableText({
             typographyStyles[as],
             inputClassName
           )}
+          data-testid={inputTestId}
         />
         {error && <p className="absolute -bottom-5 left-0 text-xs text-red-400">{error}</p>}
       </div>
@@ -153,6 +158,7 @@ export function InlineEditableText({
         isEmpty && 'text-muted-foreground italic',
         className
       )}
+      data-testid={displayTestId}
     >
       {displayValue}
     </Element>

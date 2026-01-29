@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import type { CameraMode } from '@/stores/cameraStore'
 import { HelpModal } from './HelpModal'
 import { EnvironmentControls } from './EnvironmentControls'
+import { selectors } from '@/constants/selectors'
 
 interface WorldControlsProps {
   cameraMode: CameraMode
@@ -65,7 +66,10 @@ export function WorldControls({
 
       {/* Info - top left */}
       <div className="absolute top-4 left-4 flex items-center gap-3">
-        <div className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300">
+        <div
+          className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300"
+          data-testid={selectors.world.stats}
+        >
           {memberCount} member{memberCount !== 1 ? 's' : ''} • {nodeCount} skills
         </div>
         {selectionCount > 0 && (

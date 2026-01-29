@@ -404,6 +404,7 @@ export function SkillTreeSidebar({
                   'text-foreground placeholder:text-muted-foreground',
                   'focus:outline-none focus:ring-2 focus:ring-primary'
                 )}
+                data-testid={selectors.sidebar.searchInput}
               />
             </div>
 
@@ -431,6 +432,7 @@ export function SkillTreeSidebar({
                   onClick={onExpandAll}
                   className="flex items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded transition-colors"
                   title="Expand all"
+                  data-testid={selectors.sidebar.expandAllButton}
                 >
                   <ChevronDown className="h-3 w-3" />
                 </button>
@@ -449,7 +451,10 @@ export function SkillTreeSidebar({
           {/* Tree */}
           <div className="flex-1 overflow-y-auto py-1">
             {treeNodes.length === 0 ? (
-              <div className="px-3 py-8 text-center">
+              <div
+                className="px-3 py-8 text-center"
+                data-testid={selectors.sidebar.emptyState}
+              >
                 <p className="text-xs text-muted-foreground">
                   {searchQuery || selectedTags.length > 0 ? 'No skills match your filters' : 'No skills yet'}
                 </p>

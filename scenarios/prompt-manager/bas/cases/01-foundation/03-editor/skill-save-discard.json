@@ -1,0 +1,446 @@
+{
+  "metadata": {
+    "name": "skill-save-discard",
+    "description": "Validate saving and discarding skill edits updates editor state",
+    "labels": {
+      "reset": "none"
+    }
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-home",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "prompt-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open Prompt Manager"
+        }
+      }
+    },
+    {
+      "id": "wait-sidebar",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.container",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for sidebar"
+        }
+      }
+    },
+    {
+      "id": "wait-expand-all",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.expandAllButton",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for expand all"
+        }
+      }
+    },
+    {
+      "id": "click-expand-all",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.expandAllButton"
+        },
+        "metadata": {
+          "label": "Expand all nodes"
+        }
+      }
+    },
+    {
+      "id": "wait-skill-row",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/sidebar.skillRow",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for skill row"
+        }
+      }
+    },
+    {
+      "id": "open-first-skill",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/sidebar.skillRow"
+        },
+        "metadata": {
+          "label": "Open first skill"
+        }
+      }
+    },
+    {
+      "id": "wait-editor-header",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.header",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for editor header"
+        }
+      }
+    },
+    {
+      "id": "wait-name-display",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.nameDisplay",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for skill name"
+        }
+      }
+    },
+    {
+      "id": "store-original-name",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('[data-testid=\"skill-editor-name-display\"]')?.textContent?.trim() || ''",
+          "store_result": "originalSkillName"
+        },
+        "metadata": {
+          "label": "Store original skill name"
+        }
+      }
+    },
+    {
+      "id": "store-updated-name",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const base = document.querySelector('[data-testid=\"skill-editor-name-display\"]')?.textContent?.trim() || 'Skill'; return `${base} BAS-${Date.now()}`; })()",
+          "store_result": "updatedSkillName"
+        },
+        "metadata": {
+          "label": "Generate updated skill name"
+        }
+      }
+    },
+    {
+      "id": "click-name-display",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.nameDisplay"
+        },
+        "metadata": {
+          "label": "Edit skill name"
+        }
+      }
+    },
+    {
+      "id": "wait-name-input",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.nameInput",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for name input"
+        }
+      }
+    },
+    {
+      "id": "update-name",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/editor.nameInput",
+          "value": "${@store/updatedSkillName}",
+          "clear_first": true,
+          "submit": true
+        },
+        "metadata": {
+          "label": "Update skill name"
+        }
+      }
+    },
+    {
+      "id": "assert-unsaved-visible",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.unsavedIndicator",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Unsaved indicator should appear after editing"
+        },
+        "metadata": {
+          "label": "Unsaved indicator visible"
+        }
+      }
+    },
+    {
+      "id": "click-save",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.saveButton"
+        },
+        "metadata": {
+          "label": "Save skill"
+        }
+      }
+    },
+    {
+      "id": "wait-save",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1000
+        },
+        "metadata": {
+          "label": "Wait for save"
+        }
+      }
+    },
+    {
+      "id": "assert-unsaved-cleared",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.unsavedIndicator",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Unsaved indicator should clear after save"
+        },
+        "metadata": {
+          "label": "Unsaved indicator cleared"
+        }
+      }
+    },
+    {
+      "id": "assert-name-saved",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.nameDisplay",
+          "mode": "ASSERTION_MODE_TEXT_EQUALS",
+          "expected": {
+            "string_value": "${@store/updatedSkillName}"
+          },
+          "timeout_ms": 5000,
+          "failure_message": "Skill name should reflect saved value"
+        },
+        "metadata": {
+          "label": "Saved name visible"
+        }
+      }
+    },
+    {
+      "id": "store-discard-name",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "`${@store/updatedSkillName} (discard)`",
+          "store_result": "discardSkillName"
+        },
+        "metadata": {
+          "label": "Generate discard name"
+        }
+      }
+    },
+    {
+      "id": "click-name-display-again",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.nameDisplay"
+        },
+        "metadata": {
+          "label": "Edit skill name again"
+        }
+      }
+    },
+    {
+      "id": "wait-name-input-again",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.nameInput",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for name input"
+        }
+      }
+    },
+    {
+      "id": "update-name-discard",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/editor.nameInput",
+          "value": "${@store/discardSkillName}",
+          "clear_first": true,
+          "submit": true
+        },
+        "metadata": {
+          "label": "Update name for discard"
+        }
+      }
+    },
+    {
+      "id": "assert-unsaved-visible-discard",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.unsavedIndicator",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 5000,
+          "failure_message": "Unsaved indicator should appear before discard"
+        },
+        "metadata": {
+          "label": "Unsaved indicator visible"
+        }
+      }
+    },
+    {
+      "id": "open-actions-menu",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.actionsMenu"
+        },
+        "metadata": {
+          "label": "Open actions menu"
+        }
+      }
+    },
+    {
+      "id": "wait-discard-action",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.discardAction",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 5000
+        },
+        "metadata": {
+          "label": "Wait for discard action"
+        }
+      }
+    },
+    {
+      "id": "click-discard-action",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/editor.discardAction"
+        },
+        "metadata": {
+          "label": "Discard changes"
+        }
+      }
+    },
+    {
+      "id": "wait-discard",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 500
+        },
+        "metadata": {
+          "label": "Wait for discard"
+        }
+      }
+    },
+    {
+      "id": "assert-unsaved-cleared-discard",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.unsavedIndicator",
+          "mode": "ASSERTION_MODE_NOT_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Unsaved indicator should clear after discard"
+        },
+        "metadata": {
+          "label": "Unsaved indicator cleared"
+        }
+      }
+    },
+    {
+      "id": "assert-name-restored",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.nameDisplay",
+          "mode": "ASSERTION_MODE_TEXT_EQUALS",
+          "expected": {
+            "string_value": "${@store/updatedSkillName}"
+          },
+          "timeout_ms": 5000,
+          "failure_message": "Skill name should revert after discard"
+        },
+        "metadata": {
+          "label": "Name restored after discard"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-home", "target": "wait-sidebar", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-sidebar", "target": "wait-expand-all", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-expand-all", "target": "click-expand-all", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "click-expand-all", "target": "wait-skill-row", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "wait-skill-row", "target": "open-first-skill", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "open-first-skill", "target": "wait-editor-header", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "wait-editor-header", "target": "wait-name-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "wait-name-display", "target": "store-original-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "store-original-name", "target": "store-updated-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "store-updated-name", "target": "click-name-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "click-name-display", "target": "wait-name-input", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "wait-name-input", "target": "update-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "update-name", "target": "assert-unsaved-visible", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "assert-unsaved-visible", "target": "click-save", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e15", "source": "click-save", "target": "wait-save", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e16", "source": "wait-save", "target": "assert-unsaved-cleared", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e17", "source": "assert-unsaved-cleared", "target": "assert-name-saved", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e18", "source": "assert-name-saved", "target": "store-discard-name", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e19", "source": "store-discard-name", "target": "click-name-display-again", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e20", "source": "click-name-display-again", "target": "wait-name-input-again", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e21", "source": "wait-name-input-again", "target": "update-name-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e22", "source": "update-name-discard", "target": "assert-unsaved-visible-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e23", "source": "assert-unsaved-visible-discard", "target": "open-actions-menu", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e24", "source": "open-actions-menu", "target": "wait-discard-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e25", "source": "wait-discard-action", "target": "click-discard-action", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e26", "source": "click-discard-action", "target": "wait-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e27", "source": "wait-discard", "target": "assert-unsaved-cleared-discard", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e28", "source": "assert-unsaved-cleared-discard", "target": "assert-name-restored", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}
