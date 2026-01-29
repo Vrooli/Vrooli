@@ -10,7 +10,7 @@ import { file_swarm_manager_v1_domain_scenario } from "../domain/scenario_pb.js"
  * Describes the file swarm-manager/v1/api/scenarios.proto.
  */
 export const file_swarm_manager_v1_api_scenarios = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8ijwEKHVVwZGF0ZVNjZW5hcmlvTWV0YWRhdGFSZXF1ZXN0EhoKDWlzX2dyZWVuZmllbGQYASABKAhIAIgBARIkChdyZWNvbW1lbmRhdGlvbnNfZW5hYmxlZBgCIAEoCEgBiAEBQhAKDl9pc19ncmVlbmZpZWxkQhoKGF9yZWNvbW1lbmRhdGlvbnNfZW5hYmxlZCJbChZEZWxldGVTY2VuYXJpb1Jlc3BvbnNlEhUKBG5hbWUYASABKAlCB7pIBHICEAESEAoIYXJjaGl2ZWQYAiABKAgSGAoHbWVzc2FnZRgDIAEoCUIHukgEcgIQAUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8ijwEKHVVwZGF0ZVNjZW5hcmlvTWV0YWRhdGFSZXF1ZXN0EhoKDWlzX2dyZWVuZmllbGQYASABKAhIAIgBARIkChdyZWNvbW1lbmRhdGlvbnNfZW5hYmxlZBgCIAEoCEgBiAEBQhAKDl9pc19ncmVlbmZpZWxkQhoKGF9yZWNvbW1lbmRhdGlvbnNfZW5hYmxlZCKDAQoUUHJlc2VydmVGaWxlc1JlcXVlc3QSDQoFcGF0aHMYASADKAkSUQoGcHJlc2V0GAIgASgJQjy6SDlyN1IAUg1kb2N1bWVudGF0aW9uUgxyZXF1aXJlbWVudHNSCHBsYW5uaW5nUgxhbGwtcGxhbm5pbmdIAIgBAUIJCgdfcHJlc2V0Im8KFURlbGV0ZVNjZW5hcmlvUmVxdWVzdBJDCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuUHJlc2VydmVGaWxlc1JlcXVlc3RIAIgBAUIRCg9fcHJlc2VydmVfZmlsZXMiqgEKFkRlbGV0ZVNjZW5hcmlvUmVzcG9uc2USFQoEbmFtZRgBIAEoCUIHukgEcgIQARIQCghhcmNoaXZlZBgCIAEoCBIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABEh4KEWJhY2tsb2dfaWRlYV9uYW1lGAQgASgJSACIAQESFwoPcHJlc2VydmVkX2ZpbGVzGAUgAygJQhQKEl9iYWNrbG9nX2lkZWFfbmFtZSKwAQoMU2NlbmFyaW9GaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhEKBHNpemUYBCABKANIAIgBARIwCghjaGlsZHJlbhgFIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaWxlQgcKBV9zaXplIkYKFVNjZW5hcmlvRmlsZXNSZXNwb25zZRItCgVmaWxlcxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaWxlQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
 
 /**
  * Describes the message swarm_manager.v1.ListScenariosResponse.
@@ -34,9 +34,37 @@ export const UpdateScenarioMetadataRequestSchema = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_api_scenarios, 2);
 
 /**
+ * Describes the message swarm_manager.v1.PreserveFilesRequest.
+ * Use `create(PreserveFilesRequestSchema)` to create a new message.
+ */
+export const PreserveFilesRequestSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 3);
+
+/**
+ * Describes the message swarm_manager.v1.DeleteScenarioRequest.
+ * Use `create(DeleteScenarioRequestSchema)` to create a new message.
+ */
+export const DeleteScenarioRequestSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 4);
+
+/**
  * Describes the message swarm_manager.v1.DeleteScenarioResponse.
  * Use `create(DeleteScenarioResponseSchema)` to create a new message.
  */
 export const DeleteScenarioResponseSchema = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_scenarios, 3);
+  messageDesc(file_swarm_manager_v1_api_scenarios, 5);
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioFile.
+ * Use `create(ScenarioFileSchema)` to create a new message.
+ */
+export const ScenarioFileSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 6);
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioFilesResponse.
+ * Use `create(ScenarioFilesResponseSchema)` to create a new message.
+ */
+export const ScenarioFilesResponseSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 7);
 

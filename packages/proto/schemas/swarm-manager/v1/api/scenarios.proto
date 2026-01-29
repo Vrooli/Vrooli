@@ -43,6 +43,27 @@ message UpdateScenarioMetadataRequest {
   optional bool recommendations_enabled = 2;
 }
 
+// PreserveFilesRequest specifies which files to preserve when archiving a scenario.
+message PreserveFilesRequest {
+  // Explicit paths to preserve (supports glob patterns like "docs/**").
+  repeated string paths = 1;
+
+  // Preset name: "documentation", "requirements", "planning", "all-planning".
+  optional string preset = 2 [(buf.validate.field).string = { in: [
+    "",
+    "documentation",
+    "requirements",
+    "planning",
+    "all-planning"
+  ] }];
+}
+
+// DeleteScenarioRequest specifies options for scenario deletion.
+message DeleteScenarioRequest {
+  // Optional file preservation settings when archiving.
+  optional PreserveFilesRequest preserve_files = 1;
+}
+
 // DeleteScenarioResponse returns deletion results.
 message DeleteScenarioResponse {
   // Name of the deleted scenario.
@@ -53,4 +74,34 @@ message DeleteScenarioResponse {
 
   // Human-readable message describing the result.
   string message = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Name of the backlog idea created (if archived).
+  optional string backlog_idea_name = 4;
+
+  // List of files that were preserved.
+  repeated string preserved_files = 5;
+}
+
+// ScenarioFile represents a file or directory in a scenario.
+message ScenarioFile {
+  // File or directory name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Relative path from scenario root.
+  string path = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Type: "file" or "directory".
+  string type = 3 [(buf.validate.field).string = { in: ["file", "directory"] }];
+
+  // File size in bytes (only for files).
+  optional int64 size = 4;
+
+  // Child files/directories (only for directories).
+  repeated ScenarioFile children = 5;
+}
+
+// ScenarioFilesResponse returns the file tree for a scenario.
+message ScenarioFilesResponse {
+  // Root-level files and directories.
+  repeated ScenarioFile files = 1;
 }

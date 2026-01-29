@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/api/scenarios.proto.
  */
 export const file_swarm_manager_v1_api_scenarios: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8ijwEKHVVwZGF0ZVNjZW5hcmlvTWV0YWRhdGFSZXF1ZXN0EhoKDWlzX2dyZWVuZmllbGQYASABKAhIAIgBARIkChdyZWNvbW1lbmRhdGlvbnNfZW5hYmxlZBgCIAEoCEgBiAEBQhAKDl9pc19ncmVlbmZpZWxkQhoKGF9yZWNvbW1lbmRhdGlvbnNfZW5hYmxlZCJbChZEZWxldGVTY2VuYXJpb1Jlc3BvbnNlEhUKBG5hbWUYASABKAlCB7pIBHICEAESEAoIYXJjaGl2ZWQYAiABKAgSGAoHbWVzc2FnZRgDIAEoCUIHukgEcgIQAUJJWkdnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvYXBpO2FwaWIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL2FwaS9zY2VuYXJpb3MucHJvdG8SEHN3YXJtX21hbmFnZXIudjEiRgoVTGlzdFNjZW5hcmlvc1Jlc3BvbnNlEi0KCXNjZW5hcmlvcxgBIAMoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8iQAoQU2NlbmFyaW9SZXNwb25zZRIsCghzY2VuYXJpbxgBIAEoCzIaLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW8ijwEKHVVwZGF0ZVNjZW5hcmlvTWV0YWRhdGFSZXF1ZXN0EhoKDWlzX2dyZWVuZmllbGQYASABKAhIAIgBARIkChdyZWNvbW1lbmRhdGlvbnNfZW5hYmxlZBgCIAEoCEgBiAEBQhAKDl9pc19ncmVlbmZpZWxkQhoKGF9yZWNvbW1lbmRhdGlvbnNfZW5hYmxlZCKDAQoUUHJlc2VydmVGaWxlc1JlcXVlc3QSDQoFcGF0aHMYASADKAkSUQoGcHJlc2V0GAIgASgJQjy6SDlyN1IAUg1kb2N1bWVudGF0aW9uUgxyZXF1aXJlbWVudHNSCHBsYW5uaW5nUgxhbGwtcGxhbm5pbmdIAIgBAUIJCgdfcHJlc2V0Im8KFURlbGV0ZVNjZW5hcmlvUmVxdWVzdBJDCg5wcmVzZXJ2ZV9maWxlcxgBIAEoCzImLnN3YXJtX21hbmFnZXIudjEuUHJlc2VydmVGaWxlc1JlcXVlc3RIAIgBAUIRCg9fcHJlc2VydmVfZmlsZXMiqgEKFkRlbGV0ZVNjZW5hcmlvUmVzcG9uc2USFQoEbmFtZRgBIAEoCUIHukgEcgIQARIQCghhcmNoaXZlZBgCIAEoCBIYCgdtZXNzYWdlGAMgASgJQge6SARyAhABEh4KEWJhY2tsb2dfaWRlYV9uYW1lGAQgASgJSACIAQESFwoPcHJlc2VydmVkX2ZpbGVzGAUgAygJQhQKEl9iYWNrbG9nX2lkZWFfbmFtZSKwAQoMU2NlbmFyaW9GaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhEKBHNpemUYBCABKANIAIgBARIwCghjaGlsZHJlbhgFIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaWxlQgcKBV9zaXplIkYKFVNjZW5hcmlvRmlsZXNSZXNwb25zZRItCgVmaWxlcxgBIAMoCzIeLnN3YXJtX21hbmFnZXIudjEuU2NlbmFyaW9GaWxlQklaR2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9hcGk7YXBpYgZwcm90bzM", [file_buf_validate_validate, file_swarm_manager_v1_domain_scenario]);
 
 /**
  * ListScenariosResponse returns all scenarios.
@@ -82,6 +82,55 @@ export const UpdateScenarioMetadataRequestSchema: GenMessage<UpdateScenarioMetad
   messageDesc(file_swarm_manager_v1_api_scenarios, 2);
 
 /**
+ * PreserveFilesRequest specifies which files to preserve when archiving a scenario.
+ *
+ * @generated from message swarm_manager.v1.PreserveFilesRequest
+ */
+export type PreserveFilesRequest = Message<"swarm_manager.v1.PreserveFilesRequest"> & {
+  /**
+   * Explicit paths to preserve (supports glob patterns like "docs/**").
+   *
+   * @generated from field: repeated string paths = 1;
+   */
+  paths: string[];
+
+  /**
+   * Preset name: "documentation", "requirements", "planning", "all-planning".
+   *
+   * @generated from field: optional string preset = 2;
+   */
+  preset?: string;
+};
+
+/**
+ * Describes the message swarm_manager.v1.PreserveFilesRequest.
+ * Use `create(PreserveFilesRequestSchema)` to create a new message.
+ */
+export const PreserveFilesRequestSchema: GenMessage<PreserveFilesRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 3);
+
+/**
+ * DeleteScenarioRequest specifies options for scenario deletion.
+ *
+ * @generated from message swarm_manager.v1.DeleteScenarioRequest
+ */
+export type DeleteScenarioRequest = Message<"swarm_manager.v1.DeleteScenarioRequest"> & {
+  /**
+   * Optional file preservation settings when archiving.
+   *
+   * @generated from field: optional swarm_manager.v1.PreserveFilesRequest preserve_files = 1;
+   */
+  preserveFiles?: PreserveFilesRequest;
+};
+
+/**
+ * Describes the message swarm_manager.v1.DeleteScenarioRequest.
+ * Use `create(DeleteScenarioRequestSchema)` to create a new message.
+ */
+export const DeleteScenarioRequestSchema: GenMessage<DeleteScenarioRequest> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 4);
+
+/**
  * DeleteScenarioResponse returns deletion results.
  *
  * @generated from message swarm_manager.v1.DeleteScenarioResponse
@@ -107,6 +156,20 @@ export type DeleteScenarioResponse = Message<"swarm_manager.v1.DeleteScenarioRes
    * @generated from field: string message = 3;
    */
   message: string;
+
+  /**
+   * Name of the backlog idea created (if archived).
+   *
+   * @generated from field: optional string backlog_idea_name = 4;
+   */
+  backlogIdeaName?: string;
+
+  /**
+   * List of files that were preserved.
+   *
+   * @generated from field: repeated string preserved_files = 5;
+   */
+  preservedFiles: string[];
 };
 
 /**
@@ -114,5 +177,75 @@ export type DeleteScenarioResponse = Message<"swarm_manager.v1.DeleteScenarioRes
  * Use `create(DeleteScenarioResponseSchema)` to create a new message.
  */
 export const DeleteScenarioResponseSchema: GenMessage<DeleteScenarioResponse> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_api_scenarios, 3);
+  messageDesc(file_swarm_manager_v1_api_scenarios, 5);
+
+/**
+ * ScenarioFile represents a file or directory in a scenario.
+ *
+ * @generated from message swarm_manager.v1.ScenarioFile
+ */
+export type ScenarioFile = Message<"swarm_manager.v1.ScenarioFile"> & {
+  /**
+   * File or directory name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Relative path from scenario root.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * Type: "file" or "directory".
+   *
+   * @generated from field: string type = 3;
+   */
+  type: string;
+
+  /**
+   * File size in bytes (only for files).
+   *
+   * @generated from field: optional int64 size = 4;
+   */
+  size?: bigint;
+
+  /**
+   * Child files/directories (only for directories).
+   *
+   * @generated from field: repeated swarm_manager.v1.ScenarioFile children = 5;
+   */
+  children: ScenarioFile[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioFile.
+ * Use `create(ScenarioFileSchema)` to create a new message.
+ */
+export const ScenarioFileSchema: GenMessage<ScenarioFile> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 6);
+
+/**
+ * ScenarioFilesResponse returns the file tree for a scenario.
+ *
+ * @generated from message swarm_manager.v1.ScenarioFilesResponse
+ */
+export type ScenarioFilesResponse = Message<"swarm_manager.v1.ScenarioFilesResponse"> & {
+  /**
+   * Root-level files and directories.
+   *
+   * @generated from field: repeated swarm_manager.v1.ScenarioFile files = 1;
+   */
+  files: ScenarioFile[];
+};
+
+/**
+ * Describes the message swarm_manager.v1.ScenarioFilesResponse.
+ * Use `create(ScenarioFilesResponseSchema)` to create a new message.
+ */
+export const ScenarioFilesResponseSchema: GenMessage<ScenarioFilesResponse> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_api_scenarios, 7);
 

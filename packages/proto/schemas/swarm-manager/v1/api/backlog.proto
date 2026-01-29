@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package swarm_manager.v1;
+
+import "buf/validate/validate.proto";
+import "swarm-manager/v1/domain/backlog.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
+
+// =============================================================================
+// BACKLOG API CONTRACTS
+// =============================================================================
+//
+// CRUD requests/responses for backlog items.
+//
+// =============================================================================
+
+// CreateBacklogItemRequest defines the payload for creating a new backlog item.
+message CreateBacklogItemRequest {
+  // Unique identifier (folder name).
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Human-readable title.
+  string title = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Optional description.
+  optional string description = 3;
+
+  // Optional priority level (1-10).
+  optional int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Optional tags for categorization.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+
+  // Required backlog kind.
+  string kind = 6 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute"] }];
+
+  // Optional research target for research items.
+  optional string research_target = 7 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "unspecified"] }];
+}
+
+// UpdateBacklogItemRequest defines the payload for updating a backlog item.
+message UpdateBacklogItemRequest {
+  // Human-readable title.
+  string title = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Optional description.
+  string description = 2;
+
+  // Lifecycle status.
+  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
+  string status = 3 [(buf.validate.field).string = { in: [
+    "backlog",
+    "researching",
+    "ready",
+    "queued",
+    "in_progress",
+    "completed",
+    "archived"
+  ] }];
+
+  // Priority level (1-10).
+  int32 priority = 4 [(buf.validate.field).int32 = { gte: 1, lte: 10 }];
+
+  // Tags for categorization.
+  repeated string tags = 5 [(buf.validate.field).repeated = { unique: true }];
+
+  // Optional research target for research items.
+  optional string research_target = 6 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "unspecified"] }];
+}
+
+// ListBacklogItemsResponse returns all backlog items.
+message ListBacklogItemsResponse {
+  repeated BacklogItem items = 1;
+}
+
+// BacklogItemResponse returns a single backlog item.
+message BacklogItemResponse {
+  BacklogItem item = 1;
+}
+
+// BacklogFilesResponse returns the file tree for a backlog item.
+message BacklogFilesResponse {
+  repeated BacklogFile files = 1;
+}
+
+// BacklogFileResponse returns a single file node.
+message BacklogFileResponse {
+  BacklogFile file = 1;
+}
+
+// QueueBacklogItemRequest queues a backlog item for processing.
+message QueueBacklogItemRequest {
+  // Optional operation hint for idea processing.
+  optional string operation = 1 [(buf.validate.field).string = { in: ["generator", "improver"] }];
+}
+
+// QueueBacklogItemResponse returns queue results.
+message QueueBacklogItemResponse {
+  BacklogItem item = 1;
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+  string run_id = 3 [(buf.validate.field).string.min_len = 1];
+  string base_url = 4 [(buf.validate.field).string.min_len = 1];
+  string created = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// ConvertBacklogItemRequest moves a backlog item to another kind.
+message ConvertBacklogItemRequest {
+  // Target kind to move into.
+  string target_kind = 1 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute"] }];
+
+  // Optional new name for the moved item.
+  optional string target_name = 2;
+}

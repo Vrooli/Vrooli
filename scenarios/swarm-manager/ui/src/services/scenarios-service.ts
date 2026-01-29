@@ -16,11 +16,41 @@
  */
 
 import { UpdateScenarioMetadataRequestSchema } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
-import { buildMessage, deleteScenarioResponseSchema, listScenariosResponseSchema, mapDeleteScenarioResponse, mapProtoScenario, parseProtoResponse, requireProtoField, scenarioResponseSchema, toProtoJson } from "./proto-contracts";
+import {
+  buildMessage,
+  deleteScenarioResponseSchema,
+  DeleteScenarioRequestSchema,
+  PreserveFilesRequestSchema,
+  listScenariosResponseSchema,
+  mapDeleteScenarioResponse,
+  mapProtoScenario,
+  mapProtoScenarioFile,
+  parseProtoResponse,
+  requireProtoField,
+  scenarioFilesResponseSchema,
+  scenarioResponseSchema,
+  toProtoJson,
+} from "./proto-contracts";
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { Scenario, UpdateScenarioMetadataRequest, DeleteScenarioResponse } from "../types";
+import type {
+  Scenario,
+  ScenarioFile,
+  UpdateScenarioMetadataRequest,
+  DeleteScenarioResponse,
+  PreserveFilesRequest,
+} from "../types";
+
+/**
+ * Options for deleting a scenario
+ */
+export interface DeleteScenarioOptions {
+  /** Whether to archive the scenario to backlog (idea) */
+  archive?: boolean;
+  /** Files to preserve when archiving */
+  preserveFiles?: PreserveFilesRequest;
+}
 
 /**
  * Interface for the scenarios service.
@@ -31,8 +61,9 @@ import type { Scenario, UpdateScenarioMetadataRequest, DeleteScenarioResponse } 
 export interface IScenariosService {
   list(): Promise<Scenario[]>;
   get(name: string): Promise<Scenario>;
+  getFiles(name: string): Promise<ScenarioFile[]>;
   updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario>;
-  delete(name: string, archive?: boolean): Promise<DeleteScenarioResponse>;
+  delete(name: string, options?: DeleteScenarioOptions): Promise<DeleteScenarioResponse>;
   start(name: string): Promise<Scenario>;
   stop(name: string): Promise<Scenario>;
   restart(name: string): Promise<Scenario>;
@@ -61,6 +92,15 @@ export function createScenariosService(
     },
 
     /**
+     * Gets the file tree for a scenario
+     */
+    async getFiles(name: string): Promise<ScenarioFile[]> {
+      const data = await apiClient.get<unknown>(API_ENDPOINTS.scenarioFiles(name));
+      const parsed = parseProtoResponse(scenarioFilesResponseSchema, data, "scenario files");
+      return parsed.files.map(mapProtoScenarioFile);
+    },
+
+    /**
      * Updates scenario metadata (greenfield toggle, recommendations enable/disable)
      * [REQ:REQ-P0-007] PATCH endpoint for scenario metadata management
      */
@@ -79,11 +119,28 @@ export function createScenariosService(
      * Deletes a scenario with optional archive to backlog (idea)
      * [REQ:REQ-P0-008] DELETE endpoint for scenario deletion with safeguards
      */
-    async delete(name: string, archive = false): Promise<DeleteScenarioResponse> {
+    async delete(name: string, options: DeleteScenarioOptions = {}): Promise<DeleteScenarioResponse> {
+      const { archive = false, preserveFiles } = options;
       const endpoint = archive
         ? `${API_ENDPOINTS.scenarioByName(name)}?archive=true`
         : API_ENDPOINTS.scenarioByName(name);
-      const data = await apiClient.delete<unknown>(endpoint);
+
+      // Build request body if preserveFiles is specified
+      let body: unknown = undefined;
+      if (preserveFiles && (preserveFiles.paths?.length || preserveFiles.preset)) {
+        const preserveFilesMsg = buildMessage(PreserveFilesRequestSchema, {
+          paths: preserveFiles.paths ?? [],
+          preset: preserveFiles.preset,
+        });
+        const requestMsg = buildMessage(DeleteScenarioRequestSchema, {
+          preserveFiles: preserveFilesMsg,
+        });
+        body = toProtoJson(DeleteScenarioRequestSchema, requestMsg);
+      }
+
+      const data = body
+        ? await apiClient.delete<unknown>(endpoint, body)
+        : await apiClient.delete<unknown>(endpoint);
       const parsed = parseProtoResponse(deleteScenarioResponseSchema, data, "scenario delete");
       return mapDeleteScenarioResponse(parsed);
     },

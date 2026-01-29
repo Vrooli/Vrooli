@@ -25,11 +25,16 @@ import {
   ListScenariosResponseSchema,
   ScenarioResponseSchema,
   DeleteScenarioResponseSchema,
+  ScenarioFilesResponseSchema,
+  DeleteScenarioRequestSchema,
+  PreserveFilesRequestSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
+import type { ScenarioFile } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type {
   BacklogItem as BacklogItemDomain,
   BacklogFile as BacklogFileDomain,
   Scenario as ScenarioDomain,
+  ScenarioFile as ScenarioFileDomain,
   DeleteScenarioResponse as DeleteScenarioDomain,
 } from "../types";
 
@@ -145,6 +150,12 @@ export const deleteScenarioResponseSchema = createProtoSchema(
   DeleteScenarioResponseSchema,
   "scenario delete"
 );
+export const scenarioFilesResponseSchema = createProtoSchema(
+  ScenarioFilesResponseSchema,
+  "scenario files"
+);
+
+export { DeleteScenarioRequestSchema, PreserveFilesRequestSchema };
 
 export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
   return {
@@ -190,16 +201,32 @@ export function mapProtoScenario(protoScenario: Scenario): ScenarioDomain {
   };
 }
 
+export function mapProtoScenarioFile(protoFile: ScenarioFile): ScenarioFileDomain {
+  const size = toFiniteNumber(protoFile.size);
+  const children = protoFile.children?.map(mapProtoScenarioFile) ?? [];
+  return {
+    name: protoFile.name ?? "",
+    path: protoFile.path ?? "",
+    type: (protoFile.type as ScenarioFileDomain["type"]) || "file",
+    ...(size !== undefined ? { size } : {}),
+    ...(children.length > 0 ? { children } : {}),
+  };
+}
+
 export function mapDeleteScenarioResponse(
   protoResponse: {
     name: string;
     archived: boolean;
     message: string;
+    backlogIdeaName?: string;
+    preservedFiles?: string[];
   }
 ): DeleteScenarioDomain {
   return {
     name: protoResponse.name,
     archived: protoResponse.archived,
     message: protoResponse.message,
+    ...(protoResponse.backlogIdeaName ? { backlogIdeaName: protoResponse.backlogIdeaName } : {}),
+    ...(protoResponse.preservedFiles?.length ? { preservedFiles: protoResponse.preservedFiles } : {}),
   };
 }

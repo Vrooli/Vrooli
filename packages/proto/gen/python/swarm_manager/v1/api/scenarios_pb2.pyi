@@ -28,12 +28,50 @@ class UpdateScenarioMetadataRequest(_message.Message):
     recommendations_enabled: bool
     def __init__(self, is_greenfield: _Optional[bool] = ..., recommendations_enabled: _Optional[bool] = ...) -> None: ...
 
+class PreserveFilesRequest(_message.Message):
+    __slots__ = ("paths", "preset")
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    preset: str
+    def __init__(self, paths: _Optional[_Iterable[str]] = ..., preset: _Optional[str] = ...) -> None: ...
+
+class DeleteScenarioRequest(_message.Message):
+    __slots__ = ("preserve_files",)
+    PRESERVE_FILES_FIELD_NUMBER: _ClassVar[int]
+    preserve_files: PreserveFilesRequest
+    def __init__(self, preserve_files: _Optional[_Union[PreserveFilesRequest, _Mapping]] = ...) -> None: ...
+
 class DeleteScenarioResponse(_message.Message):
-    __slots__ = ("name", "archived", "message")
+    __slots__ = ("name", "archived", "message", "backlog_idea_name", "preserved_files")
     NAME_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    BACKLOG_IDEA_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRESERVED_FILES_FIELD_NUMBER: _ClassVar[int]
     name: str
     archived: bool
     message: str
-    def __init__(self, name: _Optional[str] = ..., archived: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    backlog_idea_name: str
+    preserved_files: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., archived: _Optional[bool] = ..., message: _Optional[str] = ..., backlog_idea_name: _Optional[str] = ..., preserved_files: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ScenarioFile(_message.Message):
+    __slots__ = ("name", "path", "type", "size", "children")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
+    CHILDREN_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    path: str
+    type: str
+    size: int
+    children: _containers.RepeatedCompositeFieldContainer[ScenarioFile]
+    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., type: _Optional[str] = ..., size: _Optional[int] = ..., children: _Optional[_Iterable[_Union[ScenarioFile, _Mapping]]] = ...) -> None: ...
+
+class ScenarioFilesResponse(_message.Message):
+    __slots__ = ("files",)
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    files: _containers.RepeatedCompositeFieldContainer[ScenarioFile]
+    def __init__(self, files: _Optional[_Iterable[_Union[ScenarioFile, _Mapping]]] = ...) -> None: ...

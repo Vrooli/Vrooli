@@ -175,6 +175,50 @@ export interface UpdateScenarioMetadataRequest {
 }
 
 /**
+ * File type in the scenario file tree
+ */
+export type ScenarioFileType = "file" | "directory";
+
+/**
+ * Represents a file or directory within a scenario folder.
+ */
+export interface ScenarioFile {
+  /** File or directory name */
+  name: string;
+  /** Relative path from the scenario root */
+  path: string;
+  /** Whether this is a file or directory */
+  type: ScenarioFileType;
+  /** File size in bytes (only for files) */
+  size?: number;
+  /** Child files (only for directories) */
+  children?: ScenarioFile[];
+}
+
+/**
+ * Available presets for file preservation during archive
+ */
+export type PreserveFilesPreset = "documentation" | "requirements" | "planning" | "all-planning";
+
+/**
+ * Request to specify which files to preserve when archiving
+ */
+export interface PreserveFilesRequest {
+  /** Explicit paths to preserve (supports glob patterns like "docs/**") */
+  paths?: string[];
+  /** Preset name: "documentation", "requirements", "planning", "all-planning" */
+  preset?: PreserveFilesPreset;
+}
+
+/**
+ * Request body for DELETE /api/v1/scenarios/{name}
+ */
+export interface DeleteScenarioRequest {
+  /** Optional file preservation settings when archiving */
+  preserveFiles?: PreserveFilesRequest;
+}
+
+/**
  * Response from scenario deletion
  * [REQ:REQ-P0-008] Deletion confirmation with archive status
  */
@@ -185,6 +229,10 @@ export interface DeleteScenarioResponse {
   archived: boolean;
   /** Human-readable message describing the result */
   message: string;
+  /** Name of the backlog idea created (if archived) */
+  backlogIdeaName?: string;
+  /** List of files that were preserved */
+  preservedFiles?: string[];
 }
 
 // ============================================================================

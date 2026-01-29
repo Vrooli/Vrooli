@@ -168,6 +168,107 @@ func (x *UpdateScenarioMetadataRequest) GetRecommendationsEnabled() bool {
 	return false
 }
 
+// PreserveFilesRequest specifies which files to preserve when archiving a scenario.
+type PreserveFilesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Explicit paths to preserve (supports glob patterns like "docs/**").
+	Paths []string `protobuf:"bytes,1,rep,name=paths,proto3" json:"paths,omitempty"`
+	// Preset name: "documentation", "requirements", "planning", "all-planning".
+	Preset        *string `protobuf:"bytes,2,opt,name=preset,proto3,oneof" json:"preset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreserveFilesRequest) Reset() {
+	*x = PreserveFilesRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreserveFilesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreserveFilesRequest) ProtoMessage() {}
+
+func (x *PreserveFilesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreserveFilesRequest.ProtoReflect.Descriptor instead.
+func (*PreserveFilesRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *PreserveFilesRequest) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *PreserveFilesRequest) GetPreset() string {
+	if x != nil && x.Preset != nil {
+		return *x.Preset
+	}
+	return ""
+}
+
+// DeleteScenarioRequest specifies options for scenario deletion.
+type DeleteScenarioRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional file preservation settings when archiving.
+	PreserveFiles *PreserveFilesRequest `protobuf:"bytes,1,opt,name=preserve_files,json=preserveFiles,proto3,oneof" json:"preserve_files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteScenarioRequest) Reset() {
+	*x = DeleteScenarioRequest{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteScenarioRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteScenarioRequest) ProtoMessage() {}
+
+func (x *DeleteScenarioRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteScenarioRequest.ProtoReflect.Descriptor instead.
+func (*DeleteScenarioRequest) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DeleteScenarioRequest) GetPreserveFiles() *PreserveFilesRequest {
+	if x != nil {
+		return x.PreserveFiles
+	}
+	return nil
+}
+
 // DeleteScenarioResponse returns deletion results.
 type DeleteScenarioResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -176,14 +277,18 @@ type DeleteScenarioResponse struct {
 	// Whether the scenario was archived.
 	Archived bool `protobuf:"varint,2,opt,name=archived,proto3" json:"archived,omitempty"`
 	// Human-readable message describing the result.
-	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Name of the backlog idea created (if archived).
+	BacklogIdeaName *string `protobuf:"bytes,4,opt,name=backlog_idea_name,json=backlogIdeaName,proto3,oneof" json:"backlog_idea_name,omitempty"`
+	// List of files that were preserved.
+	PreservedFiles []string `protobuf:"bytes,5,rep,name=preserved_files,json=preservedFiles,proto3" json:"preserved_files,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DeleteScenarioResponse) Reset() {
 	*x = DeleteScenarioResponse{}
-	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -195,7 +300,7 @@ func (x *DeleteScenarioResponse) String() string {
 func (*DeleteScenarioResponse) ProtoMessage() {}
 
 func (x *DeleteScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[3]
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -208,7 +313,7 @@ func (x *DeleteScenarioResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteScenarioResponse.ProtoReflect.Descriptor instead.
 func (*DeleteScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{3}
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeleteScenarioResponse) GetName() string {
@@ -232,6 +337,148 @@ func (x *DeleteScenarioResponse) GetMessage() string {
 	return ""
 }
 
+func (x *DeleteScenarioResponse) GetBacklogIdeaName() string {
+	if x != nil && x.BacklogIdeaName != nil {
+		return *x.BacklogIdeaName
+	}
+	return ""
+}
+
+func (x *DeleteScenarioResponse) GetPreservedFiles() []string {
+	if x != nil {
+		return x.PreservedFiles
+	}
+	return nil
+}
+
+// ScenarioFile represents a file or directory in a scenario.
+type ScenarioFile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// File or directory name.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Relative path from scenario root.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Type: "file" or "directory".
+	Type string `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	// File size in bytes (only for files).
+	Size *int64 `protobuf:"varint,4,opt,name=size,proto3,oneof" json:"size,omitempty"`
+	// Child files/directories (only for directories).
+	Children      []*ScenarioFile `protobuf:"bytes,5,rep,name=children,proto3" json:"children,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioFile) Reset() {
+	*x = ScenarioFile{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioFile) ProtoMessage() {}
+
+func (x *ScenarioFile) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioFile.ProtoReflect.Descriptor instead.
+func (*ScenarioFile) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ScenarioFile) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ScenarioFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ScenarioFile) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ScenarioFile) GetSize() int64 {
+	if x != nil && x.Size != nil {
+		return *x.Size
+	}
+	return 0
+}
+
+func (x *ScenarioFile) GetChildren() []*ScenarioFile {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+// ScenarioFilesResponse returns the file tree for a scenario.
+type ScenarioFilesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Root-level files and directories.
+	Files         []*ScenarioFile `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioFilesResponse) Reset() {
+	*x = ScenarioFilesResponse{}
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioFilesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioFilesResponse) ProtoMessage() {}
+
+func (x *ScenarioFilesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_api_scenarios_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioFilesResponse.ProtoReflect.Descriptor instead.
+func (*ScenarioFilesResponse) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ScenarioFilesResponse) GetFiles() []*ScenarioFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
 var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
@@ -245,11 +492,30 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\ris_greenfield\x18\x01 \x01(\bH\x00R\fisGreenfield\x88\x01\x01\x12<\n" +
 	"\x17recommendations_enabled\x18\x02 \x01(\bH\x01R\x16recommendationsEnabled\x88\x01\x01B\x10\n" +
 	"\x0e_is_greenfieldB\x1a\n" +
-	"\x18_recommendations_enabled\"t\n" +
+	"\x18_recommendations_enabled\"\x92\x01\n" +
+	"\x14PreserveFilesRequest\x12\x14\n" +
+	"\x05paths\x18\x01 \x03(\tR\x05paths\x12Y\n" +
+	"\x06preset\x18\x02 \x01(\tB<\xbaH9r7R\x00R\rdocumentationR\frequirementsR\bplanningR\fall-planningH\x00R\x06preset\x88\x01\x01B\t\n" +
+	"\a_preset\"~\n" +
+	"\x15DeleteScenarioRequest\x12R\n" +
+	"\x0epreserve_files\x18\x01 \x01(\v2&.swarm_manager.v1.PreserveFilesRequestH\x00R\rpreserveFiles\x88\x01\x01B\x11\n" +
+	"\x0f_preserve_files\"\xe4\x01\n" +
 	"\x16DeleteScenarioResponse\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1a\n" +
 	"\barchived\x18\x02 \x01(\bR\barchived\x12!\n" +
-	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessageBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
+	"\amessage\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12/\n" +
+	"\x11backlog_idea_name\x18\x04 \x01(\tH\x00R\x0fbacklogIdeaName\x88\x01\x01\x12'\n" +
+	"\x0fpreserved_files\x18\x05 \x03(\tR\x0epreservedFilesB\x14\n" +
+	"\x12_backlog_idea_name\"\xd2\x01\n" +
+	"\fScenarioFile\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +
+	"\x04path\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x12*\n" +
+	"\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04fileR\tdirectoryR\x04type\x12\x17\n" +
+	"\x04size\x18\x04 \x01(\x03H\x00R\x04size\x88\x01\x01\x12:\n" +
+	"\bchildren\x18\x05 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\bchildrenB\a\n" +
+	"\x05_size\"M\n" +
+	"\x15ScenarioFilesResponse\x124\n" +
+	"\x05files\x18\x01 \x03(\v2\x1e.swarm_manager.v1.ScenarioFileR\x05filesBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
 
 var (
 	file_swarm_manager_v1_api_scenarios_proto_rawDescOnce sync.Once
@@ -263,22 +529,29 @@ func file_swarm_manager_v1_api_scenarios_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_api_scenarios_proto_rawDescData
 }
 
-var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_swarm_manager_v1_api_scenarios_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*ListScenariosResponse)(nil),         // 0: swarm_manager.v1.ListScenariosResponse
 	(*ScenarioResponse)(nil),              // 1: swarm_manager.v1.ScenarioResponse
 	(*UpdateScenarioMetadataRequest)(nil), // 2: swarm_manager.v1.UpdateScenarioMetadataRequest
-	(*DeleteScenarioResponse)(nil),        // 3: swarm_manager.v1.DeleteScenarioResponse
-	(*domain.Scenario)(nil),               // 4: swarm_manager.v1.Scenario
+	(*PreserveFilesRequest)(nil),          // 3: swarm_manager.v1.PreserveFilesRequest
+	(*DeleteScenarioRequest)(nil),         // 4: swarm_manager.v1.DeleteScenarioRequest
+	(*DeleteScenarioResponse)(nil),        // 5: swarm_manager.v1.DeleteScenarioResponse
+	(*ScenarioFile)(nil),                  // 6: swarm_manager.v1.ScenarioFile
+	(*ScenarioFilesResponse)(nil),         // 7: swarm_manager.v1.ScenarioFilesResponse
+	(*domain.Scenario)(nil),               // 8: swarm_manager.v1.Scenario
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
-	4, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
-	4, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	8, // 0: swarm_manager.v1.ListScenariosResponse.scenarios:type_name -> swarm_manager.v1.Scenario
+	8, // 1: swarm_manager.v1.ScenarioResponse.scenario:type_name -> swarm_manager.v1.Scenario
+	3, // 2: swarm_manager.v1.DeleteScenarioRequest.preserve_files:type_name -> swarm_manager.v1.PreserveFilesRequest
+	6, // 3: swarm_manager.v1.ScenarioFile.children:type_name -> swarm_manager.v1.ScenarioFile
+	6, // 4: swarm_manager.v1.ScenarioFilesResponse.files:type_name -> swarm_manager.v1.ScenarioFile
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_scenarios_proto_init() }
@@ -287,13 +560,17 @@ func file_swarm_manager_v1_api_scenarios_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_api_scenarios_proto_msgTypes[2].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[3].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[4].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[5].OneofWrappers = []any{}
+	file_swarm_manager_v1_api_scenarios_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_scenarios_proto_rawDesc), len(file_swarm_manager_v1_api_scenarios_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

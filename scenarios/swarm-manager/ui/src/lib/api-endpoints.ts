@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   backlogConvert: (kind: string, name: string) => `/backlog/${kind}/${name}/convert`,
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
+  scenarioFiles: (name: string) => `/scenarios/${name}/files`,
   scenarioStart: (name: string) => `/scenarios/${name}/start`,
   scenarioStop: (name: string) => `/scenarios/${name}/stop`,
   scenarioRestart: (name: string) => `/scenarios/${name}/restart`,

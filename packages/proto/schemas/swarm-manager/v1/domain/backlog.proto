@@ -7,36 +7,36 @@ import "buf/validate/validate.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
 // =============================================================================
-// IDEAS DOMAIN
+// BACKLOG DOMAIN
 // =============================================================================
 //
 // @layer 1
-// @domain ideas
+// @domain backlog
 // @imports none (external only: buf.validate)
 // @stability beta
 //
-// Core idea backlog types for Swarm Manager.
-// These types model idea metadata and file tree structures stored in the
-// git-tracked ideas directory.
+// Backlog items capture all work types for Swarm Manager:
+// ideas, research, fixes, and execution tasks. Items are stored as
+// git-tracked folders under their kind-specific directories.
 //
 // USAGE CONTEXTS:
-//   - API responses for idea CRUD endpoints
-//   - UI data models (ideas list and details)
+//   - API responses for backlog CRUD endpoints
+//   - UI data models (backlog list and details)
 //
 // =============================================================================
 
-// Idea represents a proposal for a new scenario.
-message Idea {
+// BacklogItem represents a tracked unit of work for the swarm.
+message BacklogItem {
   // Unique identifier (folder name).
   string name = 1 [(buf.validate.field).string.min_len = 1];
 
   // Human-readable title.
   string title = 2 [(buf.validate.field).string.min_len = 1];
 
-  // Detailed description of the idea.
+  // Detailed description of the work item.
   string description = 3;
 
-  // Lifecycle state for the idea.
+  // Lifecycle state for the backlog item.
   // @constraint one of: backlog, researching, ready, queued, in_progress, completed, archived
   string status = 4 [(buf.validate.field).string = { in: [
     "backlog",
@@ -62,14 +62,20 @@ message Idea {
   // RFC3339 timestamp of last update.
   // @format rfc3339
   string updated = 8 [(buf.validate.field).string.min_len = 1];
+
+  // Backlog kind: idea, research, fix, execute.
+  string kind = 9 [(buf.validate.field).string = { in: ["idea", "research", "fix", "execute"] }];
+
+  // Optional target kind for research items (idea, fix, execute, unspecified).
+  optional string research_target = 10 [(buf.validate.field).string = { in: ["idea", "fix", "execute", "unspecified"] }];
 }
 
-// IdeaFile represents a file or directory within an idea folder.
-message IdeaFile {
+// BacklogFile represents a file or directory within a backlog item folder.
+message BacklogFile {
   // File or directory name.
   string name = 1 [(buf.validate.field).string.min_len = 1];
 
-  // Relative path from the idea root.
+  // Relative path from the backlog item root.
   string path = 2 [(buf.validate.field).string.min_len = 1];
 
   // File type: "file" or "directory".
@@ -80,5 +86,5 @@ message IdeaFile {
   optional int64 size = 4 [(buf.validate.field).int64 = { gte: 0 }];
 
   // Child nodes (directories only).
-  repeated IdeaFile children = 5;
+  repeated BacklogFile children = 5;
 }

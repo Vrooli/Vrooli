@@ -13,13 +13,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -38,6 +41,14 @@ const (
 )
 
 var errScenarioNameRequired = errors.New("scenario name is required")
+
+// archivePresets defines named file patterns for archive preservation.
+var archivePresets = map[string][]string{
+	"documentation": {"PRD.md", "README.md", "docs/**", "*.md"},
+	"requirements":  {"PRD.md", "requirements/**", "specs/**", "REQUIREMENTS.md"},
+	"planning":      {"PRD.md", ".vrooli/**", "planning/**", "design/**"},
+	"all-planning":  {"PRD.md", "README.md", "docs/**", "requirements/**", "specs/**", "planning/**", "design/**", ".vrooli/**", "*.md"},
+}
 
 // Scenario represents a deployed application in the Vrooli ecosystem.
 // [REQ:REQ-P0-006] Scenario data structure for catalog listing
@@ -151,6 +162,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/api/v1/scenarios/{name}/files", h.ListFiles).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}/start", h.Start).Methods("POST")
 	r.HandleFunc("/api/v1/scenarios/{name}/stop", h.Stop).Methods("POST")
 	r.HandleFunc("/api/v1/scenarios/{name}/restart", h.Restart).Methods("POST")
@@ -271,6 +283,125 @@ func (h *Handler) sortScenarios(scenarios []Scenario, sortField, sortOrder strin
 		}
 		return less
 	})
+}
+
+// ListFiles returns the file tree for a scenario.
+// GET /api/v1/scenarios/{name}/files
+func (h *Handler) ListFiles(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		httputil.InternalError(w, "[scenarios] list files", "failed to load scenarios from CLI")
+		return
+	}
+	if !found {
+		httputil.NotFound(w, "", "scenario not found")
+		return
+	}
+
+	scenarioPath := strings.TrimSpace(source.Path)
+	if scenarioPath == "" {
+		httputil.InternalError(w, "[scenarios] list files", "scenario path missing")
+		return
+	}
+
+	files, err := h.buildScenarioFileTree(scenarioPath, "")
+	if err != nil {
+		log.Printf("[scenarios] list files: failed to build file tree for %q: %v", name, err)
+		httputil.InternalError(w, "[scenarios] list files", "failed to read file tree")
+		return
+	}
+
+	resp := &apipb.ScenarioFilesResponse{Files: scenarioFilesToProto(files)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		httputil.InternalError(w, "[scenarios] list files", "failed to encode response")
+	}
+}
+
+// ScenarioFile represents a file or directory within a scenario folder.
+type ScenarioFile struct {
+	Name     string         `json:"name"`
+	Path     string         `json:"path"`
+	Type     string         `json:"type"` // "file" or "directory"
+	Size     int64          `json:"size,omitempty"`
+	Children []ScenarioFile `json:"children,omitempty"`
+}
+
+func scenarioFilesToProto(files []ScenarioFile) []*apipb.ScenarioFile {
+	if len(files) == 0 {
+		return nil
+	}
+	result := make([]*apipb.ScenarioFile, 0, len(files))
+	for _, file := range files {
+		result = append(result, scenarioFileToProto(file))
+	}
+	return result
+}
+
+func scenarioFileToProto(file ScenarioFile) *apipb.ScenarioFile {
+	children := scenarioFilesToProto(file.Children)
+	var size *int64
+	if file.Type == "file" {
+		size = &file.Size
+	}
+	return &apipb.ScenarioFile{
+		Name:     file.Name,
+		Path:     file.Path,
+		Type:     file.Type,
+		Size:     size,
+		Children: children,
+	}
+}
+
+func (h *Handler) buildScenarioFileTree(baseDir, relativePath string) ([]ScenarioFile, error) {
+	dirPath := filepath.Join(baseDir, relativePath)
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]ScenarioFile, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		path := filepath.Join(relativePath, name)
+		if relativePath == "" {
+			path = name
+		}
+		file := ScenarioFile{
+			Name: name,
+			Path: path,
+		}
+
+		if entry.IsDir() {
+			file.Type = "directory"
+			children, err := h.buildScenarioFileTree(baseDir, path)
+			if err == nil {
+				file.Children = children
+			}
+		} else {
+			file.Type = "file"
+			if info, err := entry.Info(); err == nil {
+				file.Size = info.Size()
+			}
+		}
+
+		files = append(files, file)
+	}
+
+	// Sort: directories first, then alphabetically
+	sort.Slice(files, func(i, j int) bool {
+		if files[i].Type != files[j].Type {
+			return files[i].Type == "directory"
+		}
+		return files[i].Name < files[j].Name
+	})
+
+	if files == nil {
+		files = []ScenarioFile{}
+	}
+	return files, nil
 }
 
 // Get returns a single scenario by name.
@@ -545,6 +676,15 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 // Query parameters:
 //   - archive: If true, archives the scenario to the backlog (idea kind) instead of permanent deletion
 //
+// Request body (optional, JSON):
+//
+//	{
+//	  "preserveFiles": {
+//	    "paths": ["PRD.md", "docs/**"],  // Explicit paths/globs to preserve
+//	    "preset": "documentation"         // Or use a preset: documentation, requirements, planning, all-planning
+//	  }
+//	}
+//
 // The archive option creates a backlog idea entry from the scenario's metadata, preserving
 // important information for potential future revival. This provides a safety net
 // for accidental deletions while keeping the scenarios directory clean.
@@ -578,6 +718,17 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	// Parse archive option from query parameter
 	archive := r.URL.Query().Get("archive") == "true"
 
+	// Parse optional request body for preserve_files
+	var preserveFiles *apipb.PreserveFilesRequest
+	if r.Body != nil && r.ContentLength > 0 {
+		var req apipb.DeleteScenarioRequest
+		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+			httputil.BadRequest(w, "[scenarios] delete", "invalid request body")
+			return
+		}
+		preserveFiles = req.PreserveFiles
+	}
+
 	// Load scenario data before deletion (for archive or logging)
 	scenario, err := h.loadScenarioFromSource(source)
 	if err != nil {
@@ -585,13 +736,19 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var backlogIdeaName string
+	var preservedFiles []string
+
 	// If archiving, create a backlog idea entry first
 	if archive {
-		if err := h.archiveToBacklogIdea(scenario, scenarioPath); err != nil {
+		ideaName, preserved, err := h.archiveToBacklogIdea(scenario, scenarioPath, preserveFiles)
+		if err != nil {
 			httputil.InternalError(w, "[scenarios] delete", "failed to archive scenario")
 			return
 		}
-		log.Printf("[scenarios] archived: %q to backlog (idea)", name)
+		backlogIdeaName = ideaName
+		preservedFiles = preserved
+		log.Printf("[scenarios] archived: %q to backlog (idea=%s, preserved=%d files)", name, ideaName, len(preserved))
 	}
 
 	// Delete the scenario directory
@@ -605,11 +762,18 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	message := "Scenario permanently deleted"
 	if archive {
 		message = "Scenario archived to backlog (idea) and deleted"
+		if len(preservedFiles) > 0 {
+			message = fmt.Sprintf("Scenario archived to backlog (idea) with %d preserved files and deleted", len(preservedFiles))
+		}
 	}
 	response := &apipb.DeleteScenarioResponse{
-		Name:     name,
-		Archived: archive,
-		Message:  message,
+		Name:           name,
+		Archived:       archive,
+		Message:        message,
+		PreservedFiles: preservedFiles,
+	}
+	if backlogIdeaName != "" {
+		response.BacklogIdeaName = &backlogIdeaName
 	}
 	if err := httputil.ProtoJSON(w, response); err != nil {
 		httputil.InternalError(w, "[scenarios] delete", "failed to encode response")
@@ -688,10 +852,11 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 
 // archiveToBacklogIdea creates a backlog idea entry from a scenario's metadata.
 // [REQ:REQ-P0-008] Archive functionality for scenario preservation
-func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string) error {
+// Returns the idea name and list of preserved files.
+func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, preserveFiles *apipb.PreserveFilesRequest) (string, []string, error) {
 	ideaRoot, err := deriveBacklogIdeasRoot(scenarioPath)
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	// Create backlog idea directory structure
@@ -700,10 +865,11 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string) e
 
 	// Ensure parent directory exists
 	if err := os.MkdirAll(ideaDir, 0o755); err != nil {
-		return err
+		return "", nil, err
 	}
 
 	// Create spec.json with scenario metadata
+	now := time.Now().UTC().Format(time.RFC3339)
 	spec := map[string]interface{}{
 		"name":        ideaName,
 		"title":       "[Archived] " + scenario.DisplayName,
@@ -711,17 +877,153 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string) e
 		"status":      "archived",
 		"priority":    scenario.Priority,
 		"tags":        append(scenario.Tags, "archived", "from-scenario"),
-		"created":     "auto-generated",
-		"updated":     "auto-generated",
+		"created":     now,
+		"updated":     now,
 	}
 
 	data, err := json.MarshalIndent(spec, "", "  ")
 	if err != nil {
-		return err
+		return "", nil, err
 	}
 
 	specPath := filepath.Join(ideaDir, "spec.json")
-	return os.WriteFile(specPath, data, 0o644)
+	if err := os.WriteFile(specPath, data, 0o644); err != nil {
+		return "", nil, err
+	}
+
+	// Copy preserved files if specified
+	var preservedFiles []string
+	if preserveFiles != nil {
+		preserved, err := copyPreservedFiles(scenarioPath, ideaDir, preserveFiles)
+		if err != nil {
+			log.Printf("[scenarios] archive: warning: failed to copy some preserved files: %v", err)
+			// Continue with what we have, don't fail the entire archive
+		}
+		preservedFiles = preserved
+	}
+
+	return ideaName, preservedFiles, nil
+}
+
+// copyPreservedFiles copies files matching the specified patterns from scenario to idea directory.
+func copyPreservedFiles(scenarioPath, ideaDir string, preserveFiles *apipb.PreserveFilesRequest) ([]string, error) {
+	// Resolve paths from preset if specified
+	patterns := preserveFiles.Paths
+	if preserveFiles.Preset != nil && *preserveFiles.Preset != "" {
+		presetPatterns, ok := archivePresets[*preserveFiles.Preset]
+		if ok {
+			patterns = append(patterns, presetPatterns...)
+		}
+	}
+
+	if len(patterns) == 0 {
+		return nil, nil
+	}
+
+	// Deduplicate patterns
+	seen := make(map[string]bool)
+	uniquePatterns := make([]string, 0, len(patterns))
+	for _, p := range patterns {
+		if !seen[p] {
+			seen[p] = true
+			uniquePatterns = append(uniquePatterns, p)
+		}
+	}
+
+	// Collect files matching patterns
+	matchedFiles := make(map[string]bool)
+	for _, pattern := range uniquePatterns {
+		matches, err := resolveGlobPattern(scenarioPath, pattern)
+		if err != nil {
+			log.Printf("[scenarios] archive: warning: failed to resolve pattern %q: %v", pattern, err)
+			continue
+		}
+		for _, match := range matches {
+			matchedFiles[match] = true
+		}
+	}
+
+	// Copy matched files
+	var preserved []string
+	for relPath := range matchedFiles {
+		srcPath := filepath.Join(scenarioPath, relPath)
+		dstPath := filepath.Join(ideaDir, relPath)
+
+		if err := copyFile(srcPath, dstPath); err != nil {
+			log.Printf("[scenarios] archive: warning: failed to copy %q: %v", relPath, err)
+			continue
+		}
+		preserved = append(preserved, relPath)
+	}
+
+	sort.Strings(preserved)
+	return preserved, nil
+}
+
+// resolveGlobPattern expands a glob pattern relative to a base directory.
+func resolveGlobPattern(baseDir, pattern string) ([]string, error) {
+	// Handle exact file matches first
+	exactPath := filepath.Join(baseDir, pattern)
+	if info, err := os.Stat(exactPath); err == nil && !info.IsDir() {
+		return []string{pattern}, nil
+	}
+
+	// Use doublestar for ** glob support
+	fullPattern := filepath.Join(baseDir, pattern)
+	matches, err := doublestar.FilepathGlob(fullPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to relative paths and filter directories
+	var result []string
+	for _, match := range matches {
+		info, err := os.Stat(match)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		relPath, err := filepath.Rel(baseDir, match)
+		if err != nil {
+			continue
+		}
+		result = append(result, relPath)
+	}
+
+	return result, nil
+}
+
+// copyFile copies a file from src to dst, creating parent directories as needed.
+func copyFile(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if srcInfo.IsDir() {
+		return fmt.Errorf("cannot copy directory: %s", src)
+	}
+
+	// Ensure destination directory exists
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	return dstFile.Chmod(srcInfo.Mode())
 }
 
 func normalizeScenarioStatus(status string) ScenarioStatus {
@@ -763,16 +1065,10 @@ func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
 }
 
 func deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
-	cleaned := filepath.Clean(scenarioPath)
-	parts := strings.Split(filepath.ToSlash(cleaned), "/scenarios/")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("unable to derive backlog (idea) root from scenario path %q", scenarioPath)
-	}
-	root := parts[0]
-	if root == "" {
-		root = string(filepath.Separator)
-	}
-	return filepath.Join(root, "scenarios", "swarm-manager", "ideas"), nil
+	// Use the same relative path that the backlog handler uses.
+	// The backlog handler defaults to "scenarios/swarm-manager" as rootDir,
+	// so we return the ideas subdirectory relative to the API working directory.
+	return filepath.Join("scenarios", "swarm-manager", "ideas"), nil
 }
 
 // hasAnyTag checks if the scenario has any of the filter tags.

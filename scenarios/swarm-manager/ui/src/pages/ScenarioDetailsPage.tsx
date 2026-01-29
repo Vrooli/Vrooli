@@ -18,16 +18,18 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw } from "lucide-react";
+import { ChevronRight, Package, Settings2, Circle, CheckCircle2, XCircle, Loader2, Trash2, Terminal, Play, Square, RefreshCw, Files } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { ErrorState } from "../components/ui/error-state";
 import { TagList } from "../components/ui/tag-list";
+import { FileSelectionDialog, type FileSelectionResult } from "../components/scenarios/file-selection-dialog";
 import { capitalize, defaultQueryOptions } from "../lib";
 import { scenariosService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
+import type { ScenarioFile, PreserveFilesRequest } from "../types";
 import { useScenariosStore } from "../stores";
 
 export function ScenarioDetailsPage() {
@@ -45,6 +47,12 @@ export function ScenarioDetailsPage() {
   // [REQ:REQ-P0-008] Delete confirmation dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [archiveOnDelete, setArchiveOnDelete] = useState(true);
+
+  // File selection dialog state
+  const [showFileSelectionDialog, setShowFileSelectionDialog] = useState(false);
+  const [fileSelection, setFileSelection] = useState<PreserveFilesRequest | null>(null);
+  const [scenarioFiles, setScenarioFiles] = useState<ScenarioFile[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
 
   // Fetch scenario details
   // Note: queryFn is only called when enabled is true (i.e., name exists)
@@ -127,7 +135,10 @@ export function ScenarioDetailsPage() {
   const deleteMutation = useMutation({
     mutationFn: () => {
       if (!name) throw new Error("Name is required");
-      return scenariosService.delete(name, archiveOnDelete);
+      return scenariosService.delete(name, {
+        archive: archiveOnDelete,
+        preserveFiles: archiveOnDelete && fileSelection ? fileSelection : undefined,
+      });
     },
     onSuccess: () => {
       if (name) {
@@ -150,6 +161,39 @@ export function ScenarioDetailsPage() {
   const handleDeleteCancel = () => {
     setShowDeleteDialog(false);
     setArchiveOnDelete(true); // Reset to default
+    setFileSelection(null); // Reset file selection
+  };
+
+  // Load scenario files for file selection dialog
+  const loadScenarioFiles = async () => {
+    if (!name) return;
+    setFilesLoading(true);
+    try {
+      const files = await scenariosService.getFiles(name);
+      setScenarioFiles(files);
+    } catch (error) {
+      console.error("Failed to load scenario files:", error);
+      setScenarioFiles([]);
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  const handleCustomizeFilesClick = () => {
+    loadScenarioFiles();
+    setShowFileSelectionDialog(true);
+  };
+
+  const handleFileSelectionConfirm = (selection: FileSelectionResult) => {
+    setFileSelection({
+      preset: selection.preset,
+      paths: selection.paths,
+    });
+    setShowFileSelectionDialog(false);
+  };
+
+  const handleFileSelectionCancel = () => {
+    setShowFileSelectionDialog(false);
   };
 
   if (!name) {
@@ -491,7 +535,10 @@ export function ScenarioDetailsPage() {
         checkboxContent={{
           label: "Archive to backlog (idea) before deleting (recommended)",
           checked: archiveOnDelete,
-          onChange: setArchiveOnDelete,
+          onChange: (checked) => {
+            setArchiveOnDelete(checked);
+            if (!checked) setFileSelection(null);
+          },
           testId: selectors.scenarioDetails.archiveCheckbox,
         }}
         testIds={{
@@ -499,6 +546,44 @@ export function ScenarioDetailsPage() {
           confirmButton: selectors.scenarioDetails.deleteConfirmButton,
           cancelButton: selectors.scenarioDetails.deleteCancelButton,
         }}
+      />
+
+      {/* "Customize files" link shown below delete dialog when archive is checked */}
+      {showDeleteDialog && archiveOnDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto relative top-[180px] w-full max-w-md">
+            <div className="rounded-lg border border-white/10 bg-slate-800/95 p-3 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Files className="h-4 w-4 text-cyan-400" />
+                  <span className="text-sm text-slate-300">
+                    {fileSelection
+                      ? `${fileSelection.paths?.length || 0} files selected to preserve`
+                      : "Preserve files with the archive?"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCustomizeFilesClick}
+                  className="text-sm text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                  data-testid="customize-files-link"
+                >
+                  {fileSelection ? "Edit selection" : "Customize files..."}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File selection dialog */}
+      <FileSelectionDialog
+        isOpen={showFileSelectionDialog}
+        onClose={handleFileSelectionCancel}
+        onConfirm={handleFileSelectionConfirm}
+        scenarioName={scenario?.displayName || name || ""}
+        files={scenarioFiles}
+        isLoading={filesLoading}
       />
     </div>
   );
