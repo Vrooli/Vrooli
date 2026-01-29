@@ -53,15 +53,19 @@ func NormalizeExecuteAdhocRequest(body []byte) ([]byte, error) {
 
 // knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
 var knownExecutionParamFields = map[string]bool{
-	"initial_params": true,
-	"initialParams":  true,
-	"initial_store":  true,
-	"initialStore":   true,
-	"env":            true,
-	"projectRoot":    true,
-	"project_root":   true,
-	"startUrl":       true,
-	"start_url":      true,
+	"initial_params":          true,
+	"initialParams":           true,
+	"initial_store":           true,
+	"initialStore":            true,
+	"env":                     true,
+	"projectRoot":             true,
+	"project_root":            true,
+	"startUrl":                true,
+	"start_url":               true,
+	"session_profile_id":      true,
+	"sessionProfileId":        true,
+	"save_session_profile_id": true,
+	"saveSessionProfileId":    true,
 }
 
 // NormalizeExecutionParameters moves unknown fields in params to initial_params.

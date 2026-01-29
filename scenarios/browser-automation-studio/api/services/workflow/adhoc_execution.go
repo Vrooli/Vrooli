@@ -95,7 +95,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		wf.Name = "adhoc"
 	}
 
-	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, navigationWaitUntil, continueOnError)
 
 	// Adhoc runs return immediately; callers should poll the execution ID.
 	return &basexecution.ExecuteAdhocResponse{

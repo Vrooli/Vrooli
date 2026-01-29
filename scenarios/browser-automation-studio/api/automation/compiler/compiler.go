@@ -41,6 +41,13 @@ type ExecutionStep struct {
 	LoopPlan       *ExecutionPlan `json:"loop_plan,omitempty"`
 }
 
+// CompileOptions configures compilation behavior for a single workflow.
+type CompileOptions struct {
+	// SelectorManifestRoot sets the root directory used to resolve selectors.manifest.json.
+	// When empty, the compiler falls back to resolving from the current scenario root.
+	SelectorManifestRoot string
+}
+
 // EdgeRef references an outgoing connection from a node.
 type EdgeRef struct {
 	ID         string `json:"id"`
@@ -59,6 +66,11 @@ type Position struct {
 // CompileWorkflow converts a stored workflow definition into an execution plan.
 // It accepts a proto WorkflowSummary which contains the ID, name, and flow definition.
 func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
+	return CompileWorkflowWithOptions(workflow, nil)
+}
+
+// CompileWorkflowWithOptions converts a stored workflow definition into an execution plan with custom options.
+func CompileWorkflowWithOptions(workflow *basapi.WorkflowSummary, opts *CompileOptions) (*ExecutionPlan, error) {
 	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: start")
 	if workflow == nil {
 		return nil, errors.New("workflow is nil")
@@ -108,7 +120,7 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	}
 
 	logrus.WithField("workflow_id", workflow.GetId()).Debug("CompileWorkflow: about to compileFlow")
-	plan, err := compileFlow(flowFragment{definition: raw}, workflowID, workflowName)
+	plan, err := compileFlow(flowFragment{definition: raw}, workflowID, workflowName, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +145,13 @@ func CompileWorkflow(workflow *basapi.WorkflowSummary) (*ExecutionPlan, error) {
 	return plan, nil
 }
 
-func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName string) (*ExecutionPlan, error) {
+func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName string, opts *CompileOptions) (*ExecutionPlan, error) {
 	logrus.WithFields(logrus.Fields{
 		"workflow_id":   workflowID,
 		"workflow_name": workflowName,
 	}).Debug("compileFlow: start")
 
-	planner := newPlanner(fragment.definition)
+	planner := newPlanner(fragment.definition, opts)
 	logrus.WithField("workflow_id", workflowID).Debug("compileFlow: planner created")
 
 	loopFragments, err := planner.extractLoopBodies()
@@ -147,8 +159,8 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 		return nil, err
 	}
 	logrus.WithFields(logrus.Fields{
-		"workflow_id":    workflowID,
-		"loop_count":     len(loopFragments),
+		"workflow_id": workflowID,
+		"loop_count":  len(loopFragments),
 	}).Debug("compileFlow: loop bodies extracted")
 
 	steps, err := planner.buildSteps()
@@ -174,7 +186,7 @@ func compileFlow(fragment flowFragment, workflowID uuid.UUID, workflowName strin
 		if !ok {
 			return nil, fmt.Errorf("loop node %s has no body definition", steps[idx].NodeID)
 		}
-		childPlan, err := compileFlow(bodyFragment, workflowID, fmt.Sprintf("%s::%s", workflowName, steps[idx].NodeID))
+		childPlan, err := compileFlow(bodyFragment, workflowID, fmt.Sprintf("%s::%s", workflowName, steps[idx].NodeID), opts)
 		if err != nil {
 			return nil, err
 		}
@@ -497,20 +509,27 @@ func extractEntryFromSettings(settings map[string]any) (string, int) {
 }
 
 type planner struct {
-	definition    flowDefinition
-	nodesByID     map[string]rawNode
-	order         map[string]int
-	outgoing      map[string][]rawEdge
-	incomingCount map[string]int
+	definition           flowDefinition
+	nodesByID            map[string]rawNode
+	order                map[string]int
+	outgoing             map[string][]rawEdge
+	incomingCount        map[string]int
+	selectorManifestRoot string
 }
 
-func newPlanner(def flowDefinition) *planner {
+func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
+	manifestRoot := ""
+	if opts != nil {
+		manifestRoot = strings.TrimSpace(opts.SelectorManifestRoot)
+	}
+
 	p := &planner{
-		definition:    def,
-		nodesByID:     make(map[string]rawNode, len(def.Nodes)),
-		order:         make(map[string]int, len(def.Nodes)),
-		outgoing:      make(map[string][]rawEdge),
-		incomingCount: make(map[string]int),
+		definition:           def,
+		nodesByID:            make(map[string]rawNode, len(def.Nodes)),
+		order:                make(map[string]int, len(def.Nodes)),
+		outgoing:             make(map[string][]rawEdge),
+		incomingCount:        make(map[string]int),
+		selectorManifestRoot: manifestRoot,
 	}
 
 	for idx, node := range def.Nodes {
@@ -774,7 +793,7 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 
 		// Resolve @selector/ references in all steps that have selector parameters
 		logrus.WithField("node_id", nodeID).Debug("buildSteps: about to resolveSelectors")
-		if err := resolveSelectors(&step); err != nil {
+		if err := resolveSelectors(&step, p.selectorManifestRoot); err != nil {
 			return nil, fmt.Errorf("failed to resolve selectors for node %s: %w", nodeID, err)
 		}
 		logrus.WithField("node_id", nodeID).Debug("buildSteps: selectors resolved")
@@ -1018,62 +1037,110 @@ func resolveNavigateURL(step *ExecutionStep) error {
 	return nil
 }
 
-// selectorManifest holds the loaded selector mappings from selectors.manifest.json
+type selectorManifestCacheEntry struct {
+	manifest map[string]interface{}
+	err      error
+}
+
+// selectorManifestCache stores selector manifests by root to allow multi-scenario execution.
 var (
-	selectorManifest     map[string]interface{}
-	selectorManifestOnce sync.Once
-	selectorManifestErr  error
+	selectorManifestCacheMu sync.Mutex
+	selectorManifestCache   = map[string]*selectorManifestCacheEntry{}
 )
 
-// loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json
-func loadSelectorManifest() error {
-	logrus.Debug("loadSelectorManifest: called")
-	selectorManifestOnce.Do(func() {
-		logrus.Debug("loadSelectorManifest: inside Once.Do")
-		scenarioDir := paths.ResolveScenarioDir(nil)
-		logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
+// loadSelectorManifest loads the selector manifest from ui/src/consts/selectors.manifest.json,
+// scoped by the provided manifestRoot (typically a scenario root or bas/ folder).
+func loadSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
+	cacheKey := strings.TrimSpace(manifestRoot)
+	if cacheKey == "" {
+		cacheKey = "__default__"
+	}
 
-		// Try multiple paths to find the manifest, depending on working directory
-		// (working directory could be scenario root or api/ subdirectory)
-		manifestPaths := []string{
-			filepath.Join(scenarioDir, "ui", "src", "consts", "selectors.manifest.json"),
-			filepath.Join(scenarioDir, "ui", "src", "constants", "selectors.manifest.json"),
-			"ui/src/consts/selectors.manifest.json",
-			"ui/src/constants/selectors.manifest.json",
-			"../ui/src/consts/selectors.manifest.json",
-			"../ui/src/constants/selectors.manifest.json",
+	selectorManifestCacheMu.Lock()
+	if entry, ok := selectorManifestCache[cacheKey]; ok {
+		selectorManifestCacheMu.Unlock()
+		return entry.manifest, entry.err
+	}
+	selectorManifestCacheMu.Unlock()
+
+	manifest, err := readSelectorManifest(manifestRoot)
+	entry := &selectorManifestCacheEntry{manifest: manifest, err: err}
+
+	selectorManifestCacheMu.Lock()
+	selectorManifestCache[cacheKey] = entry
+	selectorManifestCacheMu.Unlock()
+
+	return manifest, err
+}
+
+func readSelectorManifest(manifestRoot string) (map[string]interface{}, error) {
+	logrus.WithField("manifest_root", manifestRoot).Debug("loadSelectorManifest: called")
+	scenarioDir := paths.ResolveScenarioDir(nil)
+	logrus.WithField("scenario_dir", scenarioDir).Debug("loadSelectorManifest: resolved scenario dir")
+
+	searchRoots := make([]string, 0, 4)
+	addRoot := func(root string) {
+		root = strings.TrimSpace(root)
+		if root == "" {
+			return
 		}
-
-		var data []byte
-		var err error
-
-		for _, path := range manifestPaths {
-			data, err = os.ReadFile(path)
-			if err == nil {
-				break
+		for _, existing := range searchRoots {
+			if existing == root {
+				return
 			}
 		}
+		searchRoots = append(searchRoots, root)
+	}
 
-		if err != nil {
-			selectorManifestErr = fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
-			return
+	addRoot(manifestRoot)
+	if strings.TrimSpace(manifestRoot) != "" && filepath.Base(manifestRoot) == "bas" {
+		addRoot(filepath.Dir(manifestRoot))
+	}
+	addRoot(scenarioDir)
+
+	manifestPaths := make([]string, 0, len(searchRoots)*2+4)
+	for _, root := range searchRoots {
+		manifestPaths = append(manifestPaths,
+			filepath.Join(root, "ui", "src", "consts", "selectors.manifest.json"),
+			filepath.Join(root, "ui", "src", "constants", "selectors.manifest.json"),
+		)
+	}
+	manifestPaths = append(manifestPaths,
+		"ui/src/consts/selectors.manifest.json",
+		"ui/src/constants/selectors.manifest.json",
+		"../ui/src/consts/selectors.manifest.json",
+		"../ui/src/constants/selectors.manifest.json",
+	)
+
+	var data []byte
+	var err error
+	manifestPath := ""
+	for _, path := range manifestPaths {
+		data, err = os.ReadFile(path)
+		if err == nil {
+			manifestPath = path
+			break
 		}
+	}
 
-		// Parse JSON
-		var manifest map[string]interface{}
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			selectorManifestErr = fmt.Errorf("failed to parse selector manifest: %w", err)
-			return
-		}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read selector manifest (tried: %v): %w", manifestPaths, err)
+	}
 
-		selectorManifest = manifest
-	})
+	logrus.WithField("manifest_path", manifestPath).Debug("loadSelectorManifest: manifest found")
 
-	return selectorManifestErr
+	// Parse JSON
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("failed to parse selector manifest: %w", err)
+	}
+
+	return manifest, nil
 }
 
 // resolveSelectors resolves @selector/ references in step parameters to actual CSS selectors
-func resolveSelectors(step *ExecutionStep) error {
+// using the manifest rooted at manifestRoot.
+func resolveSelectors(step *ExecutionStep, manifestRoot string) error {
 	if step == nil || step.Params == nil {
 		return nil
 	}
@@ -1112,11 +1179,12 @@ func resolveSelectors(step *ExecutionStep) error {
 	}
 
 	logrus.WithField("node_id", step.NodeID).Debug("resolveSelectors: has @selector/ refs, loading manifest")
-	// Load manifest if not already loaded
-	if err := loadSelectorManifest(); err != nil {
+	manifest, err := loadSelectorManifest(manifestRoot)
+	if err != nil {
 		logrus.WithFields(logrus.Fields{
-			"node_id": step.NodeID,
-			"error":   err.Error(),
+			"node_id":       step.NodeID,
+			"manifest_root": manifestRoot,
+			"error":         err.Error(),
 		}).Debug("resolveSelectors: manifest load failed")
 		return err
 	}
@@ -1131,7 +1199,7 @@ func resolveSelectors(step *ExecutionStep) error {
 				cleanedRef = cleanedRef[:idx]
 			}
 
-			resolvedRef := resolveSelectorTokens(cleanedRef)
+			resolvedRef := resolveSelectorTokens(cleanedRef, manifest)
 			if resolvedRef != cleanedRef {
 				step.Params[paramName] = resolvedRef
 			} else if cleanedRef != selectorRef {
@@ -1147,7 +1215,7 @@ func resolveSelectors(step *ExecutionStep) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef); resolved != cleanedRef {
+			if resolved := resolveSelectorTokens(cleanedRef, manifest); resolved != cleanedRef {
 				resilience["successSelector"] = resolved
 			} else if cleanedRef != successSelector {
 				resilience["successSelector"] = cleanedRef
@@ -1158,7 +1226,7 @@ func resolveSelectors(step *ExecutionStep) error {
 			if idx := strings.Index(cleanedRef, " /*dup-"); idx != -1 {
 				cleanedRef = cleanedRef[:idx]
 			}
-			if resolved := resolveSelectorTokens(cleanedRef); resolved != cleanedRef {
+			if resolved := resolveSelectorTokens(cleanedRef, manifest); resolved != cleanedRef {
 				resilience["failureSelector"] = resolved
 			} else if cleanedRef != failureSelector {
 				resilience["failureSelector"] = cleanedRef
@@ -1170,7 +1238,7 @@ func resolveSelectors(step *ExecutionStep) error {
 }
 
 // resolveSelectorReference resolves a single @selector/ reference to an actual CSS selector
-func resolveSelectorReference(selectorRef string) string {
+func resolveSelectorReference(selectorRef string, manifest map[string]interface{}) string {
 	// Check if this is a @selector/ reference
 	if !strings.HasPrefix(selectorRef, "@selector/") {
 		return "" // Not a reference, leave as-is
@@ -1194,7 +1262,10 @@ func resolveSelectorReference(selectorRef string) string {
 	}
 
 	// Look up in manifest
-	selectors, ok := selectorManifest["selectors"].(map[string]interface{})
+	if manifest == nil {
+		return ""
+	}
+	selectors, ok := manifest["selectors"].(map[string]interface{})
 	if !ok {
 		return ""
 	}
@@ -1213,7 +1284,7 @@ func resolveSelectorReference(selectorRef string) string {
 }
 
 // resolveSelectorTokens replaces any @selector/ references embedded in a selector string.
-func resolveSelectorTokens(selectorRef string) string {
+func resolveSelectorTokens(selectorRef string, manifest map[string]interface{}) string {
 	resolved := selectorRef
 	searchStart := 0
 	for {
@@ -1231,7 +1302,7 @@ func resolveSelectorTokens(selectorRef string) string {
 			end++
 		}
 		token := resolved[idx:end]
-		replacement := resolveSelectorReference(token)
+		replacement := resolveSelectorReference(token, manifest)
 		if replacement == "" {
 			// Selector not found - skip past this token to avoid infinite loop
 			logrus.WithField("token", token).Warn("resolveSelectorTokens: unresolved @selector/ reference")

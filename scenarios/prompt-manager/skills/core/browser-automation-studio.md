@@ -358,7 +358,96 @@ This isolates failures to the smallest reproducible unit.
 
 ---
 
-### **10. Maintain Scenario Constraints**
+### **10. Session Management**
+
+Session profiles store browser state (cookies, localStorage) for reuse across workflow executions. Use them for **manual testing and development workflows** where re-authenticating each time would be tedious.
+
+> **For automated test suites**, use the subflow-based authentication pattern instead. See the **e2e-testing** skill for details.
+
+#### Session Profile Workflow
+
+```
+Create profile → Sign in → Save session → Reuse
+     │              │            │           │
+     ▼              ▼            ▼           ▼
+  session       workflow     --save-    --session-
+  create       execute      session     profile
+```
+
+#### CLI Commands
+
+**Create a session profile:**
+```bash
+browser-automation-studio session create "Dev Account"
+```
+
+**Sign in and save the session:**
+```bash
+# Execute sign-in workflow and save resulting auth state to profile
+browser-automation-studio workflow execute \
+  --from-file bas/actions/login.json \
+  --save-session "Dev Account" \
+  --initial-params '{"username":"dev@example.com","password":"..."}' \
+  --wait
+```
+
+**Reuse session for subsequent testing:**
+```bash
+# Execute workflow with pre-authenticated browser context (skips sign-in)
+browser-automation-studio workflow execute \
+  --from-file bas/cases/02-features/admin-dashboard.json \
+  --session-profile "Dev Account" \
+  --wait
+```
+
+**Force fresh session (ignore saved state):**
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/cases/01-foundation/01-auth/login-flow.json \
+  --fresh-session \
+  --wait
+```
+
+#### Managing Sessions
+
+```bash
+# List all session profiles
+browser-automation-studio session list
+
+# View profile details (shows browser profile, last used, etc.)
+browser-automation-studio session show "Dev Account"
+
+# Clear storage state (force re-login on next use)
+browser-automation-studio session clear-storage "Dev Account"
+
+# Delete a profile
+browser-automation-studio session delete "Dev Account"
+```
+
+#### When to Use Session Profiles
+
+| Use Case | Session Profile? |
+|----------|------------------|
+| Manual testing and debugging | ✅ Yes |
+| Development workflows | ✅ Yes |
+| Long-running admin operations | ✅ Yes |
+| Automated test suites | ❌ No (use subflows) |
+| CI/CD pipelines | ❌ No (use fresh sessions) |
+
+**Why not for automated tests?**
+
+| Session Profiles | Subflow-Based Auth |
+|------------------|-------------------|
+| State may be stale (expired cookies) | Always fresh login |
+| Test depends on profile existence | Test is self-contained |
+| Harder to debug failures | Full login flow in trace |
+| Not CI-friendly | Works anywhere |
+
+For automated testing patterns, see the **e2e-testing** skill section on "Authenticated Testing Patterns".
+
+---
+
+### **11. Maintain Scenario Constraints**
 
 * This skill is for **using** BAS to investigate and validate, not modifying BAS itself
 * Do **not** edit `bas/registry.json` manually - it's auto-generated
@@ -368,7 +457,7 @@ This isolates failures to the smallest reproducible unit.
 
 ---
 
-### **11. Output Expectations**
+### **12. Output Expectations**
 
 When using BAS for investigation, document findings in `docs/internal/PROBLEMS.md` under the E2E Issues section:
 

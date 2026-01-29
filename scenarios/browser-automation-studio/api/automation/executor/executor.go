@@ -60,6 +60,12 @@ type Request struct {
 	// authenticated state without requiring login steps.
 	StorageState json.RawMessage
 
+	// SaveStorageStateCallback is called after successful execution to capture
+	// and save the browser's final storage state. The callback receives the
+	// storage state JSON and should return an error if saving fails.
+	// Used for --save-session functionality.
+	SaveStorageStateCallback func(storageState json.RawMessage) error
+
 	// NavigationWaitUntil is the default wait condition for navigate actions.
 	// When set, overrides the workflow default but can be further overridden by
 	// per-action NavigateParams.wait_until settings.

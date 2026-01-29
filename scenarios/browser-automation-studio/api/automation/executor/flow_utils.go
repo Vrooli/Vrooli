@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -21,6 +22,11 @@ import (
 // params/strings using ${var} tokens.
 func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruction, execState *state.ExecutionState) contracts.CompiledInstruction {
 	if execState == nil {
+		logrus.WithField("node_id", instr.NodeID).Debug("Skipping interpolation: nil execution state")
+		return instr
+	}
+	if !execState.HasInterpolatableValues() {
+		logrus.WithField("node_id", instr.NodeID).Debug("Skipping interpolation: no values in store/params/env")
 		return instr
 	}
 	interp := state.NewInterpolator(execState)
@@ -30,6 +36,11 @@ func (e *SimpleExecutor) interpolateInstruction(instr contracts.CompiledInstruct
 // interpolatePlanStep performs variable substitution on a plan step.
 func (e *SimpleExecutor) interpolatePlanStep(step contracts.PlanStep, execState *state.ExecutionState) contracts.PlanStep {
 	if execState == nil {
+		logrus.WithField("node_id", step.NodeID).Debug("Skipping interpolation: nil execution state")
+		return step
+	}
+	if !execState.HasInterpolatableValues() {
+		logrus.WithField("node_id", step.NodeID).Debug("Skipping interpolation: no values in store/params/env")
 		return step
 	}
 	interp := state.NewInterpolator(execState)

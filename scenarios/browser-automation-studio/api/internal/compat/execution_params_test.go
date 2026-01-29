@@ -373,3 +373,94 @@ func TestNormalizeExecutionParameters_NilParams(t *testing.T) {
 	// Should not panic
 	NormalizeExecutionParameters(nil)
 }
+
+func TestNormalizeExecutionParameters_SessionProfileFields(t *testing.T) {
+	// Session profile fields should be recognized as known fields
+	// and NOT moved to initial_params
+	tests := []struct {
+		name   string
+		params map[string]any
+	}{
+		{
+			name: "session_profile_id snake_case",
+			params: map[string]any{
+				"session_profile_id": "abc-123",
+			},
+		},
+		{
+			name: "sessionProfileId camelCase",
+			params: map[string]any{
+				"sessionProfileId": "abc-123",
+			},
+		},
+		{
+			name: "save_session_profile_id snake_case",
+			params: map[string]any{
+				"save_session_profile_id": "def-456",
+			},
+		},
+		{
+			name: "saveSessionProfileId camelCase",
+			params: map[string]any{
+				"saveSessionProfileId": "def-456",
+			},
+		},
+		{
+			name: "both session fields together",
+			params: map[string]any{
+				"session_profile_id":      "abc-123",
+				"save_session_profile_id": "def-456",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			originalJSON, _ := json.Marshal(tc.params)
+			NormalizeExecutionParameters(tc.params)
+			newJSON, _ := json.Marshal(tc.params)
+
+			if string(originalJSON) != string(newJSON) {
+				t.Errorf("session profile fields should not be modified\nbefore: %s\nafter:  %s", originalJSON, newJSON)
+			}
+
+			// Verify no initial_params was created
+			if _, hasInitialParams := tc.params["initial_params"]; hasInitialParams {
+				t.Error("should not create initial_params for known session profile fields")
+			}
+		})
+	}
+}
+
+func TestNormalizeExecutionParameters_SessionProfileWithOtherFields(t *testing.T) {
+	// Test that session profile fields are preserved while unknown fields are moved
+	params := map[string]any{
+		"session_profile_id":      "abc-123",
+		"save_session_profile_id": "def-456",
+		"username":                "test@example.com", // unknown field
+	}
+
+	NormalizeExecutionParameters(params)
+
+	// Session profile fields should remain at top level
+	if params["session_profile_id"] != "abc-123" {
+		t.Errorf("session_profile_id should remain at top level, got %v", params["session_profile_id"])
+	}
+	if params["save_session_profile_id"] != "def-456" {
+		t.Errorf("save_session_profile_id should remain at top level, got %v", params["save_session_profile_id"])
+	}
+
+	// Unknown field should be moved to initial_params
+	initialParams, ok := params["initial_params"].(map[string]any)
+	if !ok {
+		t.Fatal("expected initial_params to be created for unknown fields")
+	}
+	if initialParams["username"] != "test@example.com" {
+		t.Errorf("expected username in initial_params, got %v", initialParams["username"])
+	}
+
+	// Username should be removed from top level
+	if _, hasUsername := params["username"]; hasUsername {
+		t.Error("username should be removed from top level")
+	}
+}

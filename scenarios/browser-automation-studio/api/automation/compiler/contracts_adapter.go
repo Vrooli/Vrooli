@@ -14,18 +14,45 @@ import (
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
+type projectRootContextKey struct{}
+
+// WithProjectRoot attaches a project root to the context for selector resolution.
+func WithProjectRoot(ctx context.Context, projectRoot string) context.Context {
+	if strings.TrimSpace(projectRoot) == "" {
+		return ctx
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, projectRootContextKey{}, strings.TrimSpace(projectRoot))
+}
+
+func projectRootFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if value, ok := ctx.Value(projectRootContextKey{}).(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
+}
+
 // CompileWorkflowToContracts compiles a workflow directly to contracts.ExecutionPlan.
 // This is the preferred entry point for callers who need the canonical ExecutionPlan type.
 // It internally calls CompileWorkflow and performs the type conversion.
 func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, workflow *basapi.WorkflowSummary) (contracts.ExecutionPlan, []contracts.CompiledInstruction, error) {
-	_ = ctx // Reserved for future use (e.g., context-aware compilation)
-
 	logrus.WithFields(logrus.Fields{
 		"execution_id": executionID,
 		"workflow_id":  workflow.GetId(),
 	}).Debug("CompileWorkflowToContracts: starting")
 
-	plan, err := CompileWorkflow(workflow)
+	projectRoot := projectRootFromContext(ctx)
+	var opts *CompileOptions
+	if projectRoot != "" {
+		opts = &CompileOptions{SelectorManifestRoot: projectRoot}
+	}
+
+	plan, err := CompileWorkflowWithOptions(workflow, opts)
 	logrus.WithFields(logrus.Fields{
 		"execution_id":  executionID,
 		"workflow_id":   workflow.GetId(),

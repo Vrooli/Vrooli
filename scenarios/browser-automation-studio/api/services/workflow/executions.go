@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	autocompiler "github.com/vrooli/browser-automation-studio/automation/compiler"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
@@ -106,7 +108,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		return nil, err
 	}
 
-	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	initialStore, initialParams, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(workflowSummary.FlowDefinition, initialStore, initialParams, env); err != nil {
 		return nil, err
 	}
@@ -167,7 +169,7 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	}
 	_ = s.writeExecutionSnapshot(ctx, exec, snapshot)
 
-	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, navigationWaitUntil, continueOnError)
 
 	if req.WaitForCompletion {
 		// Poll for completion; execution updates are persisted to the DB index by the runner.
@@ -218,17 +220,18 @@ func (s *WorkflowService) resolveWorkflowForExecution(ctx context.Context, workf
 	return getResp.Workflow, nil
 }
 
-// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, and session profile ID from ExecutionParameters.
-// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError.
+// executionParametersToMaps extracts namespace maps, artifact config, browser profile, project root, start URL, session profile IDs, and execution defaults from ExecutionParameters.
+// Returns: store (@store/ namespace), params (@params/ namespace), env (environment), artifact config, browser profile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, navigationWaitUntil, continueOnError.
 // projectRoot is used for filesystem-based subflow resolution when the calling workflow has no database project.
 // sessionProfileID references a stored session profile for authenticated execution.
+// saveSessionProfileID specifies where to save storage state after execution.
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string, sessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
+func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, projectRoot string, startURL string, sessionProfileID string, saveSessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
 	store = map[string]any{}
 	params = map[string]any{}
 	env = map[string]any{}
 	if p == nil {
-		return store, params, env, nil, nil, "", "", "", "", nil
+		return store, params, env, nil, nil, "", "", "", "", "", nil
 	}
 
 	for k, v := range p.InitialStore {
@@ -272,6 +275,12 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 		sessionProfileID = strings.TrimSpace(*p.SessionProfileId)
 	}
 
+	// Extract save session profile ID for post-execution state capture.
+	// When set, the browser's storage state will be saved to this profile after execution.
+	if p.SaveSessionProfileId != nil {
+		saveSessionProfileID = strings.TrimSpace(*p.SaveSessionProfileId)
+	}
+
 	// Extract execution-level defaults for navigation and error handling.
 	// These override workflow defaults but can be further overridden by per-node settings.
 	if p.NavigationWaitUntil != nil {
@@ -279,7 +288,7 @@ func executionParametersToMaps(p *basexecution.ExecutionParameters) (store map[s
 	}
 	continueOnError = p.ContinueOnError
 
-	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL, sessionProfileID, navigationWaitUntil, continueOnError
+	return store, params, env, artifactCfg, browserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, navigationWaitUntil, continueOnError
 }
 
 func jsonValueToAny(v *commonv1.JsonValue) any {
@@ -308,21 +317,22 @@ func (s *WorkflowService) startExecutionRunner(workflow *basapi.WorkflowSummary,
 }
 
 func (s *WorkflowService) startExecutionRunnerWithNamespaces(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, projectRoot string) {
-	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", nil)
+	s.startExecutionRunnerWithOptions(workflow, executionID, store, params, env, artifactCfg, nil, nil, nil, projectRoot, "", "", "", nil)
 }
 
-func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) startExecutionRunnerWithOptions(workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.storeExecutionCancel(executionID, cancel)
-	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, navigationWaitUntil, continueOnError)
+	go s.executeWorkflowAsyncWithOptions(ctx, workflow, executionID, store, params, env, artifactCfg, browserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, navigationWaitUntil, continueOnError)
 }
 
 // executeWorkflowAsyncWithOptions runs a workflow asynchronously with optional settings.
 // projectRoot is the absolute path to the project root for filesystem-based subflow resolution.
 // browserProfile configures anti-detection and human-like behavior settings for the execution.
 // storageState contains cookies/localStorage from a session profile for authenticated execution.
+// saveSessionProfileID specifies where to save storage state after successful execution.
 // navigationWaitUntil and continueOnError are execution-level defaults that override workflow settings.
-func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, navigationWaitUntil string, continueOnError *bool) {
+func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, workflow *basapi.WorkflowSummary, executionID uuid.UUID, store map[string]any, params map[string]any, env map[string]any, artifactCfg *config.ArtifactCollectionSettings, browserProfile *archiveingestion.BrowserProfile, storageState json.RawMessage, opts *ExecuteOptions, projectRoot string, startURL string, saveSessionProfileID string, navigationWaitUntil string, continueOnError *bool) {
 	defer s.cancelExecutionByID(executionID)
 
 	persistenceCtx := context.Background()
@@ -352,7 +362,12 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		s.artifactRecorder.SetArtifactConfig(artifactCfg)
 	}
 
-	plan, _, err := autoexecutor.BuildContractsPlan(ctx, executionID, workflow)
+	compileCtx := ctx
+	if projectRoot != "" {
+		compileCtx = autocompiler.WithProjectRoot(ctx, projectRoot)
+	}
+
+	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
 	if err != nil {
 		execIndex.Status = database.ExecutionStatusFailed
 		execIndex.ErrorMessage = err.Error()
@@ -405,20 +420,20 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	}
 
 	req := autoexecutor.Request{
-		Plan:               plan,
-		EngineName:         engineName,
-		EngineFactory:      s.engineFactory,
-		Recorder:           s.artifactRecorder,
-		EventSink:          eventSink,
-		HeartbeatInterval:  2 * time.Second,
-		ReuseMode:          autoengine.ReuseModeReuse,
-		WorkflowResolver:   s,
-		PlanCompiler:       s.planCompiler,
-		MaxSubflowDepth:    5,
-		StartFromStepIndex: -1,
-		ProjectRoot:        projectRoot,
-		InitialStore:       store,
-		InitialParams:      params,
+		Plan:                plan,
+		EngineName:          engineName,
+		EngineFactory:       s.engineFactory,
+		Recorder:            s.artifactRecorder,
+		EventSink:           eventSink,
+		HeartbeatInterval:   2 * time.Second,
+		ReuseMode:           autoengine.ReuseModeReuse,
+		WorkflowResolver:    s,
+		PlanCompiler:        s.planCompiler,
+		MaxSubflowDepth:     5,
+		StartFromStepIndex:  -1,
+		ProjectRoot:         projectRoot,
+		InitialStore:        store,
+		InitialParams:       params,
 		Env:                 env,
 		StartURL:            strings.TrimSpace(startURL),
 		ArtifactConfig:      artifactCfg,
@@ -426,6 +441,41 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		StorageState:        storageState,
 		NavigationWaitUntil: navigationWaitUntil,
 		ContinueOnError:     continueOnError,
+	}
+
+	// Set up callback to save storage state after successful execution
+	if saveSessionProfileID != "" && s.sessionProfiles != nil {
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":            executionID.String(),
+				"save_session_profile_id": saveSessionProfileID,
+			}).Info("Setting up storage state save callback")
+		}
+		profileID := saveSessionProfileID // capture for closure
+		req.SaveStorageStateCallback = func(storageState json.RawMessage) error {
+			if s.log != nil {
+				s.log.WithFields(logrus.Fields{
+					"execution_id":            executionID.String(),
+					"save_session_profile_id": profileID,
+					"storage_state_size":      len(storageState),
+				}).Info("Saving storage state to session profile")
+			}
+			_, err := s.sessionProfiles.SaveStorageState(profileID, storageState)
+			if err != nil && s.log != nil {
+				s.log.WithError(err).WithFields(logrus.Fields{
+					"execution_id":            executionID.String(),
+					"save_session_profile_id": profileID,
+				}).Error("Failed to save storage state to session profile")
+			}
+			return err
+		}
+	} else if saveSessionProfileID != "" && s.sessionProfiles == nil {
+		if s.log != nil {
+			s.log.WithFields(logrus.Fields{
+				"execution_id":            executionID.String(),
+				"save_session_profile_id": saveSessionProfileID,
+			}).Warn("Cannot save session state: session profiles service not available")
+		}
 	}
 
 	executor := s.executor

@@ -193,6 +193,27 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 	var session engine.EngineSession
 	defer func() {
 		if session != nil {
+			// Capture storage state before closing session if callback is provided
+			// Only capture on successful execution (err == nil)
+			if err == nil && req.SaveStorageStateCallback != nil {
+				captureCtx, captureCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer captureCancel()
+				if storageState, captureErr := session.GetStorageState(captureCtx); captureErr == nil {
+					if saveErr := req.SaveStorageStateCallback(storageState); saveErr != nil {
+						logrus.WithFields(logrus.Fields{
+							"execution_id": req.Plan.ExecutionID,
+							"error":        saveErr.Error(),
+						}).Warn("Failed to save storage state via callback")
+					} else {
+						logrus.WithField("execution_id", req.Plan.ExecutionID).Info("Storage state saved via callback")
+					}
+				} else {
+					logrus.WithFields(logrus.Fields{
+						"execution_id": req.Plan.ExecutionID,
+						"error":        captureErr.Error(),
+					}).Warn("Failed to capture storage state from session")
+				}
+			}
 			closeSessionWithArtifacts(context.Background(), session, req.Plan, req.Recorder)
 		}
 	}()

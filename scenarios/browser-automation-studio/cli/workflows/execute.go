@@ -45,6 +45,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	startURL := ""
 	seedMode := ""
 	seedScenario := ""
+	sessionProfile := ""
+	saveSession := ""
+	freshSession := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -132,6 +135,20 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			}
 			seedScenario = strings.TrimSpace(args[i+1])
 			i++
+		case "--session-profile":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--session-profile requires a value (profile ID or name)")
+			}
+			sessionProfile = strings.TrimSpace(args[i+1])
+			i++
+		case "--save-session":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--save-session requires a value (profile ID or name)")
+			}
+			saveSession = strings.TrimSpace(args[i+1])
+			i++
+		case "--fresh-session":
+			freshSession = true
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return fmt.Errorf("unknown option: %s", args[i])
@@ -163,6 +180,47 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	// Force wait mode if --output is specified (export requires completion)
 	if outputPath != "" {
 		wait = true
+	}
+
+	// Force wait mode if --save-session is specified (need execution to complete to save state)
+	if saveSession != "" {
+		wait = true
+	}
+
+	// Validate session profile flags
+	if sessionProfile != "" && freshSession {
+		return fmt.Errorf("cannot use --session-profile with --fresh-session")
+	}
+
+	// Resolve session profile IDs if names were provided
+	var sessionProfileID string
+	var saveSessionProfileID string
+	if sessionProfile != "" {
+		resolved, err := resolveSessionProfile(ctx, sessionProfile)
+		if err != nil {
+			return fmt.Errorf("--session-profile: %w", err)
+		}
+		sessionProfileID = resolved.ID
+		fmt.Printf("Using session profile: %s (%s)\n", resolved.Name, resolved.ID[:8])
+	}
+	if saveSession != "" {
+		resolved, err := resolveSessionProfile(ctx, saveSession)
+		if err != nil {
+			// For --save-session, create profile if it doesn't exist
+			if strings.Contains(err.Error(), "not found") {
+				created, err := createSessionProfile(ctx, saveSession)
+				if err != nil {
+					return fmt.Errorf("--save-session: failed to create profile: %w", err)
+				}
+				saveSessionProfileID = created.ID
+				fmt.Printf("Created session profile: %s (%s)\n", created.Name, created.ID[:8])
+			} else {
+				return fmt.Errorf("--save-session: %w", err)
+			}
+		} else {
+			saveSessionProfileID = resolved.ID
+			fmt.Printf("Will save session to: %s (%s)\n", resolved.Name, resolved.ID[:8])
+		}
 	}
 
 	if hasSteps {
@@ -254,6 +312,16 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	if projectRoot != "" {
 		params["projectRoot"] = projectRoot
 		fmt.Println("Project root injected into parameters as projectRoot.")
+	}
+
+	// Inject session profile ID if specified (and not --fresh-session)
+	if sessionProfileID != "" && !freshSession {
+		params["session_profile_id"] = sessionProfileID
+	}
+
+	// Inject save session profile ID if specified
+	if saveSessionProfileID != "" {
+		params["save_session_profile_id"] = saveSessionProfileID
 	}
 	startURLFromParams := false
 	if startURL == "" {
@@ -1064,12 +1132,14 @@ func waitForScenarioHealth(ctx context.Context, base string) error {
 
 // knownExecutionParamFields is the set of fields that are part of the ExecutionParameters proto.
 var knownExecutionParamFields = map[string]bool{
-	"initial_params": true,
-	"initial_store":  true,
-	"env":            true,
-	"projectRoot":    true,
-	"startUrl":       true,
-	"start_url":      true,
+	"initial_params":          true,
+	"initial_store":           true,
+	"env":                     true,
+	"projectRoot":             true,
+	"startUrl":                true,
+	"start_url":               true,
+	"session_profile_id":      true,
+	"save_session_profile_id": true,
 }
 
 // normalizeExecutionParams moves unknown fields to initial_params.
@@ -1157,4 +1227,70 @@ func mergeIntoEnv(params map[string]any, values map[string]any) map[string]any {
 	}
 	params["env"] = env
 	return params
+}
+
+// sessionProfileInfo holds basic session profile information for resolution.
+type sessionProfileInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type sessionProfileListResponse struct {
+	Profiles []sessionProfileInfo `json:"profiles"`
+}
+
+// resolveSessionProfile resolves a profile identifier (ID or name) to a profile.
+func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProfileInfo, error) {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
+		return nil, fmt.Errorf("profile identifier is required")
+	}
+
+	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions"), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list profiles: %w", err)
+	}
+
+	var resp sessionProfileListResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse profiles: %w", err)
+	}
+
+	// First, try exact ID match
+	for _, p := range resp.Profiles {
+		if p.ID == identifier {
+			return &p, nil
+		}
+	}
+
+	// Then try exact name match
+	var matches []sessionProfileInfo
+	for _, p := range resp.Profiles {
+		if p.Name == identifier {
+			matches = append(matches, p)
+		}
+	}
+
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("session profile not found: %s", identifier)
+	}
+	if len(matches) > 1 {
+		return nil, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(matches))
+	}
+
+	return &matches[0], nil
+}
+
+// createSessionProfile creates a new session profile.
+func createSessionProfile(ctx *appctx.Context, name string) (*sessionProfileInfo, error) {
+	payload := map[string]string{"name": name}
+	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/recordings/sessions"), nil, payload)
+	if err != nil {
+		return nil, err
+	}
+	var profile sessionProfileInfo
+	if err := json.Unmarshal(body, &profile); err != nil {
+		return nil, err
+	}
+	return &profile, nil
 }

@@ -55,6 +55,9 @@ type EngineSession interface {
 	Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error)
 	Reset(ctx context.Context) error
 	Close(ctx context.Context) error
+	// GetStorageState retrieves the current browser storage state (cookies, localStorage).
+	// Returns the storage state as JSON or an error if capture fails.
+	GetStorageState(ctx context.Context) (json.RawMessage, error)
 }
 
 // Factory resolves engine implementations by name/config.

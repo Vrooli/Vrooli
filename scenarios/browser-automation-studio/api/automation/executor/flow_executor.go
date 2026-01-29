@@ -737,7 +737,16 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 	}
 	if rawParams, ok := stepParams["parameters"]; ok {
 		if params, ok := rawParams.(map[string]any); ok && len(params) > 0 {
-			spec.params = params
+			// Unwrap JsonValue wrapper format from proto serialization
+			spec.params = unwrapJsonValueArgs(params)
+		}
+	}
+	// Also check "args" key - used when workflow is compiled from JSON
+	if spec.params == nil {
+		if rawArgs, ok := stepParams["args"]; ok {
+			if args, ok := rawArgs.(map[string]any); ok && len(args) > 0 {
+				spec.params = unwrapJsonValueArgs(args)
+			}
 		}
 	}
 	if spec.workflowID == nil && spec.workflowPath == "" && spec.inlineDef == nil && step.Action != nil {
@@ -788,6 +797,59 @@ func parseSubflowSpec(step contracts.PlanStep) (subflowSpec, error) {
 		return spec, fmt.Errorf("subflow %s missing workflowId, workflowPath, or workflowDefinition", step.NodeID)
 	}
 	return spec, nil
+}
+
+// unwrapJsonValueArgs converts {"string_value": "..."} wrapped args to plain values.
+// This is needed when args come from JSON files where values are wrapped in JsonValue format.
+func unwrapJsonValueArgs(args map[string]any) map[string]any {
+	result := make(map[string]any, len(args))
+	for k, v := range args {
+		result[k] = unwrapJsonValue(v)
+	}
+	return result
+}
+
+// unwrapJsonValue unwraps a single value that may be in JsonValue format.
+func unwrapJsonValue(v any) any {
+	m, ok := v.(map[string]any)
+	if !ok || len(m) != 1 {
+		return v
+	}
+	// Check for JsonValue wrapper keys
+	if sv, ok := m["string_value"]; ok {
+		return sv
+	}
+	if sv, ok := m["stringValue"]; ok {
+		return sv
+	}
+	if bv, ok := m["bool_value"]; ok {
+		return bv
+	}
+	if bv, ok := m["boolValue"]; ok {
+		return bv
+	}
+	if iv, ok := m["int_value"]; ok {
+		return iv
+	}
+	if iv, ok := m["intValue"]; ok {
+		return iv
+	}
+	if dv, ok := m["double_value"]; ok {
+		return dv
+	}
+	if dv, ok := m["doubleValue"]; ok {
+		return dv
+	}
+	if nv, ok := m["null_value"]; ok {
+		_ = nv
+		return nil
+	}
+	if nv, ok := m["nullValue"]; ok {
+		_ = nv
+		return nil
+	}
+	// Not a JsonValue wrapper, return as-is
+	return v
 }
 
 func resolveSubflowWorkflow(ctx context.Context, req Request, spec subflowSpec) (*basapi.WorkflowSummary, uuid.UUID, error) {

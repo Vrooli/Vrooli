@@ -31,10 +31,7 @@ func (i *Interpolator) InterpolateInstruction(instr contracts.CompiledInstructio
 	if i.state == nil {
 		return instr
 	}
-	i.state.mu.RLock()
-	storeLen := len(i.state.store)
-	i.state.mu.RUnlock()
-	if storeLen == 0 {
+	if !i.state.HasInterpolatableValues() {
 		return instr
 	}
 
@@ -56,10 +53,7 @@ func (i *Interpolator) InterpolatePlanStep(step contracts.PlanStep) contracts.Pl
 	if i.state == nil {
 		return step
 	}
-	i.state.mu.RLock()
-	storeLen := len(i.state.store)
-	i.state.mu.RUnlock()
-	if storeLen == 0 {
+	if !i.state.HasInterpolatableValues() {
 		return step
 	}
 
@@ -195,10 +189,7 @@ func (i *Interpolator) interpolateActionDefinition(action *basactions.ActionDefi
 	if action == nil || i.state == nil {
 		return action
 	}
-	i.state.mu.RLock()
-	storeLen := len(i.state.store)
-	i.state.mu.RUnlock()
-	if storeLen == 0 {
+	if !i.state.HasInterpolatableValues() {
 		return action
 	}
 

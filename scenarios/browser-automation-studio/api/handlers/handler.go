@@ -230,6 +230,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		EventSinkFactory:  eventSinkFactory,
 		ExecutionDataRoot: recordingsRoot,
 		AIClient:          aiClient,
+		SessionProfiles:   sessionProfiles,
 	})
 
 	// Ensure the demo project exists so file-first operations have a stable project root.

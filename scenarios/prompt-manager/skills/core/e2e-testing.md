@@ -350,7 +350,133 @@ For flaky elements or slow pages:
 
 ---
 
-### **6. Memory Management with Visited Tracker**
+### **6. Authenticated Testing Patterns**
+
+For tests requiring authentication, use **shared sign-in actions** rather than persisted session profiles. This ensures test isolation and reproducibility.
+
+#### Shared Sign-In Action Pattern
+
+Sign-in is an **atomic operation** that lives in `actions/login.json`:
+
+```json
+{
+  "metadata": {
+    "description": "Sign in with provided credentials",
+    "version": 1
+  },
+  "nodes": [
+    {
+      "id": "navigate-login",
+      "type": "navigate",
+      "data": { "destinationType": "scenario", "scenarioPath": "/login" }
+    },
+    {
+      "id": "type-email",
+      "type": "type",
+      "data": { "selector": "@selector/auth.emailInput", "text": "${@params/username}", "clearExisting": true }
+    },
+    {
+      "id": "type-password",
+      "type": "type",
+      "data": { "selector": "@selector/auth.passwordInput", "text": "${@params/password}", "clearExisting": true }
+    },
+    {
+      "id": "click-submit",
+      "type": "click",
+      "data": { "selector": "@selector/auth.submitButton" }
+    },
+    {
+      "id": "wait-redirect",
+      "type": "wait",
+      "data": { "selector": "@selector/dashboard.container", "state": "visible", "timeoutMs": 10000 }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-login", "target": "type-email" },
+    { "id": "e2", "source": "type-email", "target": "type-password" },
+    { "id": "e3", "source": "type-password", "target": "click-submit" },
+    { "id": "e4", "source": "click-submit", "target": "wait-redirect" }
+  ]
+}
+```
+
+#### Test Cases Call Sign-In as Subflow
+
+Cases that need authentication call the shared action:
+
+```json
+{
+  "nodes": [
+    {
+      "id": "sign-in",
+      "type": "subflow",
+      "data": {
+        "workflowPath": "actions/login.json",
+        "params": {
+          "username": "${@params/username}",
+          "password": "${@params/password}"
+        }
+      }
+    },
+    {
+      "id": "assert-dashboard",
+      "type": "assert",
+      "data": { "selector": "@selector/dashboard.container", "assertMode": "exists" }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "sign-in", "target": "assert-dashboard" }
+  ]
+}
+```
+
+#### Test Isolation
+
+- Each test run gets a **fresh browser context** (no session profiles)
+- Credentials passed via `--initial-params`
+- Session state is **not persisted** between test runs
+
+#### CLI Usage
+
+```bash
+browser-automation-studio workflow execute \
+  --from-file bas/cases/01-foundation/01-auth/login-success.json \
+  --initial-params '{"username":"test@example.com","password":"secret"}' \
+  --wait
+```
+
+#### Example Directory Structure
+
+```
+bas/
+  actions/
+    login.json                    # Atomic sign-in action (params: username, password)
+    logout.json
+    open-project.json
+  flows/
+    complete-checkout.json        # Multi-step journey using actions
+  cases/
+    01-foundation/01-auth/
+      login-success.json          # Calls actions/login.json, then asserts dashboard
+      login-failure.json          # Tests invalid credentials
+    02-features/
+      admin-dashboard.json        # Calls login with admin creds, tests admin features
+```
+
+#### Why Not Session Profiles for Tests?
+
+| Session Profiles | Subflow-Based Auth |
+|------------------|-------------------|
+| State may be stale (expired cookies) | Always fresh login |
+| Test depends on profile existence | Test is self-contained |
+| Harder to debug failures | Full login flow in trace |
+| Not CI-friendly | Works anywhere |
+
+**Rule:** Session profiles are for **manual testing and debugging**, not automated test suites.
+
+---
+
+### **7. Memory Management with Visited Tracker**
 
 Track E2E test coverage systematically across sessions:
 
@@ -392,7 +518,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **7. Maintain Scenario Constraints**
+### **8. Maintain Scenario Constraints**
 
 * Do **not** change core business logic to make tests pass
 * Do **not** weaken assertions to avoid failures
@@ -403,7 +529,7 @@ visited-tracker campaigns note \
 
 ---
 
-### **8. Documentation**
+### **9. Documentation**
 
 Update the **E2E Issues** section of `docs/internal/PROBLEMS.md`:
 
@@ -419,7 +545,7 @@ Include:
 
 ---
 
-### **9. Output Expectations**
+### **10. Output Expectations**
 
 You may update:
 * Workflow JSON files in `bas/cases/`, `bas/flows/`, `bas/actions/`
