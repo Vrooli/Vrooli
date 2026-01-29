@@ -2,7 +2,7 @@ import type {
   IdeaClarificationQuestion,
   IdeaSuggestion,
   IdeaSuggestionDecision,
-  IdeaFile,
+  BacklogFile,
 } from "../types";
 
 export const IDEA_AGENT_FILE_PATHS = {
@@ -143,14 +143,14 @@ export function buildSuggestionsContent(
   return JSON.stringify(payload, null, 2);
 }
 
-export function findIdeaFileByPath(files: IdeaFile[] | undefined, targetPath: string): IdeaFile | null {
+export function findBacklogFileByPath(files: BacklogFile[] | undefined, targetPath: string): BacklogFile | null {
   if (!files || files.length === 0) return null;
   for (const file of files) {
     if (file.path === targetPath) {
       return file;
     }
     if (file.children && file.children.length > 0) {
-      const match = findIdeaFileByPath(file.children, targetPath);
+      const match = findBacklogFileByPath(file.children, targetPath);
       if (match) {
         return match;
       }

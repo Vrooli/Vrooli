@@ -8,7 +8,7 @@
 //   - Isolation: Changes to ecosystem-manager API are localized here
 //   - Observability: Centralized error handling and logging
 //
-// Related PRD targets: OT-P0-005 (queue ideas for processing)
+// Related PRD targets: OT-P0-005 (queue backlog items for processing)
 // DOC: docs/internal/SEAMS.md#api-to-integration-seam
 package ecosystem
 

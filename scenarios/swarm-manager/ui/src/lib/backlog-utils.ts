@@ -1,8 +1,8 @@
 /**
- * Idea utilities shared across UI components.
+ * Backlog utilities shared across UI components.
  */
 
-export function sanitizeIdeaName(value: string): string {
+export function sanitizeBacklogName(value: string): string {
   return value
     .toLowerCase()
     .replace(/\s+/g, "-")

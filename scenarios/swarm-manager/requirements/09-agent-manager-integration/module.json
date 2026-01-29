@@ -61,9 +61,9 @@
           "type": "test"
         },
         {
-          "notes": "Ideas research uses agent-manager service seam",
+          "notes": "Backlog research uses agent-manager service seam",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestResearch_Success",
+          "ref": "api/internal/backlog/handler_test.go::TestResearch_SpawnsAgent",
           "status": "passing",
           "type": "test"
         },

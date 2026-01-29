@@ -10,13 +10,13 @@
  */
 
 // ============================================================================
-// Ideas Domain
+// Backlog Domain
 // ============================================================================
 
 /**
- * Valid lifecycle states for an idea
+ * Valid lifecycle states for a backlog item
  */
-export type IdeaStatus =
+export type BacklogStatus =
   | "backlog"
   | "researching"
   | "ready"
@@ -26,18 +26,27 @@ export type IdeaStatus =
   | "archived";
 
 /**
- * An idea represents a proposal for a new scenario in the Vrooli ecosystem.
- * Ideas are stored as git-tracked folders and progress through a defined lifecycle.
+ * Main backlog categories.
  */
-export interface Idea {
+export type BacklogKind = "idea" | "research" | "fix" | "execute";
+
+/**
+ * Optional target kind for research items.
+ */
+export type BacklogResearchTarget = "idea" | "fix" | "execute" | "unspecified";
+
+/**
+ * A backlog item represents a unit of work for the swarm.
+ */
+export interface BacklogItem {
   /** Unique identifier (folder name) */
   name: string;
   /** Human-readable title */
   title: string;
-  /** Detailed description of the idea */
+  /** Detailed description of the item */
   description: string;
   /** Current lifecycle state */
-  status: IdeaStatus;
+  status: BacklogStatus;
   /** Priority level (1 = highest) */
   priority: number;
   /** Categorization tags */
@@ -46,32 +55,35 @@ export interface Idea {
   created: string;
   /** ISO timestamp of last update */
   updated: string;
+  /** Backlog category */
+  kind: BacklogKind;
+  /** Research target (research items only) */
+  researchTarget?: BacklogResearchTarget;
 }
 
 /**
- * File type in the idea file tree
+ * File type in the backlog file tree
  */
-export type IdeaFileType = "file" | "directory";
+export type BacklogFileType = "file" | "directory";
 
 /**
- * Represents a file or directory within an idea folder.
- * Used for the file tree view in the idea details page.
+ * Represents a file or directory within a backlog folder.
  */
-export interface IdeaFile {
+export interface BacklogFile {
   /** File or directory name */
   name: string;
-  /** Relative path from the idea root */
+  /** Relative path from the backlog root */
   path: string;
   /** Whether this is a file or directory */
-  type: IdeaFileType;
+  type: BacklogFileType;
   /** File size in bytes (only for files) */
   size?: number;
   /** Child files (only for directories) */
-  children?: IdeaFile[];
+  children?: BacklogFile[];
 }
 
 /**
- * Supported agent workflows for idea refinement.
+ * Supported agent workflows for idea refinement (idea backlog items).
  */
 export type IdeaAgentMode = "clarify" | "suggest" | "enhance";
 
@@ -169,7 +181,7 @@ export interface UpdateScenarioMetadataRequest {
 export interface DeleteScenarioResponse {
   /** Name of the deleted scenario */
   name: string;
-  /** Whether the scenario was archived to ideas backlog */
+  /** Whether the scenario was archived to backlog (idea) */
   archived: boolean;
   /** Human-readable message describing the result */
   message: string;

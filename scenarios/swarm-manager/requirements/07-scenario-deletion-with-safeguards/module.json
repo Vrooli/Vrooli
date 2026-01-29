@@ -6,7 +6,7 @@
   "requirements": [
     {
       "category": "api",
-      "description": "Implement DELETE API endpoint with optional archive-to-ideas-backlog functionality",
+      "description": "Implement DELETE API endpoint with optional archive-to-backlog (idea) functionality",
       "id": "REQ-P0-008-API",
       "prd_ref": "OT-P0-007",
       "status": "implemented",
@@ -27,7 +27,7 @@
           "type": "test"
         },
         {
-          "notes": "Test deletion with archive to ideas backlog",
+          "notes": "Test deletion with archive to backlog (idea)",
           "phase": "unit",
           "ref": "api/internal/scenarios/handler_test.go::TestDelete_WithArchive",
           "status": "passing",

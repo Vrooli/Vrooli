@@ -2,7 +2,7 @@
  * FileUpload Component
  *
  * Provides drag-and-drop and click-to-upload functionality for adding files
- * to an idea folder.
+ * to a backlog folder.
  *
  * Features:
  * - Drag and drop support with visual feedback
@@ -11,20 +11,23 @@
  * - Upload progress indication
  * - Error handling with retry
  *
- * [REQ:REQ-P0-004] Drag-and-drop file upload for idea details page
+ * [REQ:REQ-P0-004] Drag-and-drop file upload for backlog details page
  */
 
 import { useCallback, useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { cn, formatFileSize } from "../../lib";
-import { ideasService } from "../../services";
+import { backlogService } from "../../services";
+import type { BacklogKind } from "../../types";
 import { Button } from "./button";
 
 export interface FileUploadProps {
-  /** Idea name to upload files to */
-  ideaName: string;
-  /** Optional subdirectory path within the idea */
+  /** Backlog kind to upload files to */
+  backlogKind: BacklogKind;
+  /** Backlog item name to upload files to */
+  backlogName: string;
+  /** Optional subdirectory path within the backlog folder */
   targetPath?: string;
   /** Called when upload completes successfully */
   onUploadComplete?: () => void;
@@ -44,7 +47,8 @@ interface UploadState {
  * FileUpload component with drag-and-drop support.
  */
 export function FileUpload({
-  ideaName,
+  backlogKind,
+  backlogName,
   targetPath,
   onUploadComplete,
   className,
@@ -61,14 +65,14 @@ export function FileUpload({
       setUploads((prev) =>
         prev.map((u, i) => (i === index ? { ...u, status: "uploading" } : u))
       );
-      return ideasService.uploadFile(ideaName, file, targetPath);
+      return backlogService.uploadFile(backlogKind, backlogName, file, targetPath);
     },
     onSuccess: (_, { index }) => {
       setUploads((prev) =>
         prev.map((u, i) => (i === index ? { ...u, status: "success" } : u))
       );
       // Invalidate files query to refresh the file tree
-      queryClient.invalidateQueries({ queryKey: ["ideas", ideaName, "files"] });
+      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, backlogName, "files"] });
       onUploadComplete?.();
     },
     onError: (error, { index }) => {

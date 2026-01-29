@@ -3,7 +3,7 @@
  *
  * Displayed when the user navigates to a route that doesn't exist.
  *
- * Recovery path: Navigate to home (Ideas page)
+ * Recovery path: Navigate to home (Backlog page)
  *
  * Key principles:
  * - Clear, friendly message (not technical "404" jargon)
@@ -20,7 +20,7 @@ export function NotFoundPage() {
   const navigate = useNavigate();
 
   const handleGoHome = () => {
-    navigate("/ideas", { replace: true });
+    navigate("/backlog", { replace: true });
   };
 
   return (
@@ -48,7 +48,7 @@ export function NotFoundPage() {
           data-testid={selectors.notFound.homeButton}
         >
           <Home className="mr-2 h-4 w-4" />
-          Go to Ideas
+          Go to Backlog
         </Button>
       </div>
     </div>

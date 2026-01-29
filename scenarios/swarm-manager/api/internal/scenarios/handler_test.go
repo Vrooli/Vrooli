@@ -624,7 +624,7 @@ func TestDelete_NotFound(t *testing.T) {
 }
 
 // TestDelete_WithArchive tests deletion with archive option.
-// [REQ:REQ-P0-008] Test scenario archive to ideas backlog
+// [REQ:REQ-P0-008] Test scenario archive to backlog (idea)
 func TestDelete_WithArchive(t *testing.T) {
 	root, sources := setupTestScenarios(t)
 
@@ -646,7 +646,7 @@ func TestDelete_WithArchive(t *testing.T) {
 	if !response.Archived {
 		t.Error("expected archived to be true")
 	}
-	if response.Message != "Scenario archived to ideas backlog and deleted" {
+	if response.Message != "Scenario archived to backlog (idea) and deleted" {
 		t.Errorf("unexpected message: %s", response.Message)
 	}
 
@@ -687,7 +687,7 @@ func TestDeleteResponse_Structure(t *testing.T) {
 	resp := deleteScenarioResponse{
 		Name:     "my-scenario",
 		Archived: true,
-		Message:  "Scenario archived to ideas backlog and deleted",
+		Message:  "Scenario archived to backlog (idea) and deleted",
 	}
 
 	// Verify struct can be serialized (json.Marshal is tested via encoder)

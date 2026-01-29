@@ -8,7 +8,7 @@ Swarm Manager fills a specific gap in the Vrooli ecosystem:
 
 1. **Ecosystem Orchestration**: Unlike individual scenarios that solve specific problems, Swarm Manager orchestrates the entire scenario ecosystem - tracking what exists, what's planned, and what should be built next.
 
-2. **Idea-to-Scenario Pipeline**: Provides a structured path from raw ideas to implemented scenarios, with git-tracked context preservation and integration with ecosystem-manager for automated builds.
+2. **Backlog-to-Scenario Pipeline**: Provides a structured path from research/ideas to implemented scenarios, with git-tracked context preservation and integration with ecosystem-manager for automated builds.
 
 3. **Autonomous Recommendation Engine**: Three-mode operation (off/suggestions/yolo) with configurable data sources allows both human-guided and fully autonomous improvement cycles.
 
@@ -33,13 +33,13 @@ Swarm Manager fills a specific gap in the Vrooli ecosystem:
 
 ## Technical Research
 
-### File-Based Idea Storage Rationale
+### File-Based Backlog Storage Rationale
 
-Chose git-tracked folder-per-idea over database-only storage:
+Chose git-tracked folder-per-item over database-only storage:
 - **Version History**: Git provides free version control
-- **Collaboration**: Multiple agents/humans can work on ideas
+- **Collaboration**: Multiple agents/humans can work on backlog items
 - **Context Preservation**: Rich media (images, docs) alongside metadata
-- **Portability**: Ideas can be moved, copied, shared easily
+- **Portability**: Backlog items can be moved, copied, shared easily
 
 ### Recommendation Engine Data Sources
 

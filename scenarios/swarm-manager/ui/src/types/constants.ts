@@ -7,16 +7,16 @@
 
 import { Circle, CheckCircle, AlertCircle, type LucideIcon } from "lucide-react";
 import { formatDisplayText } from "../lib";
-import type { IdeaStatus, ScenarioStatus } from "./domain";
+import type { BacklogStatus, ScenarioStatus } from "./domain";
 
 // ============================================================================
-// Idea Status Display
+// Backlog Status Display
 // ============================================================================
 
 /**
- * Maps idea status to tailwind background color classes
+ * Maps backlog status to tailwind background color classes
  */
-export const IDEA_STATUS_COLORS: Record<IdeaStatus, string> = {
+export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
   backlog: "bg-slate-600",
   researching: "bg-blue-600",
   ready: "bg-green-600",
@@ -27,10 +27,10 @@ export const IDEA_STATUS_COLORS: Record<IdeaStatus, string> = {
 };
 
 /**
- * Formats an idea status for display (converts underscores/hyphens to spaces, capitalizes).
+ * Formats a backlog status for display (converts underscores/hyphens to spaces, capitalizes).
  * Delegates to the shared formatDisplayText utility to prevent duplication.
  */
-export function formatIdeaStatus(status: IdeaStatus): string {
+export function formatBacklogStatus(status: BacklogStatus): string {
   return formatDisplayText(status);
 }
 

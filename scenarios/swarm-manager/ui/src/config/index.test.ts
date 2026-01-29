@@ -44,9 +44,9 @@ describe("Configuration", () => {
   });
 
   describe("displayLimitsConfig", () => {
-    it("has valid idea card max tags", () => {
-      expect(displayLimitsConfig.ideaCardMaxTags).toBeGreaterThanOrEqual(1);
-      expect(displayLimitsConfig.ideaCardMaxTags).toBeLessThanOrEqual(10);
+    it("has valid backlog card max tags", () => {
+      expect(displayLimitsConfig.backlogCardMaxTags).toBeGreaterThanOrEqual(1);
+      expect(displayLimitsConfig.backlogCardMaxTags).toBeLessThanOrEqual(10);
     });
 
     it("has valid scenario card max tags", () => {

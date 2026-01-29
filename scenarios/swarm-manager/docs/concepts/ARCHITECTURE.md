@@ -7,13 +7,14 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           SWARM MANAGER                                  │
-│  "The place where ideas become scenarios and scenarios become products" │
+│ "The place where backlog becomes scenarios and scenarios become products" │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  ┌─────────────┐    ┌─────────────┐    ┌──────────────┐    ┌─────────┐ │
-│  │   IDEAS     │───▶│  SCENARIOS  │───▶│RECOMMENDATIONS│◀───│INSIGHTS │ │
-│  │  (backlog)  │    │  (catalog)  │    │   (engine)   │    │(patterns)│ │
-│  └─────────────┘    └─────────────┘    └──────────────┘    └─────────┘ │
+│  ┌──────────────┐   ┌─────────────┐    ┌──────────────┐    ┌─────────┐ │
+│  │  BACKLOG     │──▶│  SCENARIOS  │───▶│RECOMMENDATIONS│◀───│INSIGHTS │ │
+│  │ (idea/research│  │  (catalog)  │    │   (engine)   │    │(patterns)│ │
+│  │  fix/execute)│   └─────────────┘    └──────────────┘    └─────────┘ │
+│  └──────────────┘                                                     │
 │       │                   │                   │                  │      │
 │       ▼                   ▼                   ▼                  ▼      │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
@@ -28,25 +29,35 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 
 | Concept | Description | Lifecycle States | Implementation |
 |---------|-------------|------------------|----------------|
-| **Idea** | A proposal for a new scenario, stored as git-tracked folders | backlog → researching → ready → queued → in_progress → completed/archived | [CODE: ui/src/types/domain.ts#Idea] |
+| **Backlog Item** | A tracked unit of work (idea, research, fix, execute) stored as git-tracked folders | backlog → researching → ready → queued → in_progress → completed/archived | [CODE: ui/src/types/domain.ts#BacklogItem] |
 | **Scenario** | A deployed application in the Vrooli ecosystem | running, stopped, error, unknown | [CODE: ui/src/types/domain.ts#Scenario] |
 | **Recommendation** | A system-generated suggestion for improvement | pending → approved/rejected | [CODE: ui/src/types/domain.ts#Recommendation] |
 | **Insight** | Pattern-based observation about system health | N/A (informational) | (not yet implemented) |
 
 ### Key Flows
 
-1. **Idea-to-Scenario Pipeline**
+1. **Backlog (Idea) → Scenario Pipeline**
    ```
-   Create Idea → Clarify → Suggest → Enhance → Queue for Processing → ecosystem-manager initializes → Scenario exists
+   Create Idea → Clarify → Suggest → Enhance → Queue for Processing → agent-manager executes → Scenario exists
    ```
    - Clarify writes `clarify/questions.json`, Suggest writes `suggest/suggestions.json`, Enhance writes `enhance/summary.md`.
 
-2. **Recommendation Engine Flow**
+2. **Research → Convert Flow**
+   ```
+   Create Research → Run Research Agent → research/summary.md → Convert to Idea/Fix/Execute → Next queue action
+   ```
+
+3. **Fix/Execute Processing**
+   ```
+   Create Fix/Execute → (Optional Research) → Queue for Processing → agent-manager applies changes
+   ```
+
+4. **Recommendation Engine Flow**
    ```
    Data Sources (PROBLEMS.md, completeness, tests) → Engine analyzes → Generates Recommendations → User approves/rejects
    ```
 
-3. **Scenario Lifecycle Management**
+5. **Scenario Lifecycle Management**
    ```
    View Scenarios → Configure (greenfield/brownfield, enable/disable) → Delete with safeguards
    ```
@@ -66,7 +77,7 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 │ Technology: Go + Gorilla Mux                                 │
 ├─────────────────────────────────────────────────────────────┤
 │ BUSINESS LOGIC LAYER                                         │
-│ Idea/scenario/settings/recommendations/queue orchestration   │
+│ Backlog/scenario/settings/recommendations/queue orchestration│
 │ Implemented in internal/* handlers with validation + flows   │
 ├─────────────────────────────────────────────────────────────┤
 │ INTEGRATION LAYER                                            │
@@ -74,7 +85,7 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 │ Pattern: All agent work via agent-manager (never direct)     │
 ├─────────────────────────────────────────────────────────────┤
 │ PERSISTENCE LAYER                                            │
-│ Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) │
+│ Filesystem (ideas/, research/, fix/, execute/, .vrooli/settings.json, .vrooli/queue.json) │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,10 +94,10 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 | Layer | Status | Notes |
 |-------|--------|-------|
 | Presentation | Functional | 4 pages wired with services and error handling |
-| API Gateway | Implemented | Ideas/scenarios/settings/recommendations/queue endpoints |
+| API Gateway | Implemented | Backlog/scenarios/settings/recommendations/queue endpoints |
 | Business Logic | Implemented | CRUD + queue/research + recommendations engine |
 | Integration | Implemented | Discovery-based agent-manager + ecosystem-manager clients |
-| Persistence | Filesystem-first | Ideas, settings, queue, recommendations stored on disk; scenario inventory sourced from Vrooli CLI |
+| Persistence | Filesystem-first | Backlog items, settings, queue, recommendations stored on disk; scenario inventory sourced from Vrooli CLI |
 
 ## Physical Structure
 
@@ -94,7 +105,7 @@ Key implementation files:
 - Domain types: [CODE: ui/src/types/domain.ts]
 - API client: [CODE: ui/src/lib/api-client.ts]
 - Configuration: [CODE: ui/src/config/index.ts]
-- Services: [CODE: ui/src/services/ideas-service.ts], [CODE: ui/src/services/scenarios-service.ts]
+- Services: [CODE: ui/src/services/backlog-service.ts], [CODE: ui/src/services/scenarios-service.ts]
 - API server: [CODE: api/main.go]
 - CLI: [CODE: cli/app.go]
 
@@ -117,7 +128,8 @@ swarm-manager/
 │   │   │   ├── layout/       # MainLayout (tabs, nav)
 │   │   │   └── ui/           # shadcn components (button, tabs)
 │   │   ├── pages/            # Page components per tab
-│   │   │   ├── IdeasPage.tsx
+│   │   │   ├── BacklogPage.tsx
+│   │   │   ├── BacklogDetailsPage.tsx
 │   │   │   ├── ScenariosPage.tsx
 │   │   │   ├── RecommendationsPage.tsx
 │   │   │   └── SettingsPage.tsx
@@ -126,7 +138,10 @@ swarm-manager/
 │   │   └── consts/           # Constants (selectors)
 │   └── server.js             # Production static server
 │
-├── ideas/                    # Git-tracked idea backlog (empty)
+├── ideas/                    # Git-tracked backlog (idea)
+├── research/                 # Git-tracked backlog (research)
+├── fix/                      # Git-tracked backlog (fix)
+├── execute/                  # Git-tracked backlog (execute)
 │
 ├── requirements/             # PRD-linked requirement modules
 │   ├── index.json
@@ -164,8 +179,7 @@ All inter-scenario calls use `api-core/discovery` to resolve dynamic ports at ru
 
 | Integration | Purpose | Pattern |
 |-------------|---------|---------|
-| **agent-manager** | Spawn agents for automated work | Discovery-resolved API URL |
-| **ecosystem-manager** | Initialize/improve scenarios from ideas | Discovery-resolved API URL |
+| **agent-manager** | Spawn agents for backlog processing and research | Discovery-resolved API URL |
 
 ### Optional Integrations (P1)
 
@@ -177,27 +191,28 @@ All inter-scenario calls use `api-core/discovery` to resolve dynamic ports at ru
 | app-issue-tracker | Issue management | Create/view issues → Track resolution |
 | test-genie | Test execution | Trigger tests → Display results |
 | prompt-manager | Prompt templates | Fetch prompts → Use in recommendations |
+| ecosystem-manager | Scenario bootstrapping (future) | Discovery-resolved API URL |
 
 ## Natural Boundaries
 
 ### UI Boundaries
-- Each **page** (Ideas, Scenarios, Recommendations, Settings) owns its domain concerns
+- Each **page** (Backlog, Scenarios, Recommendations, Settings) owns its domain concerns
 - **MainLayout** handles navigation chrome, pages handle content
 - **selectors.ts** is the single source of truth for test identifiers
 
 ### API Boundaries
 - `/health` - Infrastructure health (readiness, dependencies)
-- `/api/v1/ideas/*` - Idea CRUD operations
+- `/api/v1/backlog/*` - Backlog CRUD, research, queue, convert operations
 - `/api/v1/scenarios/*` - Scenario catalog operations
 - `/api/v1/recommendations/*` - Recommendation engine
 - `/api/v1/settings/*` - User preferences
 
 ### Data Boundaries
-- **Filesystem** (`ideas/`, `.vrooli/settings.json`, `.vrooli/queue.json`): Source of truth for local state
+- **Filesystem** (`ideas/`, `research/`, `fix/`, `execute/`, `.vrooli/settings.json`, `.vrooli/queue.json`): Source of truth for local state
 
 ## Design Principles
 
 1. **Integration-First**: All complex operations delegate to ecosystem-manager and agent-manager
-2. **File-Based Ideas**: Ideas are stored as files for git tracking and human readability
+2. **File-Based Backlog**: Backlog items are stored as files for git tracking and human readability
 3. **Three-State Recommendations**: Off (manual), Suggestions (review), YOLO (auto-approve)
 4. **Progressive Enhancement**: P0 core → P1 integrations → P2 advanced features

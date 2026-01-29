@@ -1,14 +1,14 @@
 import type { StatusItem } from "./status-legend.types";
 
 /**
- * Pre-configured status items for Ideas
+ * Pre-configured status items for Backlog
  */
-export const IDEA_STATUS_LEGEND_ITEMS: StatusItem[] = [
+export const BACKLOG_STATUS_LEGEND_ITEMS: StatusItem[] = [
   {
     status: "backlog",
     label: "Backlog",
     colorClass: "bg-slate-600",
-    description: "New idea, not yet started",
+    description: "New backlog item, not yet started",
   },
   {
     status: "researching",

@@ -21,8 +21,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { PageErrorBoundary } from "./components/ui/page-error-boundary";
 import { MainLayout } from "./components/layout/MainLayout";
-import { IdeasPage } from "./pages/IdeasPage";
-import { IdeaDetailsPage } from "./pages/IdeaDetailsPage";
+import { BacklogPage } from "./pages/BacklogPage";
+import { BacklogDetailsPage } from "./pages/BacklogDetailsPage";
 import { ScenariosPage } from "./pages/ScenariosPage";
 import { ScenarioDetailsPage } from "./pages/ScenarioDetailsPage";
 import { RecommendationsPage } from "./pages/RecommendationsPage";
@@ -48,20 +48,20 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<MainLayout />}>
-            <Route index element={<Navigate to="/ideas" replace />} />
+            <Route index element={<Navigate to="/backlog" replace />} />
             <Route
-              path="ideas"
+              path="backlog"
               element={
-                <PageErrorBoundary pageName="Ideas">
-                  <IdeasPage />
+                <PageErrorBoundary pageName="Backlog">
+                  <BacklogPage />
                 </PageErrorBoundary>
               }
             />
             <Route
-              path="ideas/:name"
+              path="backlog/:kind/:name"
               element={
-                <PageErrorBoundary pageName="Idea Details">
-                  <IdeaDetailsPage />
+                <PageErrorBoundary pageName="Backlog Details">
+                  <BacklogDetailsPage />
                 </PageErrorBoundary>
               }
             />

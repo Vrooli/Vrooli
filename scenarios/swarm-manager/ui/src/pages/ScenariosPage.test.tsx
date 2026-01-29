@@ -19,7 +19,7 @@ vi.mock("../config", () => ({
     refetchOnWindowFocus: false,
   },
   displayLimitsConfig: {
-    ideaCardMaxTags: 3,
+    backlogCardMaxTags: 3,
     scenarioCardMaxTags: 5,
     descriptionLineClamp: 2,
     defaultPageSize: 20,

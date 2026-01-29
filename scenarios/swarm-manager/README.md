@@ -1,11 +1,11 @@
 # Swarm Manager
 
-Central command center for managing the Vrooli scenario ecosystem - orchestrating idea backlogs, scenario lifecycle, autonomous recommendations, and self-improvement insights.
+Central command center for managing the Vrooli scenario ecosystem - orchestrating backlog work, scenario lifecycle, autonomous recommendations, and self-improvement insights.
 
 ## Purpose
 
 Swarm Manager is the primary interface for humans and agents to:
-- **Manage Ideas**: Create, organize, and queue scenario ideas for implementation
+- **Manage Backlog**: Create, organize, and queue research, ideas, fixes, and execution tasks
 - **Control Scenarios**: View, configure, and manage the lifecycle of all scenarios
 - **Configure Recommendations**: Set up autonomous improvement recommendations (off/suggestions/yolo)
 - **Track Progress**: Monitor scenario health, completeness, and test results
@@ -17,7 +17,10 @@ swarm-manager/
 ├── api/           # Go API (Gin framework)
 ├── cli/           # Go CLI (Cobra)
 ├── ui/            # React + Vite + TypeScript
-├── ideas/         # Git-tracked idea backlog (folder-per-idea)
+├── ideas/         # Git-tracked backlog (idea)
+├── research/      # Git-tracked backlog (research)
+├── fix/           # Git-tracked backlog (fix)
+├── execute/       # Git-tracked backlog (execute)
 ├── requirements/  # Requirement tracking modules
 └── docs/          # PROGRESS.md, PROBLEMS.md, RESEARCH.md
 ```
@@ -46,14 +49,14 @@ make stop
 
 ## UI Tabs
 
-1. **Ideas** - Todo-list style backlog, click for details with file tree + preview
+1. **Backlog** - Tabbed backlog for research, ideas, fixes, and execution
 2. **Scenarios** - Grid of scenario cards with search/filter, click for lifecycle controls
 3. **Recommendations** - Pending recommendations + engine mode controls
 4. **Settings** - Theme, engine configs, integration status
 
-## Idea Backlog Structure
+## Backlog Structure
 
-Ideas are stored as git-tracked folders in `ideas/`:
+Backlog items are stored as git-tracked folders by kind:
 
 ```
 ideas/
@@ -62,12 +65,23 @@ ideas/
 │   ├── notes.md         # Optional context
 │   ├── mockup.png       # Optional visuals
 │   └── research/        # Optional supporting files
+research/
+├── discovery-pass/
+│   ├── spec.json
+│   └── research/
+│       └── summary.md
+fix/
+├── bugfix-auth-timeout/
+│   └── spec.json
+execute/
+├── rollout-plan/
+│   └── spec.json
 ```
 
 ## Dependencies
 
 ### Required Resources
-- **None** - Filesystem persistence is used for ideas, settings, queue, and recommendations. Scenario inventory is sourced from the Vrooli CLI.
+- **None** - Filesystem persistence is used for backlog, settings, queue, and recommendations. Scenario inventory is sourced from the Vrooli CLI.
 
 ### Required Scenarios
 - **agent-manager** - Spawning agents for automated work
@@ -88,13 +102,14 @@ ideas/
 ## CLI Commands
 
 ```bash
-swarm-manager ideas list
-swarm-manager ideas get <name>
-swarm-manager ideas create '<json>'
-swarm-manager ideas update <name> '<json>'
-swarm-manager ideas delete <name>
-swarm-manager ideas queue <name> [operation]
-swarm-manager ideas research <name> '<json>'
+swarm-manager backlog list [--kinds idea,research,fix,execute]
+swarm-manager backlog get <kind> <name>
+swarm-manager backlog create '<json>'
+swarm-manager backlog update <kind> <name> '<json>'
+swarm-manager backlog delete <kind> <name>
+swarm-manager backlog queue <kind> <name> [operation]
+swarm-manager backlog research <kind> <name> '<json>'
+swarm-manager backlog convert <kind> <name> '<json>'
 
 swarm-manager scenarios list [--search ... --status ... --tags ...]
 swarm-manager scenarios get <name>
@@ -124,6 +139,6 @@ swarm-manager queue delete <id>
 
 - [PRD.md](./PRD.md) - Product requirements and operational targets
 - [docs/PROGRESS.md](./docs/PROGRESS.md) - Development progress log
-- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred ideas
+- [docs/PROBLEMS.md](./docs/PROBLEMS.md) - Known issues and deferred backlog items
 - [docs/RESEARCH.md](./docs/RESEARCH.md) - Research notes and uniqueness analysis
 - [requirements/README.md](./requirements/README.md) - Requirement tracking modules

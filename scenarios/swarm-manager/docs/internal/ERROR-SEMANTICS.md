@@ -101,12 +101,12 @@ class ApiError extends Error {
 
 ## Critical Flows & Dependencies
 
-### 1. Ideas Flow
+### 1. Backlog Flow
 
-**Path:** User → IdeasPage → ideasService → ApiClient → HTTP → API → Database
+**Path:** User → BacklogPage → backlogService → ApiClient → HTTP → API → Filesystem
 
 **Primary Inputs:**
-- Page navigation (route change to `/ideas`)
+- Page navigation (route change to `/backlog`)
 - Search queries (future: debounced input)
 - Filter selections (future: status, tags, priority)
 
@@ -115,11 +115,11 @@ class ApiError extends Error {
 |------------|-------------|----------------|
 | Network | Critical | Total failure - ErrorState shown |
 | API Server | Critical | Total failure - ErrorState shown |
-| Database | Critical | API returns 500 - SERVER error |
+| Filesystem | Critical | API returns 500 - SERVER error |
 
 ### 2. Scenarios Flow
 
-Same pattern as Ideas Flow.
+Same pattern as Backlog Flow.
 
 ### 3. Settings Flow
 
@@ -140,7 +140,7 @@ Same pattern as Ideas Flow.
 
 ## Failure Modes by Flow
 
-### Ideas/Scenarios Flow Failures
+### Backlog/Scenarios Flow Failures
 
 | Failure Mode | Category | Behavior | Recovery |
 |--------------|----------|----------|----------|
@@ -192,7 +192,7 @@ The `ErrorBoundary` component catches React runtime errors:
 
 The `NotFoundPage` catches unknown routes:
 - Friendly "Page not found" message
-- Navigation back to home (Ideas)
+- Navigation back to home (Backlog)
 - Maintains layout consistency
 
 ### Pattern 5: Retry with Exponential Backoff
@@ -270,13 +270,13 @@ Each error category has defined recovery guidance in `ui/src/lib/error-utils.ts`
 
 - `api-client.test.ts`: Error type differentiation (23 tests)
 - `error-utils.test.ts`: Error categorization, sanitization, recovery (27 tests)
-- `IdeasPage.test.tsx`: ErrorState rendering, retry behavior (8 tests)
+- `BacklogPage.test.tsx`: ErrorState rendering, retry behavior (8 tests)
 
 ### Test Pattern
 
 ```typescript
 // Mock specific error
-vi.mocked(ideasService.list).mockRejectedValue(
+vi.mocked(backlogService.list).mockRejectedValue(
   new ApiError('network', 'Network error')
 );
 
@@ -287,7 +287,7 @@ await waitFor(() => {
 
 // Verify retry works
 fireEvent.click(screen.getByTestId('error-retry'));
-expect(ideasService.list).toHaveBeenCalledTimes(2);
+expect(backlogService.list).toHaveBeenCalledTimes(2);
 ```
 
 ---

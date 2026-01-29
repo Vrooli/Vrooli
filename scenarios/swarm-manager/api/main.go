@@ -6,15 +6,15 @@
 // # Purpose
 //
 // This API serves as the backend for the Swarm Manager UI, providing endpoints
-// for managing the scenario ecosystem: ideas backlog, scenario lifecycle, and
+// for managing the scenario ecosystem: backlog, scenario lifecycle, and
 // recommendations.
 //
-// # Current Status: Ideas/Scenarios/Settings/Recommendations Implemented (File-Based)
+// # Current Status: Backlog/Scenarios/Settings/Recommendations Implemented (File-Based)
 //
 // The API provides:
 //   - Health check endpoints at / and /api/v1/health
-//   - Ideas CRUD endpoints at /api/v1/ideas (GET, POST, PUT, DELETE)
-//   - Idea queue + research endpoints at /api/v1/ideas/{name}/queue and /api/v1/ideas/{name}/research
+//   - Backlog CRUD endpoints at /api/v1/backlog (GET, POST, PUT, DELETE)
+//   - Backlog queue + research endpoints at /api/v1/backlog/{kind}/{name}/queue and /api/v1/backlog/{kind}/{name}/research
 //   - Scenario catalog endpoints at /api/v1/scenarios
 //   - Settings persistence at /api/v1/settings
 //   - Recommendations engine at /api/v1/recommendations
@@ -26,17 +26,18 @@
 //   - gorilla/mux for HTTP routing
 //   - api-core/health for standardized health responses
 //   - api-core/server for graceful shutdown
-//   - File-system based storage for ideas (git-tracked in scenarios/swarm-manager/ideas/)
+//   - File-system based storage for backlog items (git-tracked in scenarios/swarm-manager/{ideas,research,fix,execute}/)
 //
 // # Implemented Endpoints (P0)
 //
-//	GET    /api/v1/ideas          - List all ideas
-//	POST   /api/v1/ideas          - Create new idea
-//	GET    /api/v1/ideas/{name}   - Get idea by name
-//	PUT    /api/v1/ideas/{name}   - Update idea
-//	DELETE /api/v1/ideas/{name}   - Delete idea
-//	POST   /api/v1/ideas/{name}/queue    - Queue idea for processing
-//	POST   /api/v1/ideas/{name}/research - Spawn research agent
+//	GET    /api/v1/backlog                   - List all backlog items
+//	POST   /api/v1/backlog                   - Create new backlog item
+//	GET    /api/v1/backlog/{kind}/{name}     - Get backlog item by name
+//	PUT    /api/v1/backlog/{kind}/{name}     - Update backlog item
+//	DELETE /api/v1/backlog/{kind}/{name}     - Delete backlog item
+//	POST   /api/v1/backlog/{kind}/{name}/queue    - Queue backlog item for processing
+//	POST   /api/v1/backlog/{kind}/{name}/research - Spawn research agent
+//	POST   /api/v1/backlog/{kind}/{name}/convert  - Convert backlog item to another kind
 //
 // # Scenario Endpoints (P0)
 //
@@ -87,7 +88,7 @@ import (
 	"github.com/vrooli/api-core/server"
 
 	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/ideas"
+	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/recommendations"
 	"swarm-manager/internal/scenarios"
@@ -130,10 +131,10 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
-	// Ideas CRUD endpoints
-	// [REQ:REQ-P0-002] Ideas backlog management
-	ideasHandler := ideas.NewHandlerWithClients("", nil, s.agentSvc)
-	ideasHandler.RegisterRoutes(s.router)
+	// Backlog endpoints
+	// [REQ:REQ-P0-002] Backlog management
+	backlogHandler := backlog.NewHandlerWithClients("", s.agentSvc)
+	backlogHandler.RegisterRoutes(s.router)
 
 	// Scenarios catalog endpoints
 	// [REQ:REQ-P0-006] Scenario catalog with priority, search, and filter

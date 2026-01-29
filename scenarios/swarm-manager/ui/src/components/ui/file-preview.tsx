@@ -8,20 +8,23 @@
  * - Images: Displayed inline
  * - Text: Plain text display
  *
- * [REQ:REQ-P0-004] File preview for idea details page
+ * [REQ:REQ-P0-004] File preview for backlog details page
  */
 
 import { useQuery } from "@tanstack/react-query";
 import { FileCode, FileImage, FileText, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions, getFileExtension } from "../../lib";
-import { ideasService } from "../../services";
+import { backlogService } from "../../services";
+import type { BacklogKind } from "../../types";
 import { ErrorState } from "./error-state";
 
 export interface FilePreviewProps {
-  /** Idea name containing the file */
-  ideaName: string;
-  /** Path to the file within the idea folder */
+  /** Backlog kind containing the file */
+  backlogKind: BacklogKind;
+  /** Backlog item name containing the file */
+  backlogName: string;
+  /** Path to the file within the backlog folder */
   filePath: string;
   /** File name for display */
   fileName: string;
@@ -134,7 +137,8 @@ function CodeView({ content, fileName }: { content: string; fileName: string }) 
  * FilePreview component that fetches and renders file content.
  */
 export function FilePreview({
-  ideaName,
+  backlogKind,
+  backlogName,
   filePath,
   fileName,
   className,
@@ -152,8 +156,8 @@ export function FilePreview({
     error,
     refetch,
   } = useQuery({
-    queryKey: ["ideas", ideaName, "files", filePath, "content"],
-    queryFn: () => ideasService.getFileContent(ideaName, filePath),
+    queryKey: ["backlog", backlogKind, backlogName, "files", filePath, "content"],
+    queryFn: () => backlogService.getFileContent(backlogKind, backlogName, filePath),
     enabled: !isImage,
     ...defaultQueryOptions,
   });
@@ -199,7 +203,7 @@ export function FilePreview({
         {isImage && (
           <div className="flex items-center justify-center p-4 bg-slate-900/50">
             <img
-              src={`/api/v1/ideas/${ideaName}/files/${filePath}`}
+              src={`/api/v1/backlog/${backlogKind}/${backlogName}/files/${filePath}`}
               alt={fileName}
               className="max-w-full max-h-[500px] object-contain"
               data-testid="file-preview-image"

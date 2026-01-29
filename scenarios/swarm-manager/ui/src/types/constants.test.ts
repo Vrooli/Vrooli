@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  IDEA_STATUS_COLORS,
+  BACKLOG_STATUS_COLORS,
   SCENARIO_STATUS_ICONS,
   SCENARIO_STATUS_COLORS,
-  formatIdeaStatus,
+  formatBacklogStatus,
 } from "./constants";
-import type { IdeaStatus, ScenarioStatus } from "./domain";
+import type { BacklogStatus, ScenarioStatus } from "./domain";
 
 /**
  * Constants module tests.
@@ -18,8 +18,8 @@ import type { IdeaStatus, ScenarioStatus } from "./domain";
  * [REQ:REQ-P0-008] Status display mappings for UI
  */
 describe("Constants - Decision Boundaries", () => {
-  // All possible idea statuses from the domain type
-  const ALL_IDEA_STATUSES: IdeaStatus[] = [
+  // All possible backlog statuses from the domain type
+  const ALL_BACKLOG_STATUSES: BacklogStatus[] = [
     "backlog",
     "researching",
     "ready",
@@ -37,16 +37,16 @@ describe("Constants - Decision Boundaries", () => {
     "unknown",
   ];
 
-  describe("IDEA_STATUS_COLORS", () => {
-    it("has a color mapping for every idea status", () => {
-      ALL_IDEA_STATUSES.forEach((status) => {
-        expect(IDEA_STATUS_COLORS[status]).toBeDefined();
-        expect(typeof IDEA_STATUS_COLORS[status]).toBe("string");
+  describe("BACKLOG_STATUS_COLORS", () => {
+    it("has a color mapping for every backlog status", () => {
+      ALL_BACKLOG_STATUSES.forEach((status) => {
+        expect(BACKLOG_STATUS_COLORS[status]).toBeDefined();
+        expect(typeof BACKLOG_STATUS_COLORS[status]).toBe("string");
       });
     });
 
     it("returns valid Tailwind background classes", () => {
-      Object.values(IDEA_STATUS_COLORS).forEach((color) => {
+      Object.values(BACKLOG_STATUS_COLORS).forEach((color) => {
         expect(color).toMatch(/^bg-/);
       });
     });
@@ -54,11 +54,11 @@ describe("Constants - Decision Boundaries", () => {
     it("uses distinct colors for different status meanings", () => {
       // Active/positive statuses should use distinct colors from inactive
       const activeColors = [
-        IDEA_STATUS_COLORS.researching,
-        IDEA_STATUS_COLORS.in_progress,
+        BACKLOG_STATUS_COLORS.researching,
+        BACKLOG_STATUS_COLORS.in_progress,
       ];
-      const completedColor = IDEA_STATUS_COLORS.completed;
-      const archivedColor = IDEA_STATUS_COLORS.archived;
+      const completedColor = BACKLOG_STATUS_COLORS.completed;
+      const archivedColor = BACKLOG_STATUS_COLORS.archived;
 
       // Completed should be visually different from archived
       expect(completedColor).not.toBe(archivedColor);
@@ -114,22 +114,22 @@ describe("Constants - Decision Boundaries", () => {
     });
   });
 
-  describe("formatIdeaStatus", () => {
+  describe("formatBacklogStatus", () => {
     it("converts underscores to spaces and capitalizes", () => {
-      expect(formatIdeaStatus("in_progress")).toBe("In progress");
+      expect(formatBacklogStatus("in_progress")).toBe("In progress");
     });
 
     it("capitalizes single-word statuses", () => {
-      expect(formatIdeaStatus("backlog")).toBe("Backlog");
-      expect(formatIdeaStatus("researching")).toBe("Researching");
+      expect(formatBacklogStatus("backlog")).toBe("Backlog");
+      expect(formatBacklogStatus("researching")).toBe("Researching");
     });
 
     it("formats all statuses without errors", () => {
-      ALL_IDEA_STATUSES.forEach((status) => {
-        expect(() => formatIdeaStatus(status)).not.toThrow();
-        expect(typeof formatIdeaStatus(status)).toBe("string");
+      ALL_BACKLOG_STATUSES.forEach((status) => {
+        expect(() => formatBacklogStatus(status)).not.toThrow();
+        expect(typeof formatBacklogStatus(status)).toBe("string");
         // All formatted statuses should start with uppercase
-        const formatted = formatIdeaStatus(status);
+        const formatted = formatBacklogStatus(status);
         expect(formatted.charAt(0)).toBe(formatted.charAt(0).toUpperCase());
       });
     });

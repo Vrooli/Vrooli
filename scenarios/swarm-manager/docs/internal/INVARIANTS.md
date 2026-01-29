@@ -16,37 +16,37 @@ Understanding how operations behave under retries is critical for building robus
 
 | Operation | Idempotent | Replay-Safe | Signal | Notes |
 |-----------|------------|-------------|--------|-------|
-| `GET /api/v1/ideas` | ✅ Yes | ✅ Yes | N/A | Read-only |
-| `GET /api/v1/ideas/{name}` | ✅ Yes | ✅ Yes | N/A | Read-only |
-| `POST /api/v1/ideas` | ❌ No | ✅ Yes | 409 Conflict | Duplicate name returns 409 |
-| `PUT /api/v1/ideas/{name}` | ⚠️ Partial | ✅ Yes | 200 OK | Same data, but `Updated` timestamp changes |
-| `DELETE /api/v1/ideas/{name}` | ✅ Yes | ✅ Yes | 204 No Content | Returns 204 whether resource exists or not |
+| `GET /api/v1/backlog` | ✅ Yes | ✅ Yes | N/A | Read-only |
+| `GET /api/v1/backlog/{kind}/{name}` | ✅ Yes | ✅ Yes | N/A | Read-only |
+| `POST /api/v1/backlog` | ❌ No | ✅ Yes | 409 Conflict | Duplicate name returns 409 |
+| `PUT /api/v1/backlog/{kind}/{name}` | ⚠️ Partial | ✅ Yes | 200 OK | Same data, but `Updated` timestamp changes |
+| `DELETE /api/v1/backlog/{kind}/{name}` | ✅ Yes | ✅ Yes | 204 No Content | Returns 204 whether resource exists or not |
 
 ### Operation Details
 
-#### Create (POST /api/v1/ideas)
+#### Create (POST /api/v1/backlog)
 
 **Idempotency Key**: `name` field (sanitized to folder-safe format)
 
 **Behavior under replay**:
-1. First call: Creates idea, returns 201 Created
+1. First call: Creates backlog item, returns 201 Created
 2. Subsequent calls: Returns 409 Conflict (resource exists)
 
-**Code location**: `api/internal/ideas/handler.go:123-187`
+**Code location**: `api/internal/backlog/handler.go:123-187`
 
 **Test coverage**: `TestCreate_ReplaySafe` in `handler_test.go`
 
 **Why this is safe**: The 409 response tells the client that the resource already exists. The client can then fetch the existing resource to get the created data. This pattern is superior to silently succeeding because it helps detect programming errors where duplicate creates might indicate a bug.
 
-#### Update (PUT /api/v1/ideas/{name})
+#### Update (PUT /api/v1/backlog/{kind}/{name})
 
 **Idempotency**: Partial - core data is idempotent, but `Updated` timestamp always changes
 
 **Behavior under replay**:
-1. First call: Updates idea, sets new `Updated` timestamp, returns 200 OK
+1. First call: Updates backlog item, sets new `Updated` timestamp, returns 200 OK
 2. Subsequent calls: Same data values, but `Updated` timestamp reflects latest call
 
-**Code location**: `api/internal/ideas/handler.go:189-229`
+**Code location**: `api/internal/backlog/handler.go:189-229`
 
 **Test coverage**: `TestUpdate_Idempotent` in `handler_test.go`
 
@@ -54,15 +54,15 @@ Understanding how operations behave under retries is critical for building robus
 
 **Future enhancement**: Consider adding ETag support for conditional updates.
 
-#### Delete (DELETE /api/v1/ideas/{name})
+#### Delete (DELETE /api/v1/backlog/{kind}/{name})
 
 **Idempotency**: ✅ Full - calling delete twice produces the same result
 
 **Behavior under replay**:
-1. First call: Removes idea if exists, returns 204 No Content
+1. First call: Removes backlog item if exists, returns 204 No Content
 2. Subsequent calls: Resource already gone, returns 204 No Content
 
-**Code location**: `api/internal/ideas/handler.go:231-254`
+**Code location**: `api/internal/backlog/handler.go:231-254`
 
 **Test coverage**: `TestDelete_Idempotent` in `handler_test.go`
 

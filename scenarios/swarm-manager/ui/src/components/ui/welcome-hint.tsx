@@ -62,7 +62,7 @@ export function WelcomeHint({ "data-testid": testId }: WelcomeHintProps) {
           <div className="flex flex-wrap gap-4 text-xs">
             <div className="flex items-center gap-2 text-slate-300">
               <Lightbulb className="h-3.5 w-3.5 text-cyan-400" />
-              <span><strong className="text-slate-300">Ideas</strong> - Track what to build</span>
+              <span><strong className="text-slate-300">Backlog</strong> - Track research, ideas, fixes, and execution</span>
             </div>
             <div className="flex items-center gap-2 text-slate-300">
               <Package className="h-3.5 w-3.5 text-cyan-400" />

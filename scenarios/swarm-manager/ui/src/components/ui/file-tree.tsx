@@ -2,27 +2,27 @@
  * FileTree Component
  *
  * Displays a hierarchical file tree with expandable directories.
- * Used in the idea details page to show the contents of an idea folder.
+ * Used in the backlog details page to show the contents of a backlog folder.
  *
- * [REQ:REQ-P0-004] File tree component for idea details page
+ * [REQ:REQ-P0-004] File tree component for backlog details page
  */
 
 import { useState } from "react";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen } from "lucide-react";
 import { cn, formatFileSize } from "../../lib";
-import type { IdeaFile } from "../../types";
+import type { BacklogFile } from "../../types";
 
 export interface FileTreeProps {
-  files: IdeaFile[];
-  onFileSelect?: (file: IdeaFile) => void;
+  files: BacklogFile[];
+  onFileSelect?: (file: BacklogFile) => void;
   selectedPath?: string;
   "data-testid"?: string;
 }
 
 export interface FileTreeItemProps {
-  file: IdeaFile;
+  file: BacklogFile;
   depth?: number;
-  onFileSelect?: (file: IdeaFile) => void;
+  onFileSelect?: (file: BacklogFile) => void;
   selectedPath?: string;
 }
 

@@ -36,7 +36,7 @@ export function IdeaSuggestionsPanel({
 
   if (parseError) {
     return (
-      <Card padding="lg" data-testid={selectors.ideaDetails.suggestionsPanel}>
+      <Card padding="lg" data-testid={selectors.backlogDetails.suggestionsPanel}>
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <Sparkles className="h-4 w-4 text-cyan-400" />
           Suggestions Review
@@ -51,7 +51,7 @@ export function IdeaSuggestionsPanel({
   const hasPending = localSuggestions.some((item) => (item.status ?? "pending") === "pending");
 
   return (
-    <Card padding="lg" data-testid={selectors.ideaDetails.suggestionsPanel}>
+    <Card padding="lg" data-testid={selectors.backlogDetails.suggestionsPanel}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
@@ -131,7 +131,7 @@ export function IdeaSuggestionsPanel({
         <Button
           onClick={() => onSubmit(localSuggestions)}
           disabled={isSubmitting || !hasSuggestions || hasPending}
-          data-testid={selectors.ideaDetails.suggestionsSubmit}
+          data-testid={selectors.backlogDetails.suggestionsSubmit}
         >
           {isSubmitting ? "Submitting..." : "Save Decisions & Run Enhance"}
         </Button>

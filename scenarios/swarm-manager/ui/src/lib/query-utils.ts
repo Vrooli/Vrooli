@@ -25,8 +25,8 @@ import { dataFetchingConfig } from "../config";
  * @example
  * ```tsx
  * const { data } = useQuery({
- *   queryKey: ["ideas"],
- *   queryFn: () => ideasService.list(),
+ *   queryKey: ["backlog"],
+ *   queryFn: () => backlogService.list(),
  *   ...defaultQueryOptions,
  * });
  * ```

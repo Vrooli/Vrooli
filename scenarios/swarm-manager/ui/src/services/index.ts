@@ -10,9 +10,9 @@
  * - Use factory functions (createXxxService) to inject mock clients in tests
  */
 
-// Ideas
-export { ideasService, createIdeasService } from "./ideas-service";
-export type { IIdeasService } from "./ideas-service";
+// Backlog
+export { backlogService, createBacklogService } from "./backlog-service";
+export type { IBacklogService } from "./backlog-service";
 
 // Scenarios
 export { scenariosService, createScenariosService } from "./scenarios-service";

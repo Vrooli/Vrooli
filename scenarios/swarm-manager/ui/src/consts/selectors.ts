@@ -78,80 +78,84 @@ export const literalSelectors = {
   },
   // Desktop tab selectors
   tabs: {
-    ideas: "tab-ideas",
+    backlog: "tab-backlog",
     scenarios: "tab-scenarios",
     recommendations: "tab-recommendations",
     settings: "tab-settings",
   },
   // Mobile tab selectors
   mobileTabs: {
-    ideas: "mobile-tab-ideas",
+    backlog: "mobile-tab-backlog",
     scenarios: "mobile-tab-scenarios",
     recommendations: "mobile-tab-recommendations",
     settings: "mobile-tab-settings",
   },
-  // Ideas page selectors
-  ideas: {
-    page: "ideas-page",
-    search: "ideas-search",
-    filter: "ideas-filter",
-    createButton: "create-idea",
-    createFirstButton: "create-first-idea",
-    empty: "ideas-empty",
-    grid: "ideas-grid",
-    noResults: "ideas-no-results",
+  // Backlog page selectors
+  backlog: {
+    page: "backlog-page",
+    search: "backlog-search",
+    filter: "backlog-filter",
+    createButton: "create-backlog",
+    createFirstButton: "create-first-backlog",
+    empty: "backlog-empty",
+    grid: "backlog-grid",
+    noResults: "backlog-no-results",
     // Experience architecture additions (Phase 29)
-    continueSection: "ideas-continue-section",
-    continueList: "ideas-continue-list",
-    summaryStats: "ideas-summary-stats",
-    readyCount: "ideas-ready-count",
-    cliHint: "ideas-cli-hint",
+    continueSection: "backlog-continue-section",
+    continueList: "backlog-continue-list",
+    summaryStats: "backlog-summary-stats",
+    readyCount: "backlog-ready-count",
+    cliHint: "backlog-cli-hint",
     // Iteration 5 additions
-    statusLegend: "ideas-status-legend",
-    welcomeHint: "ideas-welcome-hint",
+    statusLegend: "backlog-status-legend",
+    welcomeHint: "backlog-welcome-hint",
+    kindTabs: "backlog-kind-tabs",
   },
-  // Idea details page selectors
-  ideaDetails: {
-    page: "idea-details-page",
-    header: "idea-details-header",
-    title: "idea-details-title",
-    description: "idea-details-description",
-    backButton: "idea-details-back",
-    editButton: "idea-details-edit",
-    deleteButton: "idea-details-delete",
-    queueButton: "idea-details-queue",
-    agentButton: "idea-details-agent",
-    deleteDialog: "idea-delete-dialog",
-    deleteConfirmButton: "idea-delete-confirm",
-    deleteCancelButton: "idea-delete-cancel",
-    fileTree: "idea-details-file-tree",
-    filePreview: "idea-details-file-preview",
-    fileUpload: "idea-details-file-upload",
+  // Backlog details page selectors
+  backlogDetails: {
+    page: "backlog-details-page",
+    header: "backlog-details-header",
+    title: "backlog-details-title",
+    description: "backlog-details-description",
+    backButton: "backlog-details-back",
+    editButton: "backlog-details-edit",
+    deleteButton: "backlog-details-delete",
+    queueButton: "backlog-details-queue",
+    agentButton: "backlog-details-agent",
+    convertButton: "backlog-details-convert",
+    deleteDialog: "backlog-delete-dialog",
+    deleteConfirmButton: "backlog-delete-confirm",
+    deleteCancelButton: "backlog-delete-cancel",
+    fileTree: "backlog-details-file-tree",
+    filePreview: "backlog-details-file-preview",
+    fileUpload: "backlog-details-file-upload",
     uploadDropzone: "file-upload-dropzone",
     uploadList: "file-upload-list",
-    clarifyPanel: "idea-clarify-panel",
-    clarifyNextMode: "idea-clarify-next-mode",
-    clarifySubmit: "idea-clarify-submit",
-    suggestionsPanel: "idea-suggestions-panel",
-    suggestionsSubmit: "idea-suggestions-submit",
+    clarifyPanel: "backlog-clarify-panel",
+    clarifyNextMode: "backlog-clarify-next-mode",
+    clarifySubmit: "backlog-clarify-submit",
+    suggestionsPanel: "backlog-suggestions-panel",
+    suggestionsSubmit: "backlog-suggestions-submit",
     // Experience architecture additions (Phase 29)
-    breadcrumb: "idea-details-breadcrumb",
+    breadcrumb: "backlog-details-breadcrumb",
   },
-  // Idea form dialog selectors
-  ideaForm: {
-    dialog: "idea-form-dialog",
-    titleInput: "idea-form-title",
-    nameInput: "idea-form-name",
-    descriptionInput: "idea-form-description",
-    statusSelect: "idea-form-status",
-    priorityInput: "idea-form-priority",
-    tagsInput: "idea-form-tags",
-    submitButton: "idea-form-submit",
-    cancelButton: "idea-form-cancel",
-    agentDialog: "idea-agent-dialog",
-    agentMode: "idea-agent-mode",
-    agentContext: "idea-agent-context",
-    agentSubmit: "idea-agent-submit",
+  // Backlog form dialog selectors
+  backlogForm: {
+    dialog: "backlog-form-dialog",
+    titleInput: "backlog-form-title",
+    nameInput: "backlog-form-name",
+    descriptionInput: "backlog-form-description",
+    statusSelect: "backlog-form-status",
+    priorityInput: "backlog-form-priority",
+    tagsInput: "backlog-form-tags",
+    kindSelect: "backlog-form-kind",
+    researchTargetSelect: "backlog-form-research-target",
+    submitButton: "backlog-form-submit",
+    cancelButton: "backlog-form-cancel",
+    agentDialog: "backlog-agent-dialog",
+    agentMode: "backlog-agent-mode",
+    agentContext: "backlog-agent-context",
+    agentSubmit: "backlog-agent-submit",
   },
   // Scenarios page selectors
   scenarios: {
@@ -254,11 +258,14 @@ const defineDynamicSelector = <P extends ParamSchema | undefined>(
 
 // Dynamic selector definitions (used for manifest generation)
 export const dynamicSelectorDefinitions = {
-  ideas: {
+  backlog: {
     cardByName: defineDynamicSelector({
-      description: "Idea card filtered by name",
-      testIdPattern: "idea-card-${name}",
-      params: { name: { type: "string" } },
+      description: "Backlog card filtered by kind and name",
+      testIdPattern: "backlog-card-${kind}-${name}",
+      params: {
+        kind: { type: "enum", values: ["idea", "research", "fix", "execute"] },
+        name: { type: "string" },
+      },
     }),
   },
   scenarios: {
@@ -300,9 +307,9 @@ export const dynamicSelectorDefinitions = {
  * Dynamic selectors - functions that generate test IDs from parameters
  */
 export const dynamicSelectors = {
-  ideas: {
-    cardByName: (params: { name: string }) =>
-      formatTemplate("idea-card-${name}", params, "ideas.cardByName"),
+  backlog: {
+    cardByName: (params: { kind: string; name: string }) =>
+      formatTemplate("backlog-card-${kind}-${name}", params, "backlog.cardByName"),
   },
   scenarios: {
     cardByName: (params: { name: string }) =>
@@ -329,14 +336,14 @@ export const dynamicSelectors = {
  * This is the primary export for UI components.
  *
  * Usage:
- * - Literal: selectors.ideas.page
- * - Dynamic: selectors.ideas.cardByName({ name: "my-idea" })
+ * - Literal: selectors.backlog.page
+ * - Dynamic: selectors.backlog.cardByName({ kind: "idea", name: "my-idea" })
  */
 export const selectors = {
   ...literalSelectors,
-  ideas: {
-    ...literalSelectors.ideas,
-    ...dynamicSelectors.ideas,
+  backlog: {
+    ...literalSelectors.backlog,
+    ...dynamicSelectors.backlog,
   },
   scenarios: {
     ...literalSelectors.scenarios,

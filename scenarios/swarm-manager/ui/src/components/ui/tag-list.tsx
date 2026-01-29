@@ -5,7 +5,7 @@
  * and displays a "+X more" indicator when there are additional tags.
  *
  * This component eliminates duplicate tag truncation logic across pages
- * (IdeasPage, ScenariosPage) by providing a single, reusable implementation.
+ * (BacklogPage, ScenariosPage) by providing a single, reusable implementation.
  */
 
 interface TagListProps {

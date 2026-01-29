@@ -24,6 +24,7 @@ type Service interface {
 	ResolveURL(ctx context.Context) (string, error)
 	GetProfileID() string
 
+	SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error)
 	SpawnResearch(ctx context.Context, req ResearchSpawnRequest) (RunResult, error)
 	SpawnRecommendation(ctx context.Context, req RecommendationSpawnRequest) (RunResult, error)
 }
@@ -208,6 +209,19 @@ type ResearchSpawnRequest struct {
 	Mode        string
 }
 
+// BacklogSpawnRequest describes a request to spawn a backlog agent.
+type BacklogSpawnRequest struct {
+	Kind        string
+	Name        string
+	Title       string
+	Description string
+	Prompt      string
+	ScopePath   string
+	ProjectRoot string
+	CreatedBy   string
+	Purpose     string
+}
+
 // RecommendationSpawnRequest describes a request to spawn a recommendation agent.
 type RecommendationSpawnRequest struct {
 	RecommendationID string
@@ -363,6 +377,71 @@ func (s *AgentService) SpawnRecommendation(ctx context.Context, req Recommendati
 	}, nil
 }
 
+// SpawnBacklog creates a backlog task/run in agent-manager.
+func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest) (RunResult, error) {
+	if !s.enabled {
+		return RunResult{}, ErrNotAvailable
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = buildBacklogTitle(req.Kind, req.Name, req.Purpose)
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		scopePath = "."
+	}
+
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	task := &domainpb.Task{
+		Title:       title,
+		Description: strings.TrimSpace(req.Description),
+		ScopePath:   scopePath,
+		ProjectRoot: projectRoot,
+		CreatedBy:   createdBy,
+	}
+
+	createdTask, err := s.client.CreateTask(ctx, task)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	tag := buildBacklogTag(req.Kind, req.Name, req.Purpose)
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		Force:      true,
+	}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		runReq.Prompt = &prompt
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	baseURL, _ := s.ResolveURL(ctx)
+
+	return RunResult{
+		TaskID:    createdTask.Id,
+		RunID:     run.Id,
+		BaseURL:   baseURL,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
 func buildResearchTag(ideaName string) string {
 	ideaName = strings.TrimSpace(ideaName)
 	if ideaName == "" {
@@ -386,6 +465,46 @@ func buildResearchTitle(mode, ideaName string) string {
 	default:
 		return "Research idea: " + label
 	}
+}
+
+func buildBacklogTag(kind, name, purpose string) string {
+	kind = strings.TrimSpace(kind)
+	name = strings.TrimSpace(name)
+	purpose = strings.TrimSpace(purpose)
+	if kind == "" {
+		kind = "backlog"
+	}
+	tag := fmt.Sprintf("swarm-manager:backlog:%s", kind)
+	if name != "" {
+		tag = fmt.Sprintf("%s:%s", tag, name)
+	}
+	if purpose != "" {
+		tag = fmt.Sprintf("%s:%s", tag, purpose)
+	}
+	return tag
+}
+
+func buildBacklogTitle(kind, name, purpose string) string {
+	label := strings.TrimSpace(name)
+	if label == "" {
+		label = "backlog item"
+	}
+	if strings.TrimSpace(purpose) != "" {
+		return fmt.Sprintf("%s: %s", capitalizeLabel(strings.TrimSpace(purpose)), label)
+	}
+	if strings.TrimSpace(kind) != "" {
+		return fmt.Sprintf("Backlog %s: %s", strings.TrimSpace(kind), label)
+	}
+	return "Backlog item: " + label
+}
+
+func capitalizeLabel(value string) string {
+	if value == "" {
+		return value
+	}
+	runes := []rune(value)
+	runes[0] = []rune(strings.ToUpper(string(runes[0])))[0]
+	return string(runes)
 }
 
 func buildRecommendationTag(recID string) string {

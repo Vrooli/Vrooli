@@ -130,7 +130,7 @@ function getErrorDisplay(variant: ErrorVariant, error?: Error | null): ErrorDisp
  * // Override with custom messaging
  * <ErrorState
  *   variant="network"
- *   title="Can't load ideas"
+ *   title="Can't load backlog"
  *   message="Check your connection and try again."
  *   onRetry={refetch}
  * />

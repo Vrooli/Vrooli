@@ -9,8 +9,8 @@ for, and when should it change?"
 Swarm Manager is the **central command center** for the Vrooli scenario ecosystem.
 It provides a unified interface for:
 
-1. **Idea Management** - Track proposals for new scenarios from initial concept to
-   implementation readiness
+1. **Backlog Management** - Track research, ideas, fixes, and execution tasks from
+   initial capture to ready-for-processing
 2. **Scenario Catalog** - View and manage all deployed scenarios with status,
    priority, and completeness information
 3. **Recommendations** - Surface system-generated improvement suggestions with
@@ -30,11 +30,11 @@ Swarm Manager does NOT implement business logic directly. Instead, it:
 This design prevents duplication and ensures all scenario operations go through
 proper lifecycle management.
 
-### Git-Tracked Ideas
+### Git-Tracked Backlog
 
-Ideas are stored as folders in `scenarios/swarm-manager/ideas/` with a `spec.json`
-file and optional context files (notes, mockups, research). This design:
-- Provides version control for idea evolution
+Backlog items are stored as folders in `scenarios/swarm-manager/{ideas,research,fix,execute}/`
+with a `spec.json` file and optional context files. This design:
+- Provides version control for backlog evolution
 - Allows offline editing and review
 - Integrates with existing Git workflows
 
@@ -54,8 +54,8 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `pages/` | Page-level layout and user interaction | Data fetching (uses services) | [CODE: ui/src/pages/IdeasPage.tsx] |
-| `services/` | API communication, request/response handling | HTTP implementation (uses api-client) | [CODE: ui/src/services/ideas-service.ts] |
+| `pages/` | Page-level layout and user interaction | Data fetching (uses services) | [CODE: ui/src/pages/BacklogPage.tsx] |
+| `services/` | API communication, request/response handling | HTTP implementation (uses api-client) | [CODE: ui/src/services/backlog-service.ts] |
 | `lib/api-client.ts` | HTTP transport, error handling | Domain logic, UI state | [CODE: ui/src/lib/api-client.ts] |
 | `config/` | Tunable settings with validated defaults | Implementation details | [CODE: ui/src/config/index.ts] |
 | `types/` | Domain type definitions and constants | Presentation logic | [CODE: ui/src/types/domain.ts] |
@@ -64,7 +64,7 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 | Module | Responsibility | NOT Responsible For | Code Reference |
 |--------|---------------|---------------------|----------------|
-| `main.go` | Server setup, routes, filesystem persistence for ideas/settings/queue/recommendations; CLI-sourced scenario inventory | Business logic (delegated) | [CODE: api/main.go] |
+| `main.go` | Server setup, routes, filesystem persistence for backlog/settings/queue/recommendations; CLI-sourced scenario inventory | Business logic (delegated) | [CODE: api/main.go] |
 | Health handler | Readiness/liveness checks | Domain operations | [CODE: api/main.go:69] |
 
 ### CLI Components
@@ -76,12 +76,12 @@ All three surfaces share the same domain logic and provide consistent behavior.
 
 ## Key Flows
 
-### Flow 1: Viewing Ideas
+### Flow 1: Viewing the Backlog
 
 ```
-User → IdeasPage → ideasService.list() → ApiClient.get() → API /ideas → Filesystem
+User → BacklogPage → backlogService.list() → ApiClient.get() → API /backlog → Filesystem
                                                                   ↓
-User ← IdeasPage (render) ← useQuery ← Promise<Idea[]> ←──────────┘
+User ← BacklogPage (render) ← useQuery ← Promise<BacklogItem[]> ←──────────┘
 ```
 
 **Key invariant**: If the API fails, the UI shows ErrorState (not empty state).
@@ -110,7 +110,7 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 
 | Scenario | Action | Code Reference |
 |----------|--------|----------------|
-| Need to add new idea status | Update `IdeaStatus` type in `types/domain.ts` | [CODE: ui/src/types/domain.ts#IdeaStatus] |
+| Need to add new backlog status | Update `BacklogStatus` type in `types/domain.ts` | [CODE: ui/src/types/domain.ts#BacklogStatus] |
 | Need to add new scenario field | Update `Scenario` type, API response, and UI | [CODE: ui/src/types/domain.ts#Scenario] |
 | Need to change error behavior | Update `error-utils.ts` and `ERROR-SEMANTICS.md` | [CODE: ui/src/lib/error-utils.ts] |
 | Need to add API endpoint | Add route in `api/main.go`, update services | [CODE: api/main.go#setupRoutes] |
@@ -131,12 +131,12 @@ User ← formatted output ← healthResponse ← JSON ←───────�
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| UI - Ideas Page | Wired | List + create dialog + details + queue/research |
+| UI - Backlog Page | Wired | List + create dialog + details + queue/research/convert |
 | UI - Scenarios Page | Wired | List, filters, metadata updates, delete |
 | UI - Recommendations Page | Wired | List + refresh + update status + empty states |
 | UI - Settings Page | Wired | Settings persistence via API |
-| API | Active | Ideas/scenarios/settings/recommendations/queue + health |
-| CLI | Wired | Ideas + scenarios + recommendations + settings + queue |
+| API | Active | Backlog/scenarios/settings/recommendations/queue + health |
+| CLI | Wired | Backlog + scenarios + recommendations + settings + queue |
 
 For detailed progress, see `docs/PROGRESS.md`.
 

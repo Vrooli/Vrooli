@@ -2,7 +2,7 @@
   "$schema": "../../../.vrooli/schemas/docs-manifest.schema.json",
   "version": "1.0.0",
   "scenario": "swarm-manager",
-  "generated_at": "2026-01-28T00:30:00-05:00",
+  "generated_at": "2026-01-29T00:30:00-05:00",
   "navigation": {
     "title": "Swarm Manager Documentation",
     "items": [
@@ -98,7 +98,7 @@
     ]
   },
   "health": {
-    "last_audit": "2026-01-28",
+    "last_audit": "2026-01-29",
     "mental_model_documented": true,
     "architecture_documented": true,
     "seams_documented": true,

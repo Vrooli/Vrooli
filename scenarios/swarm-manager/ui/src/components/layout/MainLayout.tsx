@@ -5,7 +5,7 @@ import { Lightbulb, Package, Zap, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { applyTheme, cn, defaultQueryOptions, watchSystemTheme, type ResolvedTheme } from "../../lib";
 import { settingsService } from "../../services";
-import { useIdeasStore, useRecommendationsStore, useScenariosStore } from "../../stores";
+import { useBacklogStore, useRecommendationsStore, useScenariosStore } from "../../stores";
 
 interface TabConfig {
   id: string;
@@ -19,7 +19,7 @@ interface TabConfig {
 }
 
 const tabs: TabConfig[] = [
-  { id: "ideas", label: "Ideas", icon: Lightbulb, path: "/ideas", testId: selectors.tabs.ideas, mobileTestId: selectors.mobileTabs.ideas, shortcut: "1" },
+  { id: "backlog", label: "Backlog", icon: Lightbulb, path: "/backlog", testId: selectors.tabs.backlog, mobileTestId: selectors.mobileTabs.backlog, shortcut: "1" },
   { id: "scenarios", label: "Scenarios", icon: Package, path: "/scenarios", testId: selectors.tabs.scenarios, mobileTestId: selectors.mobileTabs.scenarios, shortcut: "2" },
   { id: "recommendations", label: "Recommendations", icon: Zap, path: "/recommendations", testId: selectors.tabs.recommendations, mobileTestId: selectors.mobileTabs.recommendations, shortcut: "3" },
   { id: "settings", label: "Settings", icon: Settings, path: "/settings", testId: selectors.tabs.settings, mobileTestId: selectors.mobileTabs.settings, shortcut: "4" },
@@ -37,7 +37,7 @@ export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
-  const fetchIdeas = useIdeasStore((state) => state.fetchIdeas);
+  const fetchBacklog = useBacklogStore((state) => state.fetchBacklog);
   const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
   const fetchRecommendations = useRecommendationsStore((state) => state.fetchRecommendations);
 
@@ -47,10 +47,10 @@ export function MainLayout() {
     ...defaultQueryOptions,
   });
 
-  const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "ideas";
+  const activeTab = tabs.find(tab => location.pathname.startsWith(tab.path))?.id || "backlog";
 
   // Keyboard navigation handler for power users
-  // Shortcuts: 1=Ideas, 2=Scenarios, 3=Recommendations, 4=Settings
+  // Shortcuts: 1=Backlog, 2=Scenarios, 3=Recommendations, 4=Settings
   const handleKeyboardNav = useCallback((event: KeyboardEvent) => {
     // Don't intercept when user is typing in an input, textarea, or contenteditable
     const target = event.target as HTMLElement;
@@ -75,10 +75,10 @@ export function MainLayout() {
   }, [handleKeyboardNav]);
 
   useEffect(() => {
-    void fetchIdeas();
+    void fetchBacklog();
     void fetchScenarios();
     void fetchRecommendations();
-  }, [fetchIdeas, fetchScenarios, fetchRecommendations]);
+  }, [fetchBacklog, fetchScenarios, fetchRecommendations]);
 
   useEffect(() => {
     const theme = settings?.theme ?? "dark";

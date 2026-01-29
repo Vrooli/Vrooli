@@ -51,7 +51,7 @@ export function IdeaClarifyPanel({
 
   if (parseError) {
     return (
-      <Card padding="lg" data-testid={selectors.ideaDetails.clarifyPanel}>
+      <Card padding="lg" data-testid={selectors.backlogDetails.clarifyPanel}>
         <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
           <MessageSquareText className="h-4 w-4 text-cyan-400" />
           Clarify Questions
@@ -63,7 +63,7 @@ export function IdeaClarifyPanel({
   }
 
   return (
-    <Card padding="lg" data-testid={selectors.ideaDetails.clarifyPanel}>
+    <Card padding="lg" data-testid={selectors.backlogDetails.clarifyPanel}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
@@ -111,7 +111,7 @@ export function IdeaClarifyPanel({
         <label htmlFor="clarify-next-mode" className="text-sm font-medium text-slate-200">
           Next agent
         </label>
-        <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.ideaDetails.clarifyNextMode}>
+        <div className="mt-2 flex flex-wrap gap-2" data-testid={selectors.backlogDetails.clarifyNextMode}>
           {NEXT_MODE_OPTIONS.map((option) => (
             <button
               key={option.value}
@@ -146,7 +146,7 @@ export function IdeaClarifyPanel({
         <Button
           onClick={() => onSubmit({ questions: localQuestions, nextMode })}
           disabled={isSubmitting || !hasQuestions || hasUnanswered}
-          data-testid={selectors.ideaDetails.clarifySubmit}
+          data-testid={selectors.backlogDetails.clarifySubmit}
         >
           {isSubmitting ? "Submitting..." : `Save Answers & Run ${nextMode === "suggest" ? "Suggest" : "Enhance"}`}
         </Button>

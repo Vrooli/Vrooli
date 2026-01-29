@@ -2,23 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
-import { IdeasPage } from "./IdeasPage";
-import { useIdeasStore } from "../stores";
+import { BacklogPage } from "./BacklogPage";
+import { useBacklogStore } from "../stores";
 
-/**
- * Mock the config module for testing.
- * This allows tests to control configuration values without retries.
- */
 vi.mock("../config", () => ({
   dataFetchingConfig: {
-    retryCount: 0, // Disable retries for faster test failures
+    retryCount: 0,
     retryDelayMs: 0,
     staleTimeMs: 0,
     cacheTimeMs: 0,
     refetchOnWindowFocus: false,
   },
   displayLimitsConfig: {
-    ideaCardMaxTags: 3,
+    backlogCardMaxTags: 3,
     scenarioCardMaxTags: 5,
     descriptionLineClamp: 2,
     defaultPageSize: 20,
@@ -29,13 +25,8 @@ vi.mock("../config", () => ({
   },
 }));
 
-/**
- * Mock the services layer - this is the seam we use for testing.
- * By mocking at the service level instead of the raw API client,
- * tests are more focused on behavior and less coupled to HTTP details.
- */
 vi.mock("../services", () => ({
-  ideasService: {
+  backlogService: {
     list: vi.fn(),
     get: vi.fn(),
     create: vi.fn(),
@@ -44,10 +35,9 @@ vi.mock("../services", () => ({
   },
 }));
 
-import { ideasService } from "../services";
+import { backlogService } from "../services";
 
-// [REQ:MOD-P0-001] Test ideas UI components
-describe("IdeasPage", () => {
+describe("BacklogPage", () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
@@ -59,46 +49,43 @@ describe("IdeasPage", () => {
       },
     });
     vi.clearAllMocks();
-    useIdeasStore.getState().reset();
+    useBacklogStore.getState().reset();
   });
 
   const renderPage = () => {
     return render(
       <MemoryRouter>
         <QueryClientProvider client={queryClient}>
-          <IdeasPage />
+          <BacklogPage />
         </QueryClientProvider>
       </MemoryRouter>
     );
   };
 
-  // [REQ:REQ-P0-003a] Test ideas list UI renders correctly
-  it("renders the ideas page with search and create button", () => {
-    vi.mocked(ideasService.list).mockResolvedValue([]);
+  it("renders the backlog page with search and create button", () => {
+    vi.mocked(backlogService.list).mockResolvedValue([]);
     renderPage();
 
-    expect(screen.getByTestId("ideas-page")).toBeInTheDocument();
-    expect(screen.getByTestId("ideas-search")).toBeInTheDocument();
-    expect(screen.getByTestId("create-idea")).toBeInTheDocument();
-    expect(screen.getByTestId("ideas-filter")).toBeInTheDocument();
+    expect(screen.getByTestId("backlog-page")).toBeInTheDocument();
+    expect(screen.getByTestId("backlog-search")).toBeInTheDocument();
+    expect(screen.getByTestId("create-backlog")).toBeInTheDocument();
+    expect(screen.getByTestId("backlog-filter")).toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-003a] Test empty state when no ideas exist
-  it("shows empty state when no ideas exist", async () => {
-    vi.mocked(ideasService.list).mockResolvedValue([]);
+  it("shows empty state when no backlog items exist", async () => {
+    vi.mocked(backlogService.list).mockResolvedValue([]);
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("ideas-empty")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-empty")).toBeInTheDocument();
     });
 
     expect(screen.getByText("No ideas yet")).toBeInTheDocument();
-    expect(screen.getByTestId("create-first-idea")).toBeInTheDocument();
+    expect(screen.getByTestId("create-first-backlog")).toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-003a] Test idea cards display correctly
-  it("renders idea cards with correct data", async () => {
-    const mockIdeas = [
+  it("renders backlog cards with correct data", async () => {
+    const mockItems = [
       {
         name: "test-idea",
         title: "Test Idea",
@@ -108,18 +95,16 @@ describe("IdeasPage", () => {
         tags: ["test", "automation"],
         created: "2026-01-28T00:00:00Z",
         updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
       },
     ];
-    vi.mocked(ideasService.list).mockResolvedValue(mockIdeas);
+    vi.mocked(backlogService.list).mockResolvedValue(mockItems);
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByTestId("ideas-grid")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-grid")).toBeInTheDocument();
     });
 
-    // Note: with Continue Working section (Phase 29), non-completed ideas appear in both
-    // the Continue Working section and the All Ideas grid. Use getAllByText for text that
-    // appears in both places, getByText for unique elements (like priority and tags).
     const titleElements = screen.getAllByText("Test Idea");
     expect(titleElements.length).toBeGreaterThanOrEqual(1);
     const descElements = screen.getAllByText("A test idea description");
@@ -129,9 +114,8 @@ describe("IdeasPage", () => {
     expect(screen.getByText("automation")).toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-003a] Test idea status colors display
   it("displays correct status indicator", async () => {
-    const mockIdeas = [
+    const mockItems = [
       {
         name: "ready-idea",
         title: "Ready Idea",
@@ -141,46 +125,40 @@ describe("IdeasPage", () => {
         tags: [],
         created: "2026-01-28T00:00:00Z",
         updated: "2026-01-28T00:00:00Z",
+        kind: "idea" as const,
       },
     ];
-    vi.mocked(ideasService.list).mockResolvedValue(mockIdeas);
+    vi.mocked(backlogService.list).mockResolvedValue(mockItems);
     renderPage();
 
     await waitFor(() => {
-      // formatIdeaStatus now capitalizes status text (displayed as uppercase via CSS)
       expect(screen.getByText("Ready")).toBeInTheDocument();
     });
   });
 
-  // [REQ:REQ-P0-003a] Test loading state
-  it("shows loading state while fetching ideas", async () => {
-    vi.mocked(ideasService.list).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
+  it("shows loading state while fetching backlog", async () => {
+    vi.mocked(backlogService.list).mockImplementation(() => new Promise(() => {}));
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Loading ideas...")).toBeInTheDocument();
+      expect(screen.getByText("Loading backlog...")).toBeInTheDocument();
     });
   });
 
-  // [REQ:REQ-P0-003a] Test error state shows ErrorState component (not empty state)
   it("shows error state when API fails", async () => {
-    vi.mocked(ideasService.list).mockRejectedValue(new Error("API error"));
+    vi.mocked(backlogService.list).mockRejectedValue(new Error("API error"));
     renderPage();
 
     await waitFor(() => {
       expect(screen.getByTestId("error-state")).toBeInTheDocument();
     });
 
-    // Error state should show user-friendly message, not "No ideas yet"
-    expect(screen.getByText("Unable to load ideas")).toBeInTheDocument();
+    expect(screen.getByText("Unable to load backlog")).toBeInTheDocument();
     expect(screen.queryByText("No ideas yet")).not.toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-003a] Test error state has retry button
   it("shows retry button on error state", async () => {
-    vi.mocked(ideasService.list).mockRejectedValue(new Error("Network error"));
+    vi.mocked(backlogService.list).mockRejectedValue(new Error("Network error"));
     renderPage();
 
     await waitFor(() => {
@@ -190,10 +168,8 @@ describe("IdeasPage", () => {
     expect(screen.getByText("Try again")).toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-003a] Test retry button triggers refetch
   it("retry button triggers refetch", async () => {
-    // First call fails, second succeeds
-    vi.mocked(ideasService.list)
+    vi.mocked(backlogService.list)
       .mockRejectedValueOnce(new Error("Network error"))
       .mockResolvedValueOnce([]);
 
@@ -203,14 +179,12 @@ describe("IdeasPage", () => {
       expect(screen.getByTestId("error-state")).toBeInTheDocument();
     });
 
-    // Click retry
     fireEvent.click(screen.getByTestId("error-retry"));
 
-    // Should refetch and show empty state (not error state)
     await waitFor(() => {
-      expect(screen.getByTestId("ideas-empty")).toBeInTheDocument();
+      expect(screen.getByTestId("backlog-empty")).toBeInTheDocument();
     });
 
-    expect(ideasService.list).toHaveBeenCalledTimes(2);
+    expect(backlogService.list).toHaveBeenCalledTimes(2);
   });
 });

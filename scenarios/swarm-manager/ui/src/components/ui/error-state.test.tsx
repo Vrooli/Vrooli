@@ -136,11 +136,11 @@ describe("ErrorState", () => {
       const error = new ApiError("network", "Failed to fetch");
 
       render(
-        <ErrorState error={error} title="Unable to load ideas" />
+        <ErrorState error={error} title="Unable to load backlog" />
       );
 
       expect(screen.getByTestId(selectors.error.title)).toHaveTextContent(
-        "Unable to load ideas"
+        "Unable to load backlog"
       );
     });
 

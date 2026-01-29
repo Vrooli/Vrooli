@@ -43,7 +43,7 @@ describe("MainLayout", () => {
     });
   });
 
-  const renderWithRouter = (initialRoute = "/ideas") => {
+  const renderWithRouter = (initialRoute = "/backlog") => {
     return render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={[initialRoute]}>
@@ -61,7 +61,7 @@ describe("MainLayout", () => {
     expect(screen.getByTestId("desktop-tabs")).toBeInTheDocument();
 
     // Check all tabs exist
-    expect(screen.getByTestId("tab-ideas")).toBeInTheDocument();
+    expect(screen.getByTestId("tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("tab-scenarios")).toBeInTheDocument();
     expect(screen.getByTestId("tab-recommendations")).toBeInTheDocument();
     expect(screen.getByTestId("tab-settings")).toBeInTheDocument();
@@ -74,18 +74,18 @@ describe("MainLayout", () => {
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
 
     // Check all mobile tabs exist
-    expect(screen.getByTestId("mobile-tab-ideas")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-tab-backlog")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-scenarios")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-recommendations")).toBeInTheDocument();
     expect(screen.getByTestId("mobile-tab-settings")).toBeInTheDocument();
   });
 
-  // [REQ:REQ-P0-009] Test active tab highlighting on ideas page
-  it("highlights Ideas tab when on /ideas route", () => {
-    renderWithRouter("/ideas");
+  // [REQ:REQ-P0-009] Test active tab highlighting on backlog page
+  it("highlights Backlog tab when on /backlog route", () => {
+    renderWithRouter("/backlog");
 
-    const ideasTab = screen.getByTestId("tab-ideas");
-    expect(ideasTab).toHaveClass("text-cyan-400");
+    const backlogTab = screen.getByTestId("tab-backlog");
+    expect(backlogTab).toHaveClass("text-cyan-400");
   });
 
   // [REQ:REQ-P0-009] Test active tab highlighting on scenarios page
@@ -98,7 +98,7 @@ describe("MainLayout", () => {
 
   // [REQ:REQ-P0-009] Test tab click navigation
   it("navigates when clicking desktop tabs", () => {
-    renderWithRouter("/ideas");
+    renderWithRouter("/backlog");
 
     const scenariosTab = screen.getByTestId("tab-scenarios");
     fireEvent.click(scenariosTab);
@@ -109,7 +109,7 @@ describe("MainLayout", () => {
 
   // [REQ:REQ-P0-009] Test mobile tab click navigation
   it("navigates when clicking mobile tabs", () => {
-    renderWithRouter("/ideas");
+    renderWithRouter("/backlog");
 
     const mobileSettingsTab = screen.getByTestId("mobile-tab-settings");
     fireEvent.click(mobileSettingsTab);

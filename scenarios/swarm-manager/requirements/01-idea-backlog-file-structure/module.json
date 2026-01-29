@@ -1,42 +1,42 @@
 {
-  "description": "Git-tracked folder-per-idea with spec.json + context files in scenarios/swarm-manager/ideas/",
+  "description": "Git-tracked folder-per-item with spec.json + context files in scenarios/swarm-manager/{ideas,research,fix,execute}/",
   "module_id": "MOD-P0-001",
   "prd_ref": "OT-P0-001",
   "priority": "P0",
   "requirements": [
     {
       "category": "core",
-      "description": "Implement a Git-tracked directory structure where each idea has its own folder containing a spec.json file under scenarios/swarm-manager/ideas/",
+      "description": "Implement a Git-tracked directory structure where each backlog item has its own folder containing a spec.json file under scenarios/swarm-manager/{ideas,research,fix,execute}/",
       "id": "REQ-P0-001-STRUCTURE",
       "prd_ref": "OT-P0-001",
       "status": "implemented",
       "title": "Git-based Idea Folder Structure",
       "validation": [
         {
-          "notes": "Test Create successfully creates idea folder with spec.json",
+          "notes": "Test Create successfully creates backlog folder with spec.json",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestCreate_Success",
+          "ref": "api/internal/backlog/handler_test.go::TestCreate_Success",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test idea data structure matches spec.json schema",
+          "notes": "Test backlog data structure matches spec.json schema",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler.go::Idea",
+          "ref": "api/internal/backlog/handler.go::BacklogItem",
           "status": "passing",
           "type": "code"
         },
         {
-          "notes": "Test name sanitization for folder-safe names",
+          "notes": "Name sanitization for folder-safe names",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestSanitizeName",
+          "ref": "api/internal/backlog/handler.go::sanitizeName",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test List loads ideas from folder structure",
+          "notes": "Test List loads backlog items from folder structure",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestList_WithIdeas",
+          "ref": "api/internal/backlog/handler_test.go::TestList_WithItems",
           "status": "passing",
           "type": "test"
         }
@@ -47,42 +47,42 @@
       "dependencies": [
         "REQ-P0-001-STRUCTURE"
       ],
-      "description": "Validate spec.json schema requirements including name, title, description, status, priority, tags, created, and updated fields",
+      "description": "Validate spec.json schema requirements including name, title, description, status, priority, tags, kind, created, and updated fields",
       "id": "REQ-P0-001-SCHEMA",
       "prd_ref": "OT-P0-001",
       "status": "implemented",
       "title": "spec.json Schema Validation",
       "validation": [
         {
-          "notes": "Test Get loads single idea from folder with all fields",
+          "notes": "Test Get loads single backlog item from folder with all fields",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGet_Found",
+          "ref": "api/internal/backlog/handler_test.go::TestGet_Found",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test Delete removes idea folder",
+          "notes": "Test Delete removes backlog folder",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestDelete_Success",
+          "ref": "api/internal/backlog/handler_test.go::TestDelete_Idempotent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test Create validates required fields",
+          "notes": "Create validates required fields",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestCreate_MissingFields",
+          "ref": "api/internal/backlog/handler.go::validateCreateBacklogItemRequest",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test sanitization handles edge cases including unicode",
+          "notes": "Sanitization handles edge cases including unicode",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestSanitizeName_EdgeCases",
+          "ref": "api/internal/backlog/handler.go::sanitizeName",
           "status": "passing",
           "type": "test"
         }
       ]
     }
   ],
-  "title": "Idea backlog file structure"
+  "title": "Backlog file structure"
 }

@@ -12,24 +12,25 @@
 //
 // # Current Status: Full API Surface Wired
 //
-// The CLI provides thin wrappers for ideas, scenarios, recommendations,
+// The CLI provides thin wrappers for backlog, scenarios, recommendations,
 // settings, and queue endpoints, plus health checks.
 //
 // # Usage
 //
 //	swarm-manager status              # Check API health
-//	swarm-manager ideas list          # List all ideas
-//	swarm-manager ideas get <name>    # Get a single idea
-//	swarm-manager ideas create <json> # Create new idea
-//	swarm-manager ideas update <name> <json> # Update an idea
-//	swarm-manager ideas delete <name> # Delete an idea
+//	swarm-manager backlog list              # List backlog items
+//	swarm-manager backlog get <kind> <name> # Get a single backlog item
+//	swarm-manager backlog create <json>     # Create backlog item
+//	swarm-manager backlog update <kind> <name> <json> # Update backlog item
+//	swarm-manager backlog delete <kind> <name> # Delete a backlog item
 //	swarm-manager configure           # Set API base URL and token
 //	swarm-manager --help              # Show all commands
 //
 // # Scenario Commands
 //
-//	swarm-manager ideas queue         # Queue idea for processing
-//	swarm-manager ideas research      # Spawn research agent for an idea
+//	swarm-manager backlog queue       # Queue backlog item for processing
+//	swarm-manager backlog research    # Spawn research agent for a backlog item
+//	swarm-manager backlog convert     # Convert backlog item to another kind
 //	swarm-manager scenarios list      # List all scenarios
 //	swarm-manager scenarios get <name> # Get scenario details
 //	swarm-manager scenarios update <name> <json> # Update scenario metadata
@@ -51,7 +52,7 @@
 //  2. SWARM_MANAGER_API_BASE env var
 //  3. vrooli scenario port detection
 //
-// Related PRD targets: OT-P0-002 (ideas CRUD), OT-P0-005 (scenario catalog)
+// Related PRD targets: OT-P0-002 (backlog CRUD), OT-P0-005 (scenario catalog)
 package main
 
 import (
@@ -122,16 +123,17 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	ideas := cliapp.CommandGroup{
-		Title: "Ideas",
+	backlog := cliapp.CommandGroup{
+		Title: "Backlog",
 		Commands: []cliapp.Command{
-			{Name: "ideas list", NeedsAPI: true, Description: "List all ideas", Run: a.cmdIdeasList},
-			{Name: "ideas get", NeedsAPI: true, Description: "Get a single idea by name (args: <name>)", Run: a.cmdIdeasGet},
-			{Name: "ideas create", NeedsAPI: true, Description: "Create a new idea (args: <json>)", Run: a.cmdIdeasCreate},
-			{Name: "ideas update", NeedsAPI: true, Description: "Update an existing idea (args: <name> <json>)", Run: a.cmdIdeasUpdate},
-			{Name: "ideas delete", NeedsAPI: true, Description: "Delete an idea (args: <name>)", Run: a.cmdIdeasDelete},
-			{Name: "ideas queue", NeedsAPI: true, Description: "Queue an idea for processing (args: <name> [operation])", Run: a.cmdIdeasQueue},
-			{Name: "ideas research", NeedsAPI: true, Description: "Spawn research agent for an idea (args: <name> [json])", Run: a.cmdIdeasResearch},
+			{Name: "backlog list", NeedsAPI: true, Description: "List backlog items (args: [kinds])", Run: a.cmdBacklogList},
+			{Name: "backlog get", NeedsAPI: true, Description: "Get a backlog item (args: <kind> <name>)", Run: a.cmdBacklogGet},
+			{Name: "backlog create", NeedsAPI: true, Description: "Create a backlog item (args: <json>)", Run: a.cmdBacklogCreate},
+			{Name: "backlog update", NeedsAPI: true, Description: "Update a backlog item (args: <kind> <name> <json>)", Run: a.cmdBacklogUpdate},
+			{Name: "backlog delete", NeedsAPI: true, Description: "Delete a backlog item (args: <kind> <name>)", Run: a.cmdBacklogDelete},
+			{Name: "backlog queue", NeedsAPI: true, Description: "Queue a backlog item (args: <kind> <name> [operation])", Run: a.cmdBacklogQueue},
+			{Name: "backlog research", NeedsAPI: true, Description: "Spawn research agent for a backlog item (args: <kind> <name> [json])", Run: a.cmdBacklogResearch},
+			{Name: "backlog convert", NeedsAPI: true, Description: "Convert a backlog item (args: <kind> <name> <target-kind> [target-name])", Run: a.cmdBacklogConvert},
 		},
 	}
 
@@ -179,7 +181,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, ideas, scenarios, recommendations, settings, queue, config}
+	return []cliapp.CommandGroup{health, backlog, scenarios, recommendations, settings, queue, config}
 }
 
 // resolveV1Endpoint converts a relative endpoint path to the full API v1 path.
@@ -251,42 +253,49 @@ func (a *App) cmdStatus(_ []string) error {
 	return nil
 }
 
-// Idea represents a proposal for a new scenario.
-// [REQ:REQ-P0-003] Idea data structure for CLI display
-type Idea struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Priority    int      `json:"priority"`
-	Tags        []string `json:"tags"`
-	Created     string   `json:"created"`
-	Updated     string   `json:"updated"`
+// BacklogItem represents a tracked unit of work for the swarm.
+// [REQ:REQ-P0-003] Backlog data structure for CLI display
+type BacklogItem struct {
+	Name           string   `json:"name"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description"`
+	Status         string   `json:"status"`
+	Priority       int      `json:"priority"`
+	Tags           []string `json:"tags"`
+	Created        string   `json:"created"`
+	Updated        string   `json:"updated"`
+	Kind           string   `json:"kind"`
+	ResearchTarget string   `json:"researchTarget,omitempty"`
 }
 
-// IdeaResponse wraps a single idea response.
-type IdeaResponse struct {
-	Idea Idea `json:"idea"`
+// BacklogItemResponse wraps a single backlog item response.
+type BacklogItemResponse struct {
+	Item BacklogItem `json:"item"`
 }
 
-// ListIdeasResponse wraps idea list responses.
-type ListIdeasResponse struct {
-	Ideas []Idea `json:"ideas"`
+// ListBacklogResponse wraps backlog list responses.
+type ListBacklogResponse struct {
+	Items []BacklogItem `json:"items"`
 }
 
-// CreateIdeaRequest is the payload for creating a new idea.
-type CreateIdeaRequest struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Priority    int      `json:"priority,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
+// CreateBacklogRequest is the payload for creating a new backlog item.
+type CreateBacklogRequest struct {
+	Name           string   `json:"name"`
+	Title          string   `json:"title"`
+	Description    string   `json:"description,omitempty"`
+	Priority       int      `json:"priority,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
+	Kind           string   `json:"kind"`
+	ResearchTarget string   `json:"researchTarget,omitempty"`
 }
 
-// QueueIdeaResponse wraps queue response for ideas.
-type QueueIdeaResponse struct {
-	Idea   Idea   `json:"idea"`
-	TaskID string `json:"task_id"`
+// QueueBacklogResponse wraps queue response for backlog items.
+type QueueBacklogResponse struct {
+	Item    BacklogItem `json:"item"`
+	TaskID  string      `json:"taskId"`
+	RunID   string      `json:"runId"`
+	BaseURL string      `json:"baseUrl"`
+	Created string      `json:"created"`
 }
 
 // ResearchResponse represents research run metadata.
@@ -362,163 +371,181 @@ type QueueListResponse struct {
 	Items []QueueItem `json:"items"`
 }
 
-// cmdIdeasList lists all ideas.
-// [REQ:REQ-P0-003] CLI ideas list command
-func (a *App) cmdIdeasList(_ []string) error {
-	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/ideas"), nil)
+// cmdBacklogList lists backlog items.
+// [REQ:REQ-P0-003] CLI backlog list command
+func (a *App) cmdBacklogList(args []string) error {
+	query := url.Values{}
+	if len(args) > 0 {
+		kinds := strings.Join(args, ",")
+		if strings.TrimSpace(kinds) != "" {
+			query.Set("kinds", kinds)
+		}
+	}
+
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/backlog"), query)
 	if err != nil {
 		return err
 	}
 
-	var response ListIdeasResponse
+	var response ListBacklogResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	if len(response.Ideas) == 0 {
-		fmt.Println("No ideas found.")
+	if len(response.Items) == 0 {
+		fmt.Println("No backlog items found.")
 		return nil
 	}
 
-	fmt.Printf("Found %d idea(s):\n\n", len(response.Ideas))
-	for _, idea := range response.Ideas {
-		fmt.Printf("  %s (priority: %d, status: %s)\n", idea.Name, idea.Priority, idea.Status)
-		fmt.Printf("    Title: %s\n", idea.Title)
-		if len(idea.Tags) > 0 {
-			fmt.Printf("    Tags: %s\n", strings.Join(idea.Tags, ", "))
+	fmt.Printf("Found %d backlog item(s):\n\n", len(response.Items))
+	for _, item := range response.Items {
+		fmt.Printf("  [%s] %s (priority: %d, status: %s)\n", item.Kind, item.Name, item.Priority, item.Status)
+		fmt.Printf("    Title: %s\n", item.Title)
+		if len(item.Tags) > 0 {
+			fmt.Printf("    Tags: %s\n", strings.Join(item.Tags, ", "))
+		}
+		if item.Kind == "research" && item.ResearchTarget != "" {
+			fmt.Printf("    Target: %s\n", item.ResearchTarget)
 		}
 		fmt.Println()
 	}
 	return nil
 }
 
-// cmdIdeasGet retrieves a single idea by name.
-// [REQ:REQ-P0-003] CLI ideas get command
-func (a *App) cmdIdeasGet(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: ideas get <name>")
+// cmdBacklogGet retrieves a single backlog item.
+// [REQ:REQ-P0-003] CLI backlog get command
+func (a *App) cmdBacklogGet(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: backlog get <kind> <name>")
 	}
-	name := args[0]
+	kind := args[0]
+	name := args[1]
 
-	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/ideas/"+name), nil)
+	body, err := a.core.APIClient.Get(a.resolveV1Endpoint("/backlog/"+kind+"/"+name), nil)
 	if err != nil {
 		return err
 	}
 
-	var response IdeaResponse
+	var response BacklogItemResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	idea := response.Idea
+	item := response.Item
 
-	fmt.Printf("Name: %s\n", idea.Name)
-	fmt.Printf("Title: %s\n", idea.Title)
-	fmt.Printf("Description: %s\n", idea.Description)
-	fmt.Printf("Status: %s\n", idea.Status)
-	fmt.Printf("Priority: %d\n", idea.Priority)
-	if len(idea.Tags) > 0 {
-		fmt.Printf("Tags: %s\n", strings.Join(idea.Tags, ", "))
+	fmt.Printf("Name: %s\n", item.Name)
+	fmt.Printf("Kind: %s\n", item.Kind)
+	fmt.Printf("Title: %s\n", item.Title)
+	fmt.Printf("Description: %s\n", item.Description)
+	fmt.Printf("Status: %s\n", item.Status)
+	fmt.Printf("Priority: %d\n", item.Priority)
+	if len(item.Tags) > 0 {
+		fmt.Printf("Tags: %s\n", strings.Join(item.Tags, ", "))
 	}
-	fmt.Printf("Created: %s\n", idea.Created)
-	fmt.Printf("Updated: %s\n", idea.Updated)
+	if item.ResearchTarget != "" {
+		fmt.Printf("Research Target: %s\n", item.ResearchTarget)
+	}
+	fmt.Printf("Created: %s\n", item.Created)
+	fmt.Printf("Updated: %s\n", item.Updated)
 	return nil
 }
 
-// cmdIdeasCreate creates a new idea.
-// [REQ:REQ-P0-003] CLI ideas create command
-func (a *App) cmdIdeasCreate(args []string) error {
+// cmdBacklogCreate creates a new backlog item.
+// [REQ:REQ-P0-003] CLI backlog create command
+func (a *App) cmdBacklogCreate(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: ideas create <json>\n\nExample:\n  ideas create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"description\":\"Description here\"}'")
+		return fmt.Errorf("usage: backlog create <json>\n\nExample:\n  backlog create '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'")
 	}
 
 	jsonStr := strings.Join(args, " ")
-	var req CreateIdeaRequest
+	var req CreateBacklogRequest
 	if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	if req.Name == "" || req.Title == "" {
-		return fmt.Errorf("name and title are required fields")
+	if req.Name == "" || req.Title == "" || req.Kind == "" {
+		return fmt.Errorf("name, title, and kind are required fields")
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas"), nil, json.RawMessage(jsonStr))
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog"), nil, json.RawMessage(jsonStr))
 	if err != nil {
 		return err
 	}
 
-	var response IdeaResponse
+	var response BacklogItemResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	idea := response.Idea
+	item := response.Item
 
-	fmt.Printf("Created idea: %s\n", idea.Name)
-	fmt.Printf("  Title: %s\n", idea.Title)
-	fmt.Printf("  Status: %s\n", idea.Status)
-	fmt.Printf("  Priority: %d\n", idea.Priority)
+	fmt.Printf("Created backlog item: %s\n", item.Name)
+	fmt.Printf("  Kind: %s\n", item.Kind)
+	fmt.Printf("  Status: %s\n", item.Status)
+	fmt.Printf("  Priority: %d\n", item.Priority)
 	return nil
 }
 
-// cmdIdeasUpdate updates an existing idea.
-// [REQ:REQ-P0-003] CLI ideas update command
-func (a *App) cmdIdeasUpdate(args []string) error {
-	if len(args) < 2 {
-		return fmt.Errorf("usage: ideas update <name> <json>\n\nExample:\n  ideas update my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
+// cmdBacklogUpdate updates an existing backlog item.
+// [REQ:REQ-P0-003] CLI backlog update command
+func (a *App) cmdBacklogUpdate(args []string) error {
+	if len(args) < 3 {
+		return fmt.Errorf("usage: backlog update <kind> <name> <json>\n\nExample:\n  backlog update idea my-idea '{\"title\":\"Updated Title\",\"status\":\"ready\"}'")
 	}
 
-	name := args[0]
-	jsonStr := strings.Join(args[1:], " ")
+	kind := args[0]
+	name := args[1]
+	jsonStr := strings.Join(args[2:], " ")
 
-	// Validate JSON
 	var update map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &update); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	body, err := a.core.APIClient.Request("PUT", a.resolveV1Endpoint("/ideas/"+name), nil, json.RawMessage(jsonStr))
+	body, err := a.core.APIClient.Request("PUT", a.resolveV1Endpoint("/backlog/"+kind+"/"+name), nil, json.RawMessage(jsonStr))
 	if err != nil {
 		return err
 	}
 
-	var response IdeaResponse
+	var response BacklogItemResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
-	idea := response.Idea
+	item := response.Item
 
-	fmt.Printf("Updated idea: %s\n", idea.Name)
-	fmt.Printf("  Title: %s\n", idea.Title)
-	fmt.Printf("  Status: %s\n", idea.Status)
-	fmt.Printf("  Priority: %d\n", idea.Priority)
+	fmt.Printf("Updated backlog item: %s\n", item.Name)
+	fmt.Printf("  Kind: %s\n", item.Kind)
+	fmt.Printf("  Status: %s\n", item.Status)
+	fmt.Printf("  Priority: %d\n", item.Priority)
 	return nil
 }
 
-// cmdIdeasDelete deletes an idea.
-// [REQ:REQ-P0-003] CLI ideas delete command
-func (a *App) cmdIdeasDelete(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: ideas delete <name>")
+// cmdBacklogDelete deletes a backlog item.
+// [REQ:REQ-P0-003] CLI backlog delete command
+func (a *App) cmdBacklogDelete(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: backlog delete <kind> <name>")
 	}
-	name := args[0]
+	kind := args[0]
+	name := args[1]
 
-	_, err := a.core.APIClient.Request("DELETE", a.resolveV1Endpoint("/ideas/"+name), nil, nil)
+	_, err := a.core.APIClient.Request("DELETE", a.resolveV1Endpoint("/backlog/"+kind+"/"+name), nil, nil)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Deleted idea: %s\n", name)
+	fmt.Printf("Deleted backlog item: %s (%s)\n", name, kind)
 	return nil
 }
 
-// cmdIdeasQueue queues an idea for processing.
-func (a *App) cmdIdeasQueue(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: ideas queue <name> [operation]\n\nOperation: generator|improver")
+// cmdBacklogQueue queues a backlog item for processing.
+func (a *App) cmdBacklogQueue(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: backlog queue <kind> <name> [operation]\n\nOperation: generator|improver")
 	}
-	name := args[0]
+	kind := args[0]
+	name := args[1]
 	var payload json.RawMessage
-	if len(args) > 1 {
-		operation := strings.TrimSpace(args[1])
+	if len(args) > 2 {
+		operation := strings.TrimSpace(args[2])
 		if operation != "generator" && operation != "improver" {
 			return fmt.Errorf("invalid operation %q (expected generator or improver)", operation)
 		}
@@ -526,31 +553,33 @@ func (a *App) cmdIdeasQueue(args []string) error {
 		payload = json.RawMessage(body)
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas/"+name+"/queue"), nil, payload)
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog/"+kind+"/"+name+"/queue"), nil, payload)
 	if err != nil {
 		return err
 	}
 
-	var response QueueIdeaResponse
+	var response QueueBacklogResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	fmt.Printf("Queued idea: %s\n", response.Idea.Name)
-	fmt.Printf("  Status: %s\n", response.Idea.Status)
+	fmt.Printf("Queued backlog item: %s\n", response.Item.Name)
+	fmt.Printf("  Kind: %s\n", response.Item.Kind)
+	fmt.Printf("  Status: %s\n", response.Item.Status)
 	fmt.Printf("  Task ID: %s\n", response.TaskID)
 	return nil
 }
 
-// cmdIdeasResearch spawns a research agent for an idea.
-func (a *App) cmdIdeasResearch(args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("usage: ideas research <name> [json]\n\nExample:\n  ideas research my-idea '{\"prompt\":\"Focus on risks\"}'")
+// cmdBacklogResearch spawns a research agent for a backlog item.
+func (a *App) cmdBacklogResearch(args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: backlog research <kind> <name> [json]\n\nExample:\n  backlog research idea my-idea '{\"prompt\":\"Focus on risks\"}'")
 	}
-	name := args[0]
+	kind := args[0]
+	name := args[1]
 	var payload json.RawMessage
-	if len(args) > 1 {
-		jsonStr := strings.Join(args[1:], " ")
+	if len(args) > 2 {
+		jsonStr := strings.Join(args[2:], " ")
 		var req map[string]any
 		if err := json.Unmarshal([]byte(jsonStr), &req); err != nil {
 			return fmt.Errorf("invalid JSON: %w", err)
@@ -558,7 +587,7 @@ func (a *App) cmdIdeasResearch(args []string) error {
 		payload = json.RawMessage(jsonStr)
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/ideas/"+name+"/research"), nil, payload)
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog/"+kind+"/"+name+"/research"), nil, payload)
 	if err != nil {
 		return err
 	}
@@ -568,10 +597,48 @@ func (a *App) cmdIdeasResearch(args []string) error {
 		return fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	fmt.Printf("Research started for idea: %s\n", name)
+	fmt.Printf("Research started for backlog item: %s\n", name)
 	fmt.Printf("  Task ID: %s\n", response.TaskID)
 	fmt.Printf("  Run ID: %s\n", response.RunID)
 	fmt.Printf("  Base URL: %s\n", response.BaseURL)
+	return nil
+}
+
+// cmdBacklogConvert converts a backlog item to another kind.
+func (a *App) cmdBacklogConvert(args []string) error {
+	if len(args) < 3 {
+		return fmt.Errorf("usage: backlog convert <kind> <name> <target-kind> [target-name]")
+	}
+	kind := args[0]
+	name := args[1]
+	targetKind := args[2]
+	targetName := ""
+	if len(args) > 3 {
+		targetName = strings.Join(args[3:], " ")
+	}
+
+	payload := map[string]string{
+		"targetKind": targetKind,
+	}
+	if strings.TrimSpace(targetName) != "" {
+		payload["targetName"] = targetName
+	}
+	bodyBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	body, err := a.core.APIClient.Request("POST", a.resolveV1Endpoint("/backlog/"+kind+"/"+name+"/convert"), nil, json.RawMessage(bodyBytes))
+	if err != nil {
+		return err
+	}
+
+	var response BacklogItemResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	fmt.Printf("Converted backlog item: %s → %s/%s\n", name, response.Item.Kind, response.Item.Name)
 	return nil
 }
 
@@ -711,7 +778,7 @@ func (a *App) cmdScenariosUpdate(args []string) error {
 // cmdScenariosDelete deletes a scenario (optionally archived).
 func (a *App) cmdScenariosDelete(args []string) error {
 	fs := flag.NewFlagSet("scenarios delete", flag.ContinueOnError)
-	archive := fs.Bool("archive", false, "Archive scenario to ideas backlog before deletion")
+	archive := fs.Bool("archive", false, "Archive scenario to backlog (idea) before deletion")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

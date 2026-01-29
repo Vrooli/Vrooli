@@ -1,5 +1,5 @@
 {
-  "description": "Initialize and improve scenarios from ideas via ecosystem-manager",
+  "description": "Initialize and improve scenarios from backlog ideas via ecosystem-manager",
   "module_id": "MOD-P0-010",
   "prd_ref": "OT-P0-010",
   "priority": "P0",
@@ -62,9 +62,9 @@
           "type": "test"
         },
         {
-          "notes": "EcosystemClient interface defined for seam pattern",
+          "notes": "Ecosystem Client interface defined for seam pattern",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler.go::EcosystemClient",
+          "ref": "api/internal/ecosystem/client.go::Client",
           "status": "passing",
           "type": "code"
         },
@@ -82,30 +82,30 @@
       "dependencies": [
         "REQ-P0-011-API"
       ],
-      "description": "Queue handler integration with ecosystem-manager for idea processing via initializer/improver operations",
+      "description": "Ecosystem task integration available for backlog-driven scenario initialization",
       "id": "REQ-P0-011-QUEUE",
       "prd_ref": "OT-P0-010",
       "status": "implemented",
-      "title": "Ecosystem Queue Integration",
+      "title": "Ecosystem Task Integration",
       "validation": [
         {
-          "notes": "Queue handler creates ecosystem task for idea processing",
+          "notes": "Ecosystem client creates tasks for scenario initialization",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_Success",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Queue handler uses improver operation type",
+          "notes": "Priority mapping supports initializer/improver semantics",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_WithImproverOperation",
+          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Queue handler handles ecosystem errors gracefully",
+          "notes": "Ecosystem client handles errors gracefully",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_EcosystemError",
+          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
           "status": "passing",
           "type": "test"
         }

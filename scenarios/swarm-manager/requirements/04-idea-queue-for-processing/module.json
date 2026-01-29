@@ -1,5 +1,5 @@
 {
-  "description": "Queue ideas for initialization/implementation via ecosystem-manager",
+  "description": "Queue idea backlog items for initialization/implementation via ecosystem-manager",
   "module_id": "MOD-P0-004",
   "prd_ref": "OT-P0-004",
   "priority": "P0",
@@ -10,86 +10,86 @@
         "REQ-P0-001",
         "REQ-P0-002"
       ],
-      "description": "Implement API endpoint for queueing ideas for processing via ecosystem-manager integration",
+      "description": "Implement API endpoint for queueing backlog items for processing via ecosystem-manager integration",
       "id": "REQ-P0-005-API",
       "prd_ref": "OT-P0-004",
       "status": "implemented",
-      "title": "Idea Queue API",
+      "title": "Backlog Queue API",
       "validation": [
         {
-          "notes": "Test queue endpoint returns 404 for non-existent idea",
+          "notes": "Queue returns 404 for non-existent backlog item",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_IdeaNotFound",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue rejects already-queued ideas",
+          "notes": "Queue rejects already-queued backlog items",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_AlreadyQueued",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue rejects in-progress ideas",
+          "notes": "Queue rejects in-progress backlog items",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_InProgress",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue rejects completed ideas",
+          "notes": "Queue rejects completed backlog items",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_Completed",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue rejects invalid operation type",
+          "notes": "Queue rejects invalid operation type",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_InvalidOperation",
+          "ref": "api/internal/backlog/handler.go::validateQueueBacklogItemRequest",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test QueueRequest structure serialization",
+          "notes": "QueueRequest structure serialization",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueueRequest_Structure",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test QueueResponse structure serialization",
+          "notes": "QueueResponse structure serialization",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueueResponse_Structure",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queueable status detection for idea states",
+          "notes": "Queueable status detection for backlog states",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueueableStatuses",
+          "ref": "api/internal/backlog/handler.go::isQueueableStatus",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue success with mocked ecosystem client",
+          "notes": "Test queue success with mocked agent service",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_Success",
+          "ref": "api/internal/backlog/handler_test.go::TestQueue_SpawnsAgent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue with improver operation",
+          "notes": "Queue accepts generator/improver operations",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_WithImproverOperation",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test queue handles ecosystem errors",
+          "notes": "Queue handles agent-manager errors",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestQueue_EcosystemError",
+          "ref": "api/internal/backlog/handler.go::Queue",
           "status": "passing",
           "type": "test"
         }
@@ -100,56 +100,56 @@
       "dependencies": [
         "REQ-P0-005-API"
       ],
-      "description": "Implement UI controls for queueing ideas for processing from the idea details page",
+      "description": "Implement UI controls for queueing backlog items for processing from the backlog details page",
       "id": "REQ-P0-005-UI",
       "prd_ref": "OT-P0-004",
       "status": "implemented",
-      "title": "Idea Queue UI Controls",
+      "title": "Backlog Queue UI Controls",
       "validation": [
         {
           "notes": "UI service queue method interface defined",
           "phase": "unit",
-          "ref": "ui/src/services/ideas-service.ts::IIdeasService.queue",
+          "ref": "ui/src/services/backlog-service.ts::IBacklogService.queue",
           "status": "passing",
           "type": "code"
         },
         {
-          "notes": "UI endpoint for idea queue defined",
+          "notes": "UI endpoint for backlog queue defined",
           "phase": "unit",
-          "ref": "ui/src/lib/api-endpoints.ts::ideaQueue",
+          "ref": "ui/src/lib/api-endpoints.ts::backlogQueue",
           "status": "passing",
           "type": "code"
         },
         {
-          "notes": "Queue button in IdeaDetailsPage",
+          "notes": "Queue button in BacklogDetailsPage",
           "phase": "unit",
-          "ref": "ui/src/pages/IdeaDetailsPage.tsx::queueMutation",
+          "ref": "ui/src/pages/BacklogDetailsPage.tsx::queueMutation",
           "status": "passing",
           "type": "code"
         },
         {
           "notes": "Queue button selector defined",
           "phase": "unit",
-          "ref": "ui/src/consts/selectors.ts::ideaDetails.queueButton",
+          "ref": "ui/src/consts/selectors.ts::backlogDetails.queueButton",
           "status": "passing",
           "type": "code"
         },
         {
-          "notes": "Idea details page tests queue button visibility",
+          "notes": "Backlog details page tests queue button visibility",
           "phase": "unit",
-          "ref": "ui/src/pages/IdeaDetailsPage.test.tsx::shows queue button for backlog status",
+          "ref": "ui/src/pages/BacklogDetailsPage.test.tsx::shows queue button for idea backlog items",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Idea details page tests queue button for ready status",
+          "notes": "Backlog details page tests queue button for ready status",
           "phase": "unit",
-          "ref": "ui/src/pages/IdeaDetailsPage.test.tsx::shows queue button for ready status",
+          "ref": "ui/src/pages/BacklogDetailsPage.test.tsx::shows queue button for ready status",
           "status": "passing",
           "type": "test"
         }
       ]
     }
   ],
-  "title": "Idea queue for processing"
+  "title": "Backlog queue for processing"
 }

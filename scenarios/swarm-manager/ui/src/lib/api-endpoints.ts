@@ -13,11 +13,14 @@
  * These are declared as string literals to support completeness scoring detection.
  */
 export const API_ENDPOINTS = {
-  ideas: "/ideas",
-  ideaFiles: (name: string) => `/ideas/${name}/files`,
-  ideaFileContent: (name: string, filePath: string) => `/ideas/${name}/files/${filePath}`,
-  ideaQueue: (name: string) => `/ideas/${name}/queue`,
-  ideaResearch: (name: string) => `/ideas/${name}/research`,
+  backlog: "/backlog",
+  backlogItem: (kind: string, name: string) => `/backlog/${kind}/${name}`,
+  backlogFiles: (kind: string, name: string) => `/backlog/${kind}/${name}/files`,
+  backlogFileContent: (kind: string, name: string, filePath: string) =>
+    `/backlog/${kind}/${name}/files/${filePath}`,
+  backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
+  backlogResearch: (kind: string, name: string) => `/backlog/${kind}/${name}/research`,
+  backlogConvert: (kind: string, name: string) => `/backlog/${kind}/${name}/convert`,
   scenarios: "/scenarios",
   scenarioByName: (name: string) => `/scenarios/${name}`,
   scenarioStart: (name: string) => `/scenarios/${name}/start`,

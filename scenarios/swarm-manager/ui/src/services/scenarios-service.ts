@@ -76,7 +76,7 @@ export function createScenariosService(
     },
 
     /**
-     * Deletes a scenario with optional archive to ideas backlog
+     * Deletes a scenario with optional archive to backlog (idea)
      * [REQ:REQ-P0-008] DELETE endpoint for scenario deletion with safeguards
      */
     async delete(name: string, archive = false): Promise<DeleteScenarioResponse> {

@@ -9,107 +9,107 @@
       "dependencies": [
         "REQ-P0-002"
       ],
-      "description": "Implement API endpoints for listing files, getting file content, and uploading files to ideas",
+      "description": "Implement API endpoints for listing files, getting file content, and uploading files to backlog items",
       "id": "REQ-P0-004-API",
       "prd_ref": "OT-P0-003",
       "status": "implemented",
-      "title": "Idea Files API",
+      "title": "Backlog Files API",
       "validation": [
         {
           "notes": "Test API endpoint returns files list",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestListFiles_Empty",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test API endpoint handles multiple files and directories",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestListFiles_WithFiles",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API endpoint returns 404 for non-existent idea",
+          "notes": "List returns 404 for non-existent backlog item",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestListFiles_NotFound",
+          "ref": "api/internal/backlog/handler.go::ListFiles",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test IdeaFile struct JSON serialization",
+          "notes": "BacklogFile struct JSON serialization",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestIdeaFile_Structure",
+          "ref": "api/internal/backlog/handler.go::BacklogFile",
           "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test API file content endpoint returns text content",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_TextFile",
+          "ref": "api/internal/backlog/handler_test.go::TestListFiles_And_GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test API file content endpoint handles nested files",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_NestedFile",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file content endpoint returns 404 for missing idea",
+          "notes": "File content returns 404 for missing backlog item",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_IdeaNotFound",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file content endpoint returns 404 for missing file",
+          "notes": "File content returns 404 for missing file",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_FileNotFound",
+          "ref": "api/internal/backlog/handler.go::GetFileContent",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file content endpoint blocks path traversal",
+          "notes": "File content blocks path traversal",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetFileContent_PathTraversal",
+          "ref": "api/internal/httputil/response_test.go::TestSafeFilePath",
           "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test API file upload success",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_Success",
+          "ref": "api/internal/backlog/handler_test.go::TestUploadFile_Success",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file upload to subdirectory",
+          "notes": "File upload supports subdirectories",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_WithPath",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file upload returns 404 for missing idea",
+          "notes": "File upload returns 404 for missing backlog item",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_IdeaNotFound",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
           "status": "passing",
           "type": "test"
         },
         {
-          "notes": "Test API file upload returns 400 for missing file",
+          "notes": "File upload returns 400 for missing file",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestUploadFile_NoFile",
+          "ref": "api/internal/backlog/handler.go::UploadFile",
           "status": "passing",
           "type": "test"
         },
         {
           "notes": "Test content type detection",
           "phase": "unit",
-          "ref": "api/internal/ideas/handler_test.go::TestGetContentType",
+          "ref": "api/internal/backlog/handler.go::getContentType",
           "status": "passing",
           "type": "test"
         }
@@ -120,11 +120,11 @@
       "dependencies": [
         "REQ-P0-004-API"
       ],
-      "description": "Create UI page showing idea details with file tree view, drag-and-drop file upload, and preview for markdown/code/images",
+      "description": "Create UI page showing backlog details with file tree view, drag-and-drop file upload, and preview for markdown/code/images",
       "id": "REQ-P0-004-UI",
       "prd_ref": "OT-P0-003",
       "status": "implemented",
-      "title": "Idea Details UI Page",
+      "title": "Backlog Details UI Page",
       "validation": [
         {
           "notes": "Test file tree component rendering - empty state",
@@ -269,5 +269,5 @@
       ]
     }
   ],
-  "title": "Idea details page"
+  "title": "Backlog details page"
 }

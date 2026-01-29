@@ -3,37 +3,39 @@ import {
   create,
   fromJson,
   toJson,
-  type DescMessage,
   type JsonValue,
+  type Message,
   type MessageInitShape,
-  type MessageShape,
 } from "@bufbuild/protobuf";
+import type { GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { createValidator } from "@bufbuild/protovalidate";
 import type {
-  Idea,
-  IdeaFile,
-} from "@vrooli/proto-types/swarm-manager/v1/domain/idea_pb";
+  BacklogItem,
+  BacklogFile,
+} from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
 import type { Scenario } from "@vrooli/proto-types/swarm-manager/v1/domain/scenario_pb";
 import {
-  IdeaResponseSchema,
-  IdeaFilesResponseSchema,
-  IdeaFileResponseSchema,
-  ListIdeasResponseSchema,
-  QueueIdeaResponseSchema,
-} from "@vrooli/proto-types/swarm-manager/v1/api/ideas_pb";
+  BacklogItemResponseSchema,
+  BacklogFilesResponseSchema,
+  BacklogFileResponseSchema,
+  ListBacklogItemsResponseSchema,
+  QueueBacklogItemResponseSchema,
+} from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
 import {
   ListScenariosResponseSchema,
   ScenarioResponseSchema,
   DeleteScenarioResponseSchema,
 } from "@vrooli/proto-types/swarm-manager/v1/api/scenarios_pb";
 import type {
-  Idea as IdeaDomain,
-  IdeaFile as IdeaFileDomain,
+  BacklogItem as BacklogItemDomain,
+  BacklogFile as BacklogFileDomain,
   Scenario as ScenarioDomain,
   DeleteScenarioResponse as DeleteScenarioDomain,
 } from "../types";
 
 const validator = createValidator();
+
+type ProtoSchema<Shape extends Message> = z.ZodType<Shape, z.ZodTypeDef, unknown>;
 
 function toFiniteNumber(value: number | bigint | undefined): number | undefined {
   if (typeof value === "bigint") {
@@ -43,11 +45,11 @@ function toFiniteNumber(value: number | bigint | undefined): number | undefined 
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function createProtoSchema<Desc extends DescMessage>(
-  schema: Desc,
+function createProtoSchema<Shape extends Message>(
+  schema: GenMessage<Shape>,
   label: string
-): z.ZodType<MessageShape<Desc>> {
-  return z.unknown().transform((value, ctx) => {
+): ProtoSchema<Shape> {
+  return z.unknown().transform<Shape>((value, ctx) => {
     try {
       const jsonValue = value as JsonValue;
       const message = fromJson(schema, jsonValue, {
@@ -62,7 +64,7 @@ function createProtoSchema<Desc extends DescMessage>(
         });
         return z.NEVER;
       }
-      return message as MessageShape<Desc>;
+      return message;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[swarm-manager] ${label} response validation failed`, message);
@@ -72,10 +74,14 @@ function createProtoSchema<Desc extends DescMessage>(
       });
       return z.NEVER;
     }
-  }) as unknown as z.ZodType<MessageShape<Desc>>;
+  });
 }
 
-export function parseProtoResponse<T>(schema: z.ZodType<T>, data: unknown, label: string): T {
+export function parseProtoResponse<Shape extends Message>(
+  schema: ProtoSchema<Shape>,
+  data: unknown,
+  label: string
+): Shape {
   const result = schema.safeParse(data);
   if (!result.success) {
     throw new Error(`Invalid ${label} response`);
@@ -90,9 +96,9 @@ export function requireProtoField<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-export function toProtoJson<Desc extends DescMessage>(
-  schema: Desc,
-  message: MessageShape<Desc>
+export function toProtoJson<Shape extends Message>(
+  schema: GenMessage<Shape>,
+  message: Shape
 ): JsonValue {
   return toJson(schema, message, {
     useProtoFieldName: true,
@@ -100,29 +106,32 @@ export function toProtoJson<Desc extends DescMessage>(
   });
 }
 
-export function buildMessage<Desc extends DescMessage>(
-  schema: Desc,
-  value?: MessageInitShape<Desc>
-): MessageShape<Desc> {
+export function buildMessage<Shape extends Message>(
+  schema: GenMessage<Shape>,
+  value?: MessageInitShape<GenMessage<Shape>>
+): Shape {
   return create(schema, value);
 }
 
-export const listIdeasResponseSchema = createProtoSchema(
-  ListIdeasResponseSchema,
-  "ideas list"
+export const listBacklogResponseSchema = createProtoSchema(
+  ListBacklogItemsResponseSchema,
+  "backlog list"
 );
-export const ideaResponseSchema = createProtoSchema(IdeaResponseSchema, "idea");
-export const ideaFilesResponseSchema = createProtoSchema(
-  IdeaFilesResponseSchema,
-  "idea files"
+export const backlogItemResponseSchema = createProtoSchema(
+  BacklogItemResponseSchema,
+  "backlog item"
 );
-export const ideaFileResponseSchema = createProtoSchema(
-  IdeaFileResponseSchema,
-  "idea file"
+export const backlogFilesResponseSchema = createProtoSchema(
+  BacklogFilesResponseSchema,
+  "backlog files"
 );
-export const queueIdeaResponseSchema = createProtoSchema(
-  QueueIdeaResponseSchema,
-  "idea queue"
+export const backlogFileResponseSchema = createProtoSchema(
+  BacklogFileResponseSchema,
+  "backlog file"
+);
+export const queueBacklogResponseSchema = createProtoSchema(
+  QueueBacklogItemResponseSchema,
+  "backlog queue"
 );
 export const listScenariosResponseSchema = createProtoSchema(
   ListScenariosResponseSchema,
@@ -137,26 +146,28 @@ export const deleteScenarioResponseSchema = createProtoSchema(
   "scenario delete"
 );
 
-export function mapProtoIdea(protoIdea: Idea): IdeaDomain {
+export function mapProtoBacklogItem(protoItem: BacklogItem): BacklogItemDomain {
   return {
-    name: protoIdea.name ?? "",
-    title: protoIdea.title ?? "",
-    description: protoIdea.description ?? "",
-    status: (protoIdea.status as IdeaDomain["status"]) || "backlog",
-    priority: protoIdea.priority ?? 0,
-    tags: protoIdea.tags ?? [],
-    created: protoIdea.created ?? "",
-    updated: protoIdea.updated ?? "",
+    name: protoItem.name ?? "",
+    title: protoItem.title ?? "",
+    description: protoItem.description ?? "",
+    status: (protoItem.status as BacklogItemDomain["status"]) || "backlog",
+    priority: protoItem.priority ?? 0,
+    tags: protoItem.tags ?? [],
+    created: protoItem.created ?? "",
+    updated: protoItem.updated ?? "",
+    kind: (protoItem.kind as BacklogItemDomain["kind"]) || "idea",
+    ...(protoItem.researchTarget ? { researchTarget: protoItem.researchTarget as BacklogItemDomain["researchTarget"] } : {}),
   };
 }
 
-export function mapProtoIdeaFile(protoFile: IdeaFile): IdeaFileDomain {
+export function mapProtoBacklogFile(protoFile: BacklogFile): BacklogFileDomain {
   const size = toFiniteNumber(protoFile.size);
-  const children = protoFile.children?.map(mapProtoIdeaFile) ?? [];
+  const children = protoFile.children?.map(mapProtoBacklogFile) ?? [];
   return {
     name: protoFile.name ?? "",
     path: protoFile.path ?? "",
-    type: (protoFile.type as IdeaFileDomain["type"]) || "file",
+    type: (protoFile.type as BacklogFileDomain["type"]) || "file",
     ...(size !== undefined ? { size } : {}),
     ...(children.length > 0 ? { children } : {}),
   };

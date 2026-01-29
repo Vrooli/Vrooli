@@ -48,7 +48,7 @@ Expected output:
 
 Open http://localhost:35000 in your browser. You'll see:
 
-1. **Ideas** tab - Manage scenario ideas and proposals
+1. **Backlog** tab - Manage research, ideas, fixes, and execution tasks
 2. **Scenarios** tab - View scenario catalog and status
 3. **Recommendations** tab - Review system suggestions
 4. **Settings** tab - Configure behavior

@@ -1,4 +1,4 @@
-package ideas
+package backlog
 
 import (
 	"errors"
@@ -29,7 +29,7 @@ func (e *errorWriter) WriteHeader(statusCode int) {
 
 func TestList_EncodeError(t *testing.T) {
 	h, _ := setupTestHandler(t)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/ideas", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/backlog", nil)
 	writer := &errorWriter{}
 
 	h.List(writer, req)

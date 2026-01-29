@@ -28,8 +28,8 @@ export { cn } from "./utils";
 // Formatting Utilities - Pure formatting functions
 export { capitalize, formatDisplayText, formatFileSize, getFileExtension, formatRelativeTime } from "./format-utils";
 
-// Idea Utilities
-export { sanitizeIdeaName, parseTagsInput, tagsToInput } from "./idea-utils";
+// Backlog Utilities
+export { sanitizeBacklogName, parseTagsInput, tagsToInput } from "./backlog-utils";
 
 // Theme Utilities
 export { applyTheme, resolveTheme, watchSystemTheme } from "./theme-utils";
@@ -54,7 +54,7 @@ export {
   buildClarifyQuestionsContent,
   parseSuggestionsFile,
   buildSuggestionsContent,
-  findIdeaFileByPath,
+  findBacklogFileByPath,
 } from "./idea-agent-files";
 
 // Query Utilities - React Query configuration

@@ -10,19 +10,19 @@ This document captures the architecture seams (integration points, boundaries) a
 
 | Aspect | Documented | Actual | Gap |
 |--------|------------|--------|-----|
-| API endpoints | /ideas, /scenarios, /recommendations, /settings | /ideas, /scenarios, /recommendations, /settings, /queue, /health | Resolved |
-| Persistence | Filesystem (ideas/, .vrooli/settings.json, .vrooli/queue.json) | Ideas/scenarios/settings/queue/recommendations implemented | Resolved |
+| API endpoints | /backlog, /scenarios, /recommendations, /settings | /backlog, /scenarios, /recommendations, /settings, /queue, /health | Resolved |
+| Persistence | Filesystem (ideas/, research/, fix/, execute/, .vrooli/settings.json, .vrooli/queue.json) | Backlog/scenarios/settings/queue/recommendations implemented | Resolved |
 | Selector registry | All UI selectors defined | ✅ Fully populated | Resolved |
-| UI pages | 4 pages with full functionality | Ideas/Scenarios/Recommendations/Settings fully wired | Resolved |
+| UI pages | 4 pages with full functionality | Backlog/Scenarios/Recommendations/Settings fully wired | Resolved |
 | Integration clients | agent-manager, ecosystem-manager | Discovery-based agent-manager + ecosystem-manager clients | ✅ Resolved |
 | Domain types | Shared across UI | ✅ Centralized in types/ module | Resolved |
 
 ### Logical vs Physical Gaps
 
 1. **API Layer Gap** (RESOLVED)
-   - Expected: Domain-organized handlers (ideas/, scenarios/, recommendations/, settings/)
-   - Actual: Ideas, scenarios, settings, queue, and recommendations handlers implemented
-   - Impact: Recommendations UI now fully functional
+   - Expected: Domain-organized handlers (backlog/, scenarios/, recommendations/, settings/)
+   - Actual: Backlog, scenarios, settings, queue, and recommendations handlers implemented
+   - Impact: Backlog UI now fully functional across kinds
 
 2. ~~**Selector Registry Gap**~~ (RESOLVED)
    - ~~Expected: `literalSelectors` and `dynamicSelectorDefinitions` populated~~
@@ -30,8 +30,8 @@ This document captures the architecture seams (integration points, boundaries) a
    - Status: Fully populated in Phase 1 (Architecture Alignment)
 
 3. **Business Logic Gap** (RESOLVED)
-   - Expected: Service layer for idea CRUD, scenario operations, settings/recommendations
-   - Actual: Ideas, scenarios, settings, and recommendations services implemented
+   - Expected: Service layer for backlog CRUD, scenario operations, settings/recommendations
+   - Actual: Backlog, scenarios, settings, and recommendations services implemented
    - Impact: UI now reads/writes all core domains
 
 ## Seam Definitions
@@ -49,41 +49,44 @@ ui/src/
 │   ├── query-utils.ts   # React Query default options
 │   └── index.ts         # Barrel export
 └── services/
-    ├── ideas-service.ts     # Ideas CRUD operations
-    ├── scenarios-service.ts # Scenarios operations
-    └── index.ts             # Barrel export
+    ├── backlog-service.ts      # Backlog CRUD and actions
+    ├── agent-manager-service.ts # Agent-manager availability
+    ├── scenarios-service.ts    # Scenarios operations
+    ├── recommendations-service.ts # Recommendations operations
+    ├── settings-service.ts     # Settings persistence
+    └── index.ts                # Barrel export
 ```
 
 **Service Seam Pattern:**
 ```typescript
 // Interface defines the seam
-export interface IIdeasService {
-  list(): Promise<Idea[]>;
-  get(name: string): Promise<Idea>;
-  create(idea: Omit<Idea, "created" | "updated">): Promise<Idea>;
-  update(name: string, idea: Partial<Idea>): Promise<Idea>;
-  delete(name: string): Promise<void>;
+export interface IBacklogService {
+  list(kinds?: BacklogKind[]): Promise<BacklogItem[]>;
+  get(kind: BacklogKind, name: string): Promise<BacklogItem>;
+  create(item: Omit<BacklogItem, "created" | "updated">): Promise<BacklogItem>;
+  update(kind: BacklogKind, name: string, item: Partial<BacklogItem>): Promise<BacklogItem>;
+  delete(kind: BacklogKind, name: string): Promise<void>;
 }
 
 // Factory allows dependency injection for testing
-export function createIdeasService(
+export function createBacklogService(
   apiClient: IApiClient = defaultApiClient
-): IIdeasService { ... }
+): IBacklogService { ... }
 
 // Default instance for production use
-export const ideasService = createIdeasService();
+export const backlogService = createBacklogService();
 ```
 
 **Testing at the Seam:**
 ```typescript
 // Pages mock at the service level (cleaner)
 vi.mock("../services", () => ({
-  ideasService: { list: vi.fn(), ... }
+  backlogService: { list: vi.fn(), ... }
 }));
 
 // Services inject mock API client (explicit dependency)
 const mockClient: IApiClient = { get: vi.fn(), ... };
-const service = createIdeasService(mockClient);
+const service = createBacklogService(mockClient);
 ```
 
 **Status**: ✅ Service layer implemented. Tests refactored to use service seam.
@@ -114,16 +117,27 @@ type EcosystemManagerClient interface {
 
 ```
 ideas/
-└── {idea-name}/
-    ├── spec.json     # Required: metadata
-    ├── notes.md      # Optional: context
-    └── research/     # Optional: supporting files
-    ├── clarify/      # Agent-generated clarifying questions (questions.json)
+└── {item-name}/
+    ├── spec.json        # Required: metadata
+    ├── notes.md         # Optional: context
+    ├── research/        # Optional: supporting files
+    ├── clarify/         # Agent-generated questions (questions.json)
     │   └── questions.json
-    ├── suggest/      # Agent-generated suggestions (suggestions.json)
+    ├── suggest/         # Agent-generated suggestions (suggestions.json)
     │   └── suggestions.json
-    └── enhance/      # Agent-generated refinements (summary.md)
+    └── enhance/         # Agent-generated refinements (summary.md)
         └── summary.md
+research/
+└── {item-name}/
+    ├── spec.json
+    └── research/
+        └── summary.md
+fix/
+└── {item-name}/
+    └── spec.json
+execute/
+└── {item-name}/
+    └── spec.json
 
 .vrooli/
 └── settings.json     # User/system settings (persisted)
@@ -131,13 +145,13 @@ ideas/
 └── recommendations.json # Recommendation store (persisted)
 ```
 
-**Status**: Ideas, scenario metadata, settings, and queue storage implemented.
+**Status**: Backlog, scenario metadata, settings, and queue storage implemented.
 
 ## Architectural Decisions
 
-### ADR-001: File-Based Ideas
+### ADR-001: File-Based Backlog
 
-**Decision**: Store ideas as git-tracked folders rather than database records.
+**Decision**: Store backlog items as git-tracked folders rather than database records.
 
 **Rationale**:
 - Git provides version history and collaboration
@@ -148,7 +162,7 @@ ideas/
 **Consequences**:
 - Need filesystem operations in API
 - Must handle concurrent file access
-- Ideas directory must be in .gitignore for user repos
+- Backlog directories should remain git-tracked for collaboration
 
 ### ADR-002: Integration-First Architecture
 
@@ -205,10 +219,9 @@ ui/src/
 ├── pages/             # Feature pages (presentation only)
 ├── services/          # Data access seams (NEW in Phase 3)
 ├── stores/            # Zustand stores for shared list state
-│   ├── ideas-service.ts      # Ideas CRUD with injectable client
-│   ├── scenarios-service.ts  # Scenarios operations
-│   ├── settings-service.ts   # Settings persistence
-│   ├── recommendations-service.ts # Recommendation operations
+│   ├── backlog-store.ts      # Backlog list state
+│   ├── scenarios-store.ts    # Scenarios list state
+│   ├── recommendations-store.ts # Recommendations list state
 │   └── index.ts              # Barrel export
 ├── types/             # Domain types and constants
 │   ├── domain.ts      # Idea, Scenario, Recommendation, Settings types
@@ -251,12 +264,12 @@ api/
 ├── go.mod               # Go module dependencies
 ├── go.sum               # Dependency checksums
 └── internal/            # Internal packages (not importable externally)
-    └── ideas/           # Ideas domain handlers
-        ├── handler.go   # HTTP handlers for /api/v1/ideas/*
+    └── backlog/         # Backlog domain handlers
+        ├── handler.go   # HTTP handlers for /api/v1/backlog/*
         └── handler_test.go
 ```
 
-**Current State**: Ideas CRUD implemented in `internal/ideas/` package. The `internal/` pattern matches Go conventions for internal packages. Future domains (scenarios, recommendations, settings) will follow the same pattern as `internal/<domain>/handler.go`.
+**Current State**: Backlog CRUD implemented in `internal/backlog/` package. The `internal/` pattern matches Go conventions for internal packages. Other domains (scenarios, recommendations, settings) follow the same pattern as `internal/<domain>/handler.go`.
 
 **Target Structure** (for reference when adding new domains):
 
@@ -265,14 +278,18 @@ api/
 ├── main.go
 ├── go.mod
 └── internal/
-    ├── ideas/           # ✅ Implemented
+    ├── backlog/         # ✅ Implemented
     │   ├── handler.go
     │   └── handler_test.go
-    ├── scenarios/       # Future: OT-P0-005, OT-P0-006
+    ├── scenarios/       # ✅ Implemented
     │   └── handler.go
-    ├── recommendations/ # Future: OT-P1-001, OT-P1-002
+    ├── recommendations/ # ✅ Implemented
     │   └── handler.go
-    └── integrations/    # Future: OT-P0-009, OT-P0-010
+    ├── settings/        # ✅ Implemented
+    │   └── handler.go
+    ├── queue/           # ✅ Implemented
+    │   └── handler.go
+    └── integrations/    # agent-manager, ecosystem-manager
         ├── agent_manager.go
         └── ecosystem_manager.go
 ```
@@ -305,7 +322,7 @@ This section documents the primary ways this scenario is likely to change, where
 
 | Axis | Description | Frequency | Current Cost |
 |------|-------------|-----------|--------------|
-| New Domain Entity Status | Adding new status values (e.g., "paused" for ideas) | Low | **1 file** - `types/domain.ts` |
+| New Domain Entity Status | Adding new status values (e.g., "paused" for backlog) | Low | **1 file** - `types/domain.ts` |
 | Status Display Mapping | Adding colors/icons for new statuses | Low | **1 file** - `types/constants.ts` |
 | New API Endpoint | Adding CRUD for new entity or operation | Medium | **2-3 files** - `api-endpoints.ts`, new service |
 | New UI Page | Adding a detail view or new tab | Medium | **3 files** - page, `App.tsx`, `selectors.ts` |
@@ -337,7 +354,7 @@ This section documents the primary ways this scenario is likely to change, where
 
 1. **New Service Operations**
    - Required: `api-endpoints.ts` (if new endpoint), new service file, possibly page
-   - Pattern: Factory function + interface, following `ideas-service.ts` template
+   - Pattern: Factory function + interface, following `backlog-service.ts` template
    - Trade-off: More boilerplate but clean testability seams
 
 2. **New UI Routes**
@@ -390,7 +407,7 @@ When adding new functionality, use these established extension points:
 | New domain type | `types/domain.ts` | Add interface and status union |
 | New status colors | `types/constants.ts` | Add to Record<Status, string> |
 | New API endpoint | `api-endpoints.ts` | Add string constant |
-| New service | `services/` | Copy `ideas-service.ts` structure |
+| New service | `services/` | Copy `backlog-service.ts` structure |
 | New page | `pages/` | Copy existing page, add route to `App.tsx` |
 | New config value | `config/index.ts` | Add to appropriate group with docs |
 | New selector | `selectors.ts` | Add to `literalSelectors` or `dynamicSelectorDefinitions` |
@@ -418,6 +435,14 @@ When adding new functionality, use these established extension points:
 
 ## Alignment Improvements Made
 
+### 2026-01-29 - Backlog Unification
+
+**Updated**:
+- Reframed the Ideas domain as a unified Backlog with kinds (idea, research, fix, execute)
+- Renamed UI routes/pages/services/selectors to Backlog terminology
+- Updated API/CLI documentation to reference `/backlog` endpoints and backlog kinds
+- Clarified filesystem seams for `ideas/`, `research/`, `fix/`, and `execute/` folders
+
 ### 2026-01-28 - Phase 1: Architecture Documentation (Screaming Architecture)
 
 **Created**:
@@ -437,13 +462,13 @@ When adding new functionality, use these established extension points:
 ### 2026-01-28 - Phase 2: Boundary-of-Responsibility Enforcement
 
 **Created**:
-- `ui/src/types/domain.ts` - Centralized domain type definitions (Idea, Scenario, etc.)
+- `ui/src/types/domain.ts` - Centralized domain type definitions (BacklogItem, Scenario, etc.)
 - `ui/src/types/constants.ts` - Domain constants (status colors, icons, formatting)
 - `ui/src/types/index.ts` - Barrel export for types module
 - `ui/src/lib/index.ts` - Barrel export for lib module
 
 **Refactored**:
-- `ui/src/pages/IdeasPage.tsx` - Now imports types from `../types` instead of inline definitions
+- `ui/src/pages/BacklogPage.tsx` - Now imports types from `../types` instead of inline definitions
 - `ui/src/pages/ScenariosPage.tsx` - Now imports types and constants from `../types`
 - `ui/src/lib/api.ts` - Removed duplicate `fetchHealth` function, clarified module responsibilities
 
@@ -457,32 +482,32 @@ When adding new functionality, use these established extension points:
 3. **pages/** are now presentation-only - no inline type definitions or domain logic
 4. Clear separation: pages import types for data, constants for display mapping
 
-**Testing**: All 13 UI tests continue to pass after refactoring
+**Testing**: All UI tests continue to pass after refactoring
 
 ### 2026-01-28 - Phase 3: Seam Discovery & Enforcement
 
 **Created**:
 - `ui/src/lib/api-client.ts` - HTTP client with `IApiClient` interface (seam for substitution)
 - `ui/src/lib/api-endpoints.ts` - Endpoint path constants separated from client
-- `ui/src/services/ideas-service.ts` - Ideas CRUD operations behind `IIdeasService` interface
+- `ui/src/services/backlog-service.ts` - Backlog CRUD operations behind `IBacklogService` interface
 - `ui/src/services/scenarios-service.ts` - Scenarios operations behind `IScenariosService` interface
 - `ui/src/services/index.ts` - Barrel export for services
-- `ui/src/services/ideas-service.test.ts` - Tests demonstrating seam-based testing
+- `ui/src/services/backlog-service.test.ts` - Tests demonstrating seam-based testing
 
 **Refactored**:
 - `ui/src/lib/api.ts` - Now re-exports from api-client.ts and api-endpoints.ts
 - `ui/src/lib/index.ts` - Updated to export new modules
-- `ui/src/pages/IdeasPage.tsx` - Now uses `ideasService` instead of direct API calls
+- `ui/src/pages/BacklogPage.tsx` - Now uses `backlogService` instead of direct API calls
 - `ui/src/pages/ScenariosPage.tsx` - Now uses `scenariosService` instead of direct API calls
-- `ui/src/pages/IdeasPage.test.tsx` - Refactored to mock at service level, not API level
+- `ui/src/pages/BacklogPage.test.tsx` - Refactored to mock at service level, not API level
 
 **Resolved**:
 - TD-008: API client is now behind interfaces with factory functions for injection
 
 **Seam Improvements**:
 1. **IApiClient interface** - HTTP client can be substituted without module mocking
-2. **IIdeasService/IScenariosService** - Service layer provides clean testing seam
-3. **Factory functions** - `createIdeasService(client)` allows explicit dependency injection
+2. **IBacklogService/IScenariosService** - Service layer provides clean testing seam
+3. **Factory functions** - `createBacklogService(client)` allows explicit dependency injection
 4. **Two-level testing** - Pages mock services, services inject mock clients
 
 **Testing**: All 18 UI tests pass (5 new service tests + 13 existing page/layout tests)
@@ -501,9 +526,9 @@ When adding new functionality, use these established extension points:
 - `docs/reference/configuration.md` - User-facing configuration reference
 
 **Refactored**:
-- `ui/src/pages/IdeasPage.tsx` - Uses `dataFetchingConfig` and `displayLimitsConfig`
+- `ui/src/pages/BacklogPage.tsx` - Uses `dataFetchingConfig` and `displayLimitsConfig`
 - `ui/src/pages/ScenariosPage.tsx` - Uses `dataFetchingConfig` and `displayLimitsConfig`
-- `ui/src/pages/IdeasPage.test.tsx` - Mocks config module for predictable test behavior
+- `ui/src/pages/BacklogPage.test.tsx` - Mocks config module for predictable test behavior
 
 **Configuration Groups Designed**:
 1. **dataFetchingConfig** - Retry behavior, caching, staleness
@@ -538,12 +563,12 @@ This section documents the major decision points in the codebase - places where 
 |----------|-------------|------------------|
 | Error Classification | Categorizing errors for recovery path selection | `lib/error-utils.ts` |
 | Error Retryability | Deciding whether an error can be retried | `lib/api-client.ts` |
-| UI State Rendering | Deciding which UI state to show (loading/error/empty/data) | Pages (`IdeasPage.tsx`, etc.) |
+| UI State Rendering | Deciding which UI state to show (loading/error/empty/data) | Pages (`BacklogPage.tsx`, etc.) |
 | Status Display | Mapping domain status to visual representation | `types/constants.ts` |
 | Configuration | Threshold-based behavior decisions | `config/index.ts` |
-| API Response | Deciding HTTP response codes and handling | `api/internal/ideas/handler.go` |
+| API Response | Deciding HTTP response codes and handling | `api/internal/backlog/handler.go` |
 | Routing | Navigating to the correct page/component | `App.tsx` |
-| Name Sanitization | Transforming user input to safe format | `api/internal/ideas/handler.go` |
+| Name Sanitization | Transforming user input to safe format | `api/internal/backlog/handler.go` |
 
 ### Well-Extracted Decision Points
 
@@ -603,25 +628,25 @@ These decisions are clearly named, documented, and easy to locate:
 
 **Testability**: ✅ Config values tested in `config/index.test.ts`.
 
-#### 4. Idea Sorting Order (`api/internal/ideas/handler.go`)
+#### 4. Backlog Sorting Order (`api/internal/backlog/handler.go`)
 
-**What**: Determine display order of ideas in the list.
+**What**: Determine display order of backlog items in the list.
 
-**Location**: `List()` handler at `api/internal/ideas/handler.go:91-97`
+**Location**: `List()` handler at `api/internal/backlog/handler.go:91-97`
 
 **Criteria**:
 1. Sort by priority ascending (P1 before P2)
 2. Tie-breaker: sort by updated date descending (newest first)
 
-**Outcomes**: Ideas appear in priority order with recently-updated items first within each priority.
+**Outcomes**: Backlog items appear in priority order with recently-updated items first within each priority.
 
 **Testability**: ✅ Deterministic sorting, tested in handler tests.
 
-#### 5. Idea Name Sanitization (`api/internal/ideas/handler.go`)
+#### 5. Backlog Name Sanitization (`api/internal/backlog/handler.go`)
 
-**What**: Transform user-provided idea name into folder-safe format.
+**What**: Transform user-provided backlog name into folder-safe format.
 
-**Location**: `sanitizeName()` function at `api/internal/ideas/handler.go:322-334`
+**Location**: `sanitizeName()` function at `api/internal/backlog/handler.go:322-334`
 
 **Criteria**:
 - Convert to lowercase
@@ -669,7 +694,7 @@ The UI uses a consistent pattern for rendering based on data state:
 ```
 
 **Locations**:
-- `IdeasPage.tsx:55-130`
+- `BacklogPage.tsx:55-130`
 - `ScenariosPage.tsx:54-140`
 
 **Key Distinction**: Empty state (data loaded successfully, zero items) is DIFFERENT from error state (failed to load).
@@ -702,7 +727,7 @@ The UI uses a consistent pattern for rendering based on data state:
 
 ### API Response Decisions
 
-#### HTTP Status Code Decisions (`api/internal/ideas/handler.go`)
+#### HTTP Status Code Decisions (`api/internal/backlog/handler.go`)
 
 | Condition | Status | Handler Method |
 |-----------|--------|----------------|
@@ -774,7 +799,7 @@ These decisions exist but could benefit from further extraction or clarification
 
 #### 1. Tag Truncation (Inlined in Pages)
 
-**Current Location**: `IdeasPage.tsx:110-120`, `ScenariosPage.tsx:104-114`
+**Current Location**: `BacklogPage.tsx:110-120`, `ScenariosPage.tsx:104-114`
 
 **Decision**: Show first N tags, then "+X more" for overflow.
 
@@ -784,17 +809,17 @@ These decisions exist but could benefit from further extraction or clarification
 
 #### 2. Default Priority Assignment (Inlined in Handler)
 
-**Current Location**: `api/internal/ideas/handler.go:157-159`
+**Current Location**: `api/internal/backlog/handler.go:157-159`
 
-**Decision**: New ideas get priority 5 if not specified.
+**Decision**: New backlog items get priority 5 if not specified.
 
 **Status**: Hard-coded in handler. Should this be configurable?
 
-**Recommendation**: Document that priority 5 is the default for new ideas (lowest priority = safest default).
+**Recommendation**: Document that priority 5 is the default for new backlog items (lowest priority = safest default).
 
 #### 3. Date Formatting (Inlined in Pages)
 
-**Current Location**: `IdeasPage.tsx:124`
+**Current Location**: `BacklogPage.tsx:124`
 
 **Decision**: Display dates using `toLocaleDateString()`.
 
@@ -811,7 +836,7 @@ These decisions exist but could benefit from further extraction or clarification
 | YOLO mode bounds | ✅ `config/index.test.ts` | N/A | Config validation |
 | Idea sorting | ✅ `handler_test.go` | N/A | Go unit test |
 | Name sanitization | ✅ `handler_test.go` | N/A | Go unit test |
-| UI state rendering | ✅ `IdeasPage.test.tsx` | ❌ Missing | Needs e2e |
+| UI state rendering | ✅ `BacklogPage.test.tsx` | ❌ Missing | Needs e2e |
 | Error boundary | ✅ Implicit | N/A | React built-in |
 | HTTP status codes | ✅ `handler_test.go` | N/A | Go unit test |
 | Status-to-color | ❌ Missing | N/A | Should add type tests |
@@ -840,12 +865,12 @@ These decisions exist but could benefit from further extraction or clarification
 - `ui/src/components/ui/tag-list.tsx` - Reusable TagList component for tag truncation
 
 **Refactored**:
-- `IdeasPage.tsx` - Replaced 14-line tag truncation logic with single TagList component call
+- `BacklogPage.tsx` - Replaced 14-line tag truncation logic with single TagList component call
 - `ScenariosPage.tsx` - Replaced 11-line tag truncation logic with single TagList component call
 - `error-state.tsx` - Unified error variant detection to use centralized `categorizeError()` from error-utils.ts
 
 **Simplifications Made**:
-1. **Tag truncation pattern elimination**: Previously, both IdeasPage and ScenariosPage had nearly identical 10+ line blocks for tag truncation (slice, map, conditional "+N more"). Now a single `<TagList tags={...} maxTags={...} />` component handles all cases.
+1. **Tag truncation pattern elimination**: Previously, both BacklogPage and ScenariosPage had nearly identical 10+ line blocks for tag truncation (slice, map, conditional "+N more"). Now a single `<TagList tags={...} maxTags={...} />` component handles all cases.
 2. **Error variant classification unification**: The `getVariantFromError()` function in error-state.tsx duplicated logic from `categorizeError()` in error-utils.ts. Now error-state.tsx imports and uses the centralized function, mapping ErrorCategory to ErrorVariant via a simple constant mapping.
 
 **Testing**: All 115 UI tests pass after refactoring.
@@ -860,7 +885,7 @@ This section records findings from cognitive load reduction efforts, helping fut
 
 **Before**: Tag rendering with truncation was duplicated across pages:
 ```tsx
-// IdeasPage.tsx:108-121 (14 lines)
+// BacklogPage.tsx:108-121 (14 lines)
 {idea.tags && idea.tags.length > 0 && (
   <div className="mt-3 flex flex-wrap gap-1">
     {idea.tags.slice(0, displayLimitsConfig.ideaCardMaxTags).map((tag) => (
@@ -938,7 +963,7 @@ These areas have higher cognitive load but are stable and rarely modified:
 
 #### 1. Page Component Structure
 
-**Observation**: IdeasPage and ScenariosPage have similar patterns:
+**Observation**: BacklogPage and ScenariosPage have similar patterns:
 - useQuery hook setup
 - Header with search/filter
 - Loading state
@@ -962,8 +987,8 @@ These areas have higher cognitive load but are stable and rarely modified:
 
 | File | Complexity | Readability | Notes |
 |------|------------|-------------|-------|
-| `IdeasPage.tsx` | Low | High | Clear data flow, no nested conditions |
-| `ScenariosPage.tsx` | Low | High | Same pattern as IdeasPage |
+| `BacklogPage.tsx` | Low | High | Clear data flow, no nested conditions |
+| `ScenariosPage.tsx` | Low | High | Same pattern as BacklogPage |
 | `error-state.tsx` | Low | High | Simple mapping from error → display |
 | `error-utils.ts` | Medium | High | Well-documented, many categories |
 | `api-client.ts` | Medium | High | Complex but essential error handling |
@@ -987,11 +1012,11 @@ These areas have higher cognitive load but are stable and rarely modified:
 | Aspect | Documented | Actual | Status |
 |--------|------------|--------|--------|
 | UI types module | Domain-organized types | ✅ `types/domain.ts`, `types/constants.ts` | Well-Aligned |
-| UI services layer | Service seams with interfaces | ✅ `services/ideas-service.ts`, `services/scenarios-service.ts`, `services/settings-service.ts`, `services/recommendations-service.ts` | Well-Aligned |
+| UI services layer | Service seams with interfaces | ✅ `services/backlog-service.ts`, `services/scenarios-service.ts`, `services/settings-service.ts`, `services/recommendations-service.ts` | Well-Aligned |
 | UI lib module | Separated concerns | ✅ `api-client.ts`, `error-utils.ts`, `query-utils.ts` | Well-Aligned |
 | UI config module | Centralized configuration | ✅ `config/index.ts` with 6 groups | Well-Aligned |
-| API structure | Domain-organized internal packages | ✅ `internal/ideas/handler.go` | Well-Aligned |
-| CLI structure | Domain-organized commands | ✅ Grouped by Health, Ideas, Config | Well-Aligned |
+| API structure | Domain-organized internal packages | ✅ `internal/backlog/handler.go` | Well-Aligned |
+| CLI structure | Domain-organized commands | ✅ Grouped by Health, Backlog, Config | Well-Aligned |
 
 **Improvements Made**:
 
@@ -999,7 +1024,7 @@ These areas have higher cognitive load but are stable and rarely modified:
 
 2. **Removed empty `api/internal/scenarios/` directory**: This was a placeholder directory with no files. Empty directories can be confusing and suggest incomplete work. (Scenarios endpoints were implemented in later phases.)
 
-3. **Updated SEAMS.md API Module Structure section**: The documentation said "Only main.go exists with all code in one file" but the actual structure had evolved to use `internal/ideas/handler.go`. Updated to reflect current state and added target structure reference for future domains.
+3. **Updated SEAMS.md API Module Structure section**: The documentation said "Only main.go exists with all code in one file" but the actual structure had evolved to use `internal/backlog/handler.go`. Updated to reflect current state and added target structure reference for future domains.
 
 **Documentation Health Findings**:
 
@@ -1014,16 +1039,16 @@ These areas have higher cognitive load but are stable and rarely modified:
 **Architecture Screams Its Purpose**:
 
 The codebase structure clearly expresses what swarm-manager does:
-- `ui/src/pages/IdeasPage.tsx` - Ideas management
+- `ui/src/pages/BacklogPage.tsx` - Backlog management
 - `ui/src/pages/ScenariosPage.tsx` - Scenario catalog
 - `ui/src/pages/RecommendationsPage.tsx` - Recommendation engine
 - `ui/src/pages/SettingsPage.tsx` - User preferences
-- `api/internal/ideas/` - Ideas CRUD backend
-- `cli/app.go` - CLI with Ideas and Health commands
+- `api/internal/backlog/` - Backlog CRUD backend
+- `cli/app.go` - CLI with Backlog and Health commands
 
-The top-level structure makes it obvious this is a scenario management dashboard with ideas backlog, scenario catalog, and recommendation capabilities.
+The top-level structure makes it obvious this is a scenario management dashboard with a backlog, scenario catalog, and recommendation capabilities.
 
-**Testing**: All 115 UI tests pass. All Go tests pass (ideas handler: 12 tests, CLI: 11 tests). Build succeeds.
+**Testing**: All UI tests pass. All Go tests pass (backlog handler: 12 tests, CLI: 11 tests). Build succeeds.
 
 ### 2026-01-28 - Phase 17, Iteration 2: Documentation Drift Cleanup
 
@@ -1056,16 +1081,16 @@ The scenario has the following observable states:
 
 ### Signal Inventory
 
-#### API Signals (`api/internal/ideas/handler.go`)
+#### API Signals (`api/internal/backlog/handler.go`)
 
 | Operation | Success Signal | Failure Signals |
 |-----------|---------------|-----------------|
-| **Create idea** | `[ideas] created: "name" (priority=N, status=S)` | `[ideas] create: invalid request body`<br>`[ideas] create: missing required fields`<br>`[ideas] create: conflict - idea "name" already exists`<br>`[ideas] create: failed to create directory` |
-| **Update idea** | `[ideas] updated: "name"`<br>`[ideas] updated: "name" (status=A→B, priority=X→Y)` | `[ideas] update: not found "name"`<br>`[ideas] update: invalid request body`<br>`[ideas] update: failed to save` |
-| **Delete idea** | `[ideas] deleted: "name"`<br>`[ideas] delete: "name" (already gone, no-op)` | `[ideas] delete: failed to remove` |
+| **Create idea** | `[backlog] created: "name" (priority=N, status=S)` | `[backlog] create: invalid request body`<br>`[backlog] create: missing required fields`<br>`[backlog] create: conflict - idea "name" already exists`<br>`[backlog] create: failed to create directory` |
+| **Update idea** | `[backlog] updated: "name"`<br>`[backlog] updated: "name" (status=A→B, priority=X→Y)` | `[backlog] update: not found "name"`<br>`[backlog] update: invalid request body`<br>`[backlog] update: failed to save` |
+| **Delete idea** | `[backlog] deleted: "name"`<br>`[backlog] delete: "name" (already gone, no-op)` | `[backlog] delete: failed to remove` |
 | **Request lifecycle** | `[METHOD] /path duration` (via middleware) | HTTP error responses |
 
-**Log Format**: All operation logs use the pattern `[ideas] {action}: {context}` for easy grep/filter.
+**Log Format**: All operation logs use the pattern `[backlog] {action}: {context}` for easy grep/filter.
 
 #### UI Signals (`ui/src/lib/error-utils.ts`)
 
@@ -1106,11 +1131,11 @@ The scenario has the following observable states:
 | Command | Success Output | Error Output |
 |---------|---------------|--------------|
 | `status` | `Status: ok`, `Ready: true`, dependencies | Connection error message |
-| `ideas list` | `Found N idea(s)` or `No ideas found.` | Parse/connection errors |
-| `ideas get` | Formatted idea details | `usage:` message, not found |
-| `ideas create` | `Created idea: name` with details | Validation, conflict errors |
-| `ideas update` | `Updated idea: name` with details | Validation, not found errors |
-| `ideas delete` | `Deleted idea: name` | Not found, permission errors |
+| `backlog list` | `Found N backlog item(s)` or `No backlog items found.` | Parse/connection errors |
+| `backlog get` | Formatted backlog item details | `usage:` message, not found |
+| `backlog create` | `Created backlog item: name` with details | Validation, conflict errors |
+| `backlog update` | `Updated backlog item: name` with details | Validation, not found errors |
+| `backlog delete` | `Deleted backlog item: name` | Not found, permission errors |
 
 ### UI Feedback Patterns
 
@@ -1147,7 +1172,7 @@ The UI provides clear visual feedback for all states:
 
 **Empty State Pattern**:
 - Distinct from error state (successful fetch, zero results)
-- Friendly messaging ("No ideas yet")
+- Friendly messaging ("No backlog items yet")
 - Clear call-to-action ("Create First Idea")
 
 ### Observability Gaps (Signal Debt)
@@ -1163,7 +1188,7 @@ The following areas lack sufficient observability:
 ### Signal Consumption
 
 **For Operators/Agents**:
-- Grep API logs with `[ideas]` prefix for operation tracking
+- Grep API logs with `[backlog]` prefix for operation tracking
 - Parse structured JSON logs from UI console output
 - Use correlation IDs to trace errors across layers
 
@@ -1197,7 +1222,7 @@ Critical signals are tested to ensure stable observation:
 
 #### 1. Scenarios Service Test Coverage (UI)
 
-**Problem**: The `scenarios-service.ts` had a clean seam interface (`IScenariosService`) but no tests exercising it, unlike `ideas-service.ts` which had comprehensive tests.
+**Problem**: The `scenarios-service.ts` had a clean seam interface (`IScenariosService`) but no tests exercising it, unlike `backlog-service.ts` which had comprehensive tests.
 
 **Solution**: Added `scenarios-service.test.ts` with 6 tests covering:
 - List scenarios (success and empty cases)
@@ -1210,7 +1235,7 @@ Critical signals are tested to ensure stable observation:
 
 #### 2. Ecosystem-Manager Integration Seam (Go API)
 
-**Problem**: The `ideas/handler.go` had hardcoded HTTP calls to ecosystem-manager in `createEcosystemTask()`, making it impossible to test the Queue handler without a running ecosystem-manager instance.
+**Problem**: The `backlog/handler.go` had hardcoded HTTP calls to ecosystem-manager in `createEcosystemTask()`, making it impossible to test the Queue handler without a running ecosystem-manager instance.
 
 **Solution**: Use `internal/ecosystem` client interface as the seam:
 
@@ -1224,7 +1249,7 @@ type Client interface {
 
 **Changes Made**:
 1. Centralized integration contract in `internal/ecosystem` package
-2. Added `ecosystem.Client` field to `ideas.Handler` for dependency injection
+2. Added `ecosystem.Client` field to `backlog.Handler` for dependency injection
 3. Refactored `createEcosystemTask()` to use injected client if available
 4. Default client uses `api-core/discovery` for dynamic ports
 5. Tests inject mock client for isolation
@@ -1253,7 +1278,7 @@ The scenario now has a clean layered seam architecture:
 │                          UI Layer                                │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│   Pages ──────► Services (IIdeasService, IScenariosService)      │
+│   Pages ──────► Services (IBacklogService, IScenariosService)    │
 │                     │                                            │
 │                     ▼ [Seam #1: Service Interface]               │
 │                                                                  │
@@ -1287,7 +1312,7 @@ The scenario now has a clean layered seam architecture:
 
 | Seam | Interface | Test File | Test Count |
 |------|-----------|-----------|------------|
-| Ideas Service | `IIdeasService` | `ideas-service.test.ts` | 5 tests |
+| Backlog Service | `IBacklogService` | `backlog-service.test.ts` | 5 tests |
 | Scenarios Service | `IScenariosService` | `scenarios-service.test.ts` | 6 tests |
 | API Client | `IApiClient` | `api-client.test.ts` | 12 tests |
 | HTTP Utilities | (functions) | `response_test.go` | 16 tests |

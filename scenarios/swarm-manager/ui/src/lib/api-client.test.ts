@@ -107,7 +107,7 @@ describe("ApiError", () => {
     });
 
     it("does not expose technical details", () => {
-      const error = new ApiError("network", "TypeError: Failed to fetch at http://localhost:15000/api/v1/ideas");
+      const error = new ApiError("network", "TypeError: Failed to fetch at http://localhost:15000/api/v1/backlog/idea");
       expect(error.userMessage).not.toContain("localhost");
       expect(error.userMessage).not.toContain("TypeError");
       expect(error.userMessage).not.toContain("/api/");

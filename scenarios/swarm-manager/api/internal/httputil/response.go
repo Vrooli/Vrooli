@@ -11,7 +11,7 @@
 //   - Ensure all JSON responses set proper Content-Type headers
 //
 // Related files:
-//   - api/internal/ideas/handler.go - uses these utilities for idea operations
+//   - api/internal/backlog/handler.go - uses these utilities for backlog operations
 //   - api/internal/scenarios/handler.go - uses these utilities for scenario operations
 package httputil
 

@@ -85,12 +85,12 @@ describe("NotFoundPage", () => {
       );
 
       const button = screen.getByTestId(selectors.notFound.homeButton);
-      expect(button).toHaveTextContent("Go to Ideas");
+      expect(button).toHaveTextContent("Go to Backlog");
     });
   });
 
   describe("navigation", () => {
-    it("navigates to /ideas when home button clicked", () => {
+    it("navigates to /backlog when home button clicked", () => {
       render(
         <MemoryRouter>
           <NotFoundPage />
@@ -101,7 +101,7 @@ describe("NotFoundPage", () => {
       fireEvent.click(button);
 
       expect(mockNavigate).toHaveBeenCalledTimes(1);
-      expect(mockNavigate).toHaveBeenCalledWith("/ideas", { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith("/backlog", { replace: true });
     });
 
     it("uses replace navigation to prevent back-to-404 loop", () => {
@@ -115,7 +115,7 @@ describe("NotFoundPage", () => {
       fireEvent.click(button);
 
       // The key assertion: replace: true prevents user from navigating back to 404
-      expect(mockNavigate).toHaveBeenCalledWith("/ideas", expect.objectContaining({ replace: true }));
+      expect(mockNavigate).toHaveBeenCalledWith("/backlog", expect.objectContaining({ replace: true }));
     });
   });
 

@@ -9,15 +9,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilePreview } from "./file-preview";
 
-// Mock the ideasService
 vi.mock("../../services", () => ({
-  ideasService: {
+  backlogService: {
     getFileContent: vi.fn(),
   },
 }));
 
-// Import after mock
-import { ideasService } from "../../services";
+import { backlogService } from "../../services";
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -43,11 +41,12 @@ describe("FilePreview", () => {
   });
 
   it("renders file preview with file name", async () => {
-    vi.mocked(ideasService.getFileContent).mockResolvedValue("# Test Content");
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Test Content");
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="docs/readme.md"
         fileName="readme.md"
       />
@@ -57,27 +56,27 @@ describe("FilePreview", () => {
   });
 
   it("shows loading state while fetching content", async () => {
-    // Never resolve to keep loading state
-    vi.mocked(ideasService.getFileContent).mockReturnValue(new Promise(() => {}));
+    vi.mocked(backlogService.getFileContent).mockReturnValue(new Promise(() => {}));
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="test.txt"
         fileName="test.txt"
       />
     );
 
-    // The component should show file name even while loading
     expect(screen.getByTestId("file-preview-name")).toHaveTextContent("test.txt");
   });
 
   it("renders markdown content correctly", async () => {
-    vi.mocked(ideasService.getFileContent).mockResolvedValue("# Hello World\n\nThis is a test.");
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("# Hello World\n\nThis is a test.");
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="README.md"
         fileName="README.md"
       />
@@ -89,11 +88,12 @@ describe("FilePreview", () => {
   });
 
   it("renders code files with code view", async () => {
-    vi.mocked(ideasService.getFileContent).mockResolvedValue("function test() {\n  return true;\n}");
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("function test() {\n  return true;\n}");
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="src/test.ts"
         fileName="test.ts"
       />
@@ -105,11 +105,12 @@ describe("FilePreview", () => {
   });
 
   it("renders plain text for unknown file types", async () => {
-    vi.mocked(ideasService.getFileContent).mockResolvedValue("Plain text content");
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("Plain text content");
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="notes.txt"
         fileName="notes.txt"
       />
@@ -125,7 +126,8 @@ describe("FilePreview", () => {
   it("renders image preview for image files", () => {
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="images/logo.png"
         fileName="logo.png"
       />
@@ -133,18 +135,16 @@ describe("FilePreview", () => {
 
     const image = screen.getByTestId("file-preview-image");
     expect(image).toBeInTheDocument();
-    expect(image).toHaveAttribute("src", "/api/v1/ideas/test-idea/files/images/logo.png");
+    expect(image).toHaveAttribute("src", "/api/v1/backlog/idea/test-idea/files/images/logo.png");
   });
 
-  // Note: Error state testing requires careful React Query timing configuration.
-  // The error state appears but not within the test's timing expectations.
-  // Error handling is verified through manual testing and API-level tests.
   it.skip("shows error state when file fetch fails", async () => {
-    vi.mocked(ideasService.getFileContent).mockRejectedValue(new Error("File not found"));
+    vi.mocked(backlogService.getFileContent).mockRejectedValue(new Error("File not found"));
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="missing.txt"
         fileName="missing.txt"
       />
@@ -159,11 +159,12 @@ describe("FilePreview", () => {
   });
 
   it("displays file path in header", async () => {
-    vi.mocked(ideasService.getFileContent).mockResolvedValue("content");
+    vi.mocked(backlogService.getFileContent).mockResolvedValue("content");
 
     renderWithProviders(
       <FilePreview
-        ideaName="test-idea"
+        backlogKind="idea"
+        backlogName="test-idea"
         filePath="src/components/Button.tsx"
         fileName="Button.tsx"
       />

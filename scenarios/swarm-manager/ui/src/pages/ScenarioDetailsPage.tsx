@@ -489,7 +489,7 @@ export function ScenarioDetailsPage() {
         confirmLabel="Delete Scenario"
         isLoading={deleteMutation.isPending}
         checkboxContent={{
-          label: "Archive to ideas backlog before deleting (recommended)",
+          label: "Archive to backlog (idea) before deleting (recommended)",
           checked: archiveOnDelete,
           onChange: setArchiveOnDelete,
           testId: selectors.scenarioDetails.archiveCheckbox,

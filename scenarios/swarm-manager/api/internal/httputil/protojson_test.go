@@ -11,7 +11,7 @@ import (
 )
 
 func TestProtoJSONAndStatus(t *testing.T) {
-	msg := &domainpb.Idea{
+	msg := &domainpb.BacklogItem{
 		Name:        "idea-1",
 		Title:       "Title",
 		Description: "Desc",
@@ -20,6 +20,7 @@ func TestProtoJSONAndStatus(t *testing.T) {
 		Tags:        []string{"alpha"},
 		Created:     "2024-01-01T00:00:00Z",
 		Updated:     "2024-01-02T00:00:00Z",
+		Kind:        "idea",
 	}
 
 	w := httptest.NewRecorder()
@@ -51,10 +52,10 @@ func TestProtoJSONAndStatus(t *testing.T) {
 }
 
 func TestDecodeProtoJSONDiscardUnknown(t *testing.T) {
-	payload := []byte(`{"name":"idea-2","title":"T","status":"backlog","priority":3,"unknown_field":"ignored"}`)
+	payload := []byte(`{"name":"idea-2","title":"T","status":"backlog","priority":3,"kind":"idea","unknown_field":"ignored"}`)
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(payload))
 
-	msg := &domainpb.Idea{}
+	msg := &domainpb.BacklogItem{}
 	if err := DecodeProtoJSON(req, msg); err != nil {
 		t.Fatalf("DecodeProtoJSON error: %v", err)
 	}

@@ -98,14 +98,14 @@ export const dataFetchingConfig = {
  */
 export const displayLimitsConfig = {
   /**
-   * Maximum tags shown on idea cards before showing "+N more".
+   * Maximum tags shown on backlog cards before showing "+N more".
    *
    * Impact: Higher values show more context but create visual clutter.
    *
    * Default: 3
    * Range: 1-10
    */
-  ideaCardMaxTags: 3,
+  backlogCardMaxTags: 3,
 
   /**
    * Maximum tags shown on scenario cards before truncation.

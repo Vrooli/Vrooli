@@ -7,7 +7,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { FileTree } from "./file-tree";
-import type { IdeaFile } from "../../types";
+import type { BacklogFile } from "../../types";
 
 describe("FileTree", () => {
   // [REQ:REQ-P0-004] Test empty file tree displays empty state
@@ -18,7 +18,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test file tree renders files
   it("renders file list correctly", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
       { name: "notes.md", path: "notes.md", type: "file", size: 1024 },
     ];
@@ -31,7 +31,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test file tree renders directories with expand/collapse
   it("renders directories that can be expanded", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       {
         name: "research",
         path: "research",
@@ -60,7 +60,7 @@ describe("FileTree", () => {
   // [REQ:REQ-P0-004] Test file selection callback
   it("calls onFileSelect when file is clicked", () => {
     const onFileSelect = vi.fn();
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
     ];
 
@@ -73,7 +73,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test file size formatting
   it("displays file size in human-readable format", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "small.txt", path: "small.txt", type: "file", size: 500 },
       { name: "medium.txt", path: "medium.txt", type: "file", size: 5000 },
     ];
@@ -86,7 +86,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test selected file highlighting
   it("highlights selected file", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
       { name: "notes.md", path: "notes.md", type: "file", size: 1024 },
     ];
@@ -99,7 +99,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test nested directory structure
   it("renders nested directories correctly", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       {
         name: "docs",
         path: "docs",
@@ -133,7 +133,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test directory without children
   it("renders empty directory without expand chevron", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "empty-dir", path: "empty-dir", type: "directory", children: [] },
     ];
 
@@ -146,7 +146,7 @@ describe("FileTree", () => {
 
   // [REQ:REQ-P0-004] Test custom data-testid
   it("uses custom data-testid when provided", () => {
-    const files: IdeaFile[] = [
+    const files: BacklogFile[] = [
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
     ];
 

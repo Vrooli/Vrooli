@@ -543,9 +543,9 @@ func (h *Handler) loadScenarioFromSource(source ScenarioSource) (Scenario, error
 // [REQ:REQ-P0-008] DELETE /api/v1/scenarios/{name} endpoint with archive option
 //
 // Query parameters:
-//   - archive: If true, archives the scenario to the ideas backlog instead of permanent deletion
+//   - archive: If true, archives the scenario to the backlog (idea kind) instead of permanent deletion
 //
-// The archive option creates an idea entry from the scenario's metadata, preserving
+// The archive option creates a backlog idea entry from the scenario's metadata, preserving
 // important information for potential future revival. This provides a safety net
 // for accidental deletions while keeping the scenarios directory clean.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -585,13 +585,13 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If archiving, create an idea entry first
+	// If archiving, create a backlog idea entry first
 	if archive {
-		if err := h.archiveToIdeas(scenario, scenarioPath); err != nil {
+		if err := h.archiveToBacklogIdea(scenario, scenarioPath); err != nil {
 			httputil.InternalError(w, "[scenarios] delete", "failed to archive scenario")
 			return
 		}
-		log.Printf("[scenarios] archived: %q to ideas backlog", name)
+		log.Printf("[scenarios] archived: %q to backlog (idea)", name)
 	}
 
 	// Delete the scenario directory
@@ -604,7 +604,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	message := "Scenario permanently deleted"
 	if archive {
-		message = "Scenario archived to ideas backlog and deleted"
+		message = "Scenario archived to backlog (idea) and deleted"
 	}
 	response := &apipb.DeleteScenarioResponse{
 		Name:     name,
@@ -686,15 +686,15 @@ func (h *Handler) handleLifecycleAction(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-// archiveToIdeas creates an idea entry from a scenario's metadata.
+// archiveToBacklogIdea creates a backlog idea entry from a scenario's metadata.
 // [REQ:REQ-P0-008] Archive functionality for scenario preservation
-func (h *Handler) archiveToIdeas(scenario Scenario, scenarioPath string) error {
-	ideaRoot, err := deriveIdeasRoot(scenarioPath)
+func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string) error {
+	ideaRoot, err := deriveBacklogIdeasRoot(scenarioPath)
 	if err != nil {
 		return err
 	}
 
-	// Create idea directory structure
+	// Create backlog idea directory structure
 	ideaName := scenario.Name + "-archived"
 	ideaDir := filepath.Join(ideaRoot, ideaName)
 
@@ -762,11 +762,11 @@ func applyCompletenessScore(scenario *Scenario, scores map[string]int) {
 	scenario.CompletenessScore = &score
 }
 
-func deriveIdeasRoot(scenarioPath string) (string, error) {
+func deriveBacklogIdeasRoot(scenarioPath string) (string, error) {
 	cleaned := filepath.Clean(scenarioPath)
 	parts := strings.Split(filepath.ToSlash(cleaned), "/scenarios/")
 	if len(parts) < 2 {
-		return "", fmt.Errorf("unable to derive ideas root from scenario path %q", scenarioPath)
+		return "", fmt.Errorf("unable to derive backlog (idea) root from scenario path %q", scenarioPath)
 	}
 	root := parts[0]
 	if root == "" {

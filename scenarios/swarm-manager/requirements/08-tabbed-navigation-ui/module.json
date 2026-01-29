@@ -1,12 +1,12 @@
 {
-  "description": "Header tabs (desktop) / bottom-nav (mobile) with four tabs: Ideas, Scenarios, Recommendations, Settings",
+  "description": "Header tabs (desktop) / bottom-nav (mobile) with four tabs: Backlog, Scenarios, Recommendations, Settings",
   "module_id": "MOD-P0-008",
   "prd_ref": "OT-P0-008",
   "priority": "P0",
   "requirements": [
     {
       "category": "ui",
-      "description": "Implement desktop header navigation with tabbed layout containing Ideas, Scenarios, Recommendations, and Settings tabs",
+      "description": "Implement desktop header navigation with tabbed layout containing Backlog, Scenarios, Recommendations, and Settings tabs",
       "id": "REQ-P0-009-DESKTOP",
       "prd_ref": "OT-P0-008",
       "status": "implemented",
@@ -27,9 +27,9 @@
           "type": "test"
         },
         {
-          "notes": "Verify active tab highlighting on Ideas page",
+          "notes": "Verify active tab highlighting on Backlog page",
           "phase": "unit",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Ideas tab when on /ideas route",
+          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Backlog tab when on /backlog route",
           "status": "passing",
           "type": "test"
         },
@@ -44,7 +44,7 @@
     },
     {
       "category": "ui",
-      "description": "Implement mobile bottom navigation with tab icons for Ideas, Scenarios, Recommendations, and Settings",
+      "description": "Implement mobile bottom navigation with tab icons for Backlog, Scenarios, Recommendations, and Settings",
       "id": "REQ-P0-009-MOBILE",
       "prd_ref": "OT-P0-008",
       "status": "implemented",

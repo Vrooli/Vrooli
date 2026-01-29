@@ -2,7 +2,7 @@
  * SearchBar Component
  *
  * A reusable search input with consistent styling, used across list pages.
- * Extracts the common search pattern from IdeasPage and ScenariosPage.
+ * Extracts the common search pattern from BacklogPage and ScenariosPage.
  */
 
 import { Search } from "lucide-react";
@@ -19,10 +19,10 @@ export interface SearchBarProps extends Omit<InputProps, "leftIcon" | "type"> {
  * Usage:
  * ```tsx
  * <SearchBar
- *   placeholder="Search ideas..."
+ *   placeholder="Search backlog..."
  *   value={searchTerm}
  *   onChange={(e) => setSearchTerm(e.target.value)}
- *   data-testid="ideas-search"
+ *   data-testid="backlog-search"
  * />
  * ```
  */

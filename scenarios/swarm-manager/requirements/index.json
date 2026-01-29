@@ -32,25 +32,25 @@
       "id": "MOD-P0-001",
       "path": "01-idea-backlog-file-structure",
       "priority": "P0",
-      "title": "Idea backlog file structure"
+      "title": "Backlog file structure"
     },
     {
       "id": "MOD-P0-002",
       "path": "02-idea-backlog-crud",
       "priority": "P0",
-      "title": "Idea backlog CRUD"
+      "title": "Backlog CRUD"
     },
     {
       "id": "MOD-P0-003",
       "path": "03-idea-details-page",
       "priority": "P0",
-      "title": "Idea details page"
+      "title": "Backlog details page"
     },
     {
       "id": "MOD-P0-004",
       "path": "04-idea-queue-for-processing",
       "priority": "P0",
-      "title": "Idea queue for processing"
+      "title": "Backlog queue for processing"
     },
     {
       "id": "MOD-P0-005",

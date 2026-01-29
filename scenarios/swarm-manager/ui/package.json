@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "bash -c 'set -e; mkdir -p node_modules/@vrooli; rm -rf node_modules/@vrooli/proto-types; cp -a ../../../packages/proto/gen/typescript node_modules/@vrooli/proto-types'",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

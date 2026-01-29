@@ -46,8 +46,8 @@ const PAGE_ERROR_ID_PREFIX = "page_err";
  *
  * Usage:
  * ```tsx
- * <PageErrorBoundary pageName="Ideas">
- *   <IdeasPage />
+ * <PageErrorBoundary pageName="Backlog">
+ *   <BacklogPage />
  * </PageErrorBoundary>
  * ```
  */
@@ -82,7 +82,7 @@ export class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErr
   handleGoHome = () => {
     // Navigate to home and clear error state
     this.setState({ hasError: false, errorId: null });
-    window.location.href = "/ideas";
+    window.location.href = "/backlog";
   };
 
   render() {

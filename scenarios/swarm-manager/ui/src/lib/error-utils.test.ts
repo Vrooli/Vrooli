@@ -292,23 +292,23 @@ describe("getRecoveryGuidance", () => {
 
 describe("createSuccessLogEntry", () => {
   it("creates structured entry with all required fields", () => {
-    const entry = createSuccessLogEntry("created", "Idea created successfully", "IdeasPage");
+    const entry = createSuccessLogEntry("created", "Backlog item created successfully", "BacklogPage");
 
     expect(entry.outcome).toBe("created");
-    expect(entry.message).toBe("Idea created successfully");
-    expect(entry.source).toBe("IdeasPage");
+    expect(entry.message).toBe("Backlog item created successfully");
+    expect(entry.source).toBe("BacklogPage");
     expect(entry.correlationId).toMatch(/^op_[a-z0-9]+_[a-z0-9]+$/);
     expect(entry.timestamp).toBeDefined();
     expect(new Date(entry.timestamp).getTime()).not.toBeNaN();
   });
 
   it("includes context when provided", () => {
-    const entry = createSuccessLogEntry("updated", "Idea updated", "IdeasPage", {
-      ideaName: "test-idea",
+    const entry = createSuccessLogEntry("updated", "Backlog item updated", "BacklogPage", {
+      backlogName: "test-idea",
       priority: 1,
     });
 
-    expect(entry.context).toEqual({ ideaName: "test-idea", priority: 1 });
+    expect(entry.context).toEqual({ backlogName: "test-idea", priority: 1 });
   });
 
   it("supports all operation outcomes", () => {
@@ -333,7 +333,7 @@ describe("logSuccess", () => {
   });
 
   it("logs structured JSON to console.info", () => {
-    logSuccess("created", "Idea created", "IdeasPage");
+    logSuccess("created", "Backlog item created", "BacklogPage");
 
     expect(consoleSpy).toHaveBeenCalled();
     const firstCall = consoleSpy.mock.calls[0];
@@ -343,16 +343,16 @@ describe("logSuccess", () => {
 
     const parsed = JSON.parse(json as string);
     expect(parsed.outcome).toBe("created");
-    expect(parsed.source).toBe("IdeasPage");
-    expect(parsed.message).toBe("Idea created");
+    expect(parsed.source).toBe("BacklogPage");
+    expect(parsed.message).toBe("Backlog item created");
   });
 
   it("returns the log entry", () => {
-    const entry = logSuccess("deleted", "Idea deleted", "IdeasPage", { ideaName: "test" });
+    const entry = logSuccess("deleted", "Backlog item deleted", "BacklogPage", { backlogName: "test" });
 
     expect(entry.outcome).toBe("deleted");
     expect(entry.correlationId).toBeDefined();
-    expect(entry.context).toEqual({ ideaName: "test" });
+    expect(entry.context).toEqual({ backlogName: "test" });
   });
 
   it("uses correct prefix for different outcomes", () => {
