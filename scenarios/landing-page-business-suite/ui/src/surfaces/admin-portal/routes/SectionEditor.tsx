@@ -8,7 +8,7 @@ import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
 import { Textarea } from '../../../shared/ui/input';
-import { useToast } from '../../../shared/ui/Toast';
+import { useToast } from '../../../shared/ui/useToast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
 import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
 import { useSectionForm } from '../hooks/useSectionForm';

@@ -571,18 +571,21 @@ type LandingConfigService struct {
 	planService      *PlanService
 	downloadService  *DownloadService
 	configStore      *ConfigStore
+	stripeService    *StripeService
 	fallbackProvider fallbackProvider
 }
 
 // LandingConfigResponse is returned by GET /landing-config.
 type LandingConfigResponse struct {
-	Variant   LandingVariantSummary `json:"variant"`
-	Sections  []LandingSection      `json:"sections"`
-	Pricing   *PricingOverview      `json:"pricing"`
-	Downloads []DownloadApp         `json:"downloads"`
-	Header    LandingHeaderConfig   `json:"header"`
-	Branding  *LandingBranding      `json:"branding,omitempty"`
-	Fallback  bool                  `json:"fallback"`
+	Variant        LandingVariantSummary `json:"variant"`
+	Sections       []LandingSection      `json:"sections"`
+	Pricing        *PricingOverview      `json:"pricing"`
+	Downloads      []DownloadApp         `json:"downloads"`
+	Header         LandingHeaderConfig   `json:"header"`
+	Branding       *LandingBranding      `json:"branding,omitempty"`
+	CouponMappings map[string]string     `json:"coupon_mappings,omitempty"`
+	IntroOffers    []StripeCoupon        `json:"intro_offers,omitempty"`
+	Fallback       bool                  `json:"fallback"`
 }
 
 // LandingBranding contains public branding fields for the frontend.
@@ -627,11 +630,13 @@ func NewLandingConfigServiceWithConfigStore(
 	configStore *ConfigStore,
 	planService *PlanService,
 	downloadService *DownloadService,
+	stripeService *StripeService,
 ) *LandingConfigService {
 	return &LandingConfigService{
 		configStore:      configStore,
 		planService:      planService,
 		downloadService:  downloadService,
+		stripeService:    stripeService,
 		fallbackProvider: defaultFallbackProvider,
 	}
 }
@@ -698,6 +703,21 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 		}
 	}
 
+	// Fetch coupon mappings and resolve intro offers for public display
+	couponMappings := s.planService.GetCouponMappings()
+	var introOffers []StripeCoupon
+	if len(couponMappings) > 0 && s.stripeService != nil {
+		seen := make(map[string]bool)
+		for _, couponID := range couponMappings {
+			if !seen[couponID] {
+				seen[couponID] = true
+				if coupon, err := s.stripeService.GetCoupon(ctx, couponID); err == nil && coupon != nil {
+					introOffers = append(introOffers, *coupon)
+				}
+			}
+		}
+	}
+
 	response := &LandingConfigResponse{
 		Variant: LandingVariantSummary{
 			Slug:        variantSnapshot.Variant.Slug,
@@ -705,11 +725,13 @@ func (s *LandingConfigService) getLandingConfigFromConfigStore(ctx context.Conte
 			Description: variantSnapshot.Variant.Description,
 			Axes:        variantSnapshot.Variant.Axes,
 		},
-		Header:    variantSnapshot.Variant.HeaderConfig,
-		Pricing:   pricing,
-		Downloads: downloads,
-		Branding:  branding,
-		Fallback:  false,
+		Header:         variantSnapshot.Variant.HeaderConfig,
+		Pricing:        pricing,
+		Downloads:      downloads,
+		Branding:       branding,
+		CouponMappings: couponMappings,
+		IntroOffers:    introOffers,
+		Fallback:       false,
 	}
 
 	// Convert sections from VariantSnapshot format to LandingSection

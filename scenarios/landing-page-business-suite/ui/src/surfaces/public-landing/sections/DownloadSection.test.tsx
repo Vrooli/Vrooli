@@ -2,7 +2,8 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
-import { DownloadSection, getDownloadAssetKey } from './DownloadSection';
+import { DownloadSection } from './DownloadSection';
+import { getDownloadAssetKey } from '../services/downloads.service';
 
 const requestDownloadMock = vi.hoisted(() => vi.fn());
 

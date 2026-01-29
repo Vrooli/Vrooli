@@ -1,6 +1,10 @@
 import { z } from 'zod';
-import { ConfigSourceSchema, FlexibleTimestampSchema } from './common.schema';
+import { ConfigSourceSchema, FlexibleTimestampSchema, StripeCouponSchema } from './common.schema';
 import { BundleProductSchema, PlanOptionSchema } from './landing.schema';
+
+// Re-export StripeCoupon from common for backward compatibility
+export { StripeCouponSchema } from './common.schema';
+export type { StripeCoupon } from './common.schema';
 
 /**
  * Billing-related Zod schemas for API response validation.
@@ -130,24 +134,7 @@ export const StripeImportResultSchema = z.object({
   errors: z.array(z.string()).optional(),
 });
 
-// Stripe coupon schemas
-export const StripeCouponSchema = z.object({
-  id: NonEmptyStringSchema,
-  name: z.string().optional(),
-  amount_off: z.number().int().nonnegative().nullable().optional(),
-  percent_off: z.number().min(0).max(100).nullable().optional(),
-  currency: z.string().optional(),
-  duration: z.enum(['once', 'repeating', 'forever']),
-  duration_in_months: z.number().int().positive().nullable().optional(),
-  max_redemptions: z.number().int().positive().nullable().optional(),
-  redeem_by: z.number().int().positive().nullable().optional(),
-  times_redeemed: z.number().int().nonnegative(),
-  valid: z.boolean(),
-  created: z.number().int().positive(),
-  is_intro_coupon: z.boolean(),
-  intro_tier: z.string().optional(),
-});
-
+// Stripe coupon response schemas (StripeCouponSchema moved to common.schema.ts to break circular dep)
 export const ListCouponsResponseSchema = z.object({
   coupons: z.array(StripeCouponSchema),
   intro_coupon_map: z.record(z.string(), z.string()).nullable().optional(),
@@ -180,6 +167,5 @@ export type StripePriceImport = z.infer<typeof StripePriceImportSchema>;
 export type StripeProductWithPrices = z.infer<typeof StripeProductWithPricesSchema>;
 export type StripeImportPreview = z.infer<typeof StripeImportPreviewSchema>;
 export type StripeImportResult = z.infer<typeof StripeImportResultSchema>;
-export type StripeCoupon = z.infer<typeof StripeCouponSchema>;
 export type ListCouponsResponse = z.infer<typeof ListCouponsResponseSchema>;
 export type CouponUsageStats = z.infer<typeof CouponUsageStatsSchema>;

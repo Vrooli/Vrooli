@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { useEffect, useState, ReactNode, useCallback } from 'react';
 import { getLandingConfig, isApiError, type LandingConfigResponse, type Variant as LandingVariant } from '../../shared/api';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
+import { LandingVariantContext, type VariantResolution } from './LandingVariantContext';
 
-export type VariantResolution = 'unknown' | 'url_param' | 'local_storage' | 'api_select' | 'fallback';
+// Re-export VariantResolution for backward compatibility
+export type { VariantResolution } from './LandingVariantContext';
 
 /**
  * Structured logging for variant loading failures.
@@ -30,18 +32,6 @@ function logVariantError(context: string, error: unknown, metadata?: Record<stri
 // but we no longer persist/read variant assignments locally. Variants are resolved server-side
 // unless explicitly pinned via URL param.
 
-interface LandingVariantContextType {
-  variant: LandingVariant | null;
-  config: LandingConfigResponse | null;
-  loading: boolean;
-  error: string | null;
-  resolution: VariantResolution;
-  statusNote: string | null;
-  lastUpdated: number | null;
-  refresh: () => Promise<void>;
-}
-
-const LandingVariantContext = createContext<LandingVariantContextType | undefined>(undefined);
 
 function getVariantSlugFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -149,12 +139,4 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       {children}
     </LandingVariantContext.Provider>
   );
-}
-
-export function useLandingVariant() {
-  const context = useContext(LandingVariantContext);
-  if (context === undefined) {
-    throw new Error('useLandingVariant must be used within a LandingVariantProvider');
-  }
-  return context;
 }

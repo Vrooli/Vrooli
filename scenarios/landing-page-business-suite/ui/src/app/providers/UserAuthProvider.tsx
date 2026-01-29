@@ -1,15 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getUserMe, userLogout, refreshUserTokens, UserAuthUser, isApiError } from '../../shared/api';
-
-interface UserAuthContextValue {
-  isAuthenticated: boolean;
-  isSessionLoading: boolean;
-  user: UserAuthUser | null;
-  logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
-}
-
-const UserAuthContext = createContext<UserAuthContextValue | null>(null);
+import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { getUserMe, userLogout, refreshUserTokens, isApiError, type UserAuthUser } from '../../shared/api';
+import { UserAuthContext } from './UserAuthContext';
 
 export function UserAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -89,12 +80,4 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       {children}
     </UserAuthContext.Provider>
   );
-}
-
-export function useUserAuth() {
-  const context = useContext(UserAuthContext);
-  if (!context) {
-    throw new Error('useUserAuth must be used within UserAuthProvider');
-  }
-  return context;
 }

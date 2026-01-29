@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../../shared/ui/dialog';
-import { FormField, inputClassName } from '../FormField';
+import { FormField } from '../FormField';
+import { inputClassName } from '../formFieldClasses';
 import { Callout } from '../Callout';
 import type { StripeCoupon } from '../../../../shared/api/billing';
 

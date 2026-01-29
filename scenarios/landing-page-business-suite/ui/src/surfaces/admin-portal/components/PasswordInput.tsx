@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { inputClassName } from './FormField';
+import { inputClassName } from './formFieldClasses';
 
 export interface PasswordInputProps {
   /** Current value */

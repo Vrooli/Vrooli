@@ -142,7 +142,7 @@ func NewServer() (*Server, error) {
 		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
-		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService),
+		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, stripeService),
 		paymentSettings:      paymentSettings,
 		assetsService:        assetsService,
 		seoService:           seoService,

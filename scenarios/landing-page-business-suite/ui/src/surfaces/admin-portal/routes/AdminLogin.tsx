@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useAdminAuth } from '../../../app/providers/AdminAuthProvider';
+import { useAdminAuth } from '../../../app/providers/useAdminAuth';
 import { isApiError } from '../../../shared/api';
 import { LAYOUT } from '../config/layout.constants';
 

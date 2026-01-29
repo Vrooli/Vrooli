@@ -2,7 +2,8 @@ import { AlertTriangle, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
-import { FormField, inputClassName } from '../components/FormField';
+import { FormField } from '../components/FormField';
+import { inputClassName } from '../components/formFieldClasses';
 import { Button } from '../../../shared/ui/button';
 import { LAYOUT } from '../config/layout.constants';
 import { useProfileForm } from '../hooks/useProfileForm';

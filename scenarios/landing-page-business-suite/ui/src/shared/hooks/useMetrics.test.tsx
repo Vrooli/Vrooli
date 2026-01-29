@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useMetrics } from './useMetrics';
+import { useMetrics } from './useMetricsHook';
 import type { MetricEvent } from '../api/types';
-import type { useLandingVariant } from '../../app/providers/LandingVariantProvider';
+import type { useLandingVariant } from '../../app/providers/useLandingVariant';
 
 const trackMetricMock = vi.fn<[MetricEvent], Promise<{ success: boolean }>>();
 const useLandingVariantMock = vi.fn<[], ReturnType<typeof useLandingVariant>>();
@@ -11,7 +11,7 @@ vi.mock('../api', () => ({
   trackMetric: (...args: Parameters<typeof trackMetricMock>) => trackMetricMock(...args),
 }));
 
-vi.mock('../../app/providers/LandingVariantProvider', () => ({
+vi.mock('../../app/providers/useLandingVariant', () => ({
   useLandingVariant: () => useLandingVariantMock(),
 }));
 

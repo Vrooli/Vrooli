@@ -3,7 +3,8 @@ import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2, Tag
 import { Button } from '../../../../shared/ui/button';
 import { Textarea } from '../../../../shared/ui/input';
 import { Card, CardContent, CardHeader } from '../../../../shared/ui/card';
-import { FormField, inputClassName, textareaClassName } from '../FormField';
+import { FormField } from '../FormField';
+import { inputClassName, textareaClassName } from '../formFieldClasses';
 import { cn } from '../../../../shared/lib/utils';
 import {
   normalizeInterval,

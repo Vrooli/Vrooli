@@ -8,7 +8,7 @@ import { Card, CardContent } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Input } from '../../../shared/ui/input';
 import { Label } from '../../../shared/ui/label';
-import { useToast } from '../../../shared/ui/Toast';
+import { useToast } from '../../../shared/ui/useToast';
 import { Gauge, Save, Infinity as InfinityIcon, DollarSign, Zap } from 'lucide-react';
 import { formatDollars } from '../../../shared/api';
 import { useTierLimitsForm } from '../hooks/useTierLimitsForm';

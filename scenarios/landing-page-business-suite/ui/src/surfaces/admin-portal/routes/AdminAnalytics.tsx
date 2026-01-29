@@ -8,7 +8,7 @@ import { Button } from "../../../shared/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../shared/ui/select";
 import { ErrorBoundary } from "../../../shared/ui/ErrorBoundary";
 import type { VariantStats } from "../../../shared/api";
-import { useLandingVariant, type VariantResolution } from "../../../app/providers/LandingVariantProvider";
+import { useLandingVariant, type VariantResolution } from "../../../app/providers/useLandingVariant";
 import { useAdminAnalytics } from "../hooks/useAdminAnalytics";
 import { RESOLUTION_LABELS } from "../config/variant.constants";
 

@@ -15,7 +15,7 @@ import {
   History,
 } from 'lucide-react';
 import { LAYOUT } from '../config/layout.constants';
-import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import { useAdminHome } from '../hooks/useAdminHome';
 import { RESOLUTION_LABELS } from '../config/variant.constants';
 import { describeWeightStatus } from '../services/adminHome.service';

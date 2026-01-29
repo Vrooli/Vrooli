@@ -8,7 +8,7 @@ import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
 import { Textarea } from '../../../shared/ui/input';
-import { useToast } from '../../../shared/ui/Toast';
+import { useToast } from '../../../shared/ui/useToast';
 import { HeaderConfigurator } from '../components/HeaderConfigurator';
 import { useVariantForm } from '../hooks/useVariantForm';
 import { sanitizeSlugInput } from '../controllers/variantEditorController';

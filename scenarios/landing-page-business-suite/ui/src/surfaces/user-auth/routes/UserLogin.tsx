@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Mail, Loader2, ArrowRight, CheckCircle } from 'lucide-react';
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
 import { requestMagicLink, isApiError } from '../../../shared/api';
-import { useToast } from '../../../shared/ui/Toast';
+import { useToast } from '../../../shared/ui/useToast';
 
 // Session storage key for auth callback params
 const AUTH_CALLBACK_PARAMS_KEY = 'auth_callback_params';

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { toggleComingSoonMode } from '../services/waitlist.service';
-import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant } from '../../../app/providers/useLandingVariant';
 
 export interface UseComingSoonToggleReturn {
   comingSoonEnabled: boolean;

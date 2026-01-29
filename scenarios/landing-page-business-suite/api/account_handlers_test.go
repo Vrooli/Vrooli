@@ -18,7 +18,7 @@ func TestHandleLandingConfig_Success(t *testing.T) {
 	configStore := setupTestConfigStore(t)
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
-	service := NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService)
+	service := NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, nil)
 
 	handler := handleLandingConfig(service)
 

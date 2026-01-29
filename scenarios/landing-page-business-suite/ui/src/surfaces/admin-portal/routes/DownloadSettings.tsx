@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
-import { inputBaseClassName } from '../components/FormField';
+import { inputBaseClassName } from '../components/formFieldClasses';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';

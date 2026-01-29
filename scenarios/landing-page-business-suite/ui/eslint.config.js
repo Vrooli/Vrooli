@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "@typescript-eslint/eslint-plugin";
@@ -15,8 +16,17 @@ const baseTypeScriptConfig = {
   },
   plugins: {
     "@typescript-eslint": tseslint,
+    "import": importPlugin,
     "react-hooks": reactHooks,
     "react-refresh": reactRefresh,
+  },
+  settings: {
+    "import/resolver": {
+      typescript: {
+        alwaysTryTypes: true,
+        project: "./tsconfig.json",
+      },
+    },
   },
   rules: {
     ...tseslint.configs.recommended.rules,
@@ -52,6 +62,11 @@ const baseTypeScriptConfig = {
 
     // Prevents explicit 'any' which disables all type checking for that value
     "@typescript-eslint/no-explicit-any": "error",
+
+    // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+    // errors at runtime. These are difficult to debug in production bundles where variable
+    // names are minified. The rule checks import chains for cycles.
+    "import/no-cycle": "error",
 
     // ════════════════════════════════════════════════════════════════════════
     // STANDARD RULES (can be adjusted if needed)

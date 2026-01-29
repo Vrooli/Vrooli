@@ -136,19 +136,3 @@ export function StatusBadgeGrid({ badges, columns = 4, testId, className }: Stat
     </div>
   );
 }
-
-/**
- * Helper to create a badge config from a boolean condition.
- */
-export function createHealthBadge(
-  label: string,
-  configured: boolean,
-  configuredDesc: string,
-  notConfiguredDesc: string
-): StatusBadgeProps {
-  return {
-    label,
-    status: configured ? 'success' : 'warning',
-    description: configured ? configuredDesc : notConfiguredDesc,
-  };
-}

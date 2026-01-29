@@ -299,7 +299,7 @@ export function useBillingForm() {
 
     const result = await verifyPriceId(value);
     setPriceChecks((prev) => ({ ...prev, [key]: result }));
-  }, [priceForms, deletePriceForm, getPriceIdentifier, getApiErrorMessage]);
+  }, [priceForms]);
 
   /**
    * Remove a demo placeholder plan from the UI

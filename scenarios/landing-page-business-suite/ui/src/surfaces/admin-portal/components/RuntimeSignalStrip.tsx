@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, RefreshCw, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
-import { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import { useComingSoonToggle } from '../hooks/useComingSoonToggle';
 import { getResolutionLabel } from '../config/variant.constants';
 

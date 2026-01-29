@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
-import { inputClassName } from './FormField';
+import { inputClassName } from './formFieldClasses';
 import { cn } from '../../../shared/lib/utils';
 
 export interface SecretInputProps {

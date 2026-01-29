@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { inputClassName } from './FormField';
+import { inputClassName } from './formFieldClasses';
 
 export interface ClearableInputProps {
   /** Current value */

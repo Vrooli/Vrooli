@@ -1,7 +1,8 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormSection } from '../components/FormSection';
-import { FormField, inputClassName, textareaClassName } from '../components/FormField';
+import { FormField } from '../components/FormField';
+import { inputClassName, textareaClassName } from '../components/formFieldClasses';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 import { LabelWithHelp } from '../components/LabelWithHelp';
 import { PasswordInput } from '../components/PasswordInput';

@@ -309,6 +309,11 @@ export interface LandingBranding {
   coming_soon_message?: string | null;
 }
 
+// Note: StripeCoupon type is exported from ./billing.ts via schema inference
+// Re-export here for convenience in types-only imports
+import type { StripeCoupon } from './schemas/billing.schema';
+export type { StripeCoupon };
+
 export interface LandingConfigResponse {
   variant: {
     id?: number;
@@ -322,6 +327,8 @@ export interface LandingConfigResponse {
   downloads: DownloadApp[];
   header: LandingHeaderConfig;
   branding?: LandingBranding;
+  coupon_mappings?: Record<string, string>;
+  intro_offers?: StripeCoupon[];
   fallback: boolean;
 }
 

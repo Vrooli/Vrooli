@@ -1,6 +1,6 @@
 import { ArrowRight, BellOff } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 
 interface CTASectionProps {
   content: {

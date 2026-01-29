@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { LandingVariantProvider, useLandingVariant } from './LandingVariantProvider';
+import { LandingVariantProvider } from './LandingVariantProvider';
+import { useLandingVariant } from './useLandingVariant';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 import type { ReactNode } from 'react';
 import { createFetchMock, installFetchMock, mockResponses } from '../../shared/test-utils/api-mocks';

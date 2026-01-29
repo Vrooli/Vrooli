@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { X, RefreshCw, DollarSign, Percent } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../shared/ui/select';
-import { inputClassName } from '../FormField';
+import { inputClassName } from '../formFieldClasses';
 import type { CreateCouponPayload } from '../../../../shared/api/billing';
 
 interface CreateCouponModalProps {

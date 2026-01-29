@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { SEOHead } from '../../../shared/ui/SEOHead';
-import { useLandingVariant, type VariantResolution } from '../../../app/providers/LandingVariantProvider';
+import { useLandingVariant, type VariantResolution } from '../../../app/providers/useLandingVariant';
 import type {
   DownloadApp,
   LandingBranding,
@@ -97,7 +97,14 @@ const SECTION_COMPONENTS: Record<string, SectionRenderer> = {
   features: ({ section }) => <FeaturesSection content={getSafeContent(section.section_type, section.content)} />,
   pricing: ({ section, config }) => {
     // Ensure we always have pricing data; fall back to section content tiers if needed
-    return <PricingSection content={getSafeContent(section.section_type, section.content)} pricingOverview={config?.pricing} />;
+    return (
+      <PricingSection
+        content={getSafeContent(section.section_type, section.content)}
+        pricingOverview={config?.pricing}
+        couponMappings={config?.coupon_mappings}
+        availableCoupons={config?.intro_offers}
+      />
+    );
   },
   cta: ({ section }) => <CTASection content={getSafeContent(section.section_type, section.content)} />,
   testimonials: ({ section }) => <TestimonialsSection content={getSafeContent(section.section_type, section.content)} />,

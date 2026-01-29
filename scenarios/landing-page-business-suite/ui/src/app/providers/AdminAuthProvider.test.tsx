@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { AdminAuthProvider, useAdminAuth } from './AdminAuthProvider';
+import { AdminAuthProvider } from './AdminAuthProvider';
+import { useAdminAuth } from './useAdminAuth';
 import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
 
 const { mockAdminLogin, mockAdminLogout, mockCheckAdminSession } = vi.hoisted(() => ({

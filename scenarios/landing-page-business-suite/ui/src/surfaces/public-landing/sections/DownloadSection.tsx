@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
 import { createBillingPortalSession, requestDownload, getAssetUrl } from '../../../shared/api'
 import { useEntitlements } from '../../../shared/hooks/useEntitlements';
@@ -60,8 +60,7 @@ const PLATFORM_DISPLAY: Record<string, { label: string; icon: JSX.Element }> = {
   },
 };
 
-// Re-export for backwards compatibility
-export { getDownloadAssetKey } from '../services/downloads.service';
+// Note: getDownloadAssetKey is available from '../services/downloads.service'
 
 function hasInstallTargets(app: DownloadApp) {
   return (app.platforms?.length ?? 0) > 0 || (app.storefronts?.length ?? 0) > 0;

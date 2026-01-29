@@ -118,3 +118,24 @@ export type HeaderCTAMode = z.infer<typeof HeaderCTAModeSchema>;
 export type SectionType = z.infer<typeof SectionTypeSchema>;
 export type HeaderVisibilityConfig = z.infer<typeof HeaderVisibilityConfigSchema>;
 export type HeaderBehaviorConfig = z.infer<typeof HeaderBehaviorConfigSchema>;
+
+// Stripe coupon schema - placed here to avoid circular dependency between billing.schema and landing.schema
+const NonEmptyStringSchema = z.string().min(1);
+export const StripeCouponSchema = z.object({
+  id: NonEmptyStringSchema,
+  name: z.string().optional(),
+  amount_off: z.number().int().nonnegative().nullable().optional(),
+  percent_off: z.number().min(0).max(100).nullable().optional(),
+  currency: z.string().optional(),
+  duration: z.enum(['once', 'repeating', 'forever']),
+  duration_in_months: z.number().int().positive().nullable().optional(),
+  max_redemptions: z.number().int().positive().nullable().optional(),
+  redeem_by: z.number().int().positive().nullable().optional(),
+  times_redeemed: z.number().int().nonnegative(),
+  valid: z.boolean(),
+  created: z.number().int().positive(),
+  is_intro_coupon: z.boolean(),
+  intro_tier: z.string().optional(),
+});
+
+export type StripeCoupon = z.infer<typeof StripeCouponSchema>;

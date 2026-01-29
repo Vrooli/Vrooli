@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { useMetrics } from '../../../shared/hooks/useMetrics';
+import { useMetrics } from '../../../shared/hooks/useMetricsHook';
 import { createCheckoutSession, type PlanOption, type PricingOverview, type StripeCoupon } from '../../../shared/api';
 import { isDemoPlanOption } from '../../../shared/lib/pricingPlaceholders';
 import { normalizeInterval } from '../../../shared/lib/pricingIntervals';

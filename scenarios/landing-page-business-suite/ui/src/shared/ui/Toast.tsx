@@ -1,58 +1,10 @@
-import { useState, useCallback, useEffect, createContext, useContext, type ReactNode } from 'react';
+import { useState, useCallback, useEffect, type ReactNode } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, AlertCircle, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { ToastContext, type ToastItem, type ToastType, type ToastContextValue } from './ToastContext';
 
-/**
- * Toast notification types for visual feedback on completed operations.
- * [REQ:SIGNAL-FEEDBACK] Success feedback for completed operations
- */
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-export interface ToastItem {
-  id: string;
-  type: ToastType;
-  message: string;
-  title?: string;
-  /** Duration in ms before auto-dismiss. 0 = manual dismiss only. Default 4000. */
-  duration?: number;
-}
-
-interface ToastContextValue {
-  toasts: ToastItem[];
-  addToast: (toast: Omit<ToastItem, 'id'>) => string;
-  removeToast: (id: string) => void;
-  /** Convenience methods */
-  success: (message: string, title?: string) => string;
-  error: (message: string, title?: string) => string;
-  warning: (message: string, title?: string) => string;
-  info: (message: string, title?: string) => string;
-}
-
-const ToastContext = createContext<ToastContextValue | null>(null);
-
-/**
- * Hook to access toast notifications.
- * Must be used within a ToastProvider.
- *
- * @example
- * const { success, error } = useToast();
- *
- * const handleSave = async () => {
- *   try {
- *     await saveData();
- *     success('Changes saved successfully');
- *   } catch (err) {
- *     error('Failed to save changes');
- *   }
- * };
- */
-export function useToast(): ToastContextValue {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
-}
+// Re-export types for backward compatibility
+export type { ToastType, ToastItem } from './ToastContext';
 
 interface ToastProviderProps {
   children: ReactNode;

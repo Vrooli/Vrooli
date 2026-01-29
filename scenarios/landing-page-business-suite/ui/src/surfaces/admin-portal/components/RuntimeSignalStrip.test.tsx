@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RuntimeSignalStrip } from './RuntimeSignalStrip';
-import type { useLandingVariant } from '../../../app/providers/LandingVariantProvider';
+import type { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import type { LandingConfigResponse } from '../../../shared/api';
 
 const mockUseLandingVariant = vi.fn<[], ReturnType<typeof useLandingVariant>>();
 
-vi.mock('../../../app/providers/LandingVariantProvider', () => ({
+vi.mock('../../../app/providers/useLandingVariant', () => ({
   useLandingVariant: () => mockUseLandingVariant(),
 }));
 

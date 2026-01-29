@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Variant, VariantStats, AnalyticsSummary } from '../../../shared/api';
-import { useInlineAlert } from '../../../shared/ui/InlineAlert';
-import { useToast } from '../../../shared/ui/Toast';
+import { useInlineAlert } from '../../../shared/ui/useInlineAlert';
+import { useToast } from '../../../shared/ui/useToast';
 import { loadVariantEditorData } from '../controllers/variantEditorController';
 import {
   type WeightStatus,

@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
-import * as AdminAuth from '../../../app/providers/AdminAuthProvider';
+import * as useAdminAuthModule from '../../../app/providers/useAdminAuth';
 
 const renderWithAuth = (isAuthenticated: boolean) => {
   // Mock the useAdminAuth hook to return our desired state
-  vi.spyOn(AdminAuth, 'useAdminAuth').mockReturnValue({
+  vi.spyOn(useAdminAuthModule, 'useAdminAuth').mockReturnValue({
     isAuthenticated,
     isSessionLoading: false,
     canResetDemoData: false,
@@ -52,7 +52,7 @@ describe('ProtectedRoute [REQ:ADMIN-AUTH]', () => {
   });
 
   it('should handle nested children elements', () => {
-    vi.spyOn(AdminAuth, 'useAdminAuth').mockReturnValue({
+    vi.spyOn(useAdminAuthModule, 'useAdminAuth').mockReturnValue({
       isAuthenticated: true,
       isSessionLoading: false,
       canResetDemoData: false,

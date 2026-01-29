@@ -9,6 +9,7 @@ import {
   IntroPricingTypeSchema,
   MetadataSchema,
   PlanKindSchema,
+  StripeCouponSchema,
 } from './common.schema';
 
 /**
@@ -219,6 +220,8 @@ export const LandingConfigResponseSchema = z.object({
   downloads: z.array(DownloadAppSchema),
   header: LandingHeaderConfigSchema,
   branding: LandingBrandingSchema.optional(),
+  coupon_mappings: z.record(z.string(), z.string()).optional(),
+  intro_offers: z.array(StripeCouponSchema).optional(),
   fallback: z.boolean(),
 });
 

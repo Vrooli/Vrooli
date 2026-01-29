@@ -212,7 +212,7 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 		planService:          planService,
 		downloadService:      downloadService,
 		paymentSettings:      paymentSettings,
-		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService),
+		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, stripeService),
 		seoService:           seoService,
 		feedbackService:      feedbackService,
 		emailService:         emailService,
