@@ -8,10 +8,12 @@
  * - Performance monitoring with FPS tracking and auto-adjustment
  * - LOD system for optimizing cursor tracking at scale
  * - Memory cleanup for proper asset disposal
+ * - Dynamic sky with continuous time-based sun/moon positioning
+ * - Procedural clouds that respond to time of day
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { MemberWithAccessories } from './members/MemberWithAccessories'
@@ -20,11 +22,12 @@ import { DragPlane, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
-import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, GroundSurface } from './rendering'
+import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody, Moon, ProceduralClouds, GroundSurface } from './rendering'
 import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useIsPlacing } from '@/stores/worldEditorStore'
+import { calculateStarOpacity } from '@/lib/sky/sunPosition'
 import type { Member } from '@/types/member'
 import type { FurnitureInstance } from '@/types/furniture'
 
@@ -85,15 +88,20 @@ export function WorldScene({
 
   // Environment config for ground styling
   const currentEnv = useEnvironmentStore((state) => state.current)
+  const timeValue = useEnvironmentStore((state) => state.timeValue)
   const groundConfig = currentEnv.ground
   const boundaryConfig = currentEnv.boundary
-  const isNightTime = currentEnv.timeOfDay === 'night'
+  const sceneType = currentEnv.type
   const groundSize = groundConfig.size ?? 30
   const boundarySize = boundaryConfig.visible
     ? (boundaryConfig.size ?? groundSize * 2)
     : groundSize
   const dragPlaneSize = Math.max(groundSize, boundarySize, 10)
   const groundY = groundConfig.position ?? 0
+
+  // Calculate star opacity based on continuous time
+  const starOpacity = useMemo(() => calculateStarOpacity(timeValue), [timeValue])
+  const showStars = starOpacity > 0
 
 
   // Update camera position when state changes
@@ -122,16 +130,31 @@ export function WorldScene({
       {/* Dynamic Fog from environment config */}
       <DynamicFog />
 
-      {/* Dynamic Sky dome - renders gradient based on time of day */}
+      {/* Dynamic Sky dome - renders based on continuous time */}
       <WorldErrorBoundary componentName="DynamicSky" minimal>
         <DynamicSky />
         <CelestialBody />
+        <Moon />
       </WorldErrorBoundary>
 
-      {/* Stars - only show in dark mode or night time */}
-      {(isDarkMode || isNightTime) && (
+      {/* Procedural Clouds - time-based coloring, disabled for abstract-space */}
+      {sceneType !== 'abstract-space' && (
+        <WorldErrorBoundary componentName="ProceduralClouds" minimal>
+          <ProceduralClouds />
+        </WorldErrorBoundary>
+      )}
+
+      {/* Stars - fade in at dusk, fade out at dawn */}
+      {showStars && (
         <WorldErrorBoundary componentName="Stars" minimal>
-          <Stars radius={80} depth={40} count={2000} factor={4} fade speed={1} />
+          <Stars
+            radius={80}
+            depth={40}
+            count={2000}
+            factor={4 * starOpacity}
+            fade
+            speed={1}
+          />
         </WorldErrorBoundary>
       )}
 

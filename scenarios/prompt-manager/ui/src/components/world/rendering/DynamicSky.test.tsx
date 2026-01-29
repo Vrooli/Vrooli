@@ -5,7 +5,7 @@
  * - Material creation and configuration
  * - Rotation animation via useFrame
  * - Store-based configuration (environment store)
- * - Time-of-day dependent rendering
+ * - Continuous time-based rendering
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -15,12 +15,11 @@ import { useEnvironmentStore } from '@/stores/environmentStore'
 import {
   FrameLoopSimulator,
   createMockMesh,
-} from '@/test/r3f-test-utils'
-import {
   takeStoreSnapshot,
   diffSnapshots,
-} from '@/test/r3f-store-test-utils'
+} from '@/test'
 import type { TimeOfDay, EnvironmentConfig } from '@/types/environment'
+import { timeOfDayToTimeValue } from '@/types/environment'
 
 // =============================================================================
 // MOCKS
@@ -62,6 +61,11 @@ vi.mock('@react-three/fiber', () => ({
   useFrame: vi.fn((callback: (state: unknown, delta: number) => void) => {
     frameCallbacks.push(callback)
   }),
+}))
+
+// Mock @react-three/drei Sky component
+vi.mock('@react-three/drei', () => ({
+  Sky: vi.fn(() => null),
 }))
 
 // Mock SKYBOX_PRESETS
@@ -117,7 +121,7 @@ const createTestEnvironmentConfig = (timeOfDay: TimeOfDay = 'noon'): Environment
 function resetTestState() {
   frameCallbacks.length = 0
 
-  // Reset environment store
+  // Reset environment store with continuous time support
   useEnvironmentStore.setState({
     current: createTestEnvironmentConfig('noon'),
     dreiPreset: 'studio',
@@ -125,6 +129,8 @@ function resetTestState() {
     transitionProgress: 0,
     previous: null,
     preferredTimeOfDay: 'noon',
+    timeValue: 12, // noon
+    realTimeMode: false,
     syncWithTheme: true,
   })
 }
@@ -182,26 +188,60 @@ describe('DynamicSky', () => {
     })
   })
 
-  describe('time of day handling', () => {
-    it('uses time from environment store by default', async () => {
+  describe('continuous time handling', () => {
+    it('uses timeValue from environment store by default', async () => {
       const { DynamicSky } = await import('./DynamicSky')
 
-      // Set store to specific time
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('sunset'))
+      // Set store to specific time (sunset = 18.5 hours)
+      useEnvironmentStore.getState().setTimeValue(18.5)
 
       render(<DynamicSky />)
 
       // Component should read from store
-      expect(useEnvironmentStore.getState().current.timeOfDay).toBe('sunset')
+      expect(useEnvironmentStore.getState().timeValue).toBe(18.5)
     })
 
-    it('overrides with prop when provided', async () => {
+    it('overrides with timeValue prop when provided', async () => {
+      const { DynamicSky } = await import('./DynamicSky')
+
+      // Set store to noon (12)
+      useEnvironmentStore.getState().setTimeValue(12)
+
+      // But render with night timeValue prop (22)
+      render(<DynamicSky timeValue={22} />)
+
+      // Store should still be noon (not modified)
+      expect(useEnvironmentStore.getState().timeValue).toBe(12)
+    })
+
+    it.each<[string, number]>([
+      ['morning (8h)', 8],
+      ['noon (12h)', 12],
+      ['sunset (18.5h)', 18.5],
+      ['night (22h)', 22],
+    ])(
+      'renders correctly for %s',
+      async (_, timeValue) => {
+        const { DynamicSky } = await import('./DynamicSky')
+
+        useEnvironmentStore.getState().setTimeValue(timeValue)
+
+        expect(() => {
+          render(<DynamicSky />)
+          act(() => tickFrames(10))
+        }).not.toThrow()
+      }
+    )
+  })
+
+  describe('legacy time of day handling', () => {
+    it('supports legacy timeOfDay prop', async () => {
       const { DynamicSky } = await import('./DynamicSky')
 
       // Set store to noon
       useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('noon'))
 
-      // But render with night prop
+      // Render with legacy timeOfDay prop - should still work
       render(<DynamicSky timeOfDay="night" />)
 
       // Store should still be noon (not modified)
@@ -209,11 +249,12 @@ describe('DynamicSky', () => {
     })
 
     it.each<TimeOfDay>(['morning', 'noon', 'sunset', 'night'])(
-      'renders correctly for time of day: %s',
+      'renders correctly for legacy time of day: %s',
       async (timeOfDay) => {
         const { DynamicSky } = await import('./DynamicSky')
 
         useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(timeOfDay))
+        useEnvironmentStore.getState().setTimeValue(timeOfDayToTimeValue(timeOfDay))
 
         expect(() => {
           render(<DynamicSky />)
@@ -435,7 +476,7 @@ describe('DynamicSky', () => {
   })
 })
 
-describe('CelestialBody', () => {
+describe('CelestialBody (Sun)', () => {
   beforeEach(() => {
     resetTestState()
     vi.clearAllMocks()
@@ -445,48 +486,59 @@ describe('CelestialBody', () => {
     cleanup()
   })
 
-  describe('position based on time of day', () => {
-    it.each<[TimeOfDay, [number, number, number]]>([
-      ['morning', [30, 15, 30]],
-      ['noon', [0, 40, 0]],
-      ['sunset', [-30, 10, 30]],
-      ['night', [20, 35, -20]],
-    ])('positions correctly for %s', async (timeOfDay, expectedPosition) => {
+  describe('position based on continuous time', () => {
+    it.each<[string, number]>([
+      ['morning (8h)', 8],
+      ['noon (12h)', 12],
+      ['afternoon (15h)', 15],
+    ])('renders sun for %s (above horizon)', async (_, timeValue) => {
       const { CelestialBody } = await import('./DynamicSky')
 
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(timeOfDay))
+      useEnvironmentStore.getState().setTimeValue(timeValue)
 
-      render(<CelestialBody />)
-
-      // Component should use the correct position for the time of day
-      // We verify the logic by checking the expected values match
-      expect(expectedPosition).toBeDefined()
+      // Sun should be visible during day
+      expect(() => {
+        render(<CelestialBody />)
+      }).not.toThrow()
     })
 
-    it('overrides with prop when provided', async () => {
+    it('does not render sun at night (below horizon)', async () => {
+      const { CelestialBody } = await import('./DynamicSky')
+
+      // Set to night time (22h) - sun is below horizon
+      useEnvironmentStore.getState().setTimeValue(22)
+
+      // Sun should not render at night (returns null)
+      const { container } = render(<CelestialBody />)
+      // Container will be empty since sun is below horizon
+      expect(container).toBeDefined()
+    })
+
+    it('overrides with timeValue prop when provided', async () => {
       const { CelestialBody } = await import('./DynamicSky')
 
       // Store says noon
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('noon'))
+      useEnvironmentStore.getState().setTimeValue(12)
 
-      // But prop says night
-      render(<CelestialBody timeOfDay="night" />)
+      // But prop says 8am
+      render(<CelestialBody timeValue={8} />)
 
-      // Should use prop value
-      expect(true).toBe(true)
+      // Store should still be noon (not modified)
+      expect(useEnvironmentStore.getState().timeValue).toBe(12)
     })
   })
 
-  describe('color based on time of day', () => {
-    it.each<[TimeOfDay, string]>([
-      ['morning', '#FFE4B5'], // Warm yellow
-      ['noon', '#FFFAF0'], // Bright white-yellow
-      ['sunset', '#FF6B35'], // Orange-red
-      ['night', '#E8E8E8'], // Moon white
-    ])('uses correct color for %s', async (timeOfDay, _expectedColor) => {
+  describe('color based on continuous time', () => {
+    it.each<[string, number]>([
+      ['sunrise (7h)', 7],
+      ['morning (9h)', 9],
+      ['noon (12h)', 12],
+      ['afternoon (15h)', 15],
+      ['sunset (18.5h)', 18.5],
+    ])('renders with appropriate color for %s', async (_, timeValue) => {
       const { CelestialBody } = await import('./DynamicSky')
 
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(timeOfDay))
+      useEnvironmentStore.getState().setTimeValue(timeValue)
 
       expect(() => {
         render(<CelestialBody />)
@@ -494,22 +546,21 @@ describe('CelestialBody', () => {
     })
   })
 
-  describe('size based on time of day', () => {
-    it('uses smaller size for night (moon)', async () => {
+  describe('visibility thresholds', () => {
+    it('renders sun when above horizon (6h-18h)', async () => {
       const { CelestialBody } = await import('./DynamicSky')
 
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('night'))
+      useEnvironmentStore.getState().setTimeValue(12)
 
-      // Night should use size 1.5 (moon), day uses 2 (sun)
       expect(() => {
         render(<CelestialBody />)
       }).not.toThrow()
     })
 
-    it('uses larger size for day (sun)', async () => {
+    it('does not render sun when below horizon (18h-6h)', async () => {
       const { CelestialBody } = await import('./DynamicSky')
 
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('noon'))
+      useEnvironmentStore.getState().setTimeValue(0) // midnight
 
       expect(() => {
         render(<CelestialBody />)

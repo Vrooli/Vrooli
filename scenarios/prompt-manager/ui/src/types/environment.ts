@@ -1,10 +1,37 @@
 /**
  * Environment types for scene backgrounds and lighting.
- * Supports different presets and times of day.
+ * Supports different presets and continuous time-of-day control.
  */
 
-/** Time of day variants */
+/**
+ * Legacy time of day variants (deprecated, kept for backwards compatibility).
+ * Use continuous timeValue (0-24) instead.
+ * @deprecated Use timeValue for continuous time control
+ */
 export type TimeOfDay = 'morning' | 'noon' | 'sunset' | 'night'
+
+/**
+ * Convert continuous time to legacy TimeOfDay for backwards compatibility.
+ */
+export function timeValueToTimeOfDay(hour: number): TimeOfDay {
+  const h = ((hour % 24) + 24) % 24
+  if (h >= 5 && h < 10) return 'morning'
+  if (h >= 10 && h < 17) return 'noon'
+  if (h >= 17 && h < 20) return 'sunset'
+  return 'night'
+}
+
+/**
+ * Convert legacy TimeOfDay to continuous time value.
+ */
+export function timeOfDayToTimeValue(timeOfDay: TimeOfDay): number {
+  switch (timeOfDay) {
+    case 'morning': return 8
+    case 'noon': return 12
+    case 'sunset': return 18.5
+    case 'night': return 22
+  }
+}
 
 /** Scene type categories */
 export type SceneType = 'outdoor-park' | 'indoor-office' | 'abstract-space' | 'custom'

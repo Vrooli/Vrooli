@@ -26,6 +26,7 @@
  */
 
 import React, { createContext, useContext, useRef, useCallback, useEffect } from 'react'
+import { render, type RenderResult } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { MockThreeState, FrameCallback } from './r3f-test-utils'
 import {
@@ -53,7 +54,7 @@ export interface R3FTestHarnessConfig {
 }
 
 /** Context value for R3F test harness */
-interface R3FTestContext {
+export interface R3FTestContext {
   simulator: FrameLoopSimulator
   registerFrameCallback: (callback: FrameCallback, priority?: number) => () => void
   tick: (delta?: number) => void
@@ -459,6 +460,53 @@ export function assertFrameCallbackRegistered(): void {
  */
 export function getRegisteredCallbackCount(): number {
   return registeredFrameCallbacks.size
+}
+
+// =============================================================================
+// HIGH-LEVEL TEST HELPERS
+// =============================================================================
+
+/**
+ * Creates a complete R3F test environment with all utilities bundled.
+ *
+ * This is the recommended way to set up R3F component tests, providing
+ * a consistent environment with harness wrapping and imperative controls.
+ *
+ * @param config - Optional harness configuration
+ * @returns Object with render helper and frame control utilities
+ *
+ * @example
+ * const env = createR3FTestEnv({ cameraPosition: [0, 10, 20] })
+ *
+ * it('animates correctly', () => {
+ *   const { container } = env.renderInHarness(<MyComponent />)
+ *   act(() => env.tickFrames(60))
+ *   expect(container).toBeDefined()
+ * })
+ *
+ * afterEach(() => {
+ *   env.reset()
+ * })
+ */
+export function createR3FTestEnv(config?: R3FTestHarnessConfig): {
+  renderInHarness: (element: React.ReactElement) => RenderResult
+  tick: typeof tick
+  tickFrames: typeof tickFrames
+  tickTime: typeof tickTime
+  setPointer: typeof setPointer
+  getState: typeof getState
+  reset: typeof resetR3FTestState
+} {
+  return {
+    renderInHarness: (element: React.ReactElement) =>
+      render(<R3FTestHarness config={config}>{element}</R3FTestHarness>),
+    tick,
+    tickFrames,
+    tickTime,
+    setPointer,
+    getState,
+    reset: resetR3FTestState,
+  }
 }
 
 // =============================================================================

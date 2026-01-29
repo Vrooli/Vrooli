@@ -1,6 +1,6 @@
 /**
  * Environment store for managing scene backgrounds and lighting.
- * Handles environment presets and transitions.
+ * Handles environment presets, transitions, and continuous time control.
  */
 
 import { create } from 'zustand'
@@ -13,6 +13,7 @@ import type {
   DreiEnvironmentPreset,
   THEME_ENVIRONMENTS,
 } from '@/types/environment'
+import { timeValueToTimeOfDay, timeOfDayToTimeValue } from '@/types/environment'
 
 interface EnvironmentState {
   /** Current environment configuration */
@@ -25,8 +26,15 @@ interface EnvironmentState {
   transitionProgress: number
   /** Previous environment for blending during transition */
   previous: EnvironmentConfig | null
-  /** User's preferred time of day */
+  /**
+   * User's preferred time of day (legacy, for backwards compatibility)
+   * @deprecated Use timeValue instead
+   */
   preferredTimeOfDay: TimeOfDay
+  /** Continuous time value (0-24 hours, e.g., 14.5 = 2:30 PM) */
+  timeValue: number
+  /** Whether to sync time with system clock */
+  realTimeMode: boolean
   /** Whether to sync with system theme */
   syncWithTheme: boolean
 }
@@ -46,8 +54,15 @@ interface EnvironmentActions {
   completeTransition: () => void
   /** Cancel ongoing transition */
   cancelTransition: () => void
-  /** Set preferred time of day */
+  /**
+   * Set preferred time of day (legacy)
+   * @deprecated Use setTimeValue instead
+   */
   setPreferredTimeOfDay: (timeOfDay: TimeOfDay) => void
+  /** Set continuous time value (0-24 hours) */
+  setTimeValue: (hour: number) => void
+  /** Toggle real-time mode (sync with system clock) */
+  setRealTimeMode: (enabled: boolean) => void
   /** Toggle theme sync */
   setSyncWithTheme: (sync: boolean) => void
   /** Update lighting preset */
@@ -114,6 +129,8 @@ const initialState: EnvironmentState = {
   transitionProgress: 0,
   previous: null,
   preferredTimeOfDay: 'night',
+  timeValue: 22, // Default to 10 PM (matches 'night' preset)
+  realTimeMode: false,
   syncWithTheme: true,
 }
 
@@ -185,7 +202,21 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       },
 
       setPreferredTimeOfDay: (timeOfDay) => {
-        set({ preferredTimeOfDay: timeOfDay })
+        // Also update timeValue for consistency
+        const timeValue = timeOfDayToTimeValue(timeOfDay)
+        set({ preferredTimeOfDay: timeOfDay, timeValue })
+      },
+
+      setTimeValue: (hour) => {
+        // Normalize to 0-24 range
+        const normalized = ((hour % 24) + 24) % 24
+        // Also update legacy preferredTimeOfDay for backwards compatibility
+        const preferredTimeOfDay = timeValueToTimeOfDay(normalized)
+        set({ timeValue: normalized, preferredTimeOfDay })
+      },
+
+      setRealTimeMode: (enabled) => {
+        set({ realTimeMode: enabled })
       },
 
       setSyncWithTheme: (sync) => {
@@ -213,6 +244,8 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       partialize: (state) => ({
         dreiPreset: state.dreiPreset,
         preferredTimeOfDay: state.preferredTimeOfDay,
+        timeValue: state.timeValue,
+        realTimeMode: state.realTimeMode,
         syncWithTheme: state.syncWithTheme,
       }),
     }

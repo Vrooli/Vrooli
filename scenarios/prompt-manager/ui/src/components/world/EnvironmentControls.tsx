@@ -1,23 +1,19 @@
 /**
  * EnvironmentControls - UI for changing the world environment.
- * Allows users to change time of day, scene type, and other environment settings.
+ * Allows users to control time (via slider), scene type, and real-time sync.
  */
 
-import { useCallback } from 'react'
-import { Sun, Moon, Sunrise, Sunset, Building2, Trees, Sparkles } from 'lucide-react'
+import { useCallback, useMemo } from 'react'
+import { Clock, Building2, Trees, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
-import type { TimeOfDay, SceneType } from '@/types/environment'
+import { formatTimeFromHour } from '@/lib/sky/sunPosition'
+import { useRealTimeClock } from '@/hooks/useRealTimeClock'
+import { timeValueToTimeOfDay } from '@/types/environment'
+import type { SceneType } from '@/types/environment'
 import { selectors } from '@/constants/selectors'
-
-// Stable icon references
-const TIME_OF_DAY_CONFIG: { time: TimeOfDay; icon: React.ReactNode; label: string; testId: string }[] = [
-  { time: 'morning', icon: <Sunrise className="h-4 w-4" />, label: 'Morning', testId: selectors.environment.timeMorning },
-  { time: 'noon', icon: <Sun className="h-4 w-4" />, label: 'Noon', testId: selectors.environment.timeNoon },
-  { time: 'sunset', icon: <Sunset className="h-4 w-4" />, label: 'Sunset', testId: selectors.environment.timeSunset },
-  { time: 'night', icon: <Moon className="h-4 w-4" />, label: 'Night', testId: selectors.environment.timeNight },
-]
 
 // Scene type configurations
 const SCENE_TYPE_CONFIG: { type: SceneType; icon: React.ReactNode; label: string; testId: string }[] = [
@@ -34,8 +30,13 @@ interface EnvironmentControlsProps {
  * Environment controls for changing world appearance.
  */
 export function EnvironmentControls({ className }: EnvironmentControlsProps) {
-  const preferredTimeOfDay = useEnvironmentStore((state) => state.preferredTimeOfDay)
-  const setPreferredTimeOfDay = useEnvironmentStore((state) => state.setPreferredTimeOfDay)
+  // Enable real-time clock sync
+  useRealTimeClock()
+
+  const timeValue = useEnvironmentStore((state) => state.timeValue)
+  const setTimeValue = useEnvironmentStore((state) => state.setTimeValue)
+  const realTimeMode = useEnvironmentStore((state) => state.realTimeMode)
+  const setRealTimeMode = useEnvironmentStore((state) => state.setRealTimeMode)
   const setDreiPreset = useEnvironmentStore((state) => state.setDreiPreset)
   const setEnvironment = useEnvironmentStore((state) => state.setEnvironment)
   const syncWithTheme = useEnvironmentStore((state) => state.syncWithTheme)
@@ -44,40 +45,57 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
 
   const sceneType: SceneType = currentEnv.type
 
-  const handleTimeOfDayChange = useCallback(
-    (timeOfDay: TimeOfDay) => {
-      setPreferredTimeOfDay(timeOfDay)
-      // Create and set full environment config
+  // Format the current time for display
+  const timeDisplay = useMemo(() => formatTimeFromHour(timeValue), [timeValue])
+
+  const handleTimeChange = useCallback(
+    (values: number[]) => {
+      const newTime = values[0] ?? timeValue
+      setTimeValue(newTime)
+
+      // Disable real-time mode when user manually adjusts
+      if (realTimeMode) {
+        setRealTimeMode(false)
+      }
+
+      // Update environment config with new time
+      const timeOfDay = timeValueToTimeOfDay(newTime)
       const newEnv = createEnvironmentConfig(
         `${sceneType}-${timeOfDay}`,
         `${sceneType} ${timeOfDay}`,
         { sceneType, timeOfDay }
       )
       setEnvironment(newEnv)
-      // Also update drei preset
+
+      // Update drei preset
       if (!syncWithTheme) {
         setDreiPreset(TIME_TO_DREI_PRESET[timeOfDay])
       }
     },
-    [setPreferredTimeOfDay, setDreiPreset, setEnvironment, syncWithTheme, sceneType]
+    [timeValue, setTimeValue, realTimeMode, setRealTimeMode, sceneType, setEnvironment, syncWithTheme, setDreiPreset]
   )
 
   const handleSceneTypeChange = useCallback(
     (type: SceneType) => {
+      const timeOfDay = timeValueToTimeOfDay(timeValue)
       // Create and set full environment config
       const newEnv = createEnvironmentConfig(
-        `${type}-${preferredTimeOfDay}`,
-        `${type} ${preferredTimeOfDay}`,
-        { sceneType: type, timeOfDay: preferredTimeOfDay }
+        `${type}-${timeOfDay}`,
+        `${type} ${timeOfDay}`,
+        { sceneType: type, timeOfDay }
       )
       setEnvironment(newEnv)
       // Also update drei preset for scene type
       if (!syncWithTheme) {
-        setDreiPreset(TIME_TO_DREI_PRESET[preferredTimeOfDay])
+        setDreiPreset(TIME_TO_DREI_PRESET[timeOfDay])
       }
     },
-    [setDreiPreset, setEnvironment, syncWithTheme, preferredTimeOfDay]
+    [setDreiPreset, setEnvironment, syncWithTheme, timeValue]
   )
+
+  const handleToggleRealTime = useCallback(() => {
+    setRealTimeMode(!realTimeMode)
+  }, [realTimeMode, setRealTimeMode])
 
   const handleToggleThemeSync = useCallback(() => {
     setSyncWithTheme(!syncWithTheme)
@@ -88,28 +106,38 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
       className={`flex flex-col gap-2 p-2 bg-slate-800/80 border border-slate-700 rounded-lg ${className ?? ''}`}
       data-testid={selectors.environment.controls}
     >
-      {/* Time of Day Row */}
-      <div className="flex items-center gap-1">
+      {/* Time Slider Row */}
+      <div className="flex items-center gap-2">
         <span className="text-xs text-slate-400 w-12">Time:</span>
-        {TIME_OF_DAY_CONFIG.map(({ time, icon, label, testId }) => (
-          <Button
-            key={time}
-            variant="ghost"
-            size="sm"
-            onClick={() => handleTimeOfDayChange(time)}
-            className={`h-7 w-7 p-0 ${
-              preferredTimeOfDay === time
-                ? 'bg-indigo-500/30 text-indigo-300'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-            title={label}
-            data-testid={testId}
-            aria-pressed={preferredTimeOfDay === time}
-            data-active={preferredTimeOfDay === time}
-          >
-            {icon}
-          </Button>
-        ))}
+        <div className="flex-1 flex items-center gap-2">
+          <Slider
+            value={[timeValue]}
+            onValueChange={handleTimeChange}
+            min={0}
+            max={24}
+            step={0.25}
+            disabled={realTimeMode}
+            aria-label="Time of day"
+            data-testid={selectors.environment.timeSlider}
+          />
+          <span className="text-xs text-slate-300 w-16 text-right font-mono">
+            {timeDisplay}
+          </span>
+        </div>
+        {/* Real-time Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggleRealTime}
+          className={`h-7 w-7 p-0 ${
+            realTimeMode ? 'bg-indigo-500/30 text-indigo-300' : 'text-slate-400 hover:text-slate-200'
+          }`}
+          title={realTimeMode ? 'Real-time mode (synced with system clock)' : 'Manual time control'}
+          data-testid={selectors.environment.realTimeToggle}
+          aria-pressed={realTimeMode}
+        >
+          <Clock className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Scene Type Row */}

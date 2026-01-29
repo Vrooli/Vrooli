@@ -1,5 +1,9 @@
 /**
  * Environment preset configurations.
+ *
+ * Note: The sky system now uses continuous time (0-24 hours) instead of
+ * discrete TimeOfDay presets. These presets are kept for backwards
+ * compatibility but lighting is now dynamically calculated from time.
  */
 
 import type {
@@ -16,7 +20,9 @@ import type {
 } from '@/types/environment'
 
 /**
- * Lighting presets for different times of day
+ * Lighting presets for different times of day.
+ * @deprecated Lighting is now calculated dynamically from continuous time.
+ * Use calculateLighting() from '@/lib/sky/sunPosition' instead.
  */
 export const LIGHTING_PRESETS: Record<TimeOfDay, LightingPreset> = {
   morning: {
@@ -91,7 +97,10 @@ export const FOG_PRESETS: Record<SceneType, FogConfig | undefined> = {
 }
 
 /**
- * Skybox presets
+ * Skybox presets.
+ * @deprecated Sky colors are now calculated dynamically from continuous time.
+ * Use calculateSkyColors() from '@/lib/sky/sunPosition' instead.
+ * Kept for backwards compatibility with existing environment configs.
  */
 export const SKYBOX_PRESETS: Record<TimeOfDay, SkyboxConfig> = {
   morning: {

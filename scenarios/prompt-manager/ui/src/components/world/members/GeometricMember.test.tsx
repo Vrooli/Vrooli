@@ -19,12 +19,10 @@ import {
   FrameLoopSimulator,
   createMockMesh,
   RenderTracker,
-} from '@/test/r3f-test-utils'
-import {
   takeStoreSnapshot,
   diffSnapshots,
   StoreSubscriptionTracker,
-} from '@/test/r3f-store-test-utils'
+} from '@/test'
 
 // =============================================================================
 // MOCKS

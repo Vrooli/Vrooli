@@ -1,23 +1,30 @@
 /**
- * DynamicSky - Renders a sky dome that changes based on time of day.
- * Uses procedural gradients for morning, noon, sunset, and night.
+ * DynamicSky - Renders a sky dome that changes based on continuous time.
+ *
+ * Uses a custom gradient shader that smoothly transitions colors based on time of day.
+ * The gradient is rendered on BackSide, allowing stars and celestial bodies to render inside.
  */
 
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useEnvironmentStore } from '@/stores/environmentStore'
-import { SKYBOX_PRESETS } from '@/config/environments'
-import type { TimeOfDay } from '@/types/environment'
+import {
+  calculateSunPosition,
+  calculateSkyColors,
+} from '@/lib/sky/sunPosition'
+import type { TimeOfDay, SceneType } from '@/types/environment'
 import { SKY_VERTEX_SHADER, SKY_FRAGMENT_SHADER } from '@/lib/shaders/glsl/sky.glsl'
 
 interface DynamicSkyProps {
-  /** Override the time of day */
+  /** Override the time value (0-24 hours) */
+  timeValue?: number
+  /** Override the time of day (legacy, use timeValue instead) */
   timeOfDay?: TimeOfDay
   /** Radius of the sky dome */
   radius?: number
-  /** Enable stars at night */
-  enableStars?: boolean
+  /** Override scene type */
+  sceneType?: SceneType
 }
 
 /**
@@ -28,9 +35,28 @@ function hexToColor(hex: string): THREE.Color {
 }
 
 /**
- * Create a gradient shader material for the sky dome
+ * Create a gradient shader material for the sky dome (used for abstract-space)
  */
-function createGradientMaterial(colors: string[]): THREE.ShaderMaterial {
+function createGradientMaterial(colors: { top: string; middle: string; bottom: string }): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      topColor: { value: hexToColor(colors.top) },
+      middleColor: { value: hexToColor(colors.middle) },
+      bottomColor: { value: hexToColor(colors.bottom) },
+      offset: { value: 0.5 },
+      exponent: { value: 0.6 },
+    },
+    vertexShader: SKY_VERTEX_SHADER,
+    fragmentShader: SKY_FRAGMENT_SHADER,
+    side: THREE.BackSide,
+    depthWrite: false,
+  })
+}
+
+/**
+ * Create a gradient material from color array (legacy support)
+ */
+function createGradientMaterialFromArray(colors: string[]): THREE.ShaderMaterial {
   const colorArray = colors.map(hexToColor)
 
   return new THREE.ShaderMaterial({
@@ -60,46 +86,47 @@ function createSolidMaterial(color: string): THREE.MeshBasicMaterial {
 }
 
 /**
- * Dynamic sky dome that changes based on time of day.
+ * Dynamic sky that changes based on continuous time.
+ *
+ * Uses a custom gradient shader for all scene types to ensure:
+ * 1. Smooth color transitions based on time
+ * 2. Stars and celestial bodies can render inside the dome (BackSide rendering)
+ * 3. Consistent behavior across all scene types
  */
 export function DynamicSky({
-  timeOfDay: timeOfDayProp,
-  radius = 50,
+  timeValue: timeValueProp,
+  timeOfDay: _timeOfDayProp, // Legacy prop, kept for backwards compatibility
+  radius = 80,
+  sceneType: _sceneTypeProp, // Currently unused - gradient shader used for all scene types
 }: DynamicSkyProps) {
   const meshRef = useRef<THREE.Mesh>(null)
 
   // Get current environment config
   const currentEnv = useEnvironmentStore((state) => state.current)
-  const timeOfDay = timeOfDayProp ?? currentEnv.timeOfDay
+  const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
   const skyboxConfig = currentEnv.skybox
 
-  // Create the appropriate material based on skybox type
-  const material = useMemo(() => {
-    switch (skyboxConfig.type) {
-      case 'gradient':
-        if (Array.isArray(skyboxConfig.source)) {
-          return createGradientMaterial(skyboxConfig.source)
-        }
-        return createSolidMaterial(skyboxConfig.source ?? '#87CEEB')
+  // Use prop time value, or convert legacy timeOfDay prop, or use store value
+  const timeValue = timeValueProp ?? storeTimeValue
 
-      case 'solid':
-        return createSolidMaterial(
-          typeof skyboxConfig.source === 'string' ? skyboxConfig.source : '#87CEEB'
-        )
+  // Calculate sky colors based on continuous time
+  const skyColors = useMemo(() => calculateSkyColors(timeValue), [timeValue])
 
-      case 'procedural': {
-        // For procedural, use gradient with preset colors
-        const presetColors = SKYBOX_PRESETS[timeOfDay]
-        if (Array.isArray(presetColors.source)) {
-          return createGradientMaterial(presetColors.source)
-        }
-        return createSolidMaterial('#87CEEB')
-      }
-
-      default:
-        return createSolidMaterial('#87CEEB')
+  // Create the gradient material - always uses time-based colors for procedural types
+  const gradientMaterial = useMemo(() => {
+    // For solid skybox type with explicit source, use that
+    if (skyboxConfig.type === 'solid' && typeof skyboxConfig.source === 'string') {
+      return createSolidMaterial(skyboxConfig.source)
     }
-  }, [skyboxConfig, timeOfDay])
+
+    // For gradient type with explicit color array, use that
+    if (skyboxConfig.type === 'gradient' && Array.isArray(skyboxConfig.source)) {
+      return createGradientMaterialFromArray(skyboxConfig.source)
+    }
+
+    // For all other cases (procedural, hdri without source, or default), use time-based colors
+    return createGradientMaterial(skyColors)
+  }, [skyboxConfig, skyColors])
 
   // Slowly rotate the sky dome for a subtle effect
   useFrame((_, delta) => {
@@ -108,60 +135,70 @@ export function DynamicSky({
     }
   })
 
+  // Render the gradient sky dome
   return (
-    <mesh ref={meshRef} material={material}>
+    <mesh ref={meshRef} material={gradientMaterial}>
       <sphereGeometry args={[radius, 32, 32]} />
     </mesh>
   )
 }
 
 /**
- * Sun/Moon component that positions based on time of day
+ * Sun component that positions based on continuous time.
+ * Visible when sun is above the horizon.
  */
-export function CelestialBody({ timeOfDay: timeOfDayProp }: { timeOfDay?: TimeOfDay }) {
-  const currentEnv = useEnvironmentStore((state) => state.current)
-  const timeOfDay = timeOfDayProp ?? currentEnv.timeOfDay
+export function CelestialBody({
+  timeValue: timeValueProp,
+  timeOfDay: _timeOfDayProp, // Legacy prop, kept for backwards compatibility
+}: {
+  timeValue?: number
+  /** @deprecated Use timeValue instead */
+  timeOfDay?: TimeOfDay
+}) {
+  const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
 
-  // Position based on time of day
-  const position = useMemo<[number, number, number]>(() => {
-    switch (timeOfDay) {
-      case 'morning':
-        return [30, 15, 30] // Rising sun
-      case 'noon':
-        return [0, 40, 0] // High sun
-      case 'sunset':
-        return [-30, 10, 30] // Setting sun
-      case 'night':
-        return [20, 35, -20] // Moon position
-      default:
-        return [0, 40, 0]
-    }
-  }, [timeOfDay])
+  // Use prop time value or store value
+  const timeValue = timeValueProp ?? storeTimeValue
 
-  // Color based on time of day
+  // Calculate position from continuous time - recalculates when timeValue changes
+  const sunPosition = calculateSunPosition(timeValue)
+
+  // Only show sun when it's above the horizon (y > 0)
+  const isAboveHorizon = sunPosition[1] > 0
+
+  // Color based on time - warmer at sunrise/sunset
   const color = useMemo(() => {
-    switch (timeOfDay) {
-      case 'morning':
-        return '#FFE4B5' // Warm yellow
-      case 'noon':
-        return '#FFFAF0' // Bright white-yellow
-      case 'sunset':
-        return '#FF6B35' // Orange-red
-      case 'night':
-        return '#E8E8E8' // Moon white
-      default:
-        return '#FFFAF0'
-    }
-  }, [timeOfDay])
+    const h = ((timeValue % 24) + 24) % 24
 
-  const size = timeOfDay === 'night' ? 1.5 : 2
+    if (h >= 6 && h < 8) {
+      // Sunrise - warm yellow/orange
+      return '#FFE4B5'
+    } else if (h >= 8 && h < 16) {
+      // Midday - bright white-yellow
+      return '#FFFAF0'
+    } else if (h >= 16 && h < 18) {
+      // Afternoon - slightly warm
+      return '#FFF5E0'
+    } else if (h >= 18 && h < 20) {
+      // Sunset - orange-red
+      return '#FF6B35'
+    }
+    // Night (shouldn't be visible anyway)
+    return '#FFFAF0'
+  }, [timeValue])
+
+  // Don't render if below horizon
+  if (!isAboveHorizon) {
+    return null
+  }
 
   return (
-    <mesh position={position}>
-      <sphereGeometry args={[size, 32, 32]} />
+    <mesh position={sunPosition}>
+      <sphereGeometry args={[1.5, 32, 32]} />
       <meshBasicMaterial
         color={color}
         toneMapped={false}
+        fog={false}
       />
     </mesh>
   )

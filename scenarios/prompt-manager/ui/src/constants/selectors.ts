@@ -43,6 +43,9 @@ const literalSelectors = {
     sceneSpace: 'environment-scene-space',
     scenePark: 'environment-scene-park',
     sceneOffice: 'environment-scene-office',
+    timeSlider: 'environment-time-slider',
+    realTimeToggle: 'environment-realtime-toggle',
+    // Legacy discrete time selectors (deprecated)
     timeMorning: 'environment-time-morning',
     timeNoon: 'environment-time-noon',
     timeSunset: 'environment-time-sunset',
