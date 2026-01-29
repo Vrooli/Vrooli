@@ -3,11 +3,13 @@
  * Connects to the furniture store and renders FurnitureItem components.
  */
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { FurnitureItem } from './FurnitureItem'
 import { DraggableObject } from '../interaction'
 import { useFurnitureStore, useFurnitureList } from '@/stores/furnitureStore'
+import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { FurnitureInstance } from '@/types/furniture'
+import { applyPlacementConstraints } from '@/lib/world'
 
 interface FurnitureManagerProps {
   /** Called when furniture is clicked */
@@ -28,6 +30,18 @@ export function FurnitureManager({
 }: FurnitureManagerProps) {
   const furnitureList = useFurnitureList()
   const moveFurniture = useFurnitureStore((state) => state.moveFurniture)
+  const placementConfig = useEnvironmentStore((state) => state.current.placement)
+  const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
+  const groundSize = useEnvironmentStore((state) => state.current.ground.size)
+
+  const constrainPosition = useMemo(() => {
+    return (position: [number, number, number]) =>
+      applyPlacementConstraints(position, {
+        placement: placementConfig,
+        boundary: boundaryConfig,
+        groundSize,
+      })
+  }, [placementConfig, boundaryConfig, groundSize])
 
   const handleClick = useCallback(
     (furniture: FurnitureInstance) => {
@@ -65,6 +79,7 @@ export function FurnitureManager({
               objectId={furniture.id}
               position={furniture.position}
               onPositionChange={(pos) => handlePositionChange(furniture.id, pos)}
+              constrainPosition={constrainPosition}
             >
               {item}
             </DraggableObject>

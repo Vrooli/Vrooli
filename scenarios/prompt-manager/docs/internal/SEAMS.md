@@ -24,6 +24,7 @@ Recent seam and boundary refinements:
 - **Editor view modes**: `SkillContentEditor` owns the Edit/Preview/Split selection while editors (Monaco/TipTap) only handle editing concerns.
 - **Link preview seam**: `fetchLinkPreview` in `ui/src/lib/api.ts` centralizes OG metadata fetching for both rich editor tooltips and markdown preview links.
 - **Split resizing seam**: `useResizableSplitPanel` encapsulates split-view resizing behavior to keep layout logic out of editor rendering.
+- **World placement seam**: `ui/src/lib/world.ts` owns placement/boundary math so dragging and click-to-place use the same rules without duplicating logic.
 
 ## Testing Seams
 

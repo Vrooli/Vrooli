@@ -239,7 +239,7 @@ const x = 1;
 
       // Switch back: WYSIWYG → Code
       act(() => {
-        fireEvent.click(screen.getByTitle('Code Editor (Monaco)'))
+        fireEvent.click(screen.getByTitle('Switch to Code'))
       })
 
       // Update the value to what we got from the first switch
@@ -303,7 +303,7 @@ const x = 1;
 
         // Switch back to Code
         act(() => {
-          fireEvent.click(screen.getByTitle('Code Editor (Monaco)'))
+          fireEvent.click(screen.getByTitle('Switch to Code'))
         })
 
         // Update with the new value

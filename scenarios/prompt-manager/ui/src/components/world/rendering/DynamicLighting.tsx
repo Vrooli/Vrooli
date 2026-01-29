@@ -27,22 +27,6 @@ export function DynamicLighting({
   const storeLighting = useEnvironmentStore(selectCurrentLighting)
   const lighting = preset ?? storeLighting
 
-  // Fallback lighting if none configured
-  if (!lighting) {
-    return (
-      <>
-        <ambientLight intensity={0.4} color="#404040" />
-        <directionalLight
-          position={[10, 10, 5]}
-          intensity={1.0}
-          color="#ffffff"
-          castShadow={enableShadows}
-          shadow-mapSize={[shadowMapSize, shadowMapSize]}
-        />
-      </>
-    )
-  }
-
   return (
     <>
       {/* Ambient light */}

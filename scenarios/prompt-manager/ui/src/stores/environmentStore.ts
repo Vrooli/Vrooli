@@ -16,7 +16,7 @@ import type {
 
 interface EnvironmentState {
   /** Current environment configuration */
-  current: EnvironmentConfig | null
+  current: EnvironmentConfig
   /** Active drei environment preset name */
   dreiPreset: DreiEnvironmentPreset
   /** Whether environment is transitioning */
@@ -87,6 +87,19 @@ const DEFAULT_ENVIRONMENT: EnvironmentConfig = {
     size: 30,
     divisions: 30,
     position: 0,
+  },
+  boundary: {
+    visible: true,
+    shape: 'square',
+    size: 60,
+    position: 0.01,
+    color: '#94a3b8',
+    opacity: 0.4,
+  },
+  placement: {
+    snapToGrid: true,
+    snapSize: 1,
+    clampToBoundary: true,
   },
 }
 
@@ -177,7 +190,6 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
 
       updateLighting: (lighting) => {
         const { current } = get()
-        if (!current) return
 
         set({
           current: {
@@ -207,13 +219,13 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
  * Selector for current lighting config
  */
 export const selectCurrentLighting = (state: EnvironmentStore) =>
-  state.current?.lighting ?? null
+  state.current.lighting
 
 /**
  * Selector for fog config
  */
 export const selectCurrentFog = (state: EnvironmentStore) =>
-  state.current?.fog ?? null
+  state.current.fog ?? null
 
 /**
  * Hook to get the current fog color (useful for background matching).

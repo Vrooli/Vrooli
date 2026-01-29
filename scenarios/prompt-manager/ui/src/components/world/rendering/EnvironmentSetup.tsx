@@ -25,9 +25,12 @@ export function EnvironmentSetup({ preset, showBackground = false }: Environment
   const config = useGraphicsStore((state) => state.config)
   const dreiPreset = useEnvironmentStore((state) => state.dreiPreset)
   const syncWithTheme = useEnvironmentStore((state) => state.syncWithTheme)
+  const groundSize = useEnvironmentStore((state) => state.current.ground.size)
+  const boundary = useEnvironmentStore((state) => state.current.boundary)
 
   // Determine which preset to use
   const effectivePreset = preset ?? (syncWithTheme ? THEME_TO_DREI_PRESET[theme] : dreiPreset)
+  const contactShadowScale = groundSize ?? (boundary.size ?? 20)
 
   return (
     <>
@@ -44,7 +47,7 @@ export function EnvironmentSetup({ preset, showBackground = false }: Environment
         <ContactShadows
           position={[0, 0.01, 0]}
           opacity={0.4}
-          scale={20}
+          scale={contactShadowScale}
           blur={2.5}
           far={4}
           resolution={config.shadowMapSize > 1024 ? 512 : 256}

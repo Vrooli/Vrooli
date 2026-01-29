@@ -87,6 +87,35 @@ export interface GroundConfig {
 }
 
 /**
+ * Boundary outline configuration for the world.
+ * Shapes are centered at the origin on the XZ plane.
+ */
+export interface BoundaryConfig {
+  visible: boolean
+  shape: 'square' | 'circle' | 'path'
+  /** Size for square (side length) or circle (diameter) */
+  size?: number
+  /** Path points on the XZ plane (used when shape = "path") */
+  points?: [number, number][]
+  /** Y position of boundary line */
+  position?: number
+  color?: string
+  opacity?: number
+}
+
+/**
+ * Placement rules for dragging and dropping objects.
+ */
+export interface PlacementConfig {
+  /** Snap placement to the grid */
+  snapToGrid: boolean
+  /** Grid size for snapping (world units) */
+  snapSize: number
+  /** Clamp placement to the boundary */
+  clampToBoundary: boolean
+}
+
+/**
  * Complete environment configuration
  */
 export interface EnvironmentConfig {
@@ -98,6 +127,8 @@ export interface EnvironmentConfig {
   fog?: FogConfig
   skybox: SkyboxConfig
   ground: GroundConfig
+  boundary: BoundaryConfig
+  placement: PlacementConfig
 }
 
 /**

@@ -471,7 +471,7 @@ export function SkillContentEditor({
   }, [])
 
   const previewPane = (
-    <div className="flex-1 overflow-y-auto bg-card">
+    <div className="flex-1 overflow-y-auto bg-card" data-testid="markdown-preview">
       <div className="p-4">
         <MarkdownRenderer content={value} />
       </div>

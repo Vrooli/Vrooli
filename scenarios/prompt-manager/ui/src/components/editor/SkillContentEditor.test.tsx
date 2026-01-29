@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { SkillContentEditor } from './SkillContentEditor'
 
 // Mock Monaco Editor with useMonaco hook
@@ -219,7 +219,8 @@ describe('SkillContentEditor', () => {
       fireEvent.click(screen.getByTitle('Show preview'))
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
-      expect(screen.getByText('Preview content')).toBeInTheDocument()
+      const preview = screen.getByTestId('markdown-preview')
+      expect(within(preview).getByText('Preview content')).toBeInTheDocument()
     })
   })
 

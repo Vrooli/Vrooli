@@ -13,8 +13,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
-import { useFurnitureStore } from '@/stores/furnitureStore'
-import { useDecorationStore } from '@/stores/decorationStore'
 import { FURNITURE_CONFIGS, type FurnitureType } from '@/types/furniture'
 import { DECORATION_CONFIGS, type DecorationType } from '@/types/decoration'
 
@@ -69,29 +67,20 @@ export function ObjectPalette({ className }: ObjectPaletteProps) {
   const setPaletteTab = useWorldEditorStore((state) => state.setPaletteTab)
   const placingObject = useWorldEditorStore((state) => state.placingObject)
   const cancelPlacing = useWorldEditorStore((state) => state.cancelPlacing)
-
-  const addFurniture = useFurnitureStore((state) => state.addFurniture)
-  const addDecoration = useDecorationStore((state) => state.addDecoration)
+  const startPlacing = useWorldEditorStore((state) => state.startPlacing)
 
   const handleFurnitureClick = useCallback(
     (type: FurnitureType) => {
-      // Add furniture at center with slight random offset
-      const offsetX = (Math.random() - 0.5) * 4
-      const offsetZ = (Math.random() - 0.5) * 4
-      addFurniture(type, [offsetX, 0, offsetZ])
+      startPlacing({ type: 'furniture', subtype: type })
     },
-    [addFurniture]
+    [startPlacing]
   )
 
   const handleDecorationClick = useCallback(
     (type: DecorationType) => {
-      // Add decoration at center with slight random offset
-      const config = DECORATION_CONFIGS[type]
-      const offsetX = (Math.random() - 0.5) * 4
-      const offsetZ = (Math.random() - 0.5) * 4
-      addDecoration(type, [offsetX, config.defaultY, offsetZ])
+      startPlacing({ type: 'decoration', subtype: type })
     },
-    [addDecoration]
+    [startPlacing]
   )
 
   const handleClose = useCallback(() => {

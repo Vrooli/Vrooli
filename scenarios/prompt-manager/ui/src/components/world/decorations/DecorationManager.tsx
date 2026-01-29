@@ -3,11 +3,13 @@
  * Connects to the decoration store and renders DecorationItem components.
  */
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { DecorationItem } from './DecorationItem'
 import { DraggableObject } from '../interaction'
 import { useDecorationStore, useDecorationList } from '@/stores/decorationStore'
+import { useEnvironmentStore } from '@/stores/environmentStore'
 import type { DecorationInstance } from '@/types/decoration'
+import { applyPlacementConstraints } from '@/lib/world'
 
 interface DecorationManagerProps {
   /** Called when decoration is clicked */
@@ -28,6 +30,18 @@ export function DecorationManager({
 }: DecorationManagerProps) {
   const decorationList = useDecorationList()
   const moveDecoration = useDecorationStore((state) => state.moveDecoration)
+  const placementConfig = useEnvironmentStore((state) => state.current.placement)
+  const boundaryConfig = useEnvironmentStore((state) => state.current.boundary)
+  const groundSize = useEnvironmentStore((state) => state.current.ground.size)
+
+  const constrainPosition = useMemo(() => {
+    return (position: [number, number, number]) =>
+      applyPlacementConstraints(position, {
+        placement: placementConfig,
+        boundary: boundaryConfig,
+        groundSize,
+      })
+  }, [placementConfig, boundaryConfig, groundSize])
 
   const handleClick = useCallback(
     (decoration: DecorationInstance) => {
@@ -67,6 +81,7 @@ export function DecorationManager({
               objectId={decoration.id}
               position={decoration.position}
               onPositionChange={(pos) => handlePositionChange(decoration.id, pos)}
+              constrainPosition={constrainPosition}
             >
               {item}
             </DraggableObject>

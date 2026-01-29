@@ -41,7 +41,7 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
   const setSyncWithTheme = useEnvironmentStore((state) => state.setSyncWithTheme)
   const currentEnv = useEnvironmentStore((state) => state.current)
 
-  const sceneType: SceneType = currentEnv?.type ?? 'abstract-space'
+  const sceneType: SceneType = currentEnv.type
 
   const handleTimeOfDayChange = useCallback(
     (timeOfDay: TimeOfDay) => {

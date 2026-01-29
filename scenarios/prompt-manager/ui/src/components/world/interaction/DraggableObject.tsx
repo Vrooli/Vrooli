@@ -28,6 +28,8 @@ interface DraggableObjectProps {
   onDragEnd?: () => void
   /** Whether to show drag indicator */
   showDragIndicator?: boolean
+  /** Optional constraint function for drag positions */
+  constrainPosition?: (position: [number, number, number]) => [number, number, number]
 }
 
 // Stable reference for animation
@@ -48,6 +50,7 @@ export function DraggableObject({
   onDragStart,
   onDragEnd,
   showDragIndicator = true,
+  constrainPosition,
 }: DraggableObjectProps) {
   const groupRef = useRef<Group>(null)
   const [currentPosition, setCurrentPosition] = useState(initialPosition)
@@ -62,14 +65,17 @@ export function DraggableObject({
   const handleDrag = useCallback(
     (_pos: [number, number, number], offset: [number, number, number]) => {
       // Apply offset to initial position
-      const newPos: [number, number, number] = [
+      let newPos: [number, number, number] = [
         initialPosition[0] + offset[0],
         initialPosition[1],
         initialPosition[2] + offset[2],
       ]
+      if (constrainPosition) {
+        newPos = constrainPosition(newPos)
+      }
       setCurrentPosition(newPos)
     },
-    [initialPosition]
+    [initialPosition, constrainPosition]
   )
 
   const handleDragEnd = useCallback(

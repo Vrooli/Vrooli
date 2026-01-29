@@ -10,6 +10,8 @@ import type {
   FogConfig,
   SkyboxConfig,
   GroundConfig,
+  BoundaryConfig,
+  PlacementConfig,
   DreiEnvironmentPreset,
 } from '@/types/environment'
 
@@ -147,6 +149,49 @@ export const GROUND_PRESETS: Record<SceneType, GroundConfig> = {
 }
 
 /**
+ * Default boundary configuration per scene type.
+ */
+export const BOUNDARY_PRESETS: Record<SceneType, BoundaryConfig> = {
+  'outdoor-park': {
+    visible: true,
+    shape: 'square',
+    size: 200,
+    position: 0.01,
+    color: '#94a3b8',
+    opacity: 0.4,
+  },
+  'indoor-office': {
+    visible: true,
+    shape: 'square',
+    size: 100,
+    position: 0.01,
+    color: '#94a3b8',
+    opacity: 0.4,
+  },
+  'abstract-space': {
+    visible: true,
+    shape: 'square',
+    size: 60,
+    position: 0.01,
+    color: '#94a3b8',
+    opacity: 0.4,
+  },
+  custom: {
+    visible: false,
+    shape: 'square',
+  },
+}
+
+/**
+ * Default placement configuration
+ */
+export const PLACEMENT_DEFAULTS: PlacementConfig = {
+  snapToGrid: true,
+  snapSize: 1,
+  clampToBoundary: true,
+}
+
+/**
  * Theme to drei preset mapping
  */
 export const THEME_TO_DREI_PRESET: Record<'light' | 'dark', DreiEnvironmentPreset> = {
@@ -177,6 +222,8 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     fog: FOG_PRESETS['abstract-space'],
     skybox: SKYBOX_PRESETS.night,
     ground: GROUND_PRESETS['abstract-space'],
+    boundary: BOUNDARY_PRESETS['abstract-space'],
+    placement: PLACEMENT_DEFAULTS,
   },
   'default-light': {
     id: 'default-light',
@@ -194,6 +241,11 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
       divisions: 30,
       position: 0,
     },
+    boundary: {
+      ...BOUNDARY_PRESETS['indoor-office'],
+      size: 60,
+    },
+    placement: PLACEMENT_DEFAULTS,
   },
   'outdoor-morning': {
     id: 'outdoor-morning',
@@ -204,6 +256,8 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     fog: FOG_PRESETS['outdoor-park'],
     skybox: SKYBOX_PRESETS.morning,
     ground: GROUND_PRESETS['outdoor-park'],
+    boundary: BOUNDARY_PRESETS['outdoor-park'],
+    placement: PLACEMENT_DEFAULTS,
   },
   'outdoor-sunset': {
     id: 'outdoor-sunset',
@@ -214,6 +268,8 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     fog: { color: '#FFB347', near: 15, far: 60 },
     skybox: SKYBOX_PRESETS.sunset,
     ground: GROUND_PRESETS['outdoor-park'],
+    boundary: BOUNDARY_PRESETS['outdoor-park'],
+    placement: PLACEMENT_DEFAULTS,
   },
 }
 
@@ -242,9 +298,35 @@ export function createEnvironmentConfig(
     customLighting?: Partial<LightingPreset>
     customFog?: FogConfig
     customGround?: Partial<GroundConfig>
+    customBoundary?: Partial<BoundaryConfig>
+    customPlacement?: Partial<PlacementConfig>
   }
 ): EnvironmentConfig {
   const { sceneType = 'abstract-space', timeOfDay = 'night' } = options
+
+  const ground = {
+    ...GROUND_PRESETS[sceneType],
+    ...options.customGround,
+  }
+
+  const boundary: BoundaryConfig = {
+    ...BOUNDARY_PRESETS[sceneType],
+    ...options.customBoundary,
+  }
+
+  if (options.customBoundary?.size === undefined && options.customGround?.size) {
+    boundary.size = options.customGround.size * 2
+  }
+
+  const snapFromGrid = ground.type === 'grid' && ground.size && ground.divisions
+    ? ground.size / ground.divisions
+    : undefined
+
+  const placement: PlacementConfig = {
+    ...PLACEMENT_DEFAULTS,
+    ...(snapFromGrid ? { snapSize: snapFromGrid } : null),
+    ...options.customPlacement,
+  }
 
   return {
     id,
@@ -257,9 +339,8 @@ export function createEnvironmentConfig(
     },
     fog: options.customFog ?? FOG_PRESETS[sceneType],
     skybox: SKYBOX_PRESETS[timeOfDay],
-    ground: {
-      ...GROUND_PRESETS[sceneType],
-      ...options.customGround,
-    },
+    ground,
+    boundary,
+    placement,
   }
 }

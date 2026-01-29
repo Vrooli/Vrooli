@@ -16,13 +16,15 @@ import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { MemberWithAccessories } from './members/MemberWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
-import { DragPlane } from './interaction'
+import { DragPlane, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
 import { DecorationManager } from './decorations'
 import { PerformanceMonitor, FPSOverlay } from './performance'
 import { DynamicLighting, DynamicFog, DynamicSky, CelestialBody } from './rendering'
+import { BoundaryOutline } from './rendering/BoundaryOutline'
 import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
+import { useIsPlacing } from '@/stores/worldEditorStore'
 import type { Member } from '@/types/member'
 import type { FurnitureInstance } from '@/types/furniture'
 
@@ -79,11 +81,19 @@ export function WorldScene({
 
   // Disable orbit controls during drag
   const isDragging = useInteractionStore((state) => state.isDragging)
+  const isPlacing = useIsPlacing()
 
   // Environment config for ground styling
   const currentEnv = useEnvironmentStore((state) => state.current)
-  const groundConfig = currentEnv?.ground
-  const isNightTime = currentEnv?.timeOfDay === 'night'
+  const groundConfig = currentEnv.ground
+  const boundaryConfig = currentEnv.boundary
+  const isNightTime = currentEnv.timeOfDay === 'night'
+  const groundSize = groundConfig.size ?? 30
+  const boundarySize = boundaryConfig.visible
+    ? (boundaryConfig.size ?? groundSize * 2)
+    : groundSize
+  const dragPlaneSize = Math.max(groundSize, boundarySize, 10)
+  const groundY = groundConfig.position ?? 0
 
 
   // Update camera position when state changes
@@ -128,7 +138,7 @@ export function WorldScene({
       {/* Controls - disabled during drag */}
       <OrbitControls
         ref={controlsRef as React.Ref<never>}
-        enabled={!isDragging}
+        enabled={!isDragging && !isPlacing}
         enableDamping
         dampingFactor={0.05}
         minDistance={3}
@@ -138,10 +148,11 @@ export function WorldScene({
       />
 
       {/* Drag plane - catches pointer events during drag */}
-      <DragPlane y={0} />
+      <DragPlane y={groundY} size={dragPlaneSize} />
+      <PlacementPlane y={groundY} size={dragPlaneSize} />
 
       {/* Grid helper - respects environment ground config */}
-      {groundConfig?.visible !== false && groundConfig?.type === 'grid' && (
+      {groundConfig.visible && groundConfig.type === 'grid' && (
         <gridHelper
           args={[
             groundConfig.size ?? 30,
@@ -149,21 +160,14 @@ export function WorldScene({
             groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
             groundConfig.color ?? (isDarkMode ? '#1e293b' : '#e2e8f0'),
           ]}
-          position={[0, groundConfig.position ?? 0, 0]}
-        />
-      )}
-      {/* Fallback grid if no config */}
-      {!groundConfig && (
-        <gridHelper
-          args={[30, 30, isDarkMode ? '#1e293b' : '#e2e8f0', isDarkMode ? '#1e293b' : '#e2e8f0']}
-          position={[0, 0, 0]}
+          position={[0, groundY, 0]}
         />
       )}
       {/* Ground plane for non-grid environments */}
-      {groundConfig?.visible && groundConfig.type === 'plane' && (
+      {groundConfig.visible && groundConfig.type === 'plane' && (
         <mesh
           rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, groundConfig.position ?? 0, 0]}
+          position={[0, groundY, 0]}
           receiveShadow
         >
           <planeGeometry args={[groundConfig.size ?? 100, groundConfig.size ?? 100]} />
@@ -171,13 +175,19 @@ export function WorldScene({
         </mesh>
       )}
 
+      {/* World boundary outline */}
+      <BoundaryOutline groundSize={groundSize} />
+
       {/* Furniture and Decorations */}
       <FurnitureManager
-        interactive
-        draggable
+        interactive={!isPlacing}
+        draggable={!isPlacing}
         onFurnitureClick={onFurnitureClick}
       />
-      <DecorationManager interactive draggable />
+      <DecorationManager
+        interactive={!isPlacing}
+        draggable={!isPlacing}
+      />
 
       {/* Render all members with accessories and overlays */}
       {membersWithPositions.map(({ member, position, isSeated = false, seatRotation = 0 }) => (

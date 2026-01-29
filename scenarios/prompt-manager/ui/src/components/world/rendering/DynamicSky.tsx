@@ -96,8 +96,8 @@ export function DynamicSky({
 
   // Get current environment config
   const currentEnv = useEnvironmentStore((state) => state.current)
-  const timeOfDay = timeOfDayProp ?? currentEnv?.timeOfDay ?? 'noon'
-  const skyboxConfig = currentEnv?.skybox ?? SKYBOX_PRESETS[timeOfDay]
+  const timeOfDay = timeOfDayProp ?? currentEnv.timeOfDay
+  const skyboxConfig = currentEnv.skybox
 
   // Create the appropriate material based on skybox type
   const material = useMemo(() => {
@@ -146,7 +146,7 @@ export function DynamicSky({
  */
 export function CelestialBody({ timeOfDay: timeOfDayProp }: { timeOfDay?: TimeOfDay }) {
   const currentEnv = useEnvironmentStore((state) => state.current)
-  const timeOfDay = timeOfDayProp ?? currentEnv?.timeOfDay ?? 'noon'
+  const timeOfDay = timeOfDayProp ?? currentEnv.timeOfDay
 
   // Position based on time of day
   const position = useMemo<[number, number, number]>(() => {
