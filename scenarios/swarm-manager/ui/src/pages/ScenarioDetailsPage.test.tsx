@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
+import { useScenariosStore } from "../stores";
 
 /**
  * Mock the config module for testing.
@@ -69,6 +70,7 @@ describe("ScenarioDetailsPage", () => {
       },
     });
     vi.clearAllMocks();
+    useScenariosStore.getState().reset();
   });
 
   const renderPage = (scenarioName = "test-scenario") => {

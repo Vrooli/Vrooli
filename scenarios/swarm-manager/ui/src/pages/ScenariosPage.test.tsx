@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { ScenariosPage } from "./ScenariosPage";
 import type { Scenario } from "../types";
+import { useScenariosStore } from "../stores";
 
 /**
  * Mock the config module for testing.
@@ -97,6 +98,7 @@ describe("ScenariosPage", () => {
       },
     });
     vi.clearAllMocks();
+    useScenariosStore.getState().reset();
   });
 
   const renderPage = () => {
@@ -316,13 +318,15 @@ describe("ScenariosPage", () => {
   });
 
   // [REQ:REQ-P0-006] Test loading state
-  it("shows loading state while fetching scenarios", () => {
+  it("shows loading state while fetching scenarios", async () => {
     vi.mocked(scenariosService.list).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
     renderPage();
 
-    expect(screen.getByText("Loading scenarios...")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Loading scenarios...")).toBeInTheDocument();
+    });
   });
 
   // [REQ:REQ-P0-006] Test error state shows ErrorState component

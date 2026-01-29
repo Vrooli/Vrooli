@@ -1462,7 +1462,7 @@ func TestResearch_Success(t *testing.T) {
 
 	h := NewHandlerWithClients(ideasDir, nil, agentService)
 
-	payload := bytes.NewBufferString(`{"prompt":"Focus on feasibility"}`)
+	payload := bytes.NewBufferString(`{"prompt":"Focus on feasibility","mode":"clarify"}`)
 	req := httptest.NewRequest("POST", "/api/v1/ideas/research-test/research", payload)
 	req = mux.SetURLVars(req, map[string]string{"name": "research-test"})
 	req.Header.Set("Content-Type", "application/json")

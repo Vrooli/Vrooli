@@ -5,7 +5,7 @@
  * [REQ:REQ-P0-006] Prioritized scenario catalog with search and filter
  *
  * Responsibility: Presentation only - rendering scenarios and handling user interactions.
- * Data fetching is delegated to the scenarios service (a seam for testability).
+ * Data fetching is delegated to the scenarios store, which uses the scenarios service seam.
  * Domain logic (types, status icons/colors) is imported from the types module.
  *
  * Error Handling:
@@ -19,8 +19,8 @@
  * - Helps ecosystem reviewers quickly understand ecosystem state
  */
 
-import { useState, useMemo, type MouseEvent } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo, useEffect, type MouseEvent } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Filter, Package, ArrowRight, Circle, X, ChevronDown, Play, Square, RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -28,11 +28,12 @@ import { Card } from "../components/ui/card";
 import { ErrorState } from "../components/ui/error-state";
 import { SearchBar } from "../components/ui/search-bar";
 import { TagList } from "../components/ui/tag-list";
-import { capitalize, defaultQueryOptions } from "../lib";
+import { capitalize } from "../lib";
 import { scenariosService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_ICONS, SCENARIO_STATUS_COLORS, type ScenarioStatus } from "../types";
 import { displayLimitsConfig } from "../config";
+import { useScenariosStore } from "../stores";
 
 /** Available status values for filtering */
 const STATUS_OPTIONS: ScenarioStatus[] = ["running", "stopped", "error", "unknown"];
@@ -42,14 +43,17 @@ export function ScenariosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ScenarioStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const scenarios = useScenariosStore((state) => state.scenarios);
+  const status = useScenariosStore((state) => state.status);
+  const error = useScenariosStore((state) => state.error);
+  const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
+  const upsertScenario = useScenariosStore((state) => state.upsertScenario);
+  const hasLoaded = status !== "idle";
 
-  const { data: scenarios, isLoading, error, refetch } = useQuery({
-    queryKey: ["scenarios"],
-    queryFn: () => scenariosService.list(),
-    ...defaultQueryOptions,
-  });
+  useEffect(() => {
+    void fetchScenarios();
+  }, [fetchScenarios]);
 
   // Client-side filtering and searching
   // API supports server-side filtering, but client-side provides instant feedback
@@ -96,13 +100,7 @@ export function ScenariosPage() {
       return scenariosService.restart(name);
     },
     onSuccess: (updatedScenario) => {
-      queryClient.setQueryData(["scenarios"], (existing?: typeof scenarios) => {
-        if (!existing) return existing;
-        return existing.map((scenario) =>
-          scenario.name === updatedScenario.name ? updatedScenario : scenario
-        );
-      });
-      queryClient.setQueryData(["scenarios", updatedScenario.name], updatedScenario);
+      upsertScenario(updatedScenario);
     },
   });
 
@@ -306,23 +304,23 @@ export function ScenariosPage() {
             </div>
           </Card>
         )}
-        {isLoading && (
+        {(status === "loading" || !hasLoaded) && scenarios.length === 0 && (
           <Card padding="lg" centered>
             <p className="text-slate-400">Loading scenarios...</p>
           </Card>
         )}
 
         {/* Error state - clearly different from empty state */}
-        {error && (
+        {error && scenarios.length === 0 && hasLoaded && (
           <ErrorState
             error={error}
             title="Unable to load scenarios"
-            onRetry={() => refetch()}
+            onRetry={() => fetchScenarios({ force: true })}
           />
         )}
 
         {/* Empty state - only shown when we successfully loaded but have no data */}
-        {scenarios && scenarios.length === 0 && (
+        {scenarios.length === 0 && hasLoaded && (
           <Card padding="lg" centered data-testid={selectors.scenarios.empty}>
             <Package className="mx-auto h-12 w-12 text-slate-600" />
             <h3 className="mt-4 text-lg font-medium text-slate-300">No scenarios found</h3>

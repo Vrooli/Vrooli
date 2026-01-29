@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { IdeaDetailsPage } from "./IdeaDetailsPage";
+import { useIdeasStore } from "../stores";
 
 /**
  * Mock the config module for testing.
@@ -43,6 +44,7 @@ vi.mock("../services", () => ({
     getFiles: vi.fn(),
     getFileContent: vi.fn(),
     uploadFile: vi.fn(),
+    saveFileContent: vi.fn(),
     queue: vi.fn(),
     research: vi.fn(),
   },
@@ -96,6 +98,7 @@ describe("IdeaDetailsPage", () => {
       },
     });
     vi.clearAllMocks();
+    useIdeasStore.getState().reset();
   });
 
   const renderPage = (ideaName = "test-idea") => {
@@ -472,20 +475,20 @@ describe("IdeaDetailsPage", () => {
       });
     });
 
-    it("opens research dialog when research button clicked", async () => {
+    it("opens agent dialog when agent button clicked", async () => {
       vi.mocked(ideasService.get).mockResolvedValue(mockIdea);
       vi.mocked(ideasService.getFiles).mockResolvedValue(mockFiles);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId("idea-details-research")).toBeInTheDocument();
+        expect(screen.getByTestId("idea-details-agent")).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId("idea-details-research"));
+      fireEvent.click(screen.getByTestId("idea-details-agent"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("idea-research-dialog")).toBeInTheDocument();
-        expect(screen.getByTestId("idea-research-prompt")).toBeInTheDocument();
+        expect(screen.getByTestId("idea-agent-dialog")).toBeInTheDocument();
+        expect(screen.getByTestId("idea-agent-context")).toBeInTheDocument();
       });
     });
   });

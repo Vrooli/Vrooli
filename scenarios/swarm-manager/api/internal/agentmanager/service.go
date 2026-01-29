@@ -205,6 +205,7 @@ type ResearchSpawnRequest struct {
 	ScopePath   string
 	ProjectRoot string
 	CreatedBy   string
+	Mode        string
 }
 
 // RecommendationSpawnRequest describes a request to spawn a recommendation agent.
@@ -235,11 +236,7 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
-		if req.IdeaName != "" {
-			title = "Research idea: " + req.IdeaName
-		} else {
-			title = "Research idea"
-		}
+		title = buildResearchTitle(req.Mode, req.IdeaName)
 	}
 
 	scopePath := strings.TrimSpace(req.ScopePath)
@@ -372,6 +369,23 @@ func buildResearchTag(ideaName string) string {
 		return "swarm-manager:idea:research"
 	}
 	return fmt.Sprintf("swarm-manager:idea:%s:research", ideaName)
+}
+
+func buildResearchTitle(mode, ideaName string) string {
+	label := strings.TrimSpace(ideaName)
+	if label == "" {
+		label = "idea"
+	}
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "clarify":
+		return "Clarify idea: " + label
+	case "suggest":
+		return "Suggest improvements: " + label
+	case "enhance":
+		return "Enhance idea: " + label
+	default:
+		return "Research idea: " + label
+	}
 }
 
 func buildRecommendationTag(recID string) string {

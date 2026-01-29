@@ -22,7 +22,7 @@ import { buildMessage, ideaFilesResponseSchema, ideaFileResponseSchema, ideaResp
 import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
-import type { Idea, IdeaFile, ResearchResponse } from "../types";
+import type { Idea, IdeaAgentMode, IdeaFile, ResearchResponse } from "../types";
 
 /**
  * Response from queueing an idea for processing.
@@ -48,10 +48,11 @@ export interface IIdeasService {
   getFiles(name: string): Promise<IdeaFile[]>;
   getFileContent(name: string, filePath: string): Promise<string>;
   uploadFile(name: string, file: File, path?: string): Promise<IdeaFile>;
+  saveFileContent(name: string, filePath: string, content: string, contentType?: string): Promise<IdeaFile>;
   queue(name: string, operation?: "generator" | "improver"): Promise<QueueResponse>;
   research(
     name: string,
-    payload?: { prompt?: string; scopePath?: string; projectRoot?: string }
+    payload?: { prompt?: string; scopePath?: string; projectRoot?: string; mode?: IdeaAgentMode }
   ): Promise<ResearchResponse>;
 }
 
@@ -72,6 +73,19 @@ export interface IIdeasService {
 export function createIdeasService(
   apiClient: IApiClient = defaultApiClient
 ): IIdeasService {
+  const uploadFile = async (name: string, file: File, path?: string): Promise<IdeaFile> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (path) {
+      formData.append("path", path);
+    }
+    const data = await apiClient.post<unknown>(API_ENDPOINTS.ideaFiles(name), formData, {
+      headers: {},
+    });
+    const parsed = parseProtoResponse(ideaFileResponseSchema, data, "idea file");
+    return mapProtoIdeaFile(requireProtoField(parsed.file, "idea file"));
+  };
+
   return {
     async list(): Promise<Idea[]> {
       const data = await apiClient.get<unknown>(API_ENDPOINTS.ideas);
@@ -133,16 +147,21 @@ export function createIdeasService(
     },
 
     async uploadFile(name: string, file: File, path?: string): Promise<IdeaFile> {
-      const formData = new FormData();
-      formData.append("file", file);
-      if (path) {
-        formData.append("path", path);
-      }
-      const data = await apiClient.post<unknown>(API_ENDPOINTS.ideaFiles(name), formData, {
-        headers: {},
-      });
-      const parsed = parseProtoResponse(ideaFileResponseSchema, data, "idea file");
-      return mapProtoIdeaFile(requireProtoField(parsed.file, "idea file"));
+      return uploadFile(name, file, path);
+    },
+
+    async saveFileContent(
+      name: string,
+      filePath: string,
+      content: string,
+      contentType = "text/plain"
+    ): Promise<IdeaFile> {
+      const normalizedPath = filePath.replace(/^[\\/]+/, "");
+      const segments = normalizedPath.split("/");
+      const fileName = segments.pop() || "notes.txt";
+      const directory = segments.length > 0 ? segments.join("/") : undefined;
+      const file = new File([content], fileName, { type: contentType });
+      return uploadFile(name, file, directory);
     },
 
     async queue(
@@ -162,7 +181,7 @@ export function createIdeasService(
 
     async research(
       name: string,
-      payload?: { prompt?: string; scopePath?: string; projectRoot?: string }
+      payload?: { prompt?: string; scopePath?: string; projectRoot?: string; mode?: IdeaAgentMode }
     ): Promise<ResearchResponse> {
       const data = await apiClient.post<unknown>(
         API_ENDPOINTS.ideaResearch(name),

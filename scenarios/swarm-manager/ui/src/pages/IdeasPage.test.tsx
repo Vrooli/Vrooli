@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { IdeasPage } from "./IdeasPage";
+import { useIdeasStore } from "../stores";
 
 /**
  * Mock the config module for testing.
@@ -58,6 +59,7 @@ describe("IdeasPage", () => {
       },
     });
     vi.clearAllMocks();
+    useIdeasStore.getState().reset();
   });
 
   const renderPage = () => {
@@ -151,13 +153,15 @@ describe("IdeasPage", () => {
   });
 
   // [REQ:REQ-P0-003a] Test loading state
-  it("shows loading state while fetching ideas", () => {
+  it("shows loading state while fetching ideas", async () => {
     vi.mocked(ideasService.list).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
     renderPage();
 
-    expect(screen.getByText("Loading ideas...")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Loading ideas...")).toBeInTheDocument();
+    });
   });
 
   // [REQ:REQ-P0-003a] Test error state shows ErrorState component (not empty state)

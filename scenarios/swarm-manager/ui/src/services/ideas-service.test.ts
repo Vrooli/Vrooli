@@ -291,6 +291,35 @@ describe("Ideas Service", () => {
     });
   });
 
+  describe("saveFileContent", () => {
+    it("uploads text content to a nested path", async () => {
+      const mockResponse = {
+        file: {
+          name: "questions.json",
+          path: "clarify/questions.json",
+          type: "file" as const,
+          size: "24",
+        },
+      };
+      vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
+
+      const result = await service.saveFileContent(
+        "my-idea",
+        "clarify/questions.json",
+        "{\"questions\":[]}",
+        "application/json"
+      );
+
+      const postCall = vi.mocked(mockApiClient.post).mock.calls[0];
+      expect(postCall?.[0]).toBe("/ideas/my-idea/files");
+      const formData = postCall?.[1] as FormData;
+      expect(formData.get("path")).toBe("clarify");
+      const file = formData.get("file") as File;
+      expect(file.name).toBe("questions.json");
+      expect(result.path).toBe("clarify/questions.json");
+    });
+  });
+
   // [REQ:REQ-P0-005] Test queue functionality
   describe("queue", () => {
     it("queues an idea with default generator operation", async () => {
@@ -353,10 +382,14 @@ describe("Ideas Service", () => {
       };
       vi.mocked(mockApiClient.post).mockResolvedValue(mockResponse);
 
-      const result = await service.research("my-idea", { prompt: "Focus on feasibility" });
+      const result = await service.research("my-idea", {
+        prompt: "Focus on feasibility",
+        mode: "clarify",
+      });
 
       expect(mockApiClient.post).toHaveBeenCalledWith("/ideas/my-idea/research", {
         prompt: "Focus on feasibility",
+        mode: "clarify",
       });
       expect(result).toEqual(mockResponse);
     });

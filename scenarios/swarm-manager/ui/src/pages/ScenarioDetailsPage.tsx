@@ -28,11 +28,14 @@ import { capitalize, defaultQueryOptions } from "../lib";
 import { scenariosService } from "../services";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_COLORS, SCENARIO_STATUS_ICONS } from "../types";
+import { useScenariosStore } from "../stores";
 
 export function ScenarioDetailsPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const upsertScenario = useScenariosStore((state) => state.upsertScenario);
+  const removeScenario = useScenariosStore((state) => state.removeScenario);
 
   // Local state for optimistic UI updates
   const [localGreenfield, setLocalGreenfield] = useState<boolean | null>(null);
@@ -78,8 +81,7 @@ export function ScenarioDetailsPage() {
     onSuccess: (updatedScenario) => {
       // Update cache with new data
       queryClient.setQueryData(["scenarios", name], updatedScenario);
-      // Invalidate list to reflect changes
-      queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      upsertScenario(updatedScenario);
     },
     onError: () => {
       // Revert local state on error
@@ -103,7 +105,7 @@ export function ScenarioDetailsPage() {
     },
     onSuccess: (updatedScenario) => {
       queryClient.setQueryData(["scenarios", name], updatedScenario);
-      queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      upsertScenario(updatedScenario);
     },
   });
 
@@ -128,8 +130,9 @@ export function ScenarioDetailsPage() {
       return scenariosService.delete(name, archiveOnDelete);
     },
     onSuccess: () => {
-      // Invalidate scenarios list
-      queryClient.invalidateQueries({ queryKey: ["scenarios"] });
+      if (name) {
+        removeScenario(name);
+      }
       // Navigate back to scenarios list
       navigate("/scenarios");
     },

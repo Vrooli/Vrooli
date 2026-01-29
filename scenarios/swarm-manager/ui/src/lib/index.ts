@@ -47,6 +47,16 @@ export {
 } from "./error-utils";
 export type { ErrorCategory, ErrorLogEntry } from "./error-utils";
 
+// Idea agent file utilities
+export {
+  IDEA_AGENT_FILE_PATHS,
+  parseClarifyQuestionsFile,
+  buildClarifyQuestionsContent,
+  parseSuggestionsFile,
+  buildSuggestionsContent,
+  findIdeaFileByPath,
+} from "./idea-agent-files";
+
 // Query Utilities - React Query configuration
 export { defaultQueryOptions } from "./query-utils";
 export type { DefaultQueryOptions } from "./query-utils";

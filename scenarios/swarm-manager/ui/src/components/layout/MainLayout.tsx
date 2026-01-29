@@ -5,6 +5,7 @@ import { Lightbulb, Package, Zap, Settings } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { applyTheme, cn, defaultQueryOptions, watchSystemTheme, type ResolvedTheme } from "../../lib";
 import { settingsService } from "../../services";
+import { useIdeasStore, useRecommendationsStore, useScenariosStore } from "../../stores";
 
 interface TabConfig {
   id: string;
@@ -36,6 +37,9 @@ export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("dark");
+  const fetchIdeas = useIdeasStore((state) => state.fetchIdeas);
+  const fetchScenarios = useScenariosStore((state) => state.fetchScenarios);
+  const fetchRecommendations = useRecommendationsStore((state) => state.fetchRecommendations);
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -69,6 +73,12 @@ export function MainLayout() {
     window.addEventListener("keydown", handleKeyboardNav);
     return () => window.removeEventListener("keydown", handleKeyboardNav);
   }, [handleKeyboardNav]);
+
+  useEffect(() => {
+    void fetchIdeas();
+    void fetchScenarios();
+    void fetchRecommendations();
+  }, [fetchIdeas, fetchScenarios, fetchRecommendations]);
 
   useEffect(() => {
     const theme = settings?.theme ?? "dark";

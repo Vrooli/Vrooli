@@ -118,6 +118,12 @@ ideas/
     ├── spec.json     # Required: metadata
     ├── notes.md      # Optional: context
     └── research/     # Optional: supporting files
+    ├── clarify/      # Agent-generated clarifying questions (questions.json)
+    │   └── questions.json
+    ├── suggest/      # Agent-generated suggestions (suggestions.json)
+    │   └── suggestions.json
+    └── enhance/      # Agent-generated refinements (summary.md)
+        └── summary.md
 
 .vrooli/
 └── settings.json     # User/system settings (persisted)
@@ -198,6 +204,7 @@ ui/src/
 │   └── index.test.ts  # Validation tests for configuration bounds
 ├── pages/             # Feature pages (presentation only)
 ├── services/          # Data access seams (NEW in Phase 3)
+├── stores/            # Zustand stores for shared list state
 │   ├── ideas-service.ts      # Ideas CRUD with injectable client
 │   ├── scenarios-service.ts  # Scenarios operations
 │   ├── settings-service.ts   # Settings persistence

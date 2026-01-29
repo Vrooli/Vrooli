@@ -4,7 +4,7 @@
  * Displays the idea backlog with search, filtering, and CRUD operations.
  *
  * Responsibility: Presentation only - rendering ideas and handling user interactions.
- * Data fetching is delegated to the ideas service (a seam for testability).
+ * Data fetching is delegated to the ideas store, which uses the ideas service seam.
  * Domain logic (types, status formatting) is imported from the types module.
  *
  * Error Handling:
@@ -18,8 +18,8 @@
  * - Reduces cognitive load for returning users by highlighting active work
  */
 
-import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Plus, Filter, Lightbulb, ArrowRight, Clock, Terminal, X, ChevronDown } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -30,12 +30,13 @@ import { StatusLegend } from "../components/ui/status-legend";
 import { IDEA_STATUS_LEGEND_ITEMS } from "../components/ui/status-legend.constants";
 import { TagList } from "../components/ui/tag-list";
 import { WelcomeHint } from "../components/ui/welcome-hint";
-import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { formatRelativeTime } from "../lib";
 import { ideasService } from "../services";
 import { selectors } from "../consts/selectors";
 import { IDEA_STATUS_COLORS, formatIdeaStatus, type IdeaStatus } from "../types";
 import { displayLimitsConfig } from "../config";
 import { IdeaFormDialog } from "../components/ideas/idea-form-dialog";
+import { useIdeasStore } from "../stores";
 
 /** Statuses that indicate an idea is "completed" and shouldn't appear in Continue Working */
 const COMPLETED_STATUSES = ["completed", "archived"] as const;
@@ -50,22 +51,24 @@ const STATUS_OPTIONS: IdeaStatus[] = [
 ];
 
 export function IdeasPage() {
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<IdeaStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const ideas = useIdeasStore((state) => state.ideas);
+  const status = useIdeasStore((state) => state.status);
+  const error = useIdeasStore((state) => state.error);
+  const fetchIdeas = useIdeasStore((state) => state.fetchIdeas);
+  const hasLoaded = status !== "idle";
 
-  const { data: ideas, isLoading, error, refetch } = useQuery({
-    queryKey: ["ideas"],
-    queryFn: () => ideasService.list(),
-    ...defaultQueryOptions,
-  });
+  useEffect(() => {
+    void fetchIdeas();
+  }, [fetchIdeas]);
 
   const createMutation = useMutation({
     mutationFn: ideasService.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      void fetchIdeas({ force: true });
       setShowCreate(false);
     },
   });
@@ -217,24 +220,24 @@ export function IdeasPage() {
 
       {/* Ideas list */}
       <div className="space-y-4">
-        {isLoading && (
+        {(status === "loading" || !hasLoaded) && ideas.length === 0 && (
           <Card padding="lg" centered>
             <p className="text-slate-400">Loading ideas...</p>
           </Card>
         )}
 
         {/* Error state - clearly different from empty state */}
-        {error && (
+        {error && ideas.length === 0 && hasLoaded && (
           <ErrorState
             error={error}
             title="Unable to load ideas"
-            onRetry={() => refetch()}
+            onRetry={() => fetchIdeas({ force: true })}
           />
         )}
 
         {/* Empty state - only shown when we successfully loaded but have no data */}
         {/* Experience Architecture (Phase 29): Provides actionable guidance including CLI usage */}
-        {ideas && ideas.length === 0 && (
+        {ideas.length === 0 && hasLoaded && (
           <Card padding="lg" centered data-testid={selectors.ideas.empty}>
             <Lightbulb className="mx-auto h-12 w-12 text-slate-600" />
             <h3 className="mt-4 text-lg font-medium text-slate-300">No ideas yet</h3>

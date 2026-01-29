@@ -37,8 +37,9 @@ Swarm Manager is the **central command center** for the Vrooli scenario ecosyste
 
 1. **Idea-to-Scenario Pipeline**
    ```
-   Create Idea → Research → Queue for Processing → ecosystem-manager initializes → Scenario exists
+   Create Idea → Clarify → Suggest → Enhance → Queue for Processing → ecosystem-manager initializes → Scenario exists
    ```
+   - Clarify writes `clarify/questions.json`, Suggest writes `suggest/suggestions.json`, Enhance writes `enhance/summary.md`.
 
 2. **Recommendation Engine Flow**
    ```
@@ -120,6 +121,7 @@ swarm-manager/
 │   │   │   ├── ScenariosPage.tsx
 │   │   │   ├── RecommendationsPage.tsx
 │   │   │   └── SettingsPage.tsx
+│   │   ├── stores/           # Zustand stores for shared list state
 │   │   ├── lib/              # Utilities (api client)
 │   │   └── consts/           # Constants (selectors)
 │   └── server.js             # Production static server

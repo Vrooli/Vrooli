@@ -2,8 +2,8 @@
  * Recommendations Page - Displays system-generated improvement suggestions
  */
 
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Filter, Zap, Settings, ArrowRight, CheckCircle2, XCircle, RefreshCw, ChevronDown, Play } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -13,13 +13,18 @@ import { selectors } from "../consts/selectors";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { agentManagerService, recommendationsService, settingsService } from "../services";
 import type { Recommendation, RecommendationStatus } from "../types";
+import { useRecommendationsStore } from "../stores";
 
 const STATUS_OPTIONS: RecommendationStatus[] = ["pending", "approved", "rejected"];
 
 export function RecommendationsPage() {
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<RecommendationStatus | "">("");
   const [showFilters, setShowFilters] = useState(false);
+  const recommendations = useRecommendationsStore((state) => state.recommendations);
+  const status = useRecommendationsStore((state) => state.status);
+  const error = useRecommendationsStore((state) => state.error);
+  const fetchRecommendations = useRecommendationsStore((state) => state.fetchRecommendations);
+  const hasLoaded = status !== "idle";
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -33,16 +38,14 @@ export function RecommendationsPage() {
     ...defaultQueryOptions,
   });
 
-  const { data: recommendations, isLoading, error, refetch } = useQuery({
-    queryKey: ["recommendations"],
-    queryFn: () => recommendationsService.list(),
-    ...defaultQueryOptions,
-  });
+  useEffect(() => {
+    void fetchRecommendations();
+  }, [fetchRecommendations]);
 
   const refreshMutation = useMutation({
     mutationFn: recommendationsService.refresh,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+      void fetchRecommendations({ force: true });
     },
   });
 
@@ -50,14 +53,14 @@ export function RecommendationsPage() {
     mutationFn: ({ id, status }: { id: string; status: RecommendationStatus }) =>
       recommendationsService.updateStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+      void fetchRecommendations({ force: true });
     },
   });
 
   const startMutation = useMutation({
     mutationFn: (id: string) => recommendationsService.start(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
+      void fetchRecommendations({ force: true });
     },
   });
 
@@ -90,24 +93,6 @@ export function RecommendationsPage() {
       : "Agent manager offline"
     : "Agent manager status unknown";
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6" data-testid={selectors.recommendations.page}>
-        <Card padding="lg" centered>
-          <p className="text-slate-400">Loading recommendations...</p>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6" data-testid={selectors.recommendations.page}>
-        <ErrorState error={error as Error} title="Unable to load recommendations" onRetry={() => refetch()} />
-      </div>
-    );
-  }
-
   if (settings?.recommendationMode === "off") {
     return (
       <div className="space-y-6" data-testid={selectors.recommendations.page}>
@@ -125,6 +110,28 @@ export function RecommendationsPage() {
             </Button>
           </Link>
         </Card>
+      </div>
+    );
+  }
+
+  if ((status === "loading" || !hasLoaded) && recommendations.length === 0) {
+    return (
+      <div className="space-y-6" data-testid={selectors.recommendations.page}>
+        <Card padding="lg" centered>
+          <p className="text-slate-400">Loading recommendations...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && recommendations.length === 0 && hasLoaded) {
+    return (
+      <div className="space-y-6" data-testid={selectors.recommendations.page}>
+        <ErrorState
+          error={error}
+          title="Unable to load recommendations"
+          onRetry={() => fetchRecommendations({ force: true })}
+        />
       </div>
     );
   }
@@ -221,7 +228,7 @@ export function RecommendationsPage() {
         </div>
       )}
 
-      {recommendations && recommendations.length > 0 && (
+      {recommendations.length > 0 && (
         <div className="flex items-center gap-4 text-sm text-slate-400">
           <span>{statusSummary.pending} pending</span>
           <span>{statusSummary.approved} approved</span>
@@ -230,7 +237,7 @@ export function RecommendationsPage() {
       )}
 
       <div className="space-y-4">
-        {recommendations && recommendations.length === 0 && (
+        {recommendations.length === 0 && hasLoaded && (
           <Card padding="lg" centered data-testid={selectors.recommendations.empty}>
             <Zap className="mx-auto h-12 w-12 text-slate-600" />
             <h3 className="mt-4 text-lg font-medium text-slate-300">No recommendations</h3>
@@ -240,7 +247,7 @@ export function RecommendationsPage() {
           </Card>
         )}
 
-        {recommendations && recommendations.length > 0 && filteredRecommendations.length === 0 && (
+        {recommendations.length > 0 && filteredRecommendations.length === 0 && (
           <Card padding="lg" centered>
             <Zap className="mx-auto h-12 w-12 text-slate-600" />
             <h3 className="mt-4 text-lg font-medium text-slate-300">No matching recommendations</h3>

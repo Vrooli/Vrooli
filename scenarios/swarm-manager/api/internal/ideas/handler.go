@@ -208,6 +208,31 @@ type ResearchRequest struct {
 	Prompt      string `json:"prompt,omitempty"`
 	ScopePath   string `json:"scopePath,omitempty"`
 	ProjectRoot string `json:"projectRoot,omitempty"`
+	Mode        string `json:"mode,omitempty"`
+}
+
+// ResearchMode describes the intent for idea agent work.
+type ResearchMode string
+
+const (
+	ResearchModeClarify ResearchMode = "clarify"
+	ResearchModeSuggest ResearchMode = "suggest"
+	ResearchModeEnhance ResearchMode = "enhance"
+)
+
+func parseResearchMode(raw string) (ResearchMode, error) {
+	mode := ResearchMode(strings.ToLower(strings.TrimSpace(raw)))
+	if mode == "" {
+		return ResearchModeClarify, nil
+	}
+	switch mode {
+	case "research":
+		return ResearchModeClarify, nil
+	case ResearchModeClarify, ResearchModeSuggest, ResearchModeEnhance:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("invalid mode")
+	}
 }
 
 // ResearchResponse returns agent-manager identifiers.
@@ -853,6 +878,12 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	mode, modeErr := parseResearchMode(req.Mode)
+	if modeErr != nil {
+		httputil.BadRequest(w, "[ideas] research", "mode must be clarify, suggest, or enhance")
+		return
+	}
+
 	scopePath := strings.TrimSpace(req.ScopePath)
 	if scopePath == "" {
 		scopePath = filepath.Join(h.ideasDir, idea.Name)
@@ -870,8 +901,9 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 
 	response, err := service.SpawnResearch(r.Context(), agentmanager.ResearchSpawnRequest{
 		IdeaName:    idea.Name,
-		Title:       "Research idea: " + idea.Title,
-		Description: buildResearchDescription(idea),
+		Mode:        string(mode),
+		Title:       buildResearchTitle(idea, mode),
+		Description: buildResearchDescription(idea, mode),
 		Prompt:      strings.TrimSpace(req.Prompt),
 		ScopePath:   scopePath,
 		ProjectRoot: projectRoot,
@@ -948,7 +980,27 @@ func sanitizeName(name string) string {
 	return result.String()
 }
 
-func buildResearchDescription(idea Idea) string {
+func buildResearchTitle(idea Idea, mode ResearchMode) string {
+	label := strings.TrimSpace(idea.Title)
+	if label == "" {
+		label = strings.TrimSpace(idea.Name)
+	}
+	if label == "" {
+		label = "idea"
+	}
+	switch mode {
+	case ResearchModeClarify:
+		return "Clarify idea: " + label
+	case ResearchModeSuggest:
+		return "Suggest improvements: " + label
+	case ResearchModeEnhance:
+		return "Enhance idea: " + label
+	default:
+		return "Research idea: " + label
+	}
+}
+
+func buildResearchDescription(idea Idea, mode ResearchMode) string {
 	var builder strings.Builder
 	builder.WriteString("Research this scenario idea and summarize actionable next steps.\n\n")
 	builder.WriteString("Title: ")
@@ -972,7 +1024,26 @@ func buildResearchDescription(idea Idea) string {
 		builder.WriteString(strings.Join(idea.Tags, ", "))
 		builder.WriteString("\n")
 	}
-	builder.WriteString("\nProvide a concise research summary, risks, and recommended next actions. ")
-	builder.WriteString("If applicable, suggest updates to notes or spec.json fields.\n")
+
+	switch mode {
+	case ResearchModeClarify:
+		builder.WriteString("\nGoal: generate the most important clarifying questions about scope, requirements, constraints, and implementation details.\n")
+		builder.WriteString("Write results to clarify/questions.json with schema:\n")
+		builder.WriteString("{\"questions\":[{\"id\":\"q1\",\"question\":\"...\",\"answer\":\"\"}]}\n")
+		builder.WriteString("Preserve existing questions and answers; append new questions if needed.\n")
+	case ResearchModeSuggest:
+		builder.WriteString("\nGoal: propose improvements or alternative approaches for this idea.\n")
+		builder.WriteString("Write results to suggest/suggestions.json with schema:\n")
+		builder.WriteString("{\"suggestions\":[{\"id\":\"s1\",\"suggestion\":\"...\",\"details\":\"...\",\"status\":\"pending\"}]}\n")
+		builder.WriteString("Preserve existing suggestions and decisions; append new suggestions if needed.\n")
+	case ResearchModeEnhance:
+		builder.WriteString("\nGoal: produce a refined plan based on clarifications and accepted suggestions.\n")
+		builder.WriteString("Read clarify/questions.json and suggest/suggestions.json if present. Apply accepted suggestions, ignore rejected ones.\n")
+		builder.WriteString("Write the enhancement summary to enhance/summary.md and update spec.json if necessary.\n")
+	default:
+		builder.WriteString("\nProvide a concise research summary, risks, and recommended next actions. ")
+		builder.WriteString("If applicable, suggest updates to notes or spec.json fields.\n")
+	}
+
 	return builder.String()
 }

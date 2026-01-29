@@ -15,7 +15,7 @@
  * [REQ:REQ-P0-004] Idea Details UI Page with file tree view, preview, and upload
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Edit, Trash2, Upload, Play, Loader2, Lightbulb, Sparkles } from "lucide-react";
@@ -28,22 +28,42 @@ import { FileUpload } from "../components/ui/file-upload";
 import { TagList } from "../components/ui/tag-list";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { IdeaFormDialog } from "../components/ideas/idea-form-dialog";
-import { ResearchDialog } from "../components/ideas/research-dialog";
-import { defaultQueryOptions, formatRelativeTime } from "../lib";
+import { IdeaAgentDialog } from "../components/ideas/idea-agent-dialog";
+import { IdeaClarifyPanel } from "../components/ideas/idea-clarify-panel";
+import { IdeaSuggestionsPanel } from "../components/ideas/idea-suggestions-panel";
+import {
+  buildClarifyQuestionsContent,
+  buildSuggestionsContent,
+  defaultQueryOptions,
+  findIdeaFileByPath,
+  formatRelativeTime,
+  IDEA_AGENT_FILE_PATHS,
+  parseClarifyQuestionsFile,
+  parseSuggestionsFile,
+} from "../lib";
 import { ideasService } from "../services";
 import { selectors } from "../consts/selectors";
-import { IDEA_STATUS_COLORS, formatIdeaStatus, type IdeaStatus } from "../types";
-import type { IdeaFile } from "../types";
+import { IDEA_STATUS_COLORS, formatIdeaStatus } from "../types";
+import type {
+  IdeaAgentMode,
+  IdeaClarificationQuestion,
+  IdeaFile,
+  IdeaStatus,
+  IdeaSuggestion,
+} from "../types";
+import { useIdeasStore } from "../stores";
 
 export function IdeaDetailsPage() {
   const { name } = useParams<{ name: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const upsertIdea = useIdeasStore((state) => state.upsertIdea);
+  const removeIdea = useIdeasStore((state) => state.removeIdea);
   const [selectedFile, setSelectedFile] = useState<IdeaFile | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [showResearch, setShowResearch] = useState(false);
+  const [showAgentDialog, setShowAgentDialog] = useState(false);
 
   // Fetch idea details
   // Note: queryFn is only called when enabled is true (i.e., name exists)
@@ -79,6 +99,64 @@ export function IdeaDetailsPage() {
     ...defaultQueryOptions,
   });
 
+  const clarifyFile = useMemo(
+    () => findIdeaFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.clarify),
+    [files]
+  );
+  const suggestionsFile = useMemo(
+    () => findIdeaFileByPath(files ?? [], IDEA_AGENT_FILE_PATHS.suggest),
+    [files]
+  );
+
+  const {
+    data: clarifyContent,
+    error: clarifyContentError,
+    refetch: refetchClarifyContent,
+  } = useQuery({
+    queryKey: ["ideas", name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify],
+    queryFn: () => {
+      if (!name) throw new Error("Name is required");
+      return ideasService.getFileContent(name, IDEA_AGENT_FILE_PATHS.clarify);
+    },
+    enabled: !!name && !!clarifyFile,
+    ...defaultQueryOptions,
+  });
+
+  const {
+    data: suggestionsContent,
+    error: suggestionsContentError,
+    refetch: refetchSuggestionsContent,
+  } = useQuery({
+    queryKey: ["ideas", name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest],
+    queryFn: () => {
+      if (!name) throw new Error("Name is required");
+      return ideasService.getFileContent(name, IDEA_AGENT_FILE_PATHS.suggest);
+    },
+    enabled: !!name && !!suggestionsFile,
+    ...defaultQueryOptions,
+  });
+
+  const clarifyParsed = useMemo(
+    () => parseClarifyQuestionsFile(clarifyContent),
+    [clarifyContent]
+  );
+  const suggestionsParsed = useMemo(
+    () => parseSuggestionsFile(suggestionsContent),
+    [suggestionsContent]
+  );
+  const clarifyErrorMessage =
+    clarifyContentError instanceof Error
+      ? clarifyContentError.message
+      : clarifyContentError
+        ? "Unable to load clarify questions."
+        : clarifyParsed.error;
+  const suggestionsErrorMessage =
+    suggestionsContentError instanceof Error
+      ? suggestionsContentError.message
+      : suggestionsContentError
+        ? "Unable to load suggestions."
+        : suggestionsParsed.error;
+
   const isLoading = isLoadingIdea || isLoadingFiles;
   const error = ideaError ?? filesError;
 
@@ -103,10 +181,12 @@ export function IdeaDetailsPage() {
       if (!name) throw new Error("Name is required");
       return ideasService.queue(name);
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       // Refresh the idea to get updated status
       queryClient.invalidateQueries({ queryKey: ["ideas", name] });
-      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      if (result?.idea) {
+        upsertIdea(result.idea);
+      }
     },
   });
 
@@ -121,9 +201,9 @@ export function IdeaDetailsPage() {
         tags: values.tags,
       });
     },
-    onSuccess: () => {
+    onSuccess: (updatedIdea) => {
       queryClient.invalidateQueries({ queryKey: ["ideas", name] });
-      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      upsertIdea(updatedIdea);
       setShowEdit(false);
     },
   });
@@ -134,25 +214,91 @@ export function IdeaDetailsPage() {
       return ideasService.delete(name);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ideas"] });
+      if (name) {
+        removeIdea(name);
+      }
       navigate("/ideas");
     },
   });
 
-  const researchMutation = useMutation({
-    mutationFn: (prompt: string) => {
+  const agentMutation = useMutation({
+    mutationFn: ({ mode, prompt }: { mode: IdeaAgentMode; prompt: string }) => {
       if (!name) throw new Error("Name is required");
-      return ideasService.research(name, { prompt });
+      return ideasService.research(name, { mode, prompt });
     },
     onSuccess: () => {
-      setShowResearch(false);
+      setShowAgentDialog(false);
+    },
+  });
+
+  const buildFollowupPrompt = (mode: IdeaAgentMode) => {
+    if (mode === "suggest") {
+      return "Use clarify/questions.json (with answers) to generate actionable suggestions for this idea. Append new suggestions without deleting prior ones.";
+    }
+    return "Use clarify/questions.json answers to refine the idea and produce an enhanced plan. If suggestions exist, apply accepted ones and ignore rejected ones.";
+  };
+
+  const clarifyMutation = useMutation({
+    mutationFn: async ({ questions, nextMode }: { questions: IdeaClarificationQuestion[]; nextMode: IdeaAgentMode }) => {
+      if (!name) throw new Error("Name is required");
+      const content = buildClarifyQuestionsContent(clarifyParsed.raw, questions);
+      await ideasService.saveFileContent(
+        name,
+        IDEA_AGENT_FILE_PATHS.clarify,
+        content,
+        "application/json"
+      );
+      await ideasService.research(name, {
+        mode: nextMode,
+        prompt: buildFollowupPrompt(nextMode),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ideas", name, "files"] });
+      queryClient.invalidateQueries({
+        queryKey: ["ideas", name, "agent-file", IDEA_AGENT_FILE_PATHS.clarify],
+      });
+      void refetchFiles();
+      void refetchClarifyContent();
+    },
+  });
+
+  const suggestionsMutation = useMutation({
+    mutationFn: async (updatedSuggestions: IdeaSuggestion[]) => {
+      if (!name) throw new Error("Name is required");
+      const content = buildSuggestionsContent(suggestionsParsed.raw, updatedSuggestions);
+      await ideasService.saveFileContent(
+        name,
+        IDEA_AGENT_FILE_PATHS.suggest,
+        content,
+        "application/json"
+      );
+      await ideasService.research(name, {
+        mode: "enhance",
+        prompt:
+          "Use suggest/suggestions.json decisions to enhance this idea. Apply accepted suggestions, ignore rejected ones, and reference clarify/questions.json answers if available.",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ideas", name, "files"] });
+      queryClient.invalidateQueries({
+        queryKey: ["ideas", name, "agent-file", IDEA_AGENT_FILE_PATHS.suggest],
+      });
+      void refetchFiles();
+      void refetchSuggestionsContent();
     },
   });
 
   const updateError = updateMutation.isError ? "Failed to update idea. Please try again." : null;
   const deleteError = deleteMutation.isError ? "Failed to delete idea. Please try again." : null;
-  const researchError = researchMutation.isError
-    ? "Failed to start research. Make sure agent-manager is running."
+  const agentError = agentMutation.isError
+    ? "Failed to start the agent. Make sure agent-manager is running."
+    : null;
+  const clarifyError = clarifyMutation.isError
+    ? "Failed to save answers or start the next agent."
+    : null;
+  const suggestionsError = suggestionsMutation.isError
+    ? "Failed to save suggestions or start the Enhance agent."
     : null;
   const queueError = queueMutation.isError ? "Failed to queue idea. Please try again." : null;
 
@@ -279,11 +425,11 @@ export function IdeaDetailsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowResearch(true)}
-                  data-testid={selectors.ideaDetails.researchButton}
+                  onClick={() => setShowAgentDialog(true)}
+                  data-testid={selectors.ideaDetails.agentButton}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Research
+                  Idea Agent
                 </Button>
               </div>
             </div>
@@ -309,6 +455,33 @@ export function IdeaDetailsPage() {
               <span title={new Date(idea.updated).toLocaleString()}>Updated {formatRelativeTime(idea.updated)}</span>
             </div>
           </Card>
+
+          {(clarifyFile || suggestionsFile) && (
+            <div className="space-y-4">
+              {clarifyFile && (
+                <IdeaClarifyPanel
+                  questions={clarifyParsed.questions}
+                  filePath={IDEA_AGENT_FILE_PATHS.clarify}
+                  parseError={clarifyErrorMessage}
+                  isSubmitting={clarifyMutation.isPending}
+                  submitError={clarifyError}
+                  onSubmit={({ questions, nextMode }) =>
+                    clarifyMutation.mutate({ questions, nextMode })
+                  }
+                />
+              )}
+              {suggestionsFile && (
+                <IdeaSuggestionsPanel
+                  suggestions={suggestionsParsed.suggestions}
+                  filePath={IDEA_AGENT_FILE_PATHS.suggest}
+                  parseError={suggestionsErrorMessage}
+                  isSubmitting={suggestionsMutation.isPending}
+                  submitError={suggestionsError}
+                  onSubmit={(updatedSuggestions) => suggestionsMutation.mutate(updatedSuggestions)}
+                />
+              )}
+            </div>
+          )}
 
           {/* Files section with two-column layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -417,16 +590,16 @@ export function IdeaDetailsPage() {
         }}
       />
 
-      <ResearchDialog
-        isOpen={showResearch}
-        isSubmitting={researchMutation.isPending}
+      <IdeaAgentDialog
+        isOpen={showAgentDialog}
+        isSubmitting={agentMutation.isPending}
         ideaTitle={idea?.title ?? name ?? ""}
-        errorMessage={researchError}
+        errorMessage={agentError}
         onClose={() => {
-          setShowResearch(false);
-          researchMutation.reset();
+          setShowAgentDialog(false);
+          agentMutation.reset();
         }}
-        onSubmit={(prompt) => researchMutation.mutate(prompt)}
+        onSubmit={(payload) => agentMutation.mutate(payload)}
       />
     </div>
   );
