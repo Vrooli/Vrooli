@@ -148,13 +148,13 @@ See [3D World Architecture](3D-WORLD-ARCHITECTURE.md) for visualization details.
 
 ### Skill Content Editing
 
-The skill editor supports three coordinated views over the same markdown source:
+The skill editor supports two coordinated viewing states over the same markdown source:
 
 - **Code**: Monaco editor for raw markdown input.
 - **Rich Text**: TipTap WYSIWYG editor with markdown ↔ HTML conversion via `ui/src/services/content`.
 - **Preview**: Markdown renderer (`ui/src/components/markdown`) built with `react-markdown` + `remark-gfm`, used for preview-only and split-view rendering.
 
-The editor exposes **Edit / Preview / Split** view modes so users can inspect markdown output even when rich-text conversion is unsafe. View mode selection lives in `SkillContentEditor`, while rendering and conversion are isolated behind clear seams.
+The editor exposes **Editor / Preview** view modes so users can inspect markdown output even when rich-text conversion is unsafe. On desktop, preview renders as a split view (editor + renderer); on mobile, preview renders as a full-width renderer. View mode selection lives in `SkillContentEditor`, while rendering and conversion are isolated behind clear seams.
 
 ### State Boundaries
 

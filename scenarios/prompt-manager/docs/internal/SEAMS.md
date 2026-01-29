@@ -547,7 +547,7 @@ test('renders skills', async () => {
 
 **Location:** `ui/src/components/markdown`
 
-**Purpose:** Render markdown content for preview/split views without requiring HTML round-trip conversion.
+**Purpose:** Render markdown content for preview and split-on-desktop views without requiring HTML round-trip conversion.
 
 **Testing Strategy:**
 - Render `MarkdownRenderer` with representative markdown and verify DOM output.

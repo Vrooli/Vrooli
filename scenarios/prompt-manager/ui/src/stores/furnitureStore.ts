@@ -92,12 +92,9 @@ export const useFurnitureStore = create<FurnitureStore>()(
         const { seatedMembers } = get()
 
         // Unseat any members on this furniture
-        const updatedSeated = { ...seatedMembers }
-        for (const [memberId, info] of Object.entries(seatedMembers)) {
-          if (info.furnitureId === id) {
-            delete updatedSeated[memberId]
-          }
-        }
+        const updatedSeated = Object.fromEntries(
+          Object.entries(seatedMembers).filter(([, info]) => info.furnitureId !== id)
+        )
 
         set((state) => ({
           furniture: state.furniture.filter((f) => f.id !== id),

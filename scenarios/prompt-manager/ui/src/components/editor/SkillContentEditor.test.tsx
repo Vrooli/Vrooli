@@ -67,6 +67,14 @@ vi.mock('./TipTapEditor', () => ({
     onEditorTypeChange,
     viewMode,
     onViewModeChange,
+    isDirty: _isDirty,
+    dirtyCount: _dirtyCount,
+    onUndo: _onUndo,
+    onRedo: _onRedo,
+    onSave: _onSave,
+    onSaveAll: _onSaveAll,
+    isSaving: _isSaving,
+    isValid: _isValid,
   }: {
     value: string
     onChange: (value: string) => void
@@ -76,6 +84,14 @@ vi.mock('./TipTapEditor', () => ({
     onEditorTypeChange?: (type: string) => void
     viewMode?: string
     onViewModeChange?: (mode: string) => void
+    isDirty?: boolean
+    dirtyCount?: number
+    onUndo?: () => void
+    onRedo?: () => void
+    onSave?: () => void
+    onSaveAll?: () => void
+    isSaving?: boolean
+    isValid?: boolean
   }) => (
     <div data-testid="tiptap-editor" data-disabled={disabled}>
       {/* Render EditorToggle when props are provided (matching real TipTapEditor behavior) */}
@@ -83,34 +99,21 @@ vi.mock('./TipTapEditor', () => ({
         <div className="editor-toggle">
           <button
             type="button"
-            onClick={() => onEditorTypeChange('code')}
-            title="Code Editor (Monaco)"
+            onClick={() => onEditorTypeChange(editorType === 'code' ? 'wysiwyg' : 'code')}
+            title={editorType === 'code' ? 'Switch to Rich Text' : 'Switch to Code'}
           >
-            Code
-          </button>
-          <button
-            type="button"
-            onClick={() => onEditorTypeChange('wysiwyg')}
-            title="Rich Text Editor (WYSIWYG)"
-          >
-            Rich Text
+            Switch
           </button>
         </div>
       )}
       {viewMode && onViewModeChange && (
         <div className="view-toggle">
-          <button type="button" onClick={() => onViewModeChange('edit')} title="Edit view">
-            Edit
-          </button>
           <button
             type="button"
-            onClick={() => onViewModeChange('preview')}
-            title="Preview view"
+            onClick={() => onViewModeChange(viewMode === 'preview' ? 'edit' : 'preview')}
+            title={viewMode === 'preview' ? 'Show editor' : 'Show preview'}
           >
-            Preview
-          </button>
-          <button type="button" onClick={() => onViewModeChange('split')} title="Split view">
-            Split
+            Toggle
           </button>
         </div>
       )}
@@ -160,8 +163,8 @@ describe('SkillContentEditor', () => {
     it('should render toggle buttons', () => {
       render(<SkillContentEditor {...defaultProps} />)
 
-      expect(screen.getByTitle('Code Editor (Monaco)')).toBeInTheDocument()
-      expect(screen.getByTitle('Rich Text Editor (WYSIWYG)')).toBeInTheDocument()
+      expect(screen.getByTitle('Switch to Rich Text')).toBeInTheDocument()
+      expect(screen.getByTitle('Show preview')).toBeInTheDocument()
     })
 
     it('should switch to WYSIWYG when rich text button is clicked', () => {
@@ -169,7 +172,7 @@ describe('SkillContentEditor', () => {
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
 
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       expect(screen.getByTestId('tiptap-editor')).toBeInTheDocument()
       expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
@@ -182,7 +185,7 @@ describe('SkillContentEditor', () => {
 
       expect(screen.getByTestId('tiptap-editor')).toBeInTheDocument()
 
-      fireEvent.click(screen.getByTitle('Code Editor (Monaco)'))
+      fireEvent.click(screen.getByTitle('Switch to Code'))
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
       expect(screen.queryByTestId('tiptap-editor')).not.toBeInTheDocument()
@@ -191,7 +194,7 @@ describe('SkillContentEditor', () => {
     it('should persist editor type to localStorage', () => {
       render(<SkillContentEditor {...defaultProps} />)
 
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       expect(localStorage.setItem).toHaveBeenCalledWith('pm.editorType', 'wysiwyg')
     })
@@ -201,27 +204,16 @@ describe('SkillContentEditor', () => {
     it('should render view toggle buttons', () => {
       render(<SkillContentEditor {...defaultProps} />)
 
-      expect(screen.getByTitle('Edit view')).toBeInTheDocument()
-      expect(screen.getByTitle('Preview view')).toBeInTheDocument()
-      expect(screen.getByTitle('Split view')).toBeInTheDocument()
+      expect(screen.getByTitle('Show preview')).toBeInTheDocument()
     })
 
     it('should switch to preview mode when preview button is clicked', () => {
       render(<SkillContentEditor {...defaultProps} value="Preview content" />)
 
-      fireEvent.click(screen.getByTitle('Preview view'))
-
-      expect(screen.queryByTestId('monaco-editor')).not.toBeInTheDocument()
-      expect(screen.getByText('Preview content')).toBeInTheDocument()
-    })
-
-    it('should show split view with editor and preview', () => {
-      render(<SkillContentEditor {...defaultProps} value="Split content" />)
-
-      fireEvent.click(screen.getByTitle('Split view'))
+      fireEvent.click(screen.getByTitle('Show preview'))
 
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
-      expect(screen.getByText('Split content')).toBeInTheDocument()
+      expect(screen.getByText('Preview content')).toBeInTheDocument()
     })
   })
 
@@ -301,7 +293,7 @@ describe('SkillContentEditor', () => {
       expect(screen.getByTestId('monaco-editor')).toBeInTheDocument()
 
       // Switch to Rich mode
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       // Should show warning banner
       await waitFor(() => {
@@ -315,7 +307,7 @@ describe('SkillContentEditor', () => {
       render(<SkillContentEditor value={markdown} onChange={vi.fn()} />)
 
       // Switch to Rich mode
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       // Should not show warning banner
       expect(screen.queryByText(/markdown issue.*detected/i)).not.toBeInTheDocument()
@@ -326,7 +318,7 @@ describe('SkillContentEditor', () => {
       render(<SkillContentEditor value={markdown} onChange={vi.fn()} />)
 
       // Switch to Rich mode
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       // Wait for warning to appear
       await waitFor(() => {
@@ -348,7 +340,7 @@ describe('SkillContentEditor', () => {
       render(<SkillContentEditor value={markdown} onChange={vi.fn()} />)
 
       // Switch to Rich mode - should show warning about multiple issues
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       // Should show warning mentioning multiple issues
       expect(screen.getByText(/4 markdown issues detected/i)).toBeInTheDocument()
@@ -360,7 +352,7 @@ describe('SkillContentEditor', () => {
       render(<SkillContentEditor value={markdown} onChange={vi.fn()} />)
 
       // Switch to Rich mode - should NOT show warning (extended fences now work)
-      fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+      fireEvent.click(screen.getByTitle('Switch to Rich Text'))
 
       // Should not show validation warning for extended fences
       expect(screen.queryByText(/markdown issue.*detected/i)).not.toBeInTheDocument()
@@ -378,7 +370,7 @@ describe('SkillContentEditor', () => {
       await waitFor(
         () => {
           // Try to switch to Rich mode
-          fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+          fireEvent.click(screen.getByTitle('Switch to Rich Text'))
         },
         { timeout: 600 }
       )
@@ -394,7 +386,7 @@ describe('SkillContentEditor', () => {
       // Wait for round-trip validation (debounced at 500ms)
       await waitFor(
         () => {
-          fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+          fireEvent.click(screen.getByTitle('Switch to Rich Text'))
         },
         { timeout: 600 }
       )
@@ -414,7 +406,7 @@ describe('SkillContentEditor', () => {
       // Wait for round-trip validation and switch to Rich mode
       await waitFor(
         () => {
-          fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+          fireEvent.click(screen.getByTitle('Switch to Rich Text'))
         },
         { timeout: 600 }
       )

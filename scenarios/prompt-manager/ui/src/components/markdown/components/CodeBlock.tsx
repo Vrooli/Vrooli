@@ -57,8 +57,7 @@ export const CodeBlock = memo(function CodeBlock({
   language,
   className,
 }: CodeBlockProps) {
-  // Defensive: ensure code is a string to prevent crashes
-  const safeCode = typeof code === 'string' ? code : code ? String(code) : ''
+  const safeCode = code
 
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null)
   const { copied, copyCode } = useCodeCopy(safeCode)
@@ -90,16 +89,14 @@ export const CodeBlock = memo(function CodeBlock({
           theme: 'github-dark',
         })
 
-        if (!cancelled) {
-          setHighlightedHtml(html)
-        }
+        setHighlightedHtml(html)
       } catch (err) {
         console.warn('Syntax highlighting failed:', err)
         // Fall back to plain text
       }
     }
 
-    highlight()
+    void highlight()
 
     return () => {
       cancelled = true

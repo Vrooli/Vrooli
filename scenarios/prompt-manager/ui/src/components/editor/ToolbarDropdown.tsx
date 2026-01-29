@@ -18,6 +18,10 @@ interface ToolbarDropdownProps {
   children: ReactNode
   /** Whether any item in the dropdown is currently active */
   hasActiveItem?: boolean
+  /** Whether to show the chevron icon in the trigger */
+  showChevron?: boolean
+  /** Alignment for the dropdown panel */
+  align?: 'left' | 'right'
   /** Additional class names for the trigger button */
   className?: string
 }
@@ -30,6 +34,8 @@ export function ToolbarDropdown({
   label,
   children,
   hasActiveItem = false,
+  showChevron = true,
+  align = 'left',
   className,
 }: ToolbarDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -81,16 +87,20 @@ export function ToolbarDropdown({
           className
         )}
         title={label}
+        aria-label={label}
       >
         {icon}
-        <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
+        {showChevron && (
+          <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
+        )}
       </button>
 
       {/* Dropdown panel */}
       {isOpen && (
         <div
           className={cn(
-            'absolute top-full left-0 mt-1 z-50',
+            'absolute top-full mt-1 z-50',
+            align === 'right' ? 'right-0' : 'left-0',
             'bg-card border border-border rounded-lg shadow-lg',
             'py-1 min-w-[120px]'
           )}

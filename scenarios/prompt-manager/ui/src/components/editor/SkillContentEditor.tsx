@@ -9,14 +9,16 @@
  * - Toggle is embedded in each editor's header for maximum space efficiency
  * - Validates markdown for patterns that won't survive HTML round-trip
  * - Shows warnings in code mode and when switching to rich mode
+ * - Preview toggle renders split view on desktop, preview-only on mobile
  */
 
 import { useCallback, useRef, useState, useEffect, useMemo } from 'react'
 import Editor, { useMonaco, type OnMount, type OnChange } from '@monaco-editor/react'
-import { AlertTriangle, Code, Type, X } from 'lucide-react'
+import { AlertTriangle, Code, Eye, Files, Redo2, Save, Type, Undo2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MarkdownRenderer } from '@/components/markdown'
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useIsMobile } from '@/hooks/useMediaQuery'
 import { TipTapEditor } from './TipTapEditor'
 import {
   validateMarkdown,
@@ -26,110 +28,215 @@ import {
 } from '@/services/content/validation'
 
 export type EditorType = 'code' | 'wysiwyg'
-export type ViewMode = 'edit' | 'preview' | 'split'
+export type ViewMode = 'edit' | 'preview'
 
 const STORAGE_KEY = 'pm.editorType'
 
 interface EditorToggleProps {
   editorType: EditorType
   onEditorTypeChange: (type: EditorType) => void
+  variant?: 'light' | 'dark'
   className?: string
 }
 
 /**
  * Shared toggle component for switching between Code and Rich Text modes.
  */
-export function EditorToggle({ editorType, onEditorTypeChange, className }: EditorToggleProps) {
+export function EditorToggle({
+  editorType,
+  onEditorTypeChange,
+  variant = 'light',
+  className,
+}: EditorToggleProps) {
+  const isCode = editorType === 'code'
+  const nextType: EditorType = isCode ? 'wysiwyg' : 'code'
+  const baseClasses = cn(
+    'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
+    variant === 'dark'
+      ? 'text-slate-300 hover:text-white hover:bg-white/10'
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+  )
+
   return (
-    <div className={cn('flex items-center gap-1 bg-muted rounded-lg p-0.5', className)}>
-      <button
-        type="button"
-        onClick={() => onEditorTypeChange('code')}
-        className={cn(
-          'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
-          editorType === 'code'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Code Editor (Monaco)"
-      >
-        <Code className="h-3.5 w-3.5" />
-        Code
-      </button>
-      <button
-        type="button"
-        onClick={() => onEditorTypeChange('wysiwyg')}
-        className={cn(
-          'flex items-center gap-1.5 px-2 py-1 text-xs rounded-md transition-colors',
-          editorType === 'wysiwyg'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Rich Text Editor (WYSIWYG)"
-      >
-        <Type className="h-3.5 w-3.5" />
-        Rich Text
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => onEditorTypeChange(nextType)}
+      className={cn(baseClasses, className)}
+      title={isCode ? 'Switch to Rich Text' : 'Switch to Code'}
+      aria-label={isCode ? 'Switch to Rich Text' : 'Switch to Code'}
+    >
+      {isCode ? <Code className="h-4 w-4" /> : <Type className="h-4 w-4" />}
+    </button>
   )
 }
 
 interface ViewToggleProps {
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  variant?: 'light' | 'dark'
   className?: string
 }
 
 /**
- * Shared toggle component for switching between Edit, Preview, and Split views.
+ * Shared toggle component for switching between Editor and Preview views.
  */
-export function ViewToggle({ viewMode, onViewModeChange, className }: ViewToggleProps) {
+export function ViewToggle({
+  viewMode,
+  onViewModeChange,
+  variant = 'light',
+  className,
+}: ViewToggleProps) {
+  const isPreview = viewMode === 'preview'
+  const baseClasses = cn(
+    'flex items-center justify-center h-8 w-8 rounded-md transition-colors',
+    variant === 'dark'
+      ? 'text-slate-300 hover:text-white hover:bg-white/10'
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+    isPreview &&
+      (variant === 'dark' ? 'bg-white/10 text-white' : 'bg-primary/20 text-primary')
+  )
+
   return (
-    <div className={cn('flex items-center gap-1 bg-muted rounded-lg p-0.5', className)}>
-      <button
-        type="button"
-        onClick={() => onViewModeChange('edit')}
-        className={cn(
-          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
-          viewMode === 'edit'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Edit view"
-      >
-        Edit
-      </button>
-      <button
-        type="button"
-        onClick={() => onViewModeChange('preview')}
-        className={cn(
-          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
-          viewMode === 'preview'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Preview view"
-      >
-        Preview
-      </button>
-      <button
-        type="button"
-        onClick={() => onViewModeChange('split')}
-        className={cn(
-          'flex items-center px-2 py-1 text-xs rounded-md transition-colors',
-          viewMode === 'split'
-            ? 'bg-primary text-primary-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title="Split view"
-      >
-        Split
-      </button>
+    <button
+      type="button"
+      onClick={() => onViewModeChange(isPreview ? 'edit' : 'preview')}
+      className={cn(baseClasses, className)}
+      title={isPreview ? 'Show editor' : 'Show preview'}
+      aria-pressed={isPreview}
+      aria-label={isPreview ? 'Show editor' : 'Show preview'}
+    >
+      <Eye className="h-4 w-4" />
+    </button>
+  )
+}
+
+export interface EditorActionState {
+  isDirty?: boolean
+  dirtyCount?: number
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
+  onSave?: () => void
+  onSaveAll?: () => void
+  isSaving?: boolean
+  isValid?: boolean
+}
+
+interface EditorActionButtonsProps extends EditorActionState {
+  variant?: 'light' | 'dark'
+  className?: string
+}
+
+export function EditorActionButtons({
+  isDirty = false,
+  dirtyCount = 0,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onSave,
+  onSaveAll,
+  isSaving = false,
+  isValid = true,
+  variant = 'light',
+  className,
+}: EditorActionButtonsProps) {
+  const hasActions = Boolean(onUndo || onRedo || onSave || onSaveAll)
+  if (!hasActions) return null
+
+  const canSaveBtn = Boolean(onSave) && isDirty && !isSaving && isValid
+  const canSaveAll = Boolean(onSaveAll) && dirtyCount > 1 && !isSaving
+
+  const baseClass =
+    variant === 'dark'
+      ? 'text-slate-200 hover:text-white hover:bg-white/10'
+      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+  const disabledClass =
+    variant === 'dark'
+      ? 'text-slate-500 cursor-not-allowed'
+      : 'text-muted-foreground/50 cursor-not-allowed'
+  const actionButtonClass = (enabled: boolean) =>
+    cn('h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+      enabled ? baseClass : disabledClass
+    )
+
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      {onUndo && (
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo || isSaving}
+          className={actionButtonClass(canUndo && !isSaving)}
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+        >
+          <Undo2 className="h-4 w-4" />
+        </button>
+      )}
+      {onRedo && (
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo || isSaving}
+          className={actionButtonClass(canRedo && !isSaving)}
+          title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo"
+        >
+          <Redo2 className="h-4 w-4" />
+        </button>
+      )}
+      {(onUndo || onRedo) && (
+        <div
+          className={cn('w-px h-6',
+            variant === 'dark' ? 'bg-[#3c3c3c]' : 'bg-border'
+          )}
+        />
+      )}
+      {onSave && (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={!canSaveBtn}
+          className={cn(
+            'h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+            canSaveBtn
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : variant === 'dark'
+                ? 'bg-white/5 text-slate-500 cursor-not-allowed'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+          )}
+          title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
+          aria-label="Save"
+        >
+          <Save className="h-4 w-4" />
+        </button>
+      )}
+      {onSaveAll && dirtyCount > 1 && (
+        <button
+          type="button"
+          onClick={onSaveAll}
+          disabled={!canSaveAll}
+          className={cn(
+            'h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+            canSaveAll
+              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              : variant === 'dark'
+                ? 'bg-white/5 text-slate-500 cursor-not-allowed'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+          )}
+          title={`Save all ${dirtyCount} pending changes (Ctrl+Shift+S)`}
+          aria-label="Save all"
+        >
+          <Files className="h-4 w-4" />
+        </button>
+      )}
     </div>
   )
 }
 
-interface SkillContentEditorProps {
+interface SkillContentEditorProps extends EditorActionState {
   value: string
   onChange: (value: string) => void
   error?: string
@@ -143,10 +250,21 @@ export function SkillContentEditor({
   value,
   onChange,
   error,
+  isDirty = false,
+  dirtyCount = 0,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onSave,
+  onSaveAll,
+  isSaving = false,
+  isValid = true,
   className,
 }: SkillContentEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
   const monaco = useMonaco()
+  const isMobile = useIsMobile()
   const {
     width: splitWidth,
     isResizing: isSplitResizing,
@@ -292,6 +410,43 @@ export function SkillContentEditor({
     </div>
   )
 
+  const headerVariant: 'light' | 'dark' = editorType === 'code' ? 'dark' : 'light'
+  const editorActionState: EditorActionState = {
+    isDirty,
+    dirtyCount,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+    onSave,
+    onSaveAll,
+    isSaving,
+    isValid,
+  }
+
+  const renderHeader = (variant: 'light' | 'dark') => (
+    <div
+      className={cn(
+        'flex-shrink-0 flex items-center gap-2 px-3 py-1.5 border-b',
+        variant === 'dark' ? 'bg-[#1e1e1e] border-[#3c3c3c]' : 'bg-card border-border'
+      )}
+    >
+      <EditorActionButtons {...editorActionState} variant={variant} />
+      <div className="ml-auto flex items-center gap-2">
+        <EditorToggle
+          editorType={editorType}
+          onEditorTypeChange={handleEditorTypeChange}
+          variant={variant}
+        />
+        <ViewToggle
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          variant={variant}
+        />
+      </div>
+    </div>
+  )
+
   return (
     <div className={cn('flex flex-col', className)}>
       {/* Round-trip warning banner - BLOCKS switching to rich mode when content would be corrupted */}
@@ -345,18 +500,12 @@ export function SkillContentEditor({
           error && 'ring-1 ring-red-500'
         )}
       >
-        {viewMode === 'preview' ? (
+        {viewMode === 'preview' && isMobile ? (
           <div className="flex flex-col h-full">
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-card border-b border-border">
-              <EditorToggle
-                editorType={editorType}
-                onEditorTypeChange={handleEditorTypeChange}
-              />
-              <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-            </div>
+            {renderHeader(headerVariant)}
             {previewPane}
           </div>
-        ) : viewMode === 'split' ? (
+        ) : viewMode === 'preview' ? (
           <div
             ref={splitContainerRef}
             className={cn('flex h-full', isSplitResizing && 'select-none')}
@@ -364,14 +513,7 @@ export function SkillContentEditor({
             <div className="flex-shrink-0 flex flex-col h-full" style={{ width: splitWidth }}>
               {editorType === 'code' ? (
                 <div className="flex flex-col h-full">
-                  {/* Monaco header bar with toggle */}
-                  <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
-                    <EditorToggle
-                      editorType={editorType}
-                      onEditorTypeChange={handleEditorTypeChange}
-                    />
-                    <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-                  </div>
+                  {renderHeader('dark')}
                   <div className="flex-1">
                     <Editor
                       height="100%"
@@ -416,6 +558,7 @@ export function SkillContentEditor({
                   onEditorTypeChange={handleEditorTypeChange}
                   viewMode={viewMode}
                   onViewModeChange={handleViewModeChange}
+                  {...editorActionState}
                   className="h-full"
                 />
               )}
@@ -434,14 +577,7 @@ export function SkillContentEditor({
           </div>
         ) : editorType === 'code' ? (
           <div className="flex flex-col h-full">
-            {/* Monaco header bar with toggle */}
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-3 py-1.5 bg-[#1e1e1e] border-b border-[#3c3c3c]">
-              <EditorToggle
-                editorType={editorType}
-                onEditorTypeChange={handleEditorTypeChange}
-              />
-              <ViewToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
-            </div>
+            {renderHeader('dark')}
             <div className="flex-1">
               <Editor
                 height="100%"
@@ -486,6 +622,7 @@ export function SkillContentEditor({
             onEditorTypeChange={handleEditorTypeChange}
             viewMode={viewMode}
             onViewModeChange={handleViewModeChange}
+            {...editorActionState}
             className="h-full"
           />
         )}

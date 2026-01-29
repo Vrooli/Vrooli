@@ -47,7 +47,7 @@ describe('SkillContentEditor Mode Switch Integration', () => {
 
       // Switch to WYSIWYG
       act(() => {
-        fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+        fireEvent.click(screen.getByTitle('Switch to Rich Text'))
       })
 
       // Wait for TipTap to initialize
@@ -107,7 +107,7 @@ const x = 1;
 
       // Switch to WYSIWYG
       act(() => {
-        fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+        fireEvent.click(screen.getByTitle('Switch to Rich Text'))
       })
 
       // Wait for TipTap to initialize
@@ -158,7 +158,7 @@ const x = 1;
 
       // Switch to WYSIWYG
       act(() => {
-        fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+        fireEvent.click(screen.getByTitle('Switch to Rich Text'))
       })
 
       await waitFor(
@@ -192,7 +192,7 @@ const x = 1;
 
       // Switch to WYSIWYG
       act(() => {
-        fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+        fireEvent.click(screen.getByTitle('Switch to Rich Text'))
       })
 
       await waitFor(
@@ -224,7 +224,7 @@ const x = 1;
 
       // First switch: Code → WYSIWYG
       act(() => {
-        fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+        fireEvent.click(screen.getByTitle('Switch to Rich Text'))
       })
 
       await waitFor(
@@ -252,7 +252,7 @@ const x = 1;
 
         // Switch to WYSIWYG again
         act(() => {
-          fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+          fireEvent.click(screen.getByTitle('Switch to Rich Text'))
         })
 
         await waitFor(
@@ -286,7 +286,7 @@ const x = 1;
 
         // Switch to WYSIWYG
         act(() => {
-          fireEvent.click(screen.getByTitle('Rich Text Editor (WYSIWYG)'))
+          fireEvent.click(screen.getByTitle('Switch to Rich Text'))
         })
 
         await waitFor(

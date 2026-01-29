@@ -22,9 +22,9 @@ import {
 import { createTipTapExtensions, getEditorProseClasses, useTipTapContent } from './tiptap'
 import { useLinkManagement, LinkDialog } from './links'
 import { TipTapToolbar } from './toolbar'
-import { type EditorType, type ViewMode } from './SkillContentEditor'
+import { type EditorActionState, type EditorType, type ViewMode } from './SkillContentEditor'
 
-export interface TipTapEditorProps {
+export interface TipTapEditorProps extends EditorActionState {
   /** The markdown content value */
   value: string
   /** Callback when content changes */
@@ -37,7 +37,7 @@ export interface TipTapEditorProps {
   editorType?: EditorType
   /** Callback when editor type changes */
   onEditorTypeChange?: (type: EditorType) => void
-  /** Current view mode (edit/preview/split) */
+  /** Current view mode (edit/preview) */
   viewMode?: ViewMode
   /** Callback when view mode changes */
   onViewModeChange?: (mode: ViewMode) => void
@@ -61,6 +61,16 @@ export function TipTapEditor({
   onEditorTypeChange,
   viewMode,
   onViewModeChange,
+  isDirty,
+  dirtyCount,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onSave,
+  onSaveAll,
+  isSaving,
+  isValid,
   className,
 }: TipTapEditorProps) {
   // Track if we've set initial content to avoid re-setting on every render
@@ -170,6 +180,16 @@ export function TipTapEditor({
           onEditorTypeChange={onEditorTypeChange}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
+          isDirty={isDirty}
+          dirtyCount={dirtyCount}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onSave={onSave}
+          onSaveAll={onSaveAll}
+          isSaving={isSaving}
+          isValid={isValid}
         />
       )}
 

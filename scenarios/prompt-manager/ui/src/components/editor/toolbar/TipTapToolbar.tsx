@@ -30,9 +30,16 @@ import { ToolbarButton, ToolbarDivider } from './ToolbarButton'
 import { ToolbarDropdown, DropdownItem } from '../ToolbarDropdown'
 import { useToolbarActions } from './useToolbarActions'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { EditorToggle, ViewToggle, type EditorType, type ViewMode } from '../SkillContentEditor'
+import {
+  EditorActionButtons,
+  EditorToggle,
+  ViewToggle,
+  type EditorActionState,
+  type EditorType,
+  type ViewMode,
+} from '../SkillContentEditor'
 
-export interface TipTapToolbarProps {
+export interface TipTapToolbarProps extends EditorActionState {
   /** The TipTap editor instance */
   editor: Editor
   /** Callback to open the link dialog */
@@ -43,7 +50,7 @@ export interface TipTapToolbarProps {
   editorType?: EditorType
   /** Callback when editor type changes */
   onEditorTypeChange?: (type: EditorType) => void
-  /** Current view mode (edit/preview/split) */
+  /** Current view mode (edit/preview) */
   viewMode?: ViewMode
   /** Callback when view mode changes */
   onViewModeChange?: (mode: ViewMode) => void
@@ -60,9 +67,31 @@ export function TipTapToolbar({
   onEditorTypeChange,
   viewMode,
   onViewModeChange,
+  isDirty,
+  dirtyCount,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onSave,
+  onSaveAll,
+  isSaving,
+  isValid,
 }: TipTapToolbarProps) {
   const actions = useToolbarActions(editor)
   const isMobile = useIsMobile()
+  const editorActions: EditorActionState = {
+    isDirty,
+    dirtyCount,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+    onSave,
+    onSaveAll,
+    isSaving,
+    isValid,
+  }
 
   if (isMobile) {
     return (
@@ -74,6 +103,7 @@ export function TipTapToolbar({
         onEditorTypeChange={onEditorTypeChange}
         viewMode={viewMode}
         onViewModeChange={onViewModeChange}
+        editorActions={editorActions}
       />
     )
   }
@@ -87,6 +117,7 @@ export function TipTapToolbar({
       onEditorTypeChange={onEditorTypeChange}
       viewMode={viewMode}
       onViewModeChange={onViewModeChange}
+      editorActions={editorActions}
     />
   )
 }
@@ -99,6 +130,7 @@ interface ToolbarContentProps {
   onEditorTypeChange?: (type: EditorType) => void
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
+  editorActions?: EditorActionState
 }
 
 /**
@@ -112,9 +144,20 @@ function MobileToolbar({
   onEditorTypeChange,
   viewMode,
   onViewModeChange,
+  editorActions,
 }: ToolbarContentProps) {
+  const hasEditorActions = Boolean(
+    editorActions?.onUndo || editorActions?.onRedo || editorActions?.onSave || editorActions?.onSaveAll
+  )
+
   return (
     <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
+      {hasEditorActions && (
+        <>
+          <EditorActionButtons {...editorActions} />
+          <ToolbarDivider />
+        </>
+      )}
       {/* Headings dropdown */}
       <ToolbarDropdown
         icon={<Heading1 className="h-4 w-4" />}
@@ -230,9 +273,20 @@ function DesktopToolbar({
   onEditorTypeChange,
   viewMode,
   onViewModeChange,
+  editorActions,
 }: ToolbarContentProps) {
+  const hasEditorActions = Boolean(
+    editorActions?.onUndo || editorActions?.onRedo || editorActions?.onSave || editorActions?.onSaveAll
+  )
+
   return (
     <div className="flex-shrink-0 flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-border">
+      {hasEditorActions && (
+        <>
+          <EditorActionButtons {...editorActions} />
+          <ToolbarDivider />
+        </>
+      )}
       {/* Headings */}
       <ToolbarButton onClick={actions.toggleHeading1} isActive={actions.isHeading1Active()} title="Heading 1">
         <Heading1 className="h-4 w-4" />

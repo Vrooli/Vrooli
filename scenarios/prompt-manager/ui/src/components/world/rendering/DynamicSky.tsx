@@ -101,10 +101,6 @@ export function DynamicSky({
 
   // Create the appropriate material based on skybox type
   const material = useMemo(() => {
-    if (!skyboxConfig) {
-      return createSolidMaterial('#87CEEB')
-    }
-
     switch (skyboxConfig.type) {
       case 'gradient':
         if (Array.isArray(skyboxConfig.source)) {
@@ -117,13 +113,14 @@ export function DynamicSky({
           typeof skyboxConfig.source === 'string' ? skyboxConfig.source : '#87CEEB'
         )
 
-      case 'procedural':
+      case 'procedural': {
         // For procedural, use gradient with preset colors
         const presetColors = SKYBOX_PRESETS[timeOfDay]
-        if (Array.isArray(presetColors?.source)) {
+        if (Array.isArray(presetColors.source)) {
           return createGradientMaterial(presetColors.source)
         }
         return createSolidMaterial('#87CEEB')
+      }
 
       default:
         return createSolidMaterial('#87CEEB')

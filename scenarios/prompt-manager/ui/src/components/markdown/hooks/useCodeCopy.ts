@@ -14,23 +14,24 @@ interface UseCodeCopyReturn {
 export function useCodeCopy(code: string): UseCodeCopyReturn {
   const [copied, setCopied] = useState(false)
 
-  const copyCode = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopied(true)
-      toast({
-        title: 'Copied to clipboard',
-        variant: 'success',
-      })
+  const copyCode = useCallback(() => {
+    void navigator.clipboard.writeText(code)
+      .then(() => {
+        setCopied(true)
+        toast({
+          title: 'Copied to clipboard',
+          variant: 'success',
+        })
 
-      // Reset copied state after 2 seconds
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast({
-        title: 'Failed to copy',
-        variant: 'destructive',
+        // Reset copied state after 2 seconds
+        setTimeout(() => setCopied(false), 2000)
       })
-    }
+      .catch(() => {
+        toast({
+          title: 'Failed to copy',
+          variant: 'destructive',
+        })
+      })
   }, [code])
 
   return { copied, copyCode }

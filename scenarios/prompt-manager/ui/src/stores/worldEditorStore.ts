@@ -19,7 +19,7 @@ export interface SelectedObject {
 /** Object being placed (from palette) */
 export interface PlacingObject {
   type: WorldObjectType
-  subtype: FurnitureType | DecorationType | string
+  subtype: FurnitureType | DecorationType
 }
 
 interface WorldEditorState {

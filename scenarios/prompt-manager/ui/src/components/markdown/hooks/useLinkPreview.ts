@@ -30,41 +30,43 @@ export function useLinkPreview(url: string): UseLinkPreviewReturn {
     }
   }, [url])
 
-  const fetchPreviewCallback = useCallback(async () => {
-    // Already cached
-    if (previewCache.has(url)) {
-      setPreview(previewCache.get(url) || null)
-      return
-    }
-
-    // Already fetching
-    if (pendingFetches.has(url)) {
-      try {
-        const result = await pendingFetches.get(url)
-        setPreview(result ?? null)
-      } catch {
-        setError('Failed to fetch preview')
+  const fetchPreviewCallback = useCallback(() => {
+    void (async () => {
+      // Already cached
+      if (previewCache.has(url)) {
+        setPreview(previewCache.get(url) || null)
+        return
       }
-      return
-    }
 
-    setIsLoading(true)
-    setError(null)
+      // Already fetching
+      if (pendingFetches.has(url)) {
+        try {
+          const result = await pendingFetches.get(url)
+          setPreview(result ?? null)
+        } catch {
+          setError('Failed to fetch preview')
+        }
+        return
+      }
 
-    const fetchPromise = fetchLinkPreview(url)
-    pendingFetches.set(url, fetchPromise)
+      setIsLoading(true)
+      setError(null)
 
-    try {
-      const result = await fetchPromise
-      previewCache.set(url, result)
-      setPreview(result)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch preview')
-      previewCache.set(url, null) // Cache failures too
-    } finally {
-      setIsLoading(false)
-      pendingFetches.delete(url)
-    }
+      const fetchPromise = fetchLinkPreview(url)
+      pendingFetches.set(url, fetchPromise)
+
+      try {
+        const result = await fetchPromise
+        previewCache.set(url, result)
+        setPreview(result)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch preview')
+        previewCache.set(url, null) // Cache failures too
+      } finally {
+        setIsLoading(false)
+        pendingFetches.delete(url)
+      }
+    })()
   }, [url])
 
   return {
