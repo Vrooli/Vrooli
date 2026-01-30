@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { AlertCircle, CheckCircle2, RefreshCw, Save, Settings } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import { inputBaseClassName } from '../formFieldClasses';
 import type { StorageFormValues, StorageProviderId } from '../../services/downloads.service';
 import type { TestStatus } from '../../hooks/useStorageWizard';
+import { Callout } from '../Callout';
+import { HelpModal } from './HelpModal';
+import { TroubleshootingHelp } from './help-content';
 
 interface StepVerifyProps {
   provider: StorageProviderId;
@@ -29,6 +33,8 @@ export function StepVerify({
   onTestConnection,
   onSave,
 }: StepVerifyProps) {
+  const [showTroubleshootHelp, setShowTroubleshootHelp] = useState(false);
+
   const getProviderLabel = () => {
     switch (provider) {
       case 'aws-s3':
@@ -135,13 +141,20 @@ export function StepVerify({
         </div>
 
         {testStatus === 'error' && testError && (
-          <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
-            <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-red-300">Connection failed</p>
-              <p className="text-red-400/80 text-xs mt-1">{testError}</p>
+          <>
+            <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm">
+              <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-red-300">Connection failed</p>
+                <p className="text-red-400/80 text-xs mt-1">{testError}</p>
+              </div>
             </div>
-          </div>
+            <Callout
+              type="warning"
+              message="Connection issues are often caused by CORS, permissions, or credential problems."
+              actions={[{ label: 'Troubleshooting guide', onClick: () => setShowTroubleshootHelp(true) }]}
+            />
+          </>
         )}
       </div>
 
@@ -221,6 +234,14 @@ export function StepVerify({
           )}
         </Button>
       </div>
+
+      <HelpModal
+        open={showTroubleshootHelp}
+        onClose={() => setShowTroubleshootHelp(false)}
+        title="Troubleshooting Connection Issues"
+      >
+        <TroubleshootingHelp />
+      </HelpModal>
     </div>
   );
 }

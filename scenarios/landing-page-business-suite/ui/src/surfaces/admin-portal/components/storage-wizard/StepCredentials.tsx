@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { AlertCircle, CheckCircle2, Key } from 'lucide-react';
 import { inputBaseClassName } from '../formFieldClasses';
 import type { CredentialsFormValues, StorageProviderId } from '../../services/downloads.service';
 import type { DownloadStorageSettingsSnapshot } from '../../../../shared/api';
+import { Callout } from '../Callout';
+import { HelpModal } from './HelpModal';
+import { AwsCredentialsHelp, CloudflareR2SetupHelp, MinioSetupHelp } from './help-content';
 
 interface StepCredentialsProps {
   provider: StorageProviderId;
@@ -16,6 +20,8 @@ export function StepCredentials({
   existingSettings,
   onCredentialsChange,
 }: StepCredentialsProps) {
+  const [showCredentialsHelp, setShowCredentialsHelp] = useState(false);
+
   const getProviderHelp = () => {
     switch (provider) {
       case 'aws-s3':
@@ -57,6 +63,47 @@ export function StepCredentials({
   const help = getProviderHelp();
   const hasEnvCredentials = existingSettings?.credentials_from_env ?? false;
 
+  const getCredentialsHelpContent = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return <AwsCredentialsHelp />;
+      case 'cloudflare-r2':
+        return <CloudflareR2SetupHelp />;
+      case 'minio':
+        return <MinioSetupHelp />;
+      default:
+        return null;
+    }
+  };
+
+  const getCredentialsHelpTitle = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return 'Creating AWS IAM Credentials';
+      case 'cloudflare-r2':
+        return 'Creating R2 API Tokens';
+      case 'minio':
+        return 'Creating MinIO Access Keys';
+      default:
+        return 'Creating Credentials';
+    }
+  };
+
+  const getCredentialsCalloutMessage = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return "Need to generate IAM access keys? We'll show you how to create them in the AWS Console.";
+      case 'cloudflare-r2':
+        return "Need an R2 API token? We'll walk you through creating one with the right permissions.";
+      case 'minio':
+        return "Need MinIO access keys? We'll show you how to generate them in the MinIO Console.";
+      default:
+        return null;
+    }
+  };
+
+  const credentialsCalloutMessage = getCredentialsCalloutMessage();
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -65,6 +112,14 @@ export function StepCredentials({
           Enter your credentials to authenticate with {provider === 'aws-s3' ? 'AWS S3' : provider === 'cloudflare-r2' ? 'Cloudflare R2' : provider === 'minio' ? 'MinIO' : 'your storage provider'}
         </p>
       </div>
+
+      {credentialsCalloutMessage && (
+        <Callout
+          type="info"
+          message={credentialsCalloutMessage}
+          actions={[{ label: 'Credentials guide', onClick: () => setShowCredentialsHelp(true) }]}
+        />
+      )}
 
       {hasEnvCredentials && (
         <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
@@ -231,6 +286,16 @@ export function StepCredentials({
           )}
         </div>
       </div>
+
+      {provider !== 'custom' && (
+        <HelpModal
+          open={showCredentialsHelp}
+          onClose={() => setShowCredentialsHelp(false)}
+          title={getCredentialsHelpTitle()}
+        >
+          {getCredentialsHelpContent()}
+        </HelpModal>
+      )}
     </div>
   );
 }

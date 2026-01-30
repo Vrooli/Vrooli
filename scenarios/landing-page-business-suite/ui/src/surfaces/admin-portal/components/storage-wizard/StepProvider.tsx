@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { Cloud, HardDrive, Server, Settings, type LucideIcon } from 'lucide-react';
 import { cn } from '../../../../shared/lib/utils';
 import type { StorageProviderId } from '../../services/downloads.service';
+import { Callout } from '../Callout';
+import { HelpModal } from './HelpModal';
+import { ProviderComparisonHelp } from './help-content';
 
 interface ProviderOption {
   id: StorageProviderId;
@@ -47,6 +51,8 @@ interface StepProviderProps {
 }
 
 export function StepProvider({ selectedProvider, onSelectProvider }: StepProviderProps) {
+  const [showHelp, setShowHelp] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -55,6 +61,12 @@ export function StepProvider({ selectedProvider, onSelectProvider }: StepProvide
           Select where your download artifacts will be stored
         </p>
       </div>
+
+      <Callout
+        type="info"
+        message="Not sure which provider to choose? We'll help you pick the best option for your needs."
+        actions={[{ label: 'Learn more', onClick: () => setShowHelp(true) }]}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         {PROVIDERS.map((provider) => {
@@ -121,6 +133,14 @@ export function StepProvider({ selectedProvider, onSelectProvider }: StepProvide
           );
         })}
       </div>
+
+      <HelpModal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        title="Which Storage Provider Should I Choose?"
+      >
+        <ProviderComparisonHelp />
+      </HelpModal>
     </div>
   );
 }

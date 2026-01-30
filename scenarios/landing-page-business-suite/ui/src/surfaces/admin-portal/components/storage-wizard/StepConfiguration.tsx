@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { inputBaseClassName } from '../formFieldClasses';
 import { AWS_REGIONS, type StorageFormValues, type StorageProviderId } from '../../services/downloads.service';
+import { Callout } from '../Callout';
+import { HelpModal } from './HelpModal';
+import { AwsS3SetupHelp, CloudflareR2SetupHelp, MinioSetupHelp } from './help-content';
 
 interface StepConfigurationProps {
   provider: StorageProviderId;
@@ -16,6 +20,8 @@ export function StepConfiguration({
   onFormChange,
   onCloudflareAccountIdChange,
 }: StepConfigurationProps) {
+  const [showSetupHelp, setShowSetupHelp] = useState(false);
+
   const getProviderTitle = () => {
     switch (provider) {
       case 'aws-s3':
@@ -42,12 +48,61 @@ export function StepConfiguration({
     }
   };
 
+  const getSetupHelpContent = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return <AwsS3SetupHelp />;
+      case 'cloudflare-r2':
+        return <CloudflareR2SetupHelp />;
+      case 'minio':
+        return <MinioSetupHelp />;
+      default:
+        return null;
+    }
+  };
+
+  const getSetupHelpTitle = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return 'Setting Up AWS S3';
+      case 'cloudflare-r2':
+        return 'Setting Up Cloudflare R2';
+      case 'minio':
+        return 'Setting Up MinIO';
+      default:
+        return 'Setup Guide';
+    }
+  };
+
+  const getSetupCalloutMessage = () => {
+    switch (provider) {
+      case 'aws-s3':
+        return "Need to create an S3 bucket? We'll walk you through the AWS Console setup.";
+      case 'cloudflare-r2':
+        return "New to R2? Follow our step-by-step guide to create a bucket and get your Account ID.";
+      case 'minio':
+        return "Setting up MinIO? We'll show you how to install, create buckets, and configure access.";
+      default:
+        return null;
+    }
+  };
+
+  const setupCalloutMessage = getSetupCalloutMessage();
+
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h3 className="text-lg font-semibold text-white">{getProviderTitle()}</h3>
         <p className="mt-1 text-sm text-slate-400">{getProviderDescription()}</p>
       </div>
+
+      {setupCalloutMessage && (
+        <Callout
+          type="info"
+          message={setupCalloutMessage}
+          actions={[{ label: 'Setup guide', onClick: () => setShowSetupHelp(true) }]}
+        />
+      )}
 
       <div className="space-y-4">
         {/* Bucket - always shown */}
@@ -216,6 +271,16 @@ export function StepConfiguration({
           </p>
         </div>
       </div>
+
+      {provider !== 'custom' && (
+        <HelpModal
+          open={showSetupHelp}
+          onClose={() => setShowSetupHelp(false)}
+          title={getSetupHelpTitle()}
+        >
+          {getSetupHelpContent()}
+        </HelpModal>
+      )}
     </div>
   );
 }
