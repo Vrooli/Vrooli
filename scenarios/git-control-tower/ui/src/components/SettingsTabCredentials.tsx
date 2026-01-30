@@ -667,6 +667,9 @@ export function SettingsTabCredentials({
                   {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </button>
               </div>
+              <p className={`text-slate-400 mb-2 ${isMobile ? "text-xs" : "text-[11px]"}`}>
+                Copy the entire line below and paste it into GitHub (the key type, key data, and comment are all required):
+              </p>
               <div className={`font-mono text-slate-300 bg-slate-900/60 rounded p-2 break-all ${isMobile ? "text-xs" : "text-[10px]"}`}>
                 {generatedPublicKey}
               </div>
