@@ -79,6 +79,10 @@ describe('SkillTreeSidebar', () => {
     selectedTags: [] as string[],
     onSelectedTagsChange: vi.fn(),
     availableTags: [] as string[],
+    // Folder filter props
+    selectedFolders: [] as string[],
+    onSelectedFoldersChange: vi.fn(),
+    availableFolders: ['core', 'local', 'drafts'] as string[],
     // Skill selection mode props
     skillSelectionMode: false,
     skillSelectedIds: new Set<string>(),

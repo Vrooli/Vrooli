@@ -59,6 +59,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: false,
         expandedNodes: [],
         selectedTags: [],
+        selectedFolders: [],
       })
     })
 
@@ -67,6 +68,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: ['folder-1', 'folder-2'],
         selectedTags: ['tag-a', 'tag-b'],
+        selectedFolders: ['local', 'core'],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
 
@@ -84,6 +86,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: false,
         expandedNodes: [],
         selectedTags: [],
+        selectedFolders: [],
       })
     })
 
@@ -96,6 +99,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: [],
         selectedTags: [],
+        selectedFolders: [],
       })
     })
 
@@ -115,6 +119,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: false,
         expandedNodes: [],
         selectedTags: [],
+        selectedFolders: [],
       })
     })
   })
@@ -125,6 +130,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: ['node-1'],
         selectedTags: ['tag-1'],
+        selectedFolders: ['local'],
       }
 
       saveSidebarState(state)
@@ -141,6 +147,7 @@ describe('useSidebarPersistence', () => {
           isCollapsed: false,
           expandedNodes: new Set(),
           selectedTags: [],
+          selectedFolders: [],
         })
       )
 
@@ -149,13 +156,14 @@ describe('useSidebarPersistence', () => {
 
     it('should persist state changes after debounce', () => {
       const { rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
+            selectedFolders: [] as string[],
           },
         }
       )
@@ -165,6 +173,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: new Set(['folder-1']),
         selectedTags: ['tag-1'],
+        selectedFolders: ['local'],
       })
 
       // Should not be saved yet (debounced)
@@ -181,18 +190,20 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: ['folder-1'],
         selectedTags: ['tag-1'],
+        selectedFolders: ['local'],
       })
     })
 
     it('should cancel pending save on unmount', () => {
       const { unmount, rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
+            selectedFolders: [] as string[],
           },
         }
       )
@@ -202,6 +213,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: new Set<string>(),
         selectedTags: [],
+        selectedFolders: [],
       })
 
       // Unmount before debounce completes
@@ -218,13 +230,14 @@ describe('useSidebarPersistence', () => {
 
     it('should debounce rapid state changes', () => {
       const { rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
+            selectedFolders: [] as string[],
           },
         }
       )
@@ -234,6 +247,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: new Set<string>(),
         selectedTags: [],
+        selectedFolders: [],
       })
 
       act(() => {
@@ -244,6 +258,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: new Set(['a']),
         selectedTags: [],
+        selectedFolders: ['local'],
       })
 
       act(() => {
@@ -254,6 +269,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: new Set(['a', 'b']),
         selectedTags: ['tag'],
+        selectedFolders: ['local', 'core'],
       })
 
       // Nothing saved yet
@@ -270,6 +286,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: ['a', 'b'],
         selectedTags: ['tag'],
+        selectedFolders: ['local', 'core'],
       })
     })
 
@@ -279,6 +296,7 @@ describe('useSidebarPersistence', () => {
         isCollapsed: true,
         expandedNodes: ['saved-folder'],
         selectedTags: ['saved-tag'],
+        selectedFolders: ['local'],
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
 
@@ -287,6 +305,7 @@ describe('useSidebarPersistence', () => {
           isCollapsed: false,
           expandedNodes: new Set(),
           selectedTags: [],
+          selectedFolders: [],
         })
       )
 

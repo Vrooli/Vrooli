@@ -76,6 +76,7 @@ type UpdateRequest struct {
 	Icon         *string  `json:"icon,omitempty"`
 	TargetToolID *string  `json:"targetToolId,omitempty"`
 	Draft        *bool    `json:"draft,omitempty"`
+	Folder       *string  `json:"folder,omitempty"` // Move skill to different folder
 }
 
 // Folders defines the valid folder names for skill storage.

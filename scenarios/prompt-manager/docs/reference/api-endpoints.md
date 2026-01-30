@@ -114,6 +114,7 @@ Update an existing skill.
   "description": "Updated description",
   "content": "Updated content...",
   "tags": ["new-tag"],
+  "folder": "local",
   "draft": true
 }
 ```
@@ -122,7 +123,7 @@ Update an existing skill.
 
 **Notes:**
 - Creates a new version in version history
-- Cannot change `folder` after creation
+- Can move skill to different folder by specifying `folder` (version history moves with the skill)
 
 ### DELETE /api/v1/skills/{id}
 

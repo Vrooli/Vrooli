@@ -25,12 +25,15 @@ export interface SidebarPersistedState {
   expandedNodes: string[]
   /** Selected tag filters */
   selectedTags: string[]
+  /** Selected folder filters */
+  selectedFolders: string[]
 }
 
 const DEFAULT_STATE: SidebarPersistedState = {
   isCollapsed: false,
   expandedNodes: [],
   selectedTags: [],
+  selectedFolders: [],
 }
 
 /**
@@ -51,6 +54,7 @@ export function loadSidebarState(): SidebarPersistedState {
       isCollapsed: typeof parsed.isCollapsed === 'boolean' ? parsed.isCollapsed : DEFAULT_STATE.isCollapsed,
       expandedNodes: Array.isArray(parsed.expandedNodes) ? parsed.expandedNodes : DEFAULT_STATE.expandedNodes,
       selectedTags: Array.isArray(parsed.selectedTags) ? parsed.selectedTags : DEFAULT_STATE.selectedTags,
+      selectedFolders: Array.isArray(parsed.selectedFolders) ? parsed.selectedFolders : DEFAULT_STATE.selectedFolders,
     }
   } catch {
     return DEFAULT_STATE
@@ -77,6 +81,8 @@ export interface UseSidebarPersistenceOptions {
   expandedNodes: Set<string>
   /** Current selected tags */
   selectedTags: string[]
+  /** Current selected folders */
+  selectedFolders: string[]
 }
 
 export interface UseSidebarPersistenceReturn {
@@ -92,7 +98,7 @@ export interface UseSidebarPersistenceReturn {
  * 2. Pass current state to the hook - it auto-persists on changes
  */
 export function useSidebarPersistence(options: UseSidebarPersistenceOptions): UseSidebarPersistenceReturn {
-  const { isCollapsed, expandedNodes, selectedTags } = options
+  const { isCollapsed, expandedNodes, selectedTags, selectedFolders } = options
 
   // Debounce timer ref
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -110,6 +116,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         isCollapsed,
         expandedNodes: Array.from(expandedNodes),
         selectedTags,
+        selectedFolders,
       })
     }, DEBOUNCE_MS)
 
@@ -118,7 +125,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         clearTimeout(timerRef.current)
       }
     }
-  }, [isCollapsed, expandedNodes, selectedTags])
+  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders])
 
   const getInitialState = useCallback((): SidebarPersistedState => {
     return loadSidebarState()

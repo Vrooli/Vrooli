@@ -43,6 +43,12 @@ type SkillStore interface {
 
 	// GetVersionContent returns the content of a specific version.
 	GetVersionContent(skillID string, version int) (*SkillVersion, error)
+
+	// LoadVersions loads all version files for a folder.
+	LoadVersions(folder string) (map[string]*VersionFile, error)
+
+	// SaveVersions saves version files for a folder.
+	SaveVersions(folder string, versions map[string]*VersionFile) error
 }
 
 // MetricsService defines the interface for skill metrics operations.

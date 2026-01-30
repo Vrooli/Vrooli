@@ -98,11 +98,15 @@ export function SkillManagerLayout() {
     selectedTags,
     setSelectedTags,
     availableTags,
+    selectedFolders,
+    setSelectedFolders,
+    availableFolders,
   } = useSkillTree({
     skills,
     initialIsCollapsed: initialSidebarState.isCollapsed,
     initialExpandedNodes: initialSidebarState.expandedNodes,
     initialSelectedTags: initialSidebarState.selectedTags,
+    initialSelectedFolders: initialSidebarState.selectedFolders,
   })
 
   // Persist sidebar state to localStorage
@@ -110,6 +114,7 @@ export function SkillManagerLayout() {
     isCollapsed,
     expandedNodes,
     selectedTags,
+    selectedFolders,
   })
 
   // Skill selection store
@@ -608,6 +613,9 @@ export function SkillManagerLayout() {
         selectedTags={selectedTags}
         onSelectedTagsChange={setSelectedTags}
         availableTags={availableTags}
+        selectedFolders={selectedFolders}
+        onSelectedFoldersChange={setSelectedFolders}
+        availableFolders={availableFolders}
         skillSelectionMode={skillSelectionMode}
         skillSelectedIds={skillSelectedIds}
         currentMember={currentMember}
@@ -778,6 +786,9 @@ export function SkillManagerLayout() {
                 selectedTags={selectedTags}
                 onSelectedTagsChange={setSelectedTags}
                 availableTags={availableTags}
+                selectedFolders={selectedFolders}
+                onSelectedFoldersChange={setSelectedFolders}
+                availableFolders={availableFolders}
                 skillSelectionMode={skillSelectionMode}
                 skillSelectedIds={skillSelectedIds}
                 currentMember={currentMember}

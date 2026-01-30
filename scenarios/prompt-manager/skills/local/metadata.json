@@ -15,60 +15,25 @@
       "updatedAt": "2026-01-30T11:26:23-05:00"
     },
     {
-      "id": "new-skill-1",
-      "file": "api-steer.md",
-      "name": "API Steer",
-      "description": "",
+      "id": "unit-testing-architecture-steer",
+      "file": "unit-testing-architecture-steer.md",
+      "name": "Unit Testing Architecture",
+      "description": "Establishes robust unit test infrastructure including file organization, test isolation, mock organization, testable production code patterns, and systematic edge case coverage structures.",
       "modes": [
-        "Steer",
-        "Architecture"
-      ],
-      "tags": [],
-      "targetToolId": null,
-      "draft": false,
-      "createdAt": "2026-01-30T13:13:00-05:00",
-      "updatedAt": "2026-01-30T14:28:48-05:00"
-    },
-    {
-      "id": "interoperability-steer",
-      "file": "interoperability-steer.md",
-      "name": "Interoperability Steer",
-      "description": "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries",
-      "modes": [
-        "Steer",
-        "Architecture"
+        "Steer"
       ],
       "tags": [
-        "proto",
-        "types",
-        "validation",
-        "contracts"
+        "testing",
+        "unit-tests",
+        "architecture",
+        "mocks",
+        "testcontainers",
+        "dependency-injection"
       ],
       "targetToolId": null,
       "draft": false,
-      "createdAt": "2026-01-30T15:30:00-05:00",
-      "updatedAt": "2026-01-30T16:49:15-05:00"
-    },
-    {
-      "id": "cli-steer",
-      "file": "cli-steer.md",
-      "name": "CLI Steer",
-      "description": "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency",
-      "modes": [
-        "Steer",
-        "Architecture"
-      ],
-      "tags": [
-        "cli",
-        "cli-core",
-        "go",
-        "cross-platform",
-        "api-parity"
-      ],
-      "targetToolId": null,
-      "draft": false,
-      "createdAt": "2026-01-30T16:30:00-05:00",
-      "updatedAt": "2026-01-30T16:30:00-05:00"
+      "createdAt": "2026-01-30T17:00:00-05:00",
+      "updatedAt": "2026-01-30T17:35:39-05:00"
     }
   ]
 }

@@ -84,6 +84,14 @@ func (m *MockStore) GetVersionContent(skillID string, version int) (*SkillVersio
 	return nil, errors.New("version not found")
 }
 
+func (m *MockStore) LoadVersions(folder string) (map[string]*VersionFile, error) {
+	return make(map[string]*VersionFile), nil
+}
+
+func (m *MockStore) SaveVersions(folder string, versions map[string]*VersionFile) error {
+	return nil
+}
+
 // MockMetricsService implements MetricsService for testing.
 type MockMetricsService struct{}
 

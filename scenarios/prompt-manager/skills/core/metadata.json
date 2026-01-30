@@ -793,6 +793,62 @@
       "draft": false,
       "createdAt": "2026-01-30T00:00:00Z",
       "updatedAt": "2026-01-30T00:29:34-05:00"
+    },
+    {
+      "id": "cli-steer",
+      "file": "cli-steer.md",
+      "name": "CLI Steer",
+      "description": "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency",
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "cli",
+        "cli-core",
+        "go",
+        "cross-platform",
+        "api-parity"
+      ],
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T16:30:00-05:00",
+      "updatedAt": "2026-01-30T17:10:35-05:00"
+    },
+    {
+      "id": "new-skill-1",
+      "file": "api-steer.md",
+      "name": "API Steer",
+      "description": "",
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [],
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T13:13:00-05:00",
+      "updatedAt": "2026-01-30T17:26:49-05:00"
+    },
+    {
+      "id": "interoperability-steer",
+      "file": "interoperability-steer.md",
+      "name": "Interoperability Steer",
+      "description": "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries",
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "proto",
+        "types",
+        "validation",
+        "contracts"
+      ],
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T15:30:00-05:00",
+      "updatedAt": "2026-01-30T17:26:54-05:00"
     }
   ]
 }

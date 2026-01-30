@@ -17,8 +17,10 @@ import {
   buildTree,
   filterTree,
   filterTreeByTags,
+  filterTreeByFolders,
   getPathsToItem,
   getAllTags,
+  getAllFolders,
   countSelectedInSubtree,
   getAllItemIdsInSubtree,
 } from '@/services/treeService'
@@ -32,6 +34,8 @@ interface UseSkillTreeProps {
   initialExpandedNodes?: string[]
   /** Initial selected tags (for persistence) */
   initialSelectedTags?: string[]
+  /** Initial selected folders (for persistence) */
+  initialSelectedFolders?: string[]
 }
 
 interface UseSkillTreeReturn {
@@ -59,6 +63,11 @@ interface UseSkillTreeReturn {
   setSelectedTags: (tags: string[]) => void
   availableTags: string[]
 
+  // Folder filter state
+  selectedFolders: string[]
+  setSelectedFolders: (folders: string[]) => void
+  availableFolders: string[]
+
   // Skill selection mode
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
@@ -83,6 +92,7 @@ export function useSkillTree({
   initialIsCollapsed = false,
   initialExpandedNodes = [],
   initialSelectedTags = [],
+  initialSelectedFolders = [],
 }: UseSkillTreeProps): UseSkillTreeReturn {
   // Build tree from skills
   const treeNodes = useMemo(() => buildTree(skills), [skills])
@@ -101,6 +111,9 @@ export function useSkillTree({
   // Tag filter state (initialized from persistence)
   const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags)
 
+  // Folder filter state (initialized from persistence)
+  const [selectedFolders, setSelectedFolders] = useState<string[]>(initialSelectedFolders)
+
   // Skill selection mode state
   const [skillSelectionMode, setSkillSelectionMode] = useState(false)
   const [skillSelectedIds, setSkillSelectedIds] = useState<Set<string>>(new Set())
@@ -112,9 +125,17 @@ export function useSkillTree({
   // Get all available tags from skills
   const availableTags = useMemo(() => getAllTags(skills), [skills])
 
-  // Filter tree based on search query and tags
+  // Get all available folders from skills
+  const availableFolders = useMemo(() => getAllFolders(skills), [skills])
+
+  // Filter tree based on search query, tags, and folders
   const filteredTreeNodes = useMemo(() => {
     let filtered = treeNodes
+
+    // Apply folder filter
+    if (selectedFolders.length > 0) {
+      filtered = filterTreeByFolders(filtered, selectedFolders, skills)
+    }
 
     // Apply tag filter
     if (selectedTags.length > 0) {
@@ -127,7 +148,7 @@ export function useSkillTree({
     }
 
     return filtered
-  }, [treeNodes, searchQuery, selectedTags, skills])
+  }, [treeNodes, searchQuery, selectedTags, selectedFolders, skills])
 
   // Toggle a single node's expanded state
   const toggleNode = useCallback((nodeId: string) => {
@@ -301,6 +322,11 @@ export function useSkillTree({
     selectedTags,
     setSelectedTags,
     availableTags,
+
+    // Folder filter state
+    selectedFolders,
+    setSelectedFolders,
+    availableFolders,
 
     // Skill selection mode
     skillSelectionMode,

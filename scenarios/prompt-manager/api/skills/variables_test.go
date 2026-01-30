@@ -53,8 +53,8 @@ func TestExtractVariables(t *testing.T) {
 			},
 		},
 		{
-			name:     "lowercase patterns ignored",
-			content:  "{{lowercase}} and {{mixedCase}} and {{VALID}}",
+			name:    "lowercase patterns ignored",
+			content: "{{lowercase}} and {{mixedCase}} and {{VALID}}",
 			expected: []Variable{
 				{Name: "VALID", Placeholder: "{{VALID}}", Occurrences: 1},
 			},

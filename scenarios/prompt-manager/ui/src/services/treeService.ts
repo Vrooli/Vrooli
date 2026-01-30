@@ -199,6 +199,26 @@ export function getAllTags(skills: Skill[]): string[] {
 }
 
 /**
+ * Get all unique folders from skills.
+ *
+ * @param skills - All skills to extract folders from
+ * @returns Array of unique folder values in display order
+ */
+export function getAllFolders(skills: Skill[]): string[] {
+  const folders = new Set<string>()
+
+  for (const skill of skills) {
+    if (skill.folder) {
+      folders.add(skill.folder)
+    }
+  }
+
+  // Return in logical order: core, local, drafts
+  const order = ['core', 'local', 'drafts']
+  return order.filter((f) => folders.has(f))
+}
+
+/**
  * Filter tree nodes by selected tags.
  * Returns a new tree with only items that have at least one of the selected tags.
  *
@@ -220,6 +240,51 @@ export function filterTreeByTags(
   const matchingIds = new Set(
     skills
       .filter((p) => p.tags.some((tag) => tagSet.has(tag)))
+      .map((p) => p.id)
+  )
+
+  // Recursively filter tree, keeping categories that have matching descendants
+  function filterNode(node: TreeNode): TreeNode | null {
+    if (!node.isCategory) {
+      // Leaf node - include if it matches
+      return node.itemId && matchingIds.has(node.itemId) ? node : null
+    }
+
+    // Category node - include if any children match
+    const filteredChildren = node.children
+      .map(filterNode)
+      .filter((n): n is TreeNode => n !== null)
+
+    if (filteredChildren.length === 0) return null
+
+    return { ...node, children: filteredChildren }
+  }
+
+  return nodes.map(filterNode).filter((n): n is TreeNode => n !== null)
+}
+
+/**
+ * Filter tree nodes by selected folders (storage locations).
+ * Returns a new tree with only items that are in one of the selected folders.
+ *
+ * @param nodes - Tree nodes to filter
+ * @param selectedFolders - Folders to filter by (items must be in one)
+ * @param skills - All skills for folder lookup
+ * @returns Filtered tree nodes
+ */
+export function filterTreeByFolders(
+  nodes: TreeNode[],
+  selectedFolders: string[],
+  skills: Skill[]
+): TreeNode[] {
+  if (selectedFolders.length === 0) return nodes
+
+  const folderSet = new Set(selectedFolders)
+
+  // Find all matching skill IDs
+  const matchingIds = new Set(
+    skills
+      .filter((p) => p.folder && folderSet.has(p.folder))
       .map((p) => p.id)
   )
 

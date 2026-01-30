@@ -23,6 +23,7 @@ import type { CombineFormat } from '@/stores/combineStore'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
+import { FolderFilterChips } from './FolderFilterChips'
 import { MemberListPanel } from '../member/MemberListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
@@ -56,6 +57,10 @@ interface SkillTreeSidebarProps {
   selectedTags: string[]
   onSelectedTagsChange: (tags: string[]) => void
   availableTags: string[]
+  // Folder filter props
+  selectedFolders: string[]
+  onSelectedFoldersChange: (folders: string[]) => void
+  availableFolders: string[]
   // Skill selection mode props
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
@@ -109,6 +114,9 @@ export function SkillTreeSidebar({
   selectedTags,
   onSelectedTagsChange,
   availableTags,
+  selectedFolders,
+  onSelectedFoldersChange,
+  availableFolders,
   skillSelectionMode,
   skillSelectedIds,
   currentMember,
@@ -440,7 +448,7 @@ export function SkillTreeSidebar({
               />
             </div>
 
-            {/* Tag filter + Expand/Collapse controls */}
+            {/* Filters row: Tag filter + Folder filter + Controls */}
             <div className="flex items-center justify-between mt-2 gap-2" ref={tagFilterRef}>
               <div className="relative flex-1 min-w-0">
                 <TagFilterChips
@@ -493,6 +501,24 @@ export function SkillTreeSidebar({
                 )}
               </div>
             </div>
+
+            {/* Folder filter row */}
+            {availableFolders.length > 1 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[10px] text-muted-foreground flex-shrink-0">Storage:</span>
+                <FolderFilterChips
+                  selectedFolders={selectedFolders}
+                  availableFolders={availableFolders}
+                  onToggleFolder={(folder) => {
+                    if (selectedFolders.includes(folder)) {
+                      onSelectedFoldersChange(selectedFolders.filter((f) => f !== folder))
+                    } else {
+                      onSelectedFoldersChange([...selectedFolders, folder])
+                    }
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Tree */}
@@ -503,7 +529,7 @@ export function SkillTreeSidebar({
                 data-testid={selectors.sidebar.emptyState}
               >
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery || selectedTags.length > 0 ? 'No skills match your filters' : 'No skills yet'}
+                  {searchQuery || selectedTags.length > 0 || selectedFolders.length > 0 ? 'No skills match your filters' : 'No skills yet'}
                 </p>
                 {searchQuery && aiSearchAvailable && (
                   <button

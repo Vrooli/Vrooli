@@ -292,6 +292,16 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Determine target folder (may be moving to a new folder)
+	targetFolder := folder
+	if req.Folder != nil && *req.Folder != "" && *req.Folder != folder {
+		if !IsWritableFolder(*req.Folder) {
+			http.Error(w, "Cannot move skill to non-writable folder", http.StatusBadRequest)
+			return
+		}
+		targetFolder = *req.Folder
+	}
+
 	// Track old filename for potential rename
 	oldFile := skill.File
 
@@ -328,57 +338,118 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	skill.UpdatedAt = time.Now().Format(time.RFC3339)
 
-	// Handle file rename if filename changed
-	if skill.File != oldFile {
-		// Read old content
-		oldContent, err := h.store.GetContent(folder, oldFile)
+	// Handle folder move
+	if targetFolder != folder {
+		// Read current content
+		currentContent, err := h.store.GetContent(folder, oldFile)
 		if err != nil {
-			http.Error(w, "Failed to read existing content for rename", http.StatusInternalServerError)
+			http.Error(w, "Failed to read existing content for move", http.StatusInternalServerError)
 			return
 		}
-		// Write to new file (use req.Content if provided, otherwise old content)
-		newContent := oldContent
+
+		// Use new content if provided, otherwise use current
+		contentToSave := currentContent
 		if req.Content != nil {
-			newContent = *req.Content
+			contentToSave = *req.Content
 		}
-		if err := h.store.SaveContent(folder, skill.File, newContent); err != nil {
+
+		// Save content to new folder
+		if err := h.store.SaveContent(targetFolder, skill.File, contentToSave); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		// Delete old file
+
+		// Remove from old folder's metadata
+		oldSkills, err := h.store.LoadMetadata(folder)
+		if err != nil {
+			// Rollback: delete from new folder
+			h.store.DeleteContent(targetFolder, skill.File)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		var filteredOld []Metadata
+		for _, p := range oldSkills {
+			if p.ID != id {
+				filteredOld = append(filteredOld, p)
+			}
+		}
+		if err := h.store.SaveMetadata(folder, filteredOld); err != nil {
+			h.store.DeleteContent(targetFolder, skill.File)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Add to new folder's metadata
+		newSkills, err := h.store.LoadMetadata(targetFolder)
+		if err != nil {
+			// Rollback is complex here, but proceed - metadata was already removed
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		newSkills = append(newSkills, *skill)
+		if err := h.store.SaveMetadata(targetFolder, newSkills); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Move version history
+		h.moveVersionHistory(id, folder, targetFolder)
+
+		// Delete old content file
 		h.store.DeleteContent(folder, oldFile)
-	} else if req.Content != nil {
-		// No rename, just update content
-		if err := h.store.SaveContent(folder, skill.File, *req.Content); err != nil {
+	} else {
+		// Same folder - handle file rename or content update
+		if skill.File != oldFile {
+			// Read old content
+			oldContent, err := h.store.GetContent(folder, oldFile)
+			if err != nil {
+				http.Error(w, "Failed to read existing content for rename", http.StatusInternalServerError)
+				return
+			}
+			// Write to new file (use req.Content if provided, otherwise old content)
+			newContent := oldContent
+			if req.Content != nil {
+				newContent = *req.Content
+			}
+			if err := h.store.SaveContent(folder, skill.File, newContent); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// Delete old file
+			h.store.DeleteContent(folder, oldFile)
+		} else if req.Content != nil {
+			// No rename, just update content
+			if err := h.store.SaveContent(folder, skill.File, *req.Content); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+
+		// Load all skills and update the matching one
+		skills, err := h.store.LoadMetadata(folder)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-	}
 
-	// Load all skills and update the matching one
-	skills, err := h.store.LoadMetadata(folder)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	for i, p := range skills {
-		if p.ID == id {
-			skills[i] = *skill
-			break
+		for i, p := range skills {
+			if p.ID == id {
+				skills[i] = *skill
+				break
+			}
 		}
-	}
 
-	if err := h.store.SaveMetadata(folder, skills); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if err := h.store.SaveMetadata(folder, skills); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	response := h.toResponse(*skill)
-	response.Folder = folder
+	response.Folder = targetFolder
 
 	// Load content for response
-	if content, err := h.store.GetContent(folder, skill.File); err == nil {
+	if content, err := h.store.GetContent(targetFolder, skill.File); err == nil {
 		response.Content = content
 	}
 
@@ -387,6 +458,34 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// moveVersionHistory moves version history from one folder to another.
+func (h *Handlers) moveVersionHistory(skillID, fromFolder, toFolder string) {
+	// Load versions from source folder
+	fromVersions, err := h.store.LoadVersions(fromFolder)
+	if err != nil {
+		return
+	}
+
+	vf, ok := fromVersions[skillID]
+	if !ok || len(vf.Versions) == 0 {
+		return // No version history to move
+	}
+
+	// Load versions for target folder
+	toVersions, err := h.store.LoadVersions(toFolder)
+	if err != nil {
+		toVersions = make(map[string]*VersionFile)
+	}
+
+	// Move the version file entry
+	toVersions[skillID] = vf
+	delete(fromVersions, skillID)
+
+	// Save both
+	h.store.SaveVersions(toFolder, toVersions)
+	h.store.SaveVersions(fromFolder, fromVersions)
 }
 
 // Delete handles DELETE /skills/{id} - deletes a skill.
