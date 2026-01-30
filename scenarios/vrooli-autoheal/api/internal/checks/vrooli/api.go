@@ -209,6 +209,13 @@ func (c *APICheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryA
 
 	return []checks.RecoveryAction{
 		{
+			ID:          "start",
+			Name:        "Start API",
+			Description: "Start the Vrooli development environment (vrooli develop)",
+			Dangerous:   false, // Safe to start when not running
+			Available:   !isResponding,
+		},
+		{
 			ID:          "restart",
 			Name:        "Restart API",
 			Description: "Stop and restart the Vrooli API server",
@@ -250,6 +257,8 @@ func (c *APICheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 	}
 
 	switch actionID {
+	case "start":
+		return c.executeStart(ctx, start)
 	case "restart":
 		return c.executeRestart(ctx, start)
 	case "kill-port":
@@ -264,6 +273,146 @@ func (c *APICheck) ExecuteAction(ctx context.Context, actionID string) checks.Ac
 		result.Duration = time.Since(start)
 		return result
 	}
+}
+
+// executeStart starts the Vrooli API directly using api/start.sh
+// This bypasses `vrooli develop` which may not properly start the main API
+// when called from within a running scenario (like vrooli-autoheal).
+func (c *APICheck) executeStart(ctx context.Context, start time.Time) checks.ActionResult {
+	result := checks.ActionResult{
+		ActionID:  "start",
+		CheckID:   c.ID(),
+		Timestamp: start,
+	}
+
+	var outputBuilder strings.Builder
+	outputBuilder.WriteString("=== Starting Vrooli API ===\n")
+
+	// Find the Vrooli root directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Try common locations based on user's home directory
+		homeDir, _ := os.UserHomeDir()
+		possiblePaths := []string{
+			filepath.Join(homeDir, "Vrooli"),
+			"/opt/vrooli",
+			"/usr/local/vrooli",
+		}
+		for _, path := range possiblePaths {
+			if _, err := os.Stat(path); err == nil {
+				vrooliRoot = path
+				break
+			}
+		}
+	}
+
+	if vrooliRoot == "" {
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = "VROOLI_ROOT not found"
+		result.Message = "Could not locate Vrooli installation"
+		result.Output = outputBuilder.String() + "Unable to find Vrooli root directory\n"
+		return result
+	}
+
+	outputBuilder.WriteString(fmt.Sprintf("Found Vrooli root: %s\n", vrooliRoot))
+
+	// Extract port from the configured URL (default 8092)
+	port := "8092"
+	if strings.Contains(c.url, ":") {
+		parts := strings.Split(c.url, ":")
+		if len(parts) >= 3 {
+			port = strings.Split(parts[2], "/")[0]
+		}
+	}
+
+	// Check if API is already running (only check for LISTEN sockets, not connections)
+	// Using -s TCP:LISTEN ensures we don't match our own health check connection
+	checkOutput, _ := c.executor.Output(ctx, "lsof", "-ti", ":"+port, "-s", "TCP:LISTEN")
+	if len(strings.TrimSpace(string(checkOutput))) > 0 {
+		outputBuilder.WriteString(fmt.Sprintf("API already has a process listening on port %s\n", port))
+		// API might be starting up, proceed to verification
+	} else {
+		// Start the API directly using api/start.sh
+		// Run in background using nohup since it's a long-running server
+		startScript := filepath.Join(vrooliRoot, "api", "start.sh")
+		if _, err := os.Stat(startScript); os.IsNotExist(err) {
+			// Try running the compiled binary directly
+			apiBinary := filepath.Join(vrooliRoot, "api", "vrooli-api")
+			if _, err := os.Stat(apiBinary); os.IsNotExist(err) {
+				result.Duration = time.Since(start)
+				result.Success = false
+				result.Error = "API start script not found"
+				result.Message = "Neither api/start.sh nor api/vrooli-api found"
+				result.Output = outputBuilder.String()
+				return result
+			}
+			outputBuilder.WriteString(fmt.Sprintf("Starting API binary: %s\n", apiBinary))
+			// Start binary in background with setsid to detach from parent process group
+			// This prevents Go's exec.CommandContext from killing the API when context is cancelled
+			startOutput, err := c.executor.CombinedOutput(ctx, "bash", "-c",
+				fmt.Sprintf("cd %s && setsid %s > /tmp/vrooli-api.log 2>&1 &",
+					filepath.Join(vrooliRoot, "api"), apiBinary))
+			outputBuilder.Write(startOutput)
+			if err != nil {
+				outputBuilder.WriteString(fmt.Sprintf("Warning: start command returned error: %v\n", err))
+			}
+		} else {
+			outputBuilder.WriteString(fmt.Sprintf("Starting API via: %s\n", startScript))
+			// Start script in background with setsid to detach from parent process group
+			// This prevents Go's exec.CommandContext from killing the API when context is cancelled
+			// Set VROOLI_API_PORT to ensure correct port
+			startOutput, err := c.executor.CombinedOutput(ctx, "bash", "-c",
+				fmt.Sprintf("cd %s && VROOLI_API_PORT=%s setsid bash api/start.sh > /tmp/vrooli-api.log 2>&1 &",
+					vrooliRoot, port))
+			outputBuilder.Write(startOutput)
+			if err != nil {
+				outputBuilder.WriteString(fmt.Sprintf("Warning: start command returned error: %v\n", err))
+			}
+		}
+
+		// Give the server a moment to start
+		outputBuilder.WriteString("Waiting for API to initialize...\n")
+		time.Sleep(2 * time.Second)
+	}
+
+	result.Output = outputBuilder.String()
+
+	// Verify the API is responding after start
+	return c.verifyAPIHealth(ctx, result, "start", start)
+}
+
+// verifyAPIHealth checks that the API is responding after a start/restart action
+func (c *APICheck) verifyAPIHealth(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
+	// Configure polling for API health verification
+	pollConfig := checks.PollConfig{
+		Timeout:      45 * time.Second,
+		Interval:     3 * time.Second,
+		InitialDelay: 5 * time.Second,
+	}
+
+	// Poll until healthy or timeout
+	pollResult := checks.PollForSuccess(ctx, c, pollConfig)
+	result.Duration = time.Since(start)
+
+	if pollResult.Success {
+		result.Success = true
+		result.Message = fmt.Sprintf("Vrooli API %s successful and verified healthy", actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(verified after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
+	} else {
+		result.Success = false
+		result.Error = "API not healthy after " + actionID
+		result.Message = fmt.Sprintf("Vrooli API %s completed but verification failed", actionID)
+		if pollResult.FinalResult != nil {
+			result.Output += "\n\n=== Verification Failed ===\n" + pollResult.FinalResult.Message
+		}
+		result.Output += fmt.Sprintf("\n(failed after %d attempts in %s)", pollResult.Attempts, pollResult.Elapsed.Round(time.Millisecond))
+	}
+
+	return result
 }
 
 // executeRestart restarts the Vrooli API using the maintenance script or vrooli develop

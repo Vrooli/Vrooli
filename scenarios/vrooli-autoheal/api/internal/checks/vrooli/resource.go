@@ -149,26 +149,45 @@ func (c *ResourceCheck) ResourceName() string {
 // [REQ:HEAL-ACTION-001]
 func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
 	// Determine current state from last result
+	// Use check status as the primary indicator, with output parsing as secondary
 	isRunning := false
 	isStopped := false
 	if lastResult != nil {
+		// Primary: use check status (most reliable)
+		if lastResult.Status == checks.StatusOK {
+			isRunning = true
+		} else if lastResult.Status == checks.StatusCritical {
+			isStopped = true
+		}
+
+		// Secondary: parse output for more specific state info
+		// Only override if we find definitive state indicators
 		output, ok := lastResult.Details["output"].(string)
 		if ok {
 			lowerOutput := strings.ToLower(output)
-			isRunning = strings.Contains(lowerOutput, "running") ||
-				strings.Contains(lowerOutput, "healthy") ||
-				strings.Contains(lowerOutput, "started")
-			isStopped = strings.Contains(lowerOutput, "stopped") ||
-				strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "exited")
-		}
-		// If status is OK, likely running
-		if lastResult.Status == checks.StatusOK {
-			isRunning = true
-		}
-		// If status is critical, likely stopped
-		if lastResult.Status == checks.StatusCritical {
-			isStopped = true
+			// Check for negative phrases FIRST to avoid false positives
+			hasNotRunning := strings.Contains(lowerOutput, "not running") ||
+				strings.Contains(lowerOutput, "may not be running") ||
+				strings.Contains(lowerOutput, "isn't running") ||
+				strings.Contains(lowerOutput, "is not running")
+
+			// Look for definitive positive state indicators (format: "Running: true/false")
+			hasDefinitiveRunning := strings.Contains(lowerOutput, "running: true") ||
+				strings.Contains(lowerOutput, "status: running") ||
+				strings.Contains(lowerOutput, "state: running")
+
+			hasDefinitiveStopped := strings.Contains(lowerOutput, "running: false") ||
+				strings.Contains(lowerOutput, "status: stopped") ||
+				strings.Contains(lowerOutput, "state: stopped")
+
+			// Only update state if we have definitive indicators
+			if hasDefinitiveRunning && !hasNotRunning {
+				isRunning = true
+				isStopped = false
+			} else if hasDefinitiveStopped || hasNotRunning {
+				isStopped = true
+				isRunning = false
+			}
 		}
 	}
 
@@ -195,9 +214,9 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true, // Always available
 		},
 		{
-			ID:          "logs",
-			Name:        "View Logs",
-			Description: "View recent logs from the " + c.resourceName + " resource",
+			ID:          "status",
+			Name:        "Check Status",
+			Description: "Get detailed status of the " + c.resourceName + " resource",
 			Dangerous:   false,
 			Available:   true, // Always available
 		},
@@ -227,8 +246,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	case "restart":
 		args = []string{"resource", "restart", c.resourceName}
 		needsVerification = true
-	case "logs":
-		args = []string{"resource", "logs", c.resourceName, "--tail", "50"}
+	case "status":
+		args = []string{"resource", "status", c.resourceName}
 	default:
 		result.Success = false
 		result.Error = "unknown action: " + actionID
@@ -259,8 +278,8 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	switch actionID {
 	case "stop":
 		result.Message = c.resourceName + " resource stopped successfully"
-	case "logs":
-		result.Message = "Retrieved logs for " + c.resourceName
+	case "status":
+		result.Message = "Retrieved status for " + c.resourceName
 	}
 
 	return result

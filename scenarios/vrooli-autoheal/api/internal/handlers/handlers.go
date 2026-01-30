@@ -187,6 +187,33 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Re-check any items where autoheal was attempted to update their status
+	// This is critical: autoheal may have fixed issues but check results were from BEFORE the fix
+	// We re-check even if autoheal reports failure, because the action might have actually
+	// started something that just wasn't ready during verification polling
+	var recheckIDs []string
+	for _, ahr := range autoHealResults {
+		if ahr.Attempted {
+			recheckIDs = append(recheckIDs, ahr.CheckID)
+		}
+	}
+	if len(recheckIDs) > 0 {
+		recheckResults := h.registry.RunChecksForIDs(ctx, recheckIDs)
+		for _, result := range recheckResults {
+			// Update results array with new result
+			for i, r := range results {
+				if r.CheckID == result.CheckID {
+					results[i] = result
+					break
+				}
+			}
+			// Persist updated result
+			if err := h.store.SaveResult(ctx, result); err != nil {
+				apierrors.LogError("tick", "save_recheck_result:"+result.CheckID, err)
+			}
+		}
+	}
+
 	// Get updated summary
 	summary := h.registry.GetSummary()
 

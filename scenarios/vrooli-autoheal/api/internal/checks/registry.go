@@ -27,6 +27,12 @@ const (
 
 	// DefaultCheckTimeout is the maximum time a single health check can run before timing out
 	DefaultCheckTimeout = 30 * time.Second
+
+	// MaxAutoHealActionsPerTick limits how many heal actions can run per tick to prevent timeout
+	MaxAutoHealActionsPerTick = 5
+
+	// MaxParallelHealActions limits concurrent heal action execution
+	MaxParallelHealActions = 3
 )
 
 // HealTracker tracks the healing state for a single check
@@ -226,6 +232,32 @@ func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 	return results
 }
 
+// RunChecksForIDs runs checks for a specific list of check IDs.
+// Used to re-check items after autoheal to update their status.
+func (r *Registry) RunChecksForIDs(ctx context.Context, checkIDs []string) []Result {
+	r.mu.RLock()
+	var checksToRun []Check
+	for _, id := range checkIDs {
+		if check, exists := r.checks[id]; exists {
+			checksToRun = append(checksToRun, check)
+		}
+	}
+	r.mu.RUnlock()
+
+	results := make([]Result, 0, len(checksToRun))
+	for _, check := range checksToRun {
+		select {
+		case <-ctx.Done():
+			return results
+		default:
+			result := r.runCheck(ctx, check)
+			results = append(results, result)
+		}
+	}
+
+	return results
+}
+
 // runCheck executes a single check with timeout and stores the result
 func (r *Registry) runCheck(ctx context.Context, check Check) Result {
 	start := time.Now()
@@ -380,14 +412,40 @@ type AutoHealResult struct {
 	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
 }
 
+// healCandidate represents a check that needs healing with its metadata
+type healCandidate struct {
+	result         Result
+	healable       HealableCheck
+	selectedAction *RecoveryAction
+	priority       int // lower = higher priority
+}
+
+// getHealPriority returns priority for a check (lower = more important)
+// Priority order: API (0) > Resources (1) > Scenarios (2) > Others (3)
+func getHealPriority(checkID string) int {
+	switch {
+	case checkID == "vrooli-api":
+		return 0 // API is most critical - other services depend on it
+	case len(checkID) > 9 && checkID[:9] == "resource-":
+		return 1 // Resources (postgres, redis, etc.) are infrastructure
+	case len(checkID) > 9 && checkID[:9] == "scenario-":
+		return 2 // Scenarios depend on API and resources
+	default:
+		return 3 // Unknown checks get lowest priority
+	}
+}
+
 // RunAutoHeal attempts to auto-heal any critical checks that have auto-heal enabled.
 // It runs the first available recovery action for each failing check.
 // Implements cooldown and rate limiting to prevent thrashing on flapping services.
+// Actions are prioritized (API > resources > scenarios) and run in parallel with limits.
 // Returns a list of auto-heal results.
 // [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
 func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
 	autoHealResults := make([]AutoHealResult, 0)
+	candidates := make([]healCandidate, 0)
 
+	// Phase 1: Collect and filter candidates
 	for _, result := range results {
 		// Only auto-heal critical checks
 		if result.Status != StatusCritical {
@@ -449,19 +507,109 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			continue
 		}
 
-		// Execute the recovery action
-		actionResult := healable.ExecuteAction(ctx, selectedAction.ID)
+		// Add to candidates list
+		candidates = append(candidates, healCandidate{
+			result:         result,
+			healable:       healable,
+			selectedAction: selectedAction,
+			priority:       getHealPriority(result.CheckID),
+		})
+	}
 
+	// Phase 2: Sort candidates by priority (lower priority number = more important)
+	for i := 0; i < len(candidates)-1; i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].priority < candidates[i].priority {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
+			}
+		}
+	}
+
+	// Phase 3: Limit number of actions per tick
+	if len(candidates) > MaxAutoHealActionsPerTick {
+		// Mark excess candidates as skipped
+		for _, c := range candidates[MaxAutoHealActionsPerTick:] {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:   c.result.CheckID,
+				Attempted: false,
+				Reason:    fmt.Sprintf("deferred to next tick (max %d actions per tick, lower priority)", MaxAutoHealActionsPerTick),
+			})
+		}
+		candidates = candidates[:MaxAutoHealActionsPerTick]
+	}
+
+	// Phase 4: Execute heal actions in parallel with worker pool
+	if len(candidates) == 0 {
+		return autoHealResults
+	}
+
+	type healResult struct {
+		checkID      string
+		actionResult ActionResult
+		success      bool
+	}
+
+	resultsChan := make(chan healResult, len(candidates))
+	semaphore := make(chan struct{}, MaxParallelHealActions)
+
+	var wg sync.WaitGroup
+	for _, c := range candidates {
+		wg.Add(1)
+		go func(candidate healCandidate) {
+			defer wg.Done()
+
+			// Acquire semaphore slot
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			// Check context before executing
+			select {
+			case <-ctx.Done():
+				resultsChan <- healResult{
+					checkID: candidate.result.CheckID,
+					actionResult: ActionResult{
+						ActionID:  candidate.selectedAction.ID,
+						CheckID:   candidate.result.CheckID,
+						Timestamp: time.Now(),
+						Success:   false,
+						Error:     "context cancelled",
+						Message:   "Heal action cancelled due to timeout",
+					},
+					success: false,
+				}
+				return
+			default:
+			}
+
+			// Execute the recovery action
+			actionResult := candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
+
+			resultsChan <- healResult{
+				checkID:      candidate.result.CheckID,
+				actionResult: actionResult,
+				success:      actionResult.Success,
+			}
+		}(c)
+	}
+
+	// Close results channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect results
+	for hr := range resultsChan {
 		// Update heal tracker based on result
-		r.updateHealTracker(result.CheckID, actionResult.Success)
+		r.updateHealTracker(hr.checkID, hr.success)
 
 		// Get updated tracker for result
-		updatedTracker := r.getOrCreateHealTracker(result.CheckID)
+		updatedTracker := r.getOrCreateHealTracker(hr.checkID)
 
 		autoHealResults = append(autoHealResults, AutoHealResult{
-			CheckID:             result.CheckID,
+			CheckID:             hr.checkID,
 			Attempted:           true,
-			ActionResult:        actionResult,
+			ActionResult:        hr.actionResult,
 			CooldownRemaining:   updatedTracker.CooldownRemaining(),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 		})
