@@ -146,12 +146,28 @@ export function MinioSetupHelp() {
         </div>
       </section>
 
-      <section>
-        <p className="text-slate-400">
-          For more details, see the{' '}
-          <ExternalLinkInline href="https://min.io/docs/minio/container/index.html">
-            MinIO Documentation
-          </ExternalLinkInline>
+      <section className="border-t border-white/10 pt-4">
+        <h3 className="text-base font-semibold text-white mb-3">Official Documentation</h3>
+        <ul className="space-y-2">
+          <li>
+            <ExternalLinkInline href="https://github.com/minio/minio">
+              MinIO GitHub Repository
+            </ExternalLinkInline>
+            <span className="text-slate-500 text-xs ml-2">— Quick start and Docker commands</span>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://github.com/minio/minio/blob/master/docs/docker/README.md">
+              Docker Deployment Guide
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://github.com/minio/mc">
+              MinIO Client (mc) - CLI tool
+            </ExternalLinkInline>
+          </li>
+        </ul>
+        <p className="text-xs text-slate-500 mt-3">
+          Note: MinIO is open source (AGPLv3). Enterprise features are available through MinIO AIStor.
         </p>
       </section>
     </div>

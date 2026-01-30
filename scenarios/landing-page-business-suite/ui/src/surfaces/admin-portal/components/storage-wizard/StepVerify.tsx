@@ -53,7 +53,7 @@ export function StepVerify({
       <div className="text-center">
         <h3 className="text-lg font-semibold text-white">Review & Save</h3>
         <p className="mt-1 text-sm text-slate-400">
-          Verify your configuration and test the connection before saving
+          Review your configuration, save it, then test the connection
         </p>
       </div>
 
@@ -109,14 +109,14 @@ export function StepVerify({
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
         <h4 className="text-sm font-semibold text-white">Connection Test</h4>
         <p className="text-xs text-slate-400">
-          Test your connection to verify credentials and bucket access before saving.
+          After saving, test the connection to verify your credentials and bucket access.
         </p>
 
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
             onClick={onTestConnection}
-            disabled={testStatus === 'testing'}
+            disabled={testStatus === 'testing' || saveStatus !== 'success'}
             className="gap-2"
           >
             {testStatus === 'testing' ? (
@@ -131,6 +131,12 @@ export function StepVerify({
               </>
             )}
           </Button>
+
+          {saveStatus !== 'success' && (
+            <p className="text-xs text-slate-500">
+              Save your configuration first to enable testing
+            </p>
+          )}
 
           {testStatus === 'success' && (
             <div className="flex items-center gap-2 text-sm text-emerald-400">

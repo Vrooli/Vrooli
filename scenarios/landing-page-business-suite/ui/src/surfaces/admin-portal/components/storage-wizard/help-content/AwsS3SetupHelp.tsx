@@ -108,6 +108,27 @@ export function AwsS3SetupHelp() {
           You'll need to create IAM credentials to authenticate. Continue to the Credentials step and click the help button there for detailed instructions.
         </p>
       </section>
+
+      <section className="border-t border-white/10 pt-4">
+        <h3 className="text-base font-semibold text-white mb-3">Official Documentation</h3>
+        <ul className="space-y-2">
+          <li>
+            <ExternalLinkInline href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/creating-bucket.html">
+              Creating a bucket - AWS S3 User Guide
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html">
+              CORS configuration - AWS S3 User Guide
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://aws.amazon.com/s3/pricing/">
+              S3 Pricing
+            </ExternalLinkInline>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

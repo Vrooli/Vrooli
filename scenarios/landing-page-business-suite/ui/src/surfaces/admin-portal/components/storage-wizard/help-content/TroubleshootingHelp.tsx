@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
 
 export function TroubleshootingHelp() {
   return (
@@ -129,7 +129,42 @@ export function TroubleshootingHelp() {
           </ol>
         </div>
       </section>
+
+      <section className="border-t border-white/10 pt-4">
+        <h3 className="text-base font-semibold text-white mb-3">Official CORS Documentation</h3>
+        <ul className="space-y-2">
+          <li>
+            <ExternalLinkInline href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/enabling-cors-examples.html">
+              AWS S3 CORS Configuration
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/buckets/cors/">
+              Cloudflare R2 CORS Configuration
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS">
+              MDN: Cross-Origin Resource Sharing (CORS)
+            </ExternalLinkInline>
+          </li>
+        </ul>
+      </section>
     </div>
+  );
+}
+
+function ExternalLinkInline({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300"
+    >
+      {children}
+      <ExternalLink className="h-3 w-3" />
+    </a>
   );
 }
 

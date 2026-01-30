@@ -163,6 +163,37 @@ export function CloudflareR2SetupHelp() {
           https://<span className="text-white">[account-id]</span>.r2.cloudflarestorage.com
         </code>
       </section>
+
+      <section className="border-t border-white/10 pt-4">
+        <h3 className="text-base font-semibold text-white mb-3">Official Documentation</h3>
+        <ul className="space-y-2">
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/get-started/">
+              Get started with R2 - Cloudflare Docs
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/api/s3/tokens/">
+              Generate API tokens - Cloudflare Docs
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/buckets/cors/">
+              Configure CORS - Cloudflare Docs
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/fundamentals/setup/find-account-and-zone-ids/">
+              Find your Account ID - Cloudflare Docs
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/pricing/">
+              R2 Pricing - Cloudflare Docs
+            </ExternalLinkInline>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

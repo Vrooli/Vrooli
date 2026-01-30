@@ -1,4 +1,4 @@
-import { CheckCircle2, XCircle, Minus } from 'lucide-react';
+import { CheckCircle2, XCircle, Minus, ExternalLink } from 'lucide-react';
 
 export function ProviderComparisonHelp() {
   return (
@@ -132,6 +132,30 @@ export function ProviderComparisonHelp() {
           </li>
         </ul>
       </section>
+
+      <section className="border-t border-white/10 pt-4">
+        <h3 className="text-base font-semibold text-white mb-3">Official Documentation</h3>
+        <p className="text-slate-400 text-xs mb-3">
+          Pricing and features may change. Refer to official documentation for the latest information:
+        </p>
+        <ul className="space-y-2">
+          <li>
+            <ExternalLinkInline href="https://aws.amazon.com/s3/pricing/">
+              AWS S3 Pricing
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://developers.cloudflare.com/r2/pricing/">
+              Cloudflare R2 Pricing
+            </ExternalLinkInline>
+          </li>
+          <li>
+            <ExternalLinkInline href="https://github.com/minio/minio">
+              MinIO GitHub (Open Source)
+            </ExternalLinkInline>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
@@ -164,4 +188,18 @@ function FeatureCheck({ yes, partial }: { yes?: boolean; partial?: boolean; no?:
     return <Minus className="h-4 w-4 text-amber-400" />;
   }
   return <XCircle className="h-4 w-4 text-slate-500" />;
+}
+
+function ExternalLinkInline({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300"
+    >
+      {children}
+      <ExternalLink className="h-3 w-3" />
+    </a>
+  );
 }
