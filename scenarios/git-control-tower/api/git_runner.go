@@ -129,6 +129,15 @@ type GitRunner interface {
 	// CatFile returns the content of a file in the working tree.
 	// Used for reading file content for import scanning.
 	CatFile(ctx context.Context, repoDir string, path string) ([]byte, error)
+
+	// SetRemoteURL updates the URL for a remote.
+	// Uses git remote set-url <remote> <url>.
+	SetRemoteURL(ctx context.Context, repoDir string, remote string, url string) error
+
+	// LsRemote lists references from a remote repository.
+	// Used to test connectivity and authentication.
+	// If cred is provided, uses GIT_ASKPASS for authentication.
+	LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -789,4 +798,98 @@ func (r *ExecGitRunner) CatFile(ctx context.Context, repoDir string, path string
 	// Read file directly from working tree
 	absPath := repoDir + "/" + path
 	return os.ReadFile(absPath)
+}
+
+func (r *ExecGitRunner) SetRemoteURL(ctx context.Context, repoDir string, remote string, url string) error {
+	remote = strings.TrimSpace(remote)
+	url = strings.TrimSpace(url)
+	if remote == "" {
+		return fmt.Errorf("remote name is required")
+	}
+	if url == "" {
+		return fmt.Errorf("URL is required")
+	}
+
+	args := []string{"-C", repoDir, "remote", "set-url", remote, url}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git remote set-url failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git remote set-url failed: %w", err)
+	}
+	return nil
+}
+
+func (r *ExecGitRunner) LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		remote = "origin"
+	}
+
+	args := []string{"-C", repoDir, "ls-remote", "--heads", "--exit-code", remote}
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+
+	// If credentials are provided, set up GIT_ASKPASS for authentication
+	if cred != nil && cred.Username != "" && cred.Token != "" {
+		// Create environment with credential helper
+		env := os.Environ()
+		// Use GIT_ASKPASS with a simple echo script to provide credentials
+		// This avoids storing credentials in git config
+		env = append(env,
+			fmt.Sprintf("GIT_USERNAME=%s", cred.Username),
+			fmt.Sprintf("GIT_PASSWORD=%s", cred.Token),
+			"GIT_TERMINAL_PROMPT=0",
+		)
+
+		// For HTTPS URLs, we can use credential.helper with the store
+		// But a simpler approach is to embed credentials in the URL temporarily
+		// Actually, the safest approach is to use GIT_ASKPASS
+
+		// Create a temporary askpass script
+		askpassScript := `#!/bin/sh
+case "$1" in
+  *[Uu]sername*) echo "$GIT_USERNAME" ;;
+  *[Pp]assword*) echo "$GIT_PASSWORD" ;;
+esac`
+
+		// Write askpass script to temp file
+		tmpFile, err := os.CreateTemp("", "git-askpass-*.sh")
+		if err != nil {
+			return fmt.Errorf("failed to create askpass script: %w", err)
+		}
+		tmpPath := tmpFile.Name()
+		defer os.Remove(tmpPath)
+
+		if _, err := tmpFile.WriteString(askpassScript); err != nil {
+			tmpFile.Close()
+			return fmt.Errorf("failed to write askpass script: %w", err)
+		}
+		tmpFile.Close()
+
+		// Make executable
+		if err := os.Chmod(tmpPath, 0700); err != nil {
+			return fmt.Errorf("failed to make askpass script executable: %w", err)
+		}
+
+		env = append(env, fmt.Sprintf("GIT_ASKPASS=%s", tmpPath))
+		cmd.Env = env
+	} else {
+		// Without credentials, disable prompts
+		env := os.Environ()
+		env = append(env, "GIT_TERMINAL_PROMPT=0")
+		cmd.Env = env
+	}
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return fmt.Errorf("git ls-remote failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		}
+		return fmt.Errorf("git ls-remote failed: %w", err)
+	}
+	return nil
 }

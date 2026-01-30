@@ -406,6 +406,75 @@ export interface RelatedFilesResponse {
 }
 
 // ============================================================================
+// Credentials Types
+// ============================================================================
+
+export type CredentialType = "https" | "ssh";
+
+export interface Credential {
+  id: string;
+  remote: string;
+  url: string;
+  type: CredentialType;
+  username?: string;
+  token_masked?: string;
+  is_configured: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CredentialsListResponse {
+  credentials: Credential[];
+  timestamp: string;
+}
+
+export interface CredentialSaveRequest {
+  remote: string;
+  url?: string;
+  username: string;
+  token: string;
+}
+
+export interface CredentialSaveResponse {
+  success: boolean;
+  credential?: Credential;
+  error?: string;
+  timestamp: string;
+}
+
+export interface CredentialDeleteResponse {
+  success: boolean;
+  error?: string;
+  timestamp: string;
+}
+
+export interface CredentialTestRequest {
+  remote: string;
+  use_stored?: boolean;
+}
+
+export interface CredentialTestResponse {
+  success: boolean;
+  reachable: boolean;
+  authorized: boolean;
+  error?: string;
+  timestamp: string;
+}
+
+export interface RemoteURLUpdateRequest {
+  remote: string;
+  url: string;
+}
+
+export interface RemoteURLUpdateResponse {
+  success: boolean;
+  old_url?: string;
+  new_url?: string;
+  error?: string;
+  timestamp: string;
+}
+
+// ============================================================================
 // API Functions
 // ============================================================================
 
@@ -694,4 +763,56 @@ export async function deletePath(request: DeletePathRequest): Promise<DeletePath
     body: JSON.stringify(request)
   });
   return handleResponse<DeletePathResponse>(res);
+}
+
+// ============================================================================
+// Credentials API Functions
+// ============================================================================
+
+export async function fetchCredentials(): Promise<CredentialsListResponse> {
+  const url = buildApiUrl("/credentials", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<CredentialsListResponse>(res);
+}
+
+export async function saveCredential(request: CredentialSaveRequest): Promise<CredentialSaveResponse> {
+  const url = buildApiUrl("/credentials", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<CredentialSaveResponse>(res);
+}
+
+export async function deleteCredential(id: string): Promise<CredentialDeleteResponse> {
+  const url = buildApiUrl(`/credentials/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" }
+  });
+  return handleResponse<CredentialDeleteResponse>(res);
+}
+
+export async function testCredential(request: CredentialTestRequest): Promise<CredentialTestResponse> {
+  const url = buildApiUrl("/credentials/test", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<CredentialTestResponse>(res);
+}
+
+export async function updateRemoteURL(request: RemoteURLUpdateRequest): Promise<RemoteURLUpdateResponse> {
+  const url = buildApiUrl("/repo/remote/url", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<RemoteURLUpdateResponse>(res);
 }

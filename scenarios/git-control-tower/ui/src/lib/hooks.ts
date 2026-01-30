@@ -22,6 +22,11 @@ import {
   fetchRelatedFiles,
   fetchDirectoryContents,
   deletePath,
+  fetchCredentials,
+  saveCredential,
+  deleteCredential,
+  testCredential,
+  updateRemoteURL,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -38,7 +43,11 @@ import {
   type FileTreeResponse,
   type RelatedFilesResponse,
   type DirListResponse,
-  type DeletePathRequest
+  type DeletePathRequest,
+  type CredentialsListResponse,
+  type CredentialSaveRequest,
+  type CredentialTestRequest,
+  type RemoteURLUpdateRequest
 } from "./api";
 
 export const queryKeys = {
@@ -53,7 +62,8 @@ export const queryKeys = {
   approvedChanges: ["repo", "approved-changes"] as const,
   files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
   relatedFiles: (path: string) => ["repo", "related", path] as const,
-  directoryContents: (path: string) => ["repo", "dir", path] as const
+  directoryContents: (path: string) => ["repo", "dir", path] as const,
+  credentials: ["credentials"] as const
 };
 
 export function useHealth() {
@@ -273,6 +283,57 @@ export function useDeletePath() {
       queryClient.invalidateQueries({ queryKey: queryKeys.repoStatus });
       // Invalidate all directory contents caches since structure changed
       queryClient.invalidateQueries({ queryKey: ["repo", "dir"] });
+    }
+  });
+}
+
+// ============================================================================
+// Credentials Hooks
+// ============================================================================
+
+export function useCredentials() {
+  return useQuery<CredentialsListResponse, Error>({
+    queryKey: queryKeys.credentials,
+    queryFn: fetchCredentials
+  });
+}
+
+export function useSaveCredential() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: CredentialSaveRequest) => saveCredential(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
+    }
+  });
+}
+
+export function useDeleteCredential() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteCredential(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
+    }
+  });
+}
+
+export function useTestCredential() {
+  return useMutation({
+    mutationFn: (request: CredentialTestRequest) => testCredential(request)
+  });
+}
+
+export function useUpdateRemoteURL() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: RemoteURLUpdateRequest) => updateRemoteURL(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
+      queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
     }
   });
 }

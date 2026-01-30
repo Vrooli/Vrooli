@@ -105,6 +105,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/files/delete", s.handleDeletePath).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
+
+	// Credentials management endpoints
+	s.router.HandleFunc("/api/v1/credentials", s.handleListCredentials).Methods("GET")
+	s.router.HandleFunc("/api/v1/credentials", s.handleSaveCredential).Methods("POST")
+	s.router.HandleFunc("/api/v1/credentials/{id}", s.handleDeleteCredential).Methods("DELETE")
+	s.router.HandleFunc("/api/v1/credentials/test", s.handleTestCredential).Methods("POST")
+	s.router.HandleFunc("/api/v1/repo/remote/url", s.handleUpdateRemoteURL).Methods("POST")
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -741,6 +748,152 @@ func (s *Server) handleAuditQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp.OK(result)
+}
+
+// handleListCredentials handles GET /api/v1/credentials
+func (s *Server) handleListCredentials(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	result, err := ListCredentials(ctx, CredentialsDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	})
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(result)
+}
+
+// handleSaveCredential handles POST /api/v1/credentials
+func (s *Server) handleSaveCredential(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req CredentialSaveRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := SaveCredential(ctx, CredentialsDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handleDeleteCredential handles DELETE /api/v1/credentials/{id}
+func (s *Server) handleDeleteCredential(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+
+	vars := mux.Vars(r)
+	id := vars["id"]
+	if strings.TrimSpace(id) == "" {
+		resp.BadRequest("credential ID is required")
+		return
+	}
+
+	result, err := DeleteCredential(ctx, CredentialsDeps{}, CredentialDeleteRequest{ID: id})
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
+	resp.OK(result)
+}
+
+// handleTestCredential handles POST /api/v1/credentials/test
+func (s *Server) handleTestCredential(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req CredentialTestRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := TestCredential(ctx, CredentialsDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(result)
+}
+
+// handleUpdateRemoteURL handles POST /api/v1/repo/remote/url
+func (s *Server) handleUpdateRemoteURL(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	var req RemoteURLUpdateRequest
+	if !ParseJSONBody(w, r, &req) {
+		return
+	}
+
+	result, err := UpdateRemoteURL(ctx, CredentialsDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		resp.InternalError(err.Error())
+		return
+	}
+
+	if !result.Success {
+		resp.UnprocessableEntity(result)
+		return
+	}
 	resp.OK(result)
 }
 

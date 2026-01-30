@@ -37,7 +37,7 @@ describe("StatusHeader", () => {
         syncStatus={syncStatus}
         isLoading={false}
         onRefresh={() => {}}
-        onOpenLayoutSettings={() => {}}
+        onOpenSettings={() => {}}
       />
     );
 

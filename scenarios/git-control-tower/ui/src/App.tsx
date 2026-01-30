@@ -16,11 +16,8 @@ import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
-import {
-  LayoutSettingsModal,
-  type LayoutPreset,
-  type LayoutSection
-} from "./components/LayoutSettingsModal";
+import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { useIsMobile, useUrlState, parseUrlState } from "./hooks";
 import type { UrlState } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
@@ -116,7 +113,7 @@ export default function App() {
     const stored = Number(localStorage.getItem("gct.stackHeight"));
     return Number.isFinite(stored) && stored > 0 ? stored : 320;
   });
-  const [isLayoutSettingsOpen, setIsLayoutSettingsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // Mobile-specific state: which panel is currently active on mobile
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
@@ -2067,7 +2064,7 @@ export default function App() {
           branchActions={branchActions}
           isLoading={statusQuery.isLoading || healthQuery.isLoading}
           onRefresh={handleRefresh}
-          onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenGroupingSettings={() => setIsGroupingSettingsOpen(true)}
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
           onOpenFileSearch={() => setIsFileSearchOpen(true)}
@@ -2186,19 +2183,20 @@ export default function App() {
           onChangeRules={setGroupingRules}
           onClose={() => setIsGroupingSettingsOpen(false)}
         />
-        <LayoutSettingsModal
-          isOpen={isLayoutSettingsOpen}
+        <SettingsModal
+          isOpen={isSettingsOpen}
           repoDir={repoDir}
+          syncStatus={syncStatusQuery.data}
           preset={layoutPreset}
           primaryPanel={primaryPanel}
           onChangePreset={setLayoutPreset}
           onChangePrimary={setPrimaryPanel}
-          onReset={() => {
+          onResetLayout={() => {
             setLayoutPreset("classic");
             setPrimaryPanel("diff");
             setStackHeight(320);
           }}
-          onClose={() => setIsLayoutSettingsOpen(false)}
+          onClose={() => setIsSettingsOpen(false)}
         />
         <UpstreamInfoModal
           isOpen={isUpstreamInfoOpen}
@@ -2246,7 +2244,7 @@ export default function App() {
         branchActions={branchActions}
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
-        onOpenLayoutSettings={() => setIsLayoutSettingsOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
         viewingCommit={viewingCommit}
@@ -2394,19 +2392,20 @@ export default function App() {
         onChangeRules={setGroupingRules}
         onClose={() => setIsGroupingSettingsOpen(false)}
       />
-      <LayoutSettingsModal
-        isOpen={isLayoutSettingsOpen}
+      <SettingsModal
+        isOpen={isSettingsOpen}
         repoDir={repoDir}
+        syncStatus={syncStatusQuery.data}
         preset={layoutPreset}
         primaryPanel={primaryPanel}
         onChangePreset={setLayoutPreset}
         onChangePrimary={setPrimaryPanel}
-        onReset={() => {
+        onResetLayout={() => {
           setLayoutPreset("classic");
           setPrimaryPanel("diff");
           setStackHeight(320);
         }}
-        onClose={() => setIsLayoutSettingsOpen(false)}
+        onClose={() => setIsSettingsOpen(false)}
       />
       <UpstreamInfoModal
         isOpen={isUpstreamInfoOpen}

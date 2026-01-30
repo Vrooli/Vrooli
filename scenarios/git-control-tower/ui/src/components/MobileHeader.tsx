@@ -10,7 +10,6 @@ import {
   ArrowUp,
   ArrowDown,
   Settings,
-  LayoutGrid,
   History,
   Search,
   X
@@ -29,7 +28,7 @@ interface MobileHeaderProps {
   branchActions?: BranchActions;
   isLoading: boolean;
   onRefresh: () => void;
-  onOpenLayoutSettings: () => void;
+  onOpenSettings: () => void;
   onOpenGroupingSettings?: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
@@ -45,7 +44,7 @@ export function MobileHeader({
   branchActions,
   isLoading,
   onRefresh,
-  onOpenLayoutSettings,
+  onOpenSettings,
   onOpenGroupingSettings,
   onOpenUpstreamInfo,
   onOpenFileSearch,
@@ -272,12 +271,12 @@ export function MobileHeader({
 
           {/* Action buttons */}
           <BottomSheetAction
-            icon={<LayoutGrid className="h-5 w-5 text-slate-300" />}
-            label="Layout Settings"
-            description="Change panel arrangement"
+            icon={<Settings className="h-5 w-5 text-slate-300" />}
+            label="Settings"
+            description="Layout and credentials"
             onClick={() => {
               setMenuOpen(false);
-              onOpenLayoutSettings();
+              onOpenSettings();
             }}
           />
 

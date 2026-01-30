@@ -7,7 +7,7 @@ import {
   AlertCircle,
   Circle,
   RefreshCw,
-  LayoutGrid,
+  Settings,
   History,
   FileText,
   X,
@@ -26,7 +26,7 @@ interface StatusHeaderProps {
   branchActions?: BranchActions;
   isLoading: boolean;
   onRefresh: () => void;
-  onOpenLayoutSettings: () => void;
+  onOpenSettings: () => void;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   // History mode props
@@ -44,7 +44,7 @@ export function StatusHeader({
   branchActions,
   isLoading,
   onRefresh,
-  onOpenLayoutSettings,
+  onOpenSettings,
   onOpenUpstreamInfo,
   onOpenFileSearch,
   viewingCommit,
@@ -289,12 +289,12 @@ export function StatusHeader({
         </button>
 
         <button
-          onClick={onOpenLayoutSettings}
+          onClick={onOpenSettings}
           className="p-2 rounded-md hover:bg-slate-800 transition-colors"
-          data-testid="layout-settings-button"
-          aria-label="Open layout settings"
+          data-testid="settings-button"
+          aria-label="Open settings"
         >
-          <LayoutGrid className="h-4 w-4 text-slate-400" />
+          <Settings className="h-4 w-4 text-slate-400" />
         </button>
 
         {/* Refresh Button */}

@@ -769,6 +769,33 @@ func (f *FakeGitRunner) SetUpstream(ctx context.Context, repoDir string, branch 
 	return nil
 }
 
+// SetRemoteURL simulates updating a remote's URL.
+func (f *FakeGitRunner) SetRemoteURL(ctx context.Context, repoDir string, remote string, url string) error {
+	f.recordCall("SetRemoteURL", repoDir, remote, url)
+
+	if f.RemoteURLError != nil {
+		return f.RemoteURLError
+	}
+
+	f.RemoteURL = url
+	return nil
+}
+
+// LsRemote simulates listing references from a remote.
+func (f *FakeGitRunner) LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error {
+	f.recordCall("LsRemote", repoDir, remote)
+
+	if f.FetchError != nil {
+		return f.FetchError
+	}
+
+	if f.RemoteURL == "" {
+		return fmt.Errorf("fatal: No such remote '%s'", remote)
+	}
+
+	return nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.
