@@ -5,6 +5,30 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 
+// Node.js configuration files (eslint.config.js, server.js, scripts/, etc.)
+const nodeConfig = {
+  files: ["*.js", "*.mjs", "scripts/**/*.{js,mjs}"],
+  languageOptions: {
+    globals: {
+      // Node.js globals
+      AbortController: "readonly",
+      Buffer: "readonly",
+      clearInterval: "readonly",
+      clearTimeout: "readonly",
+      console: "readonly",
+      fetch: "readonly",
+      global: "readonly",
+      module: "readonly",
+      process: "readonly",
+      require: "readonly",
+      setInterval: "readonly",
+      setTimeout: "readonly",
+      __dirname: "readonly",
+      __filename: "readonly",
+    },
+  },
+};
+
 const baseTypeScriptConfig = {
   files: ["**/*.{ts,tsx}"],
   languageOptions: {
@@ -105,8 +129,9 @@ const testOverrides = {
 };
 
 export default [
-  { ignores: ["dist", "node_modules"] },
+  { ignores: ["dist", "node_modules", "tailwind.config.ts", "vite.config.ts", "vitest.config.ts"] },
   js.configs.recommended,
+  nodeConfig,
   baseTypeScriptConfig,
   testOverrides,
 ];

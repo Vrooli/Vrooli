@@ -18,7 +18,16 @@ func (s *StripeService) AddCredits(email string, amount int64, txnType, eventID 
 }
 
 // ConsumeCredits deducts credits from a user's wallet for a given reason.
+// For idempotent credit consumption (e.g., webhook handlers), use ConsumeCreditsIdempotent instead.
 func (s *StripeService) ConsumeCredits(ctx context.Context, email string, amount int64, reason string, metadata map[string]interface{}) error {
+	return s.ConsumeCreditsIdempotent(ctx, email, amount, reason, "", metadata)
+}
+
+// ConsumeCreditsIdempotent deducts credits from a user's wallet with optional idempotency protection.
+// If idempotencyKey is provided and a transaction with that key already exists, the operation
+// returns success without deducting credits again (idempotent behavior).
+// This should be used for webhook handlers to prevent double-deductions on retries.
+func (s *StripeService) ConsumeCreditsIdempotent(ctx context.Context, email string, amount int64, reason, idempotencyKey string, metadata map[string]interface{}) error {
 	if email == "" || amount <= 0 {
 		return errors.New("email and positive amount are required")
 	}
@@ -31,6 +40,25 @@ func (s *StripeService) ConsumeCredits(ctx context.Context, email string, amount
 		return fmt.Errorf("begin consume credits transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// If idempotency key is provided, check for existing transaction first
+	if idempotencyKey != "" {
+		var exists bool
+		err = tx.QueryRowContext(ctx, `
+			SELECT EXISTS(SELECT 1 FROM credit_transactions WHERE stripe_event_id = $1)
+		`, idempotencyKey).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("check idempotency key: %w", err)
+		}
+		if exists {
+			logStructured("credit_consumption_already_processed", map[string]interface{}{
+				"level":           "info",
+				"idempotency_key": idempotencyKey,
+				"customer_email":  email,
+			})
+			return nil
+		}
+	}
 
 	// Check current balance with row-level lock
 	var balance int64
@@ -49,10 +77,15 @@ func (s *StripeService) ConsumeCredits(ctx context.Context, email string, amount
 	}
 
 	// Record the consumption transaction (negative amount)
+	// Include idempotency key if provided to prevent duplicate processing
+	var eventIDParam interface{}
+	if idempotencyKey != "" {
+		eventIDParam = idempotencyKey
+	}
 	_, err = tx.ExecContext(ctx, `
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, metadata, created_at)
-		VALUES ($1, $2, $3, $4, NOW())
-	`, email, -amount, reason, string(metaBytes))
+		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+	`, email, -amount, reason, eventIDParam, string(metaBytes))
 	if err != nil {
 		return fmt.Errorf("insert consumption transaction: %w", err)
 	}
@@ -71,10 +104,11 @@ func (s *StripeService) ConsumeCredits(ctx context.Context, email string, amount
 	}
 
 	logStructured("credits_consumed", map[string]interface{}{
-		"level":          "info",
-		"customer_email": email,
-		"amount":         amount,
-		"reason":         reason,
+		"level":           "info",
+		"customer_email":  email,
+		"amount":          amount,
+		"reason":          reason,
+		"idempotency_key": idempotencyKey,
 	})
 
 	return nil
@@ -223,4 +257,3 @@ func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int6
 
 	return s.addCredits(customerEmail, credits, "credit_topup", stripeEventID, metadata)
 }
-

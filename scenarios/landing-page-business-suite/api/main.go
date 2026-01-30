@@ -1172,6 +1172,19 @@ func ensureSchema(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_intro_coupon_usage_email ON intro_coupon_usage(email);`,
+		// Intro anomaly log for fraud detection and admin review
+		`CREATE TABLE IF NOT EXISTS intro_anomaly_log (
+			id SERIAL PRIMARY KEY,
+			email VARCHAR(255) NOT NULL,
+			customer_id VARCHAR(255),
+			coupon_id VARCHAR(255),
+			anomaly_type VARCHAR(50) NOT NULL,
+			details JSONB DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP DEFAULT NOW()
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_email ON intro_anomaly_log(email);`,
+		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_type ON intro_anomaly_log(anomaly_type);`,
+		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_created ON intro_anomaly_log(created_at);`,
 	}
 
 	for _, stmt := range stmts {

@@ -316,7 +316,7 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	}
 
 	payload, _ := json.Marshal(event)
-	timestamp := "1234567890"
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	signedPayload := timestamp + "." + string(payload)
 	mac := hmac.New(sha256.New, []byte("whsec_test_secret"))
 	mac.Write([]byte(signedPayload))

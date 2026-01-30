@@ -45,6 +45,20 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
   LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+// Also mock the separate useLandingVariant hook file (AdminHome imports from here)
+vi.mock('../../../app/providers/useLandingVariant', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control Variant' },
+    config: null,
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: 'Serving weighted traffic',
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+}));
+
 const mockedListVariants = vi.mocked(listVariants);
 const mockedCheckAdminSession = vi.mocked(checkAdminSession);
 const mockedGetStripeSettings = vi.mocked(getStripeSettings);

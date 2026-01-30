@@ -79,6 +79,81 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => {
   };
 });
 
+// Also mock the separate useLandingVariant hook file (PublicLanding imports from here)
+vi.mock('../../../app/providers/useLandingVariant', () => {
+  const mockConfig = {
+    variant: { id: 1, slug: 'control', name: 'Control' },
+    branding: {
+      site_name: 'Acme Launchpad',
+      tagline: 'Automation that ships',
+      logo_url: 'https://cdn.example.com/logo.svg',
+      logo_icon_url: 'https://cdn.example.com/icon.png',
+    },
+    sections: [
+      {
+        id: 1,
+        section_type: 'hero',
+        order: 1,
+        enabled: true,
+        content: {
+          title: 'Test Hero',
+          subtitle: 'Subtitle',
+          cta_text: 'Start Trial',
+          cta_url: '/signup',
+        },
+      },
+    ],
+    downloads: [
+      {
+        bundle_key: 'bundle',
+        app_key: 'desktop',
+        name: 'Desktop Suite',
+        tagline: 'mac + windows',
+        description: '',
+        install_overview: '',
+        install_steps: [],
+        storefronts: [],
+        display_order: 0,
+        platforms: [
+          {
+            id: 1,
+            bundle_key: 'bundle',
+            app_key: 'desktop',
+            platform: 'mac',
+            artifact_url: 'https://example.com/app.dmg',
+            release_version: '1.0.0',
+            requires_entitlement: false,
+          },
+        ],
+      },
+    ],
+    fallback: false,
+    pricing: null,
+    header: {
+      branding: { mode: 'logo_and_name', label: 'Acme Launchpad', mobile_preference: 'auto' },
+      nav: { links: [] },
+      ctas: {
+        primary: { mode: 'inherit_hero', variant: 'solid' },
+        secondary: { mode: 'downloads', variant: 'ghost' },
+      },
+      behavior: { sticky: true, hide_on_scroll: false },
+    },
+  };
+
+  return {
+    useLandingVariant: () => ({
+      variant: { slug: 'control', name: 'Control' },
+      config: mockConfig,
+      loading: false,
+      error: null,
+      resolution: 'api_select',
+      statusNote: null,
+      lastUpdated: Date.now(),
+      refresh: vi.fn(),
+    }),
+  };
+});
+
 describe('PublicLanding header rails', () => {
   it('surfaces CTA and download anchors in the sticky header', () => {
     render(

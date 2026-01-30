@@ -40,6 +40,10 @@ func newMockStripeServer(t *testing.T) *httptest.Server {
 
 func signStripePayload(t *testing.T, payload []byte, timestamp string, secret string) string {
 	t.Helper()
+	// Use current timestamp if empty or zero (for timestamp validation compatibility)
+	if timestamp == "" || timestamp == "0" {
+		timestamp = fmt.Sprintf("%d", time.Now().Unix())
+	}
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(timestamp + "." + string(payload)))
 	return "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
@@ -49,6 +53,8 @@ func TestHandleCheckoutCreateValidation(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
+	resetStripeTestData(t, db)
+	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_validation", "production", 1000000, 0.001, "credits")
 	service := ConfigureStripeServiceSimple(t, db)
 	handler := handleCheckoutCreate(service)
 
@@ -118,7 +124,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 
 	handler := handleStripeWebhook(stripeService)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
-	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "1700000000", "whsec_handlers"))
+	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
 	handler.ServeHTTP(rec, req)
@@ -197,7 +203,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	payload, _ := json.Marshal(body)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
-	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "1700000001", "whsec_handlers"))
+	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
 	handleStripeWebhook(stripeService).ServeHTTP(rec, req)
@@ -254,7 +260,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	}
 	rawPaid, _ := json.Marshal(paidPayload)
 	reqPaid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawPaid))
-	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "1700000002", "whsec_handlers"))
+	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "", "whsec_handlers"))
 	recPaid := httptest.NewRecorder()
 	handleStripeWebhook(stripeService).ServeHTTP(recPaid, reqPaid)
 	if recPaid.Code != http.StatusOK {
@@ -285,7 +291,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	}
 	rawFailed, _ := json.Marshal(failedPayload)
 	reqFailed := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawFailed))
-	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "1700000003", "whsec_handlers"))
+	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "", "whsec_handlers"))
 	recFailed := httptest.NewRecorder()
 	handleStripeWebhook(stripeService).ServeHTTP(recFailed, reqFailed)
 	if recFailed.Code != http.StatusOK {
@@ -346,7 +352,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 		}
 		raw, _ := json.Marshal(body)
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(raw))
-		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, time.Now().Format("150405"), "whsec_handlers"))
+		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, "", "whsec_handlers"))
 		rec := httptest.NewRecorder()
 
 		handleStripeWebhook(stripeService).ServeHTTP(rec, req)

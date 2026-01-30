@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -161,18 +162,21 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_r
 		return nil, err
 	}
 
+	// Call Stripe FIRST - fail if this fails to prevent local DB update
+	// while Stripe continues to charge the customer
 	_, stripeErr := s.doStripeForm(context.Background(), http.MethodPost, "/v1/subscriptions/"+url.PathEscape(subscriptionID), url.Values{
 		"cancel_at_period_end": {"true"},
 	})
 	if stripeErr != nil {
-		logStructured("failed to cancel subscription on stripe", map[string]interface{}{
-			"level": "warn",
+		logStructuredError("failed_to_cancel_subscription_on_stripe", map[string]interface{}{
 			"id":    subscriptionID,
 			"user":  userIdentity,
 			"error": stripeErr.Error(),
 		})
+		return nil, fmt.Errorf("failed to cancel subscription with Stripe: %w", stripeErr)
 	}
 
+	// Only update local DB after Stripe confirms success
 	now := time.Now()
 	_, err = s.db.Exec(`
 		UPDATE subscriptions

@@ -34,6 +34,25 @@ vi.mock('../../../app/providers/LandingVariantProvider', () => ({
   LandingVariantProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+// Also mock the separate useLandingVariant hook file (used by RuntimeSignalStrip)
+vi.mock('../../../app/providers/useLandingVariant', () => ({
+  useLandingVariant: () => ({
+    variant: { slug: 'control', name: 'Control' },
+    config: { sections: [], downloads: [], fallback: false },
+    loading: false,
+    error: null,
+    resolution: 'api_select',
+    statusNote: null,
+    lastUpdated: Date.now(),
+    refresh: vi.fn(),
+  }),
+}));
+
+// Mock RuntimeSignalStrip to avoid context issues
+vi.mock('../components/RuntimeSignalStrip', () => ({
+  RuntimeSignalStrip: () => <div data-testid="runtime-signal-strip-mock">Runtime Signal Strip</div>,
+}));
+
 // Mock useParams
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');

@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { LandingVariantProvider } from './LandingVariantProvider';
-import { useLandingVariant } from './useLandingVariant';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 import type { ReactNode } from 'react';
 import { createFetchMock, installFetchMock, mockResponses } from '../../shared/test-utils/api-mocks';
+
+// Unmock the hook for this test file - we need to test the real implementation
+vi.unmock('./useLandingVariant');
+
+// Import after unmocking to get the real implementation
+import { useLandingVariant } from './useLandingVariant';
 
 const setLocationSearch = (search: string) => {
   const url = new URL(window.location.href);

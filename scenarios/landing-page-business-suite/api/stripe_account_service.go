@@ -39,13 +39,56 @@ func (s *StripeService) MigrateCustomerEmail(ctx context.Context, oldEmail, newE
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Update users table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE users SET email = $1, updated_at = NOW()
-		WHERE email = $2 OR stripe_customer_id = $3
-	`, normalizedNew, normalizedOld, customerID)
+	// Get the old email's has_used_intro flag and customer ID
+	var oldHasUsedIntro bool
+	var oldStripeCustomerID sql.NullString
+	err = tx.QueryRowContext(ctx, `
+		SELECT COALESCE(has_used_intro, FALSE), stripe_customer_id FROM users WHERE email = $1
+	`, normalizedOld).Scan(&oldHasUsedIntro, &oldStripeCustomerID)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("check old email intro status: %w", err)
+	}
+
+	// Check if a user with the new email already exists
+	var newEmailExists bool
+	err = tx.QueryRowContext(ctx, `
+		SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)
+	`, normalizedNew).Scan(&newEmailExists)
 	if err != nil {
-		return fmt.Errorf("migrate users table: %w", err)
+		return fmt.Errorf("check new email exists: %w", err)
+	}
+
+	if newEmailExists {
+		// New email user already exists - merge intro flags and delete old user
+		_, err = tx.ExecContext(ctx, `
+			UPDATE users SET
+				has_used_intro = COALESCE(has_used_intro, FALSE) OR $2,
+				stripe_customer_id = COALESCE(stripe_customer_id, $3),
+				updated_at = NOW()
+			WHERE email = $1
+		`, normalizedNew, oldHasUsedIntro, customerID)
+		if err != nil {
+			return fmt.Errorf("update new email user intro flag: %w", err)
+		}
+
+		// Delete the old email user to avoid duplicates
+		_, err = tx.ExecContext(ctx, `
+			DELETE FROM users WHERE email = $1
+		`, normalizedOld)
+		if err != nil {
+			return fmt.Errorf("delete old email user: %w", err)
+		}
+	} else {
+		// New email doesn't exist - update old email to new email
+		_, err = tx.ExecContext(ctx, `
+			UPDATE users SET
+				email = $1,
+				updated_at = NOW()
+			WHERE email = $2 OR stripe_customer_id = $3
+		`, normalizedNew, normalizedOld, customerID)
+		if err != nil {
+			return fmt.Errorf("migrate users table: %w", err)
+		}
 	}
 
 	// Update subscriptions table

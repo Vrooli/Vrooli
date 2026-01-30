@@ -9,11 +9,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	landing_page_react_vite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1"
 )
+
+// webhookTimestampTolerance defines the maximum age of webhook timestamps
+// to prevent replay attacks. Stripe recommends 5 minutes.
+const webhookTimestampTolerance = 5 * time.Minute
 
 // --- StripeWebhookService Interface Implementation ---
 // This file contains webhook signature verification and event handling.
@@ -45,6 +50,30 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 	}
 
 	if timestamp == "" || sig == "" {
+		return false
+	}
+
+	// Validate timestamp is within acceptable window to prevent replay attacks
+	timestampInt, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		logStructuredError("webhook_timestamp_invalid", map[string]interface{}{
+			"timestamp": timestamp,
+			"error":     err.Error(),
+		})
+		return false
+	}
+	eventTime := time.Unix(timestampInt, 0)
+	age := time.Since(eventTime)
+	if age < 0 {
+		age = -age // Handle future timestamps (clock skew)
+	}
+	if age > webhookTimestampTolerance {
+		logStructuredError("webhook_timestamp_out_of_range", map[string]interface{}{
+			"timestamp":    timestamp,
+			"event_time":   eventTime.Format(time.RFC3339),
+			"age_seconds":  age.Seconds(),
+			"tolerance_ms": webhookTimestampTolerance.Milliseconds(),
+		})
 		return false
 	}
 
@@ -488,6 +517,28 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 	if billingReason == "subscription_create" && customerEmail != "" {
 		couponID := s.extractIntroCouponFromInvoice(obj)
 		if couponID != "" {
+			// Payment-time eligibility re-check: verify user is still eligible
+			// This catches cases where eligibility changed between checkout and payment
+			eligible, eligErr := s.checkIntroEligibility(context.Background(), customerEmail)
+			if eligErr != nil {
+				logStructuredError("payment_time_eligibility_check_failed", map[string]interface{}{
+					"email":           customerEmail,
+					"customer_id":     customerID,
+					"coupon_id":       couponID,
+					"subscription_id": subscriptionID,
+					"error":           eligErr.Error(),
+				})
+				// Continue processing - eligibility check failure shouldn't block payment
+			} else if !eligible {
+				// User was ineligible at payment time but coupon was already applied
+				// Log anomaly for admin review
+				s.logIntroAnomaly(customerEmail, customerID, couponID, "ineligible_at_payment", map[string]interface{}{
+					"subscription_id": subscriptionID,
+					"price_id":        priceID,
+					"billing_reason":  billingReason,
+				})
+			}
+
 			// Determine plan tier from price
 			planTier := ""
 			if priceID != "" {
