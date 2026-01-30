@@ -132,6 +132,95 @@ interface FormStore {
 }
 ```
 
+#### **Store Safety Patterns: Rate Limiting**
+
+Stores that trigger **external side effects** (API calls, resource creation, file operations) should include rate limiting protection. This prevents runaway operations from bugs like infinite React effect loops.
+
+**When to add rate limiting:**
+
+| Store Type | Needs Rate Limiting? | Why |
+|------------|---------------------|-----|
+| Pipeline/Job stores | **YES** | Creates server resources, expensive operations |
+| API mutation stores | **YES** | Network calls, server load |
+| Auth stores | **YES** | Prevents brute-force, protects credentials |
+| File operation stores | **YES** | Disk I/O, potential data corruption |
+| UI state stores | No | Cheap local state, rapid updates expected |
+| Form input stores | No | User typing requires immediate response |
+| Cache/query stores | No | Read operations, already debounced |
+
+**Rate Limiting Pattern:**
+
+```typescript
+export const useApiStore = create<ApiStore>((set, get) => {
+  // Rate limiting state (module-level, not in store state)
+  const RATE_LIMIT_WINDOW_MS = 5000;      // Time window for counting
+  const RATE_LIMIT_MAX_CALLS = 3;          // Max calls allowed in window
+  const RATE_LIMIT_INITIAL_COOLDOWN = 1000; // Initial cooldown (ms)
+  const RATE_LIMIT_MAX_COOLDOWN = 30000;    // Max cooldown (30s)
+  const RATE_LIMIT_RESET_AFTER = 60000;     // Reset backoff after quiet period
+
+  let callTimestamps: number[] = [];
+  let currentCooldown = RATE_LIMIT_INITIAL_COOLDOWN;
+  let cooldownUntil = 0;
+  let lastCallTime = 0;
+
+  const checkRateLimit = (): string | null => {
+    const now = Date.now();
+
+    // Reset backoff after quiet period
+    if (lastCallTime > 0 && now - lastCallTime > RATE_LIMIT_RESET_AFTER) {
+      currentCooldown = RATE_LIMIT_INITIAL_COOLDOWN;
+      callTimestamps = [];
+    }
+
+    // Check if in cooldown
+    if (now < cooldownUntil) {
+      const remaining = Math.ceil((cooldownUntil - now) / 1000);
+      console.warn(`[Store] Rate limited: ${remaining}s remaining`);
+      return `Rate limited: please wait ${remaining} seconds`;
+    }
+
+    // Clean old timestamps and check limit
+    callTimestamps = callTimestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
+    if (callTimestamps.length >= RATE_LIMIT_MAX_CALLS) {
+      cooldownUntil = now + currentCooldown;
+      console.error(`[Store] RATE LIMIT: ${callTimestamps.length} calls in ${RATE_LIMIT_WINDOW_MS/1000}s`);
+      currentCooldown = Math.min(currentCooldown * 2, RATE_LIMIT_MAX_COOLDOWN);
+      return `Rate limited: too many requests`;
+    }
+    return null;
+  };
+
+  const recordCall = () => {
+    callTimestamps.push(Date.now());
+    lastCallTime = Date.now();
+  };
+
+  return {
+    // ... state ...
+
+    createResource: async (config) => {
+      // Check rate limit BEFORE any side effects
+      const rateLimitError = checkRateLimit();
+      if (rateLimitError) throw new Error(rateLimitError);
+
+      // ... validation, submission guards ...
+
+      const result = await api.create(config);
+      recordCall(); // Record AFTER successful creation
+      return result;
+    },
+  };
+});
+```
+
+**Key principles:**
+- Check rate limit **before** any external calls
+- Record **after** successful operations (don't count failures)
+- Use exponential backoff to progressively slow down runaway loops
+- Log warnings to help developers identify the bug
+- Reset after a quiet period so normal usage isn't affected
+
 ---
 
 ### **2. Sharing Decision Tree**

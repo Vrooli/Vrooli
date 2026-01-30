@@ -118,12 +118,9 @@ export const DeploymentManagerBundleHelper = forwardRef<DeploymentManagerBundleH
       }
     }, [bundleResult, onBundleManifestChange, onBundleExported, onBundleComplete]);
 
-    // Reset notification flag when starting a new bundle
-    useEffect(() => {
-      if (runStatus === "starting" || runStatus === "running") {
-        hasNotifiedRef.current = false;
-      }
-    }, [runStatus]);
+    // NOTE: hasNotifiedRef is reset in handleExport() when user manually starts a new bundle.
+    // We intentionally do NOT reset it based on runStatus changes, as that would cause
+    // an infinite loop when bundle completion triggers preflight (which changes runStatus).
 
     useImperativeHandle(ref, () => ({
       exportBundle: handleExport,

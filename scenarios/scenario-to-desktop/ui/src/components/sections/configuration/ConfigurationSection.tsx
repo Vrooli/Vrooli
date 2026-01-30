@@ -6,14 +6,23 @@
 
 import { forwardRef } from "react";
 import { SectionCard } from "../shared";
-import { GeneratorForm } from "../../generator/GeneratorForm";
+import { GeneratorForm, type ValidationState } from "../../generator/GeneratorForm";
+import type { BundleResult, DeploymentManagerBundleHelperHandle } from "../../runtime/DeploymentManagerBundleHelper";
 
 /** Exposed form state for sharing with other sections */
 export interface ExposedFormState {
   bundleManifestPath: string;
   isBundled: boolean;
   bundleManifest?: unknown;
+  // Bundle-related handlers for BundleSection
+  onBundleManifestChange: (path: string) => void;
+  onBundleExported: (manifestPath: string) => void;
+  onBundleComplete: (result: BundleResult) => void;
+  initialBundleResult: BundleResult | null;
+  bundleHelperRef: React.RefObject<DeploymentManagerBundleHelperHandle>;
 }
+
+export type { ValidationState };
 
 interface ConfigurationSectionProps {
   /** Currently selected template */
@@ -38,6 +47,10 @@ interface ConfigurationSectionProps {
   onGenerateStateChange?: (state: { pending: boolean; error: string | null }) => void;
   /** Callback when form state changes that other sections need */
   onFormStateChange?: (state: ExposedFormState) => void;
+  /** Callback when submit handler is ready - allows parent to trigger form submission */
+  onSubmitHandlerReady?: (submitFn: () => void) => void;
+  /** Callback when validation state changes - used by GenerateSection for submit button */
+  onValidationStateChange?: (state: ValidationState) => void;
 }
 
 export const ConfigurationSection = forwardRef<HTMLDivElement, ConfigurationSectionProps>(
@@ -54,6 +67,8 @@ export const ConfigurationSection = forwardRef<HTMLDivElement, ConfigurationSect
       showSubmit = true,
       onGenerateStateChange,
       onFormStateChange,
+      onSubmitHandlerReady,
+      onValidationStateChange,
     },
     ref
   ) => {
@@ -78,6 +93,8 @@ export const ConfigurationSection = forwardRef<HTMLDivElement, ConfigurationSect
           showSubmit={showSubmit}
           onGenerateStateChange={onGenerateStateChange}
           onFormStateChange={onFormStateChange}
+          onSubmitHandlerReady={onSubmitHandlerReady}
+          onValidationStateChange={onValidationStateChange}
         />
       </SectionCard>
     );

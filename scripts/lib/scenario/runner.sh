@@ -277,7 +277,10 @@ scenario::run() {
 
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
-    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
+    # IMPORTANT: Redirect stdin from /dev/null to prevent lifecycle commands from
+    # consuming stdin that belongs to the parent's process substitution loop
+    # (e.g., the dependency iteration loop in dependencies.sh)
+    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" < /dev/null 2>&1 | tee -a "$lifecycle_log"
     local run_exit="${PIPESTATUS[0]}"
 
     # Clean up custom path export

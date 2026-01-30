@@ -1,8 +1,9 @@
 /**
  * Bundle section - displays bundle stage status and results from the pipeline store.
+ * Also includes the BundledRuntimeSection for configuring bundle manifests when in bundled mode.
  */
 
-import { forwardRef } from "react";
+import { forwardRef, type Ref } from "react";
 import { Package, FileJson, FolderOpen, HardDrive } from "lucide-react";
 import {
   SectionCard,
@@ -15,13 +16,42 @@ import {
   StageWarning,
 } from "../shared";
 import { usePipelineStore, selectStageStatus } from "../../../store";
+import { BundledRuntimeSection } from "../../runtime";
+import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../../runtime/DeploymentManagerBundleHelper";
+import type { PipelineConfig } from "../../../lib/api";
 
 interface BundleSectionProps {
   scenarioName: string;
+  /** Whether the app is configured for bundled runtime mode */
+  isBundled?: boolean;
+  /** Current bundle manifest path */
+  bundleManifestPath?: string;
+  /** Callback when bundle manifest path changes */
+  onBundleManifestChange?: (path: string) => void;
+  /** Callback when bundle is exported (triggers preflight) */
+  onBundleExported?: (manifestPath: string, config?: Partial<PipelineConfig>) => void;
+  /** Callback when bundle export completes successfully */
+  onBundleComplete?: (result: BundleResult) => void;
+  /** Initial bundle result for restoration from server persistence */
+  initialBundleResult?: BundleResult | null;
+  /** Ref to bundle helper for imperative control */
+  bundleHelperRef?: Ref<DeploymentManagerBundleHelperHandle>;
 }
 
 export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
-  ({ scenarioName }, ref) => {
+  (
+    {
+      scenarioName,
+      isBundled = false,
+      bundleManifestPath = "",
+      onBundleManifestChange,
+      onBundleExported,
+      onBundleComplete,
+      initialBundleResult,
+      bundleHelperRef,
+    },
+    ref
+  ) => {
     const bundleResult = usePipelineStore((s) => s.bundleResult);
     const stageStatus = usePipelineStore(selectStageStatus("bundle"));
 
@@ -47,6 +77,19 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         <StageAbout title="About bundling">
           <p>The bundle stage collects scenario assets, runtime binaries, and dependencies into a portable package.</p>
         </StageAbout>
+
+        {/* Bundle manifest configuration - only shown when in bundled mode */}
+        {isBundled && onBundleManifestChange && (
+          <BundledRuntimeSection
+            bundleManifestPath={bundleManifestPath}
+            onBundleManifestChange={onBundleManifestChange}
+            scenarioName={scenarioName}
+            bundleHelperRef={bundleHelperRef ?? null}
+            onBundleExported={onBundleExported}
+            onBundleComplete={onBundleComplete}
+            initialBundleResult={initialBundleResult}
+          />
+        )}
 
         <StageStatusOverview
           icon={Package}
@@ -81,7 +124,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
           </div>
         )}
 
-        {!hasResult && stageStatus === "pending" && (
+        {!hasResult && stageStatus === "pending" && !isBundled && (
           <StagePlaceholder
             scenarioName={scenarioName}
             withScenarioText="Bundle stage will run when you generate the desktop application."

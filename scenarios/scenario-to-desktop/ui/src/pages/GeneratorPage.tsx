@@ -14,6 +14,7 @@ import {
   SmokeTestSection,
   DistributionSection,
   type ExposedFormState,
+  type ValidationState,
 } from "../components/sections";
 import { useSidebarStore, type SectionId } from "../store/sidebarStore";
 // NOTE: Pipeline scenario is set by App.tsx - no need to set it here
@@ -49,14 +50,23 @@ export function GeneratorPage({
 }: GeneratorPageProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
   const [wrapperReady, setWrapperReady] = useState(false);
-  // State shared between ConfigurationSection and PreflightSection
-  const [formState, setFormState] = useState<ExposedFormState>({
-    bundleManifestPath: "",
-    isBundled: true,
-    bundleManifest: undefined,
-  });
+
+  // State shared between ConfigurationSection and PreflightSection/BundleSection
+  const [formState, setFormState] = useState<ExposedFormState | null>(null);
   const handleFormStateChange = useCallback((state: ExposedFormState) => {
     setFormState(state);
+  }, []);
+
+  // Submit handler exposed from GeneratorForm for use in GenerateSection
+  const [submitHandler, setSubmitHandler] = useState<(() => void) | null>(null);
+  const handleSubmitHandlerReady = useCallback((fn: () => void) => {
+    setSubmitHandler(() => fn);
+  }, []);
+
+  // Validation state for the submit button in GenerateSection
+  const [validationState, setValidationState] = useState<ValidationState | null>(null);
+  const handleValidationStateChange = useCallback((state: ValidationState) => {
+    setValidationState(state);
   }, []);
 
   // Create refs for each section - memoize the object to prevent re-creation
@@ -138,24 +148,46 @@ export function GeneratorPage({
           selectionSource={selectionSource}
           onOpenSigningTab={onOpenSigningTab}
           formId="generator-form"
-          showSubmit={true}
+          showSubmit={false}
           onFormStateChange={handleFormStateChange}
+          onSubmitHandlerReady={handleSubmitHandlerReady}
+          onValidationStateChange={handleValidationStateChange}
         />
 
         {/* Section 1: Bundle */}
-        <BundleSection ref={sectionRefs.bundle} scenarioName={scenarioName} />
+        <BundleSection
+          ref={sectionRefs.bundle}
+          scenarioName={scenarioName}
+          isBundled={formState?.isBundled ?? false}
+          bundleManifestPath={formState?.bundleManifestPath ?? ""}
+          onBundleManifestChange={formState?.onBundleManifestChange}
+          onBundleExported={formState?.onBundleExported}
+          onBundleComplete={formState?.onBundleComplete}
+          initialBundleResult={formState?.initialBundleResult ?? null}
+          bundleHelperRef={formState?.bundleHelperRef}
+        />
 
         {/* Section 2: Preflight */}
         <PreflightSection
           ref={sectionRefs.preflight}
           scenarioName={scenarioName}
-          bundleManifestPath={formState.bundleManifestPath}
-          bundleManifest={formState.bundleManifest}
-          isBundled={formState.isBundled}
+          bundleManifestPath={formState?.bundleManifestPath ?? ""}
+          bundleManifest={formState?.bundleManifest}
+          isBundled={formState?.isBundled ?? false}
         />
 
-        {/* Section 3: Generate */}
-        <GenerateSection ref={sectionRefs.generate} scenarioName={scenarioName} />
+        {/* Section 3: Generate - contains the submit button */}
+        <GenerateSection
+          ref={sectionRefs.generate}
+          scenarioName={scenarioName}
+          onSubmit={submitHandler ?? undefined}
+          validationErrors={validationState?.errors ?? []}
+          onDismissErrors={validationState?.clearErrors}
+          isPending={validationState?.isPending ?? false}
+          isError={validationState?.isError ?? false}
+          errorMessage={validationState?.errorMessage ?? null}
+          isUpdateMode={validationState?.isUpdateMode ?? false}
+        />
 
         {/* Section 4: Build */}
         <BuildSection

@@ -3,4 +3,4 @@
  */
 
 export { ConfigurationSection } from "./ConfigurationSection";
-export type { ExposedFormState } from "./ConfigurationSection";
+export type { ExposedFormState, ValidationState } from "./ConfigurationSection";

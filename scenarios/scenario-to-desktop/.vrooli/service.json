@@ -209,6 +209,14 @@
         "purpose": "Cache compiled applications and build artifacts",
         "description": "Fallback: Local filesystem caching"
       }
+    },
+    "scenarios": {
+      "deployment-manager": {
+        "required": true,
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "purpose": "Bundle manifest generation for bundled runtime mode"
+      }
     }
   },
   "$schema": "../../../.vrooli/schemas/service.schema.json"

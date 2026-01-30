@@ -1,24 +1,16 @@
 /**
  * Connection section router for GeneratorForm.
- * Switches between Bundled, External (Remote), and Embedded server sections.
+ * Switches between External (Remote) and Embedded server sections.
+ * Note: BundledRuntimeSection is now rendered in BundleSection.
  */
 
-import type { Ref } from "react";
-import type { PipelineConfig, ProbeResponse, ProxyHintsResponse } from "../../lib/api";
+import type { ProbeResponse, ProxyHintsResponse } from "../../lib/api";
 import type { ConnectionDecision } from "../../domain/deployment";
-import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
-import { BundledRuntimeSection, ExternalServerSection, EmbeddedServerSection } from "../runtime";
+import { ExternalServerSection, EmbeddedServerSection } from "../runtime";
 
 export interface ConnectionSectionRouterProps {
   connectionDecision: ConnectionDecision;
-  // Bundled runtime props
-  bundleManifestPath: string;
-  onBundleManifestChange: (path: string) => void;
   scenarioName: string;
-  bundleHelperRef: Ref<DeploymentManagerBundleHelperHandle>;
-  onBundleExported: (manifestPath: string, config?: Partial<PipelineConfig>) => void;
-  onBundleComplete: (result: BundleResult) => void;
-  initialBundleResult: BundleResult | null;
   // External server props
   proxyUrl: string;
   onProxyUrlChange: (url: string) => void;
@@ -44,15 +36,9 @@ export interface ConnectionSectionRouterProps {
 
 export function ConnectionSectionRouter({
   connectionDecision,
-  bundleManifestPath,
-  onBundleManifestChange,
-  scenarioName,
-  bundleHelperRef,
-  onBundleExported,
-  onBundleComplete,
-  initialBundleResult,
   proxyUrl,
   onProxyUrlChange,
+  scenarioName,
   proxyHints,
   connectionTester,
   connectionResult,
@@ -68,18 +54,9 @@ export function ConnectionSectionRouter({
   localApiEndpoint,
   onLocalApiEndpointChange,
 }: ConnectionSectionRouterProps) {
+  // BundledRuntimeSection is now in BundleSection - render nothing for bundled mode
   if (connectionDecision.kind === "bundled-runtime") {
-    return (
-      <BundledRuntimeSection
-        bundleManifestPath={bundleManifestPath}
-        onBundleManifestChange={onBundleManifestChange}
-        scenarioName={scenarioName}
-        bundleHelperRef={bundleHelperRef}
-        onBundleExported={onBundleExported}
-        onBundleComplete={onBundleComplete}
-        initialBundleResult={initialBundleResult}
-      />
-    );
+    return null;
   }
 
   if (connectionDecision.kind === "remote-server") {

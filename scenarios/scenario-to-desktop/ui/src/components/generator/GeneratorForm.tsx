@@ -57,6 +57,22 @@ interface ExposedFormState {
   bundleManifestPath: string;
   isBundled: boolean;
   bundleManifest?: unknown;
+  // Bundle-related handlers for BundleSection
+  onBundleManifestChange: (path: string) => void;
+  onBundleExported: (manifestPath: string) => void;
+  onBundleComplete: (result: import("../runtime/DeploymentManagerBundleHelper").BundleResult) => void;
+  initialBundleResult: import("../runtime/DeploymentManagerBundleHelper").BundleResult | null;
+  bundleHelperRef: React.RefObject<import("../runtime/DeploymentManagerBundleHelper").DeploymentManagerBundleHelperHandle>;
+}
+
+/** Validation state exposed to parent for the submit button in GenerateSection */
+export interface ValidationState {
+  errors: import("../../domain/generator").ValidationError[];
+  clearErrors: () => void;
+  isPending: boolean;
+  isError: boolean;
+  errorMessage: string | null;
+  isUpdateMode: boolean;
 }
 
 interface GeneratorFormProps {
@@ -72,6 +88,10 @@ interface GeneratorFormProps {
   onGenerateStateChange?: (state: { pending: boolean; error: string | null }) => void;
   /** Callback when form state changes that other sections need */
   onFormStateChange?: (state: ExposedFormState) => void;
+  /** Callback when submit handler is ready - allows parent to trigger form submission */
+  onSubmitHandlerReady?: (submitFn: () => void) => void;
+  /** Callback when validation state changes - used by GenerateSection for submit button */
+  onValidationStateChange?: (state: ValidationState) => void;
 }
 
 export function GeneratorForm({
@@ -85,7 +105,9 @@ export function GeneratorForm({
   formId,
   showSubmit = true,
   onGenerateStateChange,
-  onFormStateChange
+  onFormStateChange,
+  onSubmitHandlerReady,
+  onValidationStateChange,
 }: GeneratorFormProps) {
   const { modals, openModal, closeModal } = useGeneratorModals();
 
@@ -439,6 +461,14 @@ export function GeneratorForm({
     [scenarioName, hasInitiallyLoaded, saveStageResult]
   );
 
+  // Handler for when bundle is exported - triggers preflight
+  const handleBundleExported = useCallback(
+    (manifestPath: string) => {
+      runPreflight(undefined, { bundle_manifest_path: manifestPath });
+    },
+    [runPreflight]
+  );
+
   // Bundle result for restoration - use seed loaded from form_state.bundle_result
   // This mirrors how preflight uses preflightResultSeed from form_state.preflight_result
   const initialBundleResult = bundleResultSeed;
@@ -568,7 +598,7 @@ export function GeneratorForm({
     enabled: Boolean(bundleManifestPath.trim())
   });
 
-  // Notify parent of form state changes needed by other sections (e.g., PreflightSection)
+  // Notify parent of form state changes needed by other sections (e.g., PreflightSection, BundleSection)
   useEffect(() => {
     if (!onFormStateChange) {
       return;
@@ -577,8 +607,23 @@ export function GeneratorForm({
       bundleManifestPath,
       isBundled,
       bundleManifest: bundleManifestResp?.manifest,
+      onBundleManifestChange: setBundleManifestPath,
+      onBundleExported: handleBundleExported,
+      onBundleComplete: handleBundleComplete,
+      initialBundleResult,
+      bundleHelperRef,
     });
-  }, [bundleManifestPath, isBundled, bundleManifestResp?.manifest, onFormStateChange]);
+  }, [
+    bundleManifestPath,
+    isBundled,
+    bundleManifestResp?.manifest,
+    onFormStateChange,
+    setBundleManifestPath,
+    handleBundleExported,
+    handleBundleComplete,
+    initialBundleResult,
+    bundleHelperRef,
+  ]);
 
   const applySavedConnection = (config?: DesktopConnectionConfig | null) => {
     if (!config) return;
@@ -707,10 +752,6 @@ export function GeneratorForm({
     }
   };
 
-  const handleBundleExported = (manifestPath: string) => {
-    runPreflight(undefined, { bundle_manifest_path: manifestPath });
-  };
-
   const connectionTester = {
     isPending: connectionMutation.isPending,
     mutate: () => connectionMutation.mutate(),
@@ -731,6 +772,49 @@ export function GeneratorForm({
     clearDraft();
     resetFormState(true);
   };
+
+  // Use a ref to store the latest handleSubmit to avoid stale closures
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  // Create a stable submit function for external triggering
+  const triggerSubmit = useCallback(() => {
+    const syntheticEvent = {
+      preventDefault: () => {},
+    } as React.FormEvent;
+    handleSubmitRef.current(syntheticEvent);
+  }, []);
+
+  // Expose submit handler to parent when requested
+  useEffect(() => {
+    if (!onSubmitHandlerReady) {
+      return;
+    }
+    onSubmitHandlerReady(triggerSubmit);
+  }, [onSubmitHandlerReady, triggerSubmit]);
+
+  // Expose validation state to parent when requested
+  useEffect(() => {
+    if (!onValidationStateChange) {
+      return;
+    }
+    onValidationStateChange({
+      errors: validationErrors,
+      clearErrors: clearValidationErrors,
+      isPending: generateMutation.isPending,
+      isError: generateMutation.isError,
+      errorMessage: generateErrorMessage,
+      isUpdateMode,
+    });
+  }, [
+    onValidationStateChange,
+    validationErrors,
+    clearValidationErrors,
+    generateMutation.isPending,
+    generateMutation.isError,
+    generateErrorMessage,
+    isUpdateMode,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -804,13 +888,7 @@ export function GeneratorForm({
 
           <ConnectionSectionRouter
             connectionDecision={connectionDecision}
-            bundleManifestPath={bundleManifestPath}
-            onBundleManifestChange={setBundleManifestPath}
             scenarioName={scenarioName}
-            bundleHelperRef={bundleHelperRef}
-            onBundleExported={handleBundleExported}
-            onBundleComplete={handleBundleComplete}
-            initialBundleResult={initialBundleResult}
             proxyUrl={proxyUrl}
             onProxyUrlChange={setProxyUrl}
             proxyHints={proxyHints}
