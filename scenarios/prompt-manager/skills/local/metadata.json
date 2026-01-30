@@ -28,6 +28,26 @@
       "draft": false,
       "createdAt": "2026-01-30T13:13:00-05:00",
       "updatedAt": "2026-01-30T14:28:48-05:00"
+    },
+    {
+      "id": "interoperability-steer",
+      "file": "interoperability-steer.md",
+      "name": "Interoperability Steer",
+      "description": "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries",
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "proto",
+        "types",
+        "validation",
+        "contracts"
+      ],
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T15:30:00-05:00",
+      "updatedAt": "2026-01-30T15:54:19-05:00"
     }
   ]
 }
