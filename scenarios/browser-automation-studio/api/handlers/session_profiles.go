@@ -32,9 +32,27 @@ func toSessionProfileResponse(p *archiveingestion.SessionProfile) sessionProfile
 		CreatedAt:       p.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       p.UpdatedAt.Format(time.RFC3339),
 		LastUsedAt:      p.LastUsedAt.Format(time.RFC3339),
-		HasStorageState: len(p.StorageState) > 0,
+		HasStorageState: hasActualStorage(p.StorageState),
 		BrowserProfile:  p.BrowserProfile,
 	}
+}
+
+// hasActualStorage checks if the storage state contains any cookies or localStorage items.
+// This handles the case where storage was cleared (resulting in `{"cookies":[],"origins":[]}`)
+// which has bytes but no actual storage content.
+func hasActualStorage(storageState []byte) bool {
+	if len(storageState) == 0 {
+		return false
+	}
+	var state struct {
+		Cookies []json.RawMessage `json:"cookies"`
+		Origins []json.RawMessage `json:"origins"`
+	}
+	if err := json.Unmarshal(storageState, &state); err != nil {
+		// If we can't parse it, assume it has content (conservative approach)
+		return true
+	}
+	return len(state.Cookies) > 0 || len(state.Origins) > 0
 }
 
 // ListRecordingSessionProfiles returns all persisted session profiles.
@@ -632,10 +650,10 @@ func (h *Handler) modifyStorageState(w http.ResponseWriter, r *http.Request, mod
 
 // serviceWorkerResponse is the API response for service worker endpoints.
 type serviceWorkerResponse struct {
-	SessionID string                    `json:"session_id"`
-	Workers   []serviceWorkerInfo       `json:"workers"`
-	Control   serviceWorkerControl      `json:"control"`
-	Message   string                    `json:"message,omitempty"`
+	SessionID string               `json:"session_id"`
+	Workers   []serviceWorkerInfo  `json:"workers"`
+	Control   serviceWorkerControl `json:"control"`
+	Message   string               `json:"message,omitempty"`
 }
 
 // serviceWorkerInfo represents a registered service worker.
@@ -649,9 +667,9 @@ type serviceWorkerInfo struct {
 
 // serviceWorkerControl represents the service worker control settings.
 type serviceWorkerControl struct {
-	Mode            string                          `json:"mode"`
-	DomainOverrides []serviceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
-	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
+	Mode            string                        `json:"mode"`
+	DomainOverrides []serviceWorkerDomainOverride `json:"domainOverrides,omitempty"`
+	BlockedDomains  []string                      `json:"blockedDomains,omitempty"`
 }
 
 // serviceWorkerDomainOverride represents per-domain service worker control.

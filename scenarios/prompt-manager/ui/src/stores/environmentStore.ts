@@ -14,6 +14,7 @@ import type {
   THEME_ENVIRONMENTS,
 } from '@/types/environment'
 import { timeValueToTimeOfDay, timeOfDayToTimeValue } from '@/types/environment'
+import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
 
 interface EnvironmentState {
   /** Current environment configuration */
@@ -67,6 +68,8 @@ interface EnvironmentActions {
   setSyncWithTheme: (sync: boolean) => void
   /** Update lighting preset */
   updateLighting: (lighting: Partial<LightingPreset>) => void
+  /** Set scene type directly */
+  setSceneType: (type: EnvironmentConfig['type']) => void
   /** Reset to defaults */
   reset: () => void
 }
@@ -237,6 +240,20 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         })
       },
 
+      setSceneType: (type) => {
+        const state = get()
+        const timeOfDay = timeValueToTimeOfDay(state.timeValue)
+        const newEnv = createEnvironmentConfig(
+          `${type}-${timeOfDay}`,
+          `${type} ${timeOfDay}`,
+          { sceneType: type, timeOfDay }
+        )
+        set({ current: newEnv })
+        if (!state.syncWithTheme) {
+          set({ dreiPreset: TIME_TO_DREI_PRESET[timeOfDay] })
+        }
+      },
+
       reset: () => set(initialState),
     }),
     {
@@ -247,7 +264,23 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         timeValue: state.timeValue,
         realTimeMode: state.realTimeMode,
         syncWithTheme: state.syncWithTheme,
+        sceneType: state.current.type,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Restore scene type from persisted state on hydration
+        if (state) {
+          const persisted = state as EnvironmentStore & { sceneType?: string }
+          if (persisted.sceneType && persisted.sceneType !== state.current.type) {
+            const timeOfDay = timeValueToTimeOfDay(state.timeValue)
+            const newEnv = createEnvironmentConfig(
+              `${persisted.sceneType}-${timeOfDay}`,
+              `${persisted.sceneType} ${timeOfDay}`,
+              { sceneType: persisted.sceneType as EnvironmentConfig['type'], timeOfDay }
+            )
+            state.current = newEnv
+          }
+        }
+      },
     }
   )
 )

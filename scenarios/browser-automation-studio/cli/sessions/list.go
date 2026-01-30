@@ -3,6 +3,7 @@ package sessions
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"browser-automation-studio/cli/internal/appctx"
 
@@ -47,16 +48,31 @@ func runList(ctx *appctx.Context, args []string) error {
 		if profile.HasStorageState {
 			storageStatus = " [has storage]"
 		}
-		lastUsed := ""
-		if profile.LastUsedAt != "" && !strings.HasPrefix(profile.LastUsedAt, "0001-") {
-			// Parse and format date portion only
-			parts := strings.Split(profile.LastUsedAt, "T")
-			if len(parts) > 0 && parts[0] != "" {
-				lastUsed = fmt.Sprintf(" (last used: %s)", parts[0])
-			}
-		}
+		lastUsed := formatListLastUsed(profile.CreatedAt, profile.LastUsedAt)
 		fmt.Printf("  %s - %s%s%s\n", profile.ID[:8], name, storageStatus, lastUsed)
 	}
 
 	return nil
+}
+
+// formatListLastUsed returns "(last used: date)" if actually used, empty string otherwise.
+func formatListLastUsed(createdAt, lastUsedAt string) string {
+	if lastUsedAt == "" || strings.HasPrefix(lastUsedAt, "0001-") {
+		return ""
+	}
+	// If last used is within 1 second of created, consider it "never used"
+	created, err1 := time.Parse(time.RFC3339, createdAt)
+	lastUsed, err2 := time.Parse(time.RFC3339, lastUsedAt)
+	if err1 == nil && err2 == nil {
+		diff := lastUsed.Sub(created)
+		if diff < time.Second && diff > -time.Second {
+			return "" // Never actually used
+		}
+	}
+	// Format date portion only
+	parts := strings.Split(lastUsedAt, "T")
+	if len(parts) > 0 && parts[0] != "" {
+		return fmt.Sprintf(" (last used: %s)", parts[0])
+	}
+	return ""
 }

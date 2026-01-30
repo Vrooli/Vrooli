@@ -1,57 +1,50 @@
 /**
  * WorldControls - UI overlay for world controls.
- * Includes camera mode toggle, help button, and environment controls.
+ * Includes settings button (opening WorldSettingsPopup) and help button.
  */
 
-import { useState } from 'react'
-import { Camera, HelpCircle, Eye, Map, User } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Settings, HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CameraMode } from '@/stores/cameraStore'
 import { HelpModal } from './HelpModal'
-import { EnvironmentControls } from './EnvironmentControls'
+import { WorldSettingsPopup } from './WorldSettingsPopup'
 import { selectors } from '@/constants/selectors'
 
 interface WorldControlsProps {
-  cameraMode: CameraMode
-  onCycleCameraMode: () => void
   nodeCount: number
   selectionCount: number
   memberCount: number
-}
-
-const CAMERA_MODE_ICONS: Record<CameraMode, React.ReactNode> = {
-  'zoomed-member': <User className="h-4 w-4" />,
-  freeform: <Eye className="h-4 w-4" />,
-  'top-down': <Map className="h-4 w-4" />,
-}
-
-const CAMERA_MODE_LABELS: Record<CameraMode, string> = {
-  'zoomed-member': 'Focus on Member',
-  freeform: 'Default View',
-  'top-down': 'Aerial View',
+  /** Callback when camera mode changes via settings popup */
+  onCameraModeChange?: (mode: CameraMode, memberId?: string, position?: [number, number, number]) => void
 }
 
 export function WorldControls({
-  cameraMode,
-  onCycleCameraMode,
   nodeCount,
   selectionCount,
   memberCount,
+  onCameraModeChange,
 }: WorldControlsProps) {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  const handleSettingsClose = useCallback(() => {
+    setIsSettingsOpen(false)
+  }, [])
 
   return (
     <>
-      {/* Camera controls - top right */}
+      {/* Settings and Help buttons - top right */}
       <div className="absolute top-4 right-4 flex flex-col gap-1">
         <Button
           variant="outline"
           size="icon"
-          onClick={onCycleCameraMode}
+          onClick={() => setIsSettingsOpen(true)}
           className="h-8 w-8 bg-slate-800/80 border-slate-700 hover:bg-slate-700"
-          title={`Camera: ${CAMERA_MODE_LABELS[cameraMode]} (click to cycle)`}
+          title="World Settings"
+          data-testid={selectors.settings.button}
         >
-          {CAMERA_MODE_ICONS[cameraMode]}
+          <Settings className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
@@ -79,21 +72,15 @@ export function WorldControls({
         )}
       </div>
 
-      {/* Camera mode indicator - bottom right */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-2 bg-slate-800/80 border border-slate-700 rounded-md">
-        <Camera className="h-3.5 w-3.5 text-slate-500" />
-        <span className="text-xs text-slate-400">
-          {CAMERA_MODE_LABELS[cameraMode]}
-        </span>
-      </div>
-
-      {/* Environment controls - bottom left */}
-      <div className="absolute bottom-4 left-4">
-        <EnvironmentControls />
-      </div>
-
       {/* Help Modal */}
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+      {/* Settings Popup */}
+      <WorldSettingsPopup
+        isOpen={isSettingsOpen}
+        onClose={handleSettingsClose}
+        onCameraModeChange={onCameraModeChange}
+      />
     </>
   )
 }

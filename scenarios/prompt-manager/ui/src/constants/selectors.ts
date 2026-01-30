@@ -38,6 +38,16 @@ const literalSelectors = {
     canvas: 'world-canvas',
     stats: 'world-stats',
   },
+  settings: {
+    button: 'world-settings-button',
+    popup: 'world-settings-popup',
+    camera: 'world-settings-camera',
+    timeSlider: 'world-settings-time-slider',
+    realTimeToggle: 'world-settings-realtime-toggle',
+    scene: 'world-settings-scene',
+    graphics: 'world-settings-graphics',
+    customToggle: 'world-settings-custom-toggle',
+  },
   environment: {
     controls: 'environment-controls',
     sceneSpace: 'environment-scene-space',

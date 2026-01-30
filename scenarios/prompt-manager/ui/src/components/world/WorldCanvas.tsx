@@ -17,7 +17,7 @@ import type { FurnitureInstance } from '@/types/furniture'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
-import { useCameraStore } from '@/stores/cameraStore'
+import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useMemberData } from '@/hooks/useMemberData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
@@ -115,7 +115,6 @@ export function WorldCanvas({
   const focusedMemberId = useCameraStore((state) => state.focusedMemberId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
   const zoomToMember = useCameraStore((state) => state.zoomToMember)
-  const cycleCameraMode = useCameraStore((state) => state.cycleCameraMode)
 
   // Member data
   const { members, updateMember, deleteMember, createMember, isUpdating, isDeleting } = useMemberData()
@@ -190,15 +189,25 @@ export function WorldCanvas({
     unseatMember(memberId)
   }, [unseatMember])
 
-  // Handle camera mode cycling
-  const handleCycleCameraMode = useCallback(() => {
-    // Get the first member for zoom target (or focused if available)
-    const targetMember = focusedMemberId
-      ? membersWithPositions.find((a) => a.member.id === focusedMemberId)
-      : membersWithPositions[0]
+  // Handle camera mode change from settings popup
+  const handleCameraModeChange = useCallback(
+    (mode: CameraMode, memberId?: string, position?: [number, number, number]) => {
+      if (mode === 'zoomed-member') {
+        // Find a member to zoom to
+        const targetMember = memberId
+          ? membersWithPositions.find((a) => a.member.id === memberId)
+          : focusedMemberId
+            ? membersWithPositions.find((a) => a.member.id === focusedMemberId)
+            : membersWithPositions[0]
 
-    cycleCameraMode(targetMember?.member.id, targetMember?.position)
-  }, [cycleCameraMode, focusedMemberId, membersWithPositions])
+        if (targetMember) {
+          zoomToMember(targetMember.member.id, position ?? targetMember.position)
+        }
+      }
+      // Note: freeform and top-down are handled directly by the settings popup
+    },
+    [zoomToMember, focusedMemberId, membersWithPositions]
+  )
 
   // Modal state
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
@@ -364,11 +373,10 @@ export function WorldCanvas({
 
       {/* UI Overlays */}
       <WorldControls
-        cameraMode={cameraMode}
-        onCycleCameraMode={handleCycleCameraMode}
         nodeCount={skills.length}
         selectionCount={selectedSkillIds.length}
         memberCount={members.length}
+        onCameraModeChange={handleCameraModeChange}
       />
 
       {/* World Editor */}

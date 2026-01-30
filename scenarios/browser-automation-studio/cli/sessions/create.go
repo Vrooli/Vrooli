@@ -29,6 +29,14 @@ func runCreate(ctx *appctx.Context, args []string) error {
 		}
 	}
 
+	// Check for duplicate names and warn (but don't block)
+	if name != "" {
+		existingCount, err := countProfilesWithName(ctx, name)
+		if err == nil && existingCount > 0 && !jsonOutput {
+			fmt.Printf("WARN: %d existing profile(s) already named %q. Consider using a unique name.\n", existingCount, name)
+		}
+	}
+
 	profile, raw, err := createProfile(ctx, name)
 	if err != nil {
 		return err

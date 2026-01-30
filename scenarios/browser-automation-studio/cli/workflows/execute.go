@@ -19,7 +19,59 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
+func printExecuteHelp(cliName string) {
+	fmt.Printf("Usage: %s workflow execute [workflow-id|name] [options]\n\n", cliName)
+	fmt.Println("Execute a browser automation workflow.")
+	fmt.Println()
+	fmt.Println("Workflow Sources (use one):")
+	fmt.Println("  <workflow-id|name>       Execute a stored workflow by ID or name")
+	fmt.Println("  --from-file <path>       Execute workflow from a JSON file")
+	fmt.Println("  --step <type> [args...]  Build and execute inline workflow (repeatable)")
+	fmt.Println()
+	fmt.Println("Execution Options:")
+	fmt.Println("  --wait                   Wait for execution to complete")
+	fmt.Println("  --output <dir>           Export results to directory (implies --wait)")
+	fmt.Println("  --project-root <path>    Base path for resolving subflow workflow_path")
+	fmt.Println("  --start-url <url>        Starting URL for workflows without navigate step")
+	fmt.Println()
+	fmt.Println("Parameters:")
+	fmt.Println("  --params <json>          Execution parameters (top-level fields)")
+	fmt.Println("  --initial-params <json>  Workflow input parameters (@params/ namespace)")
+	fmt.Println("  --initial-store <json>   Pre-seeded runtime store (@store/ namespace)")
+	fmt.Println("  --env <json>             Environment variables (@env/ namespace)")
+	fmt.Println()
+	fmt.Println("Session Management:")
+	fmt.Println("  --session-profile <name> Load session profile's cookies/localStorage")
+	fmt.Println("  --save-session <name>    Save browser state to profile after execution")
+	fmt.Println("  --fresh-session          Ignore any saved session state")
+	fmt.Println()
+	fmt.Println("Artifact Collection:")
+	fmt.Println("  --record-video           Capture video during execution")
+	fmt.Println("  --record-trace           Capture Playwright trace")
+	fmt.Println("  --record-har             Capture HAR network archive")
+	fmt.Println()
+	fmt.Println("Test Data:")
+	fmt.Println("  --seed <mode>            Seed data mode: 'applied' or 'needs-applying'")
+	fmt.Println("  --seed-scenario <name>   Scenario to apply seed from")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Printf("  %s workflow execute my-workflow --wait\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/cases/login.json --output /tmp/results\n", cliName)
+	fmt.Printf("  %s workflow execute --step navigate \"http://example.com\" --step screenshot\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/flows/checkout.json --session-profile \"Dev Account\"\n", cliName)
+	fmt.Printf("  %s workflow execute --from-file bas/actions/login.json --save-session \"Dev Account\"\n", cliName)
+	fmt.Println()
+}
+
 func runExecute(ctx *appctx.Context, args []string) error {
+	// Check for help flag first (before step parsing)
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			printExecuteHelp(ctx.Name)
+			return nil
+		}
+	}
+
 	// Parse --step flags first (before other flag parsing)
 	steps, remainingArgs, err := ParseSteps(args)
 	if err != nil {
@@ -34,8 +86,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	initialStoreRaw := ""
 	envRaw := ""
 	wait := false
-	outputDir := ""         // Legacy: for --output-screenshots (deprecated)
-	outputPath := ""        // New: for --output (export results to folder)
+	outputDir := ""  // Legacy: for --output-screenshots (deprecated)
+	outputPath := "" // New: for --output (export results to folder)
 	projectRoot := ""
 	adhoc := false
 	requiresVideo := false
@@ -201,7 +253,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			return fmt.Errorf("--session-profile: %w", err)
 		}
 		sessionProfileID = resolved.ID
-		fmt.Printf("Using session profile: %s (%s)\n", resolved.Name, resolved.ID[:8])
+		printSessionProfileLoadInfo(ctx, resolved)
 	}
 	if saveSession != "" {
 		resolved, err := resolveSessionProfile(ctx, saveSession)
@@ -1293,4 +1345,79 @@ func createSessionProfile(ctx *appctx.Context, name string) (*sessionProfileInfo
 		return nil, err
 	}
 	return &profile, nil
+}
+
+// sessionStorageState holds storage state information for a session profile.
+type sessionStorageState struct {
+	Cookies []sessionCookie     `json:"cookies"`
+	Origins []sessionOrigin     `json:"origins"`
+	Stats   sessionStorageStats `json:"stats"`
+}
+
+type sessionCookie struct {
+	Name    string  `json:"name"`
+	Domain  string  `json:"domain"`
+	Expires float64 `json:"expires"`
+}
+
+type sessionOrigin struct {
+	Origin       string                    `json:"origin"`
+	LocalStorage []sessionLocalStorageItem `json:"localStorage"`
+}
+
+type sessionLocalStorageItem struct {
+	Name string `json:"name"`
+}
+
+type sessionStorageStats struct {
+	CookieCount       int `json:"cookieCount"`
+	LocalStorageCount int `json:"localStorageCount"`
+	OriginCount       int `json:"originCount"`
+}
+
+// getSessionStorageState retrieves the storage state for a session profile.
+func getSessionStorageState(ctx *appctx.Context, profileID string) (*sessionStorageState, error) {
+	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), nil)
+	if err != nil {
+		return nil, err
+	}
+	var state sessionStorageState
+	if err := json.Unmarshal(body, &state); err != nil {
+		return nil, err
+	}
+	return &state, nil
+}
+
+// countExpiredSessionCookies returns the number of expired cookies in the storage state.
+func countExpiredSessionCookies(cookies []sessionCookie) int {
+	now := float64(time.Now().Unix())
+	count := 0
+	for _, c := range cookies {
+		// Session cookies (expires <= 0) don't expire
+		if c.Expires > 0 && c.Expires < now {
+			count++
+		}
+	}
+	return count
+}
+
+// printSessionProfileLoadInfo prints information about the loaded session profile.
+func printSessionProfileLoadInfo(ctx *appctx.Context, profile *sessionProfileInfo) {
+	state, err := getSessionStorageState(ctx, profile.ID)
+	if err != nil {
+		// Silently continue if we can't get storage state - profile will still be used
+		fmt.Printf("Using session profile: %s (%s)\n", profile.Name, profile.ID[:8])
+		return
+	}
+
+	// Print basic load confirmation
+	fmt.Printf("Using session profile: %s (%s) - %d cookies, %d localStorage items\n",
+		profile.Name, profile.ID[:8], state.Stats.CookieCount, state.Stats.LocalStorageCount)
+
+	// Warn about expired cookies
+	expiredCount := countExpiredSessionCookies(state.Cookies)
+	if expiredCount > 0 {
+		fmt.Printf("WARN: Session profile has %d expired cookie(s). Authentication may fail.\n", expiredCount)
+		fmt.Printf("      Consider re-authenticating with --save-session %q\n", profile.Name)
+	}
 }

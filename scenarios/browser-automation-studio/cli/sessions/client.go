@@ -57,6 +57,41 @@ type storageStateStats struct {
 	OriginCount       int `json:"originCount"`
 }
 
+// browserProfile represents the browser profile settings for anti-detection and behavior.
+type browserProfile struct {
+	Preset        string                    `json:"preset,omitempty"`
+	Behavior      *browserProfileBehavior   `json:"behavior,omitempty"`
+	AntiDetection *browserProfileAntiDetect `json:"anti_detection,omitempty"`
+}
+
+type browserProfileBehavior struct {
+	MouseMovementStyle string `json:"mouse_movement_style,omitempty"`
+	ScrollStyle        string `json:"scroll_style,omitempty"`
+	TypingDelayMin     int    `json:"typing_delay_min,omitempty"`
+	TypingDelayMax     int    `json:"typing_delay_max,omitempty"`
+	MicroPauseEnabled  bool   `json:"micro_pause_enabled,omitempty"`
+}
+
+type browserProfileAntiDetect struct {
+	DisableAutomationControlled bool   `json:"disable_automation_controlled,omitempty"`
+	DisableWebRTC               bool   `json:"disable_webrtc,omitempty"`
+	PatchNavigatorWebdriver     bool   `json:"patch_navigator_webdriver,omitempty"`
+	HeadlessDetectionBypass     bool   `json:"headless_detection_bypass,omitempty"`
+	AdBlockingMode              string `json:"ad_blocking_mode,omitempty"`
+}
+
+// parseBrowserProfile parses the raw JSON browser profile into a structured type.
+func parseBrowserProfile(raw json.RawMessage) *browserProfile {
+	if len(raw) == 0 {
+		return nil
+	}
+	var bp browserProfile
+	if err := json.Unmarshal(raw, &bp); err != nil {
+		return nil
+	}
+	return &bp
+}
+
 func listProfiles(ctx *appctx.Context) ([]sessionProfile, []byte, error) {
 	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions"), nil)
 	if err != nil {
@@ -102,6 +137,37 @@ func getStorageState(ctx *appctx.Context, profileID string) (*storageStateRespon
 func clearStorage(ctx *appctx.Context, profileID string) error {
 	_, err := ctx.Core.APIClient.Request("DELETE", ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), url.Values{}, nil)
 	return err
+}
+
+func renameProfile(ctx *appctx.Context, profileID, newName string) (sessionProfile, []byte, error) {
+	payload := map[string]string{"name": newName}
+	body, err := ctx.Core.APIClient.Request("PATCH", ctx.APIPath("/recordings/sessions/"+profileID), nil, payload)
+	if err != nil {
+		return sessionProfile{}, nil, err
+	}
+	var profile sessionProfile
+	if err := json.Unmarshal(body, &profile); err != nil {
+		return sessionProfile{}, body, err
+	}
+	return profile, body, nil
+}
+
+// countProfilesWithName returns the number of profiles with the given name.
+func countProfilesWithName(ctx *appctx.Context, name string) (int, error) {
+	if strings.TrimSpace(name) == "" {
+		return 0, nil
+	}
+	profiles, _, err := listProfiles(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, p := range profiles {
+		if p.Name == name {
+			count++
+		}
+	}
+	return count, nil
 }
 
 // resolveProfileID resolves a profile identifier (ID or name) to a profile ID.

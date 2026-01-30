@@ -9,6 +9,7 @@
 export { WorldCanvas } from './WorldCanvas'
 export { WorldScene } from './WorldScene'
 export { WorldControls } from './WorldControls'
+export { WorldSettingsPopup } from './WorldSettingsPopup'
 export { EnvironmentControls } from './EnvironmentControls'
 export { DisplayPanel } from './DisplayPanel'
 
