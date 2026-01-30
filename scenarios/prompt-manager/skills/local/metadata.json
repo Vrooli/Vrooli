@@ -47,7 +47,28 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-30T15:30:00-05:00",
-      "updatedAt": "2026-01-30T15:54:19-05:00"
+      "updatedAt": "2026-01-30T16:49:15-05:00"
+    },
+    {
+      "id": "cli-steer",
+      "file": "cli-steer.md",
+      "name": "CLI Steer",
+      "description": "Design and maintain scenario CLIs as thin, professional wrappers over the API using cli-core for cross-platform consistency",
+      "modes": [
+        "Steer",
+        "Architecture"
+      ],
+      "tags": [
+        "cli",
+        "cli-core",
+        "go",
+        "cross-platform",
+        "api-parity"
+      ],
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T16:30:00-05:00",
+      "updatedAt": "2026-01-30T16:30:00-05:00"
     }
   ]
 }
