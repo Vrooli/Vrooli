@@ -27,6 +27,11 @@ import {
   deleteCredential,
   testCredential,
   updateRemoteURL,
+  fetchSSHKeys,
+  generateSSHKey,
+  getSSHPublicKey,
+  testSSHConnection,
+  deleteSSHKey,
   type RepoHistoryResponse,
   type StageRequest,
   type UnstageRequest,
@@ -47,7 +52,12 @@ import {
   type CredentialsListResponse,
   type CredentialSaveRequest,
   type CredentialTestRequest,
-  type RemoteURLUpdateRequest
+  type RemoteURLUpdateRequest,
+  type SSHListKeysResponse,
+  type SSHGenerateKeyRequest,
+  type SSHGetPublicKeyRequest,
+  type SSHTestConnectionRequest,
+  type SSHDeleteKeyRequest
 } from "./api";
 
 export const queryKeys = {
@@ -63,7 +73,8 @@ export const queryKeys = {
   files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
   relatedFiles: (path: string) => ["repo", "related", path] as const,
   directoryContents: (path: string) => ["repo", "dir", path] as const,
-  credentials: ["credentials"] as const
+  credentials: ["credentials"] as const,
+  sshKeys: ["ssh", "keys"] as const
 };
 
 export function useHealth() {
@@ -334,6 +345,51 @@ export function useUpdateRemoteURL() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.credentials });
       queryClient.invalidateQueries({ queryKey: queryKeys.syncStatus });
+    }
+  });
+}
+
+// ============================================================================
+// SSH Key Management Hooks
+// ============================================================================
+
+export function useSSHKeys() {
+  return useQuery<SSHListKeysResponse, Error>({
+    queryKey: queryKeys.sshKeys,
+    queryFn: fetchSSHKeys
+  });
+}
+
+export function useGenerateSSHKey() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: SSHGenerateKeyRequest) => generateSSHKey(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
+    }
+  });
+}
+
+export function useGetSSHPublicKey() {
+  return useMutation({
+    mutationFn: (request: SSHGetPublicKeyRequest) => getSSHPublicKey(request)
+  });
+}
+
+export function useTestSSHConnection() {
+  return useMutation({
+    mutationFn: (request: SSHTestConnectionRequest) => testSSHConnection(request)
+  });
+}
+
+export function useDeleteSSHKey() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: SSHDeleteKeyRequest) => deleteSSHKey(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sshKeys });
     }
   });
 }

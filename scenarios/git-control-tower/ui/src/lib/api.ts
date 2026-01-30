@@ -816,3 +816,134 @@ export async function updateRemoteURL(request: RemoteURLUpdateRequest): Promise<
   });
   return handleResponse<RemoteURLUpdateResponse>(res);
 }
+
+// ============================================================================
+// SSH Key Management Types
+// ============================================================================
+
+export type SSHKeyType = "ed25519" | "rsa" | "ecdsa" | "dsa" | "unknown";
+
+export interface SSHKeyInfo {
+  path: string;
+  filename: string;
+  type: SSHKeyType;
+  bits?: number;
+  fingerprint: string;
+  comment?: string;
+  created_at?: string;
+  has_public: boolean;
+}
+
+export interface SSHListKeysResponse {
+  keys: SSHKeyInfo[];
+  ssh_dir: string;
+  timestamp: string;
+}
+
+export interface SSHGenerateKeyRequest {
+  type: "ed25519" | "rsa";
+  bits?: number;
+  comment?: string;
+  filename?: string;
+}
+
+export interface SSHGenerateKeyResponse {
+  success: boolean;
+  key?: SSHKeyInfo;
+  public_key?: string;
+  error?: string;
+  timestamp: string;
+}
+
+export interface SSHGetPublicKeyRequest {
+  key_path: string;
+}
+
+export interface SSHGetPublicKeyResponse {
+  success: boolean;
+  public_key?: string;
+  fingerprint?: string;
+  error?: string;
+  timestamp: string;
+}
+
+export interface SSHTestConnectionRequest {
+  key_path: string;
+}
+
+export interface SSHTestConnectionResponse {
+  success: boolean;
+  status: string;
+  message?: string;
+  hint?: string;
+  github_user?: string;
+  fingerprint?: string;
+  latency_ms?: number;
+  timestamp: string;
+}
+
+export interface SSHDeleteKeyRequest {
+  key_path: string;
+}
+
+export interface SSHDeleteKeyResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  private_deleted: boolean;
+  public_deleted: boolean;
+  timestamp: string;
+}
+
+// ============================================================================
+// SSH Key Management API Functions
+// ============================================================================
+
+export async function fetchSSHKeys(): Promise<SSHListKeysResponse> {
+  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<SSHListKeysResponse>(res);
+}
+
+export async function generateSSHKey(request: SSHGenerateKeyRequest): Promise<SSHGenerateKeyResponse> {
+  const url = buildApiUrl("/ssh/keys/generate", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<SSHGenerateKeyResponse>(res);
+}
+
+export async function getSSHPublicKey(request: SSHGetPublicKeyRequest): Promise<SSHGetPublicKeyResponse> {
+  const url = buildApiUrl("/ssh/keys/public", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<SSHGetPublicKeyResponse>(res);
+}
+
+export async function testSSHConnection(request: SSHTestConnectionRequest): Promise<SSHTestConnectionResponse> {
+  const url = buildApiUrl("/ssh/keys/test", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<SSHTestConnectionResponse>(res);
+}
+
+export async function deleteSSHKey(request: SSHDeleteKeyRequest): Promise<SSHDeleteKeyResponse> {
+  const url = buildApiUrl("/ssh/keys", { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request)
+  });
+  return handleResponse<SSHDeleteKeyResponse>(res);
+}

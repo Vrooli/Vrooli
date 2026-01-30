@@ -18,6 +18,8 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+
+	"git-control-tower/ssh"
 )
 
 // Config holds minimal runtime configuration
@@ -33,6 +35,7 @@ type Server struct {
 	git     GitRunner
 	audit   AuditLogger
 	sandbox *WorkspaceSandboxClient
+	sshDeps ssh.SSHDeps
 }
 
 // NewServer initializes configuration, database, and routes
@@ -66,6 +69,7 @@ func NewServer() (*Server, error) {
 		git:     &ExecGitRunner{GitPath: "git"},
 		audit:   auditLogger,
 		sandbox: NewWorkspaceSandboxClient(5 * time.Second),
+		sshDeps: ssh.SSHDeps{Platform: ssh.DefaultPlatform()},
 	}
 
 	srv.setupRoutes()
@@ -112,6 +116,13 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/credentials/{id}", s.handleDeleteCredential).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/credentials/test", s.handleTestCredential).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/remote/url", s.handleUpdateRemoteURL).Methods("POST")
+
+	// SSH key management endpoints
+	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleListKeys(s.sshDeps)).Methods("GET")
+	s.router.HandleFunc("/api/v1/ssh/keys/generate", ssh.HandleGenerateKey(s.sshDeps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/ssh/keys/public", ssh.HandleGetPublicKey(s.sshDeps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/ssh/keys/test", ssh.HandleTestConnection(s.sshDeps)).Methods("POST")
+	s.router.HandleFunc("/api/v1/ssh/keys", ssh.HandleDeleteKey(s.sshDeps)).Methods("DELETE")
 }
 
 // Router returns the HTTP handler for use with server.Run
