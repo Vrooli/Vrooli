@@ -48,6 +48,7 @@ export const DownloadStorageSettingsResponseSchema = z.object({
 export const DownloadArtifactSchema = z.object({
   id: z.number(),
   bundle_key: z.string(),
+  app_key: z.string().optional(),
   provider: StorageProviderSchema,
   bucket: z.string(),
   object_key: z.string(),
@@ -62,6 +63,7 @@ export const DownloadArtifactSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   stable_object_uri: z.string().optional(),
+  is_current: z.boolean().optional(),
 });
 
 // List download artifacts response schema

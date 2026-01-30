@@ -252,10 +252,12 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(handleAdminUpdateDownloadStorage(s.downloadHosting, s.planService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdmin(handleAdminTestDownloadStorage(s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts", s.requireAdmin(handleAdminListDownloadArtifacts(s.downloadHosting, s.planService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/by-app", s.requireAdmin(handleAdminListDownloadArtifactsByApp(s.downloadHosting, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdmin(handleAdminPresignUploadDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireAdmin(handleAdminCommitDownloadArtifact(s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(handleAdminPresignGetDownloadArtifact(s.downloadHosting, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdmin(handleAdminApplyDownloadArtifact(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-assets/set-current", s.requireAdmin(handleAdminSetArtifactAsCurrent(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService, s.stripeService))).Methods("PATCH")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices", s.requireAdmin(handleAdminCreateBundlePrice(s.planService, s.stripeService))).Methods("POST")
@@ -937,6 +939,8 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_bundle ON download_artifacts(bundle_key);`,
 		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_platform ON download_artifacts(platform);`,
 		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_release_version ON download_artifacts(release_version);`,
+		`ALTER TABLE download_artifacts ADD COLUMN IF NOT EXISTS app_key VARCHAR(100);`,
+		`CREATE INDEX IF NOT EXISTS idx_download_artifacts_app_key ON download_artifacts(app_key);`,
 		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS artifact_source VARCHAR(20) NOT NULL DEFAULT 'direct';`,
 		`ALTER TABLE download_assets ADD COLUMN IF NOT EXISTS artifact_id INTEGER NULL;`,
 		`ALTER TABLE download_assets DROP CONSTRAINT IF EXISTS fk_download_assets_artifact;`,

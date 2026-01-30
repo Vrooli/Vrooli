@@ -57,7 +57,9 @@ describe('downloads.service', () => {
         releaseVersion: '',
         releaseNotes: '',
         requiresEntitlement: false,
-        sizeMb: '',
+        artifactFilename: undefined,
+        artifactSizeBytes: undefined,
+        artifactCount: undefined,
       });
     });
 
@@ -112,15 +114,19 @@ describe('downloads.service', () => {
       expect(result.artifactSource).toBe('managed');
     });
 
-    it('parses size_mb from metadata', () => {
+    it('parses artifact metadata fields', () => {
       const asset = createAsset({
         platform: 'mac',
-        metadata: { size_mb: 150 },
+        artifact_filename: 'app-2.0.0.dmg',
+        artifact_size_bytes: 157286400,
+        artifact_count: 3,
       });
 
       const result = buildPlatformForm('mac', asset);
 
-      expect(result.sizeMb).toBe('150');
+      expect(result.artifactFilename).toBe('app-2.0.0.dmg');
+      expect(result.artifactSizeBytes).toBe(157286400);
+      expect(result.artifactCount).toBe(3);
     });
 
     it('handles requiresEntitlement flag', () => {
@@ -402,7 +408,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: 'Initial release',
             requiresEntitlement: false,
-            sizeMb: '100',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -419,7 +424,7 @@ describe('downloads.service', () => {
         release_version: '1.0.0',
         release_notes: 'Initial release',
         requires_entitlement: false,
-        metadata: { size_mb: 100, enabled: true },
+        metadata: { enabled: true },
       });
     });
 
@@ -436,7 +441,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -461,7 +465,6 @@ describe('downloads.service', () => {
             releaseVersion: '',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -486,7 +489,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -513,7 +515,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -622,7 +623,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),
@@ -660,7 +660,6 @@ describe('downloads.service', () => {
             releaseVersion: '1.0.0',
             releaseNotes: '',
             requiresEntitlement: false,
-            sizeMb: '',
           },
           mac: buildPlatformForm('mac'),
           linux: buildPlatformForm('linux'),

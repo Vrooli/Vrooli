@@ -44,6 +44,10 @@ type DownloadAsset struct {
 	Checksum            string                 `json:"checksum,omitempty"`
 	RequiresEntitlement bool                   `json:"requires_entitlement"`
 	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+	// Artifact info (populated when artifact_source is 'managed')
+	ArtifactFilename string `json:"artifact_filename,omitempty"`
+	ArtifactSizeBytes int64 `json:"artifact_size_bytes,omitempty"`
+	ArtifactCount    int    `json:"artifact_count,omitempty"`
 }
 
 // DownloadStorefront represents an app store link for mobile/desktop stores.
@@ -97,14 +101,18 @@ func validateDirectArtifactURL(raw string) error {
 	return nil
 }
 
-// ListAssets returns all download assets for a bundle.
+// ListAssets returns all download assets for a bundle with artifact info.
 func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) {
+	// Query assets with artifact info via LEFT JOIN
 	query := `
-		SELECT id, bundle_key, app_key, platform, artifact_url, artifact_source, artifact_id, release_version,
-		       release_notes, checksum, requires_entitlement, metadata
-		FROM download_assets
-		WHERE bundle_key = $1
-		ORDER BY app_key, platform, COALESCE(display_order, 0), id
+		SELECT da.id, da.bundle_key, da.app_key, da.platform, da.artifact_url, da.artifact_source, da.artifact_id, da.release_version,
+		       da.release_notes, da.checksum, da.requires_entitlement, da.metadata,
+		       art.original_filename, art.size_bytes,
+		       (SELECT COUNT(*) FROM download_artifacts WHERE bundle_key = da.bundle_key AND app_key = da.app_key AND platform = da.platform) AS artifact_count
+		FROM download_assets da
+		LEFT JOIN download_artifacts art ON da.artifact_id = art.id
+		WHERE da.bundle_key = $1
+		ORDER BY da.app_key, da.platform, COALESCE(da.display_order, 0), da.id
 	`
 
 	rows, err := s.db.Query(query, bundleKey)
@@ -120,6 +128,9 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 		var artifactSource sql.NullString
 		var artifactID sql.NullInt64
 		var metadataBytes []byte
+		var artifactFilename sql.NullString
+		var artifactSizeBytes sql.NullInt64
+		var artifactCount sql.NullInt64
 		if err := rows.Scan(
 			&asset.ID,
 			&asset.BundleKey,
@@ -133,6 +144,9 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 			&asset.Checksum,
 			&asset.RequiresEntitlement,
 			&metadataBytes,
+			&artifactFilename,
+			&artifactSizeBytes,
+			&artifactCount,
 		); err != nil {
 			return nil, err
 		}
@@ -146,6 +160,15 @@ func (s *DownloadService) ListAssets(bundleKey string) ([]DownloadAsset, error) 
 		if artifactID.Valid {
 			id := artifactID.Int64
 			asset.ArtifactID = &id
+		}
+		if artifactFilename.Valid {
+			asset.ArtifactFilename = artifactFilename.String
+		}
+		if artifactSizeBytes.Valid {
+			asset.ArtifactSizeBytes = artifactSizeBytes.Int64
+		}
+		if artifactCount.Valid {
+			asset.ArtifactCount = int(artifactCount.Int64)
 		}
 
 		if len(metadataBytes) > 0 {

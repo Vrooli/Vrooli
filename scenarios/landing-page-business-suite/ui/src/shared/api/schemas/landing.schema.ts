@@ -181,6 +181,10 @@ export const DownloadAssetSchema = z.object({
   checksum: z.string().optional(),
   requires_entitlement: z.boolean(),
   metadata: MetadataSchema,
+  // Artifact info (populated when artifact_source is 'managed')
+  artifact_filename: z.string().optional(),
+  artifact_size_bytes: z.number().optional(),
+  artifact_count: z.number().optional(),
 });
 
 // Download app schema

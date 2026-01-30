@@ -6,13 +6,14 @@ import { inputBaseClassName } from '../components/formFieldClasses';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 import { Callout } from '../components/Callout';
 import { StorageWizard } from '../components/storage-wizard';
+import { ArtifactUploader } from '../components/ArtifactUploader';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { Textarea } from '../../../shared/ui/input';
 import { LAYOUT } from '../config/layout.constants';
-import { presignDownloadArtifactGetAdmin } from '../../../shared/api';
-import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical, ImageIcon } from 'lucide-react';
+import { presignDownloadArtifactGetAdmin, type DownloadApp } from '../../../shared/api';
+import { AlertCircle, CheckCircle2, Download, Plus, RefreshCw, Save, ExternalLink, Package, Monitor, Smartphone, Trash2, GripVertical, ImageIcon, Upload, Star, ArrowRight } from 'lucide-react';
 import { useDownloadsForm, type AppFormState } from '../hooks/useDownloadsForm';
 import { useDownloadHosting } from '../hooks/useDownloadHosting';
 import {
@@ -79,6 +80,8 @@ export function DownloadSettings() {
     setArtifactsQuery,
     artifactsPlatform,
     setArtifactsPlatform,
+    artifactsAppKey,
+    setArtifactsAppKey,
     artifacts,
     selectedArtifact,
     setSelectedArtifact,
@@ -86,10 +89,19 @@ export function DownloadSettings() {
     setApplyTarget,
     loadArtifacts,
     handleApplyArtifact,
+    handleSetArtifactAsCurrent,
     uploadState,
     setUploadState,
     handleUploadArtifact,
   } = useDownloadHosting({ activeTab, loadApps, getFirstAppKey });
+
+  // Build apps list for ArtifactUploader (convert form values to DownloadApp shape)
+  const appsForUploader: DownloadApp[] = forms.map(form => ({
+    bundle_key: 'business_suite',
+    app_key: form.values.appKey,
+    name: form.values.name || form.values.appKey,
+    platforms: [],
+  }));
 
   const previewPublicLanding = () => {
     window.open('/', '_blank', 'noopener,noreferrer');
@@ -273,6 +285,10 @@ export function DownloadSettings() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onDragEnd={handleDragEnd}
+                onManageDownloads={(appKey) => {
+                  setActiveTab('hosting');
+                  setArtifactsAppKey(appKey);
+                }}
               />
             ))}
           </div>
@@ -294,21 +310,46 @@ export function DownloadSettings() {
               />
             </FormSection>
 
+            {/* Upload New Artifact Section */}
             <FormSection
-              title="Artifacts"
-              description="Upload, browse, and apply managed download artifacts."
+              title="Upload new artifact"
+              description="Drag and drop your installer file. Platform and version are auto-detected from the filename."
+              icon={Upload}
+              iconColorClass="text-emerald-300"
+              testId="downloads-upload-section"
+            >
+              <ArtifactUploader
+                apps={appsForUploader}
+                defaultAppKey={forms[0]?.values.appKey}
+                onUploadComplete={() => void loadArtifacts()}
+              />
+            </FormSection>
+
+            <FormSection
+              title="Artifact history"
+              description="Browse all uploaded artifacts. Set any version as the current download for an app."
               icon={Download}
               iconColorClass="text-green-300"
               testId="downloads-artifacts-section"
             >
               <div className="space-y-4">
-                <div className="grid gap-3 md:grid-cols-3">
-                  <input
-                    value={artifactsQuery}
-                    onChange={(e) => setArtifactsQuery(e.target.value)}
-                    className={`${inputBaseClassName} md:col-span-2`}
-                    placeholder="Search filename, key, version…"
-                  />
+                {/* Filters */}
+                <div className="grid gap-3 md:grid-cols-4">
+                  <select
+                    value={artifactsAppKey}
+                    onChange={(e) => {
+                      setArtifactsAppKey(e.target.value);
+                      void loadArtifacts();
+                    }}
+                    className={inputBaseClassName}
+                  >
+                    <option value="">All apps</option>
+                    {forms.map((form) => (
+                      <option key={form.values.appKey} value={form.values.appKey}>
+                        {form.values.name || form.values.appKey}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     value={artifactsPlatform}
                     onChange={(e) => {
@@ -322,129 +363,112 @@ export function DownloadSettings() {
                     <option value="mac">macOS</option>
                     <option value="linux">Linux</option>
                   </select>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    value={artifactsQuery}
+                    onChange={(e) => setArtifactsQuery(e.target.value)}
+                    className={inputBaseClassName}
+                    placeholder="Search filename, version…"
+                  />
                   <Button variant="outline" onClick={() => void loadArtifacts()} disabled={artifactsLoading} className="gap-2">
                     <RefreshCw className={`h-4 w-4 ${artifactsLoading ? 'animate-spin' : ''}`} />
-                    Refresh list
+                    Refresh
                   </Button>
-                  <Button
-                    disabled={uploadState.busy}
-                    onClick={handleUploadArtifact}
-                    className="gap-2"
-                  >
-                    {uploadState.busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                    Upload
-                  </Button>
-                </div>
-
-                {(uploadState.error || uploadState.message) && (
-                  <Callout
-                    type={uploadState.error ? 'error' : 'success'}
-                    message={uploadState.error || uploadState.message}
-                  />
-                )}
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-slate-500">File</label>
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        setUploadState((prev) => ({ ...prev, file, error: '', message: '' }));
-                      }}
-                      className={inputBaseClassName}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">App key (optional)</label>
-                    <input
-                      value={uploadState.appKey}
-                      onChange={(e) => setUploadState((prev) => ({ ...prev, appKey: e.target.value }))}
-                      className={inputBaseClassName}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Platform (optional)</label>
-                    <select
-                      value={uploadState.platform}
-                      onChange={(e) => {
-                        const nextValue = e.target.value;
-                        setUploadState((prev) => ({
-                          ...prev,
-                          platform: isPlatformKey(nextValue) ? nextValue : '',
-                        }));
-                      }}
-                      className={inputBaseClassName}
-                    >
-                      <option value="">Unspecified</option>
-                      <option value="windows">Windows</option>
-                      <option value="mac">macOS</option>
-                      <option value="linux">Linux</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-slate-500">Release version (optional)</label>
-                    <input
-                      value={uploadState.releaseVersion}
-                      onChange={(e) => setUploadState((prev) => ({ ...prev, releaseVersion: e.target.value }))}
-                      className={inputBaseClassName}
-                    />
-                  </div>
                 </div>
 
                 {artifactsError && (
                   <Callout type="error" message={artifactsError} />
                 )}
 
+                {storageSuccess && (
+                  <Callout type="success" message={storageSuccess} />
+                )}
+
+                {/* Artifact Table */}
                 <div className="overflow-x-auto rounded-xl border border-white/10">
                   <table className="min-w-full text-sm">
                     <thead className="bg-white/5 text-slate-300">
                       <tr>
-                        <th className="px-4 py-3 text-left">Name</th>
+                        <th className="px-4 py-3 text-left">File</th>
                         <th className="px-4 py-3 text-left">Platform</th>
                         <th className="px-4 py-3 text-left">Version</th>
+                        <th className="px-4 py-3 text-left">Size</th>
+                        <th className="px-4 py-3 text-center">Status</th>
                         <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {artifacts.map((artifact) => (
-                        <tr key={artifact.id} className="border-t border-white/10">
+                        <tr key={artifact.id} className="border-t border-white/10 hover:bg-white/5">
                           <td className="px-4 py-3 text-slate-100">
                             <div className="font-medium">{artifact.original_filename || artifact.object_key}</div>
-                            <div className="text-xs text-slate-500">{artifact.stable_object_uri}</div>
+                            <div className="text-xs text-slate-500">
+                              {artifact.app_key && <span className="mr-2">App: {artifact.app_key}</span>}
+                              <span>{new Date(artifact.created_at).toLocaleDateString()}</span>
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-slate-200">{artifact.platform || '—'}</td>
-                          <td className="px-4 py-3 text-slate-200">{artifact.release_version || '—'}</td>
+                          <td className="px-4 py-3 text-slate-200">
+                            {artifact.platform ? (
+                              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-300">
+                                {artifact.platform.toUpperCase()}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-200">
+                            {artifact.release_version ? (
+                              <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
+                                v{artifact.release_version}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">
+                            {artifact.size_bytes ? `${(artifact.size_bytes / (1024 * 1024)).toFixed(1)} MB` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {artifact.is_current ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                                <Star className="h-3 w-3" />
+                                LATEST
+                              </span>
+                            ) : null}
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex flex-wrap justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  if (artifact.stable_object_uri) await navigator.clipboard.writeText(artifact.stable_object_uri);
-                                }}
-                              >
-                                Copy URI
-                              </Button>
+                              {!artifact.is_current && artifact.platform && artifact.app_key && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                                  onClick={() => {
+                                    if (artifact.app_key && artifact.platform) {
+                                      void handleSetArtifactAsCurrent(
+                                        artifact,
+                                        artifact.app_key,
+                                        artifact.platform as PlatformKey
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <Star className="h-3 w-3" />
+                                  Set as Latest
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={async () => {
                                   const { url } = await presignDownloadArtifactGetAdmin(artifact.id);
-                                  await navigator.clipboard.writeText(url);
+                                  window.open(url, '_blank');
                                 }}
                               >
-                                Copy signed URL
+                                Download
                               </Button>
                               <Button
                                 size="sm"
+                                variant="outline"
                                 onClick={() => {
                                   setSelectedArtifact(artifact);
                                   setApplyTarget({
-                                    appKey: forms[0]?.values.appKey ?? '',
+                                    appKey: artifact.app_key ?? (forms[0]?.values.appKey ?? ''),
                                     platform: (artifact.platform as PlatformKey) || 'windows',
                                     requiresEntitlement: false,
                                     releaseVersion: artifact.release_version ?? '',
@@ -452,7 +476,7 @@ export function DownloadSettings() {
                                   });
                                 }}
                               >
-                                Apply…
+                                Apply to App…
                               </Button>
                             </div>
                           </td>
@@ -460,8 +484,8 @@ export function DownloadSettings() {
                       ))}
                       {artifacts.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                            {artifactsLoading ? 'Loading artifacts…' : 'No artifacts yet.'}
+                          <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                            {artifactsLoading ? 'Loading artifacts…' : 'No artifacts yet. Upload your first installer above.'}
                           </td>
                         </tr>
                       )}
@@ -469,11 +493,12 @@ export function DownloadSettings() {
                   </table>
                 </div>
 
+                {/* Apply Artifact Dialog */}
                 {selectedArtifact && (
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-white">Apply artifact #{selectedArtifact.id}</p>
+                        <p className="text-sm font-semibold text-white">Apply artifact to app</p>
                         <p className="text-xs text-slate-400">{selectedArtifact.original_filename || selectedArtifact.object_key}</p>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setSelectedArtifact(null)}>
@@ -568,6 +593,7 @@ interface AppCardProps {
   onDragLeave: () => void;
   onDrop: (targetKey: string) => (e: React.DragEvent) => void;
   onDragEnd: () => void;
+  onManageDownloads: (appKey: string) => void;
 }
 
 function AppCard({
@@ -585,6 +611,7 @@ function AppCard({
   onDragLeave,
   onDrop,
   onDragEnd,
+  onManageDownloads,
 }: AppCardProps) {
   const dirty = isFormDirty(form.values, form.original);
   const isDragging = draggingKey === form.key;
@@ -768,11 +795,33 @@ function AppCard({
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Desktop installers</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Desktop installers</p>
+            {!form.isNew && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onManageDownloads(form.values.appKey)}
+                className="gap-2 text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Manage Downloads
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-3">
             {PLATFORM_KEYS.map((platformKey) => {
               const platform = form.values.platforms[platformKey];
               const isDisabled = !platform.enabled;
+              const hasArtifact = platform.artifactSource === 'managed' && platform.artifactId;
+              const formatBytes = (bytes: number) => {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+              };
               return (
                 <div
                   key={`${form.key}-${platformKey}`}
@@ -783,7 +832,14 @@ function AppCard({
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-white">{platformKey.toUpperCase()}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">{platformKey.toUpperCase()}</p>
+                      {platform.releaseVersion && platform.enabled && (
+                        <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-300">
+                          v{platform.releaseVersion}
+                        </span>
+                      )}
+                    </div>
                     <label className="flex items-center gap-2 text-xs text-slate-400">
                       <input
                         type="checkbox"
@@ -796,6 +852,30 @@ function AppCard({
                       Enabled
                     </label>
                   </div>
+
+                  {/* Artifact summary for managed source */}
+                  {platform.artifactSource === 'managed' && hasArtifact && platform.artifactFilename && (
+                    <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-xs font-medium text-emerald-300">Current artifact</span>
+                      </div>
+                      <p className="text-xs text-slate-300 truncate" title={platform.artifactFilename}>
+                        {platform.artifactFilename}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                        {platform.artifactSizeBytes && (
+                          <span>{formatBytes(platform.artifactSizeBytes)}</span>
+                        )}
+                        {platform.artifactCount && platform.artifactCount > 1 && (
+                          <span className="text-blue-400">
+                            {platform.artifactCount} version{platform.artifactCount !== 1 ? 's' : ''} available
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-xs text-slate-500">Source</label>
                     <select
@@ -809,8 +889,8 @@ function AppCard({
                       }}
                       className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
                     >
-                      <option value="direct">Paste URL</option>
-                      <option value="managed">Managed artifact (hosting)</option>
+                      <option value="managed">Managed artifact (recommended)</option>
+                      <option value="direct">External URL (advanced)</option>
                     </select>
                   </div>
                   {platform.artifactSource === 'direct' ? (
@@ -824,23 +904,16 @@ function AppCard({
                           onPlatformChange(form.key, platformKey, 'artifactUrl', event.target.value)
                         }
                         className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
+                        placeholder="https://example.com/app.exe"
                       />
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-xs text-slate-500">Artifact ID</label>
-                      <input
-                        type="number"
-                        value={platform.artifactId}
-                        disabled={isDisabled}
-                        onChange={(event) =>
-                          onPlatformChange(form.key, platformKey, 'artifactId', event.target.value)
-                        }
-                        className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
-                      />
-                      <p className="text-xs text-slate-500">
-                        Use the Hosting tab to upload and browse artifacts, then apply one here.
-                      </p>
+                      {!hasArtifact && (
+                        <p className="text-xs text-amber-400">
+                          No artifact set. Use "Manage Downloads" to upload and apply one.
+                        </p>
+                      )}
                     </div>
                   )}
                   <div className="space-y-2">
@@ -853,6 +926,7 @@ function AppCard({
                         onPlatformChange(form.key, platformKey, 'releaseVersion', event.target.value)
                       }
                       className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
+                      placeholder="e.g. 2.1.0"
                     />
                   </div>
                   <div className="space-y-2">
@@ -865,6 +939,7 @@ function AppCard({
                       }
                       rows={2}
                       className="w-full bg-transparent text-sm disabled:opacity-50"
+                      placeholder="What's new in this version..."
                     />
                   </div>
                   <div className="space-y-2">
@@ -880,18 +955,6 @@ function AppCard({
                       />
                       Requires entitlement
                     </label>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Size (MB)</label>
-                    <input
-                      type="number"
-                      value={platform.sizeMb}
-                      disabled={isDisabled}
-                      onChange={(event) =>
-                        onPlatformChange(form.key, platformKey, 'sizeMb', event.target.value)
-                      }
-                      className="w-full rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white disabled:opacity-50"
-                    />
                   </div>
                 </div>
               );

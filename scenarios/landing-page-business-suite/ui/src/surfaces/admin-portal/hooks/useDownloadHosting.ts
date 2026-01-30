@@ -4,7 +4,9 @@ import {
   commitDownloadArtifactAdmin,
   getDownloadStorageAdmin,
   listDownloadArtifactsAdmin,
+  listDownloadArtifactsByAppAdmin,
   presignDownloadArtifactUploadAdmin,
+  setArtifactAsCurrentAdmin,
   testDownloadStorageAdmin,
   updateDownloadStorageAdmin,
   type DownloadArtifact,
@@ -66,6 +68,8 @@ interface UseDownloadHostingReturn {
   setArtifactsQuery: React.Dispatch<React.SetStateAction<string>>;
   artifactsPlatform: PlatformKey | '';
   setArtifactsPlatform: React.Dispatch<React.SetStateAction<PlatformKey | ''>>;
+  artifactsAppKey: string;
+  setArtifactsAppKey: React.Dispatch<React.SetStateAction<string>>;
   artifacts: DownloadArtifact[];
   selectedArtifact: DownloadArtifact | null;
   setSelectedArtifact: React.Dispatch<React.SetStateAction<DownloadArtifact | null>>;
@@ -73,6 +77,7 @@ interface UseDownloadHostingReturn {
   setApplyTarget: React.Dispatch<React.SetStateAction<ApplyTargetState>>;
   loadArtifacts: () => Promise<void>;
   handleApplyArtifact: () => Promise<void>;
+  handleSetArtifactAsCurrent: (artifact: DownloadArtifact, appKey: string, platform: PlatformKey) => Promise<void>;
 
   // Upload
   uploadState: UploadState;
@@ -103,6 +108,7 @@ export function useDownloadHosting({
   const [artifactsError, setArtifactsError] = useState<string | null>(null);
   const [artifactsQuery, setArtifactsQuery] = useState('');
   const [artifactsPlatform, setArtifactsPlatform] = useState<PlatformKey | ''>('');
+  const [artifactsAppKey, setArtifactsAppKey] = useState<string>('');
   const [artifacts, setArtifacts] = useState<DownloadArtifact[]>([]);
   const [selectedArtifact, setSelectedArtifact] = useState<DownloadArtifact | null>(null);
   const [applyTarget, setApplyTarget] = useState<ApplyTargetState>({
@@ -160,18 +166,26 @@ export function useDownloadHosting({
     setArtifactsLoading(true);
     setArtifactsError(null);
     try {
-      const response = await listDownloadArtifactsAdmin({
-        query: artifactsQuery.trim() || undefined,
-        platform: artifactsPlatform || undefined,
-        page_size: 50,
-      });
+      // Use by-app endpoint if app key is filtered, otherwise use general list
+      const response = artifactsAppKey
+        ? await listDownloadArtifactsByAppAdmin({
+            app_key: artifactsAppKey,
+            platform: artifactsPlatform || undefined,
+            page_size: 50,
+          })
+        : await listDownloadArtifactsAdmin({
+            query: artifactsQuery.trim() || undefined,
+            platform: artifactsPlatform || undefined,
+            app_key: artifactsAppKey || undefined,
+            page_size: 50,
+          });
       setArtifacts(response.artifacts ?? []);
     } catch (err) {
       setArtifactsError(err instanceof Error ? err.message : 'Failed to load artifacts');
     } finally {
       setArtifactsLoading(false);
     }
-  }, [artifactsPlatform, artifactsQuery]);
+  }, [artifactsPlatform, artifactsQuery, artifactsAppKey]);
 
   useEffect(() => {
     if (activeTab !== 'hosting') return;
@@ -268,6 +282,21 @@ export function useDownloadHosting({
     }
   }, [selectedArtifact, applyTarget, loadApps]);
 
+  const handleSetArtifactAsCurrent = useCallback(async (artifact: DownloadArtifact, appKey: string, platform: PlatformKey) => {
+    try {
+      await setArtifactAsCurrentAdmin({
+        artifact_id: artifact.id,
+        app_key: appKey,
+        platform,
+      });
+      await loadArtifacts();
+      await loadApps();
+      setStorageSuccess(`Set ${artifact.original_filename || artifact.object_key} as the latest version.`);
+    } catch (err) {
+      setArtifactsError(err instanceof Error ? err.message : 'Failed to set artifact as current');
+    }
+  }, [loadArtifacts, loadApps]);
+
   return {
     // Storage
     storageSettings,
@@ -291,6 +320,8 @@ export function useDownloadHosting({
     setArtifactsQuery,
     artifactsPlatform,
     setArtifactsPlatform,
+    artifactsAppKey,
+    setArtifactsAppKey,
     artifacts,
     selectedArtifact,
     setSelectedArtifact,
@@ -298,6 +329,7 @@ export function useDownloadHosting({
     setApplyTarget,
     loadArtifacts,
     handleApplyArtifact,
+    handleSetArtifactAsCurrent,
 
     // Upload
     uploadState,

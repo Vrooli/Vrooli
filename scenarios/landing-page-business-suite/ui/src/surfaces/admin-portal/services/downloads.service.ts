@@ -24,7 +24,10 @@ export interface PlatformFormValues {
   releaseVersion: string;
   releaseNotes: string;
   requiresEntitlement: boolean;
-  sizeMb: string;
+  // Read-only artifact metadata (populated from API when source is 'managed')
+  artifactFilename?: string;
+  artifactSizeBytes?: number;
+  artifactCount?: number;
 }
 
 /**
@@ -80,7 +83,10 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
     releaseVersion: asset?.release_version ?? '',
     releaseNotes: asset?.release_notes ?? '',
     requiresEntitlement: asset?.requires_entitlement ?? false,
-    sizeMb: asset?.metadata?.size_mb ? String(asset.metadata.size_mb) : '',
+    // Read-only artifact metadata from API
+    artifactFilename: asset?.artifact_filename,
+    artifactSizeBytes: asset?.artifact_size_bytes,
+    artifactCount: asset?.artifact_count,
   };
 }
 
@@ -208,7 +214,6 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
       release_notes: entry.releaseNotes.trim(),
       requires_entitlement: entry.requiresEntitlement,
       metadata: {
-        ...(entry.sizeMb.trim() ? { size_mb: Number(entry.sizeMb) } : {}),
         enabled: entry.enabled,
       },
     };

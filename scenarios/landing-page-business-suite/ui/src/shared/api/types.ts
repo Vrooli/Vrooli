@@ -147,6 +147,10 @@ export interface DownloadAsset {
   checksum?: string;
   requires_entitlement: boolean;
   metadata?: Record<string, unknown>;
+  // Artifact metadata (populated when artifact_source is 'managed')
+  artifact_filename?: string;
+  artifact_size_bytes?: number;
+  artifact_count?: number;
 }
 
 export interface DownloadStorageSettingsSnapshot {
@@ -182,6 +186,8 @@ export interface DownloadArtifact {
   created_at: string;
   updated_at: string;
   stable_object_uri?: string;
+  app_key?: string;
+  is_current?: boolean;
 }
 
 export interface DownloadStorefront {

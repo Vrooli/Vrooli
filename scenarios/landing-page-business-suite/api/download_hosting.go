@@ -82,6 +82,7 @@ type DownloadStorageSettingsUpdate struct {
 type DownloadArtifact struct {
 	ID                int64                  `json:"id"`
 	BundleKey         string                 `json:"bundle_key"`
+	AppKey            string                 `json:"app_key,omitempty"`
 	Provider          string                 `json:"provider"`
 	Bucket            string                 `json:"bucket"`
 	ObjectKey         string                 `json:"object_key"`
@@ -97,6 +98,7 @@ type DownloadArtifact struct {
 	UpdatedAt         time.Time              `json:"updated_at"`
 	StableObjectURI   string                 `json:"stable_object_uri,omitempty"`
 	SignedDownloadURL string                 `json:"signed_download_url,omitempty"`
+	IsCurrent         bool                   `json:"is_current,omitempty"`
 }
 
 type DownloadHostingService struct {
@@ -662,10 +664,12 @@ type CommitArtifactRequest struct {
 	ObjectKey        string                 `json:"object_key"`
 	OriginalFilename string                 `json:"original_filename"`
 	ContentType      string                 `json:"content_type"`
+	AppKey           string                 `json:"app_key"`
 	Platform         string                 `json:"platform"`
 	ReleaseVersion   string                 `json:"release_version"`
 	SHA256           string                 `json:"sha256"`
 	Metadata         map[string]interface{} `json:"metadata"`
+	SetAsCurrent     bool                   `json:"set_as_current"`
 }
 
 func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey string, req CommitArtifactRequest) (*DownloadArtifact, error) {
@@ -701,14 +705,17 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 		contentType = headContentType
 	}
 
+	appKey := strings.TrimSpace(req.AppKey)
+
 	var artifact DownloadArtifact
 	var insertedMetadata []byte
 	query := `
 		INSERT INTO download_artifacts (
-			bundle_key, provider, bucket, object_key, etag, size_bytes, sha256,
+			bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256,
 			content_type, original_filename, platform, release_version, metadata, updated_at
-		) VALUES ($1,'s3',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW())
+		) VALUES ($1,$2,'s3',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NOW())
 		ON CONFLICT (bundle_key, bucket, object_key) DO UPDATE SET
+			app_key = COALESCE(EXCLUDED.app_key, download_artifacts.app_key),
 			etag = EXCLUDED.etag,
 			size_bytes = EXCLUDED.size_bytes,
 			sha256 = EXCLUDED.sha256,
@@ -718,12 +725,13 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 			release_version = EXCLUDED.release_version,
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
-		RETURNING id, bundle_key, provider, bucket, object_key, etag, size_bytes, sha256,
+		RETURNING id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256,
 		          content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 	`
 
 	row := s.db.QueryRowContext(ctx, query,
 		bundleKey,
+		normalizeOptionalString(&appKey),
 		bucket,
 		strings.TrimSpace(req.ObjectKey),
 		normalizeOptionalString(&etag),
@@ -736,11 +744,12 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 		metadataBytes,
 	)
 
-	var provider, bucketOut, objectKey, etagOut, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
+	var provider, bucketOut, objectKey, etagOut, shaOut, ctypeOut, fnameOut, platformOut, versionOut, appKeyOut sql.NullString
 	var sizeOut sql.NullInt64
 	if err := row.Scan(
 		&artifact.ID,
 		&artifact.BundleKey,
+		&appKeyOut,
 		&provider,
 		&bucketOut,
 		&objectKey,
@@ -758,6 +767,7 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 		return nil, err
 	}
 
+	artifact.AppKey = appKeyOut.String
 	artifact.Provider = provider.String
 	artifact.Bucket = bucketOut.String
 	artifact.ObjectKey = objectKey.String
@@ -783,7 +793,7 @@ func (s *DownloadHostingService) CommitArtifact(ctx context.Context, bundleKey s
 
 func (s *DownloadHostingService) GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, bundle_key, provider, bucket, object_key, etag, size_bytes, sha256,
+		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256,
 		       content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 		FROM download_artifacts
 		WHERE bundle_key = $1 AND id = $2
@@ -791,12 +801,13 @@ func (s *DownloadHostingService) GetArtifact(ctx context.Context, bundleKey stri
 	`, bundleKey, id)
 
 	var artifact DownloadArtifact
-	var provider, bucket, objectKey, etag, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
+	var appKeyOut, provider, bucket, objectKey, etag, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
 	var sizeOut sql.NullInt64
 	var metadataBytes []byte
 	if err := row.Scan(
 		&artifact.ID,
 		&artifact.BundleKey,
+		&appKeyOut,
 		&provider,
 		&bucket,
 		&objectKey,
@@ -817,6 +828,7 @@ func (s *DownloadHostingService) GetArtifact(ctx context.Context, bundleKey stri
 		return nil, err
 	}
 
+	artifact.AppKey = appKeyOut.String
 	artifact.Provider = provider.String
 	artifact.Bucket = bucket.String
 	artifact.ObjectKey = objectKey.String
@@ -847,7 +859,7 @@ type ListArtifactsResult struct {
 	Total     int                `json:"total"`
 }
 
-func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey string, query, platform string, page, pageSize int) (*ListArtifactsResult, error) {
+func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey string, query, platform, appKey string, page, pageSize int) (*ListArtifactsResult, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -860,6 +872,7 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 
 	query = strings.TrimSpace(query)
 	platform = strings.TrimSpace(platform)
+	appKey = strings.TrimSpace(appKey)
 
 	where := []string{"bundle_key = $1"}
 	args := []interface{}{bundleKey}
@@ -867,6 +880,11 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 	if platform != "" {
 		args = append(args, platform)
 		where = append(where, fmt.Sprintf("platform = $%d", len(args)))
+	}
+
+	if appKey != "" {
+		args = append(args, appKey)
+		where = append(where, fmt.Sprintf("app_key = $%d", len(args)))
 	}
 
 	if query != "" {
@@ -887,7 +905,7 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 	args = append(args, pageSize, offset)
 
 	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
-		SELECT id, bundle_key, provider, bucket, object_key, etag, size_bytes, sha256,
+		SELECT id, bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha256,
 		       content_type, original_filename, platform, release_version, metadata, created_at, updated_at
 		FROM download_artifacts
 		WHERE %s
@@ -908,12 +926,13 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 
 	for rows.Next() {
 		var artifact DownloadArtifact
-		var provider, bucket, objectKey, etag, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
+		var appKeyOut, provider, bucket, objectKey, etag, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
 		var sizeOut sql.NullInt64
 		var metadataBytes []byte
 		if err := rows.Scan(
 			&artifact.ID,
 			&artifact.BundleKey,
+			&appKeyOut,
 			&provider,
 			&bucket,
 			&objectKey,
@@ -930,6 +949,7 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 		); err != nil {
 			return nil, err
 		}
+		artifact.AppKey = appKeyOut.String
 		artifact.Provider = provider.String
 		artifact.Bucket = bucket.String
 		artifact.ObjectKey = objectKey.String
@@ -949,6 +969,122 @@ func (s *DownloadHostingService) ListArtifacts(ctx context.Context, bundleKey st
 			}
 		}
 		artifact.StableObjectURI = stableS3URI(artifact.Bucket, artifact.ObjectKey)
+
+		result.Artifacts = append(result.Artifacts, artifact)
+	}
+
+	return result, nil
+}
+
+// ListArtifactsByApp returns artifacts for a specific app/platform with is_current flags
+// indicating which artifact is currently active (linked in download_assets).
+func (s *DownloadHostingService) ListArtifactsByApp(ctx context.Context, bundleKey, appKey, platform string, page, pageSize int) (*ListArtifactsResult, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 50
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	appKey = strings.TrimSpace(appKey)
+	platform = strings.TrimSpace(platform)
+
+	if appKey == "" {
+		return nil, fmt.Errorf("app_key is required")
+	}
+
+	where := []string{"a.bundle_key = $1", "a.app_key = $2"}
+	args := []interface{}{bundleKey, appKey}
+
+	if platform != "" {
+		args = append(args, platform)
+		where = append(where, fmt.Sprintf("a.platform = $%d", len(args)))
+	}
+
+	whereClause := strings.Join(where, " AND ")
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, fmt.Sprintf(`SELECT COUNT(*) FROM download_artifacts a WHERE %s`, whereClause), args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	offset := (page - 1) * pageSize
+	args = append(args, pageSize, offset)
+
+	// Join with download_assets to determine which artifact is current for each platform
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(`
+		SELECT a.id, a.bundle_key, a.app_key, a.provider, a.bucket, a.object_key, a.etag, a.size_bytes, a.sha256,
+		       a.content_type, a.original_filename, a.platform, a.release_version, a.metadata, a.created_at, a.updated_at,
+		       CASE WHEN da.artifact_id = a.id THEN true ELSE false END AS is_current
+		FROM download_artifacts a
+		LEFT JOIN download_assets da ON da.bundle_key = a.bundle_key AND da.app_key = a.app_key AND da.platform = a.platform
+		WHERE %s
+		ORDER BY a.created_at DESC, a.id DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, len(args)-1, len(args)), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := &ListArtifactsResult{
+		Artifacts: []DownloadArtifact{},
+		Page:      page,
+		PageSize:  pageSize,
+		Total:     total,
+	}
+
+	for rows.Next() {
+		var artifact DownloadArtifact
+		var appKeyOut, provider, bucket, objectKey, etag, shaOut, ctypeOut, fnameOut, platformOut, versionOut sql.NullString
+		var sizeOut sql.NullInt64
+		var metadataBytes []byte
+		var isCurrent sql.NullBool
+		if err := rows.Scan(
+			&artifact.ID,
+			&artifact.BundleKey,
+			&appKeyOut,
+			&provider,
+			&bucket,
+			&objectKey,
+			&etag,
+			&sizeOut,
+			&shaOut,
+			&ctypeOut,
+			&fnameOut,
+			&platformOut,
+			&versionOut,
+			&metadataBytes,
+			&artifact.CreatedAt,
+			&artifact.UpdatedAt,
+			&isCurrent,
+		); err != nil {
+			return nil, err
+		}
+		artifact.AppKey = appKeyOut.String
+		artifact.Provider = provider.String
+		artifact.Bucket = bucket.String
+		artifact.ObjectKey = objectKey.String
+		artifact.ETag = etag.String
+		if sizeOut.Valid {
+			artifact.SizeBytes = sizeOut.Int64
+		}
+		artifact.SHA256 = shaOut.String
+		artifact.ContentType = ctypeOut.String
+		artifact.OriginalFilename = fnameOut.String
+		artifact.Platform = platformOut.String
+		artifact.ReleaseVersion = versionOut.String
+		if len(metadataBytes) > 0 {
+			var meta map[string]interface{}
+			if err := json.Unmarshal(metadataBytes, &meta); err == nil {
+				artifact.Metadata = meta
+			}
+		}
+		artifact.StableObjectURI = stableS3URI(artifact.Bucket, artifact.ObjectKey)
+		artifact.IsCurrent = isCurrent.Valid && isCurrent.Bool
 
 		result.Artifacts = append(result.Artifacts, artifact)
 	}

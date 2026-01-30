@@ -168,14 +168,30 @@ export interface ListDownloadArtifactsResponse {
   total: number;
 }
 
-export function listDownloadArtifactsAdmin(params?: { query?: string; platform?: string; page?: number; page_size?: number }) {
+export function listDownloadArtifactsAdmin(params?: { query?: string; platform?: string; app_key?: string; page?: number; page_size?: number }) {
   const search = new URLSearchParams();
   if (params?.query) search.set('query', params.query);
   if (params?.platform) search.set('platform', params.platform);
+  if (params?.app_key) search.set('app_key', params.app_key);
   if (params?.page) search.set('page', String(params.page));
   if (params?.page_size) search.set('page_size', String(params.page_size));
   const suffix = search.toString() ? `?${search.toString()}` : '';
   return apiCall<ListDownloadArtifactsResponse>(`/admin/download-artifacts${suffix}`).then((resp) => {
+    const validated = parseOrNull(ListDownloadArtifactsResponseSchema, resp, 'ListDownloadArtifactsResponse');
+    if (!validated) {
+      return { artifacts: [], page: 1, page_size: 10, total: 0 };
+    }
+    return validated;
+  });
+}
+
+export function listDownloadArtifactsByAppAdmin(params: { app_key: string; platform?: string; page?: number; page_size?: number }) {
+  const search = new URLSearchParams();
+  search.set('app_key', params.app_key);
+  if (params.platform) search.set('platform', params.platform);
+  if (params.page) search.set('page', String(params.page));
+  if (params.page_size) search.set('page_size', String(params.page_size));
+  return apiCall<ListDownloadArtifactsResponse>(`/admin/download-artifacts/by-app?${search.toString()}`).then((resp) => {
     const validated = parseOrNull(ListDownloadArtifactsResponseSchema, resp, 'ListDownloadArtifactsResponse');
     if (!validated) {
       return { artifacts: [], page: 1, page_size: 10, total: 0 };
@@ -221,10 +237,12 @@ export function commitDownloadArtifactAdmin(payload: {
   object_key: string;
   original_filename?: string;
   content_type?: string;
+  app_key?: string;
   platform?: string;
   release_version?: string;
   sha256?: string;
   metadata?: Record<string, unknown>;
+  set_as_current?: boolean;
 }) {
   return apiCall<DownloadArtifact>('/admin/download-artifacts/commit', {
     method: 'POST',
@@ -262,6 +280,26 @@ export function applyDownloadArtifactAdmin(payload: {
   metadata?: Record<string, unknown>;
 }) {
   return apiCall<DownloadAsset>('/admin/download-assets/apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }).then((resp) => {
+    const validated = parseOrNull(DownloadAssetSchema, resp, 'DownloadAsset');
+    if (!validated) {
+      throw new Error('Invalid download asset response from API');
+    }
+    return validated;
+  });
+}
+
+export function setArtifactAsCurrentAdmin(payload: {
+  artifact_id: number;
+  app_key: string;
+  platform: string;
+}) {
+  return apiCall<DownloadAsset>('/admin/download-assets/set-current', {
     method: 'POST',
     body: JSON.stringify(payload),
     headers: {
