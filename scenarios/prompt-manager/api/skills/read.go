@@ -65,7 +65,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 				Reason:     "not_found",
 			})
 		case 1:
-			readSkill, err := h.buildReadResponse(matches[0])
+			readSkill, err := h.buildReadResponse(matches[0], req.Variables)
 			if err != nil {
 				http.Error(w, "Failed to load skill content", http.StatusInternalServerError)
 				return
@@ -259,7 +259,7 @@ func outputIncludesCombined(output string) bool {
 	return output == "combined" || output == "both"
 }
 
-func (h *Handlers) buildReadResponse(skill indexedSkill) (Response, error) {
+func (h *Handlers) buildReadResponse(skill indexedSkill, variables map[string]string) (Response, error) {
 	resp := h.toResponse(skill.meta)
 	resp.Folder = skill.folder
 	resp.File = skill.filename
@@ -267,6 +267,14 @@ func (h *Handlers) buildReadResponse(skill indexedSkill) (Response, error) {
 	content, err := h.store.GetContent(skill.folder, skill.filename)
 	if err != nil {
 		return Response{}, err
+	}
+
+	// Extract variables from original content before substitution
+	resp.Variables = ExtractVariables(content)
+
+	// Apply variable substitution if values provided
+	if len(variables) > 0 {
+		content = SubstituteVariables(content, variables)
 	}
 	resp.Content = content
 

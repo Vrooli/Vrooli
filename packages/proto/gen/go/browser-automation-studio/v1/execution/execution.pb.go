@@ -247,6 +247,12 @@ type ExecutionParameters struct {
 	// This enables running workflows in an authenticated state without login steps.
 	// @format uuid
 	SessionProfileId *string `protobuf:"bytes,22,opt,name=session_profile_id,json=sessionProfileId,proto3,oneof" json:"session_profile_id,omitempty"`
+	// Session profile ID to save storage state to after execution.
+	// When set, captures the browser's storage state (cookies, localStorage)
+	// after successful execution and saves it to the specified profile.
+	// This enables capturing authenticated sessions for later reuse.
+	// @format uuid
+	SaveSessionProfileId *string `protobuf:"bytes,25,opt,name=save_session_profile_id,json=saveSessionProfileId,proto3,oneof" json:"save_session_profile_id,omitempty"`
 	// Default navigation wait condition for all navigate steps.
 	// Overrides workflow-level default, but individual NavigateParams.wait_until takes precedence.
 	// @see NavigateWaitEvent enum in actions/action.proto
@@ -390,6 +396,13 @@ func (x *ExecutionParameters) GetBrowserProfile() *base.BrowserProfile {
 func (x *ExecutionParameters) GetSessionProfileId() string {
 	if x != nil && x.SessionProfileId != nil {
 		return *x.SessionProfileId
+	}
+	return ""
+}
+
+func (x *ExecutionParameters) GetSaveSessionProfileId() string {
+	if x != nil && x.SaveSessionProfileId != nil {
+		return *x.SaveSessionProfileId
 	}
 	return ""
 }
@@ -1531,7 +1544,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x15_max_screenshot_bytesB\x19\n" +
 	"\x17_max_dom_snapshot_bytesB\x1a\n" +
 	"\x18_max_console_entry_bytesB\x1c\n" +
-	"\x1a_max_network_preview_bytes\"\xd8\f\n" +
+	"\x1a_max_network_preview_bytes\"\xba\r\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1550,10 +1563,11 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x03env\x18\r \x03(\v2:.browser_automation_studio.v1.ExecutionParameters.EnvEntryR\x03env\x12_\n" +
 	"\x0fartifact_config\x18\x14 \x01(\v26.browser_automation_studio.v1.ArtifactCollectionConfigR\x0eartifactConfig\x12U\n" +
 	"\x0fbrowser_profile\x18\x15 \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12;\n" +
-	"\x12session_profile_id\x18\x16 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\bR\x10sessionProfileId\x88\x01\x01\x12h\n" +
-	"\x15navigation_wait_until\x18\x17 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\tR\x13navigationWaitUntil\x88\x01\x01\x12/\n" +
-	"\x11continue_on_error\x18\x18 \x01(\bH\n" +
-	"R\x0fcontinueOnError\x88\x01\x01\x1a<\n" +
+	"\x12session_profile_id\x18\x16 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\bR\x10sessionProfileId\x88\x01\x01\x12D\n" +
+	"\x17save_session_profile_id\x18\x19 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\tR\x14saveSessionProfileId\x88\x01\x01\x12h\n" +
+	"\x15navigation_wait_until\x18\x17 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\n" +
+	"R\x13navigationWaitUntil\x88\x01\x01\x12/\n" +
+	"\x11continue_on_error\x18\x18 \x01(\bH\vR\x0fcontinueOnError\x88\x01\x01\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aV\n" +
@@ -1575,7 +1589,8 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\a_localeB\r\n" +
 	"\v_timeout_msB\x0f\n" +
 	"\r_project_rootB\x15\n" +
-	"\x13_session_profile_idB\x18\n" +
+	"\x13_session_profile_idB\x1a\n" +
+	"\x18_save_session_profile_idB\x18\n" +
 	"\x16_navigation_wait_untilB\x14\n" +
 	"\x12_continue_on_errorJ\x04\b\x05\x10\x06\"\x81\x05\n" +
 	"\x0fExecutionResult\x12\x18\n" +

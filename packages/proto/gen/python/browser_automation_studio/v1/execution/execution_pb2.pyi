@@ -47,7 +47,7 @@ class ArtifactCollectionConfig(_message.Message):
     def __init__(self, profile: _Optional[str] = ..., collect_screenshots: _Optional[bool] = ..., collect_dom_snapshots: _Optional[bool] = ..., collect_console_logs: _Optional[bool] = ..., collect_network_events: _Optional[bool] = ..., collect_extracted_data: _Optional[bool] = ..., collect_assertions: _Optional[bool] = ..., collect_cursor_trails: _Optional[bool] = ..., collect_telemetry: _Optional[bool] = ..., max_screenshot_bytes: _Optional[int] = ..., max_dom_snapshot_bytes: _Optional[int] = ..., max_console_entry_bytes: _Optional[int] = ..., max_network_preview_bytes: _Optional[int] = ...) -> None: ...
 
 class ExecutionParameters(_message.Message):
-    __slots__ = ("start_url", "variables", "viewport_width", "viewport_height", "headless", "user_agent", "locale", "timeout_ms", "project_root", "initial_params", "initial_store", "env", "artifact_config", "browser_profile", "session_profile_id", "navigation_wait_until", "continue_on_error")
+    __slots__ = ("start_url", "variables", "viewport_width", "viewport_height", "headless", "user_agent", "locale", "timeout_ms", "project_root", "initial_params", "initial_store", "env", "artifact_config", "browser_profile", "session_profile_id", "save_session_profile_id", "navigation_wait_until", "continue_on_error")
     class VariablesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +91,7 @@ class ExecutionParameters(_message.Message):
     ARTIFACT_CONFIG_FIELD_NUMBER: _ClassVar[int]
     BROWSER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     SESSION_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    SAVE_SESSION_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     NAVIGATION_WAIT_UNTIL_FIELD_NUMBER: _ClassVar[int]
     CONTINUE_ON_ERROR_FIELD_NUMBER: _ClassVar[int]
     start_url: str
@@ -108,9 +109,10 @@ class ExecutionParameters(_message.Message):
     artifact_config: ArtifactCollectionConfig
     browser_profile: _browser_profile_pb2.BrowserProfile
     session_profile_id: str
+    save_session_profile_id: str
     navigation_wait_until: _action_pb2.NavigateWaitEvent
     continue_on_error: bool
-    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., session_profile_id: _Optional[str] = ..., navigation_wait_until: _Optional[_Union[_action_pb2.NavigateWaitEvent, str]] = ..., continue_on_error: _Optional[bool] = ...) -> None: ...
+    def __init__(self, start_url: _Optional[str] = ..., variables: _Optional[_Mapping[str, str]] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., headless: _Optional[bool] = ..., user_agent: _Optional[str] = ..., locale: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., project_root: _Optional[str] = ..., initial_params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., initial_store: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., env: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., artifact_config: _Optional[_Union[ArtifactCollectionConfig, _Mapping]] = ..., browser_profile: _Optional[_Union[_browser_profile_pb2.BrowserProfile, _Mapping]] = ..., session_profile_id: _Optional[str] = ..., save_session_profile_id: _Optional[str] = ..., navigation_wait_until: _Optional[_Union[_action_pb2.NavigateWaitEvent, str]] = ..., continue_on_error: _Optional[bool] = ...) -> None: ...
 
 class ExecutionResult(_message.Message):
     __slots__ = ("success", "steps_executed", "steps_failed", "final_url", "error", "error_code", "extracted_data", "screenshot_artifacts")

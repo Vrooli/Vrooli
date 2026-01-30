@@ -170,7 +170,8 @@ func countProfilesWithName(ctx *appctx.Context, name string) (int, error) {
 	return count, nil
 }
 
-// resolveProfileID resolves a profile identifier (ID or name) to a profile ID.
+// resolveProfileID resolves a profile identifier (ID, short ID prefix, or name) to a profile.
+// Resolution order: exact ID match → short ID prefix match → exact name match.
 // Returns the profile and an error if not found or ambiguous.
 func resolveProfileID(ctx *appctx.Context, identifier string) (sessionProfile, error) {
 	identifier = strings.TrimSpace(identifier)
@@ -190,20 +191,36 @@ func resolveProfileID(ctx *appctx.Context, identifier string) (sessionProfile, e
 		}
 	}
 
-	// Then try exact name match
-	var matches []sessionProfile
-	for _, p := range profiles {
-		if p.Name == identifier {
-			matches = append(matches, p)
+	// Then try short ID prefix match (minimum 4 characters to avoid accidental matches)
+	if len(identifier) >= 4 && len(identifier) < 36 && !strings.Contains(identifier, " ") {
+		var prefixMatches []sessionProfile
+		for _, p := range profiles {
+			if strings.HasPrefix(p.ID, identifier) {
+				prefixMatches = append(prefixMatches, p)
+			}
+		}
+		if len(prefixMatches) == 1 {
+			return prefixMatches[0], nil
+		}
+		if len(prefixMatches) > 1 {
+			return sessionProfile{}, fmt.Errorf("ambiguous short ID '%s': %d profiles match. Use full ID or more characters", identifier, len(prefixMatches))
 		}
 	}
 
-	if len(matches) == 0 {
-		return sessionProfile{}, fmt.Errorf("session profile not found: %s", identifier)
-	}
-	if len(matches) > 1 {
-		return sessionProfile{}, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(matches))
+	// Finally, try exact name match
+	var nameMatches []sessionProfile
+	for _, p := range profiles {
+		if p.Name == identifier {
+			nameMatches = append(nameMatches, p)
+		}
 	}
 
-	return matches[0], nil
+	if len(nameMatches) == 0 {
+		return sessionProfile{}, fmt.Errorf("session profile not found: %s", identifier)
+	}
+	if len(nameMatches) > 1 {
+		return sessionProfile{}, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(nameMatches))
+	}
+
+	return nameMatches[0], nil
 }

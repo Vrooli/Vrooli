@@ -207,6 +207,13 @@ message ExecutionParameters {
   // @format uuid
   optional string session_profile_id = 22 [(buf.validate.field).string.uuid = true];
 
+  // Session profile ID to save storage state to after execution.
+  // When set, captures the browser's storage state (cookies, localStorage)
+  // after successful execution and saves it to the specified profile.
+  // This enables capturing authenticated sessions for later reuse.
+  // @format uuid
+  optional string save_session_profile_id = 25 [(buf.validate.field).string.uuid = true];
+
   // =============================================================================
   // EXECUTION-LEVEL DEFAULTS
   // =============================================================================

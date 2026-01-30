@@ -168,6 +168,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	response := h.toResponse(*skill)
 	response.Content = content
 	response.Folder = folder
+	response.Variables = ExtractVariables(content)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -545,6 +546,7 @@ func (h *Handlers) toResponseWithContent(p Metadata) Response {
 		content, err := h.store.GetContent(parts[0], parts[1])
 		if err == nil {
 			response.Content = content
+			response.Variables = ExtractVariables(content)
 		}
 	}
 

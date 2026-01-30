@@ -43,6 +43,7 @@ func printSessionHelp(cliName string) {
 	fmt.Println("Examples:")
 	fmt.Printf("  %s session create \"Dev Account\"\n", cliName)
 	fmt.Printf("  %s session show \"Dev Account\"\n", cliName)
+	fmt.Printf("  %s session rename \"Dev Account\" \"Production Account\"\n", cliName)
 	fmt.Printf("  %s session list --json\n", cliName)
 	fmt.Printf("  %s session delete \"Dev Account\" --force\n", cliName)
 	fmt.Println()

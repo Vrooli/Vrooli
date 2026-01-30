@@ -491,3 +491,189 @@ func TestRead_CombinedStrictMissingReturnsNotFound(t *testing.T) {
 		t.Fatalf("expected 1 missing entry, got %d", len(resp.Missing))
 	}
 }
+
+func TestRead_ExtractsVariablesFromContent(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
+		"Run: cd scenarios/{{TARGET}}/ui && pnpm lint\nAlso check {{CONFIG}}")
+
+	req := ReadRequest{Identifiers: []string{"test-skill"}}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+
+	vars := resp.Skills[0].Variables
+	if len(vars) != 2 {
+		t.Fatalf("expected 2 variables, got %d: %+v", len(vars), vars)
+	}
+
+	// Variables should be sorted alphabetically
+	if vars[0].Name != "CONFIG" {
+		t.Errorf("expected first variable 'CONFIG', got '%s'", vars[0].Name)
+	}
+	if vars[1].Name != "TARGET" {
+		t.Errorf("expected second variable 'TARGET', got '%s'", vars[1].Name)
+	}
+}
+
+func TestRead_SubstitutesVariablesWhenProvided(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
+		"Run: cd scenarios/{{TARGET}}/ui && pnpm lint")
+
+	req := ReadRequest{
+		Identifiers: []string{"test-skill"},
+		Variables:   map[string]string{"TARGET": "my-scenario"},
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("read: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+
+	// Content should have substituted value
+	expectedContent := "Run: cd scenarios/my-scenario/ui && pnpm lint"
+	if resp.Skills[0].Content != expectedContent {
+		t.Errorf("expected content %q, got %q", expectedContent, resp.Skills[0].Content)
+	}
+
+	// Variables should still be reported (from original content)
+	if len(resp.Skills[0].Variables) != 1 {
+		t.Fatalf("expected 1 variable, got %d", len(resp.Skills[0].Variables))
+	}
+	if resp.Skills[0].Variables[0].Name != "TARGET" {
+		t.Errorf("expected variable 'TARGET', got '%s'", resp.Skills[0].Variables[0].Name)
+	}
+}
+
+func TestRead_PartialSubstitutionLeavesUnknownVariables(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
+		"{{KNOWN}} and {{UNKNOWN}}")
+
+	req := ReadRequest{
+		Identifiers: []string{"test-skill"},
+		Variables:   map[string]string{"KNOWN": "replaced"},
+	}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	// KNOWN substituted, UNKNOWN left as-is
+	expectedContent := "replaced and {{UNKNOWN}}"
+	if resp.Skills[0].Content != expectedContent {
+		t.Errorf("expected content %q, got %q", expectedContent, resp.Skills[0].Content)
+	}
+}
+
+func TestRead_NoVariablesInContent(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
+		"Plain text without any variables")
+
+	req := ReadRequest{Identifiers: []string{"test-skill"}}
+	body, _ := json.Marshal(req)
+	r := httptest.NewRequest("POST", "/skills/read", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	handlers.Read(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("read: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp ReadResponse
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if len(resp.Skills[0].Variables) != 0 {
+		t.Errorf("expected no variables, got %d", len(resp.Skills[0].Variables))
+	}
+}
+
+func TestSync_IncludesVariables(t *testing.T) {
+	store := NewMockStore()
+	metrics := &MockMetricsService{}
+	handlers := NewHandlers(store, metrics)
+
+	// Add skill with folder prefix in File field (as GetAll returns)
+	store.skills["core"] = []Metadata{{
+		ID:        "test-skill",
+		File:      "core/test-skill.md",
+		Name:      "Test Skill",
+		CreatedAt: "2024-01-01T00:00:00Z",
+		UpdatedAt: "2024-01-01T00:00:00Z",
+	}}
+	store.contents["core/test-skill.md"] = "Use {{TARGET}} and {{CONFIG}}"
+
+	r := httptest.NewRequest("GET", "/skills/sync", nil)
+	w := httptest.NewRecorder()
+	handlers.Sync(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("sync: expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp SyncResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("sync: failed to parse response: %v", err)
+	}
+
+	if len(resp.Skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(resp.Skills))
+	}
+
+	vars := resp.Skills[0].Variables
+	if len(vars) != 2 {
+		t.Fatalf("expected 2 variables, got %d: %+v", len(vars), vars)
+	}
+
+	// Variables should be sorted alphabetically
+	if vars[0].Name != "CONFIG" || vars[1].Name != "TARGET" {
+		t.Errorf("expected variables CONFIG and TARGET, got %+v", vars)
+	}
+}

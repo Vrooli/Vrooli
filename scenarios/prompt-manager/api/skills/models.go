@@ -25,22 +25,23 @@ type MetadataFile struct {
 
 // Response is the API response for a skill, enriched with content and metrics.
 type Response struct {
-	ID                  string   `json:"id"`
-	File                string   `json:"file"`
-	Name                string   `json:"name"`
-	Description         string   `json:"description"`
-	Content             string   `json:"content"`
-	Modes               []string `json:"modes"`
-	Tags                []string `json:"tags"`
-	Icon                string   `json:"icon,omitempty"`
-	TargetToolID        *string  `json:"targetToolId,omitempty"`
-	Draft               bool     `json:"draft"`
-	Folder              string   `json:"folder"`
-	CreatedAt           string   `json:"createdAt"`
-	UpdatedAt           string   `json:"updatedAt"`
-	UsageCount          int      `json:"usageCount"`
-	LastUsed            *string  `json:"lastUsed,omitempty"`
-	EffectivenessRating *int     `json:"effectivenessRating,omitempty"`
+	ID                  string     `json:"id"`
+	File                string     `json:"file"`
+	Name                string     `json:"name"`
+	Description         string     `json:"description"`
+	Content             string     `json:"content"`
+	Modes               []string   `json:"modes"`
+	Tags                []string   `json:"tags"`
+	Icon                string     `json:"icon,omitempty"`
+	TargetToolID        *string    `json:"targetToolId,omitempty"`
+	Draft               bool       `json:"draft"`
+	Folder              string     `json:"folder"`
+	CreatedAt           string     `json:"createdAt"`
+	UpdatedAt           string     `json:"updatedAt"`
+	UsageCount          int        `json:"usageCount"`
+	LastUsed            *string    `json:"lastUsed,omitempty"`
+	EffectivenessRating *int       `json:"effectivenessRating,omitempty"`
+	Variables           []Variable `json:"variables,omitempty"`
 }
 
 // SyncResponse is returned by the sync endpoint for consumers like ecosystem-manager.
@@ -125,11 +126,12 @@ type RevertResponse struct {
 
 // ReadRequest is the request body for reading multiple skills by identifier.
 type ReadRequest struct {
-	Identifiers  []string `json:"identifiers"`
-	Resolve      string   `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
-	AllowMissing *bool    `json:"allowMissing,omitempty"` // default true
-	Output       string   `json:"output,omitempty"`       // "skills", "combined", or "both"
-	Format       string   `json:"format,omitempty"`       // "xml", "markdown", or "json" (for combined output)
+	Identifiers  []string          `json:"identifiers"`
+	Resolve      string            `json:"resolve,omitempty"`      // "auto", "id", "file", or "name"
+	AllowMissing *bool             `json:"allowMissing,omitempty"` // default true
+	Output       string            `json:"output,omitempty"`       // "skills", "combined", or "both"
+	Format       string            `json:"format,omitempty"`       // "xml", "markdown", or "json" (for combined output)
+	Variables    map[string]string `json:"variables,omitempty"`    // Values for {{VAR}} substitution
 }
 
 // ReadIssue captures missing identifiers.

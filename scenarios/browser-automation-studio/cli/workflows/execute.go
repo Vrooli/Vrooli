@@ -265,13 +265,13 @@ func runExecute(ctx *appctx.Context, args []string) error {
 					return fmt.Errorf("--save-session: failed to create profile: %w", err)
 				}
 				saveSessionProfileID = created.ID
-				fmt.Printf("Created session profile: %s (%s)\n", created.Name, created.ID[:8])
+				fmt.Printf("Created new session profile: %s (%s)\n", created.Name, created.ID[:8])
 			} else {
 				return fmt.Errorf("--save-session: %w", err)
 			}
 		} else {
 			saveSessionProfileID = resolved.ID
-			fmt.Printf("Will save session to: %s (%s)\n", resolved.Name, resolved.ID[:8])
+			printSaveSessionProfileInfo(ctx, resolved)
 		}
 	}
 
@@ -1291,7 +1291,8 @@ type sessionProfileListResponse struct {
 	Profiles []sessionProfileInfo `json:"profiles"`
 }
 
-// resolveSessionProfile resolves a profile identifier (ID or name) to a profile.
+// resolveSessionProfile resolves a profile identifier (ID, short ID prefix, or name) to a profile.
+// Resolution order: exact ID match → short ID prefix match → exact name match.
 func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProfileInfo, error) {
 	identifier = strings.TrimSpace(identifier)
 	if identifier == "" {
@@ -1315,22 +1316,38 @@ func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProf
 		}
 	}
 
-	// Then try exact name match
-	var matches []sessionProfileInfo
-	for _, p := range resp.Profiles {
-		if p.Name == identifier {
-			matches = append(matches, p)
+	// Then try short ID prefix match (minimum 4 characters to avoid accidental matches)
+	if len(identifier) >= 4 && len(identifier) < 36 && !strings.Contains(identifier, " ") {
+		var prefixMatches []sessionProfileInfo
+		for _, p := range resp.Profiles {
+			if strings.HasPrefix(p.ID, identifier) {
+				prefixMatches = append(prefixMatches, p)
+			}
+		}
+		if len(prefixMatches) == 1 {
+			return &prefixMatches[0], nil
+		}
+		if len(prefixMatches) > 1 {
+			return nil, fmt.Errorf("ambiguous short ID '%s': %d profiles match. Use full ID or more characters", identifier, len(prefixMatches))
 		}
 	}
 
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("session profile not found: %s", identifier)
-	}
-	if len(matches) > 1 {
-		return nil, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(matches))
+	// Finally, try exact name match
+	var nameMatches []sessionProfileInfo
+	for _, p := range resp.Profiles {
+		if p.Name == identifier {
+			nameMatches = append(nameMatches, p)
+		}
 	}
 
-	return &matches[0], nil
+	if len(nameMatches) == 0 {
+		return nil, fmt.Errorf("session profile not found: %s", identifier)
+	}
+	if len(nameMatches) > 1 {
+		return nil, fmt.Errorf("ambiguous profile name '%s': %d profiles match. Use profile ID instead", identifier, len(nameMatches))
+	}
+
+	return &nameMatches[0], nil
 }
 
 // createSessionProfile creates a new session profile.
@@ -1419,5 +1436,24 @@ func printSessionProfileLoadInfo(ctx *appctx.Context, profile *sessionProfileInf
 	if expiredCount > 0 {
 		fmt.Printf("WARN: Session profile has %d expired cookie(s). Authentication may fail.\n", expiredCount)
 		fmt.Printf("      Consider re-authenticating with --save-session %q\n", profile.Name)
+	}
+}
+
+// printSaveSessionProfileInfo prints information about the existing profile that will be updated.
+func printSaveSessionProfileInfo(ctx *appctx.Context, profile *sessionProfileInfo) {
+	state, err := getSessionStorageState(ctx, profile.ID)
+	if err != nil {
+		// Silently continue if we can't get storage state
+		fmt.Printf("Will update existing profile: %s (%s)\n", profile.Name, profile.ID[:8])
+		return
+	}
+
+	// Show what will be overwritten
+	if state.Stats.CookieCount > 0 || state.Stats.LocalStorageCount > 0 {
+		fmt.Printf("Will update existing profile: %s (%s) - replacing %d cookies, %d localStorage items\n",
+			profile.Name, profile.ID[:8], state.Stats.CookieCount, state.Stats.LocalStorageCount)
+	} else {
+		fmt.Printf("Will update existing profile: %s (%s) - currently empty\n",
+			profile.Name, profile.ID[:8])
 	}
 }
