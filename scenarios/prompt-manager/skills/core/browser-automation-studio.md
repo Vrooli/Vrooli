@@ -449,6 +449,72 @@ browser-automation-studio session delete "Dev Account" --json
 browser-automation-studio session clear-storage "Dev Account" --json
 ```
 
+> **Tip:** All session commands support short ID prefixes (minimum 4 characters). Use the first 8 characters shown in `session list` output:
+> ```bash
+> browser-automation-studio session show 5677c9e3  # Instead of full UUID
+> ```
+
+#### Refreshing Sessions (Load + Save)
+
+Use `--session-profile` and `--save-session` together to load existing state, run a workflow that may update tokens or cookies, and save the refreshed state back:
+
+```bash
+# Load existing session, perform actions that refresh tokens, save updated state
+browser-automation-studio workflow execute \
+  --from-file bas/actions/refresh-auth.json \
+  --session-profile "Dev Account" \
+  --save-session "Dev Account" \
+  --wait
+```
+
+This is useful for:
+- **Token refresh flows**: Load session with expiring tokens, hit refresh endpoint, save new tokens
+- **Session extension**: Perform activity to keep session alive
+- **Incremental state building**: Add new cookies/localStorage to existing session
+
+#### Understanding `session show` Output
+
+The `session show` command displays comprehensive profile information:
+
+```
+Session Profile
+===============
+  ID:         9a6cf317-f2ab-4d31-8914-03bc3435a1bf
+  Name:       Dev Account
+  Created:    2026-01-30 00:35:22
+  Updated:    2026-01-30 00:35:53
+  Last Used:  2026-01-30 00:35:53
+
+Browser Profile              # Only shown if configured
+---------------
+  Preset:     stealth        # none, stealth, or custom
+  Mouse:      natural        # linear or natural movement style
+  Scroll:     stepped        # smooth or stepped scrolling
+  Typing:     50-150ms delay # Human-like typing delays
+  Pauses:     enabled        # Micro-pauses between actions
+  Stealth:    no-automation-flag, webdriver-patch, headless-bypass
+  Ad Block:   ads_and_tracking
+
+Storage State
+-------------
+  Cookies:      3 (1 expired)  # Warning shown for expired cookies
+  Origins:      2
+  LocalStorage: 5 items
+
+  Cookies:
+    session_id (example.com): abc123...
+    auth_token (example.com): [HIDDEN]  # Sensitive values masked
+
+  LocalStorage:
+    https://example.com:
+      user_preferences: {"theme":"dark"...}
+```
+
+**Key fields:**
+- **Browser Profile**: Anti-detection and behavior settings (stealth mode, typing delays, etc.)
+- **Storage State**: Saved cookies and localStorage that will be injected on next use
+- **Expired cookies warning**: Alerts you when authentication may fail due to stale cookies
+
 #### When to Use Session Profiles
 
 | Use Case | Session Profile? |

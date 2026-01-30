@@ -279,7 +279,7 @@ export function usePromptEditor({
     setIsSaving(true)
     try {
       const updates = new Map<string, UpdateSkillRequest>()
-      updates.set(currentSkill.id, normalizedStateToUpdateRequest(formState))
+      updates.set(currentSkill.id, normalizedStateToUpdateRequest(formState, originalState?.file))
       const results = await onSave(updates)
 
       // If save succeeded, update the original in the store
@@ -307,7 +307,7 @@ export function usePromptEditor({
     } finally {
       setIsSaving(false)
     }
-  }, [currentSkill, isDirty, validation.valid, formState, onSave, markAsSaved])
+  }, [currentSkill, isDirty, validation.valid, formState, originalState, onSave, markAsSaved])
 
   // Save all pending changes
   const saveAllChanges = useCallback(async (): Promise<SaveResult> => {
@@ -325,9 +325,10 @@ export function usePromptEditor({
 
     for (const id of dirtyIds) {
       const state = store.getFormState(id)
+      const original = store.getOriginalState(id)
       const storeValidation = store.getValidation(id)
       if (state && storeValidation.valid) {
-        updates.set(id, normalizedStateToUpdateRequest(state))
+        updates.set(id, normalizedStateToUpdateRequest(state, original?.file))
       }
     }
 
