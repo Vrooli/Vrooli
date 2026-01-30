@@ -1,6 +1,10 @@
 ## Steer focus: Interoperability Steer
 
-Ensure scenarios communicate reliably through **type-safe, proto-first contracts** between UI↔API and API↔API boundaries. This skill steers toward contracts that are impossible to misuse, eliminating stringly-typed drift and unsafe type coercion.
+Prioritize **hardening type-safe, proto-first contracts** in `scenarios/{{TARGET}}/` for UI↔API and API↔API boundaries. This skill steers toward contracts that are impossible to misuse, eliminating stringly-typed drift and unsafe type coercion in the target scenario.
+
+Your goal is to ensure the target scenario **communicates reliably** with shared protos, using proper serialization options, runtime validation at boundaries, and no unsafe type assertions.
+
+Do **not** break functionality, regress tests, or introduce new features. All changes must maintain or improve the scenario's interoperability posture.
 
 Optional reading:
 - `prompt-manager skills read api-steer`
@@ -9,7 +13,7 @@ Optional reading:
 
 ### 0. Why This Skill Exists
 
-Inter-scenario communication is the connective tissue of Vrooli. When this tissue is weak—using ad-hoc JSON shapes, unsafe type casts, or ignored schemas—the system becomes fragile in ways that are invisible until runtime:
+Inter-scenario communication is the connective tissue of Vrooli. When `{{TARGET}}`'s boundaries are weak—using ad-hoc JSON shapes, unsafe type casts, or ignored schemas—the system becomes fragile in ways that are invisible until runtime:
 
 - **Silent data loss:** Fields renamed or removed without notice
 - **Type drift:** UI expects `camelCase`, API sends `snake_case`, parsers silently drop data
@@ -589,27 +593,27 @@ app.post('/api/profiles', (req, res) => {
 
 ---
 
-### 8. Interoperability Audit (Brownfield Assessment)
+### 8. Interoperability Audit
 
-When inheriting or improving an existing scenario, assess its interoperability posture.
+Before making changes, assess `{{TARGET}}`'s current interoperability posture.
 
 #### 8.1 Audit Commands
 
 ```bash
-# Find proto type imports
-rg "from '@vrooli/proto-types" --type ts -l
+# Find proto type imports in target scenario
+rg "from '@vrooli/proto-types" --type ts -l scenarios/{{TARGET}}/
 
 # Find unsafe type assertions near API calls
-rg "as [A-Z][a-zA-Z]+\b" --type ts -C 2 | rg -i "fetch|response|axios|api"
+rg "as [A-Z][a-zA-Z]+\b" --type ts -C 2 scenarios/{{TARGET}}/ | rg -i "fetch|response|axios|api"
 
 # Find hand-written interfaces that might duplicate protos
-rg "interface\s+[A-Z][a-zA-Z]+\s*\{" --type ts
+rg "interface\s+[A-Z][a-zA-Z]+\s*\{" --type ts scenarios/{{TARGET}}/
 
 # Find fromJson without useProtoNames
-rg "fromJson\([^)]+\)" --type ts | rg -v "useProtoNames"
+rg "fromJson\([^)]+\)" --type ts scenarios/{{TARGET}}/ | rg -v "useProtoNames"
 
 # Find string comparisons that should use enums
-rg "=== ['\"]" --type ts | rg -i "status|state|type|mode"
+rg "=== ['\"]" --type ts scenarios/{{TARGET}}/ | rg -i "status|state|type|mode"
 
 # Check if proto generation is in sync
 cd packages/proto && make check
@@ -627,10 +631,10 @@ cd packages/proto && make check
 
 #### 8.3 Document Findings
 
-Record audit results in `docs/internal/INTEROP_AUDIT.md`:
+Record audit results in `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
 
 ```markdown
-# Interoperability Audit
+# {{TARGET}} Interoperability Audit
 
 ## Last Updated
 [Date]
@@ -652,38 +656,83 @@ Record audit results in `docs/internal/INTEROP_AUDIT.md`:
 
 ---
 
-### 9. Documentation and Memory Loop
+### 9. Memory Management with Visited Tracker
 
-#### 9.1 At Session Start
+To ensure **systematic coverage without repetition**, use `visited-tracker`:
+
+**At the start of each iteration:**
+```bash
+visited-tracker least-visited \
+  --location scenarios/{{TARGET}} \
+  --pattern "**/*.{ts,tsx,go}" \
+  --tag interoperability \
+  --name "{{TARGET}} - Interoperability" \
+  --limit 5
+```
+
+**After analyzing each file:**
+```bash
+visited-tracker visit <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag interoperability \
+  --note "<summary of interop improvements made and what remains>"
+```
+
+**When a file is irrelevant (no API/proto consumption):**
+```bash
+visited-tracker exclude <file-path> \
+  --location scenarios/{{TARGET}} \
+  --tag interoperability \
+  --reason "No API boundaries or proto consumption"
+```
+
+**Before ending your session:**
+```bash
+visited-tracker campaigns note \
+  --location scenarios/{{TARGET}} \
+  --tag interoperability \
+  --name "{{TARGET}} - Interoperability" \
+  --note "<overall progress summary, anti-patterns found, priority fixes>"
+```
+
+---
+
+### 10. Documentation and Memory Loop
+
+#### 10.1 At Session Start
 
 Read existing interoperability documentation:
 - `packages/proto/README.md` — Usage patterns
 - `packages/proto/STYLE_GUIDE.md` — Schema conventions
-- `docs/internal/INTEROP_AUDIT.md` — Prior audit findings (if exists)
+- `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md` — Prior audit findings for this scenario (if exists)
 
-#### 9.2 At Session End
+#### 10.2 At Session End
 
-Update findings documentation:
+Update `scenarios/{{TARGET}}/docs/internal/INTEROP_AUDIT.md`:
+- The code is the source of truth. Verify existing claims against actual code before extending.
 - Correct any inaccuracies discovered
 - Add new anti-pattern instances found
 - Update priority fixes based on work completed
 - Note areas not yet audited
+- Create the `docs/internal/` directory if needed
 
 ---
 
-### 10. Maintain Scenario Constraints
+### 11. Maintain Scenario Constraints
 
+* Do **not** change `{{TARGET}}`'s core workflows, APIs, or business logic unrelated to interoperability
+* Do **not** introduce new features unrelated to type-safe contracts
 * Do **not** add proto schemas for one-off features—design for reuse
 * Do **not** introduce breaking changes without deprecation cycle
 * Do **not** manually edit files in `gen/`—always regenerate
 * Prefer **additive schema evolution** over breaking changes
-* Keep proto package structure aligned with scenario domain boundaries
+* Keep proto package structure aligned with `{{TARGET}}`'s domain boundaries
 
 ---
 
-### 11. Output Expectations
+### 12. Output Expectations
 
-You may:
+You may update in `scenarios/{{TARGET}}/`:
 - Add or modify proto schemas following layer architecture
 - Add protovalidate annotations for boundary enforcement
 - Refactor consuming code to use proper fromJson/toJsonString patterns
@@ -691,6 +740,7 @@ You may:
 - Remove unsafe type assertions and hand-written duplicate types
 
 You must:
+- Keep `{{TARGET}}` fully functional and non-regressed
 - Run `make generate` after any proto schema changes
 - Run `make lint` and `make breaking` after regenerating
 - Use `useProtoNames: true` for all JSON serialization/deserialization
@@ -703,3 +753,5 @@ You must NOT:
 - Edit files in `gen/` directly
 - Skip protovalidate at API boundaries where external input enters
 - Reuse reserved field numbers or enum values
+
+**Avoid superficial changes that rename variables or restructure code without materially improving interoperability.**

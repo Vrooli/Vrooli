@@ -101,8 +101,33 @@ Every skill opens with a clear statement of purpose:
 The summary should answer: "If I only read this sentence, what would I prioritize?"
 
 **Examples:**
-- "Prioritize **hardening React UI components against runtime crashes** across this scenario."
-- "Focus on **test coverage for critical user journeys** rather than superficial coverage metrics."
+- "Prioritize **hardening React UI components against runtime crashes** in `scenarios/{{TARGET}}/`."
+- "Focus on **test coverage for critical user journeys** in `scenarios/{{TARGET}}/` rather than superficial coverage metrics."
+
+#### **4.1 Steer Skills Must Target a Specific Scenario**
+
+**Steer skills are always focused on a single scenario via the `{{TARGET}}` placeholder.** This is a hard requirement for all steer-mode skills.
+
+The `{{TARGET}}` placeholder gets substituted with the actual scenario name when the skill is applied. This ensures:
+- File paths reference the correct scenario (e.g., `scenarios/{{TARGET}}/ui/`, `scenarios/{{TARGET}}/api/`)
+- Audit commands search the right directories
+- Documentation is written to the scenario's docs folder
+- The agent stays focused on one scenario rather than making sweeping cross-repo changes
+
+**Where to use `{{TARGET}}`:**
+- File paths: `scenarios/{{TARGET}}/ui/src/`
+- Audit commands: `rg "pattern" scenarios/{{TARGET}}/`
+- Documentation paths: `scenarios/{{TARGET}}/docs/internal/`
+- visited-tracker commands: `--location scenarios/{{TARGET}}`
+
+**Example opening for a steer skill:**
+```markdown
+## Steer focus: API Hardening
+
+Prioritize **hardening API boundaries** in `scenarios/{{TARGET}}/api/` with proper validation, error handling, and type-safe contracts.
+
+Your goal is to ensure the target scenario's API **fails gracefully** and provides clear error messages, rather than crashing or leaking internal details.
+```
 
 ---
 
@@ -342,9 +367,9 @@ To publish a skill:
 
 * Do **not** create skills for one-off tasks (use direct instructions instead)
 * Do **not** duplicate guidance that belongs in CLAUDE.md or scenario-specific docs
-* Do **not** make skills overly prescriptive about file locations or exact implementations
+* Do **not** hardcode scenario names in steer skills—use `{{TARGET}}` placeholder instead
 * Prefer **updating existing skills** when guidance can be naturally extended
-* Skills should be **transferable** across scenarios, not tied to specific codebases
+* Skills should be **transferable** across scenarios via the `{{TARGET}}` substitution pattern
 
 ---
 
@@ -361,10 +386,11 @@ You **must**:
 * Include output expectations section
 * Test that skills load correctly in prompt-manager
 * Follow the consistent structure pattern
+* **For steer skills:** Include `{{TARGET}}` placeholder in file paths, audit commands, and documentation paths
 
 **Avoid:**
 * Time-based constraints ("do X in 30 minutes")
-* File-level directives ("edit src/foo.ts")
+* Hardcoded file paths without `{{TARGET}}` in steer skills
 * Output quotas ("add 5 tests per file")
 * Tool-specific instructions that may not apply to all scenarios
 * Prose-only guidance where a decision tree or table would be clearer
