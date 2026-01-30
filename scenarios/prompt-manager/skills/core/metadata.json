@@ -759,6 +759,40 @@
       "draft": false,
       "createdAt": "2026-01-28T00:00:00Z",
       "updatedAt": "2026-01-28T12:15:03-05:00"
+    },
+    {
+      "id": "x-dev-log",
+      "file": "x-dev-log.md",
+      "name": "X Dev Log Generator",
+      "description": "Generate X/Twitter dev log threads by mining Vrooli scenario activity (git-control-tower, agent-manager, swarm-manager, app-issue-tracker)",
+      "modes": [
+        "Tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "MessageCircle",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-29T00:00:00Z",
+      "updatedAt": "2026-01-29T22:52:28-05:00"
+    },
+    {
+      "id": "skill-improvement-suggestions",
+      "file": "skill-improvement-suggestions.md",
+      "name": "Skill Improvement Suggestions",
+      "description": "Analyze a skill and propose improvements to its tools, wording, or structure",
+      "modes": [
+        "Meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "icon": "Lightbulb",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-30T00:00:00Z",
+      "updatedAt": "2026-01-30T00:29:34-05:00"
     }
   ]
 }
