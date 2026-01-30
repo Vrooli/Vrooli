@@ -14,11 +14,12 @@
 
 import { type ReactNode, type RefObject, useState, useRef, useCallback, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X, Sparkles } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType } from '@/types'
 import type { Member } from '@/types/member'
+import type { CombineFormat } from '@/stores/combineStore'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
@@ -26,6 +27,7 @@ import { MemberListPanel } from '../member/MemberListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
+import { CombineActionBar } from './CombineActionBar'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { getAISearchStatus } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
@@ -68,6 +70,18 @@ interface SkillTreeSidebarProps {
   onMoveToFolder: (skillId: string, path: string[]) => void
   onChangeStorage: (skillId: string, folder: FolderType) => void
   onCreateNewFolder: (skillId: string) => void
+  // Combine mode props
+  combineMode?: boolean
+  combineSelectedIds?: Set<string>
+  combineFormat?: CombineFormat
+  onCombineFormatChange?: (format: CombineFormat) => void
+  onCombineToggle?: (node: TreeNode) => void
+  getCombineSelectionState?: (node: TreeNode) => 'none' | 'partial' | 'all'
+  onEnterCombineMode?: () => void
+  onExitCombineMode?: () => void
+  onCombineCopy?: () => void
+  isCombineCopying?: boolean
+  combineCopySuccess?: boolean
   className?: string
 }
 
@@ -107,6 +121,17 @@ export function SkillTreeSidebar({
   onMoveToFolder,
   onChangeStorage,
   onCreateNewFolder,
+  combineMode = false,
+  combineSelectedIds = new Set(),
+  combineFormat = 'xml',
+  onCombineFormatChange,
+  onCombineToggle,
+  getCombineSelectionState,
+  onEnterCombineMode,
+  onExitCombineMode,
+  onCombineCopy,
+  isCombineCopying = false,
+  combineCopySuccess = false,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -299,7 +324,14 @@ export function SkillTreeSidebar({
         {/* Top bar with settings and collapse */}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-1">
-            {skillSelectionMode && currentMember ? (
+            {combineMode ? (
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-foreground">
+                  Combine Mode
+                </span>
+              </div>
+            ) : skillSelectionMode && currentMember ? (
               <div className="flex items-center gap-2">
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center"
@@ -321,7 +353,7 @@ export function SkillTreeSidebar({
             ) : null}
           </div>
           <div className="flex items-center gap-1">
-            {onOpenSettings && !skillSelectionMode && (
+            {onOpenSettings && !skillSelectionMode && !combineMode && (
               <button
                 type="button"
                 onClick={onOpenSettings}
@@ -331,7 +363,7 @@ export function SkillTreeSidebar({
                 <Settings className="h-4 w-4" />
               </button>
             )}
-            {!skillSelectionMode && (
+            {!skillSelectionMode && !combineMode && (
               <button
                 type="button"
                 onClick={onToggleCollapse}
@@ -444,6 +476,21 @@ export function SkillTreeSidebar({
                 >
                   <ChevronUp className="h-3 w-3" />
                 </button>
+                {!skillSelectionMode && onEnterCombineMode && (
+                  <button
+                    type="button"
+                    onClick={combineMode ? onExitCombineMode : onEnterCombineMode}
+                    className={cn(
+                      'flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-colors',
+                      combineMode
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    )}
+                    title={combineMode ? 'Exit combine mode' : 'Combine skills'}
+                  >
+                    <Layers className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -484,9 +531,9 @@ export function SkillTreeSidebar({
                   expandedNodes={expandedNodes}
                   onToggleNode={onToggleNode}
                   renderItemIcon={renderItemIcon}
-                  showCheckbox={skillSelectionMode}
-                  onCheckboxChange={onSkillCheckboxChange}
-                  getSelectionState={getSkillSelectionState}
+                  showCheckbox={skillSelectionMode || combineMode}
+                  onCheckboxChange={combineMode ? onCombineToggle : onSkillCheckboxChange}
+                  getSelectionState={combineMode ? getCombineSelectionState : getSkillSelectionState}
                   onCategoryContextMenu={handleCategoryContextMenu}
                   onSkillContextMenu={handleSkillContextMenu}
                 />
@@ -527,7 +574,17 @@ export function SkillTreeSidebar({
 
           {/* Footer - Context dependent */}
           <div className="flex-shrink-0 px-3 py-3 border-t border-border">
-            {skillSelectionMode ? (
+            {combineMode && onCombineCopy && onExitCombineMode && onCombineFormatChange ? (
+              <CombineActionBar
+                selectedCount={combineSelectedIds.size}
+                format={combineFormat}
+                onFormatChange={onCombineFormatChange}
+                onCopy={onCombineCopy}
+                onCancel={onExitCombineMode}
+                isCopying={isCombineCopying}
+                copySuccess={combineCopySuccess}
+              />
+            ) : skillSelectionMode ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"

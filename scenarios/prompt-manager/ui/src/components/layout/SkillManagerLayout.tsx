@@ -33,6 +33,8 @@ import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersi
 import { useSelectionStore } from '@/stores/selectionStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
+import { useCombineStore } from '@/stores/combineStore'
+import { api } from '@/lib/api'
 import { SettingsDialog } from '../shared/SettingsDialog'
 import { getAllItemIdsInSubtree, countSelectedInSubtree } from '@/services/treeService'
 import { NewFolderDialog } from '../tree/NewFolderDialog'
@@ -119,6 +121,21 @@ export function SkillManagerLayout() {
   const toggleMultipleSkills = useSkillSelectionStore((state) => state.toggleMultipleSkills)
   const saveAndExitSkillSelection = useSkillSelectionStore((state) => state.saveAndExit)
 
+  // Combine store
+  const combineMode = useCombineStore((state) => state.isActive)
+  const combineSelectedIds = useCombineStore((state) => state.selectedSkillIds)
+  const combineFormat = useCombineStore((state) => state.format)
+  const isCombineCopying = useCombineStore((state) => state.isCopying)
+  const enterCombineMode = useCombineStore((state) => state.enterCombineMode)
+  const exitCombineMode = useCombineStore((state) => state.exitCombineMode)
+  const toggleCombineSkillSelection = useCombineStore((state) => state.toggleSkillSelection)
+  const toggleCombineMultipleSkills = useCombineStore((state) => state.toggleMultipleSkills)
+  const setCombineFormat = useCombineStore((state) => state.setFormat)
+  const setIsCombineCopying = useCombineStore((state) => state.setIsCopying)
+
+  // Combine copy success state (local since it's UI feedback)
+  const [combineCopySuccess, setCombineCopySuccess] = useState(false)
+
   // Skill selection helper functions
   const handleSkillCheckboxChange = useCallback(
     (node: TreeNode) => {
@@ -150,6 +167,70 @@ export function SkillManagerLayout() {
     },
     [skillSelectedIds]
   )
+
+  // Combine helper functions
+  const handleCombineCheckboxChange = useCallback(
+    (node: TreeNode) => {
+      if (node.isCategory) {
+        // Toggle all items in the folder
+        const allIds = getAllItemIdsInSubtree(node)
+        const allSelected = allIds.every((id) => combineSelectedIds.has(id))
+        toggleCombineMultipleSkills(allIds, !allSelected)
+      } else if (node.itemId) {
+        toggleCombineSkillSelection(node.itemId)
+      }
+    },
+    [combineSelectedIds, toggleCombineSkillSelection, toggleCombineMultipleSkills]
+  )
+
+  const getCombineSelectionState = useCallback(
+    (node: TreeNode): 'none' | 'partial' | 'all' => {
+      if (!node.isCategory && node.itemId) {
+        return combineSelectedIds.has(node.itemId) ? 'all' : 'none'
+      }
+
+      const allIds = getAllItemIdsInSubtree(node)
+      if (allIds.length === 0) return 'none'
+
+      const selectedCount = countSelectedInSubtree(node, combineSelectedIds)
+      if (selectedCount === 0) return 'none'
+      if (selectedCount === allIds.length) return 'all'
+      return 'partial'
+    },
+    [combineSelectedIds]
+  )
+
+  const handleCombineCopy = useCallback(async () => {
+    if (combineSelectedIds.size === 0) return
+
+    setIsCombineCopying(true)
+    setCombineCopySuccess(false)
+
+    try {
+      const identifiers = Array.from(combineSelectedIds)
+      const response = await api.displaySkills(identifiers, combineFormat)
+
+      await navigator.clipboard.writeText(response.combined)
+      setCombineCopySuccess(true)
+
+      toast({
+        title: 'Copied to clipboard',
+        description: `${combineSelectedIds.size} skill${combineSelectedIds.size !== 1 ? 's' : ''} combined as ${combineFormat.toUpperCase()}`,
+      })
+
+      // Reset success state after delay
+      setTimeout(() => setCombineCopySuccess(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy combined skills:', error)
+      toast({
+        title: 'Copy failed',
+        description: 'Failed to combine and copy skills',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsCombineCopying(false)
+    }
+  }, [combineSelectedIds, combineFormat, setIsCombineCopying])
 
   // Editor state
   const {
@@ -482,6 +563,11 @@ export function SkillManagerLayout() {
         setNewFolderDialog(null)
         return
       }
+      // Exit combine mode if active
+      if (combineMode) {
+        exitCombineMode()
+        return
+      }
       // If no dialogs open and on mobile, close the sidebar
       if (isMobile && isMobileSidebarOpen) {
         setIsMobileSidebarOpen(false)
@@ -534,6 +620,17 @@ export function SkillManagerLayout() {
         onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
         onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
         onCreateNewFolder={handleCreateNewFolderRequest}
+        combineMode={combineMode}
+        combineSelectedIds={combineSelectedIds}
+        combineFormat={combineFormat}
+        onCombineFormatChange={setCombineFormat}
+        onCombineToggle={handleCombineCheckboxChange}
+        getCombineSelectionState={getCombineSelectionState}
+        onEnterCombineMode={enterCombineMode}
+        onExitCombineMode={exitCombineMode}
+        onCombineCopy={() => void handleCombineCopy()}
+        isCombineCopying={isCombineCopying}
+        combineCopySuccess={combineCopySuccess}
       />
     </PanelErrorBoundary>
   )
@@ -693,6 +790,17 @@ export function SkillManagerLayout() {
                 onMoveToFolder={(skillId, path) => void handleMoveToFolder(skillId, path)}
                 onChangeStorage={(skillId, folder) => void handleChangeStorage(skillId, folder)}
                 onCreateNewFolder={handleCreateNewFolderRequest}
+                combineMode={combineMode}
+                combineSelectedIds={combineSelectedIds}
+                combineFormat={combineFormat}
+                onCombineFormatChange={setCombineFormat}
+                onCombineToggle={handleCombineCheckboxChange}
+                getCombineSelectionState={getCombineSelectionState}
+                onEnterCombineMode={enterCombineMode}
+                onExitCombineMode={exitCombineMode}
+                onCombineCopy={() => void handleCombineCopy()}
+                isCombineCopying={isCombineCopying}
+                combineCopySuccess={combineCopySuccess}
                 className="border-r-0"
               />
             </div>

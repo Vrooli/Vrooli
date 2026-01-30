@@ -157,6 +157,13 @@ browser-automation-studio workflow execute \
 
 > **Important:** When using CSS attribute selectors like `[data-testid='dashboard']`, prefix with `selector=` to avoid the `=` being parsed as a key-value delimiter.
 
+> **Tip:** For navigate steps, you can use either a positional URL or `url=` prefix:
+> ```bash
+> # Both are equivalent:
+> --step navigate https://example.com/path
+> --step navigate url=https://example.com/path
+> ```
+
 **Step format:** `--step <type> [positional] [key=value ...]`
 
 Use `browser-automation-studio schema steps` to see all available step types, their positional arguments, and required/optional key-value parameters. Use `browser-automation-studio schema steps --cli-only` for only CLI-supported steps.
@@ -378,7 +385,11 @@ Create profile → Sign in → Save session → Reuse
 
 **Create a session profile:**
 ```bash
+# Create with a specific name
 browser-automation-studio session create "Dev Account"
+
+# Create without a name (auto-generates "Session N")
+browser-automation-studio session create
 ```
 
 **Sign in and save the session:**
@@ -414,14 +425,28 @@ browser-automation-studio workflow execute \
 # List all session profiles
 browser-automation-studio session list
 
-# View profile details (shows browser profile, last used, etc.)
+# View profile details (shows browser profile, last used, storage stats)
 browser-automation-studio session show "Dev Account"
+
+# Rename a session profile
+browser-automation-studio session rename "Dev Account" "Production Account"
 
 # Clear storage state (force re-login on next use)
 browser-automation-studio session clear-storage "Dev Account"
 
-# Delete a profile
+# Delete a profile (prompts for confirmation)
 browser-automation-studio session delete "Dev Account"
+
+# Delete without confirmation prompt
+browser-automation-studio session delete "Dev Account" --force
+
+# All commands support --json for programmatic output
+browser-automation-studio session list --json
+browser-automation-studio session create "New Profile" --json
+browser-automation-studio session show "Dev Account" --json
+browser-automation-studio session rename "Old Name" "New Name" --json
+browser-automation-studio session delete "Dev Account" --json
+browser-automation-studio session clear-storage "Dev Account" --json
 ```
 
 #### When to Use Session Profiles
