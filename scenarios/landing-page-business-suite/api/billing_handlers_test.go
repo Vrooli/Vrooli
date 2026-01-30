@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -35,20 +34,7 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	// Configure Stripe service
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := requireTestStripeService(t, db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleBillingCreateCheckoutSession(service)
 
@@ -118,19 +104,7 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := requireTestStripeService(t, db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleBillingCreateCheckoutSession(service)
 
@@ -173,19 +147,7 @@ func TestHandleBillingCreateCreditsSession_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := requireTestStripeService(t, db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleBillingCreateCreditsSession(service)
 
@@ -225,19 +187,7 @@ func TestHandleBillingPortalURL_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := NewStripeService(db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleBillingPortalURL(service)
 
@@ -310,19 +260,7 @@ func TestHandleBillingPortalURL_StripeError(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := NewStripeService(db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleBillingPortalURL(service)
 
@@ -357,19 +295,7 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	os.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_valid")
-	os.Setenv("STRIPE_SECRET_KEY", "sk_test_valid")
-	os.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_test_valid")
-	os.Setenv("STRIPE_API_BASE", stripeServer.URL)
-	defer func() {
-		os.Unsetenv("STRIPE_PUBLISHABLE_KEY")
-		os.Unsetenv("STRIPE_SECRET_KEY")
-		os.Unsetenv("STRIPE_WEBHOOK_SECRET")
-		os.Unsetenv("STRIPE_API_BASE")
-	}()
-
-	service := requireTestStripeService(t, db)
-	service.UseHTTPClient(stripeServer.Client())
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	// Test with custom log key and error message
 	handler := createCheckoutSessionHandler(service, "custom_log_key", "Custom error message", false)
@@ -388,5 +314,343 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// ============================================================================
+// Additional Billing Portal Tests
+// ============================================================================
+
+// TestHandleBillingPortalURL_NoCustomerFound verifies behavior when no subscription
+// exists for the authenticated user.
+func TestHandleBillingPortalURL_NoCustomerFound(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// No subscription inserted - user has no Stripe customer
+	// Mock server returns empty customer list
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/customers/search") {
+			// Return empty result - no customer found
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data":[]}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+	handler := handleBillingPortalURL(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "nocustomer@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for no customer, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var errResp ApiErrorResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("Failed to unmarshal error response: %v", err)
+	}
+	// The handler returns a generic error message to the client (for security reasons)
+	// The detailed "no Stripe customer found" error is only logged
+	if !strings.Contains(strings.ToLower(errResp.Error), "billing portal") {
+		t.Errorf("Expected billing portal related error, got '%s'", errResp.Error)
+	}
+}
+
+// TestHandleBillingPortalURL_CustomerLookupFallback verifies that customer lookup
+// falls back to Stripe API when not found locally.
+func TestHandleBillingPortalURL_CustomerLookupFallback(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// No local subscription, but customer exists in Stripe
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/v1/customers/search") {
+			// Return customer found by email lookup (search endpoint)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"data":[{"id":"cus_fallback_123","email":"fallback@example.com"}]}`)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"bps_fallback","url":"https://billing.stripe.test/session/bps_fallback"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "fallback@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+	url, ok := resp["url"].(string)
+	if !ok || !strings.Contains(url, "billing.stripe.test") {
+		t.Errorf("Expected portal URL, got %v", resp)
+	}
+}
+
+// TestHandleBillingPortalURL_ReturnURLValidation verifies return URL handling.
+func TestHandleBillingPortalURL_ReturnURLValidation(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Insert test customer
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, bundle_key)
+		VALUES ('sub_return_url', 'cus_return_url', 'returnurl@example.com', 'active', 'pro', 'business_suite')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test subscription: %v", err)
+	}
+
+	var capturedReturnURL string
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			if err := r.ParseForm(); err == nil {
+				capturedReturnURL = r.FormValue("return_url")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"bps_return","url":"https://billing.stripe.test/session/bps_return"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	// Test with return_url
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://myapp.com/billing", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "returnurl@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if capturedReturnURL != "https://myapp.com/billing" {
+		t.Errorf("Expected return_url to be passed to Stripe, got '%s'", capturedReturnURL)
+	}
+}
+
+// TestHandleBillingPortalURL_NoReturnURL verifies behavior when return URL is not provided.
+func TestHandleBillingPortalURL_NoReturnURL(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Insert test customer
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, bundle_key)
+		VALUES ('sub_no_return', 'cus_no_return', 'noreturn@example.com', 'active', 'pro', 'business_suite')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test subscription: %v", err)
+	}
+
+	var capturedReturnURL string
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			if err := r.ParseForm(); err == nil {
+				capturedReturnURL = r.FormValue("return_url")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"bps_noreturn","url":"https://billing.stripe.test/session/bps_noreturn"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	// Request without return_url
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "noreturn@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	// Return URL should be empty or not passed
+	if capturedReturnURL != "" {
+		t.Errorf("Expected no return_url when not provided, got '%s'", capturedReturnURL)
+	}
+}
+
+// TestHandleBillingPortalURL_CustomerIDLookup verifies portal access using customer ID directly.
+func TestHandleBillingPortalURL_CustomerIDLookup(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Insert test customer
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, bundle_key)
+		VALUES ('sub_cusid_lookup', 'cus_cusid_lookup', 'cusidlookup@example.com', 'active', 'pro', 'business_suite')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test subscription: %v", err)
+	}
+
+	var capturedCustomerID string
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			if err := r.ParseForm(); err == nil {
+				capturedCustomerID = r.FormValue("customer")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"bps_cusid","url":"https://billing.stripe.test/session/bps_cusid"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "cusidlookup@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if capturedCustomerID != "cus_cusid_lookup" {
+		t.Errorf("Expected customer ID 'cus_cusid_lookup', got '%s'", capturedCustomerID)
+	}
+}
+
+// TestHandleBillingPortalURL_CaseInsensitiveEmail verifies email lookup is case insensitive.
+func TestHandleBillingPortalURL_CaseInsensitiveEmail(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Insert subscription with lowercase email
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, bundle_key)
+		VALUES ('sub_case_insens', 'cus_case_insens', 'casetest@example.com', 'active', 'pro', 'business_suite')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test subscription: %v", err)
+	}
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"bps_case","url":"https://billing.stripe.test/session/bps_case"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	// Request with uppercase email
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "CASETEST@EXAMPLE.COM"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status 200 (case insensitive match), got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandleBillingPortalURL_PortalConfigurationError verifies error handling for
+// portal configuration issues.
+func TestHandleBillingPortalURL_PortalConfigurationError(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	resetStripeTestData(t, db)
+
+	// Insert test customer
+	_, err := db.Exec(`
+		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, bundle_key)
+		VALUES ('sub_config_err', 'cus_config_err', 'configerr@example.com', 'active', 'pro', 'business_suite')
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test subscription: %v", err)
+	}
+
+	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error":{"message":"The customer portal is not configured","type":"invalid_request_error","code":"portal_not_configured"}}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer stripeServer.Close()
+
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+
+	handler := handleBillingPortalURL(service)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
+	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "configerr@example.com"})
+	req = req.WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for portal config error, got %d", rr.Code)
+	}
+
+	var errResp ApiErrorResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("Failed to unmarshal error response: %v", err)
+	}
+	if !strings.Contains(errResp.Error, "portal") {
+		t.Errorf("Expected portal-related error, got '%s'", errResp.Error)
 	}
 }

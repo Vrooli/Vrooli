@@ -823,6 +823,14 @@ func ensureSchema(db *sql.DB) error {
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);`,
+		// Ensure subscription_schedules has all required columns (for schema migrations)
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS price_id VARCHAR(255);`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS billing_interval VARCHAR(20);`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS intro_enabled BOOLEAN DEFAULT FALSE;`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS intro_amount_cents INTEGER;`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS intro_periods INTEGER DEFAULT 0;`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS normal_amount_cents INTEGER;`,
+		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS next_billing_at TIMESTAMP;`,
 		// NOTE: content_sections table has been removed.
 		// Sections are now stored in JSON files (.vrooli/variants/*.json) as part of variant snapshots.
 		`CREATE TABLE IF NOT EXISTS bundle_products (
@@ -982,6 +990,7 @@ func ensureSchema(db *sql.DB) error {
 			amount_credits BIGINT NOT NULL,
 			transaction_type VARCHAR(50) NOT NULL,
 			source VARCHAR(100),
+			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,

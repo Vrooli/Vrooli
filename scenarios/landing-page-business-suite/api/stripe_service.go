@@ -272,6 +272,13 @@ func (s *StripeService) UseConfigLoader(loader stripeConfigLoader) {
 	s.configLoader = loader
 }
 
+// UseIntroCouponConfig overrides intro coupon configuration (for tests).
+func (s *StripeService) UseIntroCouponConfig(config IntroCouponConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.introCouponConfig = config
+}
+
 func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConfig, error) {
 	// Start with environment defaults.
 	envPublishable := strings.TrimSpace(os.Getenv("STRIPE_PUBLISHABLE_KEY"))
@@ -556,6 +563,8 @@ func (s *StripeService) lookupCustomerID(user string) string {
 	if strings.TrimSpace(user) == "" {
 		return ""
 	}
+	// Normalize email for case-insensitive lookup
+	normalizedUser := NormalizeEmail(user)
 	var customerID sql.NullString
 	err := s.db.QueryRow(`
 		SELECT customer_id
@@ -563,7 +572,7 @@ func (s *StripeService) lookupCustomerID(user string) string {
 		WHERE customer_email = $1 OR customer_id = $1
 		ORDER BY updated_at DESC
 		LIMIT 1
-	`, user).Scan(&customerID)
+	`, normalizedUser).Scan(&customerID)
 	if err != nil {
 		return ""
 	}
@@ -659,6 +668,10 @@ func (s *StripeService) VerifyStripePrice(key string) (map[string]interface{}, e
 // [REQ:STRIPE-ROUTES] POST /api/checkout/create endpoint
 func (s *StripeService) CreateCheckoutSession(priceID string, successURL string, cancelURL string, customerEmail string) (*landing_page_react_vite_v1.CheckoutSession, error) {
 	ctx := context.Background()
+
+	// Normalize email at entry point for consistent lookups and eligibility checks
+	customerEmail = NormalizeEmail(customerEmail)
+
 	plan, err := s.planService.GetPlanByPriceID(priceID)
 	if err != nil {
 		return nil, fmt.Errorf("price %s not found: %w", priceID, err)
@@ -897,8 +910,14 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 		return errors.New("missing event type")
 	}
 
-	// Extract event ID for idempotency
-	eventID, _ := event["id"].(string)
+	// Extract event ID for idempotency - required for safe webhook processing
+	eventID, ok := event["id"].(string)
+	if !ok || eventID == "" {
+		logStructuredError("webhook_missing_event_id", map[string]interface{}{
+			"event_type": eventType,
+		})
+		return errors.New("missing or invalid event ID - cannot process webhook safely")
+	}
 
 	data, ok := event["data"].(map[string]interface{})
 	if !ok {
@@ -920,6 +939,8 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 		return s.handleSubscriptionUpdated(obj)
 	case "customer.subscription.deleted":
 		return s.handleSubscriptionDeleted(obj)
+	case "customer.updated":
+		return s.handleCustomerUpdated(obj)
 	case "invoice.paid":
 		return s.handleInvoicePaid(obj)
 	case "invoice.payment_failed":
@@ -1485,8 +1506,17 @@ func (s *StripeService) handleCreditTopup(customerEmail string, amountCents int6
 		return err
 	}
 
-	if amountCents == 0 || bundle == nil {
-		return nil
+	if bundle == nil {
+		logStructuredError("bundle_product_not_configured", map[string]interface{}{
+			"customer_email":  customerEmail,
+			"amount_cents":    amountCents,
+			"stripe_event_id": stripeEventID,
+		})
+		return errors.New("bundle product not configured - cannot process credit topup")
+	}
+
+	if amountCents == 0 {
+		return errors.New("amount is zero - cannot process credit topup")
 	}
 
 	credits := (bundle.CreditsPerUsd * amountCents) / 100
@@ -1511,31 +1541,15 @@ func (s *StripeService) addCredits(customerEmail string, amount int64, txnType s
 	// Normalize email for consistency
 	customerEmail = NormalizeEmail(customerEmail)
 
-	// Idempotency check: if stripeEventID is provided, check if already processed
-	if stripeEventID != "" {
-		var exists bool
-		err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM credit_transactions WHERE stripe_event_id = $1)`, stripeEventID).Scan(&exists)
-		if err == nil && exists {
-			logStructured("credit_topup_already_processed", map[string]interface{}{
-				"level":           "info",
-				"stripe_event_id": stripeEventID,
-				"customer_email":  customerEmail,
-			})
-			return nil // Already processed - idempotent success
-		}
-	}
-
-	_, err := s.db.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (customer_email) DO UPDATE
-		SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
-	`, customerEmail, amount)
-	if err != nil {
-		return err
-	}
-
 	metaBytes, _ := json.Marshal(metadata)
+
+	// Use transaction to prevent race conditions
+	// Insert transaction record FIRST - unique index on stripe_event_id prevents duplicates
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin credit transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
 
 	// Store stripe_event_id for idempotency (nullable)
 	var eventIDParam interface{}
@@ -1543,11 +1557,56 @@ func (s *StripeService) addCredits(customerEmail string, amount int64, txnType s
 		eventIDParam = stripeEventID
 	}
 
-	_, err = s.db.Exec(`
+	// Insert transaction record first - ON CONFLICT DO NOTHING makes this idempotent
+	// The unique index on stripe_event_id ensures only one insert succeeds for concurrent requests
+	result, err := tx.Exec(`
 		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
 		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (stripe_event_id) DO NOTHING
 	`, customerEmail, amount, txnType, eventIDParam, string(metaBytes))
-	return err
+	if err != nil {
+		return fmt.Errorf("insert credit transaction: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check credit transaction rows: %w", err)
+	}
+
+	// If no rows were affected, this event was already processed (idempotent success)
+	if rowsAffected == 0 {
+		logStructured("credit_topup_already_processed", map[string]interface{}{
+			"level":           "info",
+			"stripe_event_id": stripeEventID,
+			"customer_email":  customerEmail,
+		})
+		return nil
+	}
+
+	// Only update wallet if transaction record was inserted successfully
+	_, err = tx.Exec(`
+		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (customer_email) DO UPDATE
+		SET balance_credits = credit_wallets.balance_credits + $2, updated_at = NOW()
+	`, customerEmail, amount)
+	if err != nil {
+		return fmt.Errorf("update credit wallet: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit credit transaction: %w", err)
+	}
+
+	logStructured("credits_added", map[string]interface{}{
+		"level":           "info",
+		"customer_email":  customerEmail,
+		"amount":          amount,
+		"transaction_type": txnType,
+		"stripe_event_id": stripeEventID,
+	})
+
+	return nil
 }
 
 func (s *StripeService) handleSubscriptionCreated(obj map[string]interface{}) error {
@@ -1827,6 +1886,137 @@ func (s *StripeService) handleInvoicePaymentFailed(obj map[string]interface{}) e
 	return nil
 }
 
+// handleCustomerUpdated handles the customer.updated webhook event.
+// When a user changes their email in the Stripe billing portal, this updates
+// all local records to prevent orphaned data.
+func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error {
+	customerID, ok := obj["id"].(string)
+	if !ok || customerID == "" {
+		return errors.New("missing customer id in customer.updated event")
+	}
+
+	newEmail, _ := obj["email"].(string)
+	newEmail = NormalizeEmail(newEmail)
+	if newEmail == "" {
+		// No email to update
+		return nil
+	}
+
+	// Get the previous email from the previous_attributes if available
+	var oldEmail string
+	if prevAttrs, ok := obj["previous_attributes"].(map[string]interface{}); ok {
+		if prevEmail, ok := prevAttrs["email"].(string); ok {
+			oldEmail = NormalizeEmail(prevEmail)
+		}
+	}
+
+	// If we don't have a previous email, look it up from our database
+	if oldEmail == "" {
+		err := s.db.QueryRow(`
+			SELECT customer_email FROM subscriptions
+			WHERE customer_id = $1
+			ORDER BY updated_at DESC
+			LIMIT 1
+		`, customerID).Scan(&oldEmail)
+		if err != nil && err != sql.ErrNoRows {
+			return fmt.Errorf("lookup old email for customer %s: %w", customerID, err)
+		}
+		oldEmail = NormalizeEmail(oldEmail)
+	}
+
+	// If emails are the same or we don't have an old email, nothing to update
+	if oldEmail == "" || oldEmail == newEmail {
+		return nil
+	}
+
+	logStructured("customer_email_migration_starting", map[string]interface{}{
+		"level":       "info",
+		"customer_id": customerID,
+		"old_email":   oldEmail,
+		"new_email":   newEmail,
+	})
+
+	// Use transaction to update all tables atomically
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin email migration transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Update subscriptions table
+	_, err = tx.Exec(`
+		UPDATE subscriptions
+		SET customer_email = $1, updated_at = NOW()
+		WHERE customer_id = $2 OR customer_email = $3
+	`, newEmail, customerID, oldEmail)
+	if err != nil {
+		return fmt.Errorf("migrate subscriptions email: %w", err)
+	}
+
+	// Update users table
+	_, err = tx.Exec(`
+		UPDATE users
+		SET email = $1, updated_at = NOW()
+		WHERE email = $2 OR stripe_customer_id = $3
+	`, newEmail, oldEmail, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate users email: %w", err)
+	}
+
+	// Update credit_wallets table
+	_, err = tx.Exec(`
+		UPDATE credit_wallets
+		SET customer_email = $1, updated_at = NOW()
+		WHERE customer_email = $2
+	`, newEmail, oldEmail)
+	if err != nil {
+		return fmt.Errorf("migrate credit_wallets email: %w", err)
+	}
+
+	// Update credit_transactions table
+	_, err = tx.Exec(`
+		UPDATE credit_transactions
+		SET customer_email = $1
+		WHERE customer_email = $2
+	`, newEmail, oldEmail)
+	if err != nil {
+		return fmt.Errorf("migrate credit_transactions email: %w", err)
+	}
+
+	// Update intro_coupon_usage table
+	_, err = tx.Exec(`
+		UPDATE intro_coupon_usage
+		SET email = $1
+		WHERE email = $2 OR stripe_customer_id = $3
+	`, newEmail, oldEmail, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate intro_coupon_usage email: %w", err)
+	}
+
+	// Update checkout_sessions table
+	_, err = tx.Exec(`
+		UPDATE checkout_sessions
+		SET customer_email = $1, updated_at = NOW()
+		WHERE customer_email = $2 OR customer_id = $3
+	`, newEmail, oldEmail, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate checkout_sessions email: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit email migration transaction: %w", err)
+	}
+
+	logStructured("customer_email_migration_completed", map[string]interface{}{
+		"level":       "info",
+		"customer_id": customerID,
+		"old_email":   oldEmail,
+		"new_email":   newEmail,
+	})
+
+	return nil
+}
+
 // VerifySubscription checks subscription status for a user
 // [REQ:SUB-VERIFY] GET /api/subscription/verify endpoint
 func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_react_vite_v1.SubscriptionStatus, error) {
@@ -1837,6 +2027,11 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*landing_page_r
 			UserIdentity: "",
 			Message:      proto.String("user not provided"),
 		}, nil
+	}
+
+	// Normalize email for case-insensitive lookup (but preserve customer IDs as-is)
+	if strings.Contains(user, "@") {
+		user = NormalizeEmail(user)
 	}
 
 	var status string
@@ -2068,6 +2263,187 @@ func (s *StripeService) linkUserToStripeCustomer(email, customerID string) error
 	logStructured("stripe_customer_linked", map[string]interface{}{
 		"level":       "info",
 		"email":       email,
+		"customer_id": customerID,
+	})
+
+	return nil
+}
+
+// --- StripeCreditService Interface Implementation ---
+
+// AddCredits adds credits to a user's wallet with idempotency protection.
+// This is the public interface method that delegates to the internal addCredits.
+func (s *StripeService) AddCredits(email string, amount int64, txnType, eventID string, metadata map[string]interface{}) error {
+	return s.addCredits(email, amount, txnType, eventID, metadata)
+}
+
+// ConsumeCredits deducts credits from a user's wallet for a given reason.
+func (s *StripeService) ConsumeCredits(ctx context.Context, email string, amount int64, reason string, metadata map[string]interface{}) error {
+	if email == "" || amount <= 0 {
+		return errors.New("email and positive amount are required")
+	}
+
+	email = NormalizeEmail(email)
+	metaBytes, _ := json.Marshal(metadata)
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin consume credits transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check current balance
+	var balance int64
+	err = tx.QueryRowContext(ctx, `
+		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1 FOR UPDATE
+	`, email).Scan(&balance)
+	if err == sql.ErrNoRows {
+		return errors.New("no credit wallet found for user")
+	}
+	if err != nil {
+		return fmt.Errorf("check credit balance: %w", err)
+	}
+
+	if balance < amount {
+		return fmt.Errorf("insufficient credits: have %d, need %d", balance, amount)
+	}
+
+	// Record the consumption transaction (negative amount)
+	_, err = tx.ExecContext(ctx, `
+		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, metadata, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+	`, email, -amount, reason, string(metaBytes))
+	if err != nil {
+		return fmt.Errorf("insert consumption transaction: %w", err)
+	}
+
+	// Update wallet balance
+	_, err = tx.ExecContext(ctx, `
+		UPDATE credit_wallets SET balance_credits = balance_credits - $1, updated_at = NOW()
+		WHERE customer_email = $2
+	`, amount, email)
+	if err != nil {
+		return fmt.Errorf("update credit wallet: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit consume credits transaction: %w", err)
+	}
+
+	logStructured("credits_consumed", map[string]interface{}{
+		"level":          "info",
+		"customer_email": email,
+		"amount":         amount,
+		"reason":         reason,
+	})
+
+	return nil
+}
+
+// GetBalance returns the current credit balance for a user.
+func (s *StripeService) GetBalance(email string) (int64, error) {
+	if email == "" {
+		return 0, errors.New("email is required")
+	}
+
+	email = NormalizeEmail(email)
+
+	var balance int64
+	err := s.db.QueryRow(`
+		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1
+	`, email).Scan(&balance)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get credit balance: %w", err)
+	}
+
+	return balance, nil
+}
+
+// --- StripeAccountLinkService Interface Implementation ---
+
+// LinkUserToStripeCustomer associates a user email with a Stripe customer ID.
+// This is the public interface method that delegates to the internal linkUserToStripeCustomer.
+func (s *StripeService) LinkUserToStripeCustomer(email, customerID string) error {
+	return s.linkUserToStripeCustomer(email, customerID)
+}
+
+// LookupCustomerID finds the Stripe customer ID for a user (by email or customer ID).
+// This is the public interface method that delegates to the internal lookupCustomerID.
+func (s *StripeService) LookupCustomerID(userIdentity string) string {
+	return s.lookupCustomerID(userIdentity)
+}
+
+// MigrateCustomerEmail updates all tables when a customer's email changes.
+func (s *StripeService) MigrateCustomerEmail(ctx context.Context, oldEmail, newEmail, customerID string) error {
+	normalizedOld := NormalizeEmail(oldEmail)
+	normalizedNew := NormalizeEmail(newEmail)
+
+	if normalizedOld == "" || normalizedNew == "" {
+		return errors.New("both old and new emails are required")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin email migration transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Update users table
+	_, err = tx.ExecContext(ctx, `
+		UPDATE users SET email = $1, updated_at = NOW()
+		WHERE email = $2 OR stripe_customer_id = $3
+	`, normalizedNew, normalizedOld, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate users table: %w", err)
+	}
+
+	// Update subscriptions table
+	_, err = tx.ExecContext(ctx, `
+		UPDATE subscriptions SET customer_email = $1, updated_at = NOW()
+		WHERE customer_email = $2 OR customer_id = $3
+	`, normalizedNew, normalizedOld, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate subscriptions table: %w", err)
+	}
+
+	// Update credit_wallets table
+	_, err = tx.ExecContext(ctx, `
+		UPDATE credit_wallets SET customer_email = $1, updated_at = NOW()
+		WHERE customer_email = $2
+	`, normalizedNew, normalizedOld)
+	if err != nil {
+		return fmt.Errorf("migrate credit_wallets table: %w", err)
+	}
+
+	// Update credit_transactions table
+	_, err = tx.ExecContext(ctx, `
+		UPDATE credit_transactions SET customer_email = $1
+		WHERE customer_email = $2
+	`, normalizedNew, normalizedOld)
+	if err != nil {
+		return fmt.Errorf("migrate credit_transactions table: %w", err)
+	}
+
+	// Update intro_coupon_usage table
+	_, err = tx.ExecContext(ctx, `
+		UPDATE intro_coupon_usage SET email = $1
+		WHERE email = $2 OR stripe_customer_id = $3
+	`, normalizedNew, normalizedOld, customerID)
+	if err != nil {
+		return fmt.Errorf("migrate intro_coupon_usage table: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit email migration: %w", err)
+	}
+
+	logStructured("customer_email_migrated", map[string]interface{}{
+		"level":       "info",
+		"old_email":   normalizedOld,
+		"new_email":   normalizedNew,
 		"customer_id": customerID,
 	})
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -303,20 +302,7 @@ func TestHandleAdminVerifyStripePrice_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	stripeService := NewStripeService(db)
-	stripeService.UseHTTPClient(stripeServer.Client())
-	stripeService.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
-		return stripeRuntimeConfig{
-			publishableKey: "pk_test",
-			secretKey:      "sk_test",
-			hasPublishable: true,
-			hasSecret:      true,
-			apiBase:        stripeServer.URL,
-		}, nil
-	})
-	if err := stripeService.RefreshConfig(context.Background()); err != nil {
-		t.Fatalf("Failed to refresh stripe config: %v", err)
-	}
+	stripeService := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleAdminVerifyStripePrice(stripeService)
 
@@ -394,20 +380,7 @@ func TestHandleAdminVerifyStripePrice_InvalidKey(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	stripeService := NewStripeService(db)
-	stripeService.UseHTTPClient(stripeServer.Client())
-	stripeService.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
-		return stripeRuntimeConfig{
-			publishableKey: "pk_test",
-			secretKey:      "sk_test",
-			hasPublishable: true,
-			hasSecret:      true,
-			apiBase:        stripeServer.URL,
-		}, nil
-	})
-	if err := stripeService.RefreshConfig(context.Background()); err != nil {
-		t.Fatalf("Failed to refresh stripe config: %v", err)
-	}
+	stripeService := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	handler := handleAdminVerifyStripePrice(stripeService)
 
@@ -446,23 +419,7 @@ func TestHandleAdminStripeImportPreview_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	stripe := requireTestStripeService(t, db)
-	stripe.UseHTTPClient(stripeServer.Client())
-	stripe.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
-		return stripeRuntimeConfig{
-			publishableKey: "pk_test",
-			secretKey:      "sk_test",
-			webhookSecret:  "wh_test",
-			hasPublishable: true,
-			hasSecret:      true,
-			hasWebhook:     true,
-			apiBase:        stripeServer.URL,
-			source:         "test",
-		}, nil
-	})
-	if err := stripe.RefreshConfig(context.Background()); err != nil {
-		t.Fatalf("refresh stripe config failed: %v", err)
-	}
+	stripe := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	planService := requireTestPlanService(t)
 	handler := handleAdminStripeImportPreview(stripe, planService)
@@ -502,23 +459,7 @@ func TestHandleAdminStripeImport_Success(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	stripe := requireTestStripeService(t, db)
-	stripe.UseHTTPClient(stripeServer.Client())
-	stripe.UseConfigLoader(func(ctx context.Context) (stripeRuntimeConfig, error) {
-		return stripeRuntimeConfig{
-			publishableKey: "pk_test",
-			secretKey:      "sk_test",
-			webhookSecret:  "wh_test",
-			hasPublishable: true,
-			hasSecret:      true,
-			hasWebhook:     true,
-			apiBase:        stripeServer.URL,
-			source:         "test",
-		}, nil
-	})
-	if err := stripe.RefreshConfig(context.Background()); err != nil {
-		t.Fatalf("refresh stripe config failed: %v", err)
-	}
+	stripe := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	planService := requireTestPlanService(t)
 	handler := handleAdminStripeImport(stripe, planService)
