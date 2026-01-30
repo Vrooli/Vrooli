@@ -402,3 +402,63 @@ export function buildStorageUpdatePayload(
 
   return payload;
 }
+
+/**
+ * Storage provider identifiers for the wizard
+ */
+export type StorageProviderId = 'aws-s3' | 'cloudflare-r2' | 'minio' | 'custom';
+
+/**
+ * Provider preset configuration
+ */
+export interface ProviderPreset {
+  region: string;
+  endpoint: string;
+  forcePathStyle: boolean;
+}
+
+/**
+ * AWS regions for S3
+ */
+export const AWS_REGIONS = [
+  { value: 'us-east-1', label: 'US East (N. Virginia)' },
+  { value: 'us-east-2', label: 'US East (Ohio)' },
+  { value: 'us-west-1', label: 'US West (N. California)' },
+  { value: 'us-west-2', label: 'US West (Oregon)' },
+  { value: 'eu-west-1', label: 'EU (Ireland)' },
+  { value: 'eu-west-2', label: 'EU (London)' },
+  { value: 'eu-west-3', label: 'EU (Paris)' },
+  { value: 'eu-central-1', label: 'EU (Frankfurt)' },
+  { value: 'ap-northeast-1', label: 'Asia Pacific (Tokyo)' },
+  { value: 'ap-northeast-2', label: 'Asia Pacific (Seoul)' },
+  { value: 'ap-southeast-1', label: 'Asia Pacific (Singapore)' },
+  { value: 'ap-southeast-2', label: 'Asia Pacific (Sydney)' },
+  { value: 'ap-south-1', label: 'Asia Pacific (Mumbai)' },
+  { value: 'sa-east-1', label: 'South America (Sao Paulo)' },
+  { value: 'ca-central-1', label: 'Canada (Central)' },
+] as const;
+
+/**
+ * Get provider defaults based on provider ID
+ */
+export function getProviderDefaults(providerId: StorageProviderId): ProviderPreset {
+  switch (providerId) {
+    case 'aws-s3':
+      return { region: 'us-east-1', endpoint: '', forcePathStyle: false };
+    case 'cloudflare-r2':
+      return { region: 'auto', endpoint: '', forcePathStyle: false };
+    case 'minio':
+      return { region: '', endpoint: '', forcePathStyle: true };
+    case 'custom':
+    default:
+      return { region: '', endpoint: '', forcePathStyle: false };
+  }
+}
+
+/**
+ * Generate Cloudflare R2 endpoint from account ID
+ */
+export function generateR2Endpoint(accountId: string): string {
+  if (!accountId.trim()) return '';
+  return `https://${accountId.trim()}.r2.cloudflarestorage.com`;
+}

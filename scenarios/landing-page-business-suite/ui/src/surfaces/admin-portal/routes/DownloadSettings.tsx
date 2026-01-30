@@ -5,6 +5,7 @@ import { FormSection } from '../components/FormSection';
 import { inputBaseClassName } from '../components/formFieldClasses';
 import { StatusBadgeGrid } from '../components/StatusBadge';
 import { Callout } from '../components/Callout';
+import { StorageWizard } from '../components/storage-wizard';
 import { Button } from '../../../shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
@@ -279,177 +280,18 @@ export function DownloadSettings() {
           <div className="space-y-6" data-testid="downloads-hosting">
             <FormSection
               title="Connect download storage (S3-compatible)"
-              description="Configure where installer artifacts are stored. Credentials can be provided here or inherited from the runtime environment."
+              description="Configure where installer artifacts are stored. Choose your provider and follow the guided setup."
               icon={Package}
               iconColorClass="text-blue-300"
               testId="downloads-storage-section"
             >
-              <div className="space-y-4">
-                {storageError && (
-                  <Callout type="error" message={storageError} />
-                )}
-                {storageSuccess && (
-                  <Callout type="success" message={storageSuccess} />
-                )}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Bucket</label>
-                    <input
-                      value={storageForm.bucket}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, bucket: e.target.value }))}
-                      className={inputBaseClassName}
-                      placeholder="my-download-bucket"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Region (optional for S3-compatible)</label>
-                    <input
-                      value={storageForm.region}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, region: e.target.value }))}
-                      className={inputBaseClassName}
-                      placeholder="us-east-1"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-slate-500">Endpoint (optional for R2/MinIO)</label>
-                    <input
-                      value={storageForm.endpoint}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, endpoint: e.target.value }))}
-                      className={inputBaseClassName}
-                      placeholder="https://<accountid>.r2.cloudflarestorage.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Default prefix</label>
-                    <input
-                      value={storageForm.defaultPrefix}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, defaultPrefix: e.target.value }))}
-                      className={inputBaseClassName}
-                      placeholder="business-suite/"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">Signed URL TTL (seconds)</label>
-                    <input
-                      type="number"
-                      value={storageForm.signedUrlTtlSeconds}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, signedUrlTtlSeconds: Number(e.target.value) }))}
-                      className={inputBaseClassName}
-                      min={60}
-                      max={86400}
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-slate-500">Public base URL (optional)</label>
-                    <input
-                      value={storageForm.publicBaseUrl}
-                      onChange={(e) => setStorageForm((prev) => ({ ...prev, publicBaseUrl: e.target.value }))}
-                      className={inputBaseClassName}
-                      placeholder="https://downloads.example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">
-                      Access key ID {storageSettings?.access_key_id_set ? <span className="text-emerald-300">(set)</span> : <span className="text-slate-500">(not set)</span>}
-                    </label>
-                    <input
-                      value={credentialsForm.accessKeyId}
-                      onChange={(e) => setCredentialsForm((prev) => ({ ...prev, accessKeyId: e.target.value, clearAccessKeyId: false }))}
-                      className={inputBaseClassName}
-                      placeholder="AKIA..."
-                    />
-                    <label className="flex items-center gap-2 text-xs text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={credentialsForm.clearAccessKeyId}
-                        onChange={(e) => setCredentialsForm((prev) => ({ ...prev, clearAccessKeyId: e.target.checked, accessKeyId: e.target.checked ? '' : prev.accessKeyId }))}
-                        className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
-                      />
-                      Clear saved access key ID
-                    </label>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-slate-500">
-                      Secret access key {storageSettings?.secret_access_key_set ? <span className="text-emerald-300">(set)</span> : <span className="text-slate-500">(not set)</span>}
-                    </label>
-                    <input
-                      type="password"
-                      value={credentialsForm.secretAccessKey}
-                      onChange={(e) => setCredentialsForm((prev) => ({ ...prev, secretAccessKey: e.target.value, clearSecretAccessKey: false }))}
-                      className={inputBaseClassName}
-                      placeholder="********"
-                    />
-                    <label className="flex items-center gap-2 text-xs text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={credentialsForm.clearSecretAccessKey}
-                        onChange={(e) => setCredentialsForm((prev) => ({ ...prev, clearSecretAccessKey: e.target.checked, secretAccessKey: e.target.checked ? '' : prev.secretAccessKey }))}
-                        className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
-                      />
-                      Clear saved secret access key
-                    </label>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs text-slate-500">
-                      Session token {storageSettings?.session_token_set ? <span className="text-emerald-300">(set)</span> : <span className="text-slate-500">(not set)</span>}
-                    </label>
-                    <input
-                      type="password"
-                      value={credentialsForm.sessionToken}
-                      onChange={(e) => setCredentialsForm((prev) => ({ ...prev, sessionToken: e.target.value, clearSessionToken: false }))}
-                      className={inputBaseClassName}
-                      placeholder="Optional (STS session token)"
-                    />
-                    <label className="flex items-center gap-2 text-xs text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={credentialsForm.clearSessionToken}
-                        onChange={(e) => setCredentialsForm((prev) => ({ ...prev, clearSessionToken: e.target.checked, sessionToken: e.target.checked ? '' : prev.sessionToken }))}
-                        className="rounded border-white/20 bg-transparent text-amber-400 focus:ring-amber-400"
-                      />
-                      Clear saved session token
-                    </label>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="flex items-center gap-2 text-xs text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={storageForm.forcePathStyle}
-                        onChange={(e) => setStorageForm((prev) => ({ ...prev, forcePathStyle: e.target.checked }))}
-                        className="rounded border-white/20 bg-transparent text-emerald-400 focus:ring-emerald-400"
-                      />
-                      Force path-style (often required for MinIO)
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" disabled={storageLoading || storageSaving} onClick={() => void loadStorage()} className="gap-2">
-                    <RefreshCw className={`h-4 w-4 ${storageLoading ? 'animate-spin' : ''}`} />
-                    Reload
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={storageLoading || storageSaving}
-                    onClick={handleSaveStorage}
-                    className="gap-2"
-                  >
-                    {storageSaving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Save settings
-                  </Button>
-                  <Button
-                    disabled={storageLoading || storageSaving}
-                    onClick={handleTestStorage}
-                    className="gap-2"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Test connection
-                  </Button>
-                </div>
-              </div>
+              <StorageWizard
+                initialSettings={storageSettings}
+                onComplete={() => {
+                  void loadStorage();
+                  void loadArtifacts();
+                }}
+              />
             </FormSection>
 
             <FormSection
