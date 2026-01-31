@@ -62,7 +62,7 @@ func (s *SmokeTestStage) Dependencies() []string {
 
 // CanSkip returns whether this stage can be skipped.
 func (s *SmokeTestStage) CanSkip(input *StageInput) bool {
-	return input.Config.SkipSmokeTest
+	return ShouldSkipSmokeTest(input.Config)
 }
 
 // Execute runs the smoke test stage.
@@ -79,7 +79,7 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "smoke test service not configured")
+		failStage(result, s.timeProvider, "smoke test service not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 
@@ -92,20 +92,12 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 	currentPlatform := s.service.CurrentPlatform()
 	artifactPath := ""
 
-	// First try current platform
-	if platResult, ok := input.BuildResult.PlatformResults[currentPlatform]; ok && platResult.Status == "ready" {
-		artifactPath = platResult.Artifact
-	}
+	// First try current platform using artifact helper
+	artifactPath = FindArtifactForPlatform(input.BuildResult.PlatformResults, currentPlatform)
 
 	// If no current platform artifact, try any available
 	if artifactPath == "" {
-		for _, platResult := range input.BuildResult.PlatformResults {
-			if platResult.Status == "ready" && platResult.Artifact != "" {
-				artifactPath = platResult.Artifact
-				currentPlatform = platResult.Platform
-				break
-			}
-		}
+		currentPlatform, artifactPath = FindFirstReadyArtifact(input.BuildResult.PlatformResults)
 	}
 
 	if artifactPath == "" {
@@ -135,12 +127,12 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 
 	// Check smoke test result
 	switch smokeStatus.Status {
-	case "passed":
+	case SmokeTestStatusPassed:
 		result.Logs = append(result.Logs, "Smoke test passed")
 		if smokeStatus.TelemetryUploaded {
 			result.Logs = append(result.Logs, "Telemetry uploaded successfully")
 		}
-	case "failed":
+	case SmokeTestStatusFailed:
 		errMsg := smokeStatus.Error
 		if errMsg == "" {
 			errMsg = "smoke test failed"
@@ -173,29 +165,36 @@ func (s *SmokeTestStage) Execute(ctx context.Context, input *StageInput) *StageR
 // waitForSmokeTest polls for smoke test completion.
 func (s *SmokeTestStage) waitForSmokeTest(ctx context.Context, smokeTestID string) (*smoketest.Status, error) {
 	if s.store == nil {
-		return nil, fmt.Errorf("smoke test store not configured for status polling")
+		return nil, fmt.Errorf("smoke test store not configured for status polling - this is a server configuration error; check startup logs or contact support")
 	}
 
 	// Poll with timeout
-	timeout := time.After(2 * time.Minute)
-	ticker := time.NewTicker(500 * time.Millisecond)
+	timeout := time.After(DefaultSmokeTestTimeout)
+	ticker := time.NewTicker(DefaultSmokePollInterval)
 	defer ticker.Stop()
+
+	notFoundCount := 0
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("smoke test cancelled")
 		case <-timeout:
-			return nil, fmt.Errorf("smoke test timed out after 2 minutes")
+			return nil, fmt.Errorf("smoke test timed out after %v", DefaultSmokeTestTimeout)
 		case <-ticker.C:
 			status, ok := s.store.Get(smokeTestID)
 			if !ok {
 				// Smoke test not yet registered, keep waiting
+				notFoundCount++
+				if notFoundCount%10 == 0 {
+					// Log every ~20 seconds when status not found
+					fmt.Printf("Smoke test status not yet registered after %d polls, still waiting for %s...\n", notFoundCount, smokeTestID)
+				}
 				continue
 			}
 
 			switch status.Status {
-			case "passed", "failed":
+			case SmokeTestStatusPassed, SmokeTestStatusFailed:
 				return status, nil
 			}
 			// Still running, continue polling

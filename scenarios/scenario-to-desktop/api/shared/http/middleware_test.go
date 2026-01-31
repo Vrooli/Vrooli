@@ -159,7 +159,7 @@ func TestCORSMiddlewareFromEnv(t *testing.T) {
 func TestLoggingMiddleware(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("hello"))
+		_, _ = w.Write([]byte("hello"))
 	})
 
 	var buf bytes.Buffer
@@ -189,7 +189,7 @@ func TestLoggingMiddlewareStdout(t *testing.T) {
 func TestStructuredLoggingMiddleware(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("hello"))
+		_, _ = w.Write([]byte("hello"))
 	})
 
 	var buf bytes.Buffer
@@ -417,7 +417,7 @@ func TestTimeoutMiddleware(t *testing.T) {
 	t.Run("request completes within timeout", func(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("ok"))
+			_, _ = w.Write([]byte("ok"))
 		})
 
 		middleware := TimeoutMiddleware(1 * time.Second)
@@ -469,7 +469,7 @@ func TestResponseWriterWrapper(t *testing.T) {
 		rr := httptest.NewRecorder()
 		wrapped := &responseWriter{ResponseWriter: rr}
 
-		wrapped.Write([]byte("hello"))
+		_, _ = wrapped.Write([]byte("hello"))
 
 		if wrapped.status != http.StatusOK {
 			t.Errorf("expected default status 200, got %d", wrapped.status)
@@ -480,8 +480,8 @@ func TestResponseWriterWrapper(t *testing.T) {
 		rr := httptest.NewRecorder()
 		wrapped := &responseWriter{ResponseWriter: rr}
 
-		wrapped.Write([]byte("hello"))
-		wrapped.Write([]byte(" world"))
+		_, _ = wrapped.Write([]byte("hello"))
+		_, _ = wrapped.Write([]byte(" world"))
 
 		if wrapped.size != 11 {
 			t.Errorf("expected size 11, got %d", wrapped.size)

@@ -89,6 +89,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 }
 
 // handleRun handles POST /api/v1/pipeline/run
+// Query params:
+//   - block: if "true", wait for pipeline completion before returning (default: false)
+//   - timeout: max wait time in seconds when block=true (default: 600)
 func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	if h.orchestrator == nil {
 		httputil.WriteError(w, errors.ErrPipelineOrchestratorNotConfigured())
@@ -110,7 +113,47 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start pipeline with background context - the pipeline runs asynchronously
+	// Check for blocking mode
+	block := r.URL.Query().Get("block") == "true"
+	timeoutSecs := 600 // default 10 minutes
+	if ts := r.URL.Query().Get("timeout"); ts != "" {
+		if parsed, err := strconv.Atoi(ts); err == nil && parsed > 0 {
+			timeoutSecs = parsed
+		}
+	}
+
+	if block {
+		// Blocking mode: wait for pipeline completion
+		status, err := h.orchestrator.RunPipelineBlocking(r.Context(), &config, timeoutSecs)
+		if err != nil {
+			// Check if we have a partial status to return
+			if status != nil {
+				// Timeout case - return the status with the error
+				httputil.WriteError(w, errors.Wrap(errors.CodePipelineTimeout, err, "pipeline timed out").
+					InDomain("pipeline").
+					WithDetails(map[string]interface{}{
+						"pipeline_id": status.PipelineID,
+						"status":      status.Status,
+					}).
+					WithRecovery(errors.RecoveryRetry, "Increase the timeout or check pipeline progress"))
+				return
+			}
+			httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to run pipeline").
+				InDomain("pipeline").
+				WithRecovery(errors.RecoveryRetry, "Check the configuration and try again"))
+			return
+		}
+
+		// Return appropriate status code based on pipeline result
+		if status.Status == StatusFailed {
+			httputil.WriteJSON(w, http.StatusInternalServerError, status)
+		} else {
+			httputil.WriteJSONOK(w, status)
+		}
+		return
+	}
+
+	// Async mode (default): Start pipeline with background context - the pipeline runs asynchronously
 	// and should not be cancelled when the HTTP request completes
 	status, err := h.orchestrator.RunPipeline(context.Background(), &config)
 	if err != nil {
@@ -431,6 +474,9 @@ func (h *Handler) handleGetPipelineHistory(w http.ResponseWriter, r *http.Reques
 // Starts the active pipeline for a scenario with optional config overrides.
 // This is the correct way to run stages - it uses the existing active pipeline
 // rather than creating orphaned new ones.
+// Query params:
+//   - block: if "true", wait for pipeline completion before returning (default: false)
+//   - timeout: max wait time in seconds when block=true (default: 600)
 func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Request) {
 	if h.manager == nil {
 		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
@@ -460,7 +506,46 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 		config = &c
 	}
 
-	// Start the active pipeline with background context - the pipeline runs asynchronously
+	// Check for blocking mode
+	block := r.URL.Query().Get("block") == "true"
+	timeoutSecs := 600 // default 10 minutes
+	if ts := r.URL.Query().Get("timeout"); ts != "" {
+		if parsed, err := strconv.Atoi(ts); err == nil && parsed > 0 {
+			timeoutSecs = parsed
+		}
+	}
+
+	if block {
+		// Blocking mode: wait for pipeline completion
+		status, err := h.manager.StartActivePipelineBlocking(r.Context(), scenarioName, config, timeoutSecs)
+		if err != nil {
+			// Check if we have a partial status to return
+			if status != nil {
+				// Timeout case - return the status with the error
+				httputil.WriteError(w, errors.Wrap(errors.CodePipelineTimeout, err, "pipeline timed out").
+					InDomain("pipeline").
+					WithDetails(map[string]interface{}{
+						"pipeline_id": status.PipelineID,
+						"status":      status.Status,
+					}).
+					WithRecovery(errors.RecoveryRetry, "Increase the timeout or check pipeline progress"))
+				return
+			}
+			httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to run pipeline").
+				InDomain("pipeline"))
+			return
+		}
+
+		// Return appropriate status code based on pipeline result
+		if status.Status == StatusFailed {
+			httputil.WriteJSON(w, http.StatusInternalServerError, status)
+		} else {
+			httputil.WriteJSONOK(w, status)
+		}
+		return
+	}
+
+	// Async mode (default): Start the active pipeline with background context - the pipeline runs asynchronously
 	// and should not be cancelled when the HTTP request completes
 	status, err := h.manager.StartActivePipeline(context.Background(), scenarioName, config)
 	if err != nil {

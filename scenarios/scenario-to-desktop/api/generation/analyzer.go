@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"scenario-to-desktop-api/shared/path"
 )
 
 // ServiceJSON represents the structure of .vrooli/service.json.
@@ -50,23 +52,11 @@ type DefaultAnalyzer struct {
 }
 
 // NewAnalyzer creates a new scenario analyzer.
-// If vrooliRoot is empty, attempts to detect it from environment or current directory.
+// If vrooliRoot is empty, attempts to detect it using the canonical DetectVrooliRoot function.
 func NewAnalyzer(vrooliRoot string) *DefaultAnalyzer {
 	if vrooliRoot == "" {
-		// Try VROOLI_ROOT environment variable first (most reliable in production)
-		vrooliRoot = os.Getenv("VROOLI_ROOT")
-	}
-	if vrooliRoot == "" {
-		// Fallback to calculating from current directory
-		// Assumes this is called from within the Vrooli repository structure
-		currentDir, err := os.Getwd()
-		if err != nil {
-			// If we can't get cwd, use a relative path that will be resolved at runtime
-			// This is a defensive fallback for edge cases like deleted working directories
-			vrooliRoot = "../../.."
-		} else {
-			vrooliRoot = filepath.Join(currentDir, "../../..")
-		}
+		// Use canonical VROOLI_ROOT detection from shared/path package
+		vrooliRoot = path.DetectVrooliRoot()
 	}
 	return &DefaultAnalyzer{
 		vrooliRoot: vrooliRoot,

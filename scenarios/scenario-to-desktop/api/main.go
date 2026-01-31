@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-architecture.md
+// DOC: docs/SEAMS.md
 package main
 
 import (
@@ -114,11 +116,13 @@ func NewServer(port int) *Server {
 
 	// Generation domain (service used by pipeline stage)
 	generationBuildStore := &generationBuildStoreAdapter{store: buildStore}
+	generationRecordStore := &generationRecordStoreAdapter{store: recordsStore}
 	generationService := generation.NewService(
 		generation.WithVrooliRoot(vrooliRoot),
 		generation.WithTemplateDir(templateDir),
 		generation.WithBuildStore(generationBuildStore),
 		generation.WithLogger(logger),
+		generation.WithRecordStore(generationRecordStore),
 	)
 
 	// Smoke test domain
@@ -139,7 +143,8 @@ func NewServer(port int) *Server {
 	telemetryHandler := telemetry.NewHandler(telemetryService)
 
 	// Scenario domain
-	scenarioHandler := scenario.NewHandler(vrooliRoot, nil, logger)
+	scenarioRecordStore := &scenarioRecordStoreAdapter{store: recordsStore}
+	scenarioHandler := scenario.NewHandler(vrooliRoot, scenarioRecordStore, logger)
 
 	// State domain (scenario state persistence)
 	stateStore, err := state.NewStore(state.DefaultDataDir())
@@ -185,6 +190,8 @@ func NewServer(port int) *Server {
 	)
 
 	// Create pipeline stages with their service dependencies
+	// Stage order: bundle → preflight → generate → build → smoketest → distribution
+	// (smoketest before distribution: verify the build works before publishing)
 	pipelineStages := []pipeline.Stage{
 		pipeline.NewBundleStage(
 			pipeline.WithScenarioRoot(scenarioRoot),
@@ -198,18 +205,19 @@ func NewServer(port int) *Server {
 			pipeline.WithGenerateScenarioRoot(scenarioRoot),
 			pipeline.WithGenerateService(generationService),
 			pipeline.WithScenarioAnalyzer(scenarioAnalyzer),
+			pipeline.WithGenerateBuildStore(generationBuildStore),
 		),
 		pipeline.NewBuildStage(
 			pipeline.WithBuildService(buildService),
 			pipeline.WithBuildStore(buildStore),
 		),
-		pipeline.NewDistributionStage(
-			pipeline.WithDistributionService(distributionService),
-			pipeline.WithDistributionStore(distributionStore),
-		),
 		pipeline.NewSmokeTestStage(
 			pipeline.WithSmokeTestService(smokeTestService),
 			pipeline.WithSmokeTestStore(smokeTestStore),
+		),
+		pipeline.NewDistributionStage(
+			pipeline.WithDistributionService(distributionService),
+			pipeline.WithDistributionStore(distributionStore),
 		),
 	}
 
@@ -348,12 +356,14 @@ func NewServer(port int) *Server {
 		// Task orchestration
 		taskSvc: taskSvc,
 	}
-	srv.setupRoutes()
+	srv.registerDomainHandlers()
 	return srv
 }
 
-// setupRoutes configures all API routes
-func (s *Server) setupRoutes() {
+// registerDomainHandlers configures all API routes organized by domain.
+// This follows the "screaming architecture" principle where the structure
+// of the code screams about its purpose.
+func (s *Server) registerDomainHandlers() {
 	// Health check - use api-core/health for standardized response
 	healthHandler := health.New("scenario-to-desktop-api").
 		Version("1.0.0").

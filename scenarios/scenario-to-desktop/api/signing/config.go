@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/signing/types"
 )
 
@@ -122,22 +123,25 @@ func (f *RealFileSystem) Remove(path string) error {
 	return os.Remove(path)
 }
 
-// RealEnvironmentReader implements EnvironmentReader using actual environment variables.
-type RealEnvironmentReader struct{}
-
 // NewRealEnvironmentReader creates a new real environment reader.
+// Uses the shared env.OSReader implementation.
 func NewRealEnvironmentReader() EnvironmentReader {
-	return &RealEnvironmentReader{}
+	return &realEnvironmentReaderAdapter{reader: env.NewOSReader()}
+}
+
+// realEnvironmentReaderAdapter adapts env.Reader to EnvironmentReader interface.
+type realEnvironmentReaderAdapter struct {
+	reader env.Reader
 }
 
 // GetEnv retrieves an environment variable value.
-func (e *RealEnvironmentReader) GetEnv(key string) string {
-	return os.Getenv(key)
+func (e *realEnvironmentReaderAdapter) GetEnv(key string) string {
+	return e.reader.GetEnv(key)
 }
 
 // LookupEnv retrieves an environment variable and reports if it exists.
-func (e *RealEnvironmentReader) LookupEnv(key string) (string, bool) {
-	return os.LookupEnv(key)
+func (e *realEnvironmentReaderAdapter) LookupEnv(key string) (string, bool) {
+	return e.reader.LookupEnv(key)
 }
 
 // RealTimeProvider implements TimeProvider using actual time.

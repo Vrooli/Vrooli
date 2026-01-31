@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +15,7 @@ import (
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
+	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/investigate"
 )
@@ -311,10 +310,8 @@ func (s *Service) executeAgent(
 	invID, tag, prompt string,
 	attachments []*domainpb.ContextAttachment,
 ) (*AgentResult, error) {
-	workingDir := os.Getenv("VROOLI_ROOT")
-	if workingDir == "" {
-		workingDir = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
+	// Use canonical VROOLI_ROOT detection from shared/path package
+	workingDir := path.DetectVrooliRoot()
 
 	// Use a timeout context (1 hour)
 	execCtx, cancel := context.WithTimeout(ctx, 60*time.Minute)

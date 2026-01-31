@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/shared/args"
 )
 
 // Mock implementations for testing
@@ -435,7 +437,7 @@ func TestExecutor_ListPipelines(t *testing.T) {
 		args := map[string]interface{}{
 			"scenario_name": scenario,
 		}
-		executor.Execute(context.Background(), "run_pipeline", args)
+		_, _ = executor.Execute(context.Background(), "run_pipeline", args)
 	}
 
 	t.Run("lists all pipelines", func(t *testing.T) {
@@ -521,32 +523,32 @@ func TestExecutor_NilOrchestrator(t *testing.T) {
 // Argument helper tests
 
 func TestGetStringArg(t *testing.T) {
-	args := map[string]interface{}{
+	testArgs := map[string]interface{}{
 		"present": "value",
 		"number":  42,
 	}
 
 	t.Run("returns value when present", func(t *testing.T) {
-		if got := getStringArg(args, "present", "default"); got != "value" {
+		if got := args.GetString(testArgs, "present", "default"); got != "value" {
 			t.Errorf("expected 'value', got %q", got)
 		}
 	})
 
 	t.Run("returns default when missing", func(t *testing.T) {
-		if got := getStringArg(args, "missing", "default"); got != "default" {
+		if got := args.GetString(testArgs, "missing", "default"); got != "default" {
 			t.Errorf("expected 'default', got %q", got)
 		}
 	})
 
 	t.Run("returns default for non-string", func(t *testing.T) {
-		if got := getStringArg(args, "number", "default"); got != "default" {
+		if got := args.GetString(testArgs, "number", "default"); got != "default" {
 			t.Errorf("expected 'default', got %q", got)
 		}
 	})
 }
 
 func TestGetStringArrayArg(t *testing.T) {
-	args := map[string]interface{}{
+	testArgs := map[string]interface{}{
 		"interface_array": []interface{}{"a", "b", "c"},
 		"string_array":    []string{"x", "y"},
 		"mixed":           []interface{}{"a", 1, "b"},
@@ -554,28 +556,28 @@ func TestGetStringArrayArg(t *testing.T) {
 	}
 
 	t.Run("returns interface array as strings", func(t *testing.T) {
-		result := getStringArrayArg(args, "interface_array")
+		result := args.GetStringArray(testArgs, "interface_array")
 		if len(result) != 3 || result[0] != "a" {
 			t.Errorf("unexpected result: %v", result)
 		}
 	})
 
 	t.Run("returns string array", func(t *testing.T) {
-		result := getStringArrayArg(args, "string_array")
+		result := args.GetStringArray(testArgs, "string_array")
 		if len(result) != 2 || result[0] != "x" {
 			t.Errorf("unexpected result: %v", result)
 		}
 	})
 
 	t.Run("filters non-strings from mixed array", func(t *testing.T) {
-		result := getStringArrayArg(args, "mixed")
+		result := args.GetStringArray(testArgs, "mixed")
 		if len(result) != 2 {
 			t.Errorf("expected 2 strings, got %d", len(result))
 		}
 	})
 
 	t.Run("returns nil for missing", func(t *testing.T) {
-		result := getStringArrayArg(args, "missing")
+		result := args.GetStringArray(testArgs, "missing")
 		if result != nil {
 			t.Errorf("expected nil, got %v", result)
 		}
@@ -583,64 +585,64 @@ func TestGetStringArrayArg(t *testing.T) {
 }
 
 func TestGetBoolArg(t *testing.T) {
-	args := map[string]interface{}{
+	testArgs := map[string]interface{}{
 		"true_val":  true,
 		"false_val": false,
 		"string":    "true",
 	}
 
 	t.Run("returns true value", func(t *testing.T) {
-		if got := getBoolArg(args, "true_val", false); !got {
+		if got := args.GetBool(testArgs, "true_val", false); !got {
 			t.Errorf("expected true")
 		}
 	})
 
 	t.Run("returns false value", func(t *testing.T) {
-		if got := getBoolArg(args, "false_val", true); got {
+		if got := args.GetBool(testArgs, "false_val", true); got {
 			t.Errorf("expected false")
 		}
 	})
 
 	t.Run("returns default for missing", func(t *testing.T) {
-		if got := getBoolArg(args, "missing", true); !got {
+		if got := args.GetBool(testArgs, "missing", true); !got {
 			t.Errorf("expected default true")
 		}
 	})
 
 	t.Run("returns default for non-bool", func(t *testing.T) {
-		if got := getBoolArg(args, "string", false); got {
+		if got := args.GetBool(testArgs, "string", false); got {
 			t.Errorf("expected default false")
 		}
 	})
 }
 
 func TestGetIntArg(t *testing.T) {
-	args := map[string]interface{}{
+	testArgs := map[string]interface{}{
 		"float":  float64(42),
 		"int":    10,
 		"string": "not a number",
 	}
 
 	t.Run("returns float as int", func(t *testing.T) {
-		if got := getIntArg(args, "float", 0); got != 42 {
+		if got := args.GetInt(testArgs, "float", 0); got != 42 {
 			t.Errorf("expected 42, got %d", got)
 		}
 	})
 
 	t.Run("returns int", func(t *testing.T) {
-		if got := getIntArg(args, "int", 0); got != 10 {
+		if got := args.GetInt(testArgs, "int", 0); got != 10 {
 			t.Errorf("expected 10, got %d", got)
 		}
 	})
 
 	t.Run("returns default for missing", func(t *testing.T) {
-		if got := getIntArg(args, "missing", 99); got != 99 {
+		if got := args.GetInt(testArgs, "missing", 99); got != 99 {
 			t.Errorf("expected 99, got %d", got)
 		}
 	})
 
 	t.Run("returns default for non-number", func(t *testing.T) {
-		if got := getIntArg(args, "string", 50); got != 50 {
+		if got := args.GetInt(testArgs, "string", 50); got != 50 {
 			t.Errorf("expected 50, got %d", got)
 		}
 	})

@@ -62,16 +62,7 @@ func (s *DistributionStage) Dependencies() []string {
 
 // CanSkip returns whether this stage can be skipped.
 func (s *DistributionStage) CanSkip(input *StageInput) bool {
-	// Skip if:
-	// 1. Distribution is not enabled in config
-	// 2. No build artifacts available
-	if input.Config == nil || !input.Config.Distribute {
-		return true
-	}
-	if input.BuildResult == nil || len(input.BuildResult.Artifacts) == 0 {
-		return true
-	}
-	return false
+	return ShouldSkipDistribution(input.Config, input.BuildResult)
 }
 
 // Execute runs the distribution stage.
@@ -83,18 +74,16 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "distribution service not configured")
+		failStage(result, s.timeProvider, "distribution service not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 
-	// Build artifacts map from build result
-	artifacts := make(map[string]string)
+	// Build artifacts map from build result using artifact helper
+	var artifacts map[string]string
 	if input.BuildResult != nil {
-		for platform, platResult := range input.BuildResult.PlatformResults {
-			if platResult.Status == "ready" && platResult.Artifact != "" {
-				artifacts[platform] = platResult.Artifact
-			}
-		}
+		artifacts = GetReadyArtifacts(input.BuildResult.PlatformResults)
+	} else {
+		artifacts = make(map[string]string)
 	}
 
 	if len(artifacts) == 0 {
@@ -182,23 +171,30 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 // waitForDistribution polls for distribution completion.
 func (s *DistributionStage) waitForDistribution(ctx context.Context, distributionID string) (*distribution.DistributionStatus, error) {
 	if s.store == nil {
-		return nil, fmt.Errorf("distribution store not configured for status polling")
+		return nil, fmt.Errorf("distribution store not configured for status polling - this is a server configuration error; check startup logs or contact support")
 	}
 
 	// Poll with timeout (uploads can take time for large files)
-	timeout := time.After(30 * time.Minute)
-	ticker := time.NewTicker(2 * time.Second)
+	timeout := time.After(DefaultDistributionTimeout)
+	ticker := time.NewTicker(DefaultDistributionPollInterval)
 	defer ticker.Stop()
+
+	notFoundCount := 0
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("distribution cancelled")
 		case <-timeout:
-			return nil, fmt.Errorf("distribution timed out after 30 minutes")
+			return nil, fmt.Errorf("distribution timed out after %v", DefaultDistributionTimeout)
 		case <-ticker.C:
 			status, ok := s.store.Get(distributionID)
 			if !ok {
+				notFoundCount++
+				if notFoundCount%10 == 0 {
+					// Log every ~50 seconds (10 polls * 5 second interval) when status not found
+					fmt.Printf("Distribution status not yet registered after %d polls, still waiting for %s...\n", notFoundCount, distributionID)
+				}
 				continue
 			}
 

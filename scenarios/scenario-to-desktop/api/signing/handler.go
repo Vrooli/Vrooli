@@ -61,7 +61,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: " + err.Error()})
 		return
 	}
 
@@ -97,7 +97,7 @@ func (h *Handler) PutConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Save(r.Context(), scenario, &config); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: " + err.Error()})
 		return
 	}
 
@@ -120,7 +120,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 	// Get existing config or create new
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: " + err.Error()})
 		return
 	}
 	if config == nil {
@@ -160,7 +160,7 @@ func (h *Handler) PatchPlatformConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Save the updated config
 	if err := h.repo.Save(r.Context(), scenario, config); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save config: " + err.Error()})
 		return
 	}
 
@@ -180,7 +180,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 	scenario := vars["scenario"]
 
 	if err := h.repo.Delete(r.Context(), scenario); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete config: " + err.Error()})
 		return
 	}
 
@@ -198,7 +198,7 @@ func (h *Handler) DeletePlatformConfig(w http.ResponseWriter, r *http.Request) {
 	platform := vars["platform"]
 
 	if err := h.repo.DeleteForPlatform(r.Context(), scenario, platform); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete platform config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete platform config: " + err.Error()})
 		return
 	}
 
@@ -217,7 +217,7 @@ func (h *Handler) ValidateConfig(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: " + err.Error()})
 		return
 	}
 
@@ -247,7 +247,7 @@ func (h *Handler) CheckReady(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(r.Context(), scenario)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get config: " + err.Error()})
 		return
 	}
 
@@ -393,7 +393,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.repo.Get(ctx, scenario)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load signing config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load signing config: " + err.Error()})
 		return
 	}
 	if config == nil {
@@ -412,7 +412,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.repo.Save(ctx, scenario, config); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save signing config: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save signing config: " + err.Error()})
 		return
 	}
 
@@ -433,7 +433,7 @@ func (h *Handler) GenerateLinuxKey(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPrerequisites(w http.ResponseWriter, r *http.Request) {
 	tools, err := h.prereqChecker.DetectTools(r.Context())
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detect tools: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to detect tools: " + err.Error()})
 		return
 	}
 
@@ -450,7 +450,7 @@ func (h *Handler) DiscoverCertificates(w http.ResponseWriter, r *http.Request) {
 
 	certs, err := h.detector.DiscoverCertificates(context.Background(), platform)
 	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to discover certificates: "+ err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to discover certificates: " + err.Error()})
 		return
 	}
 

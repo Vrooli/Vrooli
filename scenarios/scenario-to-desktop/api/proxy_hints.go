@@ -14,6 +14,7 @@ import (
 
 	"scenario-to-desktop-api/generation"
 	httputil "scenario-to-desktop-api/shared/http"
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 type ProxyHint struct {
@@ -234,12 +235,8 @@ func buildProxyURLFromHost(host, scenario string) string {
 }
 
 func (s *Server) getVrooliRoot() string {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		currentDir, _ := os.Getwd()
-		vrooliRoot = filepath.Join(currentDir, "../../..")
-	}
-	return vrooliRoot
+	// Use the centralized path detection from shared/path
+	return sharedpath.DetectVrooliRoot()
 }
 
 func (s *Server) resolveScenarioRoot(scenario string) string {

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"log"
 	"time"
 
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
-	"scenario-to-desktop-api/shared/packaging"
+	"scenario-to-desktop-api/records"
+	"scenario-to-desktop-api/scenario"
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/toolexecution"
 )
@@ -171,9 +173,59 @@ func (a *toolBuildStoreAdapter) Snapshot() map[string]toolexecution.BuildStatus 
 	return result
 }
 
-// defaultSmokeTestPackageFinder is the default package finder for smoke tests
-type defaultSmokeTestPackageFinder struct{}
+// generationRecordStoreAdapter adapts records.FileStore to generation.RecordStore interface
+type generationRecordStoreAdapter struct {
+	store *records.FileStore
+}
 
-func (f *defaultSmokeTestPackageFinder) FindBuiltPackage(distPath, platform string) (string, error) {
-	return packaging.FindBuiltPackage(distPath, platform)
+func (a *generationRecordStoreAdapter) Upsert(record *generation.DesktopAppRecord) error {
+	if a.store == nil {
+		log.Printf("[adapters] warning: generationRecordStoreAdapter.Upsert called with nil store - record for %q will not be persisted", record.ScenarioName)
+		return nil // Gracefully handle nil store
+	}
+	// Convert generation.DesktopAppRecord to records.DesktopAppRecord
+	r := &records.DesktopAppRecord{
+		ID:              record.ID,
+		BuildID:         record.BuildID,
+		ScenarioName:    record.ScenarioName,
+		AppDisplayName:  record.AppDisplayName,
+		TemplateType:    record.TemplateType,
+		Framework:       record.Framework,
+		LocationMode:    record.LocationMode,
+		OutputPath:      record.OutputPath,
+		DestinationPath: record.DestinationPath,
+		StagingPath:     record.StagingPath,
+		CustomPath:      record.CustomPath,
+		DeploymentMode:  record.DeploymentMode,
+		Icon:            record.Icon,
+	}
+	return a.store.Upsert(r)
+}
+
+// scenarioRecordStoreAdapter adapts records.FileStore to scenario.RecordStore interface
+type scenarioRecordStoreAdapter struct {
+	store *records.FileStore
+}
+
+func (a *scenarioRecordStoreAdapter) List() []*scenario.DesktopAppRecord {
+	if a.store == nil {
+		log.Printf("[adapters] warning: scenarioRecordStoreAdapter.List called with nil store - returning empty list")
+		return nil
+	}
+	list := a.store.List()
+	result := make([]*scenario.DesktopAppRecord, len(list))
+	for i, r := range list {
+		result[i] = &scenario.DesktopAppRecord{
+			ID:              r.ID,
+			ScenarioName:    r.ScenarioName,
+			OutputPath:      r.OutputPath,
+			StagingPath:     r.StagingPath,
+			CustomPath:      r.CustomPath,
+			DestinationPath: r.DestinationPath,
+			LocationMode:    r.LocationMode,
+			CreatedAt:       r.CreatedAt,
+			UpdatedAt:       r.UpdatedAt,
+		}
+	}
+	return result
 }

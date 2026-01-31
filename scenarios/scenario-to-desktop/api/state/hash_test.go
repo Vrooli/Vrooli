@@ -58,8 +58,8 @@ func TestComputeManifestHash(t *testing.T) {
 
 		file1 := filepath.Join(tmpDir, "file1.json")
 		file2 := filepath.Join(tmpDir, "file2.json")
-		os.WriteFile(file1, content, 0o644)
-		os.WriteFile(file2, content, 0o644)
+		_ = os.WriteFile(file1, content, 0o644)
+		_ = os.WriteFile(file2, content, 0o644)
 
 		hash1, _, _ := ComputeManifestHash(file1)
 		hash2, _, _ := ComputeManifestHash(file2)
@@ -72,8 +72,8 @@ func TestComputeManifestHash(t *testing.T) {
 	t.Run("different content produces different hash", func(t *testing.T) {
 		file1 := filepath.Join(tmpDir, "diff1.json")
 		file2 := filepath.Join(tmpDir, "diff2.json")
-		os.WriteFile(file1, []byte(`{"a": 1}`), 0o644)
-		os.WriteFile(file2, []byte(`{"a": 2}`), 0o644)
+		_ = os.WriteFile(file1, []byte(`{"a": 1}`), 0o644)
+		_ = os.WriteFile(file2, []byte(`{"a": 2}`), 0o644)
 
 		hash1, _, _ := ComputeManifestHash(file1)
 		hash2, _, _ := ComputeManifestHash(file2)

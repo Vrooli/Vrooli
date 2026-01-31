@@ -111,6 +111,11 @@ type Config struct {
 	// This enables safe retries where "running twice is no worse than running once".
 	// If not provided, a new pipeline is always started (default behavior).
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
+
+	// Stages specifies which stages to run. Empty means all stages.
+	// Valid values: bundle, preflight, generate, build, smoketest, distribution.
+	// Stages are executed in pipeline order, regardless of the order specified here.
+	Stages []string `json:"stages,omitempty"`
 }
 
 // Status represents the current state of a pipeline run.
@@ -277,7 +282,7 @@ func (c *Config) GetStopOnFailure() bool {
 // GetDeploymentMode returns the deployment mode with default "bundled".
 func (c *Config) GetDeploymentMode() string {
 	if c.DeploymentMode == "" {
-		return "bundled"
+		return DeploymentModeBundled
 	}
 	return c.DeploymentMode
 }
@@ -298,6 +303,14 @@ func (c *Config) GetStopAfterStage() string {
 // GetResumeFromStage returns the resume_from_stage setting.
 func (c *Config) GetResumeFromStage() string {
 	return c.ResumeFromStage
+}
+
+// GetStages returns the stages to run, or nil for all stages.
+func (c *Config) GetStages() []string {
+	if c == nil || len(c.Stages) == 0 {
+		return nil
+	}
+	return c.Stages
 }
 
 // IsValidStageName checks if a stage name is valid.

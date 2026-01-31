@@ -14,24 +14,37 @@ import (
 
 // mockOrchestrator implements Orchestrator for testing
 type mockOrchestrator struct {
-	runResult       *Status
-	runError        error
-	getResult       *Status
-	getFound        bool
-	cancelSuccess   bool
-	pipelines       []*Status
-	resumeResult    *Status
-	resumeError     error
-	idleResult      *Status
-	idleError       error
-	startResult     *Status
-	startError      error
+	runResult         *Status
+	runError          error
+	runBlockingResult *Status
+	runBlockingError  error
+	getResult         *Status
+	getFound          bool
+	cancelSuccess     bool
+	pipelines         []*Status
+	resumeResult      *Status
+	resumeError       error
+	idleResult        *Status
+	idleError         error
+	startResult       *Status
+	startError        error
 }
 
 func (m *mockOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
 	if m.runError != nil {
 		return nil, m.runError
 	}
+	return m.runResult, nil
+}
+
+func (m *mockOrchestrator) RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error) {
+	if m.runBlockingError != nil {
+		return m.runBlockingResult, m.runBlockingError
+	}
+	if m.runBlockingResult != nil {
+		return m.runBlockingResult, nil
+	}
+	// Fallback to runResult for simpler tests
 	return m.runResult, nil
 }
 
@@ -43,6 +56,13 @@ func (m *mockOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
 }
 
 func (m *mockOrchestrator) StartPipeline(ctx context.Context, pipelineID string) (*Status, error) {
+	if m.startError != nil {
+		return nil, m.startError
+	}
+	return m.startResult, nil
+}
+
+func (m *mockOrchestrator) StartPipelineBlocking(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
 	if m.startError != nil {
 		return nil, m.startError
 	}

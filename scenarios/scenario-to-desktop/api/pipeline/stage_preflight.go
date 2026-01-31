@@ -54,15 +54,7 @@ func (s *PreflightStage) Dependencies() []string {
 
 // CanSkip returns whether this stage can be skipped.
 func (s *PreflightStage) CanSkip(input *StageInput) bool {
-	// Skip if explicitly requested
-	if input.Config.SkipPreflight {
-		return true
-	}
-	// Skip if deployment mode is proxy (no bundle to validate)
-	if input.Config.GetDeploymentMode() == "proxy" {
-		return true
-	}
-	return false
+	return ShouldSkipPreflight(input.Config)
 }
 
 // Execute runs the preflight validation stage.
@@ -71,11 +63,11 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 
 	// Check if stage should be skipped
 	if s.CanSkip(input) {
+		reason := "Skipping preflight: deployment mode is proxy"
 		if input.Config.SkipPreflight {
-			skipStage(result, s.timeProvider, "Skipping preflight: explicitly skipped via config")
-		} else {
-			skipStage(result, s.timeProvider, "Skipping preflight: deployment mode is proxy")
+			reason = "Skipping preflight: explicitly skipped via config"
 		}
+		skipStage(result, s.timeProvider, reason)
 		return result
 	}
 
@@ -84,7 +76,7 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "preflight service not configured")
+		failStage(result, s.timeProvider, "preflight service not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 

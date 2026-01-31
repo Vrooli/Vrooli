@@ -14,6 +14,7 @@ import (
 type GenerateStage struct {
 	service      generation.Service
 	analyzer     generation.ScenarioAnalyzer
+	buildStore   generation.BuildStore // for polling build status
 	timeProvider TimeProvider
 	scenarioRoot string
 }
@@ -46,6 +47,13 @@ func WithGenerateTimeProvider(tp TimeProvider) GenerateStageOption {
 func WithGenerateScenarioRoot(root string) GenerateStageOption {
 	return func(s *GenerateStage) {
 		s.scenarioRoot = root
+	}
+}
+
+// WithGenerateBuildStore sets the build store for polling build status.
+func WithGenerateBuildStore(store generation.BuildStore) GenerateStageOption {
+	return func(s *GenerateStage) {
+		s.buildStore = store
 	}
 }
 
@@ -91,7 +99,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	}
 
 	if s.analyzer == nil {
-		failStage(result, s.timeProvider, "scenario analyzer not configured")
+		failStage(result, s.timeProvider, "scenario analyzer not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 
@@ -139,7 +147,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	)
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "generation service not configured")
+		failStage(result, s.timeProvider, "generation service not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 
@@ -171,16 +179,15 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 }
 
 // waitForGeneration polls for generation completion.
-func (s *GenerateStage) waitForGeneration(ctx context.Context, buildID string, status *generation.BuildStatus) (string, error) {
-	// For synchronous generation, the status is already complete
-	// The QueueBuild function may run async, so we need to check
-	if status.Status == "ready" && status.OutputPath != "" {
-		return status.OutputPath, nil
+func (s *GenerateStage) waitForGeneration(ctx context.Context, buildID string, initialStatus *generation.BuildStatus) (string, error) {
+	// Quick check for synchronous completion
+	if initialStatus.Status == BuildStatusReady && initialStatus.OutputPath != "" {
+		return initialStatus.OutputPath, nil
 	}
 
 	// If still building, wait with timeout
-	timeout := time.After(5 * time.Minute)
-	ticker := time.NewTicker(500 * time.Millisecond)
+	timeout := time.After(DefaultGenerationTimeout)
+	ticker := time.NewTicker(DefaultGenerationPollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -188,15 +195,37 @@ func (s *GenerateStage) waitForGeneration(ctx context.Context, buildID string, s
 		case <-ctx.Done():
 			return "", fmt.Errorf("generation cancelled")
 		case <-timeout:
-			return "", fmt.Errorf("generation timed out after 5 minutes")
+			return "", fmt.Errorf("generation timed out after %v", DefaultGenerationTimeout)
 		case <-ticker.C:
-			// Check status
-			switch status.Status {
-			case "ready":
-				return status.OutputPath, nil
-			case "failed":
-				if len(status.ErrorLog) > 0 {
-					return "", fmt.Errorf("generation failed: %s", status.ErrorLog[len(status.ErrorLog)-1])
+			// FIX: Poll fresh status from store instead of checking stale pointer
+			// The QueueBuild function spawns an async goroutine that updates the store,
+			// so we must query the store directly to see the latest status.
+			if s.buildStore == nil {
+				// Fallback to checking initialStatus if no store configured
+				// (this maintains backward compatibility but won't see async updates)
+				switch initialStatus.Status {
+				case BuildStatusReady:
+					return initialStatus.OutputPath, nil
+				case BuildStatusFailed:
+					if len(initialStatus.ErrorLog) > 0 {
+						return "", fmt.Errorf("generation failed: %s", initialStatus.ErrorLog[len(initialStatus.ErrorLog)-1])
+					}
+					return "", fmt.Errorf("generation failed")
+				}
+				continue
+			}
+
+			currentStatus, ok := s.buildStore.Get(buildID)
+			if !ok {
+				return "", fmt.Errorf("build status not found in store: %s", buildID)
+			}
+
+			switch currentStatus.Status {
+			case BuildStatusReady:
+				return currentStatus.OutputPath, nil
+			case BuildStatusFailed:
+				if len(currentStatus.ErrorLog) > 0 {
+					return "", fmt.Errorf("generation failed: %s", currentStatus.ErrorLog[len(currentStatus.ErrorLog)-1])
 				}
 				return "", fmt.Errorf("generation failed")
 			}

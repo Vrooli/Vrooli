@@ -255,7 +255,7 @@ func (u *S3Uploader) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 		result, uploadErr = u.client.PutObject(ctx, input)
 		if uploadErr != nil {
 			// Reset file position for retry
-			file.Seek(0, io.SeekStart)
+			_, _ = file.Seek(0, io.SeekStart)
 			return &UploadError{
 				Operation: "upload",
 				Target:    u.target.Name,

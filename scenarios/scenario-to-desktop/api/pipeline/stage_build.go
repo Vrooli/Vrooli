@@ -75,7 +75,7 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "build service not configured")
+		failStage(result, s.timeProvider, "build service not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 
@@ -115,11 +115,11 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 
 	// Check build result
 	switch buildStatus.Status {
-	case "ready":
+	case BuildStatusReady:
 		result.Logs = append(result.Logs, "All platforms built successfully")
-	case "partial":
+	case BuildStatusPartial:
 		result.Logs = append(result.Logs, "Build completed with some platform failures")
-	case "failed":
+	case BuildStatusFailed:
 		errMsg := "build failed"
 		if len(buildStatus.ErrorLog) > 0 {
 			errMsg = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
@@ -136,9 +136,9 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 
 	// Log platform results
 	for platform, platResult := range buildStatus.PlatformResults {
-		if platResult.Status == "ready" {
+		if platResult.Status == BuildStatusReady {
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: built (%s)", platform, platResult.Artifact))
-		} else if platResult.Status == "skipped" {
+		} else if platResult.Status == BuildStatusSkipped {
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: skipped (%s)", platform, platResult.SkipReason))
 		} else {
 			result.Logs = append(result.Logs, fmt.Sprintf("  %s: %s", platform, platResult.Status))
@@ -151,31 +151,39 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 // waitForBuild polls for build completion.
 func (s *BuildStage) waitForBuild(ctx context.Context, buildID string) (*build.Status, error) {
 	if s.store == nil {
-		return nil, fmt.Errorf("build store not configured for status polling")
+		return nil, fmt.Errorf("build store not configured for status polling - this is a server configuration error; check startup logs or contact support")
 	}
 
 	// Poll with timeout (builds can take a long time)
-	timeout := time.After(30 * time.Minute)
-	ticker := time.NewTicker(2 * time.Second)
+	timeout := time.After(DefaultBuildTimeout)
+	ticker := time.NewTicker(DefaultBuildPollInterval)
 	defer ticker.Stop()
+
+	notFoundCount := 0
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, fmt.Errorf("build cancelled")
 		case <-timeout:
-			return nil, fmt.Errorf("build timed out after 30 minutes")
+			return nil, fmt.Errorf("build timed out after %v", DefaultBuildTimeout)
 		case <-ticker.C:
 			status, ok := s.store.Get(buildID)
 			if !ok {
 				// Build not yet registered, keep waiting
+				notFoundCount++
+				if notFoundCount%10 == 0 {
+					// Log every ~20 seconds (10 polls * 2 second interval) when status not found
+					// This helps users understand the wait isn't stalled
+					fmt.Printf("Build status not yet registered after %d polls, still waiting for build %s...\n", notFoundCount, buildID)
+				}
 				continue
 			}
 
 			switch status.Status {
-			case "ready", "partial":
+			case BuildStatusReady, BuildStatusPartial:
 				return status, nil
-			case "failed":
+			case BuildStatusFailed:
 				return status, nil // Let caller handle the failure
 			}
 			// Still building, continue polling

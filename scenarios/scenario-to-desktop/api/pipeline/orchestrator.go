@@ -1,3 +1,5 @@
+// DOC: docs/reference/api-architecture.md#pipeline-system-core-engine
+// DOC: docs/SEAMS.md#pipeline-orchestrator-seam
 package pipeline
 
 import (
@@ -7,6 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
+
+	"scenario-to-desktop-api/shared/validation"
 )
 
 // DefaultOrchestrator implements the Orchestrator interface.
@@ -144,8 +149,11 @@ func (l *SlogLogger) Debug(msg string, args ...interface{}) { l.Logger.Debug(msg
 // where "running twice is no worse than running once".
 func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
 	// Validate config
-	if config.ScenarioName == "" {
-		return nil, fmt.Errorf("scenario_name is required")
+	if !validation.IsSafeScenarioName(config.ScenarioName) {
+		if config.ScenarioName == "" {
+			return nil, fmt.Errorf("scenario_name is required")
+		}
+		return nil, fmt.Errorf("invalid scenario_name: contains path traversal characters")
 	}
 
 	// Validate stop_after_stage if provided
@@ -156,6 +164,15 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	// Validate resume_from_stage if provided
 	if config.ResumeFromStage != "" && !IsValidStageName(config.ResumeFromStage) {
 		return nil, fmt.Errorf("invalid resume_from_stage: %s", config.ResumeFromStage)
+	}
+
+	// Validate stages if provided
+	if stages := config.GetStages(); len(stages) > 0 {
+		for _, stage := range stages {
+			if !IsValidStageName(stage) {
+				return nil, fmt.Errorf("invalid stage name: %q", stage)
+			}
+		}
 	}
 
 	// Idempotency check: if an idempotency key is provided, check for existing pipeline
@@ -180,9 +197,13 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	// Generate pipeline ID
 	pipelineID := o.idGenerator.Generate()
 
-	// Build stage order
-	stageOrder := make([]string, 0, len(o.stages))
-	for _, stage := range o.stages {
+	// Build stage order (filtered if specific stages requested)
+	stagesToUse := o.stages
+	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
+		stagesToUse = o.filterStages(requestedStages)
+	}
+	stageOrder := make([]string, 0, len(stagesToUse))
+	for _, stage := range stagesToUse {
 		stageOrder = append(stageOrder, stage.Name())
 	}
 
@@ -215,18 +236,89 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	return status, nil
 }
 
+// RunPipelineBlocking runs a pipeline and blocks until completion or timeout.
+// It starts the pipeline asynchronously, then polls for completion.
+// Returns the final status when complete, failed, or cancelled.
+// Returns an error if the timeout is exceeded or the pipeline disappears.
+func (o *DefaultOrchestrator) RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error) {
+	// Start pipeline async
+	status, err := o.RunPipeline(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return o.pollForCompletion(ctx, status.PipelineID, timeoutSecs)
+}
+
+// StartPipelineBlocking starts an existing idle pipeline and blocks until completion or timeout.
+// It starts the pipeline, then polls for completion.
+// Returns the final status when complete, failed, or cancelled.
+// Returns an error if the timeout is exceeded, the pipeline disappears, or the pipeline is not idle.
+func (o *DefaultOrchestrator) StartPipelineBlocking(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
+	// Start the idle pipeline
+	_, err := o.StartPipeline(ctx, pipelineID)
+	if err != nil {
+		return nil, err
+	}
+
+	return o.pollForCompletion(ctx, pipelineID, timeoutSecs)
+}
+
+// pollForCompletion polls for pipeline completion until it finishes or times out.
+// Returns the final status when complete, failed, or cancelled.
+// Returns an error (with partial status) if the timeout is exceeded or the pipeline disappears.
+func (o *DefaultOrchestrator) pollForCompletion(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
+	timeout := time.Duration(timeoutSecs) * time.Second
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(DefaultPipelinePollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			current, _ := o.GetStatus(pipelineID)
+			return current, ctx.Err()
+		case <-ticker.C:
+			current, ok := o.GetStatus(pipelineID)
+			if !ok {
+				return nil, fmt.Errorf("pipeline %s disappeared", pipelineID)
+			}
+
+			if current.IsComplete() {
+				return current, nil
+			}
+
+			if time.Now().After(deadline) {
+				return current, fmt.Errorf("timeout after %d seconds", timeoutSecs)
+			}
+		}
+	}
+}
+
 // CreateIdlePipeline creates a pipeline in "idle" state without starting execution.
 // The pipeline will remain idle until explicitly started via StartPipeline.
 // This is used for auto-creating pipelines when a scenario is selected.
 func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
 	// Validate config
-	if config.ScenarioName == "" {
-		return nil, fmt.Errorf("scenario_name is required")
+	if !validation.IsSafeScenarioName(config.ScenarioName) {
+		if config.ScenarioName == "" {
+			return nil, fmt.Errorf("scenario_name is required")
+		}
+		return nil, fmt.Errorf("invalid scenario_name: contains path traversal characters")
 	}
 
 	// Validate stop_after_stage if provided
 	if config.StopAfterStage != "" && !IsValidStageName(config.StopAfterStage) {
 		return nil, fmt.Errorf("invalid stop_after_stage: %s", config.StopAfterStage)
+	}
+
+	// Validate stages if provided
+	if stages := config.GetStages(); len(stages) > 0 {
+		for _, stage := range stages {
+			if !IsValidStageName(stage) {
+				return nil, fmt.Errorf("invalid stage name: %q", stage)
+			}
+		}
 	}
 
 	// Idempotency check: if an idempotency key is provided, check for existing pipeline
@@ -247,9 +339,13 @@ func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error
 	// Generate pipeline ID
 	pipelineID := o.idGenerator.Generate()
 
-	// Build stage order
-	stageOrder := make([]string, 0, len(o.stages))
-	for _, stage := range o.stages {
+	// Build stage order (filtered if specific stages requested)
+	stagesToUse := o.stages
+	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
+		stagesToUse = o.filterStages(requestedStages)
+	}
+	stageOrder := make([]string, 0, len(stagesToUse))
+	for _, stage := range stagesToUse {
 		stageOrder = append(stageOrder, stage.Name())
 	}
 
@@ -406,6 +502,15 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 		if configUpdates.StopOnFailure != nil {
 			s.Config.StopOnFailure = configUpdates.StopOnFailure
 		}
+		if len(configUpdates.Stages) > 0 {
+			s.Config.Stages = configUpdates.Stages
+			// Also update stage order to reflect the new stages
+			stagesToUse := o.filterStages(configUpdates.Stages)
+			s.StageOrder = make([]string, 0, len(stagesToUse))
+			for _, stage := range stagesToUse {
+				s.StageOrder = append(s.StageOrder, stage.Name())
+			}
+		}
 	})
 
 	o.logger.Info("Updated pipeline config",
@@ -454,8 +559,19 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	resumeFromStage := config.GetResumeFromStage()
 	reachedResumeStage := resumeFromStage == "" // If not resuming, consider it reached
 
+	// Filter stages if specific stages were requested
+	stagesToRun := o.stages
+	if requestedStages := config.GetStages(); len(requestedStages) > 0 {
+		stagesToRun = o.filterStages(requestedStages)
+		o.logger.Info("Filtered stages for execution",
+			"pipeline_id", pipelineID,
+			"requested", requestedStages,
+			"count", len(stagesToRun),
+		)
+	}
+
 	// Execute stages sequentially
-	for _, stage := range o.stages {
+	for _, stage := range stagesToRun {
 		stageName := stage.Name()
 
 		// If resuming, skip stages until we reach the resume point
@@ -671,6 +787,9 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		if len(config.DistributionTargets) > 0 {
 			resumeConfig.DistributionTargets = config.DistributionTargets
 		}
+		if len(config.Stages) > 0 {
+			resumeConfig.Stages = config.Stages
+		}
 	}
 
 	// Run the resumed pipeline
@@ -705,15 +824,25 @@ func currentPlatform() string {
 
 // collectArtifacts gathers final artifact paths from the pipeline input.
 func collectArtifacts(input *StageInput) map[string]string {
-	artifacts := make(map[string]string)
+	if input.BuildResult == nil {
+		return make(map[string]string)
+	}
+	return GetReadyArtifacts(input.BuildResult.PlatformResults)
+}
 
-	if input.BuildResult != nil {
-		for platform, result := range input.BuildResult.PlatformResults {
-			if result.Status == "ready" && result.Artifact != "" {
-				artifacts[platform] = result.Artifact
-			}
-		}
+// filterStages returns only the stages that match the requested stage names.
+// The returned stages preserve the original pipeline order, not the order of the requested list.
+func (o *DefaultOrchestrator) filterStages(requested []string) []Stage {
+	requestedSet := make(map[string]bool, len(requested))
+	for _, name := range requested {
+		requestedSet[name] = true
 	}
 
-	return artifacts
+	filtered := make([]Stage, 0, len(requested))
+	for _, stage := range o.stages {
+		if requestedSet[stage.Name()] {
+			filtered = append(filtered, stage)
+		}
+	}
+	return filtered
 }

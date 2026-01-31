@@ -77,7 +77,7 @@ func (s *BundleStage) Dependencies() []string {
 // CanSkip returns whether this stage can be skipped.
 // Bundle stage is only skipped if deployment mode is "proxy".
 func (s *BundleStage) CanSkip(input *StageInput) bool {
-	return input.Config.GetDeploymentMode() == "proxy"
+	return ShouldSkipBundle(input.Config)
 }
 
 // Execute runs the bundle packaging stage.
@@ -136,7 +136,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 
 	// Check for packager
 	if s.packager == nil {
-		failStage(result, s.timeProvider, "bundle packager not configured")
+		failStage(result, s.timeProvider, "bundle packager not configured - this is a server configuration error; check startup logs or contact support")
 		return result
 	}
 

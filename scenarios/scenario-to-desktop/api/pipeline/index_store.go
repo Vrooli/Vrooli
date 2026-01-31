@@ -88,7 +88,7 @@ func (s *ScenarioIndexStore) GetOrCreate(scenarioName string) *ScenarioIndex {
 		UpdatedAt:      s.timeFunc(),
 	}
 	s.indexes[scenarioName] = idx
-	s.persistUnlocked(scenarioName)
+	_ = s.persistUnlocked(scenarioName)
 	return idx
 }
 

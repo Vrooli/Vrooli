@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/signing/types"
 
 	"software.sslmate.com/src/go-pkcs12"
@@ -90,7 +91,7 @@ func NewPrerequisiteChecker(opts ...PrerequisiteCheckerOption) *PrerequisiteChec
 	c := &PrerequisiteChecker{
 		fs:   &realFileSystem{},
 		cmd:  &realCommandRunner{},
-		env:  &realEnvironmentReader{},
+		env:  newRealEnvironmentReader(),
 		time: &realTimeProvider{},
 	}
 	for _, opt := range opts {
@@ -764,14 +765,21 @@ func (r *realCommandRunner) LookPath(name string) (string, error) {
 	return exec.LookPath(name)
 }
 
-type realEnvironmentReader struct{}
+// realEnvironmentReader adapts env.OSReader to the local EnvironmentReader interface.
+type realEnvironmentReader struct {
+	reader env.Reader
+}
+
+func newRealEnvironmentReader() *realEnvironmentReader {
+	return &realEnvironmentReader{reader: env.NewOSReader()}
+}
 
 func (e *realEnvironmentReader) GetEnv(key string) string {
-	return os.Getenv(key)
+	return e.reader.GetEnv(key)
 }
 
 func (e *realEnvironmentReader) LookupEnv(key string) (string, bool) {
-	return os.LookupEnv(key)
+	return e.reader.LookupEnv(key)
 }
 
 type realTimeProvider struct{}

@@ -13,7 +13,7 @@ func TestDefaultRuntimeResolverResolve(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get working directory: %v", err)
 		}
-		defer os.Chdir(originalDir)
+		defer func() { _ = os.Chdir(originalDir) }()
 
 		// Create a temp directory structure: tmpDir/subdir and tmpDir/runtime
 		tmpDir := t.TempDir()
@@ -50,7 +50,7 @@ func TestDefaultRuntimeResolverResolve(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get working directory: %v", err)
 		}
-		defer os.Chdir(originalDir)
+		defer func() { _ = os.Chdir(originalDir) }()
 
 		// Create a temp directory with no runtime subdirectory
 		tmpDir := t.TempDir()

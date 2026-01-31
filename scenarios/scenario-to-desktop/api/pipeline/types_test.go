@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -376,4 +377,85 @@ func TestConfigGetResumeFromStage(t *testing.T) {
 			t.Errorf("expected 'build', got %q", c.GetResumeFromStage())
 		}
 	})
+}
+
+func TestConfigStagesJSONUnmarshal(t *testing.T) {
+	// This test verifies that the Stages field is correctly parsed from JSON
+	// which is critical for the --stages CLI flag to work
+	tests := []struct {
+		name     string
+		jsonStr  string
+		expected []string
+	}{
+		{
+			name:     "single stage",
+			jsonStr:  `{"scenario_name":"test","stages":["bundle"]}`,
+			expected: []string{"bundle"},
+		},
+		{
+			name:     "multiple stages",
+			jsonStr:  `{"scenario_name":"test","stages":["bundle","preflight"]}`,
+			expected: []string{"bundle", "preflight"},
+		},
+		{
+			name:     "empty stages array",
+			jsonStr:  `{"scenario_name":"test","stages":[]}`,
+			expected: []string{},
+		},
+		{
+			name:     "stages field omitted",
+			jsonStr:  `{"scenario_name":"test"}`,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var config Config
+			if err := json.Unmarshal([]byte(tt.jsonStr), &config); err != nil {
+				t.Fatalf("failed to unmarshal JSON: %v", err)
+			}
+
+			if tt.expected == nil {
+				if config.Stages != nil {
+					t.Errorf("expected nil Stages, got %v", config.Stages)
+				}
+				return
+			}
+
+			if len(config.Stages) != len(tt.expected) {
+				t.Errorf("expected %d stages, got %d: %v", len(tt.expected), len(config.Stages), config.Stages)
+				return
+			}
+
+			for i, stage := range tt.expected {
+				if i >= len(config.Stages) || config.Stages[i] != stage {
+					t.Errorf("expected stages %v, got %v", tt.expected, config.Stages)
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestConfigStagesJSONMarshal(t *testing.T) {
+	config := Config{
+		ScenarioName: "test",
+		Stages:       []string{"bundle", "generate"},
+	}
+
+	data, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("failed to marshal config: %v", err)
+	}
+
+	// Unmarshal to verify round-trip
+	var parsed Config
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("failed to unmarshal marshaled data: %v", err)
+	}
+
+	if len(parsed.Stages) != 2 || parsed.Stages[0] != "bundle" || parsed.Stages[1] != "generate" {
+		t.Errorf("round-trip failed: expected [bundle, generate], got %v", parsed.Stages)
+	}
 }

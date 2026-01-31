@@ -57,6 +57,7 @@
       "title": "Reference",
       "icon": "book",
       "documents": [
+        { "path": "reference/api-architecture.md", "title": "API Architecture", "description": "Visual overview of API structure, pipeline system, and tool execution" },
         { "path": "../README.md", "title": "Scenario README", "description": "Overview, limitations, installer matrix" },
         { "path": "../PRD.md", "title": "PRD", "description": "Product requirements and success metrics" },
         { "path": "../TEST_IMPLEMENTATION_SUMMARY.md", "title": "Tests", "description": "Test suite summary (coverage refresh needed)" },

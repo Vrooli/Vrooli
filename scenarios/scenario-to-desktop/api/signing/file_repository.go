@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/signing/types"
 )
 
@@ -217,16 +218,9 @@ type DefaultScenarioLocator struct {
 }
 
 // NewDefaultScenarioLocator creates a new default scenario locator.
+// Uses the canonical DetectVrooliRoot function from shared/path package.
 func NewDefaultScenarioLocator() *DefaultScenarioLocator {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		// Try common default
-		homeDir, _ := os.UserHomeDir()
-		if homeDir != "" {
-			root = filepath.Join(homeDir, "Vrooli")
-		}
-	}
-	return &DefaultScenarioLocator{vrooliRoot: root}
+	return &DefaultScenarioLocator{vrooliRoot: path.DetectVrooliRoot()}
 }
 
 // GetScenarioPath returns the absolute path to a scenario directory.

@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 
 	"scenario-to-desktop-api/domain"
+	"scenario-to-desktop-api/shared/errors"
 	"scenario-to-desktop-api/tasks"
 )
 
@@ -45,21 +45,8 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	// Trigger task
 	inv, err := s.taskSvc.TriggerTask(r.Context(), req)
 	if err != nil {
-		errMsg := err.Error()
-		switch {
-		case strings.Contains(errMsg, "not found"):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case strings.Contains(errMsg, "already in progress"):
-			http.Error(w, err.Error(), http.StatusConflict)
-		case strings.Contains(errMsg, "not available"):
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		case strings.Contains(errMsg, "invalid"):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		case strings.Contains(errMsg, "at least one"):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		// Use typed error mapping instead of string-based pattern matching
+		http.Error(w, err.Error(), errors.MapErrorToStatus(err))
 		return
 	}
 
@@ -169,15 +156,8 @@ func (s *Server) handleStopTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.taskSvc.StopTask(r.Context(), pipelineID, taskID); err != nil {
-		errMsg := err.Error()
-		switch {
-		case strings.Contains(errMsg, "not found"):
-			http.Error(w, err.Error(), http.StatusNotFound)
-		case strings.Contains(errMsg, "not running"):
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		default:
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		// Use typed error mapping instead of string-based pattern matching
+		http.Error(w, err.Error(), errors.MapErrorToStatus(err))
 		return
 	}
 

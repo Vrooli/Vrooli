@@ -40,6 +40,16 @@ type Orchestrator interface {
 	// Returns an error if the pipeline is not in idle state or doesn't exist.
 	StartPipeline(ctx context.Context, pipelineID string) (*Status, error)
 
+	// RunPipelineBlocking runs a pipeline and blocks until completion or timeout.
+	// Returns the final status when complete, failed, or cancelled.
+	// Returns an error if the timeout is exceeded or the pipeline disappears.
+	RunPipelineBlocking(ctx context.Context, config *Config, timeoutSecs int) (*Status, error)
+
+	// StartPipelineBlocking starts an existing idle pipeline and blocks until completion or timeout.
+	// Returns the final status when complete, failed, or cancelled.
+	// Returns an error if the timeout is exceeded, the pipeline disappears, or the pipeline is not idle.
+	StartPipelineBlocking(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error)
+
 	// ResumePipeline resumes a stopped pipeline from its next stage.
 	// The parent pipeline must have been stopped with StopAfterStage.
 	// Returns a new pipeline that continues from where the parent stopped.

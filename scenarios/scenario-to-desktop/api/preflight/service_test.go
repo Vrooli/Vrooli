@@ -11,15 +11,6 @@ import (
 	bundlemanifest "scenario-to-desktop-runtime/manifest"
 )
 
-// mockTimeProvider provides a fixed time for deterministic testing.
-type mockTimeProvider struct {
-	now time.Time
-}
-
-func (m *mockTimeProvider) Now() time.Time {
-	return m.now
-}
-
 func TestInMemorySessionStore(t *testing.T) {
 	store := NewInMemorySessionStore()
 
@@ -545,7 +536,7 @@ func TestHTTPRuntimeClient_Status(t *testing.T) {
 			t.Errorf("expected GET, got %s", r.Method)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Runtime{RuntimeVersion: "1.0.0", InstanceID: "test-instance"})
+		_ = json.NewEncoder(w).Encode(Runtime{RuntimeVersion: "1.0.0", InstanceID: "test-instance"})
 	}))
 	defer server.Close()
 
@@ -562,7 +553,7 @@ func TestHTTPRuntimeClient_Status(t *testing.T) {
 func TestHTTPRuntimeClient_StatusError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -579,7 +570,7 @@ func TestHTTPRuntimeClient_Secrets(t *testing.T) {
 			t.Errorf("expected path '/secrets', got %q", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"secrets": []Secret{
 				{ID: "API_KEY", Required: true, HasValue: false},
 				{ID: "DB_PASSWORD", Required: true, HasValue: true},
@@ -605,7 +596,7 @@ func TestHTTPRuntimeClient_ApplySecrets(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Errorf("expected POST, got %s", r.Method)
 			}
-			json.NewDecoder(r.Body).Decode(&receivedPayload)
+			_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
@@ -658,7 +649,7 @@ func TestHTTPRuntimeClient_ApplySecrets(t *testing.T) {
 func TestHTTPRuntimeClient_Ports(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"services": map[string]map[string]int{
 				"api": {"http": 8080},
 				"web": {"http": 3000},
@@ -680,7 +671,7 @@ func TestHTTPRuntimeClient_Ports(t *testing.T) {
 func TestHTTPRuntimeClient_Telemetry(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Telemetry{Path: "/telemetry", UploadURL: "http://localhost:8080/telemetry"})
+		_ = json.NewEncoder(w).Encode(Telemetry{Path: "/telemetry", UploadURL: "http://localhost:8080/telemetry"})
 	}))
 	defer server.Close()
 
@@ -709,12 +700,12 @@ func TestHTTPRuntimeClient_AuthorizationHeader(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(Runtime{})
+		_ = json.NewEncoder(w).Encode(Runtime{})
 	}))
 	defer server.Close()
 
 	client := NewHTTPRuntimeClient(server.URL, "test-token", nil)
-	client.Status()
+	_, _ = client.Status()
 
 	if receivedAuth != "Bearer test-token" {
 		t.Errorf("expected 'Bearer test-token', got %q", receivedAuth)
@@ -911,7 +902,7 @@ func TestHTTPRuntimeClient_Validate(t *testing.T) {
 				t.Errorf("expected path '/validate', got %q", r.URL.Path)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"valid":    true,
 				"errors":   []interface{}{},
 				"warnings": []interface{}{},
@@ -933,7 +924,7 @@ func TestHTTPRuntimeClient_Validate(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"valid":  false,
 				"errors": []interface{}{map[string]string{"message": "test error"}},
 			})
@@ -955,7 +946,7 @@ func TestHTTPRuntimeClient_Ready(t *testing.T) {
 	t.Run("immediate ready", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(Ready{Ready: true})
+			_ = json.NewEncoder(w).Encode(Ready{Ready: true})
 		}))
 		defer server.Close()
 
@@ -975,7 +966,7 @@ func TestHTTPRuntimeClient_Ready(t *testing.T) {
 	t.Run("status only skips polling", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(Ready{Ready: false})
+			_ = json.NewEncoder(w).Encode(Ready{Ready: false})
 		}))
 		defer server.Close()
 
@@ -997,7 +988,7 @@ func TestHTTPRuntimeClient_fetchText(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("log content here"))
+			_, _ = w.Write([]byte("log content here"))
 		}))
 		defer server.Close()
 
@@ -1017,7 +1008,7 @@ func TestHTTPRuntimeClient_fetchText(t *testing.T) {
 	t.Run("error status", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("not found"))
+			_, _ = w.Write([]byte("not found"))
 		}))
 		defer server.Close()
 
@@ -1040,7 +1031,7 @@ func TestHTTPRuntimeClient_fetchText(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPRuntimeClient(server.URL, "my-token", nil)
-		client.fetchText("/logs")
+		_, _, _ = client.fetchText("/logs")
 		if receivedAuth != "Bearer my-token" {
 			t.Errorf("expected 'Bearer my-token', got %q", receivedAuth)
 		}
@@ -1108,7 +1099,7 @@ func TestValidationStepStateWithValidationResult(t *testing.T) {
 func TestHTTPRuntimeClient_PortsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1122,7 +1113,7 @@ func TestHTTPRuntimeClient_PortsError(t *testing.T) {
 func TestHTTPRuntimeClient_TelemetryError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1136,7 +1127,7 @@ func TestHTTPRuntimeClient_TelemetryError(t *testing.T) {
 func TestHTTPRuntimeClient_SecretsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1150,7 +1141,7 @@ func TestHTTPRuntimeClient_SecretsError(t *testing.T) {
 func TestHTTPRuntimeClient_ApplySecretsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1164,7 +1155,7 @@ func TestHTTPRuntimeClient_ApplySecretsError(t *testing.T) {
 func TestHTTPRuntimeClient_ValidateError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1178,7 +1169,7 @@ func TestHTTPRuntimeClient_ValidateError(t *testing.T) {
 func TestHTTPRuntimeClient_ReadyError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -1195,9 +1186,9 @@ func TestHTTPRuntimeClient_fetchJSONWithPayload(t *testing.T) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			t.Errorf("expected Content-Type application/json")
 		}
-		json.NewDecoder(r.Body).Decode(&receivedPayload)
+		_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	}))
 	defer server.Close()
 
@@ -1219,7 +1210,7 @@ func TestHTTPRuntimeClient_fetchJSONDecodeError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -1235,7 +1226,7 @@ func TestHTTPRuntimeClient_fetchJSONAllowedStatusDecodeError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -1251,7 +1242,7 @@ func TestHTTPRuntimeClient_fetchJSONAllowedStatusDecodeError(t *testing.T) {
 func TestHTTPRuntimeClient_fetchJSONAllowedStatusNoOutput(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		w.Write([]byte("error message"))
+		_, _ = w.Write([]byte("error message"))
 	}))
 	defer server.Close()
 
@@ -1525,9 +1516,9 @@ func TestHTTPRuntimeClient_ReadyWithPolling(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		// Return not ready on first call, ready on second
 		if callCount == 1 {
-			json.NewEncoder(w).Encode(Ready{Ready: false})
+			_ = json.NewEncoder(w).Encode(Ready{Ready: false})
 		} else {
-			json.NewEncoder(w).Encode(Ready{Ready: true})
+			_ = json.NewEncoder(w).Encode(Ready{Ready: true})
 		}
 	}))
 	defer server.Close()

@@ -416,13 +416,13 @@ func TestFileStoreIgnoresNonJSONFiles(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create non-JSON files
-	os.WriteFile(filepath.Join(tempDir, "readme.txt"), []byte("ignore me"), 0o644)
-	os.WriteFile(filepath.Join(tempDir, ".hidden"), []byte("hidden file"), 0o644)
-	os.Mkdir(filepath.Join(tempDir, "subdir"), 0o755)
+	_ = os.WriteFile(filepath.Join(tempDir, "readme.txt"), []byte("ignore me"), 0o644)
+	_ = os.WriteFile(filepath.Join(tempDir, ".hidden"), []byte("hidden file"), 0o644)
+	_ = os.Mkdir(filepath.Join(tempDir, "subdir"), 0o755)
 
 	// Create one valid JSON file
 	validJSON := `{"pipeline_id": "valid", "scenario_name": "test", "status": "completed", "stages": {}}`
-	os.WriteFile(filepath.Join(tempDir, "valid.json"), []byte(validJSON), 0o644)
+	_ = os.WriteFile(filepath.Join(tempDir, "valid.json"), []byte(validJSON), 0o644)
 
 	store, err := NewFileStore(tempDir)
 	if err != nil {
@@ -444,11 +444,11 @@ func TestFileStoreSkipsInvalidJSON(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create invalid JSON file
-	os.WriteFile(filepath.Join(tempDir, "invalid.json"), []byte("not valid json"), 0o644)
+	_ = os.WriteFile(filepath.Join(tempDir, "invalid.json"), []byte("not valid json"), 0o644)
 
 	// Create valid JSON file
 	validJSON := `{"pipeline_id": "valid", "scenario_name": "test", "status": "completed", "stages": {}}`
-	os.WriteFile(filepath.Join(tempDir, "valid.json"), []byte(validJSON), 0o644)
+	_ = os.WriteFile(filepath.Join(tempDir, "valid.json"), []byte(validJSON), 0o644)
 
 	// Should not error, just skip invalid file
 	store, err := NewFileStore(tempDir)

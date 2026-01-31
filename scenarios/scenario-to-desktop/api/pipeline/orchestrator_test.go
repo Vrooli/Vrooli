@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -148,8 +150,8 @@ func TestOrchestratorListPipelines(t *testing.T) {
 		ScenarioName: "test-scenario",
 	}
 
-	orchestrator.RunPipeline(ctx, config)
-	orchestrator.RunPipeline(ctx, config)
+	_, _ = orchestrator.RunPipeline(ctx, config)
+	_, _ = orchestrator.RunPipeline(ctx, config)
 
 	pipelines := orchestrator.ListPipelines()
 	if len(pipelines) < 2 {
@@ -297,7 +299,7 @@ func TestOrchestratorListPipelinesConcurrency(t *testing.T) {
 
 	// Run multiple pipelines
 	for i := 0; i < 5; i++ {
-		orchestrator.RunPipeline(ctx, config)
+		_, _ = orchestrator.RunPipeline(ctx, config)
 	}
 
 	time.Sleep(100 * time.Millisecond)
@@ -1200,5 +1202,305 @@ func TestNoDuplicateWorkOnRetry(t *testing.T) {
 	// Only one pipeline should exist
 	if count := len(store.List()); count != 1 {
 		t.Errorf("expected 1 pipeline after retries, got %d", count)
+	}
+}
+
+// =============================================================================
+// Stage Filtering Tests
+// =============================================================================
+// These tests verify that the --stages flag correctly filters which stages run.
+
+func TestRunPipeline_StageFiltering_SingleStage(t *testing.T) {
+	// Track which stages were executed
+	var executedStages []string
+	var mu sync.Mutex
+
+	stage1 := &trackingStage{name: "bundle", executed: &executedStages, mu: &mu}
+	stage2 := &trackingStage{name: "preflight", executed: &executedStages, mu: &mu}
+	stage3 := &trackingStage{name: "generate", executed: &executedStages, mu: &mu}
+
+	orchestrator := NewOrchestrator(
+		WithStages(stage1, stage2, stage3),
+		WithStore(NewInMemoryStore()),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"bundle"}, // Only run bundle
+	}
+
+	status, err := orchestrator.RunPipeline(ctx, config)
+	if err != nil {
+		t.Fatalf("RunPipeline error: %v", err)
+	}
+
+	// Wait for completion
+	time.Sleep(200 * time.Millisecond)
+
+	final, _ := orchestrator.GetStatus(status.PipelineID)
+
+	// Only bundle should be executed
+	mu.Lock()
+	defer mu.Unlock()
+	if len(executedStages) != 1 || executedStages[0] != "bundle" {
+		t.Errorf("expected only 'bundle' to execute, got %v", executedStages)
+	}
+
+	// Stage order should only contain bundle
+	if len(final.StageOrder) != 1 || final.StageOrder[0] != "bundle" {
+		t.Errorf("expected stage order [bundle], got %v", final.StageOrder)
+	}
+}
+
+func TestRunPipeline_StageFiltering_MultipleStages(t *testing.T) {
+	var executedStages []string
+	var mu sync.Mutex
+
+	stage1 := &trackingStage{name: "bundle", executed: &executedStages, mu: &mu}
+	stage2 := &trackingStage{name: "preflight", executed: &executedStages, mu: &mu}
+	stage3 := &trackingStage{name: "generate", executed: &executedStages, mu: &mu}
+	stage4 := &trackingStage{name: "build", executed: &executedStages, mu: &mu}
+
+	orchestrator := NewOrchestrator(
+		WithStages(stage1, stage2, stage3, stage4),
+		WithStore(NewInMemoryStore()),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"bundle", "preflight"}, // Only run these two
+	}
+
+	status, err := orchestrator.RunPipeline(ctx, config)
+	if err != nil {
+		t.Fatalf("RunPipeline error: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	final, _ := orchestrator.GetStatus(status.PipelineID)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(executedStages) != 2 {
+		t.Errorf("expected 2 stages to execute, got %d: %v", len(executedStages), executedStages)
+	}
+	// Stages should execute in pipeline order
+	if len(executedStages) >= 2 && (executedStages[0] != "bundle" || executedStages[1] != "preflight") {
+		t.Errorf("expected [bundle, preflight], got %v", executedStages)
+	}
+
+	// generate and build should NOT be in stages
+	if _, ok := final.Stages["generate"]; ok {
+		t.Errorf("expected generate stage to not be started")
+	}
+	if _, ok := final.Stages["build"]; ok {
+		t.Errorf("expected build stage to not be started")
+	}
+}
+
+func TestRunPipeline_StageFiltering_PreservesPipelineOrder(t *testing.T) {
+	// User specifies stages in different order - should still run in pipeline order
+	var executedStages []string
+	var mu sync.Mutex
+
+	stage1 := &trackingStage{name: "bundle", executed: &executedStages, mu: &mu}
+	stage2 := &trackingStage{name: "preflight", executed: &executedStages, mu: &mu}
+	stage3 := &trackingStage{name: "generate", executed: &executedStages, mu: &mu}
+
+	orchestrator := NewOrchestrator(
+		WithStages(stage1, stage2, stage3),
+		WithStore(NewInMemoryStore()),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"generate", "bundle"}, // User order differs from pipeline order
+	}
+
+	status, err := orchestrator.RunPipeline(ctx, config)
+	if err != nil {
+		t.Fatalf("RunPipeline error: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	// Should execute in pipeline order (bundle before generate), not user order
+	if len(executedStages) != 2 {
+		t.Errorf("expected 2 stages, got %d: %v", len(executedStages), executedStages)
+	}
+	if len(executedStages) >= 2 && (executedStages[0] != "bundle" || executedStages[1] != "generate") {
+		t.Errorf("expected [bundle, generate] (pipeline order), got %v", executedStages)
+	}
+
+	final, _ := orchestrator.GetStatus(status.PipelineID)
+	if len(final.StageOrder) != 2 || final.StageOrder[0] != "bundle" || final.StageOrder[1] != "generate" {
+		t.Errorf("expected stage order [bundle, generate], got %v", final.StageOrder)
+	}
+}
+
+func TestRunPipeline_StageFiltering_InvalidStageName(t *testing.T) {
+	orchestrator := NewOrchestrator(
+		WithStages(&mockStage{name: "bundle"}),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"bundle", "invalid-stage"},
+	}
+
+	_, err := orchestrator.RunPipeline(ctx, config)
+	if err == nil {
+		t.Fatalf("expected error for invalid stage name")
+	}
+	if !strings.Contains(err.Error(), "invalid stage name") {
+		t.Errorf("expected 'invalid stage name' error, got: %v", err)
+	}
+}
+
+func TestRunPipeline_StageFiltering_EmptyRunsAll(t *testing.T) {
+	var executedStages []string
+	var mu sync.Mutex
+
+	stage1 := &trackingStage{name: "bundle", executed: &executedStages, mu: &mu}
+	stage2 := &trackingStage{name: "preflight", executed: &executedStages, mu: &mu}
+
+	orchestrator := NewOrchestrator(
+		WithStages(stage1, stage2),
+		WithStore(NewInMemoryStore()),
+	)
+
+	ctx := context.Background()
+	config := &Config{
+		ScenarioName: "test-scenario",
+		// Stages not specified - should run all
+	}
+
+	_, err := orchestrator.RunPipeline(ctx, config)
+	if err != nil {
+		t.Fatalf("RunPipeline error: %v", err)
+	}
+
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(executedStages) != 2 {
+		t.Errorf("expected all 2 stages to execute, got %d: %v", len(executedStages), executedStages)
+	}
+}
+
+func TestConfig_GetStages(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *Config
+		expected []string
+	}{
+		{"nil config", nil, nil},
+		{"empty stages", &Config{Stages: []string{}}, nil},
+		{"with single stage", &Config{Stages: []string{"bundle"}}, []string{"bundle"}},
+		{"with multiple stages", &Config{Stages: []string{"bundle", "preflight"}}, []string{"bundle", "preflight"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.config.GetStages()
+			if tc.expected == nil && got != nil {
+				t.Errorf("expected nil, got %v", got)
+			}
+			if tc.expected != nil {
+				if len(got) != len(tc.expected) {
+					t.Errorf("expected %v, got %v", tc.expected, got)
+				}
+				for i := range tc.expected {
+					if i < len(got) && got[i] != tc.expected[i] {
+						t.Errorf("expected %v, got %v", tc.expected, got)
+						break
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestCreateIdlePipeline_StageFiltering(t *testing.T) {
+	orchestrator := NewOrchestrator(
+		WithStages(
+			&mockStage{name: "bundle"},
+			&mockStage{name: "preflight"},
+			&mockStage{name: "generate"},
+		),
+		WithStore(NewInMemoryStore()),
+	)
+
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"bundle", "generate"}, // Skip preflight
+	}
+
+	status, err := orchestrator.CreateIdlePipeline(config)
+	if err != nil {
+		t.Fatalf("CreateIdlePipeline error: %v", err)
+	}
+
+	// Stage order should reflect filtered stages
+	if len(status.StageOrder) != 2 {
+		t.Errorf("expected 2 stages, got %d: %v", len(status.StageOrder), status.StageOrder)
+	}
+	if len(status.StageOrder) >= 2 && (status.StageOrder[0] != "bundle" || status.StageOrder[1] != "generate") {
+		t.Errorf("expected [bundle, generate], got %v", status.StageOrder)
+	}
+}
+
+func TestCreateIdlePipeline_InvalidStageName(t *testing.T) {
+	orchestrator := NewOrchestrator(
+		WithStages(&mockStage{name: "bundle"}),
+	)
+
+	config := &Config{
+		ScenarioName: "test-scenario",
+		Stages:       []string{"invalid"},
+	}
+
+	_, err := orchestrator.CreateIdlePipeline(config)
+	if err == nil {
+		t.Fatalf("expected error for invalid stage name")
+	}
+}
+
+// trackingStage records when it was executed for test verification.
+type trackingStage struct {
+	name     string
+	executed *[]string
+	mu       *sync.Mutex
+}
+
+func (s *trackingStage) Name() string {
+	return s.name
+}
+
+func (s *trackingStage) Dependencies() []string {
+	return nil
+}
+
+func (s *trackingStage) CanSkip(input *StageInput) bool {
+	return false
+}
+
+func (s *trackingStage) Execute(ctx context.Context, input *StageInput) *StageResult {
+	s.mu.Lock()
+	*s.executed = append(*s.executed, s.name)
+	s.mu.Unlock()
+
+	return &StageResult{
+		Stage:       s.name,
+		Status:      StatusCompleted,
+		CompletedAt: time.Now().Unix(),
 	}
 }

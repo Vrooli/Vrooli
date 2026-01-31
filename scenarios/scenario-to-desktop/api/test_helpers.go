@@ -180,32 +180,6 @@ func assertFieldValue(t *testing.T, response map[string]interface{}, fieldName s
 	}
 }
 
-// createValidGenerateRequest creates a valid request for desktop generation
-func createValidGenerateRequest() map[string]interface{} {
-	return map[string]interface{}{
-		"app_name":         "TestApp",
-		"app_display_name": "Test Application",
-		"app_description":  "A test desktop application",
-		"version":          "1.0.0",
-		"author":           "Test Author",
-		"license":          "MIT",
-		"app_id":           "com.test.app",
-		"app_url":          "https://example.com",
-		"server_type":      "node",
-		"server_port":      3000,
-		"server_path":      "./server",
-		"api_endpoint":     "http://localhost:3000",
-		"scenario_path":    "./dist",
-		"framework":        "electron",
-		"template_type":    "basic",
-		"platforms":        []string{"win", "mac", "linux"},
-		"output_path":      "/tmp/test-output",
-		"features":         map[string]interface{}{},
-		"window":           map[string]interface{}{},
-		"styling":          map[string]interface{}{},
-	}
-}
-
 // createJSONRequest creates an HTTP request with JSON body
 func createJSONRequest(method, path string, body interface{}) *http.Request {
 	var bodyReader *bytes.Buffer
@@ -221,12 +195,4 @@ func createJSONRequest(method, path string, body interface{}) *http.Request {
 	req := httptest.NewRequest(method, path, bodyReader)
 	req.Header.Set("Content-Type", "application/json")
 	return req
-}
-
-// requireNoError fails the test immediately if err is not nil
-func requireNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
 }

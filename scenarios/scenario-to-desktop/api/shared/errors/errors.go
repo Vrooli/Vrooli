@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // ErrorCode represents a semantic error code for domain errors.
@@ -112,6 +113,7 @@ const (
 	CodePipelineNotFound  ErrorCode = "PIPELINE_NOT_FOUND"
 	CodePipelineFailed    ErrorCode = "PIPELINE_FAILED"
 	CodePipelineCancelled ErrorCode = "PIPELINE_CANCELLED"
+	CodePipelineTimeout   ErrorCode = "PIPELINE_TIMEOUT"
 	CodeStageSkipped      ErrorCode = "STAGE_SKIPPED"
 	CodeStageFailed       ErrorCode = "STAGE_FAILED"
 
@@ -311,6 +313,7 @@ var httpStatusMap = map[ErrorCode]int{
 	CodePipelineNotFound:  http.StatusNotFound,
 	CodePipelineFailed:    http.StatusInternalServerError,
 	CodePipelineCancelled: http.StatusConflict,
+	CodePipelineTimeout:   http.StatusGatewayTimeout,
 	CodeStageSkipped:      http.StatusOK, // Not an error, just informational
 	CodeStageFailed:       http.StatusInternalServerError,
 
@@ -396,6 +399,7 @@ var defaultRecoveryMap = map[ErrorCode]RecoveryAction{
 	CodePipelineNotFound:  RecoveryFixInput,
 	CodePipelineFailed:    RecoveryRetry,
 	CodePipelineCancelled: RecoveryNone,
+	CodePipelineTimeout:   RecoveryRetryWithBackoff,
 	CodeStageSkipped:      RecoveryNone,
 	CodeStageFailed:       RecoveryRetry,
 
@@ -757,4 +761,118 @@ func IsConflict(err error) bool {
 		return false
 	}
 	return de.Code == CodeConflict || de.Code == CodeBuildInProgress || de.Code == CodePipelineCancelled
+}
+
+// IsUnavailable returns true if the error is a service unavailable error.
+func IsUnavailable(err error) bool {
+	de, ok := IsDomainError(err)
+	if !ok {
+		return false
+	}
+	return de.Code == CodeUnavailable || de.Code == CodeWineNotInstalled
+}
+
+// ShouldRetry returns true if the error indicates the operation should be retried.
+// This checks the error's recovery action to determine if retry is appropriate.
+// Use this for automatic retry logic in resilient systems.
+func ShouldRetry(err error) bool {
+	de, ok := IsDomainError(err)
+	if !ok {
+		// For non-domain errors, check if it looks transient
+		return isLikelyTransient(err)
+	}
+	recovery := de.GetRecovery()
+	return recovery == RecoveryRetry || recovery == RecoveryRetryWithBackoff
+}
+
+// IsUserError returns true if the error is due to user input (4xx-class errors).
+// This includes validation errors, bad requests, and configuration issues.
+// Use this to determine if the user should fix something vs. an internal issue.
+func IsUserError(err error) bool {
+	de, ok := IsDomainError(err)
+	if !ok {
+		return false
+	}
+	status := de.HTTPStatus()
+	return status >= 400 && status < 500
+}
+
+// IsTransient returns true if the error is likely transient and may succeed on retry.
+// This is similar to ShouldRetry but focuses on the nature of the error rather than
+// the recovery action. Useful for logging and metrics categorization.
+func IsTransient(err error) bool {
+	de, ok := IsDomainError(err)
+	if !ok {
+		return isLikelyTransient(err)
+	}
+	// Transient errors are typically 5xx that might succeed on retry
+	switch de.Code {
+	case CodeInternal, CodeTimeout, CodeUnavailable,
+		CodePreflightTimeout, CodeBundleServiceTimeout,
+		CodeServiceHealthError, CodeSystemResourceError,
+		CodeProcessKillTimeout, CodeKeychainError:
+		return true
+	}
+	return false
+}
+
+// isLikelyTransient checks if a non-domain error appears to be transient.
+// This provides a best-effort classification for wrapped or standard errors.
+func isLikelyTransient(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return containsAny(errMsg,
+		"timeout", "temporary", "unavailable", "connection refused",
+		"connection reset", "too many requests", "try again",
+	)
+}
+
+// MapErrorToStatus maps any error to an appropriate HTTP status code.
+// For DomainErrors, uses the error code mapping.
+// For standard errors, attempts to infer status from error message patterns.
+// This provides a migration path from string-based error matching to typed errors.
+func MapErrorToStatus(err error) int {
+	if err == nil {
+		return http.StatusOK
+	}
+
+	// First, check if it's a domain error
+	if de, ok := IsDomainError(err); ok {
+		return de.HTTPStatus()
+	}
+
+	// Fallback: infer from error message for legacy code migration
+	// This allows gradual migration to typed errors
+	errMsg := err.Error()
+	switch {
+	case containsAny(errMsg, "not found"):
+		return http.StatusNotFound
+	case containsAny(errMsg, "already in progress", "conflict"):
+		return http.StatusConflict
+	case containsAny(errMsg, "not available", "unavailable"):
+		return http.StatusServiceUnavailable
+	case containsAny(errMsg, "invalid", "required", "at least one"):
+		return http.StatusBadRequest
+	case containsAny(errMsg, "unauthorized", "authentication"):
+		return http.StatusUnauthorized
+	case containsAny(errMsg, "forbidden", "permission"):
+		return http.StatusForbidden
+	case containsAny(errMsg, "timeout"):
+		return http.StatusGatewayTimeout
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// containsAny checks if s contains any of the substrings (case-insensitive).
+func containsAny(s string, substrings ...string) bool {
+	lowered := strings.ToLower(s)
+	for _, sub := range substrings {
+		if strings.Contains(lowered, strings.ToLower(sub)) {
+			return true
+		}
+	}
+	return false
 }

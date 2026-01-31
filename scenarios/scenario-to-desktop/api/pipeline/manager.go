@@ -326,6 +326,118 @@ func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, 
 	}
 }
 
+// StartActivePipelineBlocking starts the active pipeline and blocks until completion or timeout.
+// This is similar to StartActivePipeline but waits for the pipeline to finish.
+// Returns the final status when complete, failed, or cancelled.
+// Returns an error if the timeout is exceeded or the pipeline disappears.
+func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName string, configOverrides *Config, timeoutSecs int) (*Status, error) {
+	if m.orchestrator == nil {
+		return nil, fmt.Errorf("orchestrator not configured")
+	}
+	if m.indexStore == nil {
+		return nil, fmt.Errorf("index store not configured")
+	}
+
+	// Get or create the active pipeline
+	status, _, err := m.GetOrCreateActivePipeline(ctx, scenarioName, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get or create active pipeline: %w", err)
+	}
+
+	// Check current status
+	switch status.Status {
+	case StatusRunning, StatusPending:
+		// Already running - poll for completion
+		m.logInfo("active pipeline already running, waiting for completion",
+			"scenario", scenarioName,
+			"pipeline_id", status.PipelineID,
+			"status", status.Status,
+		)
+		return m.pollForCompletion(ctx, status.PipelineID, timeoutSecs)
+
+	case StatusIdle:
+		// Pipeline is idle - update config if provided and start it
+		if configOverrides != nil {
+			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
+			}
+		}
+
+		finalStatus, err := m.orchestrator.StartPipelineBlocking(ctx, status.PipelineID, timeoutSecs)
+		if err != nil {
+			return finalStatus, err
+		}
+
+		m.logInfo("active pipeline completed",
+			"scenario", scenarioName,
+			"pipeline_id", status.PipelineID,
+			"final_status", finalStatus.Status,
+		)
+
+		return finalStatus, nil
+
+	case StatusCompleted, StatusFailed, StatusCancelled:
+		// Pipeline finished - create a new one, update index, and start it with blocking
+		m.logInfo("active pipeline already completed, creating new one",
+			"scenario", scenarioName,
+			"old_pipeline_id", status.PipelineID,
+			"old_status", status.Status,
+		)
+
+		// Archive the old pipeline and create a new one
+		newStatus, archivedID, err := m.CreateNewPipeline(ctx, scenarioName, configOverrides)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create new pipeline: %w", err)
+		}
+
+		if archivedID != "" {
+			m.logInfo("archived previous pipeline",
+				"scenario", scenarioName,
+				"archived_id", archivedID,
+			)
+		}
+
+		// Start the new pipeline with blocking
+		finalStatus, err := m.orchestrator.StartPipelineBlocking(ctx, newStatus.PipelineID, timeoutSecs)
+		if err != nil {
+			return finalStatus, err
+		}
+
+		m.logInfo("new active pipeline completed",
+			"scenario", scenarioName,
+			"pipeline_id", newStatus.PipelineID,
+			"final_status", finalStatus.Status,
+		)
+
+		return finalStatus, nil
+
+	default:
+		return nil, fmt.Errorf("unexpected pipeline status: %s", status.Status)
+	}
+}
+
+// pollForCompletion polls for pipeline completion until it finishes or times out.
+func (m *Manager) pollForCompletion(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
+	// Delegate to the orchestrator's blocking implementation
+	// Create a config with the pipeline ID to pass context
+	status, ok := m.orchestrator.GetStatus(pipelineID)
+	if !ok {
+		return nil, fmt.Errorf("pipeline not found: %s", pipelineID)
+	}
+
+	// If already complete, return immediately
+	if status.IsComplete() {
+		return status, nil
+	}
+
+	// Use the blocking method on DefaultOrchestrator
+	if o, ok := m.orchestrator.(*DefaultOrchestrator); ok {
+		return o.pollForCompletion(ctx, pipelineID, timeoutSecs)
+	}
+
+	return nil, fmt.Errorf("orchestrator does not support blocking operations")
+}
+
 // buildConfig creates a pipeline config, applying defaults from the provided config.
 func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 	config := &Config{

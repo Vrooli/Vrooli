@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"scenario-to-desktop-api/shared/env"
 )
 
 // Uploader abstracts cloud storage upload operations.
@@ -161,17 +163,30 @@ type CancelManager interface {
 	Delete(distributionID string)
 }
 
-// RealEnvironmentReader implements EnvironmentReader using os package.
-type RealEnvironmentReader struct{}
+// RealEnvironmentReader implements EnvironmentReader using the shared env package.
+type RealEnvironmentReader struct {
+	reader env.Reader
+}
+
+// NewRealEnvironmentReader creates a new environment reader using the shared implementation.
+func NewRealEnvironmentReader() *RealEnvironmentReader {
+	return &RealEnvironmentReader{reader: env.NewOSReader()}
+}
 
 // GetEnv retrieves an environment variable value.
 func (r *RealEnvironmentReader) GetEnv(key string) string {
-	return os.Getenv(key)
+	if r.reader == nil {
+		return os.Getenv(key) // Fallback for zero-value struct
+	}
+	return r.reader.GetEnv(key)
 }
 
 // LookupEnv retrieves an environment variable and reports if it exists.
 func (r *RealEnvironmentReader) LookupEnv(key string) (string, bool) {
-	return os.LookupEnv(key)
+	if r.reader == nil {
+		return os.LookupEnv(key) // Fallback for zero-value struct
+	}
+	return r.reader.LookupEnv(key)
 }
 
 // RealFileSystem implements FileSystem using os package.

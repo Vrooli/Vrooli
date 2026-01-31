@@ -537,3 +537,113 @@ func TestIsConflict(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRetry(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		// Domain errors with retry recovery
+		{"CodeInternal", New(CodeInternal, "internal error"), true},
+		{"CodeTimeout", New(CodeTimeout, "timeout"), true},
+		{"CodeUnavailable", New(CodeUnavailable, "unavailable"), true},
+		{"CodeBuildFailed", New(CodeBuildFailed, "build failed"), true},
+
+		// Domain errors that shouldn't be retried
+		{"CodeNotFound", New(CodeNotFound, "not found"), false},
+		{"CodeBadRequest", New(CodeBadRequest, "bad request"), false},
+		{"CodeValidation", New(CodeValidation, "validation error"), false},
+		{"CodeUnauthorized", New(CodeUnauthorized, "unauthorized"), false},
+		{"CodeForbidden", New(CodeForbidden, "forbidden"), false},
+		{"CodePipelineCancelled", New(CodePipelineCancelled, "cancelled"), false},
+
+		// Standard errors - transient detection
+		{"standard timeout error", errors.New("connection timeout"), true},
+		{"standard unavailable error", errors.New("service unavailable"), true},
+		{"standard try again error", errors.New("try again later"), true},
+		{"standard error", errors.New("some error"), false},
+		{"nil error", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if ShouldRetry(tt.err) != tt.expected {
+				t.Errorf("expected ShouldRetry to return %v for %v", tt.expected, tt.err)
+			}
+		})
+	}
+}
+
+func TestIsUserError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		// 4xx errors (user errors)
+		{"CodeNotFound", New(CodeNotFound, "not found"), true},
+		{"CodeBadRequest", New(CodeBadRequest, "bad request"), true},
+		{"CodeValidation", New(CodeValidation, "validation error"), true},
+		{"CodeUnauthorized", New(CodeUnauthorized, "unauthorized"), true},
+		{"CodeForbidden", New(CodeForbidden, "forbidden"), true},
+		{"CodeConflict", New(CodeConflict, "conflict"), true},
+
+		// 5xx errors (server errors)
+		{"CodeInternal", New(CodeInternal, "internal error"), false},
+		{"CodeUnavailable", New(CodeUnavailable, "unavailable"), false},
+		{"CodeTimeout", New(CodeTimeout, "timeout"), false},
+
+		// Standard errors
+		{"standard error", errors.New("some error"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if IsUserError(tt.err) != tt.expected {
+				t.Errorf("expected IsUserError to return %v", tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsTransient(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		// Transient domain errors
+		{"CodeInternal", New(CodeInternal, "internal error"), true},
+		{"CodeTimeout", New(CodeTimeout, "timeout"), true},
+		{"CodeUnavailable", New(CodeUnavailable, "unavailable"), true},
+		{"CodePreflightTimeout", New(CodePreflightTimeout, "preflight timeout"), true},
+		{"CodeBundleServiceTimeout", New(CodeBundleServiceTimeout, "bundle timeout"), true},
+		{"CodeServiceHealthError", New(CodeServiceHealthError, "health error"), true},
+		{"CodeSystemResourceError", New(CodeSystemResourceError, "resource error"), true},
+		{"CodeProcessKillTimeout", New(CodeProcessKillTimeout, "kill timeout"), true},
+		{"CodeKeychainError", New(CodeKeychainError, "keychain error"), true},
+
+		// Non-transient domain errors
+		{"CodeNotFound", New(CodeNotFound, "not found"), false},
+		{"CodeBadRequest", New(CodeBadRequest, "bad request"), false},
+		{"CodeValidation", New(CodeValidation, "validation error"), false},
+		{"CodeBuildFailed", New(CodeBuildFailed, "build failed"), false},
+
+		// Standard errors - transient detection
+		{"standard timeout error", errors.New("connection timeout"), true},
+		{"standard unavailable error", errors.New("service unavailable"), true},
+		{"standard connection refused", errors.New("connection refused"), true},
+		{"standard connection reset", errors.New("connection reset by peer"), true},
+		{"standard error", errors.New("some error"), false},
+		{"nil error", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if IsTransient(tt.err) != tt.expected {
+				t.Errorf("expected IsTransient to return %v for %v", tt.expected, tt.err)
+			}
+		})
+	}
+}
