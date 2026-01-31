@@ -831,6 +831,27 @@
       "updatedAt": "2026-01-30T17:26:49-05:00"
     },
     {
+      "id": "scenario-to-desktop",
+      "file": "scenario-to-desktop.md",
+      "name": "Scenario to Desktop",
+      "description": "Convert Vrooli scenarios into cross-platform desktop applications using Electron wrappers, including generation, building, troubleshooting, and distribution",
+      "modes": [
+        "Tools"
+      ],
+      "tags": [
+        "desktop",
+        "electron",
+        "packaging",
+        "distribution",
+        "cross-platform"
+      ],
+      "icon": "Monitor",
+      "targetToolId": null,
+      "draft": false,
+      "createdAt": "2026-01-31T00:00:00Z",
+      "updatedAt": "2026-01-31T00:00:00Z"
+    },
+    {
       "id": "interoperability-steer",
       "file": "interoperability-steer.md",
       "name": "Interoperability Steer",
