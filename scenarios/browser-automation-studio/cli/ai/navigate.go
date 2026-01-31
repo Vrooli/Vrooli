@@ -3,8 +3,10 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"browser-automation-studio/cli/internal/api"
 	"browser-automation-studio/cli/internal/appctx"
 )
 
@@ -133,10 +135,18 @@ func runNavigate(ctx *appctx.Context, args []string) error {
 		APIKey:        apiKey,
 	}
 
-	// Call the API
-	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/ai-navigate"), nil, request)
+	// Call the API using our custom Do function that sets X-Client-Source header
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
+	}
+
+	statusCode, body, err := api.Do(ctx, http.MethodPost, ctx.APIPath("/ai-navigate"), nil, payload, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start navigation: %w", err)
+	}
+	if statusCode >= 400 {
+		return fmt.Errorf("failed to start navigation: api error (%d): %s", statusCode, string(body))
 	}
 
 	var response AINavigateResponse

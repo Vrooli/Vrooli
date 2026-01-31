@@ -122,7 +122,7 @@ func TestNavigatorRegistry_Get(t *testing.T) {
 }
 
 func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("select preferred type when available", func(t *testing.T) {
 		registry := NewNavigatorRegistry()
@@ -308,7 +308,7 @@ func TestNavigatorRegistry_SelectNavigator(t *testing.T) {
 }
 
 func TestNavigatorRegistry_ListNavigators(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	registry := NewNavigatorRegistry()
 
 	playwright := &mockNavigator{

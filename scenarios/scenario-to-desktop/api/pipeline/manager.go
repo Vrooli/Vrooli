@@ -238,6 +238,94 @@ func (m *Manager) GetActivePipelineStatus(scenarioName string) (*Status, bool) {
 	return m.orchestrator.GetStatus(idx.ActivePipelineID)
 }
 
+// StartActivePipeline starts the active pipeline for a scenario.
+// If the pipeline is idle, updates its config and starts it.
+// If already running, returns the current status.
+// If completed/failed, creates a new pipeline with config, updates index store, and starts it.
+func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, configOverrides *Config) (*Status, error) {
+	if m.orchestrator == nil {
+		return nil, fmt.Errorf("orchestrator not configured")
+	}
+	if m.indexStore == nil {
+		return nil, fmt.Errorf("index store not configured")
+	}
+
+	// Get or create the active pipeline
+	status, _, err := m.GetOrCreateActivePipeline(ctx, scenarioName, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get or create active pipeline: %w", err)
+	}
+
+	// Check current status
+	switch status.Status {
+	case StatusRunning, StatusPending:
+		// Already running - return current status
+		m.logInfo("active pipeline already running",
+			"scenario", scenarioName,
+			"pipeline_id", status.PipelineID,
+			"status", status.Status,
+		)
+		return status, nil
+
+	case StatusIdle:
+		// Pipeline is idle - update config if provided and start it
+		if configOverrides != nil {
+			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
+			}
+		}
+
+		startedStatus, err := m.orchestrator.StartPipeline(ctx, status.PipelineID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start pipeline: %w", err)
+		}
+
+		m.logInfo("started active pipeline",
+			"scenario", scenarioName,
+			"pipeline_id", status.PipelineID,
+		)
+
+		return startedStatus, nil
+
+	case StatusCompleted, StatusFailed, StatusCancelled:
+		// Pipeline finished - create a new one, update index, and start it
+		m.logInfo("active pipeline already completed, creating new one",
+			"scenario", scenarioName,
+			"old_pipeline_id", status.PipelineID,
+			"old_status", status.Status,
+		)
+
+		// Archive the old pipeline and create a new one
+		newStatus, archivedID, err := m.CreateNewPipeline(ctx, scenarioName, configOverrides)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create new pipeline: %w", err)
+		}
+
+		if archivedID != "" {
+			m.logInfo("archived previous pipeline",
+				"scenario", scenarioName,
+				"archived_id", archivedID,
+			)
+		}
+
+		// Start the new pipeline
+		startedStatus, err := m.orchestrator.StartPipeline(ctx, newStatus.PipelineID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start new pipeline: %w", err)
+		}
+
+		m.logInfo("started new active pipeline",
+			"scenario", scenarioName,
+			"pipeline_id", newStatus.PipelineID,
+		)
+
+		return startedStatus, nil
+
+	default:
+		return nil, fmt.Errorf("unexpected pipeline status: %s", status.Status)
+	}
+}
+
 // buildConfig creates a pipeline config, applying defaults from the provided config.
 func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 	config := &Config{

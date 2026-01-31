@@ -74,3 +74,10 @@ type PipelineHistoryResponse struct {
 	Pipelines []*Status `json:"pipelines"`
 	Total     int       `json:"total"`
 }
+
+// StartActivePipelineResponse is the HTTP response for starting the active pipeline.
+type StartActivePipelineResponse struct {
+	Pipeline  *Status `json:"pipeline"`
+	StatusURL string  `json:"status_url"`
+	Message   string  `json:"message,omitempty"`
+}

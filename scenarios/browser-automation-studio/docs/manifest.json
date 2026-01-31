@@ -25,6 +25,11 @@
           "description": "Vision-based AI autopilot system architecture"
         },
         {
+          "path": "architecture/recording.md",
+          "title": "Recording Architecture",
+          "description": "Action vs history recording, timeline, and session persistence"
+        },
+        {
           "path": "architecture/reconciliation.md",
           "title": "Reconciliation",
           "description": "State reconciliation patterns"

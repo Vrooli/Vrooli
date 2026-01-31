@@ -1,7 +1,10 @@
 package ai
 
 import (
+	"strings"
 	"testing"
+
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 func TestAINavigateRequest_JSONTags(t *testing.T) {
@@ -51,20 +54,104 @@ func TestAINavigateResponse_JSONTags(t *testing.T) {
 	}
 }
 
-// TestParseNavigateArgs tests argument parsing logic by checking defaults
-// and expected values. Note: Actual parsing is tested via the runNavigate
-// function which requires an API connection for full testing.
-func TestParseNavigateArgs_Defaults(t *testing.T) {
-	// The default model should be "gpt-4o"
-	// This is verified by checking the initial value in runNavigate
+func TestRunNavigate_Help(t *testing.T) {
+	ctx := &appctx.Context{
+		Name:    "test-cli",
+		Version: "1.0.0",
+	}
 
-	// Default max steps should be 0 (let API decide)
-	// This is verified by checking the omitempty behavior
+	// Test --help flag
+	err := runNavigate(ctx, []string{"--help"})
+	if err != nil {
+		t.Errorf("runNavigate(--help) error = %v, want nil", err)
+	}
 
-	// These tests validate the expected constant values
-	defaultModel := "gpt-4o"
-	if defaultModel != "gpt-4o" {
-		t.Errorf("default model should be gpt-4o")
+	// Test -h flag
+	err = runNavigate(ctx, []string{"-h"})
+	if err != nil {
+		t.Errorf("runNavigate(-h) error = %v, want nil", err)
+	}
+}
+
+func TestRunNavigate_MissingArgs(t *testing.T) {
+	ctx := &appctx.Context{
+		Name:    "test-cli",
+		Version: "1.0.0",
+	}
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing session",
+			args:    []string{"--prompt", "Click button"},
+			wantErr: "--session is required",
+		},
+		{
+			name:    "missing prompt",
+			args:    []string{"--session", "abc123"},
+			wantErr: "--prompt is required",
+		},
+		{
+			name:    "session requires value",
+			args:    []string{"--session"},
+			wantErr: "--session requires a value",
+		},
+		{
+			name:    "prompt requires value",
+			args:    []string{"--prompt"},
+			wantErr: "--prompt requires a value",
+		},
+		{
+			name:    "model requires value",
+			args:    []string{"--session", "abc", "--prompt", "test", "--model"},
+			wantErr: "--model requires a value",
+		},
+		{
+			name:    "max-steps requires value",
+			args:    []string{"--session", "abc", "--prompt", "test", "--max-steps"},
+			wantErr: "--max-steps requires a value",
+		},
+		{
+			name:    "max-steps must be number",
+			args:    []string{"--session", "abc", "--prompt", "test", "--max-steps", "abc"},
+			wantErr: "--max-steps must be a number",
+		},
+		{
+			name:    "navigator requires value",
+			args:    []string{"--session", "abc", "--prompt", "test", "--navigator"},
+			wantErr: "--navigator requires a value",
+		},
+		{
+			name:    "api-key requires value",
+			args:    []string{"--session", "abc", "--prompt", "test", "--api-key"},
+			wantErr: "--api-key requires a value",
+		},
+		{
+			name:    "unknown option",
+			args:    []string{"--session", "abc", "--prompt", "test", "--unknown"},
+			wantErr: "unknown option",
+		},
+		{
+			name:    "unexpected argument",
+			args:    []string{"--session", "abc", "--prompt", "test", "extra"},
+			wantErr: "unexpected argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := runNavigate(ctx, tt.args)
+			if err == nil {
+				t.Error("expected error, got nil")
+				return
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tt.wantErr)
+			}
+		})
 	}
 }
 

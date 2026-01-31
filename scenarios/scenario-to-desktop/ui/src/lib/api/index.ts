@@ -88,6 +88,7 @@ export type {
   PipelineHistoryResponse,
   GetActivePipelineOptions,
   GetPipelineHistoryOptions,
+  StartActivePipelineResponse,
 } from "./pipeline";
 export {
   runPipeline,
@@ -102,6 +103,7 @@ export {
   createNewPipeline,
   resetPipeline,
   getPipelineHistory,
+  startActivePipeline,
 } from "./pipeline";
 
 // Scenario state types and functions

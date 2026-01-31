@@ -83,6 +83,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// GET /api/v1/scenarios/{name}/pipeline/history - get last N historical pipelines
 	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/history", h.handleGetPipelineHistory).Methods("GET")
+
+	// POST /api/v1/scenarios/{name}/pipeline/start - start active pipeline with config
+	r.HandleFunc("/api/v1/scenarios/{name}/pipeline/start", h.handleStartActivePipeline).Methods("POST")
 }
 
 // handleRun handles POST /api/v1/pipeline/run
@@ -421,6 +424,57 @@ func (h *Handler) handleGetPipelineHistory(w http.ResponseWriter, r *http.Reques
 	httputil.WriteJSONOK(w, PipelineHistoryResponse{
 		Pipelines: pipelines,
 		Total:     total,
+	})
+}
+
+// handleStartActivePipeline handles POST /api/v1/scenarios/{name}/pipeline/start
+// Starts the active pipeline for a scenario with optional config overrides.
+// This is the correct way to run stages - it uses the existing active pipeline
+// rather than creating orphaned new ones.
+func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Request) {
+	if h.manager == nil {
+		httputil.WriteError(w, errors.ErrBadRequest("pipeline manager not configured"))
+		return
+	}
+
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+
+	if scenarioName == "" {
+		httputil.WriteError(w, errors.ErrBadRequest("scenario name is required"))
+		return
+	}
+
+	// Parse optional request body for config overrides
+	var config *Config
+	if r.ContentLength > 0 {
+		var c Config
+		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+			httputil.WriteError(w, errors.ErrBadRequest("invalid request body").
+				WithCause(err).
+				WithRecovery(errors.RecoveryFixInput, "Ensure the request body is valid JSON"))
+			return
+		}
+		// Ensure scenario name is set
+		c.ScenarioName = scenarioName
+		config = &c
+	}
+
+	// Start the active pipeline
+	status, err := h.manager.StartActivePipeline(r.Context(), scenarioName, config)
+	if err != nil {
+		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to start active pipeline").
+			InDomain("pipeline"))
+		return
+	}
+
+	// Build status URL
+	statusURL := fmt.Sprintf("%s/%s", h.basePath, status.PipelineID)
+
+	httputil.WriteJSONAccepted(w, StartActivePipelineResponse{
+		Pipeline:  status,
+		StatusURL: statusURL,
+		Message:   "Pipeline started successfully",
 	})
 }
 

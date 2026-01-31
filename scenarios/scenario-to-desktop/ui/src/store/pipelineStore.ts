@@ -9,7 +9,6 @@
 
 import { create } from "zustand";
 import {
-  runPipeline,
   getPipelineStatus,
   cancelPipeline as cancelPipelineApi,
   resumePipeline as resumePipelineApi,
@@ -17,13 +16,13 @@ import {
   createNewPipeline,
   resetPipeline,
   getPipelineHistory,
+  startActivePipeline,
   type VerbosePipelineStatus,
-  type PipelineRunResponse,
   type PipelineConfig,
 } from "../lib/api";
 import { extractStageResults } from "../domain/build";
 import { createErrorInfo, logError } from "../lib/error-utils";
-import { generateUniqueIdempotencyKey, resetSessionId } from "../lib/pipeline-utils";
+import { resetSessionId } from "../lib/pipeline-utils";
 import { isTerminalState } from "../services/pipeline.service";
 import {
   type PipelineStore,
@@ -285,38 +284,34 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       // Stop any existing polling
       clearPollingTimeout();
 
-      // Generate idempotency key for this request
-      const idempotencyKey = generateUniqueIdempotencyKey(scenarioName, stage);
-
       set({
         runStatus: "starting",
         errorInfo: null,
         isSubmitting: true,
-        currentIdempotencyKey: idempotencyKey,
       });
 
       try {
-        const response: PipelineRunResponse = await runPipeline({
-          scenario_name: scenarioName,
+        // Use startActivePipeline to work with the existing active pipeline
+        // rather than creating orphaned new pipelines
+        const response = await startActivePipeline(scenarioName, {
           stop_after_stage: stage,
-          idempotency_key: idempotencyKey,
           ...config,
         });
 
-        // Record successful pipeline creation for rate limiting
+        // Record successful pipeline start for rate limiting
         recordPipelineCreation();
 
         set({
-          pipelineId: response.pipeline_id,
+          pipelineId: response.pipeline.pipeline_id,
           runStatus: "running",
           isSubmitting: false,
-          pipelineHistory: [...get().pipelineHistory, response.pipeline_id],
+          pipelineHistory: [...get().pipelineHistory, response.pipeline.pipeline_id],
         });
 
         // Start polling automatically
         get().startPolling();
 
-        return response.pipeline_id;
+        return response.pipeline.pipeline_id;
       } catch (err) {
         logError("runStage", err);
         const errorInfo = createErrorInfo(err);
@@ -357,35 +352,29 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       // Stop any existing polling
       clearPollingTimeout();
 
-      // Generate idempotency key for full pipeline
-      const idempotencyKey = generateUniqueIdempotencyKey(scenarioName, "full");
-
       set({
         runStatus: "starting",
         errorInfo: null,
         isSubmitting: true,
-        currentIdempotencyKey: idempotencyKey,
       });
 
       try {
-        const response = await runPipeline({
-          scenario_name: scenarioName,
-          idempotency_key: idempotencyKey,
-          ...config,
-        });
+        // Use startActivePipeline to work with the existing active pipeline
+        // rather than creating orphaned new pipelines
+        const response = await startActivePipeline(scenarioName, config);
 
-        // Record successful pipeline creation for rate limiting
+        // Record successful pipeline start for rate limiting
         recordPipelineCreation();
 
         set({
-          pipelineId: response.pipeline_id,
+          pipelineId: response.pipeline.pipeline_id,
           runStatus: "running",
           isSubmitting: false,
-          pipelineHistory: [...get().pipelineHistory, response.pipeline_id],
+          pipelineHistory: [...get().pipelineHistory, response.pipeline.pipeline_id],
         });
 
         get().startPolling();
-        return response.pipeline_id;
+        return response.pipeline.pipeline_id;
       } catch (err) {
         logError("runFullPipeline", err);
         const errorInfo = createErrorInfo(err);

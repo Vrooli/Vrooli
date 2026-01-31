@@ -1,7 +1,10 @@
 package ai
 
 import (
+	"strings"
 	"testing"
+
+	"browser-automation-studio/cli/internal/appctx"
 )
 
 func TestNavigatorInfo_Struct(t *testing.T) {
@@ -91,5 +94,61 @@ func TestNavigatorsResponse_Struct(t *testing.T) {
 	if resp.Navigators[1].UnavailableReason != "not installed" {
 		t.Errorf("Navigators[1].UnavailableReason = %q, want %q",
 			resp.Navigators[1].UnavailableReason, "not installed")
+	}
+}
+
+func TestRunNavigators_Help(t *testing.T) {
+	ctx := &appctx.Context{
+		Name:    "test-cli",
+		Version: "1.0.0",
+	}
+
+	// Test --help flag
+	err := runNavigators(ctx, []string{"--help"})
+	if err != nil {
+		t.Errorf("runNavigators(--help) error = %v, want nil", err)
+	}
+
+	// Test -h flag
+	err = runNavigators(ctx, []string{"-h"})
+	if err != nil {
+		t.Errorf("runNavigators(-h) error = %v, want nil", err)
+	}
+}
+
+func TestRunNavigators_InvalidArgs(t *testing.T) {
+	ctx := &appctx.Context{
+		Name:    "test-cli",
+		Version: "1.0.0",
+	}
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "unknown option",
+			args:    []string{"--unknown"},
+			wantErr: "unknown option",
+		},
+		{
+			name:    "unexpected argument",
+			args:    []string{"extra"},
+			wantErr: "unexpected argument",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := runNavigators(ctx, tt.args)
+			if err == nil {
+				t.Error("expected error, got nil")
+				return
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want to contain %q", err.Error(), tt.wantErr)
+			}
+		})
 	}
 }

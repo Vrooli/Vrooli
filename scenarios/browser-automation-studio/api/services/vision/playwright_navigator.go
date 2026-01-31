@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -121,7 +122,7 @@ func (n *PlaywrightVisionNavigator) UnavailableReason(ctx context.Context) strin
 	if n.IsAvailable(ctx) {
 		return ""
 	}
-	return fmt.Sprintf("playwright-driver not reachable at %s", n.driverBaseURL)
+	return "playwright-driver not reachable at " + n.driverBaseURL
 }
 
 // CreditPolicy returns the credit policy for this navigator.
@@ -143,7 +144,7 @@ func (n *PlaywrightVisionNavigator) ClientSourcePolicy() ClientSourcePolicy {
 // Navigate starts an AI navigation session.
 func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req NavigationRequest) (NavigationHandle, error) {
 	// Generate navigation ID
-	navigationID := fmt.Sprintf("nav_%s", uuid.New().String()[:12])
+	navigationID := "nav_" + uuid.New().String()[:12]
 
 	// Track the navigation session
 	session := &NavigationSession{
@@ -168,7 +169,7 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 	}
 	if apiKey == "" {
 		n.removeNavigation(navigationID)
-		return nil, fmt.Errorf("API key required: provide api_key in request or set OPENROUTER_API_KEY environment variable")
+		return nil, errors.New("API key required: provide api_key in request or set OPENROUTER_API_KEY environment variable")
 	}
 
 	// Set defaults
@@ -448,7 +449,7 @@ func (n *PlaywrightVisionNavigator) ResumeNavigation(ctx context.Context, naviga
 	}
 
 	if !session.AwaitingHuman {
-		return fmt.Errorf("navigation is not awaiting human intervention")
+		return errors.New("navigation is not awaiting human intervention")
 	}
 
 	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate/resume", n.driverBaseURL, session.SessionID)

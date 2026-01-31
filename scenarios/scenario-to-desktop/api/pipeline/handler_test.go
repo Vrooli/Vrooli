@@ -14,14 +14,18 @@ import (
 
 // mockOrchestrator implements Orchestrator for testing
 type mockOrchestrator struct {
-	runResult     *Status
-	runError      error
-	getResult     *Status
-	getFound      bool
-	cancelSuccess bool
-	pipelines     []*Status
-	resumeResult  *Status
-	resumeError   error
+	runResult       *Status
+	runError        error
+	getResult       *Status
+	getFound        bool
+	cancelSuccess   bool
+	pipelines       []*Status
+	resumeResult    *Status
+	resumeError     error
+	idleResult      *Status
+	idleError       error
+	startResult     *Status
+	startError      error
 }
 
 func (m *mockOrchestrator) RunPipeline(ctx context.Context, config *Config) (*Status, error) {
@@ -29,6 +33,20 @@ func (m *mockOrchestrator) RunPipeline(ctx context.Context, config *Config) (*St
 		return nil, m.runError
 	}
 	return m.runResult, nil
+}
+
+func (m *mockOrchestrator) CreateIdlePipeline(config *Config) (*Status, error) {
+	if m.idleError != nil {
+		return nil, m.idleError
+	}
+	return m.idleResult, nil
+}
+
+func (m *mockOrchestrator) StartPipeline(ctx context.Context, pipelineID string) (*Status, error) {
+	if m.startError != nil {
+		return nil, m.startError
+	}
+	return m.startResult, nil
 }
 
 func (m *mockOrchestrator) GetStatus(pipelineID string) (*Status, bool) {

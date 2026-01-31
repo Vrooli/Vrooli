@@ -426,3 +426,34 @@ export async function getPipelineHistory(
   await throwIfNotOk(response);
   return response.json();
 }
+
+/** Response from starting the active pipeline */
+export interface StartActivePipelineResponse {
+  pipeline: PipelineStatus;
+  status_url: string;
+  message?: string;
+}
+
+/**
+ * Start the active pipeline for a scenario with optional config overrides.
+ * This is the correct way to run stages - it uses the existing active pipeline
+ * rather than creating orphaned new ones.
+ *
+ * @param scenarioName The scenario to start the pipeline for
+ * @param config Optional config overrides (e.g., stop_after_stage)
+ */
+export async function startActivePipeline(
+  scenarioName: string,
+  config?: Partial<PipelineConfig>
+): Promise<StartActivePipelineResponse> {
+  const response = await fetch(
+    buildUrl(`/scenarios/${encodeURIComponent(scenarioName)}/pipeline/start`),
+    {
+      method: "POST",
+      headers: config ? { "Content-Type": "application/json" } : undefined,
+      body: config ? JSON.stringify(config) : undefined,
+    }
+  );
+  await throwIfNotOk(response);
+  return response.json();
+}

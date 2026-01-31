@@ -322,6 +322,100 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 	return updatedStatus, nil
 }
 
+// UpdatePipelineConfig updates the config of an idle pipeline.
+// Returns error if pipeline is not idle or doesn't exist.
+// This allows updating stop_after_stage and other config fields before starting.
+func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpdates *Config) error {
+	// Get existing status
+	status, ok := o.store.Get(pipelineID)
+	if !ok {
+		return fmt.Errorf("pipeline not found: %s", pipelineID)
+	}
+
+	// Verify pipeline is in idle state
+	if !status.IsIdle() {
+		return fmt.Errorf("pipeline config cannot be updated: status is %s (must be idle)", status.Status)
+	}
+
+	if configUpdates == nil {
+		return nil // Nothing to update
+	}
+
+	// Update config fields
+	o.store.Update(pipelineID, func(s *Status) {
+		if s.Config == nil {
+			s.Config = &Config{}
+		}
+
+		// Only update fields that are explicitly set in configUpdates
+		if configUpdates.StopAfterStage != "" {
+			s.Config.StopAfterStage = configUpdates.StopAfterStage
+		}
+		if configUpdates.ResumeFromStage != "" {
+			s.Config.ResumeFromStage = configUpdates.ResumeFromStage
+		}
+		if len(configUpdates.Platforms) > 0 {
+			s.Config.Platforms = configUpdates.Platforms
+		}
+		if configUpdates.BundleManifestPath != "" {
+			s.Config.BundleManifestPath = configUpdates.BundleManifestPath
+		}
+		if configUpdates.DeploymentMode != "" {
+			s.Config.DeploymentMode = configUpdates.DeploymentMode
+		}
+		if configUpdates.Framework != "" {
+			s.Config.Framework = configUpdates.Framework
+		}
+		if configUpdates.TemplateType != "" {
+			s.Config.TemplateType = configUpdates.TemplateType
+		}
+		if configUpdates.ProxyURL != "" {
+			s.Config.ProxyURL = configUpdates.ProxyURL
+		}
+		if configUpdates.Version != "" {
+			s.Config.Version = configUpdates.Version
+		}
+		if configUpdates.PreflightTimeoutSeconds > 0 {
+			s.Config.PreflightTimeoutSeconds = configUpdates.PreflightTimeoutSeconds
+		}
+		if len(configUpdates.PreflightSecrets) > 0 {
+			s.Config.PreflightSecrets = configUpdates.PreflightSecrets
+		}
+		if len(configUpdates.DistributionTargets) > 0 {
+			s.Config.DistributionTargets = configUpdates.DistributionTargets
+		}
+		// Boolean fields - only update if explicitly true (since default is false)
+		if configUpdates.SkipPreflight {
+			s.Config.SkipPreflight = true
+		}
+		if configUpdates.SkipSmokeTest {
+			s.Config.SkipSmokeTest = true
+		}
+		if configUpdates.Clean {
+			s.Config.Clean = true
+		}
+		if configUpdates.Sign {
+			s.Config.Sign = true
+		}
+		if configUpdates.Publish {
+			s.Config.Publish = true
+		}
+		if configUpdates.Distribute {
+			s.Config.Distribute = true
+		}
+		if configUpdates.StopOnFailure != nil {
+			s.Config.StopOnFailure = configUpdates.StopOnFailure
+		}
+	})
+
+	o.logger.Info("Updated pipeline config",
+		"pipeline_id", pipelineID,
+		"stop_after_stage", configUpdates.StopAfterStage,
+	)
+
+	return nil
+}
+
 // runPipelineAsync executes the pipeline stages sequentially.
 func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
 	defer o.cancelManager.Clear(pipelineID)

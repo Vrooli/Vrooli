@@ -32,7 +32,7 @@ func (n *ClaudeCodeVisionNavigator) Description() string {
 }
 
 // IsAvailable checks if Claude CLI is available.
-func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
+func (n *ClaudeCodeVisionNavigator) IsAvailable(_ context.Context) bool {
 	// Check if claude CLI is installed and meets version requirements
 	_, err := exec.LookPath("claude")
 	if err != nil {
@@ -45,7 +45,7 @@ func (n *ClaudeCodeVisionNavigator) IsAvailable(ctx context.Context) bool {
 }
 
 // UnavailableReason returns why the navigator is unavailable.
-func (n *ClaudeCodeVisionNavigator) UnavailableReason(ctx context.Context) string {
+func (n *ClaudeCodeVisionNavigator) UnavailableReason(_ context.Context) string {
 	_, err := exec.LookPath("claude")
 	if err != nil {
 		return "claude CLI not found in PATH"
@@ -74,6 +74,6 @@ func (n *ClaudeCodeVisionNavigator) ClientSourcePolicy() ClientSourcePolicy {
 
 // Navigate starts an AI navigation session.
 // Currently returns an error as this is a stub implementation.
-func (n *ClaudeCodeVisionNavigator) Navigate(ctx context.Context, req NavigationRequest) (NavigationHandle, error) {
+func (n *ClaudeCodeVisionNavigator) Navigate(_ context.Context, _ NavigationRequest) (NavigationHandle, error) {
 	return nil, ErrNavigatorNotAvailable
 }

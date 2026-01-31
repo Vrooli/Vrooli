@@ -4,12 +4,12 @@ import "testing"
 
 func TestCreditPolicy_ShouldChargeCredits(t *testing.T) {
 	tests := []struct {
-		name                 string
-		policy               CreditPolicy
-		isBYOK               bool
+		name                  string
+		policy                CreditPolicy
+		isBYOK                bool
 		hasResourceOpenrouter bool
-		isLocalExecution     bool
-		want                 bool
+		isLocalExecution      bool
+		want                  bool
 	}{
 		{
 			name:   "no credits required returns false",
@@ -136,7 +136,7 @@ func TestClientSourceFromHeader(t *testing.T) {
 		{"cli", ClientSourceCLI},
 		{"ui", ClientSourceUI},
 		{"api", ClientSourceAPI},
-		{"", ClientSourceAPI},      // Default for empty
+		{"", ClientSourceAPI},        // Default for empty
 		{"unknown", ClientSourceAPI}, // Default for unknown
 	}
 

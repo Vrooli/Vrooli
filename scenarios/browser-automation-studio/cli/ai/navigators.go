@@ -3,8 +3,10 @@ package ai
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
+	"browser-automation-studio/cli/internal/api"
 	"browser-automation-studio/cli/internal/appctx"
 )
 
@@ -62,10 +64,13 @@ func runNavigators(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	// Call the API
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/ai-navigate/navigators"), nil)
+	// Call the API using our custom Do function that sets X-Client-Source header
+	statusCode, body, err := api.Do(ctx, http.MethodGet, ctx.APIPath("/ai-navigate/navigators"), nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get navigators: %w", err)
+	}
+	if statusCode >= 400 {
+		return fmt.Errorf("failed to get navigators: api error (%d): %s", statusCode, string(body))
 	}
 
 	var response NavigatorsResponse
