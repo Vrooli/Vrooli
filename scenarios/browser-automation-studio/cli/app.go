@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"browser-automation-studio/cli/ai"
 	"browser-automation-studio/cli/executions"
 	"browser-automation-studio/cli/internal/appctx"
 	"browser-automation-studio/cli/playbooks"
@@ -90,6 +91,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		executions.Commands(a.ctx),
 		recordings.Commands(a.ctx),
 		sessions.Commands(a.ctx),
+		ai.Commands(a.ctx),
 		schema.Commands(a.ctx),
 		{
 			Title: "Configuration",

@@ -6,6 +6,49 @@ _Last reviewed: 2026-01-30_
 
 The AI navigation feature (also called "autopilot") enables users to control browser sessions using natural language prompts. A vision-language model observes the browser state via annotated screenshots and decides what actions to take to accomplish the user's goal.
 
+## Navigator Abstraction
+
+The AI navigation system uses a pluggable navigator architecture that allows multiple navigation backends with different capabilities, credit policies, and client source restrictions.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     VisionNavigationHandler                                 │
+│                              │                                              │
+│                    NavigatorRegistry.SelectNavigator()                      │
+│                              │                                              │
+│           ┌──────────────────┼──────────────────┐                           │
+│           ▼                                     ▼                           │
+│  PlaywrightVisionNavigator          ClaudeCodeVisionNavigator               │
+│  (UI, CLI, API)                     (CLI only, future)                      │
+│           │                                     │                           │
+│           ▼                                     ▼                           │
+│  playwright-driver                  claude CLI --chrome                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### VisionNavigator Interface
+
+Each navigator implements the `VisionNavigator` interface:
+
+```go
+type VisionNavigator interface {
+    Navigate(ctx context.Context, req NavigationRequest) (NavigationHandle, error)
+    CreditPolicy() CreditPolicy
+    ClientSourcePolicy() ClientSourcePolicy
+    Type() NavigatorType
+    IsAvailable(ctx context.Context) bool
+    Description() string
+    UnavailableReason(ctx context.Context) string
+}
+```
+
+### Available Navigators
+
+| Navigator | Status | Description | Allowed Sources |
+|-----------|--------|-------------|-----------------|
+| `playwright` | Available | Vision navigation via playwright-driver | UI, CLI, API |
+| `claude_code` | Stub (future) | Navigation via Claude Code CLI with Chrome | CLI only |
+
 ## Visual Architecture Diagram
 
 ```
@@ -30,11 +73,17 @@ The AI navigation feature (also called "autopilot") enables users to control bro
 │                                                                             │
 │  ┌────────────────────────────┐      ┌────────────────────────────────────┐ │
 │  │  VisionNavigationHandler   │      │        Credit Service              │ │
-│  │  - Validates entitlements  │◀────▶│  - Pre-check credits               │ │
-│  │  - Tracks active sessions  │      │  - Per-step charging               │ │
+│  │  - Selects navigator       │◀────▶│  - Policy-based checking           │ │
+│  │  - Validates entitlements  │      │  - Per-step charging               │ │
 │  │  - Broadcasts WebSocket    │      └────────────────────────────────────┘ │
 │  └─────────────┬──────────────┘                                             │
 │                │                                                            │
+│    ┌───────────┴───────────┐                                                │
+│    ▼                       ▼                                                │
+│  NavigatorRegistry    CreditPolicy                                          │
+│  - SelectNavigator()  - ShouldChargeCredits()                               │
+│  - ListNavigators()   - BypassConditions                                    │
+│                                                                             │
 │                │  Forward to driver         Callback from driver            │
 │                ▼                                    ▲                       │
 │  ┌────────────────────────┐         ┌───────────────┴────────────────────┐  │
@@ -82,6 +131,56 @@ The AI navigation feature (also called "autopilot") enables users to control bro
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## Credit Policies
+
+Each navigator declares its own credit policy, which the handler checks before execution.
+
+### CreditPolicy Structure
+
+```go
+type CreditPolicy struct {
+    RequiresCredits  bool
+    OperationType    credits.OperationType
+    PerStepCharging  bool
+    CreditsPerStep   int
+    BypassConditions []BypassCondition
+}
+```
+
+### Navigator Credit Policies
+
+| Navigator | RequiresCredits | CreditsPerStep | Bypass Conditions |
+|-----------|-----------------|----------------|-------------------|
+| Playwright | Yes | 2 | `byok`, `resource_openrouter` |
+| ClaudeCode | No | 0 | `local_execution` |
+
+### Bypass Conditions
+
+| Condition | Description |
+|-----------|-------------|
+| `byok` | User provided their own API key (Bring Your Own Key) |
+| `resource_openrouter` | Using resource openrouter (server-provided key) |
+| `local_execution` | Running locally without external API calls |
+
+## Client Source Restriction
+
+The system tracks client sources via the `X-Client-Source` header to restrict certain navigators.
+
+### ClientSource Values
+
+| Source | Description | Header Value |
+|--------|-------------|--------------|
+| `ui` | Web UI client | `ui` |
+| `cli` | Command-line interface | `cli` |
+| `api` | Direct API call | `api` (default) |
+
+### Navigator Allowed Sources
+
+| Navigator | Allowed Sources |
+|-----------|-----------------|
+| Playwright | All (UI, CLI, API) |
+| ClaudeCode | CLI only |
+
 ## Data Flow Sequence
 
 ```
@@ -95,23 +194,24 @@ User types prompt
        │                                                   │
        ▼                                                   │
 ┌──────────────────┐                                       │
-│ 2. Backend checks│                                       │
-│    credits/tier  │                                       │
+│ 2. Handler selects│                                       │
+│    navigator from │                                       │
+│    registry       │                                       │
+└──────────────────┘                                       │
+       │                                                   │
+       ▼                                                   │
+┌──────────────────┐                                       │
+│ 3. Checks credit │                                       │
+│    policy and    │                                       │
+│    entitlements  │                                       │
 └──────────────────┘                                       │
        │                                                   │
        ▼                                                   │
 ┌──────────────────┐     ┌─────────────────────────────────┤
-│ 3. Forwards to   │     │                                 │
-│    playwright-   │     │  Returns 202 Accepted           │
+│ 4. Navigator     │     │                                 │
+│    forwards to   │     │  Returns 202 Accepted           │
 │    driver        │     │  immediately                    │
 └──────────────────┘     └─────────────────────────────────┘
-       │
-       ▼
-┌──────────────────┐
-│ 4. Driver starts │
-│    Vision Agent  │
-│    in background │
-└──────────────────┘
        │
        ▼
 ┌────────────────────────────────────────────────────────────────────┐
@@ -136,8 +236,8 @@ User types prompt
        │
        ▼ (Callbacks)
 ┌──────────────────┐
-│ 5. Backend       │
-│    receives step │
+│ 5. Navigator     │
+│    handles step  │
 │    callbacks     │
 └──────────────────┘
        │
@@ -145,7 +245,7 @@ User types prompt
 ┌──────────────────┐
 │ 6. Charges       │
 │    credits per   │
-│    step          │
+│    policy        │
 └──────────────────┘
        │
        ▼
@@ -155,7 +255,18 @@ User types prompt
 └──────────────────┘
 ```
 
-## Key Components
+## Key Files
+
+### Vision Service Package
+
+| Layer | File | Purpose |
+|-------|------|---------|
+| **API** | `api/services/vision/navigator.go` | VisionNavigator interface, NavigationHandle |
+| **API** | `api/services/vision/types.go` | NavigationRequest, NavigationStep, NavigationResult |
+| **API** | `api/services/vision/policy.go` | CreditPolicy, ClientSourcePolicy, BypassCondition |
+| **API** | `api/services/vision/registry.go` | NavigatorRegistry (discovery + selection) |
+| **API** | `api/services/vision/playwright_navigator.go` | Playwright implementation |
+| **API** | `api/services/vision/claudecode_navigator.go` | Claude Code stub (future) |
 
 ### UI Layer
 
@@ -171,8 +282,9 @@ User types prompt
 
 | File | Purpose |
 |------|---------|
-| [CODE: api/handlers/ai/vision_navigation.go] | Main handler & orchestration |
-| [CODE: api/handlers/handler.go:424-446] | Route registration |
+| [CODE: api/handlers/ai/vision_navigation.go] | Handler using navigator registry |
+| [CODE: api/handlers/handler.go] | Route registration |
+| [CODE: api/main.go] | Registry initialization |
 
 ### Playwright Driver (Node.js)
 
@@ -222,7 +334,8 @@ User types prompt
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/api/v1/ai-navigate` | Start AI navigation |
+| GET | `/api/v1/ai-navigate/navigators` | List available navigators |
+| POST | `/api/v1/ai-navigate` | Start AI navigation (accepts `navigator_type`) |
 | GET | `/api/v1/ai-navigate/:id/status` | Get navigation status |
 | POST | `/api/v1/ai-navigate/:id/abort` | Abort navigation |
 | POST | `/api/v1/ai-navigate/:id/resume` | Resume after human intervention |
@@ -241,6 +354,21 @@ User types prompt
 | POST | `/session/:id/ai-navigate/abort` | Abort vision agent |
 | POST | `/session/:id/ai-navigate/resume` | Resume vision agent |
 | GET | `/session/:id/ai-navigate/status` | Get agent status |
+
+## CLI Commands
+
+The CLI provides commands for AI navigation:
+
+```bash
+# List available navigation backends
+browser-automation-studio ai navigators
+
+# Start AI navigation with specific navigator
+browser-automation-studio ai navigate \
+    --session abc123 \
+    --prompt "Click the login button" \
+    --navigator playwright
+```
 
 ## WebSocket Events
 
@@ -292,13 +420,6 @@ The core loop in [CODE: playwright-driver/src/ai/vision-agent/agent.ts] follows 
 | GPT-4o Mini | Budget | Lower cost option |
 | Claude Sonnet 4 | Premium | Highest quality |
 
-## Credit Integration
-
-- **Pre-flight check**: Validates user can perform AI operation before starting
-- **Per-step charging**: Credits deducted after each step based on token usage
-- **BYOK bypass**: Users with own API keys skip credit checks
-- **Operation code**: `credits.OpAIVisionNavigate`
-
 ## Human Intervention
 
 The system supports pausing for human input when:
@@ -314,13 +435,14 @@ The UI shows [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOver
 
 ## Architectural Decisions
 
-1. **Async Background Processing**: Navigation runs in background (202 Accepted), events pushed via WebSocket
-2. **Callback-based Progress**: Driver POSTs to callback URL, backend broadcasts via WebSocket
-3. **Session Tracking**: `ActiveNavigations` map tracks per-session state for abort/resume
-4. **Human-in-the-Loop**: Automatic CAPTCHA detection + AI-requested pauses support human intervention
-5. **Loop Detection**: Prevents infinite action repetition by tracking action history
-6. **Credit Pre-flight**: Validates ability to perform operation before starting
-7. **Stateless Validation**: Each endpoint validates independently
+1. **Navigator Abstraction**: Pluggable navigator pattern enables different backends with distinct policies
+2. **Policy-Based Credit Gating**: Each navigator declares its own credit policy, handler enforces uniformly
+3. **Client Source Restriction**: `X-Client-Source` header enables CLI-only features
+4. **Async Background Processing**: Navigation runs in background (202 Accepted), events pushed via WebSocket
+5. **Callback-based Progress**: Driver POSTs to callback URL, backend broadcasts via WebSocket
+6. **Session Tracking**: Navigator tracks per-session state for abort/resume
+7. **Human-in-the-Loop**: Automatic CAPTCHA detection + AI-requested pauses support human intervention
+8. **Loop Detection**: Prevents infinite action repetition by tracking action history
 
 ## Related Documentation
 

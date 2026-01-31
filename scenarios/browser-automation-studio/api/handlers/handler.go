@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
+	"github.com/vrooli/browser-automation-studio/services/vision"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -158,10 +159,12 @@ type HandlerDeps struct {
 	RecordingsRoot     string
 	ReplayRenderer     replayRenderer
 	SessionProfiles    *archiveingestion.SessionProfileStore
-	UXMetricsRepo      uxmetrics.Repository  // Optional: enables UX metrics collection
-	EntitlementService *entitlement.Service  // Optional: enables tier-based feature gating
-	CreditService      credits.CreditService // Optional: enables unified credit tracking
-	AIClientFactory    *ai.AIClientFactory   // Optional: enables per-request AI client creation
+	UXMetricsRepo       uxmetrics.Repository         // Optional: enables UX metrics collection
+	EntitlementService  *entitlement.Service         // Optional: enables tier-based feature gating
+	CreditService       credits.CreditService        // Optional: enables unified credit tracking
+	AIClientFactory     *ai.AIClientFactory          // Optional: enables per-request AI client creation
+	NavigatorRegistry   *vision.NavigatorRegistry    // Optional: enables vision navigator selection
+	PlaywrightNavigator *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -173,10 +176,12 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 
 // DepsOptions holds optional dependencies for handler initialization.
 type DepsOptions struct {
-	UXMetricsRepo      uxmetrics.Repository
-	EntitlementService *entitlement.Service
-	CreditService      credits.CreditService // Unified credit tracking
-	AIClientFactory    *ai.AIClientFactory   // Per-request AI client creation
+	UXMetricsRepo       uxmetrics.Repository
+	EntitlementService  *entitlement.Service
+	CreditService       credits.CreditService                // Unified credit tracking
+	AIClientFactory     *ai.AIClientFactory                  // Per-request AI client creation
+	NavigatorRegistry   *vision.NavigatorRegistry            // Vision navigator selection
+	PlaywrightNavigator *vision.PlaywrightVisionNavigator    // Direct reference to playwright navigator
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -253,19 +258,21 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:     workflowSvc,
-		ExecutionService:   workflowSvc,
-		WorkflowValidator:  validatorInstance,
-		Storage:            storageClient,
-		RecordingService:   recordingService,
-		RecordModeService:  recordModeSvc,
-		RecordingsRoot:     recordingsRoot,
-		ReplayRenderer:     render.NewReplayRenderer(log, recordingsRoot),
-		SessionProfiles:    sessionProfiles,
-		UXMetricsRepo:      opts.UXMetricsRepo,
-		EntitlementService: opts.EntitlementService,
-		CreditService:      opts.CreditService,
-		AIClientFactory:    opts.AIClientFactory,
+		CatalogService:      workflowSvc,
+		ExecutionService:    workflowSvc,
+		WorkflowValidator:   validatorInstance,
+		Storage:             storageClient,
+		RecordingService:    recordingService,
+		RecordModeService:   recordModeSvc,
+		RecordingsRoot:      recordingsRoot,
+		ReplayRenderer:      render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfiles:     sessionProfiles,
+		UXMetricsRepo:       opts.UXMetricsRepo,
+		EntitlementService:  opts.EntitlementService,
+		CreditService:       opts.CreditService,
+		AIClientFactory:     opts.AIClientFactory,
+		NavigatorRegistry:   opts.NavigatorRegistry,
+		PlaywrightNavigator: opts.PlaywrightNavigator,
 	}
 }
 
@@ -338,15 +345,16 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	}
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
 
-	// Initialize vision navigation handler with optional credit service
-	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{
-		aihandlers.WithVisionNavigationHub(wsHub),
-	}
-	if deps.EntitlementService != nil {
-		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationEntitlementService(deps.EntitlementService))
-	}
+	// Initialize vision navigation handler with navigator registry
+	visionNavOpts := []aihandlers.VisionNavigationHandlerOption{}
 	if deps.CreditService != nil {
 		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationCreditService(deps.CreditService))
+	}
+	if deps.NavigatorRegistry != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithVisionNavigationRegistry(deps.NavigatorRegistry))
+	}
+	if deps.PlaywrightNavigator != nil {
+		visionNavOpts = append(visionNavOpts, aihandlers.WithPlaywrightNavigator(deps.PlaywrightNavigator))
 	}
 	handler.visionNavigationHandler = aihandlers.NewVisionNavigationHandler(log, visionNavOpts...)
 
@@ -419,6 +427,11 @@ func (h *Handler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
 }
 
 // Vision Navigation delegation methods
+
+// AINavigateListNavigators delegates to the vision navigation handler
+func (h *Handler) AINavigateListNavigators(w http.ResponseWriter, r *http.Request) {
+	h.visionNavigationHandler.HandleListNavigators(w, r)
+}
 
 // AINavigate delegates to the vision navigation handler
 func (h *Handler) AINavigate(w http.ResponseWriter, r *http.Request) {

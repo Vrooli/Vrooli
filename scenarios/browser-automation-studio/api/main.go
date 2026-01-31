@@ -31,6 +31,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxanalyzer "github.com/vrooli/browser-automation-studio/services/uxmetrics/analyzer"
 	uxrepository "github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
+	"github.com/vrooli/browser-automation-studio/services/vision"
 	"github.com/vrooli/browser-automation-studio/sidecar"
 	"github.com/vrooli/browser-automation-studio/usecases/import/adapters"
 	importassets "github.com/vrooli/browser-automation-studio/usecases/import/assets"
@@ -200,6 +201,22 @@ func main() {
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
 	uxRepo := uxrepository.NewPostgresRepository(db.DB)
 
+	// Initialize navigator registry for vision navigation
+	navigatorRegistry := vision.NewNavigatorRegistry()
+
+	// Create and register playwright navigator
+	playwrightNav := vision.NewPlaywrightVisionNavigator(log,
+		vision.WithPlaywrightHub(hub),
+		vision.WithPlaywrightCreditService(creditService),
+	)
+	navigatorRegistry.Register(playwrightNav)
+
+	// Create and register claude code navigator (stub for future use)
+	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
+	navigatorRegistry.Register(claudeCodeNav)
+
+	log.WithField("navigator_count", navigatorRegistry.Count()).Info("✅ Vision navigator registry initialized")
+
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
 
@@ -207,10 +224,12 @@ func main() {
 	// The UX metrics collector wraps the event sink to passively capture interaction data
 	// The entitlement services enable tier-based feature gating and credit tracking
 	deps := handlers.InitDefaultDepsWithOptions(repo, hub, log, handlers.DepsOptions{
-		UXMetricsRepo:      uxRepo,
-		EntitlementService: entitlementSvc,
-		CreditService:      creditService,
-		AIClientFactory:    aiClientFactory,
+		UXMetricsRepo:       uxRepo,
+		EntitlementService:  entitlementSvc,
+		CreditService:       creditService,
+		AIClientFactory:     aiClientFactory,
+		NavigatorRegistry:   navigatorRegistry,
+		PlaywrightNavigator: playwrightNav,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
@@ -544,6 +563,7 @@ func main() {
 		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
 
 		// AI Vision Navigation routes
+		r.Get("/ai-navigate/navigators", handler.AINavigateListNavigators)
 		r.Post("/ai-navigate", handler.AINavigate)
 		r.Get("/ai-navigate/{navigationId}/status", handler.AINavigateStatus)
 		r.Post("/ai-navigate/{navigationId}/abort", handler.AINavigateAbort)
