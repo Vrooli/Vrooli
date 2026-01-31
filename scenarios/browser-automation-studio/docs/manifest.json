@@ -1,0 +1,359 @@
+{
+  "version": "1.0.0",
+  "title": "Browser Automation Studio Documentation",
+  "description": "Documentation for the browser automation recording, playback, and AI navigation platform",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "icon": "layers",
+      "documents": [
+        {
+          "path": "SYSTEM_ARCHITECTURE.md",
+          "title": "System Architecture",
+          "description": "High-level system design and component overview"
+        },
+        {
+          "path": "architecture/execution.md",
+          "title": "Execution Architecture",
+          "description": "Workflow execution, telemetry, and artifact persistence"
+        },
+        {
+          "path": "architecture/ai-navigation.md",
+          "title": "AI Navigation Architecture",
+          "description": "Vision-based AI autopilot system architecture"
+        },
+        {
+          "path": "architecture/reconciliation.md",
+          "title": "Reconciliation",
+          "description": "State reconciliation patterns"
+        },
+        {
+          "path": "architecture/FPS_CONTROL_ANALYSIS.md",
+          "title": "FPS Control Analysis",
+          "description": "Frame rate control and performance analysis"
+        }
+      ]
+    },
+    {
+      "id": "nodes",
+      "title": "Node Reference",
+      "icon": "grid",
+      "documents": [
+        {
+          "path": "NODE_INDEX.md",
+          "title": "Node Index",
+          "description": "Overview of all available workflow nodes"
+        },
+        {
+          "path": "nodes/navigate.md",
+          "title": "Navigate Node",
+          "description": "URL navigation action"
+        },
+        {
+          "path": "nodes/click.md",
+          "title": "Click Node",
+          "description": "Mouse click action"
+        },
+        {
+          "path": "nodes/type.md",
+          "title": "Type Node",
+          "description": "Keyboard typing action"
+        },
+        {
+          "path": "nodes/screenshot.md",
+          "title": "Screenshot Node",
+          "description": "Screenshot capture action"
+        },
+        {
+          "path": "nodes/wait.md",
+          "title": "Wait Node",
+          "description": "Wait/delay action"
+        },
+        {
+          "path": "nodes/extract.md",
+          "title": "Extract Node",
+          "description": "Data extraction action"
+        },
+        {
+          "path": "nodes/assert.md",
+          "title": "Assert Node",
+          "description": "Assertion/validation action"
+        },
+        {
+          "path": "nodes/scroll.md",
+          "title": "Scroll Node",
+          "description": "Scroll action"
+        },
+        {
+          "path": "nodes/hover.md",
+          "title": "Hover Node",
+          "description": "Mouse hover action"
+        },
+        {
+          "path": "nodes/select.md",
+          "title": "Select Node",
+          "description": "Dropdown select action"
+        },
+        {
+          "path": "nodes/keyboard.md",
+          "title": "Keyboard Node",
+          "description": "Keyboard shortcut action"
+        },
+        {
+          "path": "nodes/loop.md",
+          "title": "Loop Node",
+          "description": "Loop/iteration control"
+        },
+        {
+          "path": "nodes/conditional.md",
+          "title": "Conditional Node",
+          "description": "Conditional branching"
+        },
+        {
+          "path": "nodes/script.md",
+          "title": "Script Node",
+          "description": "Custom JavaScript execution"
+        },
+        {
+          "path": "nodes/set-variable.md",
+          "title": "Set Variable Node",
+          "description": "Variable assignment"
+        },
+        {
+          "path": "nodes/use-variable.md",
+          "title": "Use Variable Node",
+          "description": "Variable usage"
+        },
+        {
+          "path": "nodes/upload-file.md",
+          "title": "Upload File Node",
+          "description": "File upload action"
+        },
+        {
+          "path": "nodes/drag-drop.md",
+          "title": "Drag & Drop Node",
+          "description": "Drag and drop action"
+        },
+        {
+          "path": "nodes/focus.md",
+          "title": "Focus Node",
+          "description": "Element focus action"
+        },
+        {
+          "path": "nodes/blur.md",
+          "title": "Blur Node",
+          "description": "Element blur action"
+        },
+        {
+          "path": "nodes/tab-switch.md",
+          "title": "Tab Switch Node",
+          "description": "Browser tab switching"
+        },
+        {
+          "path": "nodes/frame-switch.md",
+          "title": "Frame Switch Node",
+          "description": "Iframe switching"
+        },
+        {
+          "path": "nodes/gesture.md",
+          "title": "Gesture Node",
+          "description": "Touch gesture action"
+        },
+        {
+          "path": "nodes/rotate.md",
+          "title": "Rotate Node",
+          "description": "Device rotation"
+        },
+        {
+          "path": "nodes/shortcut.md",
+          "title": "Shortcut Node",
+          "description": "Keyboard shortcut action"
+        },
+        {
+          "path": "nodes/network-mock.md",
+          "title": "Network Mock Node",
+          "description": "Network request mocking"
+        },
+        {
+          "path": "nodes/cookie-storage.md",
+          "title": "Cookie & Storage Node",
+          "description": "Cookie and storage manipulation"
+        },
+        {
+          "path": "nodes/workflow-call.md",
+          "title": "Workflow Call Node",
+          "description": "Sub-workflow invocation"
+        }
+      ]
+    },
+    {
+      "id": "guides",
+      "title": "Guides",
+      "icon": "book-open",
+      "documents": [
+        {
+          "path": "replay-layout.md",
+          "title": "Replay Layout",
+          "description": "Replay panel layout and components"
+        },
+        {
+          "path": "replay-style.md",
+          "title": "Replay Style",
+          "description": "Replay visual styling guidelines"
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "title": "Research",
+      "icon": "search",
+      "documents": [
+        {
+          "path": "research/ai-browser-automation-research.md",
+          "title": "AI Browser Automation Research",
+          "description": "Research on AI-driven browser automation approaches"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "SEAMS.md",
+          "title": "Seams & Boundaries",
+          "description": "Integration boundaries and responsibility zones",
+          "internal": true
+        },
+        {
+          "path": "PROBLEMS.md",
+          "title": "Known Issues",
+          "description": "Known issues and technical debt",
+          "internal": true
+        },
+        {
+          "path": "PROGRESS.md",
+          "title": "Progress",
+          "description": "Development history and milestones",
+          "internal": true
+        },
+        {
+          "path": "CONTROL_SURFACE.md",
+          "title": "Control Surface",
+          "description": "API surface and control points",
+          "internal": true
+        },
+        {
+          "path": "ASSUMPTION_MAPPING.md",
+          "title": "Assumption Mapping",
+          "description": "Documented assumptions",
+          "internal": true
+        },
+        {
+          "path": "LPBS_INTEGRATION.md",
+          "title": "LPBS Integration",
+          "description": "Playwright browser session integration",
+          "internal": true
+        },
+        {
+          "path": "ENVIRONMENT.md",
+          "title": "Environment",
+          "description": "Environment configuration",
+          "internal": true
+        },
+        {
+          "path": "automation-engine-analysis.md",
+          "title": "Automation Engine Analysis",
+          "description": "Analysis of automation engine implementation",
+          "internal": true
+        },
+        {
+          "path": "playwright-driver-summary.md",
+          "title": "Playwright Driver Summary",
+          "description": "Summary of playwright driver implementation",
+          "internal": true
+        },
+        {
+          "path": "playwright-driver-review.md",
+          "title": "Playwright Driver Review",
+          "description": "Review of playwright driver code",
+          "internal": true
+        },
+        {
+          "path": "playwright-driver-phase1-guide.md",
+          "title": "Playwright Driver Phase 1 Guide",
+          "description": "Phase 1 implementation guide",
+          "internal": true
+        },
+        {
+          "path": "playwright-driver-v2-implementation.md",
+          "title": "Playwright Driver V2",
+          "description": "V2 implementation details",
+          "internal": true
+        },
+        {
+          "path": "V2_WORKFLOW_MIGRATION_PLAN.md",
+          "title": "V2 Workflow Migration",
+          "description": "Migration plan to V2 workflow system",
+          "internal": true
+        }
+      ]
+    },
+    {
+      "id": "plans",
+      "title": "Plans & Proposals",
+      "icon": "file-text",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "plans/vision-agent-implementation-plan.md",
+          "title": "Vision Agent Implementation",
+          "description": "AI vision agent implementation plan"
+        },
+        {
+          "path": "plans/ai-api-keys-and-credits-plan.md",
+          "title": "AI API Keys & Credits",
+          "description": "API key and credit system plan"
+        },
+        {
+          "path": "plans/browser-automation-engine.md",
+          "title": "Browser Automation Engine",
+          "description": "Automation engine architecture plan"
+        },
+        {
+          "path": "plans/playwright-driver-completion.md",
+          "title": "Playwright Driver Completion",
+          "description": "Driver completion roadmap"
+        },
+        {
+          "path": "plans/RECORD_MODE_IMPLEMENTATION_PLAN.md",
+          "title": "Record Mode Implementation",
+          "description": "Recording mode implementation plan"
+        },
+        {
+          "path": "plans/replay-export-implementation-plan.md",
+          "title": "Replay Export Implementation",
+          "description": "Replay export feature plan"
+        },
+        {
+          "path": "plans/ux-metrics-architecture-plan.md",
+          "title": "UX Metrics Architecture",
+          "description": "UX metrics collection plan"
+        },
+        {
+          "path": "plans/multi-tab-recording-implementation.md",
+          "title": "Multi-Tab Recording",
+          "description": "Multi-tab recording implementation plan"
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["architecture", "nodes", "guides"],
+    "secondary": ["research", "internal", "plans"]
+  }
+}

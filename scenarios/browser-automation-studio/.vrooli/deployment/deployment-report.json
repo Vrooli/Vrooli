@@ -1,7 +1,7 @@
 {
   "scenario": "browser-automation-studio",
   "report_version": 1,
-  "generated_at": "2026-01-25T03:23:41.879136509Z",
+  "generated_at": "2026-01-30T23:23:33.340830817Z",
   "dependencies": [
     {
       "name": "minio",
@@ -271,7 +271,7 @@
   },
   "bundle_manifest": {
     "scenario": "browser-automation-studio",
-    "generated_at": "2026-01-25T03:23:41.879136509Z",
+    "generated_at": "2026-01-30T23:23:33.340830817Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -297,7 +297,7 @@
       {
         "path": "cli/browser-automation-studio",
         "type": "cli-binary",
-        "exists": false,
+        "exists": true,
         "notes": "Detected cli component (go)"
       },
       {

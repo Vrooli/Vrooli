@@ -100,6 +100,9 @@ type SessionResult struct {
 	SessionID      string
 	CreatedAt      time.Time
 	ActualViewport *ViewportDimensions // Actual viewport from Playwright (may differ due to profile)
+	// InitialNavigation contains info about the initial URL navigation, if one occurred.
+	// Used for capturing history entries in the handler.
+	InitialNavigation *HistoryEntryInfo
 }
 
 // ViewportDimensions represents width and height of a viewport with source attribution.
@@ -168,9 +171,17 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 	sess.InitializePageTracking(cfg.InitialURL)
 
 	// Navigate to initial URL if provided
+	var initialNavigation *HistoryEntryInfo
 	if cfg.InitialURL != "" {
-		if _, err := sess.Navigate(ctx, cfg.InitialURL); err != nil {
+		navResp, err := sess.Navigate(ctx, cfg.InitialURL)
+		if err != nil {
 			s.log.WithError(err).Warn("Failed to navigate to initial URL")
+		} else if navResp != nil {
+			// Capture initial navigation info for history
+			initialNavigation = &HistoryEntryInfo{
+				URL:   navResp.URL,
+				Title: navResp.Title,
+			}
 		}
 	}
 
@@ -186,9 +197,10 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 	}
 
 	return &SessionResult{
-		SessionID:      sess.ID(),
-		CreatedAt:      time.Now().UTC(),
-		ActualViewport: actualViewport,
+		SessionID:         sess.ID(),
+		CreatedAt:         time.Now().UTC(),
+		ActualViewport:    actualViewport,
+		InitialNavigation: initialNavigation,
 	}, nil
 }
 
@@ -443,7 +455,15 @@ func (s *Service) CreatePage(ctx context.Context, sessionID string, url string) 
 type RestoredTab struct {
 	PageID   string
 	URL      string
+	Title    string
 	IsActive bool
+}
+
+// HistoryEntryInfo contains minimal info needed to create a history entry.
+// This is returned from service methods so handlers can add entries to session profiles.
+type HistoryEntryInfo struct {
+	URL   string
+	Title string
 }
 
 // TabRestorationResult contains the results of tab restoration.
@@ -451,8 +471,13 @@ type TabRestorationResult struct {
 	// InitialURL is the URL the initial tab was navigated to (first tab in the list).
 	// Empty if no navigation was performed (e.g., first tab was about:blank).
 	InitialURL string
+	// InitialTitle is the page title from the initial navigation.
+	InitialTitle string
 	// Tabs contains info about additional tabs that were created (not including the initial tab).
 	Tabs []RestoredTab
+	// HistoryEntries contains all navigations for history capture.
+	// This includes the initial navigation and all restored tabs.
+	HistoryEntries []HistoryEntryInfo
 }
 
 // RestoreTabs creates tabs from saved tab state.
@@ -472,7 +497,8 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []arch
 	}).Info("RestoreTabs: starting tab restoration")
 
 	result := &TabRestorationResult{
-		Tabs: make([]RestoredTab, 0, len(tabs)),
+		Tabs:           make([]RestoredTab, 0, len(tabs)),
+		HistoryEntries: make([]HistoryEntryInfo, 0, len(tabs)),
 	}
 	var activeDriverPageID string
 
@@ -497,6 +523,12 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []arch
 					}).Info("RestoreTabs: initial page navigation successful")
 					// Store the initial URL for the response
 					result.InitialURL = resp.URL
+					result.InitialTitle = resp.Title
+					// Capture history entry for initial navigation
+					result.HistoryEntries = append(result.HistoryEntries, HistoryEntryInfo{
+						URL:   resp.URL,
+						Title: resp.Title,
+					})
 				}
 			} else {
 				s.log.WithFields(map[string]interface{}{
@@ -544,7 +576,14 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []arch
 		result.Tabs = append(result.Tabs, RestoredTab{
 			PageID:   resp.DriverPageID,
 			URL:      tab.URL,
+			Title:    tab.Title, // Use saved title from tab state
 			IsActive: tab.IsActive,
+		})
+
+		// Capture history entry for restored tab (use saved title since CreatePage response doesn't include it)
+		result.HistoryEntries = append(result.HistoryEntries, HistoryEntryInfo{
+			URL:   tab.URL,
+			Title: tab.Title,
 		})
 
 		if tab.IsActive {

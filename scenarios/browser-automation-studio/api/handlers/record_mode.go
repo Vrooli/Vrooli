@@ -174,6 +174,47 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 					IsActive: tab.IsActive,
 				})
 			}
+
+			// Save history entries from tab restoration
+			if profileID != "" && h.sessionProfiles != nil && len(restorationResult.HistoryEntries) > 0 {
+				for _, histEntry := range restorationResult.HistoryEntries {
+					entry := archiveingestion.HistoryEntry{
+						ID:        uuid.NewString(),
+						URL:       histEntry.URL,
+						Title:     histEntry.Title,
+						Timestamp: time.Now().UTC().Format(time.RFC3339),
+					}
+					if _, err := h.sessionProfiles.AddHistoryEntry(profileID, entry); err != nil {
+						h.log.WithError(err).WithFields(map[string]interface{}{
+							"profile_id": profileID,
+							"url":        histEntry.URL,
+						}).Warn("Failed to add history entry from tab restoration")
+					}
+				}
+				h.log.WithFields(map[string]interface{}{
+					"profile_id":    profileID,
+					"history_count": len(restorationResult.HistoryEntries),
+				}).Debug("Saved history entries from tab restoration")
+			}
+		}
+	} else if profileID != "" && h.sessionProfiles != nil && result.InitialNavigation != nil {
+		// No tab restoration, but there was an initial URL navigation - capture it as history
+		entry := archiveingestion.HistoryEntry{
+			ID:        uuid.NewString(),
+			URL:       result.InitialNavigation.URL,
+			Title:     result.InitialNavigation.Title,
+			Timestamp: time.Now().UTC().Format(time.RFC3339),
+		}
+		if _, err := h.sessionProfiles.AddHistoryEntry(profileID, entry); err != nil {
+			h.log.WithError(err).WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"url":        result.InitialNavigation.URL,
+			}).Warn("Failed to add history entry from initial navigation")
+		} else {
+			h.log.WithFields(map[string]interface{}{
+				"profile_id": profileID,
+				"url":        result.InitialNavigation.URL,
+			}).Debug("Saved history entry from initial navigation")
 		}
 	}
 
@@ -1186,14 +1227,14 @@ func (h *Handler) ReloadRecordingSession(w http.ResponseWriter, r *http.Request)
 
 		now := time.Now()
 		reloadAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "reload",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "reload",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &reloadAction, activePageID)
@@ -1269,14 +1310,14 @@ func (h *Handler) GoBackRecordingSession(w http.ResponseWriter, r *http.Request)
 
 		now := time.Now()
 		goBackAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "goBack",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "goBack",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &goBackAction, activePageID)
@@ -1363,14 +1404,14 @@ func (h *Handler) GoForwardRecordingSession(w http.ResponseWriter, r *http.Reque
 
 		now := time.Now()
 		goForwardAction := driver.RecordedAction{
-			ID:          uuid.NewString(),
-			SessionID:   sessionID,
-			Timestamp:   now.Format(time.RFC3339Nano),
-			ActionType:  "goForward",
-			Confidence:  1.0,
-			URL:         resp.URL,
-			PageID:      activePageID.String(),
-			PageTitle:   resp.Title,
+			ID:         uuid.NewString(),
+			SessionID:  sessionID,
+			Timestamp:  now.Format(time.RFC3339Nano),
+			ActionType: "goForward",
+			Confidence: 1.0,
+			URL:        resp.URL,
+			PageID:     activePageID.String(),
+			PageTitle:  resp.Title,
 		}
 
 		h.recordModeService.AddTimelineAction(sessionID, &goForwardAction, activePageID)
