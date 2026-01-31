@@ -796,6 +796,14 @@ func (f *FakeGitRunner) LsRemote(ctx context.Context, repoDir string, remote str
 	return nil
 }
 
+// GrepContent simulates searching file contents.
+func (f *FakeGitRunner) GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error) {
+	f.recordCall("GrepContent", repoDir, opts.Pattern)
+
+	// Return empty result by default (no matches)
+	return []byte{}, nil
+}
+
 // --- Test helpers ---
 
 // AddStagedFile adds a file to the staged state.

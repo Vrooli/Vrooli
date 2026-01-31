@@ -405,6 +405,36 @@ export interface RelatedFilesResponse {
   timestamp: string;
 }
 
+// Content Search Types
+export interface ContentSearchRequest {
+  query: string;
+  case_sensitive?: boolean;
+  whole_word?: boolean;
+  regex?: boolean;
+  include?: string; // Comma-separated globs
+  exclude?: string; // Comma-separated globs
+  context_lines?: number;
+  limit?: number;
+  timeout?: number;
+}
+
+export interface ContentSearchMatch {
+  path: string;
+  line_number: number;
+  content: string;
+  context_before?: string;
+  context_after?: string;
+}
+
+export interface ContentSearchResponse {
+  matches: ContentSearchMatch[];
+  total: number;
+  truncated: boolean;
+  cancelled: boolean;
+  query: string;
+  timestamp: string;
+}
+
 // ============================================================================
 // Credentials Types
 // ============================================================================
@@ -728,6 +758,26 @@ export async function fetchRelatedFiles(path: string): Promise<RelatedFilesRespo
     cache: "no-store"
   });
   return handleResponse<RelatedFilesResponse>(res);
+}
+
+export async function searchContent(request: ContentSearchRequest): Promise<ContentSearchResponse> {
+  const params = new URLSearchParams();
+  params.set("query", request.query);
+  if (request.case_sensitive) params.set("case_sensitive", "true");
+  if (request.whole_word) params.set("whole_word", "true");
+  if (request.regex) params.set("regex", "true");
+  if (request.include) params.set("include", request.include);
+  if (request.exclude) params.set("exclude", request.exclude);
+  if (request.context_lines !== undefined) params.set("context_lines", String(request.context_lines));
+  if (request.limit !== undefined) params.set("limit", String(request.limit));
+  if (request.timeout !== undefined) params.set("timeout", String(request.timeout));
+
+  const url = buildApiUrl(`/repo/search/content?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  return handleResponse<ContentSearchResponse>(res);
 }
 
 export async function fetchDirectoryContents(path = ""): Promise<DirListResponse> {

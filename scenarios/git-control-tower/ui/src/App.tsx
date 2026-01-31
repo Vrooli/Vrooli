@@ -1070,7 +1070,8 @@ export default function App() {
   }, []);
 
   // Handle selecting a file from file search (view any file in source mode)
-  const handleSelectAnyFile = useCallback((path: string) => {
+  // Optional lineNumber for content search results - can be used to scroll to that line
+  const handleSelectAnyFile = useCallback((path: string, _lineNumber?: number) => {
     setSelectedFile(path);
     setSelectedIsStaged(false);
     setSelectedIsUntracked(false);
@@ -1087,6 +1088,8 @@ export default function App() {
     if (isMobile) {
       setMobileActivePanel("diff");
     }
+    // TODO: Use lineNumber to scroll to the specific line in the source viewer
+    // This would require adding state and passing it to DiffViewer
   }, [isMobile, showRelatedFiles]);
 
   // Handle showing related files panel

@@ -138,6 +138,22 @@ type GitRunner interface {
 	// Used to test connectivity and authentication.
 	// If cred is provided, uses GIT_ASKPASS for authentication.
 	LsRemote(ctx context.Context, repoDir string, remote string, cred *StoredCredential) error
+
+	// GrepContent searches file contents using git grep.
+	// Returns raw output in format: file:line:content
+	GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error)
+}
+
+// GrepOptions configures the git grep search.
+type GrepOptions struct {
+	Pattern       string   // Search pattern (required)
+	CaseSensitive bool     // Match case exactly (-i flag inverted)
+	WholeWord     bool     // Match whole words only (-w)
+	ExtendedRegex bool     // Treat pattern as extended regex (-E)
+	IncludeGlobs  []string // Glob patterns to include (--include)
+	ExcludeGlobs  []string // Glob patterns to exclude (--exclude)
+	ContextLines  int      // Lines of context (-C)
+	MaxCount      int      // Max matches per file (-m)
 }
 
 // CommitOptions configures author overrides for commit operations.
@@ -892,4 +908,80 @@ esac`
 		return fmt.Errorf("git ls-remote failed: %w", err)
 	}
 	return nil
+}
+
+func (r *ExecGitRunner) GrepContent(ctx context.Context, repoDir string, opts GrepOptions) ([]byte, error) {
+	if strings.TrimSpace(opts.Pattern) == "" {
+		return nil, fmt.Errorf("search pattern is required")
+	}
+
+	// Build git grep command
+	// Output format: file:line:content (using -n for line numbers)
+	args := []string{"-C", repoDir, "grep", "-n", "--no-color"}
+
+	// Case sensitivity (git grep is case-sensitive by default)
+	if !opts.CaseSensitive {
+		args = append(args, "-i")
+	}
+
+	// Whole word matching
+	if opts.WholeWord {
+		args = append(args, "-w")
+	}
+
+	// Extended regex
+	if opts.ExtendedRegex {
+		args = append(args, "-E")
+	}
+
+	// Context lines
+	if opts.ContextLines > 0 {
+		args = append(args, fmt.Sprintf("-C%d", opts.ContextLines))
+	}
+
+	// Max matches per file
+	if opts.MaxCount > 0 {
+		args = append(args, fmt.Sprintf("-m%d", opts.MaxCount))
+	}
+
+	// Add the search pattern (must come before pathspecs)
+	args = append(args, "-e", opts.Pattern)
+
+	// Add pathspecs (-- separator then patterns)
+	hasPathspecs := len(opts.IncludeGlobs) > 0 || len(opts.ExcludeGlobs) > 0
+	if hasPathspecs {
+		args = append(args, "--")
+
+		// Add include globs
+		for _, glob := range opts.IncludeGlobs {
+			if strings.TrimSpace(glob) != "" {
+				args = append(args, glob)
+			}
+		}
+
+		// Add exclude globs using :^pattern syntax
+		for _, glob := range opts.ExcludeGlobs {
+			if strings.TrimSpace(glob) != "" {
+				args = append(args, ":^"+glob)
+			}
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+	out, err := cmd.Output()
+
+	// git grep returns exit code 1 when no matches found - this is not an error
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			// Exit code 1 = no matches, which is valid
+			if exitErr.ExitCode() == 1 {
+				return []byte{}, nil
+			}
+			return nil, fmt.Errorf("git grep failed: %w (%s)", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("git grep failed: %w", err)
+	}
+
+	return out, nil
 }

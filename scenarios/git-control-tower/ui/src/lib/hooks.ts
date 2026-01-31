@@ -22,6 +22,7 @@ import {
   fetchRelatedFiles,
   fetchDirectoryContents,
   deletePath,
+  searchContent,
   fetchCredentials,
   saveCredential,
   deleteCredential,
@@ -49,6 +50,8 @@ import {
   type RelatedFilesResponse,
   type DirListResponse,
   type DeletePathRequest,
+  type ContentSearchRequest,
+  type ContentSearchResponse,
   type CredentialsListResponse,
   type CredentialSaveRequest,
   type CredentialTestRequest,
@@ -73,6 +76,8 @@ export const queryKeys = {
   files: (pattern?: string, deep?: boolean) => ["repo", "files", pattern, deep] as const,
   relatedFiles: (path: string) => ["repo", "related", path] as const,
   directoryContents: (path: string) => ["repo", "dir", path] as const,
+  contentSearch: (query: string, opts?: Partial<ContentSearchRequest>) =>
+    ["repo", "search", "content", query, opts] as const,
   credentials: ["credentials"] as const,
   sshKeys: ["ssh", "keys"] as const
 };
@@ -295,6 +300,19 @@ export function useDeletePath() {
       // Invalidate all directory contents caches since structure changed
       queryClient.invalidateQueries({ queryKey: ["repo", "dir"] });
     }
+  });
+}
+
+export function useContentSearch(
+  query: string,
+  options: Omit<ContentSearchRequest, "query"> = {},
+  enabled = true
+) {
+  const request: ContentSearchRequest = { query, ...options };
+  return useQuery<ContentSearchResponse, Error>({
+    queryKey: queryKeys.contentSearch(query, options),
+    queryFn: () => searchContent(request),
+    enabled: enabled && query.length >= 2 // Minimum 2 characters
   });
 }
 

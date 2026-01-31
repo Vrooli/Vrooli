@@ -157,3 +157,73 @@ func (s *Server) handleDeletePath(w http.ResponseWriter, r *http.Request) {
 	}
 	resp.OK(result)
 }
+
+// handleContentSearch handles GET /api/v1/repo/search/content
+// Searches file contents using git grep
+func (s *Server) handleContentSearch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	resp := NewResponse(w)
+	repoDir := s.git.ResolveRepoRoot(ctx)
+	if strings.TrimSpace(repoDir) == "" {
+		resp.BadRequest("repository root could not be resolved")
+		return
+	}
+
+	// Parse query parameters
+	query := r.URL.Query()
+	req := ContentSearchRequest{
+		Query:         query.Get("query"),
+		CaseSensitive: query.Get("case_sensitive") == "true",
+		WholeWord:     query.Get("whole_word") == "true",
+		Regex:         query.Get("regex") == "true",
+		Include:       query.Get("include"),
+		Exclude:       query.Get("exclude"),
+	}
+
+	// Parse context_lines
+	if contextStr := query.Get("context_lines"); contextStr != "" {
+		contextLines, err := strconv.Atoi(contextStr)
+		if err != nil || contextLines < 0 {
+			resp.BadRequest("context_lines must be a non-negative integer")
+			return
+		}
+		req.ContextLines = contextLines
+	}
+
+	// Parse limit
+	if limitStr := query.Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil || limit <= 0 {
+			resp.BadRequest("limit must be a positive integer")
+			return
+		}
+		req.Limit = limit
+	}
+
+	// Parse timeout
+	if timeoutStr := query.Get("timeout"); timeoutStr != "" {
+		timeout, err := strconv.Atoi(timeoutStr)
+		if err != nil || timeout <= 0 {
+			resp.BadRequest("timeout must be a positive integer")
+			return
+		}
+		req.Timeout = timeout
+	}
+
+	result, err := SearchContent(ctx, ContentSearchDeps{
+		Git:     s.git,
+		RepoDir: repoDir,
+	}, req)
+	if err != nil {
+		// Check if it's a validation error
+		if strings.Contains(err.Error(), "query") || strings.Contains(err.Error(), "regex") {
+			resp.BadRequest(err.Error())
+			return
+		}
+		resp.InternalError(err.Error())
+		return
+	}
+
+	resp.OK(result)
+}

@@ -108,6 +108,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/repo/files/dir", s.handleDirectoryList).Methods("GET")
 	s.router.HandleFunc("/api/v1/repo/files/delete", s.handleDeletePath).Methods("POST")
 	s.router.HandleFunc("/api/v1/repo/related", s.handleRelatedFiles).Methods("GET")
+	s.router.HandleFunc("/api/v1/repo/search/content", s.handleContentSearch).Methods("GET")
 	s.router.HandleFunc("/api/v1/audit", s.handleAuditQuery).Methods("GET")
 
 	// Credentials management endpoints
