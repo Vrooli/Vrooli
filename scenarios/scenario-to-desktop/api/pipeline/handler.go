@@ -460,8 +460,9 @@ func (h *Handler) handleStartActivePipeline(w http.ResponseWriter, r *http.Reque
 		config = &c
 	}
 
-	// Start the active pipeline
-	status, err := h.manager.StartActivePipeline(r.Context(), scenarioName, config)
+	// Start the active pipeline with background context - the pipeline runs asynchronously
+	// and should not be cancelled when the HTTP request completes
+	status, err := h.manager.StartActivePipeline(context.Background(), scenarioName, config)
 	if err != nil {
 		httputil.WriteError(w, errors.Wrap(errors.CodePipelineFailed, err, "failed to start active pipeline").
 			InDomain("pipeline"))

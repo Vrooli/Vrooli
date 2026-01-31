@@ -24,13 +24,14 @@ describe("BundleSection", () => {
 
     expect(screen.getByText("Bundle")).toBeInTheDocument();
     expect(screen.getByText("Package dependencies for distribution")).toBeInTheDocument();
-    expect(screen.getByText("Bundle Status")).toBeInTheDocument();
-    expect(screen.getByText("No bundle results yet")).toBeInTheDocument();
+    // Non-bundled mode shows placeholder
+    expect(screen.getByText(/Bundle stage will run when you generate/)).toBeInTheDocument();
   });
 
   it("renders running state with status badge", () => {
     act(() => {
       usePipelineStore.setState({
+        runStatus: "running",
         pipelineStatus: createPipelineStatus({
           status: "running",
           current_stage: "bundle",
@@ -42,7 +43,7 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
     // Check that at least one "Running" badge is present
     expect(screen.getAllByText("Running").length).toBeGreaterThan(0);
@@ -68,16 +69,16 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
-    // Check that at least one "Completed" badge is present
-    expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
-    expect(screen.getByText(/4 artifacts bundled/)).toBeInTheDocument();
-    expect(screen.getByText("Bundle Directory")).toBeInTheDocument();
+    // Check that at least one "Complete" badge is present
+    expect(screen.getAllByText("Complete").length).toBeGreaterThan(0);
+    // Check bundle details are shown
+    expect(screen.getByText("Bundle directory:")).toBeInTheDocument();
     expect(screen.getByText("/path/to/bundle/dir")).toBeInTheDocument();
-    expect(screen.getByText("Manifest Path")).toBeInTheDocument();
+    expect(screen.getByText("Manifest:")).toBeInTheDocument();
     expect(screen.getByText("/path/to/manifest.json")).toBeInTheDocument();
-    expect(screen.getByText(/Total bundle size.*150 MB/)).toBeInTheDocument();
+    expect(screen.getByText("150 MB")).toBeInTheDocument();
   });
 
   it("shows size warning when present", () => {
@@ -103,15 +104,15 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
-    expect(screen.getByText(/Warning:/)).toBeInTheDocument();
     expect(screen.getByText(/Bundle size exceeds 1 GB/)).toBeInTheDocument();
   });
 
   it("renders failed state with error", () => {
     act(() => {
       usePipelineStore.setState({
+        errorInfo: { message: "Bundle failed" },
         pipelineStatus: createPipelineStatus({
           status: "failed",
           stages: {
@@ -122,24 +123,24 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
-    expect(screen.getByText(/Bundle stage failed/)).toBeInTheDocument();
+    expect(screen.getByText("Bundle failed")).toBeInTheDocument();
   });
 
   it("shows placeholder when scenario selected but not bundled", () => {
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={false} />);
 
     expect(screen.getByText(/Bundle stage will run when you generate/)).toBeInTheDocument();
   });
 
   it("shows different placeholder when no scenario selected", () => {
-    render(<BundleSection scenarioName="" />);
+    render(<BundleSection scenarioName="" isBundled={false} />);
 
     expect(screen.getByText("Select a scenario to begin.")).toBeInTheDocument();
   });
 
-  it("uses singular form for single artifact", () => {
+  it("shows artifact count for single artifact", () => {
     act(() => {
       usePipelineStore.setState({
         bundleResult: {
@@ -159,12 +160,13 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
-    expect(screen.getByText(/1 artifact bundled/)).toBeInTheDocument();
+    // BundleResultsCard shows "Artifacts: X files"
+    expect(screen.getByText("1 files")).toBeInTheDocument();
   });
 
-  it("counts runtime binaries in artifact count", () => {
+  it("shows platform builds for runtime binaries", () => {
     act(() => {
       usePipelineStore.setState({
         bundleResult: {
@@ -188,9 +190,13 @@ describe("BundleSection", () => {
       });
     });
 
-    render(<BundleSection scenarioName="test-scenario" />);
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
 
-    // 1 copied artifact + 3 runtime binaries = 4 total
-    expect(screen.getByText(/4 artifacts bundled/)).toBeInTheDocument();
+    // Check that platform builds section is shown
+    expect(screen.getByText("Platform builds")).toBeInTheDocument();
+    // Each platform appears twice (once in payload JSON, once in UI) so use getAllByText
+    expect(screen.getAllByText("linux").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("win").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("mac").length).toBeGreaterThanOrEqual(1);
   });
 });

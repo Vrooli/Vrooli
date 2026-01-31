@@ -17,7 +17,7 @@ export function ValidationIssuesPanel({ validation }: ValidationIssuesPanelProps
   return (
     <details className="rounded-md border border-red-900/50 bg-red-950/20 p-3 text-[11px] text-red-200" open>
       <summary className="cursor-pointer text-xs font-semibold text-red-100">Validation issues</summary>
-      <div className="mt-2 space-y-3">
+      <div className="mt-2 space-y-3 max-h-64 overflow-y-auto">
         {validation.errors && validation.errors.length > 0 && (
           <div className="space-y-2">
             {validation.errors.map((err: BundleValidationError, idx: number) => {

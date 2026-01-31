@@ -161,9 +161,7 @@ export function GeneratorPage({
           isBundled={formState?.isBundled ?? false}
           bundleManifestPath={formState?.bundleManifestPath ?? ""}
           onBundleManifestChange={formState?.onBundleManifestChange}
-          onBundleExported={formState?.onBundleExported}
           onBundleComplete={formState?.onBundleComplete}
-          initialBundleResult={formState?.initialBundleResult ?? null}
           bundleHelperRef={formState?.bundleHelperRef}
         />
 

@@ -2,6 +2,12 @@
  * Bundle section - orchestrates bundle stage with linear numbered steps.
  * Follows the same UX pattern as PreflightSection for consistency.
  *
+ * Architecture: Pure store-driven rendering
+ * - Reads state from pipelineStore via selectors
+ * - Triggers actions via store methods on user interaction (button clicks)
+ * - NO effects that trigger API mutations or pipeline creation
+ * - NO local state that duplicates store state
+ *
  * Steps:
  * 1. Bundle context - Shows scenario and manifest path configuration
  * 2. Generate bundle - Button to run bundle stage + progress
@@ -17,7 +23,6 @@ import {
 } from "../shared";
 import { usePipelineStore, selectStageStatus, selectIsRunning } from "../../../store";
 import { Button } from "../../ui/button";
-import { Label } from "../../ui/label";
 import { Select } from "../../ui/select";
 import { Progress } from "../../ui/progress";
 import { BundleStepHeader } from "./BundleStepHeader";
@@ -25,7 +30,7 @@ import { BundleManifestInput } from "./BundleManifestInput";
 import { BundleResultsCard } from "./BundleResultsCard";
 import { writeToClipboard, triggerBlobDownload } from "../../../lib/browser";
 import type { PreflightStepStatus } from "../../../lib/preflight-constants";
-import type { PipelineConfig, BundleStageDetails } from "../../../lib/api";
+import type { BundleStageDetails } from "../../../lib/api";
 
 /** Bundle result data for stage persistence */
 export interface BundleResult {
@@ -57,12 +62,8 @@ interface BundleSectionProps {
   bundleManifestPath?: string;
   /** Callback when bundle manifest path changes */
   onBundleManifestChange?: (path: string) => void;
-  /** Callback when bundle is exported (triggers preflight) */
-  onBundleExported?: (manifestPath: string, config?: Partial<PipelineConfig>) => void;
-  /** Callback when bundle export completes successfully */
+  /** Callback when bundle export completes successfully - used for server persistence */
   onBundleComplete?: (result: BundleResult) => void;
-  /** Initial bundle result for restoration from server persistence */
-  initialBundleResult?: BundleResult | null;
   /** Ref to bundle helper for imperative control */
   bundleHelperRef?: Ref<BundleSectionHandle>;
 }
@@ -74,18 +75,17 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       isBundled = false,
       bundleManifestPath = "",
       onBundleManifestChange,
-      onBundleExported,
       onBundleComplete,
-      initialBundleResult,
       bundleHelperRef,
     },
     ref
   ) => {
+    // UI-only local state (following PreflightSection pattern)
     const [viewMode, setViewMode] = useState<"summary" | "json">("summary");
     const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
     const [tier, setTier] = useState("tier-2-desktop");
 
-    // Pipeline store state
+    // Pipeline store state - single source of truth
     const bundleResult = usePipelineStore((s) => s.bundleResult);
     const stageStatus = usePipelineStore(selectStageStatus("bundle"));
     const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
@@ -100,17 +100,10 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
     const setScenario = usePipelineStore((s) => s.setScenario);
     const clearError = usePipelineStore((s) => s.clearError);
 
-    // Track previous scenario to detect genuine changes
+    // Track previous scenario for change detection (minimal ref usage)
     const prevScenarioRef = useRef<string>(scenarioName);
-    const hasNotifiedRef = useRef<boolean>(false);
-
-    // Local state for display when restoring from server persistence
-    const [localBundleDetails, setLocalBundleDetails] = useState<BundleStageDetails | null>(
-      initialBundleResult?.bundleDetails ?? null
-    );
-    const [localManifestPath, setLocalManifestPath] = useState<string | null>(
-      initialBundleResult?.manifestPath ?? null
-    );
+    // Track if we've notified for the current bundle result to prevent duplicates
+    const lastNotifiedResultRef = useRef<BundleStageDetails | null>(null);
 
     // Set scenario in store when it changes
     useEffect(() => {
@@ -119,49 +112,40 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       }
     }, [scenarioName, setScenario]);
 
-    // Sync from initial props
-    useEffect(() => {
-      if (initialBundleResult?.bundleDetails) {
-        setLocalBundleDetails(initialBundleResult.bundleDetails);
-      }
-      if (initialBundleResult?.manifestPath) {
-        setLocalManifestPath(initialBundleResult.manifestPath);
-      }
-    }, [initialBundleResult?.bundleDetails, initialBundleResult?.manifestPath]);
-
-    // Reset state when scenario genuinely changes
+    // Clear error when scenario changes
     useEffect(() => {
       const prevScenario = prevScenarioRef.current;
       prevScenarioRef.current = scenarioName;
 
       if (prevScenario !== scenarioName && prevScenario !== "") {
-        setLocalBundleDetails(null);
-        setLocalManifestPath(null);
-        hasNotifiedRef.current = false;
         clearError();
+        lastNotifiedResultRef.current = null;
       }
     }, [scenarioName, clearError]);
 
-    // Update local state when pipeline completes bundle stage
+    // Notify parent of bundle completion for server persistence
+    // Only fires when bundleResult changes AND bundle stage is complete
     useEffect(() => {
-      if (bundleResult && !hasNotifiedRef.current) {
-        setLocalBundleDetails(bundleResult);
+      const bundleStage = pipelineStatus?.stages?.bundle;
+      const isComplete = bundleStage?.status === "completed";
 
-        if (bundleResult.manifest_path) {
-          setLocalManifestPath(bundleResult.manifest_path);
-          onBundleManifestChange?.(bundleResult.manifest_path);
-          onBundleExported?.(bundleResult.manifest_path);
-        }
-
-        // Notify parent of completion
+      // Only notify if:
+      // 1. We have a bundle result
+      // 2. The stage is marked complete
+      // 3. We haven't already notified for this exact result
+      if (bundleResult && isComplete && bundleResult !== lastNotifiedResultRef.current) {
+        lastNotifiedResultRef.current = bundleResult;
         onBundleComplete?.({
           bundleDetails: bundleResult,
           manifestPath: bundleResult.manifest_path ?? null,
         });
 
-        hasNotifiedRef.current = true;
+        // Also update manifest path in parent if changed
+        if (bundleResult.manifest_path) {
+          onBundleManifestChange?.(bundleResult.manifest_path);
+        }
       }
-    }, [bundleResult, onBundleManifestChange, onBundleExported, onBundleComplete]);
+    }, [bundleResult, pipelineStatus?.stages?.bundle?.status, onBundleComplete, onBundleManifestChange]);
 
     // Expose imperative handle
     useEffect(() => {
@@ -177,10 +161,6 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         return;
       }
 
-      setLocalBundleDetails(null);
-      setLocalManifestPath(null);
-      hasNotifiedRef.current = false;
-
       try {
         await runBundleStage({});
       } catch {
@@ -188,20 +168,20 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
       }
     }, [scenarioName, runBundleStage]);
 
-    // Derived state
-    const hasResult = Boolean(bundleResult ?? localBundleDetails);
-    const displayDetails = bundleResult ?? localBundleDetails;
-    const displayManifestPath = bundleResult?.manifest_path ?? localManifestPath;
+    // Derived state - use store directly, no local cache
+    const displayDetails = bundleResult;
+    const displayManifestPath = bundleResult?.manifest_path ?? null;
     const pipelineError = errorInfo?.message ?? null;
     const bundleLogs = stageLogs.bundle ?? [];
     const isBusy = isRunning;
+    const hasResult = Boolean(bundleResult);
     const hasRun = Boolean(bundleResult || pipelineError || pipelineStatus);
 
     // Calculate progress based on run status
     const progress = useMemo(() => {
       switch (runStatus) {
         case "idle":
-          return localBundleDetails ? 100 : 0;
+          return bundleResult ? 100 : 0;
         case "starting":
           return 5;
         case "running":
@@ -214,7 +194,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
         default:
           return 0;
       }
-    }, [runStatus, localBundleDetails]);
+    }, [runStatus, bundleResult]);
 
     // Step status calculations
     const getContextStatus = (): PreflightStepStatus => {

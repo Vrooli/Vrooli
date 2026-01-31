@@ -16,9 +16,7 @@ export interface ExposedFormState {
   bundleManifest?: unknown;
   // Bundle-related handlers for BundleSection
   onBundleManifestChange: (path: string) => void;
-  onBundleExported: (manifestPath: string) => void;
   onBundleComplete: (result: BundleResult) => void;
-  initialBundleResult: BundleResult | null;
   bundleHelperRef: React.RefObject<DeploymentManagerBundleHelperHandle>;
 }
 

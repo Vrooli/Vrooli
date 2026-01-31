@@ -59,9 +59,7 @@ interface ExposedFormState {
   bundleManifest?: unknown;
   // Bundle-related handlers for BundleSection
   onBundleManifestChange: (path: string) => void;
-  onBundleExported: (manifestPath: string) => void;
   onBundleComplete: (result: import("../runtime/DeploymentManagerBundleHelper").BundleResult) => void;
-  initialBundleResult: import("../runtime/DeploymentManagerBundleHelper").BundleResult | null;
   bundleHelperRef: React.RefObject<import("../runtime/DeploymentManagerBundleHelper").DeploymentManagerBundleHelperHandle>;
 }
 
@@ -184,6 +182,7 @@ export function GeneratorForm({
     runPreflightStage,
     cancelPipeline: cancelPreflightPipeline,
     resetPreflight,
+    resetCurrentPipeline,
     preflightResult,
     preflightSecrets,
     preflightOverride,
@@ -461,17 +460,6 @@ export function GeneratorForm({
     [scenarioName, hasInitiallyLoaded, saveStageResult]
   );
 
-  // Handler for when bundle is exported - triggers preflight
-  const handleBundleExported = useCallback(
-    (manifestPath: string) => {
-      runPreflight(undefined, { bundle_manifest_path: manifestPath });
-    },
-    [runPreflight]
-  );
-
-  // Bundle result for restoration - use seed loaded from form_state.bundle_result
-  // This mirrors how preflight uses preflightResultSeed from form_state.preflight_result
-  const initialBundleResult = bundleResultSeed;
 
   // Fetch available scenarios
   const { data: scenariosData, isLoading: loadingScenarios } = useQuery<ScenariosResponse>({
@@ -608,9 +596,7 @@ export function GeneratorForm({
       isBundled,
       bundleManifest: bundleManifestResp?.manifest,
       onBundleManifestChange: setBundleManifestPath,
-      onBundleExported: handleBundleExported,
       onBundleComplete: handleBundleComplete,
-      initialBundleResult,
       bundleHelperRef,
     });
   }, [
@@ -619,9 +605,7 @@ export function GeneratorForm({
     bundleManifestResp?.manifest,
     onFormStateChange,
     setBundleManifestPath,
-    handleBundleExported,
     handleBundleComplete,
-    initialBundleResult,
     bundleHelperRef,
   ]);
 
@@ -769,6 +753,8 @@ export function GeneratorForm({
     if (preflightPipelineId && preflightPending) {
       void cancelPreflightPipeline();
     }
+    // Reset the pipeline on the backend (archives current, clears active slot)
+    void resetCurrentPipeline();
     clearDraft();
     resetFormState(true);
   };

@@ -144,8 +144,8 @@ function DebugJsonModalContent({ onClose, copied, setCopied }: DebugJsonModalCon
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-hidden">
-          <pre className="h-full overflow-auto rounded-lg bg-slate-900/80 p-4 text-xs text-slate-300 font-mono">
+        <CardContent className="flex-1 min-h-0 overflow-auto">
+          <pre className="h-full rounded-lg bg-slate-900/80 p-4 text-xs text-slate-300 font-mono whitespace-pre-wrap break-words">
             {jsonString}
           </pre>
         </CardContent>
