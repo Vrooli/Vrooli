@@ -20,7 +20,8 @@
       "name": "Unit Testing Architecture",
       "description": "Establishes robust unit test infrastructure including file organization, test isolation, mock organization, testable production code patterns, and systematic edge case coverage structures.",
       "modes": [
-        "Steer"
+        "Steer",
+        "Test"
       ],
       "tags": [
         "testing",
@@ -33,7 +34,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2026-01-30T17:00:00-05:00",
-      "updatedAt": "2026-01-30T17:35:39-05:00"
+      "updatedAt": "2026-01-30T19:01:10-05:00"
     }
   ]
 }
