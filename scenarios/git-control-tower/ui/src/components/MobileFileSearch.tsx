@@ -186,29 +186,101 @@ function groupMatchesByFile(matches: ContentSearchMatch[]): GroupedMatches[] {
   }));
 }
 
-// Highlight search query in content
+// Extract a window of content centered around the match
+function extractMatchWindow(
+  content: string,
+  query: string,
+  isRegex: boolean,
+  caseSensitive: boolean,
+  maxLength: number = 80
+): { text: string; matchStart: number; matchEnd: number; hasEllipsisBefore: boolean; hasEllipsisAfter: boolean } | null {
+  if (!query) return null;
+
+  try {
+    const flags = caseSensitive ? "" : "i";
+    const pattern = isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(pattern, flags);
+    const match = content.match(regex);
+
+    if (!match || match.index === undefined) {
+      return null;
+    }
+
+    const matchStart = match.index;
+    const matchEnd = matchStart + match[0].length;
+
+    if (content.length <= maxLength) {
+      return {
+        text: content,
+        matchStart,
+        matchEnd,
+        hasEllipsisBefore: false,
+        hasEllipsisAfter: false
+      };
+    }
+
+    const matchCenter = matchStart + match[0].length / 2;
+    const halfWindow = Math.floor(maxLength / 2);
+
+    let windowStart = Math.floor(matchCenter - halfWindow);
+    let windowEnd = Math.ceil(matchCenter + halfWindow);
+
+    if (windowStart < 0) {
+      windowEnd = Math.min(content.length, windowEnd - windowStart);
+      windowStart = 0;
+    } else if (windowEnd > content.length) {
+      windowStart = Math.max(0, windowStart - (windowEnd - content.length));
+      windowEnd = content.length;
+    }
+
+    if (matchStart < windowStart) {
+      windowStart = matchStart;
+      windowEnd = Math.min(content.length, windowStart + maxLength);
+    }
+    if (matchEnd > windowEnd) {
+      windowEnd = matchEnd;
+      windowStart = Math.max(0, windowEnd - maxLength);
+    }
+
+    return {
+      text: content.slice(windowStart, windowEnd),
+      matchStart: matchStart - windowStart,
+      matchEnd: matchEnd - windowStart,
+      hasEllipsisBefore: windowStart > 0,
+      hasEllipsisAfter: windowEnd < content.length
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Highlight search query in content, centered around the match
 function highlightContent(content: string, query: string, isRegex: boolean, caseSensitive: boolean): React.ReactNode {
   if (!query) return content;
 
-  try {
-    const flags = caseSensitive ? "g" : "gi";
-    const pattern = isRegex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const regex = new RegExp(`(${pattern})`, flags);
-    const parts = content.split(regex);
+  const window = extractMatchWindow(content, query, isRegex, caseSensitive);
 
-    return parts.map((part, i) => {
-      if (i % 2 === 1) {
-        return (
-          <mark key={i} className="bg-amber-500/30 text-amber-200 rounded px-0.5">
-            {part}
-          </mark>
-        );
-      }
-      return part;
-    });
-  } catch {
-    return content;
+  if (!window) {
+    return content.length > 80 ? content.slice(0, 80) + "…" : content;
   }
+
+  const { text, matchStart, matchEnd, hasEllipsisBefore, hasEllipsisAfter } = window;
+
+  const before = text.slice(0, matchStart);
+  const matchText = text.slice(matchStart, matchEnd);
+  const after = text.slice(matchEnd);
+
+  return (
+    <>
+      {hasEllipsisBefore && <span className="text-slate-500">…</span>}
+      {before}
+      <mark className="bg-amber-500/30 text-amber-200 rounded px-0.5">
+        {matchText}
+      </mark>
+      {after}
+      {hasEllipsisAfter && <span className="text-slate-500">…</span>}
+    </>
+  );
 }
 
 export function MobileFileSearch({ isOpen, onClose, onSelectFile }: MobileFileSearchProps) {
