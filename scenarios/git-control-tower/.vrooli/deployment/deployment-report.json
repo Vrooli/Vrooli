@@ -1,7 +1,7 @@
 {
   "scenario": "git-control-tower",
   "report_version": 1,
-  "generated_at": "2025-12-18T04:03:57.064679966Z",
+  "generated_at": "2026-01-31T23:04:06.382336219Z",
   "dependencies": [
     {
       "name": "ollama",
@@ -216,7 +216,7 @@
   },
   "bundle_manifest": {
     "scenario": "git-control-tower",
-    "generated_at": "2025-12-18T04:03:57.064679966Z",
+    "generated_at": "2026-01-31T23:04:06.382336219Z",
     "files": [
       {
         "path": ".vrooli/service.json",
@@ -231,7 +231,19 @@
       {
         "path": "api/git-control-tower-api",
         "type": "api-binary",
+        "exists": true,
+        "notes": "Detected api component (go)"
+      },
+      {
+        "path": "cli",
+        "type": "cli-source",
         "exists": true
+      },
+      {
+        "path": "cli/git-control-tower",
+        "type": "cli-binary",
+        "exists": true,
+        "notes": "Detected cli component (go)"
       },
       {
         "path": "ui/dist",
@@ -241,12 +253,8 @@
       {
         "path": "ui/dist/index.html",
         "type": "ui-entry",
-        "exists": true
-      },
-      {
-        "path": "cli/git-control-tower",
-        "type": "cli-binary",
-        "exists": true
+        "exists": true,
+        "notes": "Detected UI component (typescript)"
       }
     ],
     "dependencies": [
@@ -415,23 +423,23 @@
         {
           "id": "git-control-tower-api",
           "type": "api-binary",
-          "description": "Bundled API process for git-control-tower",
+          "description": "Bundled api process for git-control-tower",
           "binaries": {
             "darwin-x64": {
-              "path": "api/git-control-tower-api"
+              "path": "bin/api/darwin-x64/git-control-tower-api"
             },
             "linux-x64": {
-              "path": "api/git-control-tower-api"
+              "path": "bin/api/linux-x64/git-control-tower-api"
             },
             "win-x64": {
-              "path": "api/git-control-tower-api.exe"
+              "path": "bin/api/win-x64/git-control-tower-api.exe"
             }
           },
           "build": {
             "type": "go",
             "source_dir": "api",
             "entry_point": ".",
-            "output_pattern": "bin/{{platform}}/git-control-tower-api{{ext}}",
+            "output_pattern": "bin/api/{{platform}}/git-control-tower-api{{ext}}",
             "env": {
               "CGO_ENABLED": "0"
             }
@@ -464,15 +472,58 @@
             "retries": 5
           },
           "readiness": {
-            "type": "port_open",
+            "type": "health_success",
             "port_name": "api",
             "timeout_ms": 30000
           }
         },
         {
+          "id": "git-control-tower-cli",
+          "type": "resource",
+          "description": "cli component for git-control-tower",
+          "binaries": {
+            "darwin-x64": {
+              "path": "bin/cli/darwin-x64/git-control-tower"
+            },
+            "linux-x64": {
+              "path": "bin/cli/linux-x64/git-control-tower"
+            },
+            "win-x64": {
+              "path": "bin/cli/win-x64/git-control-tower.exe"
+            }
+          },
+          "build": {
+            "type": "go",
+            "source_dir": "cli",
+            "entry_point": ".",
+            "output_pattern": "bin/cli/{{platform}}/git-control-tower{{ext}}",
+            "env": {
+              "CGO_ENABLED": "0"
+            }
+          },
+          "env": {
+            "VROOLI_LIFECYCLE_MANAGED": "true"
+          },
+          "health": {
+            "type": "command",
+            "command": [
+              "echo",
+              "healthy"
+            ],
+            "interval_ms": 10000,
+            "timeout_ms": 5000,
+            "retries": 1
+          },
+          "readiness": {
+            "type": "health_success",
+            "port_name": "http",
+            "timeout_ms": 5000
+          }
+        },
+        {
           "id": "ui",
           "type": "ui-bundle",
-          "description": "Production UI bundle served locally",
+          "description": "Production UI bundle for git-control-tower",
           "binaries": {
             "darwin-x64": {
               "path": "ui/dist/index.html"
@@ -502,7 +553,7 @@
           },
           "health": {
             "type": "http",
-            "path": "/",
+            "path": "/health",
             "port_name": "ui",
             "interval_ms": 2000,
             "timeout_ms": 10000,
@@ -520,55 +571,6 @@
             }
           ],
           "critical": true
-        },
-        {
-          "id": "git-control-tower-cli",
-          "type": "resource",
-          "description": "CLI for git-control-tower scenario",
-          "binaries": {
-            "darwin-x64": {
-              "path": "cli/git-control-tower"
-            },
-            "linux-x64": {
-              "path": "cli/git-control-tower"
-            },
-            "win-x64": {
-              "path": "cli/git-control-tower.exe"
-            }
-          },
-          "build": {
-            "type": "go",
-            "source_dir": "cli",
-            "entry_point": ".",
-            "output_pattern": "bin/{{platform}}/git-control-tower{{ext}}",
-            "env": {
-              "CGO_ENABLED": "0"
-            }
-          },
-          "env": {
-            "VROOLI_LIFECYCLE_MANAGED": "true"
-          },
-          "health": {
-            "type": "command",
-            "command": [
-              "echo",
-              "healthy"
-            ],
-            "interval_ms": 10000,
-            "timeout_ms": 5000,
-            "retries": 1
-          },
-          "readiness": {
-            "type": "health_success",
-            "port_name": "http",
-            "timeout_ms": 5000
-          },
-          "assets": [
-            {
-              "path": "cli/git-control-tower",
-              "sha256": "pending"
-            }
-          ]
         }
       ]
     }

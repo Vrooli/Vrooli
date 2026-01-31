@@ -13,7 +13,7 @@ Required reading:
 
 | Scenario | CLI Command |
 |----------|-------------|
-| Convert web app to desktop | `scenario-to-desktop pipeline-run <scenario>` |
+| Convert web app to desktop | `scenario-to-desktop pipeline-run <scenario> --platforms win,mac,linux` |
 | Check build status | `scenario-to-desktop pipeline-status <id>` |
 | Download built installers | `scenario-to-desktop download <scenario> <platform>` |
 | Collect deployment telemetry | `scenario-to-desktop telemetry-ingest <scenario> --file <path>` |
@@ -24,6 +24,23 @@ Required reading:
 - Scenarios without a UI (API-only scenarios)
 - Mobile app generation (out of scope)
 - Bundled offline apps (not production-ready yet)
+
+---
+
+### **1.1 Scope Boundaries**
+
+**In scope:**
+- Converting scenarios with web UIs to cross-platform desktop apps
+- Building installers for Windows (NSIS), macOS (ZIP/DMG), Linux (AppImage/DEB)
+- Code signing configuration and validation
+- Distribution to GitHub Releases, S3, and other targets
+- Deployment telemetry collection and analysis
+
+**Out of scope:**
+- API-only scenarios (no UI)
+- Mobile app generation (iOS/Android)
+- Bundled/offline apps (not production-ready)
+- Web deployment or SaaS packaging
 
 ---
 
@@ -54,6 +71,12 @@ Before generating desktop apps:
 
 ### **3. CLI Command Reference**
 
+**Global Options** (apply to all commands):
+- `--api-base <url>`: Override API base URL (default: auto-detected)
+- `--auto-start`: Auto-start the scenario if not running
+- `--no-color`: Disable ANSI color output
+- `--color`: Force-enable ANSI color output
+
 #### **3.1 Health & Status**
 
 ```bash
@@ -69,7 +92,8 @@ scenario-to-desktop templates [--json]
 
 # Get specific template details
 scenario-to-desktop template <type>
-# Types: universal, advanced, multi_window, kiosk
+# Types: universal (or 'basic' alias), advanced, multi_window, kiosk
+# Note: 'basic' is a backward compatibility alias for 'universal'
 ```
 
 #### **3.3 Pipeline (Main Workflow)**
@@ -77,8 +101,11 @@ scenario-to-desktop template <type>
 The pipeline is the primary way to convert a scenario to desktop. It runs stages: bundle, preflight, generate, build, smoketest, distribution.
 
 ```bash
-# Start a full pipeline run
+# Start a full pipeline run (async - returns immediately)
 scenario-to-desktop pipeline-run <scenario> [--stages <stages>] [--platforms win,mac,linux]
+
+# Start and wait for completion (recommended for agents/scripts)
+scenario-to-desktop pipeline-run <scenario> --wait [--timeout 600]
 
 # Check pipeline status
 scenario-to-desktop pipeline-status <id> [--verbose] [--json]
@@ -92,8 +119,11 @@ scenario-to-desktop pipeline-active <scenario> [--no-create]
 # Create a new pipeline for a scenario
 scenario-to-desktop pipeline-create <scenario>
 
-# Start the active pipeline
+# Start the active pipeline (async)
 scenario-to-desktop pipeline-start <scenario> [--stages <stages>] [--platforms <platforms>]
+
+# Start the active pipeline and wait (recommended for agents/scripts)
+scenario-to-desktop pipeline-start <scenario> --wait [--timeout 600]
 
 # Resume a stopped pipeline
 scenario-to-desktop pipeline-resume <id>
@@ -108,16 +138,27 @@ scenario-to-desktop pipeline-reset <scenario>
 scenario-to-desktop pipeline-history <scenario> [--limit N]
 ```
 
-**Pipeline stages:** `bundle`, `preflight`, `generate`, `build`, `smoketest`, `distribution`
+**Pipeline stages:** `bundle`, `preflight`, `generate`, `build`, `distribution`, `smoketest`
+
+Note: The `distribution` stage is automatically skipped unless `--distribute` is specified. The `smoketest` stage runs after distribution to validate the final artifacts.
+
+**Blocking mode flags:**
+- `--wait`: Block until pipeline completes (recommended for agents and scripts)
+- `--timeout N`: Max wait time in seconds (default: 600, i.e., 10 minutes)
 
 **Example: Full pipeline run**
 ```bash
-# Run full pipeline for all platforms
+# Run full pipeline for all platforms (async)
 scenario-to-desktop pipeline-run my-scenario --platforms win,mac,linux
 
-# Run only generate and build stages
+# Run and wait for completion (blocking)
+scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
+
+# Run only generate and build stages for Linux
 scenario-to-desktop pipeline-run my-scenario --stages generate,build --platforms linux
 ```
+
+**Note:** If `--platforms` is omitted, all platforms (win, mac, linux) are built by default. Verify platform selection in `pipeline-status` output under the `config.platforms` field.
 
 #### **3.4 Download Built Packages**
 
@@ -301,6 +342,17 @@ scenario-to-desktop pipeline-status <pipeline-id> --verbose
 scenario-to-desktop download my-scenario win
 scenario-to-desktop download my-scenario mac
 scenario-to-desktop download my-scenario linux
+
+# 6. Verify downloads
+ls -la *.exe *.AppImage *.zip  # Check files exist
+file my-scenario.AppImage      # Should show: ELF 64-bit LSB executable
+```
+
+**Pipeline success verification:**
+```bash
+# Confirm pipeline completed
+scenario-to-desktop pipeline-status <id> --json | jq '.status'
+# Expected: "completed"
 ```
 
 #### **4.2 Collect User Telemetry**
@@ -368,6 +420,62 @@ scenario-to-desktop distribute my-scenario \
 
 # 4. Monitor distribution
 scenario-to-desktop dist-status <distribution-id>
+
+# 5. Verify distribution completed
+scenario-to-desktop dist-status <distribution-id> --json | jq '.status'
+# Expected: "completed"
+
+# For GitHub Releases, verify via gh CLI
+gh release view v<version> --repo owner/repo
+```
+
+#### **4.5 Agent/Scripted Workflows**
+
+For automated pipelines (agents, CI/CD, scripts), always use `--wait` to block until completion:
+
+```bash
+# Run and wait - blocks until complete, fail, or timeout
+scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
+
+# Check exit code
+if [ $? -eq 0 ]; then
+    echo "Success - downloading artifacts"
+    scenario-to-desktop download my-scenario linux
+else
+    echo "Pipeline failed"
+    exit 1
+fi
+```
+
+**Why use `--wait` for agents:**
+1. Single command to start and wait for completion
+2. Proper exit codes for scripting (0 = success, non-zero = failure)
+3. No need to poll `pipeline-status` manually
+4. Timeout protection prevents indefinite hangs
+
+**Exit codes (with `--wait`):**
+
+| Code | Meaning |
+|------|---------|
+| 0 | Completed successfully |
+| Non-zero | Failed (check error in output) |
+
+**Full automated workflow example:**
+```bash
+#!/bin/bash
+set -e
+
+SCENARIO="my-scenario"
+PLATFORMS="linux"
+TIMEOUT=900
+
+echo "Building desktop app for $SCENARIO..."
+scenario-to-desktop pipeline-run "$SCENARIO" --platforms "$PLATFORMS" --wait --timeout "$TIMEOUT"
+
+echo "Downloading artifacts..."
+scenario-to-desktop download "$SCENARIO" linux --output "${SCENARIO}.AppImage"
+
+echo "Build complete: ${SCENARIO}.AppImage"
 ```
 
 ---
@@ -409,6 +517,16 @@ scenario-to-desktop wine-check
 scenario-to-desktop wine-install --method flatpak-auto
 ```
 
+**"Wine: installed ... - not usable"**
+Wine is installed but not properly configured for use.
+```bash
+# Try reinstalling with a different method
+scenario-to-desktop wine-install --method appimage
+
+# Or verify flatpak Wine configuration
+flatpak run --command=wine org.winehq.Wine --version
+```
+
 #### **7.2 Pipeline Failures**
 
 ```bash
@@ -428,6 +546,41 @@ scenario-to-desktop signing-validate my-scenario
 
 # Check readiness per platform
 scenario-to-desktop signing-ready my-scenario --json
+```
+
+#### **7.4 Bundled Mode Errors**
+
+**"Error: Bundled payload is missing"**
+This error indicates bundled mode was attempted, which is not production-ready.
+
+```bash
+# Ensure you're using thin client mode (default)
+scenario-to-desktop pipeline-run my-scenario --platforms linux
+# Do NOT use --deployment-mode bundled (not supported yet)
+```
+
+#### **7.5 Telemetry Issues**
+
+**"Error: invalid telemetry format"**
+```bash
+# Validate JSONL format
+head -1 telemetry.jsonl | jq .
+
+# Check for corrupted lines
+jq -c . telemetry.jsonl 2>&1 | grep -n "parse error"
+```
+
+**"No telemetry data available"**
+- Verify the app has been run at least once
+- Check platform-specific telemetry paths (Section 3.6)
+- Ensure user has read permissions on the telemetry file
+
+**Telemetry file not found**
+```bash
+# Platform-specific default locations:
+# Windows: %APPDATA%\<App Name>\deployment-telemetry.jsonl
+# macOS:   ~/Library/Application Support/<App Name>/deployment-telemetry.jsonl
+# Linux:   ~/.config/<App Name>/deployment-telemetry.jsonl
 ```
 
 ---

@@ -1,20 +1,6 @@
 {
   "skills": [
     {
-      "id": "new-skill",
-      "file": "skill-validation.md",
-      "name": "Skill Validation",
-      "description": "",
-      "modes": [
-        "Meta"
-      ],
-      "tags": [],
-      "targetToolId": null,
-      "draft": true,
-      "createdAt": "2026-01-30T11:19:51-05:00",
-      "updatedAt": "2026-01-30T11:26:23-05:00"
-    },
-    {
       "id": "unit-testing-architecture-steer",
       "file": "unit-testing-architecture-steer.md",
       "name": "Unit Testing Architecture",

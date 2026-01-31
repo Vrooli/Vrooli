@@ -620,7 +620,7 @@
     {
       "id": "seam-discovery-and-enforcement",
       "file": "seam-discovery-and-enforcement.md",
-      "name": "Seam Discovery \u0026 Enforcement",
+      "name": "Testing Seam Discovery \u0026 Enforcement",
       "description": "Find and strengthen module boundaries and integration points",
       "modes": [
         "Steer",
@@ -633,7 +633,7 @@
       "targetToolId": null,
       "draft": false,
       "createdAt": "2025-01-15T00:00:00Z",
-      "updatedAt": "2025-01-21T00:00:00Z"
+      "updatedAt": "2026-01-31T13:03:44-05:00"
     },
     {
       "id": "signal-and-feedback-surface-design",
@@ -894,6 +894,20 @@
       "draft": false,
       "createdAt": "2026-01-30T20:00:00-05:00",
       "updatedAt": "2026-01-30T19:24:54-05:00"
+    },
+    {
+      "id": "new-skill",
+      "file": "skill-validation.md",
+      "name": "Skill Validation",
+      "description": "",
+      "modes": [
+        "Meta"
+      ],
+      "tags": [],
+      "targetToolId": null,
+      "draft": true,
+      "createdAt": "2026-01-30T11:19:51-05:00",
+      "updatedAt": "2026-01-31T15:55:28-05:00"
     }
   ]
 }
