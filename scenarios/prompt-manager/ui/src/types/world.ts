@@ -1,5 +1,5 @@
 /**
- * Type definitions for the World visualization and member system.
+ * Type definitions for the World visualization and agent system.
  *
  * Note: 3D skill tree types (SkillTreeNode, SkillTreeConnection, SkillTreeData)
  * have been removed. Skill selection now uses the 2D overlay with types defined
@@ -7,39 +7,39 @@
  */
 
 /**
- * Props for member components.
+ * Props for agent components.
  */
-export interface MemberProps {
-  /** Member position in 3D space */
+export interface AgentProps {
+  /** Agent position in 3D space */
   position: [number, number, number]
   /** Current cursor/pointer position for look-at behavior */
   cursorPosition: { x: number; y: number } | null
   /** Currently selected node IDs (may be undefined during initialization) */
   selectedNodes?: string[]
-  /** Whether the member is in an animation state */
+  /** Whether the agent is in an animation state */
   isAnimating: boolean
-  /** Callback when member animation completes */
+  /** Callback when agent animation completes */
   onAnimationComplete?: () => void
-  /** Callback when member is clicked */
-  onMemberClick?: () => void
-  /** Member ID for identification */
-  memberId?: string
-  /** Custom colors for the member */
+  /** Callback when agent is clicked */
+  onAgentClick?: () => void
+  /** Agent ID for identification */
+  agentId?: string
+  /** Custom colors for the agent */
   colors?: {
     body: string
     head: string
     accent: string
   }
-  /** Whether the member is seated on furniture */
+  /** Whether the agent is seated on furniture */
   isSeated?: boolean
   /** Rotation when seated (radians) */
   seatRotation?: number
 }
 
 /**
- * Member behavior states.
+ * Agent behavior states.
  */
-export type MemberState =
+export type AgentState =
   | 'idle'
   | 'looking'
   | 'waving'
@@ -47,23 +47,23 @@ export type MemberState =
   | 'thinking'
 
 /**
- * Configuration for member dependency injection.
+ * Configuration for agent dependency injection.
  */
-export interface MemberConfig {
-  /** The member component to render */
-  Component: React.ComponentType<MemberProps>
-  /** Optional function to preload member assets */
+export interface AgentConfig {
+  /** The agent component to render */
+  Component: React.ComponentType<AgentProps>
+  /** Optional function to preload agent assets */
   preloadAssets?: () => Promise<void>
-  /** Display name for the member */
+  /** Display name for the agent */
   displayName: string
-  /** Description of the member */
+  /** Description of the agent */
   description?: string
 }
 
 /**
- * Registry of available members.
+ * Registry of available agents.
  */
-export type MemberRegistry = Record<string, MemberConfig>
+export type AgentRegistry = Record<string, AgentConfig>
 
 /**
  * Selection mode for multi-select behavior.

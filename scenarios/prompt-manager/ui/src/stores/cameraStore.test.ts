@@ -4,7 +4,7 @@
  * Tests cover:
  * - Camera position and target
  * - Camera modes
- * - Zoom to member functionality
+ * - Zoom to agent functionality
  * - History management
  * - Mode cycling
  */
@@ -20,7 +20,7 @@ describe('cameraStore', () => {
       target: [0, 0, 0],
       zoom: 1,
       mode: 'freeform',
-      focusedMemberId: null,
+      focusedAgentId: null,
       history: [],
       isAnimating: false,
     })
@@ -47,9 +47,9 @@ describe('cameraStore', () => {
       expect(state.target).toEqual([0, 0, 0])
     })
 
-    it('should start with no focused member', () => {
+    it('should start with no focused agent', () => {
       const state = useCameraStore.getState()
-      expect(state.focusedMemberId).toBeNull()
+      expect(state.focusedAgentId).toBeNull()
     })
 
     it('should start with empty history', () => {
@@ -98,47 +98,47 @@ describe('cameraStore', () => {
     })
   })
 
-  describe('zoomToMember', () => {
-    it('should set mode to zoomed-member', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
-      expect(useCameraStore.getState().mode).toBe('zoomed-member')
+  describe('zoomToAgent', () => {
+    it('should set mode to zoomed-agent', () => {
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
+      expect(useCameraStore.getState().mode).toBe('zoomed-agent')
     })
 
-    it('should set focused member id', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
-      expect(useCameraStore.getState().focusedMemberId).toBe('member-1')
+    it('should set focused agent id', () => {
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
+      expect(useCameraStore.getState().focusedAgentId).toBe('agent-1')
     })
 
-    it('should calculate camera position based on member position', () => {
-      useCameraStore.getState().zoomToMember('member-1', [5, 0, 3])
+    it('should calculate camera position based on agent position', () => {
+      useCameraStore.getState().zoomToAgent('agent-1', [5, 0, 3])
 
       const state = useCameraStore.getState()
-      // Camera should be above and in front of member
-      expect(state.position).toEqual([5, 2, 8]) // member pos + [0, 2, 5]
+      // Camera should be above and in front of agent
+      expect(state.position).toEqual([5, 2, 8]) // agent pos + [0, 2, 5]
     })
 
-    it('should set target to member position', () => {
-      useCameraStore.getState().zoomToMember('member-1', [5, 0, 3])
+    it('should set target to agent position', () => {
+      useCameraStore.getState().zoomToAgent('agent-1', [5, 0, 3])
       expect(useCameraStore.getState().target).toEqual([5, 0, 3])
     })
 
     it('should set zoom to 2', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
       expect(useCameraStore.getState().zoom).toBe(2)
     })
 
     it('should push current state to history', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
       expect(useCameraStore.getState().history).toHaveLength(1)
     })
 
     it('should set animating to true', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
       expect(useCameraStore.getState().isAnimating).toBe(true)
     })
 
     it('should reset animating after timeout', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
 
       vi.advanceTimersByTime(1000)
 
@@ -156,8 +156,8 @@ describe('cameraStore', () => {
         mode: 'freeform',
       })
 
-      // Zoom to member
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+      // Zoom to agent
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
 
       // Exit zoom
       useCameraStore.getState().exitZoom()
@@ -169,11 +169,11 @@ describe('cameraStore', () => {
       expect(state.mode).toBe('freeform')
     })
 
-    it('should clear focused member', () => {
-      useCameraStore.getState().zoomToMember('member-1', [0, 0, 0])
+    it('should clear focused agent', () => {
+      useCameraStore.getState().zoomToAgent('agent-1', [0, 0, 0])
       useCameraStore.getState().exitZoom()
 
-      expect(useCameraStore.getState().focusedMemberId).toBeNull()
+      expect(useCameraStore.getState().focusedAgentId).toBeNull()
     })
 
     it('should return to default when no history', () => {
@@ -207,10 +207,10 @@ describe('cameraStore', () => {
       expect(useCameraStore.getState().history).toHaveLength(1)
     })
 
-    it('should clear focused member', () => {
-      useCameraStore.setState({ focusedMemberId: 'member-1' })
+    it('should clear focused agent', () => {
+      useCameraStore.setState({ focusedAgentId: 'agent-1' })
       useCameraStore.getState().setTopDown()
-      expect(useCameraStore.getState().focusedMemberId).toBeNull()
+      expect(useCameraStore.getState().focusedAgentId).toBeNull()
     })
   })
 
@@ -234,8 +234,8 @@ describe('cameraStore', () => {
   })
 
   describe('cycleCameraMode', () => {
-    it('should cycle from zoomed-member to freeform', () => {
-      useCameraStore.setState({ mode: 'zoomed-member' })
+    it('should cycle from zoomed-agent to freeform', () => {
+      useCameraStore.setState({ mode: 'zoomed-agent' })
       useCameraStore.getState().cycleCameraMode()
 
       expect(useCameraStore.getState().mode).toBe('freeform')
@@ -248,15 +248,15 @@ describe('cameraStore', () => {
       expect(useCameraStore.getState().mode).toBe('top-down')
     })
 
-    it('should cycle from top-down to zoomed-member when member provided', () => {
+    it('should cycle from top-down to zoomed-agent when agent provided', () => {
       useCameraStore.setState({ mode: 'top-down' })
-      useCameraStore.getState().cycleCameraMode('member-1', [0, 0, 0])
+      useCameraStore.getState().cycleCameraMode('agent-1', [0, 0, 0])
 
-      expect(useCameraStore.getState().mode).toBe('zoomed-member')
-      expect(useCameraStore.getState().focusedMemberId).toBe('member-1')
+      expect(useCameraStore.getState().mode).toBe('zoomed-agent')
+      expect(useCameraStore.getState().focusedAgentId).toBe('agent-1')
     })
 
-    it('should cycle from top-down to freeform when no member provided', () => {
+    it('should cycle from top-down to freeform when no agent provided', () => {
       useCameraStore.setState({ mode: 'top-down' })
       useCameraStore.getState().cycleCameraMode()
 

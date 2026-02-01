@@ -1,5 +1,5 @@
 /**
- * MemberOverlay - Overlay UI that appears when camera is zoomed to a member.
+ * AgentOverlay - Overlay UI that appears when camera is zoomed to an agent.
  *
  * Features:
  * - Close button to exit zoom
@@ -10,10 +10,10 @@
 import { useState, useRef, useCallback } from 'react'
 import { X, Palette, Zap, Copy, Trash2, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Member } from '@/types/member'
+import type { Agent } from '@/types/agent'
 
-interface MemberOverlayProps {
-  member: Member | null
+interface AgentOverlayProps {
+  agent: Agent | null
   isVisible: boolean
   onClose: () => void
   onCustomize: () => void
@@ -23,17 +23,17 @@ interface MemberOverlayProps {
 }
 
 /**
- * Member overlay component for quick actions.
+ * Agent overlay component for quick actions.
  */
-export function MemberOverlay({
-  member,
+export function AgentOverlay({
+  agent,
   isVisible,
   onClose,
   onCustomize,
   onSetSkills,
   onDuplicate,
   onDelete,
-}: MemberOverlayProps) {
+}: AgentOverlayProps) {
   // Drag state
   const [position, setPosition] = useState({ x: 20, y: 20 })
   const [isDragging, setIsDragging] = useState(false)
@@ -76,7 +76,10 @@ export function MemberOverlay({
     window.addEventListener('mouseup', handleUp)
   }, [])
 
-  if (!isVisible || !member) return null
+  if (!isVisible || !agent) return null
+
+  const bodyColor = agent.appearance?.body ?? '#6366f1'
+  const headColor = agent.appearance?.head ?? '#a5b4fc'
 
   return (
     <div
@@ -108,21 +111,21 @@ export function MemberOverlay({
           <GripVertical className="h-4 w-4" />
         </button>
 
-        {/* Member info */}
+        {/* Agent info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            {/* Mini member preview */}
+            {/* Mini agent preview */}
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: member.bodyColor }}
+              style={{ backgroundColor: bodyColor }}
             >
               <div
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: member.headColor }}
+                style={{ backgroundColor: headColor }}
               />
             </div>
             <span className="text-sm font-medium text-foreground truncate">
-              {member.name}
+              {agent.displayName}
             </span>
           </div>
         </div>
@@ -152,7 +155,7 @@ export function MemberOverlay({
         <OverlayButton
           icon={<Zap className="h-4 w-4" />}
           label="Set Skills"
-          description={`${member.skills.length} skills assigned`}
+          description={`${agent.skills.length} skills assigned`}
           onClick={onSetSkills}
         />
         <OverlayButton
@@ -164,18 +167,18 @@ export function MemberOverlay({
         <OverlayButton
           icon={<Trash2 className="h-4 w-4" />}
           label="Delete"
-          description="Remove this member"
+          description="Remove this agent"
           onClick={onDelete}
           variant="danger"
         />
       </div>
 
       {/* Skills preview */}
-      {member.skills.length > 0 && (
+      {agent.skills.length > 0 && (
         <div className="px-3 pb-3">
           <p className="text-xs text-muted-foreground mb-1">Assigned Skills:</p>
           <div className="flex flex-wrap gap-1">
-            {member.skills.slice(0, 4).map((skillId) => (
+            {agent.skills.slice(0, 4).map((skillId) => (
               <span
                 key={skillId}
                 className="px-1.5 py-0.5 text-[10px] bg-primary/20 text-primary rounded"
@@ -183,9 +186,9 @@ export function MemberOverlay({
                 {skillId.substring(0, 8)}...
               </span>
             ))}
-            {member.skills.length > 4 && (
+            {agent.skills.length > 4 && (
               <span className="px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                +{member.skills.length - 4} more
+                +{agent.skills.length - 4} more
               </span>
             )}
           </div>

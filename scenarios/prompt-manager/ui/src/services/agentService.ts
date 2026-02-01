@@ -135,9 +135,9 @@ export async function getEffectiveSkills(agentId: string, teamId?: string): Prom
   }
 }
 
-// Re-export animation utilities from memberService for convenience
+// Re-export animation utilities from agentAnimationService for convenience
 export {
-  MemberStateMachine,
+  AgentStateMachine,
   calculateLookRotation,
   calculateIdleSway,
   calculateWaveAnimation,
@@ -145,4 +145,4 @@ export {
   easing,
   lerp,
   lerpPosition,
-} from './memberService'
+} from './agentAnimationService'

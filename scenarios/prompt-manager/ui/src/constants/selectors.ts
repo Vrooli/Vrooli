@@ -11,7 +11,7 @@ const literalSelectors = {
   sidebar: {
     container: 'skill-sidebar',
     tabSkills: 'skill-sidebar-tab-skills',
-    tabMembers: 'skill-sidebar-tab-members',
+    tabAgents: 'skill-sidebar-tab-agents',
     searchInput: 'skill-sidebar-search-input',
     emptyState: 'skill-sidebar-empty-state',
     skillRow: 'skill-sidebar-skill-row',
@@ -29,10 +29,15 @@ const literalSelectors = {
     saveAllButton: 'skill-editor-save-all-button',
     discardButton: 'skill-editor-discard-button',
   },
-  members: {
-    list: 'member-list',
-    newButton: 'member-new-button',
-    row: 'member-row',
+  agents: {
+    list: 'agent-list',
+    newButton: 'agent-new-button',
+    row: 'agent-row',
+  },
+  agentEditor: {
+    header: 'agent-editor-header',
+    nameDisplay: 'agent-editor-name-display',
+    nameInput: 'agent-editor-name-input',
   },
   world: {
     canvas: 'world-canvas',

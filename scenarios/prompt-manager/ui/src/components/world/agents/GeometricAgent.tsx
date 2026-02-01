@@ -1,25 +1,25 @@
 /**
- * GeometricMember - A 3D geometric member built with Three.js primitives.
+ * GeometricAgent - A 3D geometric agent built with Three.js primitives.
  * Features cursor tracking, idle animations, reaction animations, and hover effects.
  *
  * LOD System Integration:
- * - Cursor tracking disabled for distant members (LOD low/culled)
+ * - Cursor tracking disabled for distant agents (LOD low/culled)
  * - Animations simplified for medium LOD
  * - Hover disabled for low/culled LOD
  */
-// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#geometricmember-anatomy
+// DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#geometricagent-anatomy
 
 import { useRef, useMemo, useCallback, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { MeshWobbleMaterial } from '@react-three/drei'
 import type { Group, Mesh } from 'three'
 import * as THREE from 'three'
-import type { MemberProps } from '@/types/world'
+import type { AgentProps } from '@/types/world'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
 import { useLODStore } from '@/stores/lodStore'
 import type { LODLevel } from '@/types/lod'
 
-// Default member colors
+// Default agent colors
 const DEFAULT_COLORS = {
   body: '#6366f1', // Indigo
   head: '#818cf8', // Light indigo
@@ -29,17 +29,17 @@ const DEFAULT_COLORS = {
   glow: '#c7d2fe',
 }
 
-export function GeometricMember({
+export function GeometricAgent({
   position,
   cursorPosition,
   selectedNodes: selectedNodesProp,
   isAnimating: _isAnimating,
-  onMemberClick,
+  onAgentClick,
   colors,
-  memberId,
+  agentId,
   isSeated = false,
   seatRotation = 0,
-}: MemberProps) {
+}: AgentProps) {
   void _isAnimating // Reserved for future animation triggers
 
   const { camera } = useThree()
@@ -51,12 +51,12 @@ export function GeometricMember({
   const lodLevelRef = useRef<LODLevel>('high')
   const lodDistanceRef = useRef<number>(0)
   const lodFrameCountRef = useRef<number>(0)
-  const objectIdRef = useRef(memberId ?? `member-${Math.random().toString(36).slice(2)}`)
+  const objectIdRef = useRef(agentId ?? `agent-${Math.random().toString(36).slice(2)}`)
 
-  // Hover highlighting - only if memberId is provided and LOD allows
-  // Note: isHovered is used by MemberWithAccessories which wraps this component
-  const { hoverProps } = useHoverHighlight(memberId ?? 'unknown', {
-    enabled: !!memberId && (lodLevelRef.current === 'high' || lodLevelRef.current === 'medium'),
+  // Hover highlighting - only if agentId is provided and LOD allows
+  // Note: isHovered is used by AgentWithAccessories which wraps this component
+  const { hoverProps } = useHoverHighlight(agentId ?? 'unknown', {
+    enabled: !!agentId && (lodLevelRef.current === 'high' || lodLevelRef.current === 'medium'),
   })
 
   // Merge custom colors with defaults
@@ -134,13 +134,13 @@ export function GeometricMember({
     [COLORS]
   )
 
-  // Handle click on member
+  // Handle click on agent
   const handleClick = useCallback(
     (event: { stopPropagation: () => void }) => {
       event.stopPropagation()
-      onMemberClick?.()
+      onAgentClick?.()
     },
-    [onMemberClick]
+    [onAgentClick]
   )
 
   // Animation loop with LOD-based optimization
@@ -334,7 +334,7 @@ export function GeometricMember({
         </mesh>
       </group>
 
-      {/* Floating orbs around member when selected */}
+      {/* Floating orbs around agent when selected */}
       {selectedNodes.length > 0 && (
         <group>
           {selectedNodes.slice(0, 5).map((_, i) => (
@@ -351,7 +351,7 @@ export function GeometricMember({
 }
 
 /**
- * Floating orb particle that orbits the member.
+ * Floating orb particle that orbits the agent.
  */
 function FloatingOrb({ index, total }: { index: number; total: number }) {
   const meshRef = useRef<Mesh>(null)

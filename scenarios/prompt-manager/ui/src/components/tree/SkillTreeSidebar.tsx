@@ -6,7 +6,7 @@
  * - Mode-based tree navigation
  * - Search filtering
  * - Tag filtering
- * - Skill selection mode for members
+ * - Skill selection mode for agents
  * - Dirty indicators
  * - Collapse/expand controls
  * - New skill button
@@ -18,13 +18,13 @@ import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Se
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType } from '@/types'
-import type { Member } from '@/types/member'
+import type { Agent } from '@/types/agent'
 import type { CombineFormat } from '@/stores/combineStore'
 import { TreeNodeComponent } from './TreeNode'
 import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
 import { FolderFilterChips } from './FolderFilterChips'
-import { MemberListPanel } from '../member/MemberListPanel'
+import { AgentListPanel } from '../agent/AgentListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
@@ -32,6 +32,7 @@ import { CombineActionBar } from './CombineActionBar'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { getAISearchStatus } from '@/services/skillService'
 import { selectors } from '@/constants/selectors'
+import { useSelectionStore } from '@/stores/selectionStore'
 
 interface SkillTreeSidebarProps {
   treeNodes: TreeNode[]
@@ -64,7 +65,7 @@ interface SkillTreeSidebarProps {
   // Skill selection mode props
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
-  currentMember: Member | null
+  currentAgent: Agent | null
   onSkillSelectionSave: () => void
   onSkillSelectionCancel: () => void
   getSkillSelectionState: (node: TreeNode) => 'none' | 'partial' | 'all'
@@ -119,7 +120,7 @@ export function SkillTreeSidebar({
   availableFolders,
   skillSelectionMode,
   skillSelectedIds,
-  currentMember,
+  currentAgent,
   onSkillSelectionSave,
   onSkillSelectionCancel,
   getSkillSelectionState,
@@ -149,8 +150,9 @@ export function SkillTreeSidebar({
   const [isTagPopoverOpen, setIsTagPopoverOpen] = useState(false)
   const tagFilterRef = useRef<HTMLDivElement>(null)
 
-  // Member state
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+  // Agent selection from centralized store
+  const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
+  const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
 
   // Active tab state - locked to skills when in skill selection mode
   const [activeTab, setActiveTab] = useState('skills')
@@ -339,15 +341,15 @@ export function SkillTreeSidebar({
                   Combine Mode
                 </span>
               </div>
-            ) : skillSelectionMode && currentMember ? (
+            ) : skillSelectionMode && currentAgent ? (
               <div className="flex items-center gap-2">
                 <div
                   className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: currentMember.bodyColor }}
+                  style={{ backgroundColor: currentAgent.appearance?.body ?? '#6366f1' }}
                 >
                   <div
                     className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: currentMember.headColor }}
+                    style={{ backgroundColor: currentAgent.appearance?.head ?? '#818cf8' }}
                   />
                 </div>
                 <span className="text-xs font-medium text-foreground">
@@ -409,7 +411,7 @@ export function SkillTreeSidebar({
             Skills
           </Tabs.Trigger>
           <Tabs.Trigger
-            value="members"
+            value="agents"
             disabled={skillSelectionMode}
             className={cn(
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
@@ -419,10 +421,10 @@ export function SkillTreeSidebar({
               'transition-colors',
               skillSelectionMode && 'opacity-50 cursor-not-allowed'
             )}
-            data-testid={selectors.sidebar.tabMembers}
+            data-testid={selectors.sidebar.tabAgents}
           >
             <User className="h-3.5 w-3.5" />
-            Members
+            Agents
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -653,13 +655,11 @@ export function SkillTreeSidebar({
           </div>
         </Tabs.Content>
 
-        {/* Members Tab */}
-        <Tabs.Content value="members" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
-          <MemberListPanel
-            selectedMemberId={selectedMemberId}
-            onSelectMember={setSelectedMemberId}
-            onCreateMember={() => {}}
-            onDeleteMember={() => {}}
+        {/* Agents Tab */}
+        <Tabs.Content value="agents" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <AgentListPanel
+            selectedAgentId={selectedAgentId}
+            onSelectAgent={setSelectedAgentId}
             className="flex-1"
           />
         </Tabs.Content>

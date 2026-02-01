@@ -19,6 +19,7 @@ describe('selectionStore', () => {
     useSelectionStore.setState({
       selectedSkillId: null,
       selectedSkillIds: [],
+      selectedAgentId: null,
     })
   })
 
@@ -31,6 +32,11 @@ describe('selectionStore', () => {
     it('should start with empty selectedSkillIds', () => {
       const state = useSelectionStore.getState()
       expect(state.selectedSkillIds).toEqual([])
+    })
+
+    it('should start with null selectedAgentId', () => {
+      const state = useSelectionStore.getState()
+      expect(state.selectedAgentId).toBeNull()
     })
   })
 
@@ -198,6 +204,61 @@ describe('selectionStore', () => {
       const state = useSelectionStore.getState()
       expect(state.selectedSkillId).toBeNull()
       expect(state.selectedSkillIds).toEqual([])
+    })
+
+    it('should also clear agent selection', () => {
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+      useSelectionStore.getState().clearAllSelection()
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedAgentId).toBeNull()
+    })
+  })
+
+  describe('setSelectedAgentId', () => {
+    it('should set agent selection', () => {
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedAgentId).toBe('agent-1')
+    })
+
+    it('should clear skill selection when selecting agent', () => {
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedSkillIds).toEqual([])
+      expect(state.selectedAgentId).toBe('agent-1')
+    })
+
+    it('should clear agent selection when set to null', () => {
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+      useSelectionStore.getState().setSelectedAgentId(null)
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedAgentId).toBeNull()
+    })
+  })
+
+  describe('skill and agent selection mutual exclusivity', () => {
+    it('should clear agent selection when selecting skill', () => {
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedAgentId).toBeNull()
+      expect(state.selectedSkillId).toBe('skill-1')
+    })
+
+    it('should clear skill selection when selecting agent', () => {
+      useSelectionStore.getState().setSelectedSkillId('skill-1')
+      useSelectionStore.getState().setSelectedAgentId('agent-1')
+
+      const state = useSelectionStore.getState()
+      expect(state.selectedSkillId).toBeNull()
+      expect(state.selectedAgentId).toBe('agent-1')
     })
   })
 })

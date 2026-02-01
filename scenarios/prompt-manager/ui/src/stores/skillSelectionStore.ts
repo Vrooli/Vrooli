@@ -2,19 +2,19 @@
  * Zustand store for skill selection mode state.
  *
  * This store manages the skill selection mode that allows users to assign
- * skills to members. It's shared between:
+ * skills to agents. It's shared between:
  * - WorldCanvas (triggers entering skill selection mode)
  * - SkillTreeSidebar (shows checkboxes and handles selection)
  */
 
 import { create } from 'zustand'
-import type { Member } from '@/types/member'
+import type { Agent } from '@/types/agent'
 
 interface SkillSelectionStore {
   // Mode state
   isActive: boolean
-  currentMemberId: string | null
-  currentMember: Member | null
+  currentAgentId: string | null
+  currentAgent: Agent | null
 
   // Selection state
   selectedSkillIds: Set<string>
@@ -24,7 +24,7 @@ interface SkillSelectionStore {
 
   // Actions
   enterSkillSelectionMode: (
-    member: Member,
+    agent: Agent,
     currentSkills: string[],
     onSave: (skillIds: string[]) => Promise<void>
   ) => void
@@ -36,16 +36,16 @@ interface SkillSelectionStore {
 
 export const useSkillSelectionStore = create<SkillSelectionStore>((set, get) => ({
   isActive: false,
-  currentMemberId: null,
-  currentMember: null,
+  currentAgentId: null,
+  currentAgent: null,
   selectedSkillIds: new Set(),
   onSave: null,
 
-  enterSkillSelectionMode: (member, currentSkills, onSave) => {
+  enterSkillSelectionMode: (agent, currentSkills, onSave) => {
     set({
       isActive: true,
-      currentMemberId: member.id,
-      currentMember: member,
+      currentAgentId: agent.id,
+      currentAgent: agent,
       selectedSkillIds: new Set(currentSkills),
       onSave,
     })
@@ -54,8 +54,8 @@ export const useSkillSelectionStore = create<SkillSelectionStore>((set, get) => 
   exitSkillSelectionMode: () => {
     set({
       isActive: false,
-      currentMemberId: null,
-      currentMember: null,
+      currentAgentId: null,
+      currentAgent: null,
       selectedSkillIds: new Set(),
       onSave: null,
     })

@@ -6,7 +6,7 @@
  * - Selected item tracking
  * - Search/filter state
  * - Tag filtering
- * - Skill selection mode for members
+ * - Skill selection mode for agents
  * - Auto-expand to selected item
  */
 
@@ -71,8 +71,8 @@ interface UseSkillTreeReturn {
   // Skill selection mode
   skillSelectionMode: boolean
   skillSelectedIds: Set<string>
-  currentMemberId: string | null
-  enterSkillSelectionMode: (memberId: string, currentSkills: string[]) => void
+  currentAgentId: string | null
+  enterSkillSelectionMode: (agentId: string, currentSkills: string[]) => void
   exitSkillSelectionMode: () => void
   toggleSkillSelection: (skillId: string) => void
   toggleFolderSkillSelection: (node: TreeNode) => void
@@ -117,7 +117,7 @@ export function useSkillTree({
   // Skill selection mode state
   const [skillSelectionMode, setSkillSelectionMode] = useState(false)
   const [skillSelectedIds, setSkillSelectedIds] = useState<Set<string>>(new Set())
-  const [currentMemberId, setCurrentMemberId] = useState<string | null>(null)
+  const [currentAgentId, setCurrentMemberId] = useState<string | null>(null)
 
   // Sidebar collapse state (initialized from persistence)
   const [isCollapsed, setIsCollapsed] = useState(initialIsCollapsed)
@@ -208,9 +208,9 @@ export function useSkillTree({
   }, [])
 
   // Skill selection mode functions
-  const enterSkillSelectionMode = useCallback((memberId: string, currentSkills: string[]) => {
+  const enterSkillSelectionMode = useCallback((agentId: string, currentSkills: string[]) => {
     setSkillSelectionMode(true)
-    setCurrentMemberId(memberId)
+    setCurrentMemberId(agentId)
     setSkillSelectedIds(new Set(currentSkills))
   }, [])
 
@@ -331,7 +331,7 @@ export function useSkillTree({
     // Skill selection mode
     skillSelectionMode,
     skillSelectedIds,
-    currentMemberId,
+    currentAgentId,
     enterSkillSelectionMode,
     exitSkillSelectionMode,
     toggleSkillSelection,

@@ -1,6 +1,6 @@
 /**
  * FurnitureContextMenu - Context menu for furniture interactions.
- * Shows options to sit members, move, or delete furniture.
+ * Shows options to sit agents, move, or delete furniture.
  */
 
 import { useCallback, useMemo } from 'react'
@@ -9,15 +9,15 @@ import { Button } from '@/components/ui/button'
 import { useFurnitureStore } from '@/stores/furnitureStore'
 import { useWorldEditorStore } from '@/stores/worldEditorStore'
 import { FURNITURE_CONFIGS, type FurnitureInstance } from '@/types/furniture'
-import type { Member } from '@/types/member'
+import type { Agent } from '@/types/agent'
 
 interface FurnitureContextMenuProps {
   furniture: FurnitureInstance | null
-  members: Member[]
+  agents: Agent[]
   onClose: () => void
-  onSitMember: (memberId: string, furnitureId: string, seatIndex: number) => void
-  onUnsitMember: (memberId: string) => void
-  seatedMembers: Map<string, { furnitureId: string; seatIndex: number }>
+  onSitAgent: (agentId: string, furnitureId: string, seatIndex: number) => void
+  onUnsitAgent: (agentId: string) => void
+  seatedAgents: Map<string, { furnitureId: string; seatIndex: number }>
   className?: string
 }
 
@@ -26,11 +26,11 @@ interface FurnitureContextMenuProps {
  */
 export function FurnitureContextMenu({
   furniture,
-  members,
+  agents,
   onClose,
-  onSitMember,
-  onUnsitMember,
-  seatedMembers,
+  onSitAgent,
+  onUnsitAgent,
+  seatedAgents,
   className,
 }: FurnitureContextMenuProps) {
   const removeFurniture = useFurnitureStore((state) => state.removeFurniture)
@@ -45,38 +45,38 @@ export function FurnitureContextMenu({
   // Find which seats are occupied
   const occupiedSeats = useMemo(() => {
     const occupied = new Set<number>()
-    seatedMembers.forEach((seat) => {
+    seatedAgents.forEach((seat) => {
       if (seat.furnitureId === furniture?.id) {
         occupied.add(seat.seatIndex)
       }
     })
     return occupied
-  }, [seatedMembers, furniture?.id])
+  }, [seatedAgents, furniture?.id])
 
   // Find available seats
   const availableSeats = useMemo(() => {
     return seats.map((_, index) => index).filter((index) => !occupiedSeats.has(index))
   }, [seats, occupiedSeats])
 
-  // Members who are not seated anywhere
-  const unseatedMembers = useMemo(() => {
-    const seatedMemberIds = new Set(seatedMembers.keys())
-    return members.filter((m) => !seatedMemberIds.has(m.id))
-  }, [members, seatedMembers])
+  // Agents who are not seated anywhere
+  const unseatedAgents = useMemo(() => {
+    const seatedAgentIds = new Set(seatedAgents.keys())
+    return agents.filter((a) => !seatedAgentIds.has(a.id))
+  }, [agents, seatedAgents])
 
-  // Members seated on this furniture
-  const membersOnThisFurniture = useMemo(() => {
-    const result: Array<{ member: Member; seatIndex: number }> = []
-    seatedMembers.forEach((seat, memberId) => {
+  // Agents seated on this furniture
+  const agentsOnThisFurniture = useMemo(() => {
+    const result: Array<{ agent: Agent; seatIndex: number }> = []
+    seatedAgents.forEach((seat, agentId) => {
       if (seat.furnitureId === furniture?.id) {
-        const member = members.find((m) => m.id === memberId)
-        if (member) {
-          result.push({ member, seatIndex: seat.seatIndex })
+        const agent = agents.find((a) => a.id === agentId)
+        if (agent) {
+          result.push({ agent, seatIndex: seat.seatIndex })
         }
       }
     })
     return result
-  }, [seatedMembers, furniture?.id, members])
+  }, [seatedAgents, furniture?.id, agents])
 
   const handleMove = useCallback(() => {
     if (!furniture) return
@@ -87,29 +87,29 @@ export function FurnitureContextMenu({
 
   const handleDelete = useCallback(() => {
     if (!furniture) return
-    // First unsit any members on this furniture
-    membersOnThisFurniture.forEach(({ member }) => {
-      onUnsitMember(member.id)
+    // First unsit any agents on this furniture
+    agentsOnThisFurniture.forEach(({ agent }) => {
+      onUnsitAgent(agent.id)
     })
     removeFurniture(furniture.id)
     onClose()
-  }, [furniture, membersOnThisFurniture, onUnsitMember, removeFurniture, onClose])
+  }, [furniture, agentsOnThisFurniture, onUnsitAgent, removeFurniture, onClose])
 
-  const handleSitMember = useCallback(
-    (memberId: string) => {
+  const handleSitAgent = useCallback(
+    (agentId: string) => {
       const firstSeat = availableSeats[0]
       if (!furniture || firstSeat === undefined) return
       // Sit on the first available seat
-      onSitMember(memberId, furniture.id, firstSeat)
+      onSitAgent(agentId, furniture.id, firstSeat)
     },
-    [furniture, availableSeats, onSitMember]
+    [furniture, availableSeats, onSitAgent]
   )
 
-  const handleUnsitMember = useCallback(
-    (memberId: string) => {
-      onUnsitMember(memberId)
+  const handleUnsitAgent = useCallback(
+    (agentId: string) => {
+      onUnsitAgent(agentId)
     },
-    [onUnsitMember]
+    [onUnsitAgent]
   )
 
   if (!furniture) {
@@ -141,28 +141,28 @@ export function FurnitureContextMenu({
         </Button>
       </div>
 
-      {/* Seated Members */}
-      {membersOnThisFurniture.length > 0 && (
+      {/* Seated Agents */}
+      {agentsOnThisFurniture.length > 0 && (
         <div className="mb-3">
           <div className="text-xs text-slate-400 mb-1.5">Seated</div>
           <div className="space-y-1">
-            {membersOnThisFurniture.map(({ member, seatIndex }) => (
+            {agentsOnThisFurniture.map(({ agent, seatIndex }) => (
               <div
-                key={member.id}
+                key={agent.id}
                 className="flex items-center justify-between p-1.5 bg-slate-700/50 rounded"
               >
                 <div className="flex items-center gap-2">
                   <div
                     className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: member.bodyColor }}
+                    style={{ backgroundColor: agent.appearance?.body ?? '#6366f1' }}
                   />
-                  <span className="text-xs text-slate-300">{member.name}</span>
+                  <span className="text-xs text-slate-300">{agent.displayName}</span>
                   <span className="text-xs text-slate-500">Seat {seatIndex + 1}</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleUnsitMember(member.id)}
+                  onClick={() => handleUnsitAgent(agent.id)}
                   className="h-5 px-1 text-xs text-slate-400 hover:text-slate-200"
                 >
                   Stand
@@ -173,18 +173,18 @@ export function FurnitureContextMenu({
         </div>
       )}
 
-      {/* Sit Member Section */}
-      {hasSeat && availableSeats.length > 0 && unseatedMembers.length > 0 && (
+      {/* Sit Agent Section */}
+      {hasSeat && availableSeats.length > 0 && unseatedAgents.length > 0 && (
         <div className="mb-3">
           <div className="text-xs text-slate-400 mb-1.5 flex items-center gap-1">
             <UserPlus className="h-3 w-3" />
-            Sit Member ({availableSeats.length} seat{availableSeats.length !== 1 ? 's' : ''} available)
+            Sit Agent ({availableSeats.length} seat{availableSeats.length !== 1 ? 's' : ''} available)
           </div>
           <div className="max-h-32 overflow-y-auto space-y-1">
-            {unseatedMembers.map((member) => (
+            {unseatedAgents.map((agent) => (
               <button
-                key={member.id}
-                onClick={() => handleSitMember(member.id)}
+                key={agent.id}
+                onClick={() => handleSitAgent(agent.id)}
                 className="
                   w-full flex items-center gap-2 p-1.5
                   bg-slate-700/30 hover:bg-slate-600/50
@@ -193,9 +193,9 @@ export function FurnitureContextMenu({
               >
                 <div
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: member.bodyColor }}
+                  style={{ backgroundColor: agent.appearance?.body ?? '#6366f1' }}
                 />
-                <span className="text-xs text-slate-300">{member.name}</span>
+                <span className="text-xs text-slate-300">{agent.displayName}</span>
               </button>
             ))}
           </div>

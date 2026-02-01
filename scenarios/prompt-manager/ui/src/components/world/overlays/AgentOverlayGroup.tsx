@@ -1,5 +1,5 @@
 /**
- * MemberOverlayGroup - Combines all overlays for a member.
+ * AgentOverlayGroup - Combines all overlays for an agent.
  * Manages the composition and layering of name tags, status icons, etc.
  */
 
@@ -10,47 +10,47 @@ import { ThinkingBubble } from './ThinkingBubble'
 import { SpeechBubble } from './SpeechBubble'
 import { WorldErrorBoundary } from '../WorldErrorBoundary'
 import { useAccessoryStore } from '@/stores/accessoryStore'
-import type { MemberStatusType } from '@/types/accessory'
+import type { AgentStatusType } from '@/types/accessory'
 
-interface MemberOverlayGroupProps {
-  /** Member ID */
-  memberId: string
-  /** Member display name */
+interface AgentOverlayGroupProps {
+  /** Agent ID */
+  agentId: string
+  /** Agent display name */
   name: string
-  /** Base position of the member */
+  /** Base position of the agent */
   position: [number, number, number]
-  /** Whether the member is currently hovered */
+  /** Whether the agent is currently hovered */
   isHovered?: boolean
   /** Override status (if not using store) */
-  status?: MemberStatusType
+  status?: AgentStatusType
   /** Whether to show overlays at all */
   enabled?: boolean
 }
 
 /**
- * Renders all overlays for a member in the correct order.
+ * Renders all overlays for an agent in the correct order.
  * Overlays are stacked vertically with appropriate spacing.
  */
-export function MemberOverlayGroup({
-  memberId,
+export function AgentOverlayGroup({
+  agentId,
   name,
   position,
   isHovered = false,
   status,
   enabled = true,
-}: MemberOverlayGroupProps) {
-  // Get stable reference to member accessories state
-  const memberAccessories = useAccessoryStore((state) => state.memberAccessories)
+}: AgentOverlayGroupProps) {
+  // Get stable reference to agent accessories state
+  const agentAccessories = useAccessoryStore((state) => state.agentAccessories)
 
   // Memoize status lookup to avoid creating new objects
-  const effectiveStatus = useMemo<MemberStatusType>(() => {
+  const effectiveStatus = useMemo<AgentStatusType>(() => {
     if (status) return status
-    const memberState = memberAccessories[memberId]
-    return memberState?.status?.type ?? 'normal'
-  }, [status, memberAccessories, memberId])
+    const agentState = agentAccessories[agentId]
+    return agentState?.status?.type ?? 'normal'
+  }, [status, agentAccessories, agentId])
 
-  // Early return for disabled or invalid memberId
-  if (!enabled || !memberId) {
+  // Early return for disabled or invalid agentId
+  if (!enabled || !agentId) {
     return null
   }
 
@@ -59,7 +59,7 @@ export function MemberOverlayGroup({
       {/* Name tag - lowest layer */}
       <WorldErrorBoundary componentName="NameTag" minimal>
         <NameTag
-          memberId={memberId}
+          agentId={agentId}
           name={name}
           position={position}
           isHovered={isHovered}
@@ -79,7 +79,7 @@ export function MemberOverlayGroup({
       {/* Thinking bubble - above status */}
       <WorldErrorBoundary componentName="ThinkingBubble" minimal>
         <ThinkingBubble
-          memberId={memberId}
+          agentId={agentId}
           position={position}
           yOffset={1.5}
         />
@@ -88,7 +88,7 @@ export function MemberOverlayGroup({
       {/* Speech bubble - topmost layer */}
       <WorldErrorBoundary componentName="SpeechBubble" minimal>
         <SpeechBubble
-          memberId={memberId}
+          agentId={agentId}
           position={position}
           yOffset={1.7}
         />

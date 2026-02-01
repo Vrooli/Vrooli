@@ -1,8 +1,8 @@
 /**
- * WorldCanvas - Main entry point for the 3D member visualization.
+ * WorldCanvas - Main entry point for the 3D agent visualization.
  *
  * Skill selection is now handled via the sidebar in skill selection mode.
- * When "Set Skills" is clicked on a member, it triggers the sidebar to
+ * When "Set Skills" is clicked on an agent, it triggers the sidebar to
  * enter skill selection mode with checkboxes.
  */
 // DOC: docs/concepts/3D-WORLD-ARCHITECTURE.md#component-hierarchy
@@ -19,16 +19,16 @@ import { useSelectionStore } from '@/stores/selectionStore'
 import { useSkillSelectionStore } from '@/stores/skillSelectionStore'
 import { useCameraStore, type CameraMode } from '@/stores/cameraStore'
 import { useFurnitureStore } from '@/stores/furnitureStore'
-import { useMemberData } from '@/hooks/useMemberData'
+import { useAgentData } from '@/hooks/useAgentData'
 import { useWorldDefaults } from '@/hooks/useWorldDefaults'
-import { MemberProvider } from './MemberProvider'
-import { WorldScene, type MemberWithPosition } from './WorldScene'
+import { AgentProvider } from './AgentProvider'
+import { WorldScene, type AgentWithPosition } from './WorldScene'
 import { WorldControls } from './WorldControls'
 import { DisplayPanel } from './DisplayPanel'
-import { MemberOverlay } from './MemberOverlay'
+import { AgentOverlay } from './AgentOverlay'
 import { WorldEditorToolbar, ObjectPalette } from './editor'
 import { FurnitureContextMenu } from './furniture'
-import { MemberCustomizeModal } from '../member/MemberCustomizeModal'
+import { AgentCustomizeModal } from '../agent/AgentCustomizeModal'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { RenderPipeline } from './rendering/RenderPipeline'
 import { EnvironmentSetup } from './rendering/EnvironmentSetup'
@@ -41,28 +41,28 @@ import { selectors } from '@/constants/selectors'
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [0, 5, 10]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 
-/** Y position for members standing on ground (accounts for body geometry offset) */
-const MEMBER_GROUND_Y = 0.8
+/** Y position for agents standing on ground (accounts for body geometry offset) */
+const AGENT_GROUND_Y = 0.8
 
 /**
- * Generate a deterministic position for a member based on its ID.
- * Uses a simple hash to ensure the same member always gets the same position.
+ * Generate a deterministic position for an agent based on its ID.
+ * Uses a simple hash to ensure the same agent always gets the same position.
  */
-function generateMemberPosition(memberId: string, index: number, total: number): [number, number, number] {
-  // Simple hash from member ID for deterministic randomness
+function generateAgentPosition(agentId: string, index: number, total: number): [number, number, number] {
+  // Simple hash from agent ID for deterministic randomness
   let hash = 0
-  for (let i = 0; i < memberId.length; i++) {
-    hash = ((hash << 5) - hash) + memberId.charCodeAt(i)
+  for (let i = 0; i < agentId.length; i++) {
+    hash = ((hash << 5) - hash) + agentId.charCodeAt(i)
     hash = hash & hash // Convert to 32-bit integer
   }
 
-  // If only one member, place at origin
+  // If only one agent, place at origin
   if (total === 1) {
-    return [0, MEMBER_GROUND_Y, 0]
+    return [0, AGENT_GROUND_Y, 0]
   }
 
-  // Distribute members in a circular pattern with some randomness
-  const radius = 4 + (total > 5 ? 2 : 0) // Larger radius for more members
+  // Distribute agents in a circular pattern with some randomness
+  const radius = 4 + (total > 5 ? 2 : 0) // Larger radius for more agents
   const angleOffset = (hash % 1000) / 1000 * Math.PI * 2
   const baseAngle = (index / total) * Math.PI * 2 + angleOffset
 
@@ -72,14 +72,14 @@ function generateMemberPosition(memberId: string, index: number, total: number):
   const x = Math.cos(baseAngle) * (radius + radialVariation)
   const z = Math.sin(baseAngle) * (radius + radialVariation)
 
-  return [x, MEMBER_GROUND_Y, z]
+  return [x, AGENT_GROUND_Y, z]
 }
 
 interface WorldCanvasProps {
   skills: Skill[]
   onSelectSkill?: (skillId: string) => void
   onDisplaySkills?: (combined: string, format: DisplayFormat) => void
-  memberType?: string
+  agentType?: string
   className?: string
 }
 
@@ -87,7 +87,7 @@ export function WorldCanvas({
   skills,
   onSelectSkill: _onSelectSkill,
   onDisplaySkills,
-  memberType = 'geometric',
+  agentType = 'geometric',
   className,
 }: WorldCanvasProps) {
   // Note: onSelectSkill is kept for API compatibility but not used since
@@ -100,7 +100,7 @@ export function WorldCanvas({
   // Seed world with default furniture/decorations on first load
   useWorldDefaults()
 
-  // Cursor tracking for member
+  // Cursor tracking for agent
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
 
   // Selection state from centralized Zustand store
@@ -110,64 +110,64 @@ export function WorldCanvas({
   // Skill selection store
   const enterSkillSelectionMode = useSkillSelectionStore((state) => state.enterSkillSelectionMode)
 
-  // Camera store for member zoom
+  // Camera store for agent zoom
   const cameraMode = useCameraStore((state) => state.mode)
-  const focusedMemberId = useCameraStore((state) => state.focusedMemberId)
+  const focusedAgentId = useCameraStore((state) => state.focusedAgentId)
   const exitZoom = useCameraStore((state) => state.exitZoom)
-  const zoomToMember = useCameraStore((state) => state.zoomToMember)
+  const zoomToAgent = useCameraStore((state) => state.zoomToAgent)
 
-  // Member data
-  const { members, updateMember, deleteMember, createMember, isUpdating, isDeleting } = useMemberData()
-  const focusedMember = members.find((a) => a.id === focusedMemberId) ?? null
+  // Agent data
+  const { agents, updateAgent, deleteAgent, createAgent, isUpdating, isDeleting } = useAgentData()
+  const focusedAgent = agents.find((a) => a.id === focusedAgentId) ?? null
 
   // Furniture and seating state
-  const seatedMembers = useFurnitureStore((state) => state.seatedMembers)
-  const seatMember = useFurnitureStore((state) => state.seatMember)
-  const unseatMember = useFurnitureStore((state) => state.unseatMember)
-  const getMemberSeatPosition = useFurnitureStore((state) => state.getMemberSeatPosition)
+  const seatedAgents = useFurnitureStore((state) => state.seatedAgents)
+  const seatAgent = useFurnitureStore((state) => state.seatAgent)
+  const unseatAgent = useFurnitureStore((state) => state.unseatAgent)
+  const getAgentSeatPosition = useFurnitureStore((state) => state.getAgentSeatPosition)
 
   // Furniture context menu state
   const [selectedFurniture, setSelectedFurniture] = useState<FurnitureInstance | null>(null)
 
-  // Convert seatedMembers object to Map for FurnitureContextMenu
-  const seatedMembersMap = useMemo(() => {
-    return new Map(Object.entries(seatedMembers))
-  }, [seatedMembers])
+  // Convert seatedAgents object to Map for FurnitureContextMenu
+  const seatedAgentsMap = useMemo(() => {
+    return new Map(Object.entries(seatedAgents))
+  }, [seatedAgents])
 
-  // Generate positions for all members (memoized for stability)
-  // Override positions for seated members
-  const membersWithPositions = useMemo<MemberWithPosition[]>(() => {
-    return members.map((member, index) => {
-      // Check if member is seated
-      const seatPosition = getMemberSeatPosition(member.id)
+  // Generate positions for all agents (memoized for stability)
+  // Override positions for seated agents
+  const agentsWithPositions = useMemo<AgentWithPosition[]>(() => {
+    return agents.map((agent, index) => {
+      // Check if agent is seated
+      const seatPosition = getAgentSeatPosition(agent.id)
       if (seatPosition) {
         return {
-          member,
+          agent,
           position: seatPosition.position,
           isSeated: true,
           seatRotation: seatPosition.rotation,
         }
       }
       return {
-        member,
-        position: generateMemberPosition(member.id, index, members.length),
+        agent,
+        position: generateAgentPosition(agent.id, index, agents.length),
         isSeated: false,
         seatRotation: 0,
       }
     })
-  }, [members, getMemberSeatPosition])
+  }, [agents, getAgentSeatPosition])
 
-  // Get position of focused member (for camera targeting)
-  const focusedMemberPosition = useMemo(() => {
-    const found = membersWithPositions.find((a) => a.member.id === focusedMemberId)
+  // Get position of focused agent (for camera targeting)
+  const focusedAgentPosition = useMemo(() => {
+    const found = agentsWithPositions.find((a) => a.agent.id === focusedAgentId)
     return found?.position ?? null
-  }, [membersWithPositions, focusedMemberId])
+  }, [agentsWithPositions, focusedAgentId])
 
-  // Handle member click in 3D scene - opens the member menu
-  const handleMemberClick = useCallback((memberId: string, position: [number, number, number]) => {
-    setSelectedFurniture(null) // Close furniture menu when clicking a member
-    zoomToMember(memberId, position)
-  }, [zoomToMember])
+  // Handle agent click in 3D scene - opens the agent menu
+  const handleAgentClick = useCallback((agentId: string, position: [number, number, number]) => {
+    setSelectedFurniture(null) // Close furniture menu when clicking an agent
+    zoomToAgent(agentId, position)
+  }, [zoomToAgent])
 
   // Handle furniture click - opens furniture context menu
   const handleFurnitureClick = useCallback((furniture: FurnitureInstance) => {
@@ -179,50 +179,50 @@ export function WorldCanvas({
     setSelectedFurniture(null)
   }, [])
 
-  // Handle seating a member
-  const handleSitMember = useCallback((memberId: string, furnitureId: string, seatIndex: number) => {
-    seatMember(memberId, furnitureId, seatIndex)
-  }, [seatMember])
+  // Handle seating an agent
+  const handleSitAgent = useCallback((agentId: string, furnitureId: string, seatIndex: number) => {
+    seatAgent(agentId, furnitureId, seatIndex)
+  }, [seatAgent])
 
-  // Handle unseating a member
-  const handleUnsitMember = useCallback((memberId: string) => {
-    unseatMember(memberId)
-  }, [unseatMember])
+  // Handle unseating an agent
+  const handleUnsitAgent = useCallback((agentId: string) => {
+    unseatAgent(agentId)
+  }, [unseatAgent])
 
   // Handle camera mode change from settings popup
   const handleCameraModeChange = useCallback(
-    (mode: CameraMode, memberId?: string, position?: [number, number, number]) => {
-      if (mode === 'zoomed-member') {
-        // Find a member to zoom to
-        const targetMember = memberId
-          ? membersWithPositions.find((a) => a.member.id === memberId)
-          : focusedMemberId
-            ? membersWithPositions.find((a) => a.member.id === focusedMemberId)
-            : membersWithPositions[0]
+    (mode: CameraMode, agentId?: string, position?: [number, number, number]) => {
+      if (mode === 'zoomed-agent') {
+        // Find an agent to zoom to
+        const targetAgent = agentId
+          ? agentsWithPositions.find((a) => a.agent.id === agentId)
+          : focusedAgentId
+            ? agentsWithPositions.find((a) => a.agent.id === focusedAgentId)
+            : agentsWithPositions[0]
 
-        if (targetMember) {
-          zoomToMember(targetMember.member.id, position ?? targetMember.position)
+        if (targetAgent) {
+          zoomToAgent(targetAgent.agent.id, position ?? targetAgent.position)
         }
       }
       // Note: freeform and top-down are handled directly by the settings popup
     },
-    [zoomToMember, focusedMemberId, membersWithPositions]
+    [zoomToAgent, focusedAgentId, agentsWithPositions]
   )
 
   // Modal state
   const [isCustomizeModalOpen, setIsCustomizeModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
 
-  // Camera state for 3D scene - use focused member position when zoomed
+  // Camera state for 3D scene - use focused agent position when zoomed
   const cameraState = useMemo(() => {
-    if (cameraMode === 'zoomed-member' && focusedMemberPosition) {
+    if (cameraMode === 'zoomed-agent' && focusedAgentPosition) {
       return {
         position: [
-          focusedMemberPosition[0],
-          focusedMemberPosition[1] + 2,
-          focusedMemberPosition[2] + 5,
+          focusedAgentPosition[0],
+          focusedAgentPosition[1] + 2,
+          focusedAgentPosition[2] + 5,
         ] as [number, number, number],
-        target: focusedMemberPosition,
+        target: focusedAgentPosition,
         zoom: 2,
       }
     }
@@ -239,7 +239,7 @@ export function WorldCanvas({
       target: DEFAULT_CAMERA_TARGET,
       zoom: 1,
     }
-  }, [cameraMode, focusedMemberPosition])
+  }, [cameraMode, focusedAgentPosition])
 
   // Handle mouse move for cursor tracking
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -264,7 +264,7 @@ export function WorldCanvas({
   // Get full skill objects for selected IDs
   const selectedSkillObjects = skills.filter((p) => selectedSkillIds.includes(p.id))
 
-  // Member overlay handlers
+  // Agent overlay handlers
   const handleCloseOverlay = useCallback(() => {
     exitZoom()
   }, [exitZoom])
@@ -276,42 +276,40 @@ export function WorldCanvas({
   const handleSetSkills = useCallback(() => {
     // Enter skill selection mode via the store
     // This will trigger the sidebar to show checkboxes
-    if (focusedMember) {
+    if (focusedAgent) {
       enterSkillSelectionMode(
-        focusedMember,
-        focusedMember.skills,
+        focusedAgent,
+        focusedAgent.skills,
         async (skillIds) => {
-          await updateMember(focusedMember.id, { skills: skillIds })
+          await updateAgent(focusedAgent.id, { skills: skillIds })
         }
       )
-      // Close the member overlay so the user can see the sidebar
+      // Close the agent overlay so the user can see the sidebar
       exitZoom()
     }
-  }, [focusedMember, enterSkillSelectionMode, updateMember, exitZoom])
+  }, [focusedAgent, enterSkillSelectionMode, updateAgent, exitZoom])
 
   const handleDuplicate = useCallback(async () => {
-    if (!focusedMember) return
-    await createMember({
-      name: `${focusedMember.name} (Copy)`,
-      bodyColor: focusedMember.bodyColor,
-      headColor: focusedMember.headColor,
-      accentColor: focusedMember.accentColor,
-      skills: [...focusedMember.skills],
+    if (!focusedAgent) return
+    await createAgent({
+      displayName: `${focusedAgent.displayName} (Copy)`,
+      appearance: focusedAgent.appearance ? { ...focusedAgent.appearance } : undefined,
+      skills: [...focusedAgent.skills],
     })
     exitZoom()
-  }, [focusedMember, createMember, exitZoom])
+  }, [focusedAgent, createAgent, exitZoom])
 
   const handleDeleteClick = useCallback(() => {
     setIsDeleteDialogOpen(true)
   }, [])
 
   const handleConfirmDelete = useCallback(async () => {
-    if (focusedMemberId) {
-      await deleteMember(focusedMemberId)
+    if (focusedAgentId) {
+      await deleteAgent(focusedAgentId)
       exitZoom()
     }
     setIsDeleteDialogOpen(false)
-  }, [focusedMemberId, deleteMember, exitZoom])
+  }, [focusedAgentId, deleteAgent, exitZoom])
 
   return (
     <div
@@ -338,19 +336,19 @@ export function WorldCanvas({
             <RenderPipeline>
               <EnvironmentSetup />
               <MaterialProvider>
-                <MemberProvider member={memberType}>
+                <AgentProvider agent={agentType}>
                   <Suspense fallback={null}>
                     <WorldScene
                       cameraState={cameraState}
                       selectedNodeIds={selectedSkillIds}
                       cursorPosition={cursorPosition}
-                      membersWithPositions={membersWithPositions}
-                      onMemberClick={handleMemberClick}
+                      agentsWithPositions={agentsWithPositions}
+                      onAgentClick={handleAgentClick}
                       onFurnitureClick={handleFurnitureClick}
                       isDarkMode={isDarkMode}
                     />
                   </Suspense>
-                </MemberProvider>
+                </AgentProvider>
               </MaterialProvider>
             </RenderPipeline>
           </Canvas>
@@ -375,7 +373,7 @@ export function WorldCanvas({
       <WorldControls
         nodeCount={skills.length}
         selectionCount={selectedSkillIds.length}
-        memberCount={members.length}
+        agentCount={agents.length}
         onCameraModeChange={handleCameraModeChange}
       />
 
@@ -388,11 +386,11 @@ export function WorldCanvas({
         <div className="absolute top-16 right-4">
           <FurnitureContextMenu
             furniture={selectedFurniture}
-            members={members}
+            agents={agents}
             onClose={handleCloseFurnitureMenu}
-            onSitMember={handleSitMember}
-            onUnsitMember={handleUnsitMember}
-            seatedMembers={seatedMembersMap}
+            onSitAgent={handleSitAgent}
+            onUnsitAgent={handleUnsitAgent}
+            seatedAgents={seatedAgentsMap}
           />
         </div>
       )}
@@ -431,10 +429,10 @@ export function WorldCanvas({
         </div>
       )}
 
-      {/* Member overlay - appears when zoomed to member */}
-      <MemberOverlay
-        member={focusedMember}
-        isVisible={cameraMode === 'zoomed-member'}
+      {/* Agent overlay - appears when zoomed to agent */}
+      <AgentOverlay
+        agent={focusedAgent}
+        isVisible={cameraMode === 'zoomed-agent'}
         onClose={handleCloseOverlay}
         onCustomize={handleCustomize}
         onSetSkills={handleSetSkills}
@@ -442,14 +440,14 @@ export function WorldCanvas({
         onDelete={handleDeleteClick}
       />
 
-      {/* Member customize modal */}
-      <MemberCustomizeModal
+      {/* Agent customize modal */}
+      <AgentCustomizeModal
         isOpen={isCustomizeModalOpen}
         onClose={() => setIsCustomizeModalOpen(false)}
-        member={focusedMember}
+        agent={focusedAgent}
         onSave={async (updates) => {
-          if (focusedMemberId) {
-            await updateMember(focusedMemberId, updates)
+          if (focusedAgentId) {
+            await updateAgent(focusedAgentId, updates)
           }
         }}
         isLoading={isUpdating}
@@ -460,8 +458,8 @@ export function WorldCanvas({
         isOpen={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={() => void handleConfirmDelete()}
-        title="Delete Member"
-        message={`Are you sure you want to delete "${focusedMember?.name ?? 'this member'}"? This action cannot be undone.`}
+        title="Delete Agent"
+        message={`Are you sure you want to delete "${focusedAgent?.displayName ?? 'this agent'}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
         isLoading={isDeleting}

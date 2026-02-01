@@ -13,9 +13,9 @@ export { WorldSettingsPopup } from './WorldSettingsPopup'
 export { EnvironmentControls } from './EnvironmentControls'
 export { DisplayPanel } from './DisplayPanel'
 
-// Member system
-export { MemberProvider, useMember, useMemberComponent, getAvailableMembers, registerMember } from './MemberProvider'
-export { GeometricMember, MemberWithAccessories } from './members'
+// Agent system
+export { AgentProvider, useAgent, useAgentComponent, getAvailableAgents, registerAgent } from './AgentProvider'
+export { GeometricAgent, AgentWithAccessories } from './agents'
 
 // Rendering pipeline
 export { RenderPipeline, EnvironmentSetup, ShadowSystem, useShadowConfig } from './rendering'
@@ -34,7 +34,7 @@ export {
 } from './materials'
 
 // Overlays
-export { NameTag, StatusIcon, ThinkingBubble, SpeechBubble, MemberOverlayGroup } from './overlays'
+export { NameTag, StatusIcon, ThinkingBubble, SpeechBubble, AgentOverlayGroup } from './overlays'
 
 // Accessories
 export {

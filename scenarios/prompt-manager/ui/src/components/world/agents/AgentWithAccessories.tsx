@@ -1,121 +1,122 @@
 /**
- * MemberWithAccessories - Wrapper component that combines a member with accessories and overlays.
- * Provides a complete member representation with all visual enhancements.
+ * AgentWithAccessories - Wrapper component that combines an agent with accessories and overlays.
+ * Provides a complete agent representation with all visual enhancements.
  */
 
 import { useMemo } from 'react'
-import { GeometricMember } from './GeometricMember'
+import { GeometricAgent } from './GeometricAgent'
 import { BackpackAccessory } from '../accessories/BackpackAccessory'
 import { HeadAccessory } from '../accessories/HeadAccessory'
 import { HeldItemAccessory } from '../accessories/HeldItemAccessory'
 import { ClothingTop, ClothingBottom, FootwearAccessory } from '../accessories/ClothingAccessory'
-import { MemberOverlayGroup } from '../overlays/MemberOverlayGroup'
+import { AgentOverlayGroup } from '../overlays/AgentOverlayGroup'
 import { HoverGlow } from '../effects'
 import { useSkillBackpack } from '../accessories/hooks/useSkillBackpack'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import { useHoverHighlight } from '@/hooks/useHoverHighlight'
-import type { MemberProps } from '@/types/world'
-import type { Member } from '@/types/member'
+import type { AgentProps } from '@/types/world'
+import type { Agent } from '@/types/agent'
+import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 
-interface MemberWithAccessoriesProps extends Omit<MemberProps, 'memberId'> {
-  /** Full member data */
-  member: Member
+interface AgentWithAccessoriesProps extends Omit<AgentProps, 'agentId'> {
+  /** Full agent data */
+  agent: Agent
   /** Enable overlays (name tags, status icons) */
   showOverlays?: boolean
   /** Enable accessories rendering */
   showAccessories?: boolean
   /** Enable hover highlighting */
   enableHover?: boolean
-  /** Whether member is seated on furniture */
+  /** Whether agent is seated on furniture */
   isSeated?: boolean
   /** Rotation when seated (radians) */
   seatRotation?: number
 }
 
 /**
- * Complete member representation with accessories and overlays.
+ * Complete agent representation with accessories and overlays.
  *
  * @example
  * ```tsx
- * <MemberWithAccessories
- *   member={member}
+ * <AgentWithAccessories
+ *   agent={agent}
  *   position={[0, 0, 0]}
  *   cursorPosition={cursor}
  *   selectedNodes={[]}
  *   isAnimating={false}
- *   onMemberClick={() => handleClick(member.id)}
+ *   onAgentClick={() => handleClick(agent.id)}
  * />
  * ```
  */
-export function MemberWithAccessories({
-  member,
+export function AgentWithAccessories({
+  agent,
   position,
   cursorPosition,
   selectedNodes: selectedNodesProp,
   isAnimating,
   onAnimationComplete,
-  onMemberClick,
+  onAgentClick,
   colors,
   showOverlays = true,
   showAccessories = true,
   enableHover = true,
   isSeated = false,
   seatRotation = 0,
-}: MemberWithAccessoriesProps) {
+}: AgentWithAccessoriesProps) {
   // Defensive: ensure selectedNodes is always an array
   const selectedNodes = selectedNodesProp ?? []
   // Defensive: ensure skills is an array before accessing length
-  const skillCount = Array.isArray(member.skills) ? member.skills.length : 0
+  const skillCount = Array.isArray(agent.skills) ? agent.skills.length : 0
   // Compute backpack type from skill count
   const backpackType = useSkillBackpack(skillCount)
 
   // Get stable references from accessory store
-  const memberAccessoriesState = useAccessoryStore((state) => state.memberAccessories)
+  const agentAccessoriesState = useAccessoryStore((state) => state.agentAccessories)
   const accessoryDefaults = useAccessoryStore((state) => state.defaults)
 
   // Memoize accessory resolution to avoid creating new objects on each render
   const storedAccessories = useMemo(() => {
-    const memberId = member.id
-    const memberState = memberAccessoriesState[memberId]
+    const agentIdLocal = agent.id
+    const agentState = agentAccessoriesState[agentIdLocal]
     const defaults = accessoryDefaults
     return {
-      head: memberState?.accessories.head ?? defaults.head ?? { type: 'none' as const },
-      back: memberState?.accessories.back ?? defaults.back ?? { type: 'none' as const },
-      held: memberState?.accessories.held ?? defaults.held ?? { type: 'none' as const },
-      clothingTop: memberState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' as const },
-      clothingBottom: memberState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' as const },
-      footwear: memberState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' as const },
+      head: agentState?.accessories.head ?? defaults.head ?? { type: 'none' as const },
+      back: agentState?.accessories.back ?? defaults.back ?? { type: 'none' as const },
+      held: agentState?.accessories.held ?? defaults.held ?? { type: 'none' as const },
+      clothingTop: agentState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' as const },
+      clothingBottom: agentState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' as const },
+      footwear: agentState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' as const },
     }
-  }, [memberAccessoriesState, member.id, accessoryDefaults])
+  }, [agentAccessoriesState, agent.id, accessoryDefaults])
 
   // Hover highlighting
-  const { isHovered, hoverProps } = useHoverHighlight(member.id, {
+  const { isHovered, hoverProps } = useHoverHighlight(agent.id, {
     enabled: enableHover,
   })
 
-  // Merge provided colors with member colors
-  const memberColors = useMemo(
+  // Merge provided colors with agent colors
+  const agentColors = useMemo(
     () =>
       colors ?? {
-        body: member.bodyColor,
-        head: member.headColor,
-        accent: member.accentColor,
+        body: agent.appearance?.body ?? DEFAULT_AGENT_COLORS.body,
+        head: agent.appearance?.head ?? DEFAULT_AGENT_COLORS.head,
+        accent: agent.appearance?.accent ?? DEFAULT_AGENT_COLORS.accent,
       },
-    [colors, member.bodyColor, member.headColor, member.accentColor]
+    [colors, agent.appearance]
   )
 
   return (
     <group {...(enableHover ? hoverProps : {})}>
-      {/* Base member model */}
-      <GeometricMember
-        memberId={member.id}
+      {/* Base agent model */}
+      <GeometricAgent
+        agentId={agent.id}
         position={position}
         cursorPosition={cursorPosition}
         selectedNodes={selectedNodes}
         isAnimating={isAnimating}
         onAnimationComplete={onAnimationComplete}
-        onMemberClick={onMemberClick}
-        colors={memberColors}
+        onAgentClick={onAgentClick}
+        colors={agentColors}
         isSeated={isSeated}
         seatRotation={seatRotation}
       />
@@ -173,20 +174,20 @@ export function MemberWithAccessories({
         </group>
       )}
 
-      {/* Hover glow effect - uses member's accent color */}
+      {/* Hover glow effect - uses agent's accent color */}
       <HoverGlow
         isActive={isHovered}
         position={position}
         size={0.8}
-        color={memberColors.accent || '#6366f1'}
+        color={agentColors.accent || '#6366f1'}
         intensity={0.6}
       />
 
       {/* Overlays (name tag, status, speech) */}
       {showOverlays && (
-        <MemberOverlayGroup
-          memberId={member.id}
-          name={member.name}
+        <AgentOverlayGroup
+          agentId={agent.id}
+          name={agent.displayName}
           position={position}
           isHovered={isHovered}
         />

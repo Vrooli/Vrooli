@@ -16,10 +16,10 @@
  * // In test file
  * beforeAll(() => setupR3FMocks())
  *
- * it('renders member', () => {
+ * it('renders agent', () => {
  *   render(
  *     <R3FTestHarness>
- *       <GeometricMember position={[0, 0, 0]} />
+ *       <GeometricAgent position={[0, 0, 0]} />
  *     </R3FTestHarness>
  *   )
  * })

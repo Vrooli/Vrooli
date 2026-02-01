@@ -1,6 +1,6 @@
 /**
  * ThinkingBubble - Animated thinking indicator.
- * Shows animated dots when a member is "thinking".
+ * Shows animated dots when a agent is "thinking".
  * Hover to reveal the full label text.
  */
 
@@ -10,10 +10,10 @@ import { useOverlayStore } from '@/stores/overlayStore'
 
 interface ThinkingBubbleProps {
   /** Member ID for state lookup */
-  memberId: string
-  /** Position offset from member center */
+  agentId: string
+  /** Position offset from agent center */
   position: [number, number, number]
-  /** Custom Y offset above the member */
+  /** Custom Y offset above the agent */
   yOffset?: number
 }
 
@@ -23,19 +23,19 @@ interface ThinkingBubbleProps {
  * Hover over the bubble to see the full label text if available.
  */
 export function ThinkingBubble({
-  memberId,
+  agentId,
   position,
   yOffset = 1.3,
 }: ThinkingBubbleProps) {
   const [showLabel, setShowLabel] = useState(false)
 
-  // Always call hook with a stable key (empty string for invalid memberId)
+  // Always call hook with a stable key (empty string for invalid agentId)
   const thinkingState = useOverlayStore((state) =>
-    memberId ? state.thinkingStates[memberId] : undefined
+    agentId ? state.thinkingStates[agentId] : undefined
   )
 
-  // Early return for invalid memberId or not thinking
-  if (!memberId || !thinkingState?.isThinking) {
+  // Early return for invalid agentId or not thinking
+  if (!agentId || !thinkingState?.isThinking) {
     return null
   }
 

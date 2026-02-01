@@ -1,6 +1,6 @@
 /**
- * Accessory types for member customization.
- * Accessories are visual items attached to members.
+ * Accessory types for agent customization.
+ * Accessories are visual items attached to agents.
  */
 
 /** Types of head accessories */
@@ -83,9 +83,9 @@ export interface Footwear {
 }
 
 /**
- * Complete accessory configuration for a member
+ * Complete accessory configuration for an agent
  */
-export interface MemberAccessories {
+export interface AgentAccessories {
   head?: HeadAccessory
   back?: BackAccessory
   held?: HeldAccessory
@@ -95,15 +95,15 @@ export interface MemberAccessories {
 }
 
 /**
- * Member status indicator types
+ * Agent status indicator types
  */
-export type MemberStatusType = 'normal' | 'warning' | 'error' | 'info' | 'thinking' | 'speaking'
+export type AgentStatusType = 'normal' | 'warning' | 'error' | 'info' | 'thinking' | 'speaking'
 
 /**
- * Member status configuration
+ * Agent status configuration
  */
-export interface MemberStatus {
-  type: MemberStatusType
+export interface AgentStatus {
+  type: AgentStatusType
   /** Optional message for speech bubbles or tooltips */
   message?: string
   /** Auto-hide duration in ms (0 = never) */
@@ -123,14 +123,14 @@ export interface AccessoryOffset {
 export type AccessorySlot = 'head' | 'back' | 'leftHand' | 'rightHand' | 'torso' | 'legs' | 'feet'
 
 /**
- * Default accessory offsets for each slot relative to member origin.
+ * Default accessory offsets for each slot relative to agent origin.
  *
- * GeometricMember anatomy (relative to member origin at Y=0):
+ * GeometricAgent anatomy (relative to agent origin at Y=0):
  * - Head sphere: center at [0, 0.4, 0], radius 0.3 -> top at Y=0.7
  * - Body capsule: center at [0, -0.3, 0], radius 0.25, height 0.5 -> extends from Y=-0.55 to Y=+0.2
  * - Arms: positioned at X=±0.35, Y=-0.1
  *
- * Note: Member origin is typically at Y=0.8 to place feet on ground.
+ * Note: Agent origin is typically at Y=0.8 to place feet on ground.
  */
 export const ACCESSORY_OFFSETS: Record<AccessorySlot, AccessoryOffset> = {
   // Hat sits on top of head (head top at Y=0.7, add small gap)
@@ -172,7 +172,7 @@ export const ACCESSORY_OFFSETS: Record<AccessorySlot, AccessoryOffset> = {
     rotation: [0, 0, 0],
     scale: 1,
   },
-  // Shoes at the bottom (member bottom at Y=-0.8)
+  // Shoes at the bottom (agent bottom at Y=-0.8)
   // FootwearAccessory geometry base is at Y=0 relative to offset
   feet: {
     position: [0, -0.8, 0],

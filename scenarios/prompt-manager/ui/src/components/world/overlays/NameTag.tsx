@@ -1,6 +1,6 @@
 /**
- * NameTag - Billboard name label for members.
- * Floats above the member and always faces the camera.
+ * NameTag - Billboard name label for agents.
+ * Floats above the agent and always faces the camera.
  */
 
 import { useMemo } from 'react'
@@ -9,23 +9,23 @@ import { useOverlayStore } from '@/stores/overlayStore'
 
 interface NameTagProps {
   /** Member ID for visibility checks */
-  memberId: string
+  agentId: string
   /** Display name */
   name: string
-  /** Position offset from member center */
+  /** Position offset from agent center */
   position: [number, number, number]
-  /** Whether the member is currently hovered */
+  /** Whether the agent is currently hovered */
   isHovered?: boolean
-  /** Custom Y offset above the member */
+  /** Custom Y offset above the agent */
   yOffset?: number
 }
 
 /**
- * Renders a name tag that floats above a member.
+ * Renders a name tag that floats above a agent.
  * Visibility is controlled by the overlay store settings.
  */
 export function NameTag({
-  memberId,
+  agentId,
   name,
   position,
   isHovered = false,
@@ -38,11 +38,11 @@ export function NameTag({
   // Compute visibility based on config and hover state
   const shouldShow = useMemo(() => {
     if (!overlaysVisible) return false
-    if (nameTagConfig.neverShowFor.includes(memberId)) return false
-    if (nameTagConfig.alwaysShowFor.includes(memberId)) return true
+    if (nameTagConfig.neverShowFor.includes(agentId)) return false
+    if (nameTagConfig.alwaysShowFor.includes(agentId)) return true
     if (nameTagConfig.showOnHover) return isHovered
     return nameTagConfig.showAll
-  }, [overlaysVisible, nameTagConfig, memberId, isHovered])
+  }, [overlaysVisible, nameTagConfig, agentId, isHovered])
 
   if (!shouldShow) {
     return null

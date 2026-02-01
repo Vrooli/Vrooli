@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { useOverlayStore, selectMemberSpeechBubbles, selectMemberThinking } from './overlayStore'
+import { useOverlayStore, selectAgentSpeechBubbles, selectAgentThinking } from './overlayStore'
 
 describe('overlayStore', () => {
   beforeEach(() => {
@@ -46,24 +46,24 @@ describe('overlayStore', () => {
 
   describe('showSpeechBubble', () => {
     it('should add a speech bubble', () => {
-      const id = useOverlayStore.getState().showSpeechBubble('member-1', 'Hello!')
+      const id = useOverlayStore.getState().showSpeechBubble('agent-1', 'Hello!')
 
       const state = useOverlayStore.getState()
       expect(state.speechBubbles).toHaveLength(1)
       expect(state.speechBubbles[0]).toMatchObject({
         id,
-        memberId: 'member-1',
+        agentId: 'agent-1',
         text: 'Hello!',
       })
     })
 
     it('should return the bubble id', () => {
-      const id = useOverlayStore.getState().showSpeechBubble('member-1', 'Test')
+      const id = useOverlayStore.getState().showSpeechBubble('agent-1', 'Test')
       expect(id).toMatch(/^bubble-\d+$/)
     })
 
     it('should auto-remove bubble after duration', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 1000)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 1000)
 
       expect(useOverlayStore.getState().speechBubbles).toHaveLength(1)
 
@@ -73,7 +73,7 @@ describe('overlayStore', () => {
     })
 
     it('should not auto-remove bubble with duration 0', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Permanent', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Permanent', 0)
 
       vi.advanceTimersByTime(10000)
 
@@ -81,14 +81,14 @@ describe('overlayStore', () => {
     })
 
     it('should mark bubble as temporary when duration > 0', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Temp', 5000)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Temp', 5000)
 
       const state = useOverlayStore.getState()
       expect(state.speechBubbles[0]?.temporary).toBe(true)
     })
 
     it('should mark bubble as not temporary when duration is 0', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Permanent', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Permanent', 0)
 
       const state = useOverlayStore.getState()
       expect(state.speechBubbles[0]?.temporary).toBe(false)
@@ -97,8 +97,8 @@ describe('overlayStore', () => {
 
   describe('hideSpeechBubble', () => {
     it('should remove a specific bubble', () => {
-      const id1 = useOverlayStore.getState().showSpeechBubble('member-1', 'First', 0)
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Second', 0)
+      const id1 = useOverlayStore.getState().showSpeechBubble('agent-1', 'First', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Second', 0)
 
       useOverlayStore.getState().hideSpeechBubble(id1)
 
@@ -108,7 +108,7 @@ describe('overlayStore', () => {
     })
 
     it('should do nothing for non-existent id', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 0)
 
       useOverlayStore.getState().hideSpeechBubble('non-existent')
 
@@ -117,50 +117,50 @@ describe('overlayStore', () => {
   })
 
   describe('hideAllSpeechBubbles', () => {
-    it('should remove all bubbles for a specific member', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'First', 0)
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Second', 0)
-      useOverlayStore.getState().showSpeechBubble('member-2', 'Other', 0)
+    it('should remove all bubbles for a specific agent', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'First', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Second', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-2', 'Other', 0)
 
-      useOverlayStore.getState().hideAllSpeechBubbles('member-1')
+      useOverlayStore.getState().hideAllSpeechBubbles('agent-1')
 
       const state = useOverlayStore.getState()
       expect(state.speechBubbles).toHaveLength(1)
-      expect(state.speechBubbles[0]?.memberId).toBe('member-2')
+      expect(state.speechBubbles[0]?.agentId).toBe('agent-2')
     })
   })
 
   describe('setThinking', () => {
-    it('should set thinking state for a member', () => {
-      useOverlayStore.getState().setThinking('member-1', true, 'Processing...')
+    it('should set thinking state for an agent', () => {
+      useOverlayStore.getState().setThinking('agent-1', true, 'Processing...')
 
       const state = useOverlayStore.getState()
-      expect(state.thinkingStates['member-1']).toEqual({
-        memberId: 'member-1',
+      expect(state.thinkingStates['agent-1']).toEqual({
+        agentId: 'agent-1',
         isThinking: true,
         label: 'Processing...',
       })
     })
 
     it('should update thinking state', () => {
-      useOverlayStore.getState().setThinking('member-1', true)
-      useOverlayStore.getState().setThinking('member-1', false)
+      useOverlayStore.getState().setThinking('agent-1', true)
+      useOverlayStore.getState().setThinking('agent-1', false)
 
       const state = useOverlayStore.getState()
-      expect(state.thinkingStates['member-1']?.isThinking).toBe(false)
+      expect(state.thinkingStates['agent-1']?.isThinking).toBe(false)
     })
   })
 
   describe('clearThinking', () => {
-    it('should remove thinking state for a member', () => {
-      useOverlayStore.getState().setThinking('member-1', true)
-      useOverlayStore.getState().setThinking('member-2', true)
+    it('should remove thinking state for an agent', () => {
+      useOverlayStore.getState().setThinking('agent-1', true)
+      useOverlayStore.getState().setThinking('agent-2', true)
 
-      useOverlayStore.getState().clearThinking('member-1')
+      useOverlayStore.getState().clearThinking('agent-1')
 
       const state = useOverlayStore.getState()
-      expect(state.thinkingStates['member-1']).toBeUndefined()
-      expect(state.thinkingStates['member-2']).toBeDefined()
+      expect(state.thinkingStates['agent-1']).toBeUndefined()
+      expect(state.thinkingStates['agent-2']).toBeDefined()
     })
   })
 
@@ -168,24 +168,24 @@ describe('overlayStore', () => {
     it('should return false when overlays are not visible', () => {
       useOverlayStore.getState().setOverlaysVisible(false)
 
-      const result = useOverlayStore.getState().shouldShowNameTag('member-1', false)
+      const result = useOverlayStore.getState().shouldShowNameTag('agent-1', false)
       expect(result).toBe(false)
     })
 
-    it('should return false when member is in neverShowFor list', () => {
-      useOverlayStore.getState().updateNameTagConfig({ neverShowFor: ['member-1'] })
+    it('should return false when agent is in neverShowFor list', () => {
+      useOverlayStore.getState().updateNameTagConfig({ neverShowFor: ['agent-1'] })
 
-      const result = useOverlayStore.getState().shouldShowNameTag('member-1', true)
+      const result = useOverlayStore.getState().shouldShowNameTag('agent-1', true)
       expect(result).toBe(false)
     })
 
-    it('should return true when member is in alwaysShowFor list', () => {
+    it('should return true when agent is in alwaysShowFor list', () => {
       useOverlayStore.getState().updateNameTagConfig({
         showAll: false,
-        alwaysShowFor: ['member-1'],
+        alwaysShowFor: ['agent-1'],
       })
 
-      const result = useOverlayStore.getState().shouldShowNameTag('member-1', false)
+      const result = useOverlayStore.getState().shouldShowNameTag('agent-1', false)
       expect(result).toBe(true)
     })
 
@@ -195,24 +195,24 @@ describe('overlayStore', () => {
         showOnHover: true,
       })
 
-      expect(useOverlayStore.getState().shouldShowNameTag('member-1', false)).toBe(false)
-      expect(useOverlayStore.getState().shouldShowNameTag('member-1', true)).toBe(true)
+      expect(useOverlayStore.getState().shouldShowNameTag('agent-1', false)).toBe(false)
+      expect(useOverlayStore.getState().shouldShowNameTag('agent-1', true)).toBe(true)
     })
 
     it('should return showAll value when no other conditions match', () => {
       useOverlayStore.getState().updateNameTagConfig({ showAll: true })
-      expect(useOverlayStore.getState().shouldShowNameTag('member-1', false)).toBe(true)
+      expect(useOverlayStore.getState().shouldShowNameTag('agent-1', false)).toBe(true)
 
       useOverlayStore.getState().updateNameTagConfig({ showAll: false })
-      expect(useOverlayStore.getState().shouldShowNameTag('member-1', false)).toBe(false)
+      expect(useOverlayStore.getState().shouldShowNameTag('agent-1', false)).toBe(false)
     })
   })
 
   describe('cleanupExpiredBubbles', () => {
     it('should remove expired temporary bubbles', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Short', 100)
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Long', 10000)
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Permanent', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Short', 100)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Long', 10000)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Permanent', 0)
 
       vi.advanceTimersByTime(500)
       useOverlayStore.getState().cleanupExpiredBubbles()
@@ -223,65 +223,65 @@ describe('overlayStore', () => {
     })
   })
 
-  describe('selectMemberSpeechBubbles', () => {
-    it('should return bubbles for a specific member', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'First', 0)
-      useOverlayStore.getState().showSpeechBubble('member-2', 'Other', 0)
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Second', 0)
+  describe('selectAgentSpeechBubbles', () => {
+    it('should return bubbles for a specific agent', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'First', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-2', 'Other', 0)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Second', 0)
 
       const state = useOverlayStore.getState()
-      const bubbles = selectMemberSpeechBubbles(state, 'member-1')
+      const bubbles = selectAgentSpeechBubbles(state, 'agent-1')
 
       expect(bubbles).toHaveLength(2)
       expect(bubbles[0]?.text).toBe('First')
       expect(bubbles[1]?.text).toBe('Second')
     })
 
-    it('should return empty array for null memberId', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 0)
+    it('should return empty array for null agentId', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 0)
 
       const state = useOverlayStore.getState()
-      const bubbles = selectMemberSpeechBubbles(state, null as unknown as string)
+      const bubbles = selectAgentSpeechBubbles(state, null as unknown as string)
 
       expect(bubbles).toEqual([])
     })
 
-    it('should return empty array for undefined memberId', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 0)
+    it('should return empty array for undefined agentId', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 0)
 
       const state = useOverlayStore.getState()
-      const bubbles = selectMemberSpeechBubbles(state, undefined as unknown as string)
+      const bubbles = selectAgentSpeechBubbles(state, undefined as unknown as string)
 
       expect(bubbles).toEqual([])
     })
 
-    it('should return empty array for empty string memberId', () => {
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 0)
+    it('should return empty array for empty string agentId', () => {
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 0)
 
       const state = useOverlayStore.getState()
-      const bubbles = selectMemberSpeechBubbles(state, '')
+      const bubbles = selectAgentSpeechBubbles(state, '')
 
       expect(bubbles).toEqual([])
     })
   })
 
-  describe('selectMemberThinking', () => {
-    it('should return thinking state for a member', () => {
-      useOverlayStore.getState().setThinking('member-1', true, 'Working...')
+  describe('selectAgentThinking', () => {
+    it('should return thinking state for an agent', () => {
+      useOverlayStore.getState().setThinking('agent-1', true, 'Working...')
 
       const state = useOverlayStore.getState()
-      const thinking = selectMemberThinking(state, 'member-1')
+      const thinking = selectAgentThinking(state, 'agent-1')
 
       expect(thinking).toEqual({
-        memberId: 'member-1',
+        agentId: 'agent-1',
         isThinking: true,
         label: 'Working...',
       })
     })
 
-    it('should return null for non-existent member', () => {
+    it('should return null for non-existent agent', () => {
       const state = useOverlayStore.getState()
-      const thinking = selectMemberThinking(state, 'non-existent')
+      const thinking = selectAgentThinking(state, 'non-existent')
 
       expect(thinking).toBeNull()
     })
@@ -290,8 +290,8 @@ describe('overlayStore', () => {
   describe('reset', () => {
     it('should reset all state to initial values', () => {
       // Set up some state
-      useOverlayStore.getState().showSpeechBubble('member-1', 'Test', 0)
-      useOverlayStore.getState().setThinking('member-1', true)
+      useOverlayStore.getState().showSpeechBubble('agent-1', 'Test', 0)
+      useOverlayStore.getState().setThinking('agent-1', true)
       useOverlayStore.getState().setOverlaysVisible(false)
 
       // Reset

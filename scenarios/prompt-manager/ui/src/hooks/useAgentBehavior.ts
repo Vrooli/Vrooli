@@ -1,30 +1,30 @@
 /**
- * Hook for managing member behavior and animations.
+ * Hook for managing agent behavior and animations.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MemberState } from '@/types/world'
+import type { AgentState } from '@/types/world'
 import {
-  MemberStateMachine,
+  AgentStateMachine,
   calculateLookRotation,
   calculateIdleSway,
   calculateWaveAnimation,
   calculateCelebrationAnimation,
   easing,
-} from '@/services/memberService'
+} from '@/services/agentAnimationService'
 
-interface UseMemberBehaviorOptions {
+interface UseAgentBehaviorOptions {
   position?: [number, number, number]
   selectedNodeCount?: number
   onAnimationComplete?: () => void
 }
 
-export function useMemberBehavior(options: UseMemberBehaviorOptions = {}) {
+export function useAgentBehavior(options: UseAgentBehaviorOptions = {}) {
   const { position = [0, 0, 0], selectedNodeCount = 0, onAnimationComplete } = options
 
   // State machine
-  const stateMachineRef = useRef<MemberStateMachine>(new MemberStateMachine())
-  const [currentState, setCurrentState] = useState<MemberState>('idle')
+  const stateMachineRef = useRef<AgentStateMachine>(new AgentStateMachine())
+  const [currentState, setCurrentState] = useState<AgentState>('idle')
 
   // Cursor tracking
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
@@ -182,6 +182,6 @@ export function useMemberBehavior(options: UseMemberBehaviorOptions = {}) {
     celebrate,
 
     // Direct state control
-    setState: (state: MemberState) => stateMachineRef.current.forceTransition(state),
+    setState: (state: AgentState) => stateMachineRef.current.forceTransition(state),
   }
 }

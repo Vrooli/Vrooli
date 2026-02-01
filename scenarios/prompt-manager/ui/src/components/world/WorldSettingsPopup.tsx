@@ -36,13 +36,13 @@ interface WorldSettingsPopupProps {
   isOpen: boolean
   onClose: () => void
   /** Callback when camera mode changes, for WorldCanvas to update camera position */
-  onCameraModeChange?: (mode: CameraMode, memberId?: string, position?: [number, number, number]) => void
+  onCameraModeChange?: (mode: CameraMode, agentId?: string, position?: [number, number, number]) => void
 }
 
 // Camera mode configuration
 const CAMERA_MODES: { mode: CameraMode; icon: React.ReactNode; label: string }[] = [
   { mode: 'freeform', icon: <Eye className="h-4 w-4" />, label: 'Default' },
-  { mode: 'zoomed-member', icon: <User className="h-4 w-4" />, label: 'Focus' },
+  { mode: 'zoomed-agent', icon: <User className="h-4 w-4" />, label: 'Focus' },
   { mode: 'top-down', icon: <Map className="h-4 w-4" />, label: 'Aerial' },
 ]
 
@@ -158,7 +158,7 @@ export function WorldSettingsPopup({ isOpen, onClose, onCameraModeChange }: Worl
       } else if (mode === 'top-down') {
         setTopDown()
       } else {
-        // For zoomed-member, we need a member target - notify parent
+        // For zoomed-agent, we need an agent target - notify parent
         onCameraModeChange?.(mode)
       }
     },

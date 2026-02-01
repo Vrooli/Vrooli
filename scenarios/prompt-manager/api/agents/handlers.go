@@ -103,9 +103,12 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	agent := &store.Agent{
-		ID:          id,
-		DisplayName: req.DisplayName,
-		Status:      store.AgentStatusActive,
+		ID:                id,
+		DisplayName:       req.DisplayName,
+		Description:       req.Description,
+		Status:            store.AgentStatusActive,
+		DefaultProfileRef: req.DefaultProfileRef,
+		Tags:              req.Tags,
 	}
 
 	if req.Appearance != nil {
@@ -113,6 +116,53 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 			Body:   req.Appearance.Body,
 			Head:   req.Appearance.Head,
 			Accent: req.Appearance.Accent,
+		}
+	}
+
+	if req.Persona != nil {
+		agent.Persona = &store.AgentPersona{
+			Entry:              req.Persona.Entry,
+			Voice:              req.Persona.Voice,
+			Traits:             req.Persona.Traits,
+			SystemPromptPrefix: req.Persona.SystemPromptPrefix,
+		}
+	}
+
+	if req.Capabilities != nil {
+		agent.Capabilities = &store.AgentCapabilities{}
+		if req.Capabilities.Provides != nil {
+			for _, p := range req.Capabilities.Provides {
+				agent.Capabilities.Provides = append(agent.Capabilities.Provides, store.AgentCapability{
+					CapabilityID: p.CapabilityID,
+					Verbs:        p.Verbs,
+				})
+			}
+		}
+		if req.Capabilities.Requires != nil {
+			for _, r := range req.Capabilities.Requires {
+				agent.Capabilities.Requires = append(agent.Capabilities.Requires, store.AgentCapability{
+					CapabilityID: r.CapabilityID,
+					Verbs:        r.Verbs,
+				})
+			}
+		}
+	}
+
+	if req.Connectors != nil {
+		for _, c := range req.Connectors {
+			agent.Connectors = append(agent.Connectors, store.AgentConnector{
+				Type:    c.Type,
+				ID:      c.ID,
+				Enabled: c.Enabled,
+			})
+		}
+	}
+
+	if req.Heartbeat != nil {
+		agent.Heartbeat = &store.AgentHeartbeat{
+			IntervalSeconds: req.Heartbeat.IntervalSeconds,
+			TimeoutSeconds:  req.Heartbeat.TimeoutSeconds,
+			MaxMissedBeats:  req.Heartbeat.MaxMissedBeats,
 		}
 	}
 
@@ -170,6 +220,9 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	if req.DisplayName != nil {
 		updates.DisplayName = *req.DisplayName
 	}
+	if req.Description != nil {
+		updates.Description = *req.Description
+	}
 	if req.Status != nil {
 		updates.Status = *req.Status
 	}
@@ -191,6 +244,55 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			Head:   req.Appearance.Head,
 			Accent: req.Appearance.Accent,
 		}
+	}
+	if req.Persona != nil {
+		updates.Persona = &store.AgentPersona{
+			Entry:              req.Persona.Entry,
+			Voice:              req.Persona.Voice,
+			Traits:             req.Persona.Traits,
+			SystemPromptPrefix: req.Persona.SystemPromptPrefix,
+		}
+	}
+	if req.Capabilities != nil {
+		updates.Capabilities = &store.AgentCapabilities{}
+		if req.Capabilities.Provides != nil {
+			for _, p := range req.Capabilities.Provides {
+				updates.Capabilities.Provides = append(updates.Capabilities.Provides, store.AgentCapability{
+					CapabilityID: p.CapabilityID,
+					Verbs:        p.Verbs,
+				})
+			}
+		}
+		if req.Capabilities.Requires != nil {
+			for _, r := range req.Capabilities.Requires {
+				updates.Capabilities.Requires = append(updates.Capabilities.Requires, store.AgentCapability{
+					CapabilityID: r.CapabilityID,
+					Verbs:        r.Verbs,
+				})
+			}
+		}
+	}
+	if req.Connectors != nil {
+		for _, c := range req.Connectors {
+			updates.Connectors = append(updates.Connectors, store.AgentConnector{
+				Type:    c.Type,
+				ID:      c.ID,
+				Enabled: c.Enabled,
+			})
+		}
+	}
+	if req.DefaultProfileRef != nil {
+		updates.DefaultProfileRef = *req.DefaultProfileRef
+	}
+	if req.Heartbeat != nil {
+		updates.Heartbeat = &store.AgentHeartbeat{
+			IntervalSeconds: req.Heartbeat.IntervalSeconds,
+			TimeoutSeconds:  req.Heartbeat.TimeoutSeconds,
+			MaxMissedBeats:  req.Heartbeat.MaxMissedBeats,
+		}
+	}
+	if req.Tags != nil {
+		updates.Tags = req.Tags
 	}
 
 	if err := h.agentStore.Update(ctx, id, updates); err != nil {
@@ -313,11 +415,14 @@ func (h *Handlers) GetEffectiveSkills(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 	resp := Response{
-		ID:          a.ID,
-		DisplayName: a.DisplayName,
-		Status:      a.Status,
-		CreatedAt:   a.CreatedAt,
-		UpdatedAt:   a.UpdatedAt,
+		ID:                a.ID,
+		DisplayName:       a.DisplayName,
+		Description:       a.Description,
+		Status:            a.Status,
+		DefaultProfileRef: a.DefaultProfileRef,
+		Tags:              a.Tags,
+		CreatedAt:         a.CreatedAt,
+		UpdatedAt:         a.UpdatedAt,
 	}
 
 	if a.Appearance != nil {
@@ -325,6 +430,53 @@ func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
 			Body:   a.Appearance.Body,
 			Head:   a.Appearance.Head,
 			Accent: a.Appearance.Accent,
+		}
+	}
+
+	if a.Persona != nil {
+		resp.Persona = &PersonaDTO{
+			Entry:              a.Persona.Entry,
+			Voice:              a.Persona.Voice,
+			Traits:             a.Persona.Traits,
+			SystemPromptPrefix: a.Persona.SystemPromptPrefix,
+		}
+	}
+
+	if a.Capabilities != nil {
+		resp.Capabilities = &CapabilitiesDTO{}
+		if a.Capabilities.Provides != nil {
+			for _, p := range a.Capabilities.Provides {
+				resp.Capabilities.Provides = append(resp.Capabilities.Provides, CapabilityDTO{
+					CapabilityID: p.CapabilityID,
+					Verbs:        p.Verbs,
+				})
+			}
+		}
+		if a.Capabilities.Requires != nil {
+			for _, r := range a.Capabilities.Requires {
+				resp.Capabilities.Requires = append(resp.Capabilities.Requires, CapabilityDTO{
+					CapabilityID: r.CapabilityID,
+					Verbs:        r.Verbs,
+				})
+			}
+		}
+	}
+
+	if a.Connectors != nil {
+		for _, c := range a.Connectors {
+			resp.Connectors = append(resp.Connectors, ConnectorDTO{
+				Type:    c.Type,
+				ID:      c.ID,
+				Enabled: c.Enabled,
+			})
+		}
+	}
+
+	if a.Heartbeat != nil {
+		resp.Heartbeat = &HeartbeatDTO{
+			IntervalSeconds: a.Heartbeat.IntervalSeconds,
+			TimeoutSeconds:  a.Heartbeat.TimeoutSeconds,
+			MaxMissedBeats:  a.Heartbeat.MaxMissedBeats,
 		}
 	}
 

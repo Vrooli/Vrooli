@@ -1,8 +1,8 @@
 /**
- * WorldScene - Composes the 3D scene with members, lights, and controls.
+ * WorldScene - Composes the 3D scene with agents, lights, and controls.
  *
  * Note: 3D skill nodes have been removed in favor of a 2D overlay (SkillSelectionOverlay).
- * This scene now focuses on member display with ambient environment.
+ * This scene now focuses on agent display with ambient environment.
  *
  * Includes:
  * - Performance monitoring with FPS tracking and auto-adjustment
@@ -16,7 +16,7 @@
 import { useRef, useEffect, useMemo } from 'react'
 import { OrbitControls, Stars } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
-import { MemberWithAccessories } from './members/MemberWithAccessories'
+import { AgentWithAccessories } from './agents/AgentWithAccessories'
 import { WorldErrorBoundary } from './WorldErrorBoundary'
 import { DragPlane, PlacementPlane } from './interaction'
 import { FurnitureManager } from './furniture'
@@ -28,7 +28,7 @@ import { useInteractionStore } from '@/stores/interactionStore'
 import { useEnvironmentStore } from '@/stores/environmentStore'
 import { useIsPlacing } from '@/stores/worldEditorStore'
 import { calculateStarOpacity } from '@/lib/sky/sunPosition'
-import type { Member } from '@/types/member'
+import type { Agent } from '@/types/agent'
 import type { FurnitureInstance } from '@/types/furniture'
 
 /** Type for OrbitControls ref - drei doesn't export proper types */
@@ -43,9 +43,9 @@ interface CameraState {
   zoom: number
 }
 
-/** Member with its computed position in the scene */
-export interface MemberWithPosition {
-  member: Member
+/** Agent with its computed position in the scene */
+export interface AgentWithPosition {
+  agent: Agent
   position: [number, number, number]
   isSeated?: boolean
   seatRotation?: number
@@ -55,10 +55,10 @@ interface WorldSceneProps {
   cameraState: CameraState
   selectedNodeIds: string[]
   cursorPosition: { x: number; y: number } | null
-  /** All members with their positions */
-  membersWithPositions: MemberWithPosition[]
-  /** Called when a member is clicked, with member ID and position */
-  onMemberClick?: (memberId: string, position: [number, number, number]) => void
+  /** All agents with their positions */
+  agentsWithPositions: AgentWithPosition[]
+  /** Called when an agent is clicked, with agent ID and position */
+  onAgentClick?: (agentId: string, position: [number, number, number]) => void
   /** Called when furniture is clicked */
   onFurnitureClick?: (furniture: FurnitureInstance) => void
   isDarkMode?: boolean
@@ -72,8 +72,8 @@ export function WorldScene({
   cameraState,
   selectedNodeIds,
   cursorPosition,
-  membersWithPositions,
-  onMemberClick,
+  agentsWithPositions,
+  onAgentClick,
   onFurnitureClick,
   isDarkMode = true,
   showFpsOverlay = false,
@@ -195,18 +195,18 @@ export function WorldScene({
         draggable={!isPlacing}
       />
 
-      {/* Render all members with accessories and overlays */}
-      {membersWithPositions.map(({ member, position, isSeated = false, seatRotation = 0 }) => (
-        <MemberWithAccessories
-          key={member.id}
-          member={member}
+      {/* Render all agents with accessories and overlays */}
+      {agentsWithPositions.map(({ agent, position, isSeated = false, seatRotation = 0 }) => (
+        <AgentWithAccessories
+          key={agent.id}
+          agent={agent}
           position={position}
           cursorPosition={cursorPosition}
           selectedNodes={selectedNodeIds}
           isAnimating={false}
           isSeated={isSeated}
           seatRotation={seatRotation}
-          onMemberClick={() => onMemberClick?.(member.id, position)}
+          onAgentClick={() => onAgentClick?.(agent.id, position)}
           showOverlays
           showAccessories
         />

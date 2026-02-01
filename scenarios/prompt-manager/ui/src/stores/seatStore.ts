@@ -1,6 +1,6 @@
 /**
  * Seat store for managing furniture seating state.
- * Tracks which members are seated on which furniture.
+ * Tracks which agents are seated on which furniture.
  */
 
 import { create } from 'zustand'
@@ -9,7 +9,7 @@ import { create } from 'zustand'
 export interface SeatAssignment {
   furnitureId: string
   seatId: string
-  memberId: string
+  agentId: string
   /** Timestamp when seated */
   seatedAt: number
 }
@@ -27,27 +27,27 @@ export interface SeatInfo {
 interface SeatState {
   /** All current seat assignments */
   assignments: SeatAssignment[]
-  /** Members currently transitioning to/from seats */
+  /** Agents currently transitioning to/from seats */
   transitioning: Set<string>
 }
 
 interface SeatActions {
-  /** Assign a member to a seat */
-  seatMember: (memberId: string, furnitureId: string, seatId: string) => boolean
-  /** Remove a member from their seat */
-  unseatMember: (memberId: string) => void
+  /** Assign a agent to a seat */
+  seatAgent: (agentId: string, furnitureId: string, seatId: string) => boolean
+  /** Remove a agent from their seat */
+  unseatAgent: (agentId: string) => void
   /** Check if a seat is occupied */
   isSeatOccupied: (furnitureId: string, seatId: string) => boolean
-  /** Get the member seated at a position */
-  getMemberAtSeat: (furnitureId: string, seatId: string) => string | null
-  /** Get the seat a member is in */
-  getMemberSeat: (memberId: string) => SeatAssignment | null
+  /** Get the agent seated at a position */
+  getAgentAtSeat: (furnitureId: string, seatId: string) => string | null
+  /** Get the seat a agent is in */
+  getAgentSeat: (agentId: string) => SeatAssignment | null
   /** Get all available seats for a furniture item */
   getAvailableSeats: (furnitureId: string, allSeatIds: string[]) => string[]
-  /** Set member as transitioning (moving to/from seat) */
-  setTransitioning: (memberId: string, isTransitioning: boolean) => void
-  /** Check if a member is currently transitioning */
-  isTransitioning: (memberId: string) => boolean
+  /** Set agent as transitioning (moving to/from seat) */
+  setTransitioning: (agentId: string, isTransitioning: boolean) => void
+  /** Check if a agent is currently transitioning */
+  isTransitioning: (agentId: string) => boolean
   /** Clear all assignments for a furniture item */
   clearFurnitureSeats: (furnitureId: string) => void
   /** Reset all seating state */
@@ -67,11 +67,11 @@ const initialState: SeatState = {
 export const useSeatStore = create<SeatStore>((set, get) => ({
   ...initialState,
 
-  seatMember: (memberId, furnitureId, seatId) => {
+  seatAgent: (agentId, furnitureId, seatId) => {
     const { assignments, transitioning } = get()
 
-    // Check if member is transitioning
-    if (transitioning.has(memberId)) {
+    // Check if agent is transitioning
+    if (transitioning.has(agentId)) {
       return false
     }
 
@@ -83,12 +83,12 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
       return false
     }
 
-    // Check if member is already seated elsewhere
-    const existingSeat = assignments.find((a) => a.memberId === memberId)
+    // Check if agent is already seated elsewhere
+    const existingSeat = assignments.find((a) => a.agentId === agentId)
     if (existingSeat) {
       // Remove from current seat first
       set({
-        assignments: assignments.filter((a) => a.memberId !== memberId),
+        assignments: assignments.filter((a) => a.agentId !== agentId),
       })
     }
 
@@ -99,7 +99,7 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
         {
           furnitureId,
           seatId,
-          memberId,
+          agentId,
           seatedAt: Date.now(),
         },
       ],
@@ -108,9 +108,9 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     return true
   },
 
-  unseatMember: (memberId) => {
+  unseatAgent: (agentId) => {
     set({
-      assignments: get().assignments.filter((a) => a.memberId !== memberId),
+      assignments: get().assignments.filter((a) => a.agentId !== agentId),
     })
   },
 
@@ -120,15 +120,15 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     )
   },
 
-  getMemberAtSeat: (furnitureId, seatId) => {
+  getAgentAtSeat: (furnitureId, seatId) => {
     const assignment = get().assignments.find(
       (a) => a.furnitureId === furnitureId && a.seatId === seatId
     )
-    return assignment?.memberId ?? null
+    return assignment?.agentId ?? null
   },
 
-  getMemberSeat: (memberId) => {
-    return get().assignments.find((a) => a.memberId === memberId) ?? null
+  getAgentSeat: (agentId) => {
+    return get().assignments.find((a) => a.agentId === agentId) ?? null
   },
 
   getAvailableSeats: (furnitureId, allSeatIds) => {
@@ -139,21 +139,21 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
     return allSeatIds.filter((seatId) => !occupied.includes(seatId))
   },
 
-  setTransitioning: (memberId, isTransitioning) => {
+  setTransitioning: (agentId, isTransitioning) => {
     const { transitioning } = get()
     const newTransitioning = new Set(transitioning)
 
     if (isTransitioning) {
-      newTransitioning.add(memberId)
+      newTransitioning.add(agentId)
     } else {
-      newTransitioning.delete(memberId)
+      newTransitioning.delete(agentId)
     }
 
     set({ transitioning: newTransitioning })
   },
 
-  isTransitioning: (memberId) => {
-    return get().transitioning.has(memberId)
+  isTransitioning: (agentId) => {
+    return get().transitioning.has(agentId)
   },
 
   clearFurnitureSeats: (furnitureId) => {
@@ -166,10 +166,10 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 }))
 
 /**
- * Selector for getting all seated members
+ * Selector for getting all seated agents
  */
-export const selectSeatedMembers = (state: SeatStore) =>
-  state.assignments.map((a) => a.memberId)
+export const selectSeatedAgents = (state: SeatStore) =>
+  state.assignments.map((a) => a.agentId)
 
 /**
  * Selector for seat count by furniture

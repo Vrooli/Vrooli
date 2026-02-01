@@ -46,7 +46,7 @@ interface UseLODResult {
  *
  * @example
  * ```tsx
- * function Member({ id, position }) {
+ * function Agent({ id, position }) {
  *   const groupRef = useRef<Group>(null)
  *   const {
  *     shouldTrackCursorRef,
@@ -181,22 +181,22 @@ export function useLOD({
 
 /**
  * Hook for batch LOD updates - more efficient for many objects.
- * Use this at the scene level to update all members at once.
+ * Use this at the scene level to update all agents at once.
  *
  * @example
  * ```tsx
- * function WorldScene({ members }) {
+ * function WorldScene({ agents }) {
  *   const { updateAllLODs } = useLODManager()
  *
  *   useFrame(() => {
- *     // Update all member LODs in one batch
- *     updateAllLODs(members.map(m => ({
+ *     // Update all agent LODs in one batch
+ *     updateAllLODs(agents.map(m => ({
  *       id: m.id,
  *       position: m.position
  *     })))
  *   })
  *
- *   return members.map(m => <Member key={m.id} {...m} />)
+ *   return agents.map(m => <Member key={m.id} {...m} />)
  * }
  * ```
  */

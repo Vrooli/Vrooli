@@ -86,7 +86,7 @@ describe('SkillTreeSidebar', () => {
     // Skill selection mode props
     skillSelectionMode: false,
     skillSelectedIds: new Set<string>(),
-    currentMember: null,
+    currentAgent: null,
     onSkillSelectionSave: vi.fn(),
     onSkillSelectionCancel: vi.fn(),
     getSkillSelectionState: vi.fn().mockReturnValue('none' as const),

@@ -22,12 +22,19 @@ type Skill struct {
 // Agent represents an agent entity from agent.json
 type Agent struct {
 	BaseEntity
-	ID          string           `json:"id"`
-	DisplayName string           `json:"displayName"`
-	Status      string           `json:"status"`
-	Appearance  *AgentAppearance `json:"appearance,omitempty"`
-	SkillPins   []SkillPin       `json:"skillPins,omitempty"`
-	Runtime     *AgentRuntime    `json:"runtime,omitempty"`
+	ID                string              `json:"id"`
+	DisplayName       string              `json:"displayName"`
+	Description       string              `json:"description,omitempty"`
+	Status            string              `json:"status"`
+	Appearance        *AgentAppearance    `json:"appearance,omitempty"`
+	Persona           *AgentPersona       `json:"persona,omitempty"`
+	Capabilities      *AgentCapabilities  `json:"capabilities,omitempty"`
+	Connectors        []AgentConnector    `json:"connectors,omitempty"`
+	DefaultProfileRef string              `json:"defaultProfileRef,omitempty"`
+	Heartbeat         *AgentHeartbeat     `json:"heartbeat,omitempty"`
+	Tags              []string            `json:"tags,omitempty"`
+	SkillPins         []SkillPin          `json:"skillPins,omitempty"`
+	Runtime           *AgentRuntime       `json:"runtime,omitempty"`
 	Timestamps
 }
 
@@ -36,6 +43,40 @@ type AgentAppearance struct {
 	Body   string `json:"body"`
 	Head   string `json:"head"`
 	Accent string `json:"accent"`
+}
+
+// AgentPersona represents agent personality and behavior configuration
+type AgentPersona struct {
+	Entry              string   `json:"entry,omitempty"`
+	Voice              string   `json:"voice,omitempty"`
+	Traits             []string `json:"traits,omitempty"`
+	SystemPromptPrefix string   `json:"systemPromptPrefix,omitempty"`
+}
+
+// AgentCapability represents a single capability with verbs
+type AgentCapability struct {
+	CapabilityID string   `json:"capabilityId"`
+	Verbs        []string `json:"verbs,omitempty"`
+}
+
+// AgentCapabilities represents capability requirements and provisions
+type AgentCapabilities struct {
+	Provides []AgentCapability `json:"provides,omitempty"`
+	Requires []AgentCapability `json:"requires,omitempty"`
+}
+
+// AgentConnector represents an external system connector
+type AgentConnector struct {
+	Type    string `json:"type"`
+	ID      string `json:"id"`
+	Enabled bool   `json:"enabled"`
+}
+
+// AgentHeartbeat represents health monitoring configuration
+type AgentHeartbeat struct {
+	IntervalSeconds int `json:"intervalSeconds,omitempty"`
+	TimeoutSeconds  int `json:"timeoutSeconds,omitempty"`
+	MaxMissedBeats  int `json:"maxMissedBeats,omitempty"`
 }
 
 // SkillPin represents an inline skill pin on an agent

@@ -8,7 +8,7 @@ import { create } from 'zustand'
 /** Speech bubble message */
 export interface SpeechBubble {
   id: string
-  memberId: string
+  agentId: string
   text: string
   /** Duration in ms before auto-hide (0 = manual dismiss) */
   duration: number
@@ -20,7 +20,7 @@ export interface SpeechBubble {
 
 /** Thinking indicator state */
 export interface ThinkingState {
-  memberId: string
+  agentId: string
   isThinking: boolean
   /** Optional label like "Processing..." */
   label?: string
@@ -28,20 +28,20 @@ export interface ThinkingState {
 
 /** Name tag visibility configuration */
 export interface NameTagConfig {
-  /** Show name tags for all members */
+  /** Show name tags for all agents */
   showAll: boolean
   /** Show only on hover */
   showOnHover: boolean
-  /** Specific member IDs to always show */
+  /** Specific agent IDs to always show */
   alwaysShowFor: string[]
-  /** Specific member IDs to never show */
+  /** Specific agent IDs to never show */
   neverShowFor: string[]
 }
 
 interface OverlayState {
   /** Active speech bubbles */
   speechBubbles: SpeechBubble[]
-  /** Members currently in thinking state */
+  /** Agents currently in thinking state */
   thinkingStates: Record<string, ThinkingState>
   /** Name tag configuration */
   nameTagConfig: NameTagConfig
@@ -50,22 +50,22 @@ interface OverlayState {
 }
 
 interface OverlayActions {
-  /** Show a speech bubble for a member */
-  showSpeechBubble: (memberId: string, text: string, duration?: number) => string
+  /** Show a speech bubble for a agent */
+  showSpeechBubble: (agentId: string, text: string, duration?: number) => string
   /** Hide a specific speech bubble */
   hideSpeechBubble: (id: string) => void
-  /** Hide all speech bubbles for a member */
-  hideAllSpeechBubbles: (memberId: string) => void
-  /** Set thinking state for a member */
-  setThinking: (memberId: string, isThinking: boolean, label?: string) => void
-  /** Clear thinking state for a member */
-  clearThinking: (memberId: string) => void
+  /** Hide all speech bubbles for a agent */
+  hideAllSpeechBubbles: (agentId: string) => void
+  /** Set thinking state for a agent */
+  setThinking: (agentId: string, isThinking: boolean, label?: string) => void
+  /** Clear thinking state for a agent */
+  clearThinking: (agentId: string) => void
   /** Update name tag configuration */
   updateNameTagConfig: (config: Partial<NameTagConfig>) => void
   /** Toggle global overlay visibility */
   setOverlaysVisible: (visible: boolean) => void
-  /** Check if name tag should be shown for a member */
-  shouldShowNameTag: (memberId: string, isHovered: boolean) => boolean
+  /** Check if name tag should be shown for a agent */
+  shouldShowNameTag: (agentId: string, isHovered: boolean) => boolean
   /** Clean up expired speech bubbles */
   cleanupExpiredBubbles: () => void
   /** Reset all overlay state */
@@ -94,11 +94,11 @@ let bubbleIdCounter = 0
 export const useOverlayStore = create<OverlayStore>((set, get) => ({
   ...initialState,
 
-  showSpeechBubble: (memberId, text, duration = 5000) => {
+  showSpeechBubble: (agentId, text, duration = 5000) => {
     const id = `bubble-${++bubbleIdCounter}`
     const bubble: SpeechBubble = {
       id,
-      memberId,
+      agentId,
       text,
       duration,
       createdAt: Date.now(),
@@ -123,24 +123,24 @@ export const useOverlayStore = create<OverlayStore>((set, get) => ({
     })
   },
 
-  hideAllSpeechBubbles: (memberId) => {
+  hideAllSpeechBubbles: (agentId) => {
     set({
-      speechBubbles: get().speechBubbles.filter((b) => b.memberId !== memberId),
+      speechBubbles: get().speechBubbles.filter((b) => b.agentId !== agentId),
     })
   },
 
-  setThinking: (memberId, isThinking, label) => {
+  setThinking: (agentId, isThinking, label) => {
     set({
       thinkingStates: {
         ...get().thinkingStates,
-        [memberId]: { memberId, isThinking, label },
+        [agentId]: { agentId, isThinking, label },
       },
     })
   },
 
-  clearThinking: (memberId) => {
+  clearThinking: (agentId) => {
     const { thinkingStates } = get()
-    const { [memberId]: _, ...rest } = thinkingStates
+    const { [agentId]: _, ...rest } = thinkingStates
     void _
     set({ thinkingStates: rest })
   },
@@ -155,12 +155,12 @@ export const useOverlayStore = create<OverlayStore>((set, get) => ({
     set({ overlaysVisible: visible })
   },
 
-  shouldShowNameTag: (memberId, isHovered) => {
+  shouldShowNameTag: (agentId, isHovered) => {
     const { nameTagConfig, overlaysVisible } = get()
 
     if (!overlaysVisible) return false
-    if (nameTagConfig.neverShowFor.includes(memberId)) return false
-    if (nameTagConfig.alwaysShowFor.includes(memberId)) return true
+    if (nameTagConfig.neverShowFor.includes(agentId)) return false
+    if (nameTagConfig.alwaysShowFor.includes(agentId)) return true
     if (nameTagConfig.showOnHover) return isHovered
     return nameTagConfig.showAll
   },
@@ -179,18 +179,18 @@ export const useOverlayStore = create<OverlayStore>((set, get) => ({
 }))
 
 /**
- * Selector for speech bubbles for a specific member.
- * Returns empty array for invalid memberId to prevent crashes.
+ * Selector for speech bubbles for a specific agent.
+ * Returns empty array for invalid agentId to prevent crashes.
  */
-export const selectMemberSpeechBubbles = (state: OverlayStore, memberId: string | null | undefined): SpeechBubble[] => {
-  if (!memberId) {
+export const selectAgentSpeechBubbles = (state: OverlayStore, agentId: string | null | undefined): SpeechBubble[] => {
+  if (!agentId) {
     return []
   }
-  return state.speechBubbles.filter((b) => b.memberId === memberId)
+  return state.speechBubbles.filter((b) => b.agentId === agentId)
 }
 
 /**
- * Selector for thinking state of a specific member
+ * Selector for thinking state of a specific agent
  */
-export const selectMemberThinking = (state: OverlayStore, memberId: string) =>
-  state.thinkingStates[memberId] ?? null
+export const selectAgentThinking = (state: OverlayStore, agentId: string) =>
+  state.thinkingStates[agentId] ?? null

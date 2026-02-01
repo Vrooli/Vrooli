@@ -1,41 +1,46 @@
 /**
- * MemberListPanel - Panel for listing and managing members.
+ * AgentListPanel - Panel for listing and managing agents.
  */
 
 import { Plus, User, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useMemberData } from '@/hooks/useMemberData'
-import { DEFAULT_MEMBER_COLORS } from '@/types/member'
+import { useAgentData } from '@/hooks/useAgentData'
+import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { selectors } from '@/constants/selectors'
 
-interface MemberListPanelProps {
-  selectedMemberId: string | null
-  onSelectMember: (id: string) => void
-  onCreateMember: () => void
-  onDeleteMember: (id: string) => void
+interface AgentListPanelProps {
+  selectedAgentId: string | null
+  onSelectAgent: (id: string) => void
   className?: string
 }
 
 /**
- * Member list panel for the sidebar.
+ * Agent list panel for the sidebar.
  */
-export function MemberListPanel({
-  selectedMemberId,
-  onSelectMember,
-  onCreateMember,
-  onDeleteMember,
+export function AgentListPanel({
+  selectedAgentId,
+  onSelectAgent,
   className,
-}: MemberListPanelProps) {
-  const { members, isLoading, isError, createMember } = useMemberData()
+}: AgentListPanelProps) {
+  const { agents, isLoading, isError, createAgent, deleteAgent } = useAgentData()
 
-  const handleCreateMember = async () => {
-    const name = `Member ${members.length + 1}`
-    await createMember({
-      name,
-      ...DEFAULT_MEMBER_COLORS,
+  const handleCreateAgent = async () => {
+    const name = `Agent ${agents.length + 1}`
+    const newAgent = await createAgent({
+      displayName: name,
+      appearance: {
+        body: DEFAULT_AGENT_COLORS.body,
+        head: DEFAULT_AGENT_COLORS.head,
+        accent: DEFAULT_AGENT_COLORS.accent,
+      },
       skills: [],
     })
-    onCreateMember()
+    // Auto-select the newly created agent
+    onSelectAgent(newAgent.id)
+  }
+
+  const handleDeleteAgent = async (id: string) => {
+    await deleteAgent(id)
   }
 
   if (isLoading) {
@@ -49,7 +54,7 @@ export function MemberListPanel({
   if (isError) {
     return (
       <div className={cn('px-3 py-8 text-center', className)}>
-        <p className="text-sm text-destructive">Failed to load members</p>
+        <p className="text-sm text-destructive">Failed to load agents</p>
       </div>
     )
   }
@@ -57,54 +62,54 @@ export function MemberListPanel({
   return (
     <div
       className={cn('flex flex-col h-full', className)}
-      data-testid={selectors.members.list}
+      data-testid={selectors.agents.list}
     >
-      {/* Member list */}
+      {/* Agent list */}
       <div className="flex-1 overflow-y-auto py-1">
-        {members.length === 0 ? (
+        {agents.length === 0 ? (
           <div className="px-3 py-8 text-center">
             <User className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground mb-4">No members yet</p>
+            <p className="text-xs text-muted-foreground mb-4">No agents yet</p>
             <button
               type="button"
-              onClick={() => void handleCreateMember()}
+              onClick={() => void handleCreateAgent()}
               className="text-xs text-primary hover:underline"
             >
-              Create your first member
+              Create your first agent
             </button>
           </div>
         ) : (
-          members.map((member) => (
+          agents.map((agent) => (
             <button
-              key={member.id}
+              key={agent.id}
               type="button"
-              onClick={() => onSelectMember(member.id)}
+              onClick={() => onSelectAgent(agent.id)}
               className={cn(
                 'w-full flex items-center gap-3 px-3 py-2 text-left group',
                 'hover:bg-muted/50 transition-colors',
-                selectedMemberId === member.id && 'bg-primary/10'
+                selectedAgentId === agent.id && 'bg-primary/10'
               )}
-              data-testid={selectors.members.row}
-              data-member-id={member.id}
+              data-testid={selectors.agents.row}
+              data-agent-id={agent.id}
             >
-              {/* Member preview */}
+              {/* Agent preview */}
               <div
                 className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: member.bodyColor }}
+                style={{ backgroundColor: agent.appearance?.body ?? DEFAULT_AGENT_COLORS.body }}
               >
                 <div
                   className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: member.headColor }}
+                  style={{ backgroundColor: agent.appearance?.head ?? DEFAULT_AGENT_COLORS.head }}
                 />
               </div>
 
-              {/* Member info */}
+              {/* Agent info */}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {member.name}
+                  {agent.displayName}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {member.skills.length} skill{member.skills.length !== 1 ? 's' : ''}
+                  {agent.skills.length} skill{agent.skills.length !== 1 ? 's' : ''}
                 </p>
               </div>
 
@@ -114,10 +119,10 @@ export function MemberListPanel({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDeleteMember(member.id)
+                    void handleDeleteAgent(agent.id)
                   }}
                   className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete member"
+                  title="Delete agent"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -127,19 +132,19 @@ export function MemberListPanel({
         )}
       </div>
 
-      {/* Footer - New member button */}
+      {/* Footer - New agent button */}
       <div className="flex-shrink-0 px-3 py-3 border-t border-border">
         <button
           type="button"
-          onClick={() => void handleCreateMember()}
+          onClick={() => void handleCreateAgent()}
           className={cn(
             'w-full flex items-center justify-center gap-2 px-3 py-2 text-sm',
             'bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors'
           )}
-          data-testid={selectors.members.newButton}
+          data-testid={selectors.agents.newButton}
         >
           <Plus className="h-4 w-4" />
-          New Member
+          New Agent
         </button>
       </div>
     </div>

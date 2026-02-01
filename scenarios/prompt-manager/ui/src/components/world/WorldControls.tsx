@@ -14,15 +14,15 @@ import { selectors } from '@/constants/selectors'
 interface WorldControlsProps {
   nodeCount: number
   selectionCount: number
-  memberCount: number
+  agentCount: number
   /** Callback when camera mode changes via settings popup */
-  onCameraModeChange?: (mode: CameraMode, memberId?: string, position?: [number, number, number]) => void
+  onCameraModeChange?: (mode: CameraMode, agentId?: string, position?: [number, number, number]) => void
 }
 
 export function WorldControls({
   nodeCount,
   selectionCount,
-  memberCount,
+  agentCount,
   onCameraModeChange,
 }: WorldControlsProps) {
   const [isHelpOpen, setIsHelpOpen] = useState(false)
@@ -63,7 +63,7 @@ export function WorldControls({
           className="px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-md text-xs text-slate-300"
           data-testid={selectors.world.stats}
         >
-          {memberCount} member{memberCount !== 1 ? 's' : ''} • {nodeCount} skills
+          {agentCount} agent{agentCount !== 1 ? 's' : ''} • {nodeCount} skills
         </div>
         {selectionCount > 0 && (
           <div className="px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 rounded-md text-xs text-amber-300">

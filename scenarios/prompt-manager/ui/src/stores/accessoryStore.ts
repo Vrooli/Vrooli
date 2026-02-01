@@ -1,39 +1,39 @@
 /**
- * Accessory store for managing member accessories.
- * Stores accessory configurations per member.
+ * Accessory store for managing agent accessories.
+ * Stores accessory configurations per agent.
  */
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { MemberAccessories, MemberStatus } from '@/types/accessory'
+import type { AgentAccessories, AgentStatus } from '@/types/accessory'
 
-interface MemberAccessoryState {
-  accessories: MemberAccessories
-  status: MemberStatus | null
+interface AgentAccessoryState {
+  accessories: AgentAccessories
+  status: AgentStatus | null
 }
 
 interface AccessoryState {
-  /** Accessory configurations by member ID */
-  memberAccessories: Record<string, MemberAccessoryState>
-  /** Global default accessories for new members */
-  defaults: Partial<MemberAccessories>
+  /** Accessory configurations by agent ID */
+  agentAccessories: Record<string, AgentAccessoryState>
+  /** Global default accessories for new agents */
+  defaults: Partial<AgentAccessories>
 }
 
 interface AccessoryActions {
-  /** Set accessories for a specific member */
-  setMemberAccessories: (memberId: string, accessories: Partial<MemberAccessories>) => void
-  /** Set status for a specific member */
-  setMemberStatus: (memberId: string, status: MemberStatus | null) => void
-  /** Clear status for a specific member */
-  clearMemberStatus: (memberId: string) => void
-  /** Get accessories for a member (with defaults applied) */
-  getMemberAccessories: (memberId: string) => MemberAccessories
-  /** Get status for a member */
-  getMemberStatus: (memberId: string) => MemberStatus | null
+  /** Set accessories for a specific agent */
+  setAgentAccessories: (agentId: string, accessories: Partial<AgentAccessories>) => void
+  /** Set status for a specific agent */
+  setAgentStatus: (agentId: string, status: AgentStatus | null) => void
+  /** Clear status for a specific agent */
+  clearAgentStatus: (agentId: string) => void
+  /** Get accessories for a agent (with defaults applied) */
+  getAgentAccessories: (agentId: string) => AgentAccessories
+  /** Get status for a agent */
+  getAgentStatus: (agentId: string) => AgentStatus | null
   /** Set default accessories */
-  setDefaults: (defaults: Partial<MemberAccessories>) => void
-  /** Remove all accessories for a member */
-  removeMember: (memberId: string) => void
+  setDefaults: (defaults: Partial<AgentAccessories>) => void
+  /** Remove all accessories for a agent */
+  removeAgent: (agentId: string) => void
   /** Clear all accessory data */
   reset: () => void
 }
@@ -41,7 +41,7 @@ interface AccessoryActions {
 type AccessoryStore = AccessoryState & AccessoryActions
 
 const initialState: AccessoryState = {
-  memberAccessories: {},
+  agentAccessories: {},
   defaults: {
     head: { type: 'none' },
     back: { type: 'none' },
@@ -60,12 +60,12 @@ export const useAccessoryStore = create<AccessoryStore>()(
     (set, get) => ({
       ...initialState,
 
-      setMemberAccessories: (memberId, accessories) => {
-        const current = get().memberAccessories[memberId] ?? { accessories: {}, status: null }
+      setAgentAccessories: (agentId, accessories) => {
+        const current = get().agentAccessories[agentId] ?? { accessories: {}, status: null }
         set({
-          memberAccessories: {
-            ...get().memberAccessories,
-            [memberId]: {
+          agentAccessories: {
+            ...get().agentAccessories,
+            [agentId]: {
               ...current,
               accessories: { ...current.accessories, ...accessories },
             },
@@ -73,12 +73,12 @@ export const useAccessoryStore = create<AccessoryStore>()(
         })
       },
 
-      setMemberStatus: (memberId, status) => {
-        const current = get().memberAccessories[memberId] ?? { accessories: {}, status: null }
+      setAgentStatus: (agentId, status) => {
+        const current = get().agentAccessories[agentId] ?? { accessories: {}, status: null }
         set({
-          memberAccessories: {
-            ...get().memberAccessories,
-            [memberId]: {
+          agentAccessories: {
+            ...get().agentAccessories,
+            [agentId]: {
               ...current,
               status,
             },
@@ -86,14 +86,14 @@ export const useAccessoryStore = create<AccessoryStore>()(
         })
       },
 
-      clearMemberStatus: (memberId) => {
-        const current = get().memberAccessories[memberId]
+      clearAgentStatus: (agentId) => {
+        const current = get().agentAccessories[agentId]
         if (!current) return
 
         set({
-          memberAccessories: {
-            ...get().memberAccessories,
-            [memberId]: {
+          agentAccessories: {
+            ...get().agentAccessories,
+            [agentId]: {
               ...current,
               status: null,
             },
@@ -101,21 +101,21 @@ export const useAccessoryStore = create<AccessoryStore>()(
         })
       },
 
-      getMemberAccessories: (memberId) => {
-        const { memberAccessories, defaults } = get()
-        const memberState = memberAccessories[memberId]
+      getAgentAccessories: (agentId) => {
+        const { agentAccessories, defaults } = get()
+        const agentState = agentAccessories[agentId]
         return {
-          head: memberState?.accessories.head ?? defaults.head ?? { type: 'none' },
-          back: memberState?.accessories.back ?? defaults.back ?? { type: 'none' },
-          held: memberState?.accessories.held ?? defaults.held ?? { type: 'none' },
-          clothingTop: memberState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' },
-          clothingBottom: memberState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' },
-          footwear: memberState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' },
+          head: agentState?.accessories.head ?? defaults.head ?? { type: 'none' },
+          back: agentState?.accessories.back ?? defaults.back ?? { type: 'none' },
+          held: agentState?.accessories.held ?? defaults.held ?? { type: 'none' },
+          clothingTop: agentState?.accessories.clothingTop ?? defaults.clothingTop ?? { type: 'none' },
+          clothingBottom: agentState?.accessories.clothingBottom ?? defaults.clothingBottom ?? { type: 'none' },
+          footwear: agentState?.accessories.footwear ?? defaults.footwear ?? { type: 'none' },
         }
       },
 
-      getMemberStatus: (memberId) => {
-        return get().memberAccessories[memberId]?.status ?? null
+      getAgentStatus: (agentId) => {
+        return get().agentAccessories[agentId]?.status ?? null
       },
 
       setDefaults: (defaults) => {
@@ -124,19 +124,19 @@ export const useAccessoryStore = create<AccessoryStore>()(
         })
       },
 
-      removeMember: (memberId) => {
-        const { memberAccessories } = get()
-        const { [memberId]: _, ...rest } = memberAccessories
+      removeAgent: (agentId) => {
+        const { agentAccessories } = get()
+        const { [agentId]: _, ...rest } = agentAccessories
         void _
-        set({ memberAccessories: rest })
+        set({ agentAccessories: rest })
       },
 
       reset: () => set(initialState),
     }),
     {
-      name: 'member-accessories',
+      name: 'agent-accessories',
       partialize: (state) => ({
-        memberAccessories: state.memberAccessories,
+        agentAccessories: state.agentAccessories,
         defaults: state.defaults,
       }),
     }
@@ -144,15 +144,15 @@ export const useAccessoryStore = create<AccessoryStore>()(
 )
 
 /**
- * Hook for getting accessories for a specific member
+ * Hook for getting accessories for a specific agent
  */
-export function useMemberAccessoriesSelector(memberId: string) {
-  return useAccessoryStore((state) => state.getMemberAccessories(memberId))
+export function useAgentAccessoriesSelector(agentId: string) {
+  return useAccessoryStore((state) => state.getAgentAccessories(agentId))
 }
 
 /**
- * Hook for getting status for a specific member
+ * Hook for getting status for a specific agent
  */
-export function useMemberStatusSelector(memberId: string) {
-  return useAccessoryStore((state) => state.getMemberStatus(memberId))
+export function useAgentStatusSelector(agentId: string) {
+  return useAccessoryStore((state) => state.getAgentStatus(agentId))
 }

@@ -1,5 +1,5 @@
 /**
- * SpeechBubble - Text bubble for member messages.
+ * SpeechBubble - Text bubble for agent messages.
  * Shows text content in a chat-bubble style overlay.
  */
 
@@ -10,22 +10,22 @@ import { useOverlayStore } from '@/stores/overlayStore'
 import type { SpeechBubble as SpeechBubbleType } from '@/stores/overlayStore'
 
 interface SpeechBubbleProps {
-  /** Member ID for state lookup */
-  memberId: string
-  /** Position offset from member center */
+  /** Agent ID for state lookup */
+  agentId: string
+  /** Position offset from agent center */
   position: [number, number, number]
-  /** Custom Y offset above the member */
+  /** Custom Y offset above the agent */
   yOffset?: number
   /** Maximum width of the bubble */
   maxWidth?: number
 }
 
 /**
- * Renders speech bubbles for a member.
+ * Renders speech bubbles for a agent.
  * Multiple bubbles can stack vertically.
  */
 export function SpeechBubble({
-  memberId,
+  agentId,
   position,
   yOffset = 1.4,
   maxWidth = 200,
@@ -34,14 +34,14 @@ export function SpeechBubble({
   const allBubbles = useOverlayStore((state) => state.speechBubbles)
   const hideSpeechBubble = useOverlayStore((state) => state.hideSpeechBubble)
 
-  // Filter bubbles for this member - memoized to avoid recreating array
-  const memberBubbles = useMemo(() => {
-    if (!memberId || !Array.isArray(allBubbles)) return []
-    return allBubbles.filter((b: SpeechBubbleType) => b.memberId === memberId)
-  }, [allBubbles, memberId])
+  // Filter bubbles for this agent - memoized to avoid recreating array
+  const agentBubbles = useMemo(() => {
+    if (!agentId || !Array.isArray(allBubbles)) return []
+    return allBubbles.filter((b: SpeechBubbleType) => b.agentId === agentId)
+  }, [allBubbles, agentId])
 
   // Show only the most recent bubble
-  const latestBubble = memberBubbles.length > 0 ? memberBubbles[memberBubbles.length - 1] : null
+  const latestBubble = agentBubbles.length > 0 ? agentBubbles[agentBubbles.length - 1] : null
 
   // Memoize the close handler
   const handleClose = useCallback(() => {

@@ -26,6 +26,18 @@ export const AgentStatusSchema = z.enum(['active', 'inactive', 'suspended'])
 export type AgentStatus = z.infer<typeof AgentStatusSchema>
 
 /**
+ * Agent voice/communication style.
+ */
+export const AgentVoiceSchema = z.enum(['professional', 'casual', 'technical', 'empathetic', 'terse'])
+export type AgentVoice = z.infer<typeof AgentVoiceSchema>
+
+/**
+ * Connector types for external systems.
+ */
+export const ConnectorTypeSchema = z.enum(['scenario', 'mcp', 'api'])
+export type ConnectorType = z.infer<typeof ConnectorTypeSchema>
+
+/**
  * AgentAppearance represents visual appearance for 3D UI.
  */
 export const AgentAppearanceSchema = z.object({
@@ -37,6 +49,60 @@ export const AgentAppearanceSchema = z.object({
 export type AgentAppearance = z.infer<typeof AgentAppearanceSchema>
 
 /**
+ * AgentPersona represents agent personality and behavior configuration.
+ */
+export const AgentPersonaSchema = z.object({
+  entry: z.string().optional(),
+  voice: AgentVoiceSchema.optional(),
+  traits: nullableStringArray,
+  systemPromptPrefix: z.string().optional(),
+})
+
+export type AgentPersona = z.infer<typeof AgentPersonaSchema>
+
+/**
+ * AgentCapability represents a single capability with verbs.
+ */
+export const AgentCapabilitySchema = z.object({
+  capabilityId: z.string(),
+  verbs: nullableStringArray,
+})
+
+export type AgentCapability = z.infer<typeof AgentCapabilitySchema>
+
+/**
+ * AgentCapabilities represents capability requirements and provisions.
+ */
+export const AgentCapabilitiesSchema = z.object({
+  provides: z.array(AgentCapabilitySchema).nullable().optional().transform((val) => val ?? []),
+  requires: z.array(AgentCapabilitySchema).nullable().optional().transform((val) => val ?? []),
+})
+
+export type AgentCapabilities = z.infer<typeof AgentCapabilitiesSchema>
+
+/**
+ * AgentConnector represents an external system connector.
+ */
+export const AgentConnectorSchema = z.object({
+  type: ConnectorTypeSchema,
+  id: z.string(),
+  enabled: z.boolean().default(true),
+})
+
+export type AgentConnector = z.infer<typeof AgentConnectorSchema>
+
+/**
+ * AgentHeartbeat represents health monitoring configuration.
+ */
+export const AgentHeartbeatSchema = z.object({
+  intervalSeconds: z.number().int().positive().optional(),
+  timeoutSeconds: z.number().int().positive().optional(),
+  maxMissedBeats: z.number().int().positive().optional(),
+})
+
+export type AgentHeartbeat = z.infer<typeof AgentHeartbeatSchema>
+
+/**
  * Agent schema matching the API's Agent type.
  *
  * NOTE: skills array uses nullableStringArray to handle Go's nil slice → null
@@ -45,8 +111,15 @@ export type AgentAppearance = z.infer<typeof AgentAppearanceSchema>
 export const AgentSchema = z.object({
   id: z.string(),
   displayName: z.string(),
+  description: z.string().optional(),
   status: AgentStatusSchema,
   appearance: AgentAppearanceSchema.nullable().optional(),
+  persona: AgentPersonaSchema.nullable().optional(),
+  capabilities: AgentCapabilitiesSchema.nullable().optional(),
+  connectors: z.array(AgentConnectorSchema).nullable().optional().transform((val) => val ?? []),
+  defaultProfileRef: z.string().optional(),
+  heartbeat: AgentHeartbeatSchema.nullable().optional(),
+  tags: nullableStringArray,
   skills: nullableStringArray,
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -65,7 +138,14 @@ export const AgentArraySchema = z.array(AgentSchema)
 export const CreateAgentRequestSchema = z.object({
   id: z.string().optional(),
   displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
+  description: z.string().max(500).optional(),
   appearance: AgentAppearanceSchema.optional(),
+  persona: AgentPersonaSchema.optional(),
+  capabilities: AgentCapabilitiesSchema.optional(),
+  connectors: z.array(AgentConnectorSchema).optional(),
+  defaultProfileRef: z.string().optional(),
+  heartbeat: AgentHeartbeatSchema.optional(),
+  tags: z.array(z.string()).optional(),
   skills: z.array(z.string()).optional(),
 })
 
@@ -77,8 +157,15 @@ export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>
  */
 export const UpdateAgentRequestSchema = z.object({
   displayName: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
   status: AgentStatusSchema.optional(),
   appearance: AgentAppearanceSchema.optional(),
+  persona: AgentPersonaSchema.optional(),
+  capabilities: AgentCapabilitiesSchema.optional(),
+  connectors: z.array(AgentConnectorSchema).optional(),
+  defaultProfileRef: z.string().optional(),
+  heartbeat: AgentHeartbeatSchema.optional(),
+  tags: z.array(z.string()).optional(),
   skills: z.array(z.string()).optional(),
 })
 

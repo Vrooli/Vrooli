@@ -1,8 +1,8 @@
 /**
- * Member Service - State machine and animation utilities for 3D members/agents.
+ * Agent Animation Service - State machine and animation utilities for 3D agents.
  *
  * Provides:
- * - Member state machine for behavior management
+ * - Agent state machine for behavior management
  * - Animation calculations (look rotation, idle sway, wave, celebration)
  * - Easing functions
  * - Interpolation helpers
@@ -10,23 +10,23 @@
  * Note: For API operations, use agentService.ts instead.
  */
 
-import type { MemberState } from '@/types/world'
+import type { AgentState } from '@/types/world'
 
 // ============================================================================
 // State Machine
 // ============================================================================
 
 /**
- * State machine configuration for member behaviors.
+ * State machine configuration for agent behaviors.
  */
 interface StateConfig {
-  name: MemberState
+  name: AgentState
   duration: number
   canInterrupt: boolean
-  nextStates: MemberState[]
+  nextStates: AgentState[]
 }
 
-const STATE_CONFIG: Record<MemberState, StateConfig> = {
+const STATE_CONFIG: Record<AgentState, StateConfig> = {
   idle: {
     name: 'idle',
     duration: Infinity,
@@ -60,19 +60,19 @@ const STATE_CONFIG: Record<MemberState, StateConfig> = {
 }
 
 /**
- * Member state machine class.
+ * Agent state machine class.
  */
-export class MemberStateMachine {
-  private currentState: MemberState = 'idle'
+export class AgentStateMachine {
+  private currentState: AgentState = 'idle'
   private stateStartTime: number = Date.now()
-  private listeners: Set<(state: MemberState) => void> = new Set()
+  private listeners: Set<(state: AgentState) => void> = new Set()
 
-  constructor(initialState: MemberState = 'idle') {
+  constructor(initialState: AgentState = 'idle') {
     this.currentState = initialState
     this.stateStartTime = Date.now()
   }
 
-  getState(): MemberState {
+  getState(): AgentState {
     return this.currentState
   }
 
@@ -85,7 +85,7 @@ export class MemberStateMachine {
     return this.getStateTime() >= config.duration
   }
 
-  transition(newState: MemberState): boolean {
+  transition(newState: AgentState): boolean {
     const currentConfig = STATE_CONFIG[this.currentState]
 
     if (!currentConfig.canInterrupt && !this.isStateComplete()) {
@@ -102,13 +102,13 @@ export class MemberStateMachine {
     return true
   }
 
-  forceTransition(newState: MemberState): void {
+  forceTransition(newState: AgentState): void {
     this.currentState = newState
     this.stateStartTime = Date.now()
     this.notifyListeners()
   }
 
-  subscribe(listener: (state: MemberState) => void): () => void {
+  subscribe(listener: (state: AgentState) => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }

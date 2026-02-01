@@ -13,7 +13,7 @@ import type {
  * Props for accessory components
  */
 export interface AccessoryBaseProps {
-  /** Position relative to member */
+  /** Position relative to agent */
   position?: [number, number, number]
   /** Rotation in radians */
   rotation?: [number, number, number]
@@ -61,14 +61,14 @@ export interface AccessoryRenderInfo {
 }
 
 /**
- * Default accessory offsets relative to member origin.
+ * Default accessory offsets relative to agent origin.
  *
- * GeometricMember anatomy (relative to member origin at Y=0):
+ * GeometricAgent anatomy (relative to agent origin at Y=0):
  * - Head sphere: center at [0, 0.4, 0], radius 0.3 -> top at Y=0.7
  * - Body capsule: center at [0, -0.3, 0], radius 0.25, height 0.5 -> extends from Y=-0.55 to Y=+0.2
  * - Arms: positioned at X=±0.35, Y=-0.1
  *
- * Note: Member origin is typically at Y=0.8 to place feet on ground.
+ * Note: Agent origin is typically at Y=0.8 to place feet on ground.
  */
 const DEFAULT_OFFSETS: Record<'head' | 'back' | 'leftHand' | 'rightHand', AccessoryOffset> = {
   // Hat sits on top of head (head top at Y=0.7, add small gap)

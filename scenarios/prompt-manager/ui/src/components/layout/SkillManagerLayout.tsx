@@ -22,7 +22,9 @@ import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
+import { AgentEditorPanel } from '../editor/AgentEditorPanel'
 import { useSkillsData } from '@/hooks/useSkillsData'
+import { useAgentData } from '@/hooks/useAgentData'
 import { useSkillTree } from '@/hooks/useSkillTree'
 import { usePromptEditor, type SaveResult } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
@@ -70,15 +72,28 @@ export function SkillManagerLayout() {
   // Data fetching
   const {
     skills,
-    isLoading,
+    isLoading: isLoadingSkills,
     createSkill,
     updateSkills,
     deleteSkill: deleteSkillApi,
   } = useSkillsData()
 
+  const {
+    agents,
+    isLoading: isLoadingAgents,
+    updateAgent,
+  } = useAgentData()
+
+  const isLoading = isLoadingSkills || isLoadingAgents
+
   // Centralized selection state from Zustand store
   const selectedSkillId = useSelectionStore((state) => state.selectedSkillId)
   const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
+  const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
+  const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
+
+  // Get the current agent for editing
+  const currentAgent = agents.find((a) => a.id === selectedAgentId) ?? null
 
   // Load initial sidebar state from localStorage (only once on mount)
   const initialSidebarState = useMemo(() => loadSidebarState(), [])
@@ -120,7 +135,7 @@ export function SkillManagerLayout() {
   // Skill selection store
   const skillSelectionMode = useSkillSelectionStore((state) => state.isActive)
   const skillSelectedIds = useSkillSelectionStore((state) => state.selectedSkillIds)
-  const currentMember = useSkillSelectionStore((state) => state.currentMember)
+  const skillSelectionTargetAgent = useSkillSelectionStore((state) => state.currentAgent)
   const exitSkillSelectionMode = useSkillSelectionStore((state) => state.exitSkillSelectionMode)
   const toggleSkillSelection = useSkillSelectionStore((state) => state.toggleSkillSelection)
   const toggleMultipleSkills = useSkillSelectionStore((state) => state.toggleMultipleSkills)
@@ -618,7 +633,7 @@ export function SkillManagerLayout() {
         availableFolders={availableFolders}
         skillSelectionMode={skillSelectionMode}
         skillSelectedIds={skillSelectedIds}
-        currentMember={currentMember}
+        currentAgent={skillSelectionTargetAgent}
         onSkillSelectionSave={() => void saveAndExitSkillSelection()}
         onSkillSelectionCancel={exitSkillSelectionMode}
         getSkillSelectionState={getSkillSelectionState}
@@ -717,29 +732,43 @@ export function SkillManagerLayout() {
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
-            <SkillEditorPanel
-              currentSkill={currentSkill}
-              formState={formState}
-              originalContent={originalContent}
-              validation={validation}
-              allSkills={skills}
-              isDirty={isDirty}
-              dirtyCount={dirtyCount}
-              onFieldChange={updateField}
-              availableTags={availableTags}
-              onUndo={undo}
-              onRedo={redo}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onSave={() => void handleSaveCurrentSkill()}
-              onSaveAll={() => void handleSaveAllChanges()}
-              onDiscard={discardCurrentChanges}
-              onDelete={() => setShowDeleteDialog(true)}
-              onSelectSkill={handleSelectItem}
-              isSaving={isSaving}
-              isDeleting={isDeleting}
-              className="h-full"
-            />
+            {selectedAgentId ? (
+              <AgentEditorPanel
+                agent={currentAgent}
+                allSkills={skills}
+                onUpdate={async (updates) => {
+                  if (selectedAgentId) {
+                    await updateAgent(selectedAgentId, updates)
+                  }
+                }}
+                onClose={() => setSelectedAgentId(null)}
+                className="h-full"
+              />
+            ) : (
+              <SkillEditorPanel
+                currentSkill={currentSkill}
+                formState={formState}
+                originalContent={originalContent}
+                validation={validation}
+                allSkills={skills}
+                isDirty={isDirty}
+                dirtyCount={dirtyCount}
+                onFieldChange={updateField}
+                availableTags={availableTags}
+                onUndo={undo}
+                onRedo={redo}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onSave={() => void handleSaveCurrentSkill()}
+                onSaveAll={() => void handleSaveAllChanges()}
+                onDiscard={discardCurrentChanges}
+                onDelete={() => setShowDeleteDialog(true)}
+                onSelectSkill={handleSelectItem}
+                isSaving={isSaving}
+                isDeleting={isDeleting}
+                className="h-full"
+              />
+            )}
           </PanelErrorBoundary>
         </main>
       </div>
@@ -791,7 +820,7 @@ export function SkillManagerLayout() {
                 availableFolders={availableFolders}
                 skillSelectionMode={skillSelectionMode}
                 skillSelectedIds={skillSelectedIds}
-                currentMember={currentMember}
+                currentAgent={skillSelectionTargetAgent}
                 onSkillSelectionSave={() => void saveAndExitSkillSelection()}
                 onSkillSelectionCancel={exitSkillSelectionMode}
                 getSkillSelectionState={getSkillSelectionState}

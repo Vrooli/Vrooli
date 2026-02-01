@@ -36,6 +36,11 @@
       "maxLength": 100,
       "description": "Human-readable display name"
     },
+    "description": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Brief description of the agent's purpose"
+    },
     "status": {
       "type": "string",
       "enum": ["active", "inactive", "suspended"],
@@ -62,6 +67,145 @@
         }
       },
       "additionalProperties": false
+    },
+    "persona": {
+      "type": "object",
+      "description": "Agent personality and behavior configuration",
+      "properties": {
+        "entry": {
+          "type": "string",
+          "description": "Path to persona file (e.g., SOUL.md)"
+        },
+        "voice": {
+          "type": "string",
+          "enum": ["professional", "casual", "technical", "empathetic", "terse"],
+          "description": "Communication style"
+        },
+        "traits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Personality traits (e.g., meticulous, security-focused)"
+        },
+        "systemPromptPrefix": {
+          "type": "string",
+          "description": "Optional inline prefix for simple cases"
+        }
+      },
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Capability requirements and provisions",
+      "properties": {
+        "provides": {
+          "type": "array",
+          "description": "Capabilities this agent provides",
+          "items": {
+            "type": "object",
+            "required": ["capabilityId"],
+            "properties": {
+              "capabilityId": {
+                "type": "string",
+                "description": "Capability identifier (e.g., code.review)"
+              },
+              "verbs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Allowed operations (e.g., execute, read)"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "requires": {
+          "type": "array",
+          "description": "Capabilities this agent requires",
+          "items": {
+            "type": "object",
+            "required": ["capabilityId"],
+            "properties": {
+              "capabilityId": {
+                "type": "string",
+                "description": "Capability identifier (e.g., codebase.read)"
+              },
+              "verbs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Required operations"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "connectors": {
+      "type": "array",
+      "description": "External system connectors",
+      "items": {
+        "type": "object",
+        "required": ["type", "id"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["scenario", "mcp", "api"],
+            "description": "Connector type"
+          },
+          "id": {
+            "type": "string",
+            "description": "Connector identifier"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether this connector is enabled"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "defaultProfileRef": {
+      "type": "string",
+      "description": "URI reference to default profile (e.g., agent-manager://profiles/default)"
+    },
+    "heartbeat": {
+      "type": "object",
+      "description": "Health monitoring configuration",
+      "properties": {
+        "intervalSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Heartbeat interval in seconds"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 120,
+          "description": "Timeout before considering agent unhealthy"
+        },
+        "maxMissedBeats": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Max missed heartbeats before marking inactive"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Searchable tags for categorization"
     },
     "skillPins": {
       "type": "array",

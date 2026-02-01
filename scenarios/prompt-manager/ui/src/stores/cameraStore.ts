@@ -9,7 +9,7 @@
 
 import { create } from 'zustand'
 
-export type CameraMode = 'freeform' | 'zoomed-member' | 'top-down'
+export type CameraMode = 'freeform' | 'zoomed-agent' | 'top-down'
 
 interface CameraHistoryEntry {
   position: [number, number, number]
@@ -26,7 +26,7 @@ interface CameraStore {
   mode: CameraMode
 
   // Focus tracking
-  focusedMemberId: string | null
+  focusedAgentId: string | null
 
   // History for back navigation
   history: CameraHistoryEntry[]
@@ -42,11 +42,11 @@ interface CameraStore {
   setIsAnimating: (isAnimating: boolean) => void
 
   // Compound actions
-  zoomToMember: (memberId: string, position: [number, number, number]) => void
+  zoomToAgent: (agentId: string, position: [number, number, number]) => void
   exitZoom: () => void
   setTopDown: () => void
   setFreeform: () => void
-  cycleCameraMode: (memberId?: string, memberPosition?: [number, number, number]) => void
+  cycleCameraMode: (agentId?: string, agentPosition?: [number, number, number]) => void
 
   // History management
   pushHistory: () => void
@@ -68,7 +68,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   target: DEFAULT_TARGET,
   zoom: DEFAULT_ZOOM,
   mode: 'freeform',
-  focusedMemberId: null,
+  focusedAgentId: null,
   history: [],
   isAnimating: false,
 
@@ -78,27 +78,27 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
   setMode: (mode) => set({ mode }),
   setIsAnimating: (isAnimating) => set({ isAnimating }),
 
-  zoomToMember: (memberId, memberPosition) => {
+  zoomToAgent: (agentId, agentPosition) => {
     const state = get()
 
     // Push current state to history
     state.pushHistory()
 
-    // Calculate camera position to focus on member
-    // Position camera in front of and above member
+    // Calculate camera position to focus on agent
+    // Position camera in front of and above agent
     const cameraOffset: [number, number, number] = [0, 2, 5]
     const newPosition: [number, number, number] = [
-      memberPosition[0] + cameraOffset[0],
-      memberPosition[1] + cameraOffset[1],
-      memberPosition[2] + cameraOffset[2],
+      agentPosition[0] + cameraOffset[0],
+      agentPosition[1] + cameraOffset[1],
+      agentPosition[2] + cameraOffset[2],
     ]
 
     set({
       position: newPosition,
-      target: memberPosition,
+      target: agentPosition,
       zoom: 2,
-      mode: 'zoomed-member',
-      focusedMemberId: memberId,
+      mode: 'zoomed-agent',
+      focusedAgentId: agentId,
       isAnimating: true,
     })
 
@@ -117,7 +117,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         target: history.target,
         zoom: history.zoom,
         mode: history.mode,
-        focusedMemberId: null,
+        focusedAgentId: null,
         isAnimating: true,
       })
     } else {
@@ -127,7 +127,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
         target: DEFAULT_TARGET,
         zoom: DEFAULT_ZOOM,
         mode: 'freeform',
-        focusedMemberId: null,
+        focusedAgentId: null,
         isAnimating: true,
       })
     }
@@ -146,7 +146,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       target: TOP_DOWN_TARGET,
       zoom: 1,
       mode: 'top-down',
-      focusedMemberId: null,
+      focusedAgentId: null,
       isAnimating: true,
     })
 
@@ -164,7 +164,7 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
       target: DEFAULT_TARGET,
       zoom: DEFAULT_ZOOM,
       mode: 'freeform',
-      focusedMemberId: null,
+      focusedAgentId: null,
       isAnimating: true,
     })
 
@@ -173,23 +173,23 @@ export const useCameraStore = create<CameraStore>((set, get) => ({
     }, 1000)
   },
 
-  cycleCameraMode: (memberId?: string, memberPosition?: [number, number, number]) => {
+  cycleCameraMode: (agentId?: string, agentPosition?: [number, number, number]) => {
     const state = get()
     const currentMode = state.mode
 
-    // Cycle: zoomed-member -> freeform -> top-down -> zoomed-member
-    if (currentMode === 'zoomed-member') {
+    // Cycle: zoomed-agent -> freeform -> top-down -> zoomed-agent
+    if (currentMode === 'zoomed-agent') {
       // Go to freeform
       state.setFreeform()
     } else if (currentMode === 'freeform') {
       // Go to top-down
       state.setTopDown()
     } else {
-      // top-down -> zoomed-member (if we have a member to zoom to)
-      if (memberId && memberPosition) {
-        state.zoomToMember(memberId, memberPosition)
+      // top-down -> zoomed-agent (if we have a agent to zoom to)
+      if (agentId && agentPosition) {
+        state.zoomToAgent(agentId, agentPosition)
       } else {
-        // No member available, go back to freeform
+        // No agent available, go back to freeform
         state.setFreeform()
       }
     }

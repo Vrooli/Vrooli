@@ -1,5 +1,5 @@
 /**
- * MemberCustomizeModal - Modal for customizing member appearance.
+ * AgentCustomizeModal - Modal for customizing agent appearance.
  *
  * Features:
  * - Name editing
@@ -10,8 +10,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Palette, Shirt, Crown, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Member, UpdateMemberRequest } from '@/types/member'
-import { DEFAULT_MEMBER_COLORS } from '@/types/member'
+import type { Agent, UpdateAgentRequest } from '@/types/agent'
+import { DEFAULT_AGENT_COLORS } from '@/types/agent'
 import { useAccessoryStore } from '@/stores/accessoryStore'
 import type {
   HeadAccessoryType,
@@ -20,11 +20,11 @@ import type {
   FootwearType,
 } from '@/types/accessory'
 
-interface MemberCustomizeModalProps {
+interface AgentCustomizeModalProps {
   isOpen: boolean
   onClose: () => void
-  member: Member | null
-  onSave: (updates: UpdateMemberRequest) => Promise<void>
+  agent: Agent | null
+  onSave: (updates: UpdateAgentRequest) => Promise<void>
   isLoading?: boolean
 }
 
@@ -79,23 +79,23 @@ const FOOTWEAR: { type: FootwearType; icon: string; label: string }[] = [
 ]
 
 /**
- * Member customization modal component.
+ * Agent customization modal component.
  */
-export function MemberCustomizeModal({
+export function AgentCustomizeModal({
   isOpen,
   onClose,
-  member,
+  agent,
   onSave,
   isLoading = false,
-}: MemberCustomizeModalProps) {
+}: AgentCustomizeModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
-  const [name, setName] = useState('')
-  const [bodyColor, setBodyColor] = useState<string>(DEFAULT_MEMBER_COLORS.bodyColor)
-  const [headColor, setHeadColor] = useState<string>(DEFAULT_MEMBER_COLORS.headColor)
-  const [accentColor, setAccentColor] = useState<string>(DEFAULT_MEMBER_COLORS.accentColor)
+  const [displayName, setDisplayName] = useState('')
+  const [bodyColor, setBodyColor] = useState<string>(DEFAULT_AGENT_COLORS.body)
+  const [headColor, setHeadColor] = useState<string>(DEFAULT_AGENT_COLORS.head)
+  const [accentColor, setAccentColor] = useState<string>(DEFAULT_AGENT_COLORS.accent)
   const [activeTab, setActiveTab] = useState<'colors' | 'accessories'>('colors')
 
   // Accessory state
@@ -105,25 +105,25 @@ export function MemberCustomizeModal({
   const [footwear, setFootwear] = useState<FootwearType>('none')
 
   // Accessory store
-  const getMemberAccessories = useAccessoryStore((state) => state.getMemberAccessories)
-  const setMemberAccessories = useAccessoryStore((state) => state.setMemberAccessories)
+  const getAgentAccessories = useAccessoryStore((state) => state.getAgentAccessories)
+  const setAgentAccessories = useAccessoryStore((state) => state.setAgentAccessories)
 
-  // Initialize form when member changes
+  // Initialize form when agent changes
   useEffect(() => {
-    if (member) {
-      setName(member.name)
-      setBodyColor(member.bodyColor)
-      setHeadColor(member.headColor)
-      setAccentColor(member.accentColor)
+    if (agent) {
+      setDisplayName(agent.displayName)
+      setBodyColor(agent.appearance?.body ?? DEFAULT_AGENT_COLORS.body)
+      setHeadColor(agent.appearance?.head ?? DEFAULT_AGENT_COLORS.head)
+      setAccentColor(agent.appearance?.accent ?? DEFAULT_AGENT_COLORS.accent)
 
       // Load accessories from store
-      const accessories = getMemberAccessories(member.id)
+      const accessories = getAgentAccessories(agent.id)
       setHeadAccessory(accessories.head?.type ?? 'none')
       setClothingTop(accessories.clothingTop?.type ?? 'none')
       setClothingBottom(accessories.clothingBottom?.type ?? 'none')
       setFootwear(accessories.footwear?.type ?? 'none')
     }
-  }, [member, getMemberAccessories])
+  }, [agent, getAgentAccessories])
 
   // Focus name input when opened
   useEffect(() => {
@@ -173,27 +173,29 @@ export function MemberCustomizeModal({
 
   // Handle save
   const handleSave = async () => {
-    if (!member) return
+    if (!agent) return
 
     // Save accessories to store
-    setMemberAccessories(member.id, {
+    setAgentAccessories(agent.id, {
       head: { type: headAccessory },
       clothingTop: { type: clothingTop },
       clothingBottom: { type: clothingBottom },
       footwear: { type: footwear },
     })
 
-    // Save member data
+    // Save agent data
     await onSave({
-      name,
-      bodyColor,
-      headColor,
-      accentColor,
+      displayName,
+      appearance: {
+        body: bodyColor,
+        head: headColor,
+        accent: accentColor,
+      },
     })
     onClose()
   }
 
-  if (!isOpen || !member) return null
+  if (!isOpen || !agent) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -234,9 +236,9 @@ export function MemberCustomizeModal({
           </div>
           <div>
             <h2 id="customize-dialog-title" className="text-lg font-semibold text-foreground">
-              Customize Member
+              Customize Agent
             </h2>
-            <p className="text-sm text-muted-foreground">Personalize your member's appearance</p>
+            <p className="text-sm text-muted-foreground">Personalize your agent's appearance</p>
           </div>
         </div>
 
@@ -280,22 +282,22 @@ export function MemberCustomizeModal({
 
         {/* Name input */}
         <div className="mb-4">
-          <label htmlFor="member-name" className="block text-sm font-medium text-foreground mb-1">
+          <label htmlFor="agent-name" className="block text-sm font-medium text-foreground mb-1">
             Name
           </label>
           <input
             ref={nameInputRef}
-            id="member-name"
+            id="agent-name"
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
             className={cn(
               'w-full px-3 py-2 text-sm',
               'bg-muted border border-border rounded-lg',
               'text-foreground placeholder:text-muted-foreground',
               'focus:outline-none focus:ring-2 focus:ring-primary'
             )}
-            placeholder="Enter member name"
+            placeholder="Enter agent name"
           />
         </div>
 

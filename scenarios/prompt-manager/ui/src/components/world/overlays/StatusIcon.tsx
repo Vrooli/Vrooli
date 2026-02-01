@@ -1,5 +1,5 @@
 /**
- * StatusIcon - Visual indicator for member status.
+ * StatusIcon - Visual indicator for agent status.
  * Shows warning, error, info, or other status icons.
  * Hover to reveal an optional message tooltip.
  */
@@ -7,10 +7,10 @@
 import { useState } from 'react'
 import { Html } from '@react-three/drei'
 import { AlertTriangle, XCircle, Info, Loader2, MessageCircle } from 'lucide-react'
-import type { MemberStatusType } from '@/types/accessory'
+import type { AgentStatusType } from '@/types/accessory'
 
 /** Icon mapping for status types */
-const STATUS_ICONS: Record<MemberStatusType, typeof AlertTriangle | null> = {
+const STATUS_ICONS: Record<AgentStatusType, typeof AlertTriangle | null> = {
   normal: null,
   warning: AlertTriangle,
   error: XCircle,
@@ -20,7 +20,7 @@ const STATUS_ICONS: Record<MemberStatusType, typeof AlertTriangle | null> = {
 }
 
 /** Color mapping for status types */
-const STATUS_COLORS: Record<MemberStatusType, string> = {
+const STATUS_COLORS: Record<AgentStatusType, string> = {
   normal: 'text-muted-foreground',
   warning: 'text-yellow-500',
   error: 'text-red-500',
@@ -30,7 +30,7 @@ const STATUS_COLORS: Record<MemberStatusType, string> = {
 }
 
 /** Background color mapping for tooltips */
-const STATUS_BG_COLORS: Record<MemberStatusType, string> = {
+const STATUS_BG_COLORS: Record<AgentStatusType, string> = {
   normal: 'bg-muted',
   warning: 'bg-yellow-500/10 border-yellow-500/30',
   error: 'bg-red-500/10 border-red-500/30',
@@ -40,7 +40,7 @@ const STATUS_BG_COLORS: Record<MemberStatusType, string> = {
 }
 
 /** Animation classes for status types */
-const STATUS_ANIMATIONS: Record<MemberStatusType, string> = {
+const STATUS_ANIMATIONS: Record<AgentStatusType, string> = {
   normal: '',
   warning: 'animate-bounce',
   error: 'animate-pulse',
@@ -51,10 +51,10 @@ const STATUS_ANIMATIONS: Record<MemberStatusType, string> = {
 
 interface StatusIconProps {
   /** Status type to display */
-  status: MemberStatusType
-  /** Position offset from member center */
+  status: AgentStatusType
+  /** Position offset from agent center */
   position: [number, number, number]
-  /** Custom Y offset above the member */
+  /** Custom Y offset above the agent */
   yOffset?: number
   /** Icon size */
   size?: number
@@ -63,7 +63,7 @@ interface StatusIconProps {
 }
 
 /**
- * Renders a status icon that floats above a member.
+ * Renders a status icon that floats above an agent.
  * Different status types have different icons and animations.
  * Hover over the icon to see the optional message tooltip.
  */

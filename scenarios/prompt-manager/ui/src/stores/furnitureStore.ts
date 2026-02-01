@@ -1,6 +1,6 @@
 /**
  * Furniture store for managing furniture instances in the 3D world.
- * Handles furniture placement, removal, and member seating.
+ * Handles furniture placement, removal, and agent seating.
  */
 
 import { create } from 'zustand'
@@ -11,8 +11,8 @@ import { FURNITURE_CONFIGS, DEFAULT_FURNITURE_COLORS } from '@/types/furniture'
 interface FurnitureState {
   /** All furniture instances in the world */
   furniture: FurnitureInstance[]
-  /** Map of member IDs to their seated furniture ID and seat index */
-  seatedMembers: Record<string, { furnitureId: string; seatIndex: number }>
+  /** Map of agent IDs to their seated furniture ID and seat index */
+  seatedAgents: Record<string, { furnitureId: string; seatIndex: number }>
 }
 
 interface FurnitureActions {
@@ -29,14 +29,14 @@ interface FurnitureActions {
   moveFurniture: (id: string, position: [number, number, number]) => void
   /** Rotate furniture */
   rotateFurniture: (id: string, rotation: number) => void
-  /** Seat a member at furniture */
-  seatMember: (memberId: string, furnitureId: string, seatIndex?: number) => boolean
-  /** Unseat a member */
-  unseatMember: (memberId: string) => void
+  /** Seat a agent at furniture */
+  seatAgent: (agentId: string, furnitureId: string, seatIndex?: number) => boolean
+  /** Unseat a agent */
+  unseatAgent: (agentId: string) => void
   /** Get available seats for furniture */
   getAvailableSeats: (furnitureId: string) => SeatPosition[]
-  /** Get seat position for a member (if seated) */
-  getMemberSeatPosition: (memberId: string) => { position: [number, number, number]; rotation: number } | null
+  /** Get seat position for a agent (if seated) */
+  getAgentSeatPosition: (agentId: string) => { position: [number, number, number]; rotation: number } | null
   /** Check if furniture has available seats */
   hasAvailableSeats: (furnitureId: string) => boolean
   /** Get furniture by ID */
@@ -49,7 +49,7 @@ type FurnitureStore = FurnitureState & FurnitureActions
 
 const initialState: FurnitureState = {
   furniture: [],
-  seatedMembers: {},
+  seatedAgents: {},
 }
 
 let furnitureIdCounter = 0
@@ -89,16 +89,16 @@ export const useFurnitureStore = create<FurnitureStore>()(
       },
 
       removeFurniture: (id) => {
-        const { seatedMembers } = get()
+        const { seatedAgents } = get()
 
-        // Unseat any members on this furniture
+        // Unseat any agents on this furniture
         const updatedSeated = Object.fromEntries(
-          Object.entries(seatedMembers).filter(([, info]) => info.furnitureId !== id)
+          Object.entries(seatedAgents).filter(([, info]) => info.furnitureId !== id)
         )
 
         set((state) => ({
           furniture: state.furniture.filter((f) => f.id !== id),
-          seatedMembers: updatedSeated,
+          seatedAgents: updatedSeated,
         }))
       },
 
@@ -118,8 +118,8 @@ export const useFurnitureStore = create<FurnitureStore>()(
         }))
       },
 
-      seatMember: (memberId, furnitureId, seatIndex) => {
-        const { furniture, seatedMembers } = get()
+      seatAgent: (agentId, furnitureId, seatIndex) => {
+        const { furniture, seatedAgents } = get()
         const furn = furniture.find((f) => f.id === furnitureId)
         if (!furn) return false
 
@@ -128,7 +128,7 @@ export const useFurnitureStore = create<FurnitureStore>()(
 
         // Find occupied seat indices for this furniture
         const occupiedIndices = new Set(
-          Object.values(seatedMembers)
+          Object.values(seatedAgents)
             .filter((info) => info.furnitureId === furnitureId)
             .map((info) => info.seatIndex)
         )
@@ -149,38 +149,38 @@ export const useFurnitureStore = create<FurnitureStore>()(
         if (targetSeatIndex >= config.seats.length) return false
 
         // Unseat from previous furniture if any
-        const current = seatedMembers[memberId]
+        const current = seatedAgents[agentId]
         if (current) {
-          get().unseatMember(memberId)
+          get().unseatAgent(agentId)
         }
 
         set((state) => ({
-          seatedMembers: {
-            ...state.seatedMembers,
-            [memberId]: { furnitureId, seatIndex: targetSeatIndex },
+          seatedAgents: {
+            ...state.seatedAgents,
+            [agentId]: { furnitureId, seatIndex: targetSeatIndex },
           },
         }))
 
         return true
       },
 
-      unseatMember: (memberId) => {
+      unseatAgent: (agentId) => {
         set((state) => {
-          const { [memberId]: _, ...rest } = state.seatedMembers
+          const { [agentId]: _, ...rest } = state.seatedAgents
           void _
-          return { seatedMembers: rest }
+          return { seatedAgents: rest }
         })
       },
 
       getAvailableSeats: (furnitureId) => {
-        const { furniture, seatedMembers } = get()
+        const { furniture, seatedAgents } = get()
         const furn = furniture.find((f) => f.id === furnitureId)
         if (!furn) return []
 
         const config = FURNITURE_CONFIGS[furn.type]
 
         const occupiedIndices = new Set(
-          Object.values(seatedMembers)
+          Object.values(seatedAgents)
             .filter((info) => info.furnitureId === furnitureId)
             .map((info) => info.seatIndex)
         )
@@ -188,9 +188,9 @@ export const useFurnitureStore = create<FurnitureStore>()(
         return config.seats.filter((_, idx) => !occupiedIndices.has(idx))
       },
 
-      getMemberSeatPosition: (memberId) => {
-        const { furniture, seatedMembers } = get()
-        const seatInfo = seatedMembers[memberId]
+      getAgentSeatPosition: (agentId) => {
+        const { furniture, seatedAgents } = get()
+        const seatInfo = seatedAgents[agentId]
         if (!seatInfo) return null
 
         const furn = furniture.find((f) => f.id === seatInfo.furnitureId)
@@ -229,7 +229,7 @@ export const useFurnitureStore = create<FurnitureStore>()(
       name: 'world-furniture',
       partialize: (state) => ({
         furniture: state.furniture,
-        seatedMembers: state.seatedMembers,
+        seatedAgents: state.seatedAgents,
       }),
     }
   )
@@ -257,8 +257,8 @@ export function useRemoveFurniture() {
 }
 
 /**
- * Hook to check if a member is seated
+ * Hook to check if a agent is seated
  */
-export function useIsMemberSeated(memberId: string): boolean {
-  return useFurnitureStore((state) => memberId in state.seatedMembers)
+export function useIsAgentSeated(agentId: string): boolean {
+  return useFurnitureStore((state) => agentId in state.seatedAgents)
 }

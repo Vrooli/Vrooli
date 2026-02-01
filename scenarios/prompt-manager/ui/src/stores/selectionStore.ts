@@ -1,9 +1,10 @@
 /**
- * Zustand store for centralized skill selection state.
+ * Zustand store for centralized selection state.
  *
  * This store synchronizes selection between:
  * - The sidebar tree (single selection for editing)
  * - The 3D skill tree (multi-selection for combining)
+ * - Agent selection (single selection for editing)
  */
 
 import { create } from 'zustand'
@@ -15,6 +16,9 @@ interface SelectionStore {
   // Multi-selection for combining (3D skill tree)
   selectedSkillIds: string[]
 
+  // Agent selection for editing
+  selectedAgentId: string | null
+
   // Actions
   setSelectedSkillId: (id: string | null) => void
   toggleSkillSelection: (id: string) => void
@@ -23,11 +27,13 @@ interface SelectionStore {
   setSelectedSkillIds: (ids: string[]) => void
   clearSelection: () => void
   clearAllSelection: () => void
+  setSelectedAgentId: (id: string | null) => void
 }
 
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedSkillId: null,
   selectedSkillIds: [],
+  selectedAgentId: null,
 
   setSelectedSkillId: (id) => {
     set({
@@ -35,6 +41,8 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // When selecting a single skill for editing, also update multi-selection
       // This ensures the 3D tree highlights the selected skill
       selectedSkillIds: id ? [id] : [],
+      // Clear agent selection when selecting a skill
+      selectedAgentId: null,
     })
   },
 
@@ -92,6 +100,16 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
 
   clearAllSelection: () => {
     set({
+      selectedSkillId: null,
+      selectedSkillIds: [],
+      selectedAgentId: null,
+    })
+  },
+
+  setSelectedAgentId: (id) => {
+    set({
+      selectedAgentId: id,
+      // Clear skill selection when selecting an agent
       selectedSkillId: null,
       selectedSkillIds: [],
     })
