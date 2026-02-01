@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/google/uuid"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // Mode determines what capabilities the session needs.
@@ -54,6 +54,7 @@ type Spec struct {
 	// Recording-specific fields
 	StorageState   json.RawMessage       // Restore auth state from session profile
 	FrameStreaming *FrameStreamingConfig // Live preview config
+	Recording      *RecordingCallbacks   // Recording callbacks (injected by service layer)
 
 	// Execution-specific fields
 	BaseURL      string                // Base URL for relative navigation
@@ -63,7 +64,57 @@ type Spec struct {
 	Labels map[string]string
 
 	// Anti-detection and human-like behavior configuration
-	BrowserProfile *archiveingestion.BrowserProfile
+	BrowserProfile *sessionprofilepersistence.BrowserProfile
+}
+
+// RecordingCallbacks configures callbacks for recording sessions.
+// When set, all browser actions and page events will be reported
+// through these callbacks, enabling unified recording regardless of
+// how actions are initiated (manual, AI, playback).
+type RecordingCallbacks struct {
+	// OnAction is called when a browser action is performed.
+	OnAction func(sessionID string, action *RecordedActionInfo)
+
+	// OnPageEvent is called when a page lifecycle event occurs.
+	OnPageEvent func(sessionID string, event *PageEventInfo)
+
+	// OnFrame is called when a new frame is captured for live preview.
+	OnFrame func(sessionID string, frame *FrameInfo)
+}
+
+// RecordedActionInfo contains action details for the callback.
+type RecordedActionInfo struct {
+	ID          string
+	ActionType  string
+	URL         string
+	PageTitle   string
+	Selector    string
+	PageID      uuid.UUID
+	Timestamp   string
+	SequenceNum int
+	Confidence  float64
+	Payload     map[string]interface{}
+	Source      string // "manual", "ai", "playback"
+}
+
+// PageEventInfo contains page event details for the callback.
+type PageEventInfo struct {
+	Type      string // "page_created", "page_navigated", "page_closed"
+	PageID    uuid.UUID
+	URL       string
+	Title     string
+	OpenerID  *uuid.UUID
+	Timestamp string
+}
+
+// FrameInfo contains frame data for live preview.
+type FrameInfo struct {
+	Data        []byte
+	MediaType   string
+	Width       int
+	Height      int
+	CapturedAt  string
+	ContentHash string
 }
 
 // FrameStreamingConfig configures live preview frame streaming.

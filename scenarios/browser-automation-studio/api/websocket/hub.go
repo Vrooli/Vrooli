@@ -1,3 +1,6 @@
+// Package websocket provides WebSocket hub for real-time communication.
+//
+// DOC: docs/architecture/recording.md#manual-recording-websocket-flow
 package websocket
 
 import (
@@ -169,12 +172,58 @@ func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
 }
 
-// BroadcastRecordingAction sends a recording action to clients subscribed to a specific session.
-func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
+// TimelineAction represents an action in the unified timeline format.
+// This matches the UI's expected format for timeline entries.
+type TimelineAction struct {
+	ID          string         `json:"id"`
+	ActionType  string         `json:"actionType"`
+	SequenceNum int            `json:"sequenceNum"`
+	Timestamp   string         `json:"timestamp"`
+	Confidence  float64        `json:"confidence"`
+	URL         string         `json:"url,omitempty"`
+	PageTitle   string         `json:"pageTitle,omitempty"`
+	Selector    map[string]any `json:"selector,omitempty"`
+	Payload     map[string]any `json:"payload,omitempty"`
+}
+
+// UnifiedTimelineEntry represents a unified timeline entry for WebSocket broadcast.
+// This is the single format used for recording actions, replacing the legacy dual-format.
+type UnifiedTimelineEntry struct {
+	ID        string          `json:"id"`
+	Type      string          `json:"type"` // "action" or "page_event"
+	Timestamp string          `json:"timestamp"`
+	PageID    string          `json:"pageId"`
+	Action    *TimelineAction `json:"action,omitempty"`
+}
+
+// BroadcastResult contains metrics from a broadcast operation.
+// Used for observability to track whether broadcasts succeed and reach subscribers.
+//
+// DOC: docs/architecture/recording.md#broadcastresult-metrics
+type BroadcastResult struct {
+	// SubscriberCount is the number of clients subscribed to this session.
+	SubscriberCount int
+	// SentCount is the number of clients that successfully received the message.
+	SentCount int
+	// DroppedCount is the number of clients whose buffers were full (message dropped).
+	DroppedCount int
+}
+
+// BroadcastRecordingEntry sends a unified timeline entry to clients subscribed to a recording session.
+// This replaces the legacy dual-format broadcasting (action + timeline_entry).
+// Returns BroadcastResult with metrics for observability.
+func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult {
+	result := BroadcastResult{}
+
+	if entry == nil {
+		h.log.WithField("session_id", sessionID).Warn("BroadcastRecordingEntry: nil entry")
+		return result
+	}
+
 	message := map[string]any{
 		"type":       "recording_action",
 		"session_id": sessionID,
-		"action":     action,
+		"entry":      entry,
 		"timestamp":  getCurrentTimestamp(),
 	}
 
@@ -184,39 +233,30 @@ func (h *Hub) BroadcastRecordingAction(sessionID string, action any) {
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
 		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
+			result.SubscriberCount++
 			select {
 			case client.Send <- message:
+				result.SentCount++
 			default:
 				// Client buffer full, skip
+				result.DroppedCount++
+				h.log.WithFields(logrus.Fields{
+					"client_id":  client.ID,
+					"session_id": sessionID,
+					"entry_id":   entry.ID,
+				}).Warn("BroadcastRecordingEntry: client buffer full, message dropped")
 			}
 		}
 	}
-}
 
-// BroadcastRecordingActionWithTimeline sends a recording action with a TimelineEntry.
-// The message includes both the action (for compatibility) and the timeline_entry field.
-func (h *Hub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
-	message := map[string]any{
-		"type":           "recording_action",
-		"session_id":     sessionID,
-		"action":         action,
-		"timeline_entry": timelineEntry,
-		"timestamp":      getCurrentTimestamp(),
+	if result.SubscriberCount == 0 {
+		h.log.WithFields(logrus.Fields{
+			"session_id": sessionID,
+			"entry_id":   entry.ID,
+		}).Debug("BroadcastRecordingEntry: no subscribers")
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	for client := range h.clients {
-		// Only send to clients subscribed to this recording session
-		if client.RecordingSessionID != nil && *client.RecordingSessionID == sessionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip
-			}
-		}
-	}
+	return result
 }
 
 // RecordingFrame represents a frame pushed from the playwright-driver.

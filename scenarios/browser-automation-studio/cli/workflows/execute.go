@@ -44,6 +44,7 @@ func printExecuteHelp(cliName string) {
 	fmt.Println("  --session-profile <name> Load session profile's cookies/localStorage")
 	fmt.Println("  --save-session <name>    Save browser state to profile after execution")
 	fmt.Println("  --fresh-session          Ignore any saved session state")
+	fmt.Println("  --restore-tabs           Restore tabs from session profile (default: false)")
 	fmt.Println()
 	fmt.Println("Artifact Collection:")
 	fmt.Println("  --record-video           Capture video during execution")
@@ -100,6 +101,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	sessionProfile := ""
 	saveSession := ""
 	freshSession := false
+	restoreTabs := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -201,6 +203,8 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			i++
 		case "--fresh-session":
 			freshSession = true
+		case "--restore-tabs":
+			restoreTabs = true
 		default:
 			if strings.HasPrefix(args[i], "--") {
 				return fmt.Errorf("unknown option: %s", args[i])
@@ -242,6 +246,9 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	// Validate session profile flags
 	if sessionProfile != "" && freshSession {
 		return fmt.Errorf("cannot use --session-profile with --fresh-session")
+	}
+	if restoreTabs && sessionProfile == "" {
+		return fmt.Errorf("--restore-tabs requires --session-profile")
 	}
 
 	// Resolve session profile IDs if names were provided
@@ -369,6 +376,11 @@ func runExecute(ctx *appctx.Context, args []string) error {
 	// Inject session profile ID if specified (and not --fresh-session)
 	if sessionProfileID != "" && !freshSession {
 		params["session_profile_id"] = sessionProfileID
+	}
+
+	// Inject restore_tabs flag (only meaningful with session profile)
+	if restoreTabs {
+		params["restore_tabs"] = true
 	}
 
 	// Inject save session profile ID if specified
@@ -1192,6 +1204,7 @@ var knownExecutionParamFields = map[string]bool{
 	"start_url":               true,
 	"session_profile_id":      true,
 	"save_session_profile_id": true,
+	"restore_tabs":            true, // Tab restoration from session profile
 }
 
 // normalizeExecutionParams moves unknown fields to initial_params.

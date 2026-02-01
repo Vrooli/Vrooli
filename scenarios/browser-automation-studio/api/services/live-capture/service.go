@@ -12,57 +12,71 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/domain"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // Service provides high-level operations for live capture mode.
-// It orchestrates the session manager, workflow generator, and timeline service.
+// It orchestrates the session manager and workflow generator.
+//
+// DOC: docs/architecture/recording.md#service-layer
 type Service struct {
 	sessions  *session.Manager
 	generator *WorkflowGenerator
-	timeline  *TimelineService
 	log       *logrus.Logger
+
+	// Unified recording service for action and page event persistence.
+	// All recorded actions (manual and AI) flow through this service.
+	// DOC: docs/architecture/recording.md#unified-recording
+	unifiedRecordingSvc *unifiedrecording.Service
 }
 
 // NewService creates a new live capture service.
-func NewService(log *logrus.Logger) *Service {
+func NewService(log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
 	mgr, err := session.NewManager(session.WithLogger(log))
 	if err != nil {
 		log.WithError(err).Warn("Failed to create session manager, service will fail on first use")
 		return &Service{
-			sessions:  nil,
-			generator: NewWorkflowGenerator(),
-			timeline:  NewTimelineService(),
-			log:       log,
+			sessions:            nil,
+			generator:           NewWorkflowGenerator(),
+			log:                 log,
+			unifiedRecordingSvc: unifiedRecordingSvc,
 		}
 	}
 	return &Service{
-		sessions:  mgr,
-		generator: NewWorkflowGenerator(),
-		timeline:  NewTimelineService(),
-		log:       log,
+		sessions:            mgr,
+		generator:           NewWorkflowGenerator(),
+		log:                 log,
+		unifiedRecordingSvc: unifiedRecordingSvc,
 	}
 }
 
 // NewServiceWithManager creates a service with a custom session manager (for testing).
-func NewServiceWithManager(mgr *session.Manager, log *logrus.Logger) *Service {
+func NewServiceWithManager(mgr *session.Manager, log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
 	return &Service{
-		sessions:  mgr,
-		generator: NewWorkflowGenerator(),
-		timeline:  NewTimelineService(),
-		log:       log,
+		sessions:            mgr,
+		generator:           NewWorkflowGenerator(),
+		log:                 log,
+		unifiedRecordingSvc: unifiedRecordingSvc,
 	}
 }
 
 // NewServiceWithClient creates a service with a custom driver client (for testing).
 // Deprecated: Use NewServiceWithManager instead.
-func NewServiceWithClient(client *driver.Client, log *logrus.Logger) *Service {
+func NewServiceWithClient(client *driver.Client, log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
 	return &Service{
-		sessions:  session.NewManagerWithClient(client, session.WithLogger(log)),
-		generator: NewWorkflowGenerator(),
-		timeline:  NewTimelineService(),
-		log:       log,
+		sessions:            session.NewManagerWithClient(client, session.WithLogger(log)),
+		generator:           NewWorkflowGenerator(),
+		log:                 log,
+		unifiedRecordingSvc: unifiedRecordingSvc,
 	}
+}
+
+// UnifiedRecordingService returns the unified recording service.
+// DOC: docs/architecture/recording.md#unified-recording
+func (s *Service) UnifiedRecordingService() *unifiedrecording.Service {
+	return s.unifiedRecordingSvc
 }
 
 // DriverClient returns the underlying driver client for direct pass-through operations.
@@ -92,7 +106,7 @@ type SessionConfig struct {
 	StorageState   json.RawMessage
 	APIHost        string
 	APIPort        string
-	BrowserProfile *archiveingestion.BrowserProfile // Anti-detection and behavior settings
+	BrowserProfile *sessionprofilepersistence.BrowserProfile // Anti-detection and behavior settings
 }
 
 // SessionResult is the result of creating a session.
@@ -160,6 +174,14 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 			"purpose": "record-mode",
 		},
 		BrowserProfile: cfg.BrowserProfile,
+	}
+
+	// Inject recording callbacks that route to the unified recording service.
+	// This ensures all browser actions (manual, AI, or playback) are captured
+	// through a single recording pipeline.
+	// DOC: docs/architecture/recording.md#unified-recording
+	if s.unifiedRecordingSvc != nil {
+		spec.Recording = s.buildRecordingCallbacks()
 	}
 
 	sess, err := s.sessions.Create(ctx, spec)
@@ -482,7 +504,7 @@ type TabRestorationResult struct {
 
 // RestoreTabs creates tabs from saved tab state.
 // Returns info about the tabs that were restored, including the initial URL.
-func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*TabRestorationResult, error) {
+func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*TabRestorationResult, error) {
 	if _, ok := s.sessions.Get(sessionID); !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
@@ -611,14 +633,43 @@ func (s *Service) RestoreTabs(ctx context.Context, sessionID string, tabs []arch
 	return result, nil
 }
 
-// AddTimelineAction adds a recorded action to the timeline.
+// AddTimelineAction adds a recorded action to the timeline via the unified recording service.
+// DOC: docs/architecture/recording.md#data-flow
 func (s *Service) AddTimelineAction(sessionID string, action *driver.RecordedAction, pageID uuid.UUID) {
-	s.timeline.AddAction(sessionID, action, pageID)
+	if s.unifiedRecordingSvc == nil {
+		return
+	}
+
+	ctx := context.Background()
+	// Determine source from payload or default to manual for HTTP callback actions
+	source := unifiedrecording.ActionSourceManual
+	if action.Payload != nil {
+		if srcVal, ok := action.Payload["source"].(string); ok && srcVal == "ai" {
+			source = unifiedrecording.ActionSourceAI
+		}
+	}
+	if err := s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source); err != nil {
+		s.log.WithError(err).WithFields(logrus.Fields{
+			"session_id":  sessionID,
+			"action_type": action.ActionType,
+		}).Warn("Failed to record action")
+	}
 }
 
-// AddTimelinePageEvent adds a page event to the timeline.
+// AddTimelinePageEvent adds a page event to the timeline via the unified recording service.
 func (s *Service) AddTimelinePageEvent(sessionID string, event *domain.PageEvent) {
-	s.timeline.AddPageEvent(sessionID, event)
+	if s.unifiedRecordingSvc == nil {
+		return
+	}
+
+	ctx := context.Background()
+	if err := s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, event); err != nil {
+		s.log.WithError(err).WithFields(logrus.Fields{
+			"session_id": sessionID,
+			"event_type": event.Type,
+			"page_id":    event.PageID,
+		}).Warn("Failed to record page event")
+	}
 }
 
 // GetTimeline returns the unified timeline for a session.
@@ -627,16 +678,141 @@ func (s *Service) GetTimeline(sessionID string, pageID *uuid.UUID, limit int) (*
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
 
-	entries, hasMore := s.timeline.GetTimelinePaginated(sessionID, pageID, nil, limit)
+	if s.unifiedRecordingSvc == nil {
+		return &domain.TimelineResponse{
+			Entries:      []domain.TimelineEntry{},
+			HasMore:      false,
+			TotalEntries: 0,
+		}, nil
+	}
+
+	// Build query for unified recording service
+	query := persistence.TimelineQuery{
+		SessionID: sessionID,
+		PageID:    pageID,
+		Limit:     limit,
+	}
+
+	resp, err := s.unifiedRecordingSvc.GetTimeline(context.Background(), query)
+	if err != nil {
+		return nil, fmt.Errorf("get timeline: %w", err)
+	}
+
+	// Convert unified entries to domain entries
+	entries := make([]domain.TimelineEntry, 0, len(resp.Entries))
+	for _, e := range resp.Entries {
+		entry := domain.TimelineEntry{
+			ID:        e.ID,
+			Type:      domain.TimelineType(e.Type),
+			Timestamp: e.Timestamp,
+			PageID:    e.PageID,
+		}
+		if e.Action != nil {
+			entry.Action = &domain.RecordedActionEntry{
+				ID:          e.Action.ID.String(),
+				ActionType:  e.Action.ActionType,
+				URL:         e.Action.URL,
+				SequenceNum: e.Action.SequenceNum,
+				Timestamp:   e.Action.Timestamp.Format(time.RFC3339Nano),
+				Confidence:  e.Action.Confidence,
+				PageTitle:   e.Action.PageTitle,
+				Payload:     e.Action.Payload,
+			}
+			if e.Action.Selector != nil {
+				entry.Action.Selector = &domain.SelectorInfo{
+					Primary: e.Action.Selector.Primary,
+				}
+			}
+		}
+		if e.PageEvent != nil {
+			entry.PageEvent = e.PageEvent
+		}
+		entries = append(entries, entry)
+	}
 
 	return &domain.TimelineResponse{
 		Entries:      entries,
-		HasMore:      hasMore,
-		TotalEntries: s.timeline.GetTimelineCount(sessionID),
+		HasMore:      resp.HasMore,
+		TotalEntries: resp.TotalCount,
 	}, nil
 }
 
 // ClearTimeline clears the timeline for a session.
 func (s *Service) ClearTimeline(sessionID string) {
-	s.timeline.ClearSession(sessionID)
+	if s.unifiedRecordingSvc != nil {
+		s.unifiedRecordingSvc.ClearSession(sessionID)
+	}
+}
+
+// buildRecordingCallbacks creates recording callbacks that route to the unified recording service.
+// These callbacks are injected into the session spec during session creation.
+// DOC: docs/architecture/recording.md#unified-recording
+func (s *Service) buildRecordingCallbacks() *session.RecordingCallbacks {
+	return &session.RecordingCallbacks{
+		OnAction: func(sessionID string, action *session.RecordedActionInfo) {
+			// Convert session action info to driver.RecordedAction
+			driverAction := &driver.RecordedAction{
+				ID:          action.ID,
+				SessionID:   sessionID,
+				SequenceNum: action.SequenceNum,
+				Timestamp:   action.Timestamp,
+				ActionType:  action.ActionType,
+				URL:         action.URL,
+				PageTitle:   action.PageTitle,
+				Confidence:  action.Confidence,
+				Payload:     action.Payload,
+			}
+			if action.Selector != "" {
+				driverAction.Selector = &driver.SelectorSet{
+					Primary: action.Selector,
+				}
+			}
+
+			// Determine action source
+			source := unifiedrecording.ActionSourceManual
+			if action.Source == "ai" {
+				source = unifiedrecording.ActionSourceAI
+			} else if action.Source == "playback" {
+				source = unifiedrecording.ActionSourceAuto
+			}
+
+			// Record to unified service
+			ctx := context.Background()
+			if err := s.unifiedRecordingSvc.RecordAction(ctx, sessionID, driverAction, action.PageID, source); err != nil {
+				s.log.WithError(err).WithFields(logrus.Fields{
+					"session_id":  sessionID,
+					"action_type": action.ActionType,
+					"source":      source,
+				}).Warn("Failed to record action via callback")
+			}
+		},
+		OnPageEvent: func(sessionID string, event *session.PageEventInfo) {
+			// Parse timestamp
+			ts, err := time.Parse(time.RFC3339Nano, event.Timestamp)
+			if err != nil {
+				ts = time.Now()
+			}
+
+			// Convert to domain.PageEvent
+			domainEvent := &domain.PageEvent{
+				ID:        uuid.New(),
+				Type:      domain.PageEventType(event.Type),
+				PageID:    event.PageID,
+				URL:       event.URL,
+				Title:     event.Title,
+				OpenerID:  event.OpenerID,
+				Timestamp: ts,
+			}
+
+			// Record to unified service
+			ctx := context.Background()
+			if err := s.unifiedRecordingSvc.RecordPageEvent(ctx, sessionID, domainEvent); err != nil {
+				s.log.WithError(err).WithFields(logrus.Fields{
+					"session_id": sessionID,
+					"event_type": event.Type,
+					"page_id":    event.PageID,
+				}).Warn("Failed to record page event via callback")
+			}
+		},
+	}
 }

@@ -149,8 +149,13 @@ const parseTimelineResponse = (value: unknown): TimelineResponse | null => {
 interface RecordingActionMessage {
   type: 'recording_action';
   session_id: string;
-  page_id?: string;
-  action: TimelineAction;
+  entry: {
+    id: string;
+    type: 'action';
+    timestamp: string;
+    pageId: string;
+    action: TimelineAction;
+  };
   timestamp: string;
 }
 
@@ -331,16 +336,12 @@ export function useTimeline({
 
     // Handle recording action
     if (msg.type === 'recording_action' && msg.session_id === sessionId) {
-      const action = msg.action;
-      const pageId = msg.page_id || '';
-
-      // Create timeline entry from action
       const entry: TimelineEntry = {
-        id: action.id,
+        id: msg.entry.id,
         type: 'action',
-        timestamp: action.timestamp,
-        pageId,
-        action,
+        timestamp: msg.entry.timestamp,
+        pageId: msg.entry.pageId,
+        action: msg.entry.action,
       };
 
       setEntries((prev) => {

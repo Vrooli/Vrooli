@@ -495,6 +495,290 @@ svc := credits.NewService(credits.ServiceOptions{
 
 ---
 
+### 27. Recording Bounded Context Seam (Strong)
+
+**Location:** `api/recording/`
+
+**Purpose:** Persistent action recording with dual-write strategy (hot cache + database).
+
+**DOC Reference:** [DOC: docs/architecture/recording.md#action-persistence]
+
+**Interfaces:**
+
+```go
+// api/recording/persistence/repository.go
+type ActionRepository interface {
+    // Session lifecycle
+    CreateSession(ctx context.Context, session *domain.RecordingSession) error
+    GetSession(ctx context.Context, sessionID string) (*domain.RecordingSession, error)
+    CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error
+    ListSessions(ctx context.Context, profileID *string, limit, offset int) ([]*domain.RecordingSession, error)
+    DeleteSession(ctx context.Context, sessionID string) error
+
+    // Action persistence
+    SaveAction(ctx context.Context, action *domain.RecordingAction) error
+    SaveActions(ctx context.Context, actions []*domain.RecordingAction) error
+    GetAction(ctx context.Context, actionID uuid.UUID) (*domain.RecordingAction, error)
+
+    // Queries
+    ListActions(ctx context.Context, query ActionQuery) ([]*domain.RecordingAction, error)
+    CountActions(ctx context.Context, sessionID string) (int, error)
+
+    // Cleanup
+    DeleteSessionActions(ctx context.Context, sessionID string) error
+    PruneOldSessions(ctx context.Context, olderThan time.Time) (int, error)
+}
+```
+
+**Test Doubles:**
+- `recording/persistence/mock_repository.go`: `MockRepository` - Full in-memory implementation
+- Test helpers: `Reset()`, `SessionCount()`, `ActionCount()`
+
+**Status:** Strong
+- Clean interface separation (ActionRepository)
+- In-memory mock enables hermetic testing
+- Compile-time enforcement via `var _ ActionRepository = (*MockRepository)(nil)`
+- Driver-agnostic normalization in capture layer
+- Hot cache + DB dual-write for performance and durability
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Recording Bounded Context                      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Capture Layer    │───▶ normalizer.go (driver → domain)   │   │
+│  │ (testing seam)   │    deduplicator.go (500ms window)     │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Service Layer    │───▶ service.go (orchestrator)         │   │
+│  │ (testing seam)   │    Hot cache + WebSocket broadcast    │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ Persistence Layer│───▶ SQLiteRepository (production)     │   │
+│  │ (testing seam)   │    MockRepository (unit tests)        │   │
+│  └──────────────────┘    └─────────────────────────────────┘   │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Integration Seams:**
+- **ActionRepository**: Substitutable persistence layer for testing
+  - Location: `api/recording/persistence/repository.go`
+  - Testability: `MockRepository` provided in same package
+
+- **Normalizer**: Driver-agnostic action conversion
+  - Location: `api/recording/capture/normalizer.go`
+  - Testability: Pure function, no external dependencies
+
+- **Deduplicator**: Navigate action deduplication
+  - Location: `api/recording/capture/deduplicator.go`
+  - Testability: In-memory state, `ClearSession()` for test isolation
+
+**Responsibility Zones:**
+- **Capture Layer** (`api/recording/capture/`):
+  - Receives driver callbacks, normalizes, deduplicates
+- **Service Layer** (`api/recording/service.go`):
+  - Orchestrates persistence + WebSocket broadcast
+- **Persistence Layer** (`api/recording/persistence/`):
+  - Database access, query execution
+
+**Change Axes:**
+- Adding new driver: Only `normalizer.go` changes
+- Adding new action type: Domain + normalizer
+- Changing storage backend: Only repository implementation
+- Changing deduplication rules: Only `deduplicator.go`
+
+**Testing Example:**
+```go
+// Unit test setup with mock repository
+repo := persistence.NewMockRepository()
+svc := recording.NewService(repo, logger, recording.DefaultServiceConfig())
+
+// Create session and record action
+session, _ := svc.CreateSession(ctx, recording.SessionConfig{ProfileID: "test"})
+action := &domain.RecordingAction{
+    ID:         uuid.New(),
+    SessionID:  session.ID,
+    ActionType: "click",
+    Timestamp:  time.Now(),
+}
+svc.RecordDomainAction(ctx, action)
+
+// Verify persistence
+assert.Equal(t, 1, repo.ActionCount())
+```
+
+---
+
+### 28. ActionRecorder Seam (Strong)
+
+**Location:** `api/services/recording/recorder.go`
+
+**Purpose:** Unified recording pipeline that combines persistence and WebSocket broadcast with full observability.
+
+**DOC Reference:** [Plan: Recording Pipeline Domain Boundaries, Testing Seams & Observability]
+
+**Problem Solved:**
+The recording pipeline previously had a **dual-write anti-pattern** where persistence and WebSocket broadcast happened independently:
+
+```go
+// BEFORE (dual-write, silent failures)
+h.recordModeService.AddTimelineAction(sessionID, &action, pageIDForTimeline)  // Write 1
+h.wsHub.BroadcastRecordingEntry(sessionID, h.createUnifiedEntry(&action))     // Write 2
+// Either could fail silently with no visibility
+```
+
+**Interfaces:**
+
+```go
+// api/services/recording/recorder.go
+type ActionRecorder interface {
+    RecordActionUnified(ctx context.Context, req RecordActionRequest) (*ActionRecordResult, error)
+    RecordPageEventUnified(ctx context.Context, req RecordPageEventRequest) (*ActionRecordResult, error)
+}
+
+type RecordActionRequest struct {
+    SessionID     string
+    Action        *driver.RecordedAction
+    PageID        uuid.UUID
+    Source        ActionSource      // ActionSourceManual, ActionSourceAuto, ActionSourceAI
+    CorrelationID string            // For tracing through pipeline
+}
+
+type ActionRecordResult struct {
+    ActionID        uuid.UUID
+    CorrelationID   string
+    SequenceNum     int
+    Persisted       bool              // Did persistence succeed?
+    BroadcastSent   bool              // Did broadcast reach any clients?
+    SubscriberCount int               // How many clients were subscribed?
+    SentCount       int               // How many clients received the message?
+    DroppedCount    int               // How many clients had full buffers?
+    Errors          []ActionRecordError
+}
+
+func (r *ActionRecordResult) HasErrors() bool
+```
+
+**WebSocket Observability:**
+
+```go
+// api/websocket/hub.go
+type BroadcastResult struct {
+    SubscriberCount int   // Number of subscribed clients
+    SentCount       int   // Successfully sent
+    DroppedCount    int   // Dropped due to full buffers
+}
+
+func (h *Hub) BroadcastRecordingEntry(sessionID string, entry *UnifiedTimelineEntry) BroadcastResult
+```
+
+**Test Doubles:**
+- `handlers/record_mode_integration_test.go`: `TestRecordingHub` - Full HubInterface mock with broadcast tracking
+- `handlers/testutil_mock_services.go`: `MockHub` - General-purpose mock
+- `services/recording/persistence/mock_repository.go`: `MockRepository` - In-memory persistence
+
+**Status:** Strong
+- Unified interface eliminates dual-write anti-pattern
+- Full observability: correlation IDs, persistence status, broadcast metrics
+- Compile-time enforcement via `var _ ActionRecorder = (*Service)(nil)`
+- Comprehensive integration tests
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    ActionRecorder Pipeline                        │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────────┐                                           │
+│  │ HTTP Entry Point │───▶ generateCorrelationID()               │
+│  │ (record_mode.go) │    Format: rec-{session[:8]}-{timestamp}  │
+│  └──────────────────┘                                           │
+│           │                                                      │
+│           ▼                                                      │
+│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
+│  │ RecordActionUnified │───▶ 1. Validate request              │   │
+│  │ (Service method)    │    2. Normalize action               │   │
+│  └──────────────────┘    3. Check deduplication              │   │
+│           │              4. Persist to hot cache + DB        │   │
+│           │              5. Broadcast to WebSocket           │   │
+│           ▼              6. Return unified result            │   │
+│  ┌──────────────────┐    └─────────────────────────────────┘   │
+│  │ ActionRecordResult │                                         │
+│  │ - Persisted: bool  │                                         │
+│  │ - BroadcastSent    │                                         │
+│  │ - SubscriberCount  │                                         │
+│  │ - Errors[]         │                                         │
+│  └──────────────────┘                                           │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Observability Benefits:**
+
+| Pipeline Step | Old Visibility | New Visibility |
+|---------------|----------------|----------------|
+| HTTP entry | Debug log | Debug log + correlation ID |
+| Validation | None | Error in result.Errors |
+| DB persistence | Warn on error | result.Persisted + error details |
+| WebSocket broadcast | **None** | result.BroadcastSent, SubscriberCount |
+| Client delivery | **None** | result.SentCount, DroppedCount |
+
+**Testing Example:**
+
+```go
+// Integration test with full pipeline visibility
+func TestRecordingPipeline_EndToEnd(t *testing.T) {
+    repo := persistence.NewMockRepository()
+    hub := NewTestRecordingHub(logger)
+    recordingSvc := recording.NewService(repo, hub, logger, recording.ServiceConfig{})
+
+    // Subscribe test client
+    clientCh := hub.Subscribe(sessionID)
+    defer hub.Unsubscribe(sessionID)
+
+    // Record action
+    result, err := recordingSvc.RecordActionUnified(ctx, recording.RecordActionRequest{
+        SessionID:     sessionID,
+        Action:        action,
+        PageID:        pageID,
+        Source:        recording.ActionSourceManual,
+        CorrelationID: "test-corr-123",
+    })
+
+    // Verify full observability
+    assert.True(t, result.Persisted)
+    assert.True(t, result.BroadcastSent)
+    assert.Equal(t, 1, result.SubscriberCount)
+    assert.Equal(t, 1, result.SentCount)
+    assert.False(t, result.HasErrors())
+
+    // Verify WebSocket delivery
+    select {
+    case entry := <-clientCh:
+        assert.Equal(t, "click", entry.Action.ActionType)
+    case <-time.After(time.Second):
+        t.Fatal("Action did not appear in WebSocket")
+    }
+}
+```
+
+**Integration with Existing Seams:**
+
+| Seam | Integration |
+|------|-------------|
+| Recording Bounded Context (#27) | ActionRecorder uses ActionRepository for persistence |
+| WebSocket Hub (#8) | BroadcastRecordingEntry returns BroadcastResult |
+| EventBroadcaster (#22) | ActionRecorder unifies the broadcast path |
+
+---
+
 ## TypeScript Playwright-Driver Seams
 
 ### 12. InstructionHandler Seam (Strong)
@@ -846,6 +1130,8 @@ interface RetryService {
 | CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
 | EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
 | LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |
+| Recording (ActionRepository) | Yes | Yes (MockRepository) | Yes | - |
+| ActionRecorder | Yes | Yes (TestRecordingHub, MockHub) | Yes | - |
 
 ---
 
@@ -938,6 +1224,8 @@ When adding new dependencies:
 
 | Date | Author | Changes |
 |------|--------|---------|
+| 2026-01-31 | Claude | ActionRecorder Seam: Added seam #28 (ActionRecorder interface); unified recording pipeline with observability; BroadcastResult for WebSocket metrics; correlation IDs for tracing; comprehensive integration tests; updated enforcement matrix |
+| 2026-01-30 | Claude | Recording Bounded Context: Added seam #27 (ActionRepository, Normalizer, Deduplicator); documented capture/service/persistence layers; added integration seams and responsibility zones; updated enforcement matrix |
 | 2026-01-21 | Claude | Credits System Seams: Added seams #24-26 (CreditService, EntitlementProvider, LPBSReporter); created EntitlementProvider interface with MockEntitlementProvider test double; documented testing patterns for credit/entitlement logic; updated enforcement matrix |
 | 2026-01-20 | Claude | Recording Reconciliation Completion: Added RetryService seam (#23) with 35 test cases; completed services/index.ts exports; refactored useRecordingSession.ts to use RetryService (removed duplicate retry logic); updated enforcement matrix |
 | 2026-01-20 | Claude | Recording Reconciliation Seams: Added seams #19-22 (ActionMergeService, AIReconciliationService, WorkflowSyncRepository, EventBroadcaster); created comprehensive test suites; decomposed sync.go into smaller functions; extracted frontend services to services/ directory |

@@ -19,6 +19,22 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
+// ActionRecordCallback is called when an AI navigation action should be recorded.
+// This allows the navigator to report actions to the unified recording service.
+type ActionRecordCallback func(sessionID string, action *RecordedNavigationAction)
+
+// RecordedNavigationAction contains action details from AI navigation.
+type RecordedNavigationAction struct {
+	ActionType  string
+	URL         string
+	PageTitle   string
+	Selector    string
+	Reasoning   string
+	StepNumber  int
+	Timestamp   string
+	Source      string // "ai"
+}
+
 // PlaywrightVisionNavigator implements VisionNavigator using playwright-driver.
 type PlaywrightVisionNavigator struct {
 	log           *logrus.Logger
@@ -26,6 +42,10 @@ type PlaywrightVisionNavigator struct {
 	wsHub         wsHub.HubInterface
 	httpClient    HTTPDoer
 	creditService credits.CreditService
+
+	// Recording callback for unified action capture.
+	// When set, all AI navigation actions are reported for recording.
+	onActionRecord ActionRecordCallback
 
 	// Track active navigations
 	mu                sync.RWMutex
@@ -59,6 +79,20 @@ func WithPlaywrightCreditService(svc credits.CreditService) PlaywrightNavigatorO
 	return func(n *PlaywrightVisionNavigator) {
 		n.creditService = svc
 	}
+}
+
+// WithActionRecordCallback sets the callback for recording AI navigation actions.
+// This enables unified recording of AI-initiated browser actions.
+func WithActionRecordCallback(callback ActionRecordCallback) PlaywrightNavigatorOption {
+	return func(n *PlaywrightVisionNavigator) {
+		n.onActionRecord = callback
+	}
+}
+
+// SetActionRecordCallback sets the callback for recording AI navigation actions.
+// This is an alternative to WithActionRecordCallback for post-construction configuration.
+func (n *PlaywrightVisionNavigator) SetActionRecordCallback(callback ActionRecordCallback) {
+	n.onActionRecord = callback
 }
 
 // NewPlaywrightVisionNavigator creates a new playwright-based navigator.
@@ -284,6 +318,30 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 		}
 	}
 	n.mu.Unlock()
+
+	// Record action to unified recording service if callback is configured
+	if n.onActionRecord != nil && session != nil {
+		actionType := ""
+		selector := ""
+		if t, ok := event.Action["type"].(string); ok {
+			actionType = t
+		}
+		if s, ok := event.Action["selector"].(string); ok {
+			selector = s
+		}
+
+		recordedAction := &RecordedNavigationAction{
+			ActionType: actionType,
+			URL:        event.CurrentURL,
+			Selector:   selector,
+			Reasoning:  event.Reasoning,
+			StepNumber: event.StepNumber,
+			Timestamp:  time.Now().Format(time.RFC3339Nano),
+			Source:     "ai",
+		}
+
+		n.onActionRecord(session.SessionID, recordedAction)
+	}
 
 	// Charge credits per step
 	if n.creditService != nil && session != nil {

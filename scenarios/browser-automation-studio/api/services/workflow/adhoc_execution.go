@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -95,7 +95,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		wf.Name = "adhoc"
 	}
 
-	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
+	store, params, env, artifactCfg, execBrowserProfile, projectRoot, startURL, sessionProfileID, saveSessionProfileID, restoreTabs, navigationWaitUntil, continueOnError := executionParametersToMaps(req.Parameters)
 	if err := validateSeedRequirements(req.FlowDefinition, store, params, env); err != nil {
 		return nil, err
 	}
@@ -105,31 +105,37 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 
 	// Resolve session profile if provided for authenticated execution
 	var storageState json.RawMessage
-	var profileBrowserSettings *archiveingestion.BrowserProfile
-	if sessionProfileID != "" && s.sessionProfiles != nil {
-		profile, err := s.sessionProfiles.Get(sessionProfileID)
+	var profileBrowserSettings *sessionprofilepersistence.BrowserProfile
+	var openTabs []sessionprofilepersistence.TabState
+	if sessionProfileID != "" && s.sessionProfileService != nil {
+		profile, err := s.sessionProfileService.GetProfile(sessionprofilepersistence.ProfileID(sessionProfileID))
 		if err != nil {
 			return nil, fmt.Errorf("session profile %s not found: %w", sessionProfileID, err)
 		}
 		storageState = profile.StorageState
 		profileBrowserSettings = profile.BrowserProfile
 
+		// Load open tabs if tab restoration is requested
+		if restoreTabs && len(profile.OpenTabs) > 0 {
+			openTabs = profile.OpenTabs
+		}
+
 		// Update usage tracking to keep profile LRU order current
-		if _, err := s.sessionProfiles.Touch(sessionProfileID); err != nil && s.log != nil {
+		if _, err := s.sessionProfileService.Touch(sessionprofilepersistence.ProfileID(sessionProfileID)); err != nil && s.log != nil {
 			s.log.WithError(err).WithField("session_profile_id", sessionProfileID).Warn("Failed to update session profile usage timestamp")
 		}
 	}
 
 	// Extract adhoc workflow's default browser profile and merge with execution override
 	// Priority order: execution params > session profile > workflow defaults
-	var workflowBrowserProfile *archiveingestion.BrowserProfile
+	var workflowBrowserProfile *sessionprofilepersistence.BrowserProfile
 	if req.FlowDefinition != nil && req.FlowDefinition.Settings != nil && req.FlowDefinition.Settings.BrowserProfile != nil {
-		workflowBrowserProfile = archiveingestion.BrowserProfileFromProto(req.FlowDefinition.Settings.BrowserProfile)
+		workflowBrowserProfile = sessionprofilepersistence.BrowserProfileFromProto(req.FlowDefinition.Settings.BrowserProfile)
 	}
 	// First merge workflow defaults with session profile defaults
-	baseBrowserProfile := archiveingestion.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
+	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
 	// Then merge with execution-level overrides (highest priority)
-	finalBrowserProfile := archiveingestion.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
+	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	execIndex := &database.ExecutionIndex{
 		ID:        executionID,
@@ -144,7 +150,7 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.
-	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, navigationWaitUntil, continueOnError)
+	s.startExecutionRunnerWithOptions(wf, executionID, store, params, env, artifactCfg, finalBrowserProfile, storageState, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
 
 	// Adhoc runs return immediately; callers should poll the execution ID.
 	return &basexecution.ExecuteAdhocResponse{

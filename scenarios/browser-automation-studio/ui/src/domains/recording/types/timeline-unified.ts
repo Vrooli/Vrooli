@@ -524,34 +524,6 @@ function extractPayload(entry: TimelineEntry): RecordedAction['payload'] {
 }
 
 /**
- * Type guard to check if a WebSocket message contains a timeline_entry field.
- * Note: The Go API uses timeline_entry (V2 unified format).
- */
-export function hasTimelineEntry(message: unknown): message is { timeline_entry: unknown } {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    'timeline_entry' in message &&
-    message.timeline_entry !== null
-  );
-}
-
-/**
- * Parse a timeline_entry from a WebSocket message.
- * Returns null if parsing fails.
- */
-export function parseTimelineEntry(timelineEntryJson: unknown): TimelineEntry | null {
-  if (!timelineEntryJson || typeof timelineEntryJson !== 'object') {
-    return null;
-  }
-
-  // The timeline_entry is already JSON - we need to convert it to the proto type
-  // For now, we return it as-is since the proto types are interfaces
-  // In a full implementation, you'd use protojson to properly deserialize
-  return timelineEntryJson as TimelineEntry;
-}
-
-/**
  * Execution status for timeline items during workflow execution.
  */
 export type ExecutionStatus = 'pending' | 'running' | 'completed' | 'failed';

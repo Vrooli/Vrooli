@@ -14,7 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/performance"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 )
 
 // createTestHandlerWithRecordMode creates a handler with mock services for record mode testing.
@@ -31,14 +31,14 @@ func createTestHandlerWithRecordMode(t *testing.T) (*Handler, *MockRecordModeSer
 
 	mockService := NewMockRecordModeService()
 	mockHub := NewMockHub()
-	sessionProfiles := archiveingestion.NewSessionProfileStore(tempDir, log)
+	sessionProfileSvc := sessionprofile.NewServiceWithPath(tempDir, log)
 
 	handler := &Handler{
-		recordModeService: mockService,
-		sessionProfiles:   sessionProfiles,
-		wsHub:             mockHub,
-		log:               log,
-		perfRegistry:      performance.NewCollectorRegistry(60, 100),
+		recordModeService:     mockService,
+		sessionProfileService: sessionProfileSvc,
+		wsHub:                 mockHub,
+		log:                   log,
+		perfRegistry:          performance.NewCollectorRegistry(60, 100),
 	}
 
 	return handler, mockService, tempDir, mockHub
@@ -800,13 +800,13 @@ func TestPersistRecordingSession_Success(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Create a profile and associate it with the session
-	profile, err := handler.sessionProfiles.Create("Test Profile")
+	profile, err := handler.sessionProfileService.CreateProfile("Test Profile")
 	if err != nil {
 		t.Fatalf("failed to create profile: %v", err)
 	}
 
 	sessionID := "test-session-123"
-	handler.sessionProfiles.SetActiveSession(sessionID, profile.ID)
+	handler.sessionProfileService.SetActiveSession(sessionID, string(profile.ID))
 
 	mockService.StorageState = json.RawMessage(`{"cookies":[{"name":"test","value":"value"}],"origins":[]}`)
 

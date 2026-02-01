@@ -876,11 +876,21 @@ export function RecordModePage({
   // Ref to avoid stale closure when setting completion state
   const isInitialNavigationCompleteRef = useRef(!initialUrl);
 
-  // Create session when we have a URL but no session yet
+  // Create session when we have a URL or when in recording mode with a profile
+  // (profile may have saved tabs to restore, which provides the initial URL)
   // This is separate from navigation to avoid race conditions
   useEffect(() => {
-    if (!previewUrl || sessionId) {
-      return; // No URL needed or session already exists
+    // Already have a session - nothing to do
+    if (sessionId) return;
+
+    // In recording mode with a profile, create session immediately
+    // (backend will restore tabs and provide initial URL via initialRestoredUrl)
+    const profileId = selectedProfileId ?? sessionProfileId;
+    const shouldCreateWithoutUrl = mode === 'recording' && profileId;
+
+    // Need either a URL or the ability to create without one
+    if (!previewUrl && !shouldCreateWithoutUrl) {
+      return;
     }
 
     let cancelled = false;
@@ -891,12 +901,13 @@ export function RecordModePage({
         const shouldRestoreTabs = mode === 'recording';
         const newSessionId = await ensureSession(
           previewViewport,
-          selectedProfileId ?? sessionProfileId ?? null,
+          profileId,
           streamSettingsRef.current,
           shouldRestoreTabs
         );
         if (cancelled || !newSessionId) return;
         // Session is now created, the navigation effect will handle navigation
+        // If tabs were restored, initialRestoredUrl will be set and trigger setPreviewUrl
       } catch (err) {
         if (cancelled) return;
         console.warn('Failed to create session for URL', err);

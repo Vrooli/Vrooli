@@ -15,9 +15,9 @@ import (
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/domain"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
@@ -702,9 +702,20 @@ func (m *MockHub) BroadcastEnvelope(event any) {
 	m.LastBroadcastedEvent = event
 }
 
-func (m *MockHub) BroadcastRecordingAction(sessionID string, action any) {}
+func (m *MockHub) BroadcastRecordingEntry(sessionID string, entry *wsHub.UnifiedTimelineEntry) wsHub.BroadcastResult {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-func (m *MockHub) BroadcastRecordingActionWithTimeline(sessionID string, action any, timelineEntry map[string]any) {
+	subscriberCount := 0
+	if m.RecordingSubscribers[sessionID] {
+		subscriberCount = 1
+	}
+
+	return wsHub.BroadcastResult{
+		SubscriberCount: subscriberCount,
+		SentCount:       subscriberCount,
+		DroppedCount:    0,
+	}
 }
 
 func (m *MockHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
@@ -1445,7 +1456,7 @@ func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string
 	}, nil
 }
 
-func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*livecapture.TabRestorationResult, error) {
+func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error) {
 	return &livecapture.TabRestorationResult{
 		InitialURL: "",
 		Tabs:       []livecapture.RestoredTab{},

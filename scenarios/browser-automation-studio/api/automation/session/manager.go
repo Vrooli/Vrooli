@@ -117,9 +117,10 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 	req := m.buildRequest(spec)
 
 	m.log.WithFields(logrus.Fields{
-		"execution_id": spec.ExecutionID,
-		"mode":         spec.Mode.String(),
-		"viewport":     fmt.Sprintf("%dx%d", spec.ViewportWidth, spec.ViewportHeight),
+		"execution_id":  spec.ExecutionID,
+		"mode":          spec.Mode.String(),
+		"viewport":      fmt.Sprintf("%dx%d", spec.ViewportWidth, spec.ViewportHeight),
+		"has_recording": spec.Recording != nil,
 	}).Debug("Creating session")
 
 	resp, err := m.client.CreateSession(ctx, req)
@@ -132,6 +133,7 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 		mode:           spec.Mode,
 		client:         m.client,
 		actualViewport: resp.ActualViewport,
+		recording:      spec.Recording,
 	}
 
 	m.mu.Lock()

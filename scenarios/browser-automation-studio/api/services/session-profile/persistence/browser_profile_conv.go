@@ -1,4 +1,5 @@
-package archiveingestion
+// Package persistence provides data access for session profile management.
+package persistence
 
 import (
 	"google.golang.org/protobuf/proto"

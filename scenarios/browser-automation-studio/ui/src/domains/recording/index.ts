@@ -126,8 +126,6 @@ export {
   recordedActionToTimelineItem,
   timelineEntryToTimelineItem,
   timelineEntryToRecordedAction,
-  hasTimelineEntry,
-  parseTimelineEntry,
 } from './types/timeline-unified';
 
 // Context providers

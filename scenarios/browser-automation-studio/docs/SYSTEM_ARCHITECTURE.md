@@ -191,8 +191,16 @@ flowchart TB
 - Processes video with FFmpeg
 - Assembles export bundles
 
-**RecordingService**
-- Parses extension archives
+**RecordingService** (`services/recording/`)
+- Unified action recording (manual, AI, playback all use same pipeline)
+- Dual-write strategy: hot cache + SQLite persistence
+- WebSocket broadcast with delivery metrics (BroadcastResult)
+- Correlation ID tracing for debugging
+- Navigate action deduplication (500ms window)
+- Implements `ActionRecorder` interface for full observability
+
+**ArchiveIngestionService** (`services/archive-ingestion/`)
+- Parses Chrome extension archives
 - Normalizes to standard format
 - Stores artifacts
 
@@ -444,6 +452,7 @@ sequenceDiagram
 - Real-time WebSocket streaming
 - Heartbeat events during long operations
 - Structured logging throughout
+- **Recording pipeline observability** (correlation IDs, BroadcastResult metrics)
 
 ### 5. **Testability**
 - `MemorySink` for event testing
@@ -479,6 +488,12 @@ sequenceDiagram
 2. Emission: `api/automation/executor/simple_executor.go`
 3. Sink: `api/automation/events/ws_sink.go`
 4. UI handling: `ui/src/hooks/useExecutionWebSocket.ts`
+
+### Debugging Recording Issues
+1. Correlation ID tracing: `api/handlers/record_mode.go` (generateCorrelationID)
+2. Unified recording: `api/services/recording/service.go` (RecordActionUnified)
+3. Broadcast metrics: `api/websocket/hub.go` (BroadcastResult)
+4. Integration tests: `api/handlers/record_mode_integration_test.go`
 
 ### Modifying Replay/Export
 1. Capture: `api/services/replay_renderer_playwright_client.go`
@@ -538,4 +553,18 @@ Workflow JSON → Compiler → ExecutionPlan → Executor → Engine → Browser
 - Persistence: `api/automation/recorder/db_recorder.go`
 
 **Want the full picture?**
-- This document! 🎯
+- This document!
+
+---
+
+## 📖 Related Architecture Documents
+
+For deeper dives into specific subsystems:
+
+| Document | Focus |
+|----------|-------|
+| [Driver Interface](architecture/driver-interface.md) | Pluggable driver/navigator interface, policy patterns |
+| [AI Navigation](architecture/ai-navigation.md) | Vision-based autopilot, navigator registry |
+| [Recording](architecture/recording.md) | Manual recording, WebSocket flows, action persistence, **ActionRecorder observability** |
+| [Execution](architecture/execution.md) | Workflow execution, telemetry, artifacts |
+| [Reconciliation](architecture/reconciliation.md) | State reconciliation patterns |

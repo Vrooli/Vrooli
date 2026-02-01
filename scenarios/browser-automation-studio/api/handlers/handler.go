@@ -26,6 +26,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/credits"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
@@ -73,7 +75,7 @@ type RecordModeService interface {
 	GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error)
 	ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error
 	CreatePage(ctx context.Context, sessionID string, url string) (*autodriver.CreatePageResponse, error)
-	RestoreTabs(ctx context.Context, sessionID string, tabs []archiveingestion.TabState) (*livecapture.TabRestorationResult, error)
+	RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error)
 
 	// Timeline support (has business logic for timeline management)
 	AddTimelineAction(sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID)
@@ -98,10 +100,10 @@ type Handler struct {
 	storage           storage.StorageInterface
 	recordingService  archiveingestion.IngestionServiceInterface
 	recordModeService RecordModeService // Live recording session management (interface for testability)
-	recordingsRoot    string
-	replayRenderer    replayRenderer
-	sessionProfiles   *archiveingestion.SessionProfileStore
-	log               *logrus.Logger
+	recordingsRoot          string
+	replayRenderer          replayRenderer
+	sessionProfileService   *sessionprofile.Service
+	log                     *logrus.Logger
 	upgrader          websocket.Upgrader
 	wsAllowAll        bool
 	wsAllowedOrigins  []string
@@ -156,10 +158,10 @@ type HandlerDeps struct {
 	Storage            storage.StorageInterface
 	RecordingService   archiveingestion.IngestionServiceInterface
 	RecordModeService  RecordModeService // Live recording session management (interface for testability)
-	RecordingsRoot     string
-	ReplayRenderer     replayRenderer
-	SessionProfiles    *archiveingestion.SessionProfileStore
-	UXMetricsRepo       uxmetrics.Repository         // Optional: enables UX metrics collection
+	RecordingsRoot          string
+	ReplayRenderer          replayRenderer
+	SessionProfileService   *sessionprofile.Service
+	UXMetricsRepo           uxmetrics.Repository         // Optional: enables UX metrics collection
 	EntitlementService  *entitlement.Service         // Optional: enables tier-based feature gating
 	CreditService       credits.CreditService        // Optional: enables unified credit tracking
 	AIClientFactory     *ai.AIClientFactory          // Optional: enables per-request AI client creation
@@ -199,7 +201,9 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	// Store screenshots alongside other execution artifacts under recordingsRoot.
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingService := archiveingestion.NewIngestionService(repo, storageClient, wsHub, log, recordingsRoot)
-	sessionProfiles := archiveingestion.NewSessionProfileStore(paths.ResolveSessionProfilesRoot(log), log)
+
+	// Create session profile service with file repository
+	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
@@ -229,13 +233,13 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
-		Executor:          autoExecutor,
-		EngineFactory:     autoEngineFactory,
-		ArtifactRecorder:  autoRecorder,
-		EventSinkFactory:  eventSinkFactory,
-		ExecutionDataRoot: recordingsRoot,
-		AIClient:          aiClient,
-		SessionProfiles:   sessionProfiles,
+		Executor:              autoExecutor,
+		EngineFactory:         autoEngineFactory,
+		ArtifactRecorder:      autoRecorder,
+		EventSinkFactory:      eventSinkFactory,
+		ExecutionDataRoot:     recordingsRoot,
+		AIClient:              aiClient,
+		SessionProfileService: sessionProfileSvc,
 	})
 
 	// Ensure the demo project exists so file-first operations have a stable project root.
@@ -254,25 +258,26 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	}
 
 	// Create record mode service for live recording session management
-	recordModeSvc := livecapture.NewService(log)
+	// Note: Without unified recording service, recording callbacks won't be injected
+	recordModeSvc := livecapture.NewService(log, nil)
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:      workflowSvc,
-		ExecutionService:    workflowSvc,
-		WorkflowValidator:   validatorInstance,
-		Storage:             storageClient,
-		RecordingService:    recordingService,
-		RecordModeService:   recordModeSvc,
-		RecordingsRoot:      recordingsRoot,
-		ReplayRenderer:      render.NewReplayRenderer(log, recordingsRoot),
-		SessionProfiles:     sessionProfiles,
-		UXMetricsRepo:       opts.UXMetricsRepo,
-		EntitlementService:  opts.EntitlementService,
-		CreditService:       opts.CreditService,
-		AIClientFactory:     opts.AIClientFactory,
-		NavigatorRegistry:   opts.NavigatorRegistry,
-		PlaywrightNavigator: opts.PlaywrightNavigator,
+		CatalogService:          workflowSvc,
+		ExecutionService:        workflowSvc,
+		WorkflowValidator:       validatorInstance,
+		Storage:                 storageClient,
+		RecordingService:        recordingService,
+		RecordModeService:       recordModeSvc,
+		RecordingsRoot:          recordingsRoot,
+		ReplayRenderer:          render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfileService:   sessionProfileSvc,
+		UXMetricsRepo:           opts.UXMetricsRepo,
+		EntitlementService:      opts.EntitlementService,
+		CreditService:           opts.CreditService,
+		AIClientFactory:         opts.AIClientFactory,
+		NavigatorRegistry:       opts.NavigatorRegistry,
+		PlaywrightNavigator:     opts.PlaywrightNavigator,
 	}
 }
 
@@ -304,18 +309,18 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		catalogService:     deps.CatalogService,
-		executionService:   deps.ExecutionService,
-		workflowValidator:  deps.WorkflowValidator,
-		repo:               repo,
-		wsHub:              wsHub,
-		storage:            deps.Storage,
-		recordingService:   deps.RecordingService,
-		recordModeService:  deps.RecordModeService,
-		recordingsRoot:     deps.RecordingsRoot,
-		replayRenderer:     deps.ReplayRenderer,
-		sessionProfiles:    deps.SessionProfiles,
-		log:                log,
+		catalogService:          deps.CatalogService,
+		executionService:        deps.ExecutionService,
+		workflowValidator:       deps.WorkflowValidator,
+		repo:                    repo,
+		wsHub:                   wsHub,
+		storage:                 deps.Storage,
+		recordingService:        deps.RecordingService,
+		recordModeService:       deps.RecordModeService,
+		recordingsRoot:          deps.RecordingsRoot,
+		replayRenderer:          deps.ReplayRenderer,
+		sessionProfileService:   deps.SessionProfileService,
+		log:                     log,
 		wsAllowAll:         allowAllOrigins,
 		wsAllowedOrigins:   allowedCopy,
 		upgrader:           websocket.Upgrader{},

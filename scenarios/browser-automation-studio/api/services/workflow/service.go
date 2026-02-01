@@ -16,8 +16,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/export"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -61,7 +61,7 @@ type WorkflowService struct {
 	planCompiler     autoexec.PlanCompiler
 	eventSinkFactory func() autoevents.Sink
 	executionDataRoot string
-	sessionProfiles   *archiveingestion.SessionProfileStore
+	sessionProfileService *sessionprofile.Service
 	syncLocks        sync.Map
 	filePathCache    sync.Map
 	executionCancels sync.Map
@@ -125,9 +125,9 @@ type WorkflowServiceOptions struct {
 	// ExecutionDataRoot controls where execution artifacts and proto snapshots are persisted.
 	// When empty, defaults to "/tmp/bas-executions" for backward compatibility with earlier recorder defaults.
 	ExecutionDataRoot string
-	// SessionProfiles provides access to session profiles for authenticated execution.
+	// SessionProfileService provides access to session profiles for authenticated execution.
 	// When set, workflows can use session_profile_id to inject storage state (cookies, localStorage).
-	SessionProfiles *archiveingestion.SessionProfileStore
+	SessionProfileService *sessionprofile.Service
 }
 
 // NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
@@ -147,16 +147,16 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 	}
 
 	svc := &WorkflowService{
-		repo:              repo,
-		log:               log,
-		aiClient:          aiClient,
-		executor:          opts.Executor,
-		engineFactory:     opts.EngineFactory,
-		artifactRecorder:  opts.ArtifactRecorder,
-		planCompiler:      opts.PlanCompiler,
-		eventSinkFactory:  eventSinkFactory,
-		executionDataRoot: strings.TrimSpace(opts.ExecutionDataRoot),
-		sessionProfiles:   opts.SessionProfiles,
+		repo:                  repo,
+		log:                   log,
+		aiClient:              aiClient,
+		executor:              opts.Executor,
+		engineFactory:         opts.EngineFactory,
+		artifactRecorder:      opts.ArtifactRecorder,
+		planCompiler:          opts.PlanCompiler,
+		eventSinkFactory:      eventSinkFactory,
+		executionDataRoot:     strings.TrimSpace(opts.ExecutionDataRoot),
+		sessionProfileService: opts.SessionProfileService,
 	}
 
 	return svc

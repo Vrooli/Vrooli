@@ -77,9 +77,9 @@ type mockWSHub struct {
 	lastEnvelope   any
 }
 
-func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID)                  {}
-func (m *mockWSHub) BroadcastRecordingAction(_ string, _ any)                 {}
-func (m *mockWSHub) BroadcastRecordingActionWithTimeline(_ string, _ any, _ map[string]any) {
+func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID)                      {}
+func (m *mockWSHub) BroadcastRecordingEntry(_ string, _ *ws.UnifiedTimelineEntry) ws.BroadcastResult {
+	return ws.BroadcastResult{}
 }
 func (m *mockWSHub) BroadcastRecordingFrame(_ string, _ *ws.RecordingFrame) {}
 func (m *mockWSHub) BroadcastBinaryFrame(_ string, _ []byte)                {}

@@ -25,9 +25,14 @@
           "description": "Vision-based AI autopilot system architecture"
         },
         {
+          "path": "architecture/driver-interface.md",
+          "title": "Driver Interface Architecture",
+          "description": "Pluggable driver and navigator interface design with policy patterns"
+        },
+        {
           "path": "architecture/recording.md",
           "title": "Recording Architecture",
-          "description": "Action vs history recording, timeline, and session persistence"
+          "description": "Action vs history recording, timeline, action persistence, session management, and ActionRecorder observability"
         },
         {
           "path": "architecture/reconciliation.md",

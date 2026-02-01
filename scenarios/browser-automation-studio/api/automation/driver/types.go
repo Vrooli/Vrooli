@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
-	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
 
 // Viewport defines browser viewport dimensions.
@@ -95,7 +95,7 @@ type CreateSessionRequest struct {
 	ArtifactPaths *ArtifactPaths `json:"artifact_paths,omitempty"`
 
 	// Browser profile for anti-detection and human-like behavior
-	BrowserProfile *archiveingestion.BrowserProfile `json:"browser_profile,omitempty"`
+	BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
 }
 
 // CreateSessionRequestFromUUID creates a session request using uuid.UUID types.
