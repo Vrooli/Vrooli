@@ -89,6 +89,10 @@ interface SkillTreeSidebarProps {
   onCombineCopy?: () => void
   isCombineCopying?: boolean
   combineCopySuccess?: boolean
+  /** Initial active tab (for persistence) */
+  initialActiveTab?: string
+  /** Callback when active tab changes (for persistence) */
+  onActiveTabChange?: (tab: string) => void
   className?: string
 }
 
@@ -142,6 +146,8 @@ export function SkillTreeSidebar({
   onCombineCopy,
   isCombineCopying = false,
   combineCopySuccess = false,
+  initialActiveTab = 'skills',
+  onActiveTabChange,
   className = '',
 }: SkillTreeSidebarProps) {
   // Count total dirty items
@@ -160,8 +166,14 @@ export function SkillTreeSidebar({
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
   // Active tab state - locked to skills when in skill selection mode
-  const [activeTab, setActiveTab] = useState('skills')
+  const [activeTab, setActiveTab] = useState(initialActiveTab)
   const effectiveTab = skillSelectionMode ? 'skills' : activeTab
+
+  // Notify parent when tab changes (for persistence)
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab)
+    onActiveTabChange?.(tab)
+  }, [onActiveTabChange])
 
   // Folder context menu state
   const [folderContextMenu, setFolderContextMenu] = useState<{
@@ -394,7 +406,7 @@ export function SkillTreeSidebar({
 
       <Tabs.Root
         value={effectiveTab}
-        onValueChange={skillSelectionMode ? undefined : setActiveTab}
+        onValueChange={skillSelectionMode ? undefined : handleTabChange}
         className="flex flex-col flex-1 min-h-0"
       >
         {/* Tab triggers */}

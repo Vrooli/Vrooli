@@ -62,3 +62,19 @@ export interface AppSettings {
 export interface LocalSkillState {
   favorites: Set<string>  // Skill IDs marked as favorite locally
 }
+
+// Re-export entity editor store types
+export type {
+  EntitySnapshot,
+  EntityEditState,
+  PersistedEntityState,
+  ValidationResult,
+  SaveResult,
+} from './entityEditorStore'
+export {
+  MAX_HISTORY_SIZE,
+  PERSISTENCE_DEBOUNCE_MS,
+  STALENESS_THRESHOLD_MS,
+  ENTITY_PERSISTENCE_VERSION,
+  ENTITY_STORAGE_KEYS,
+} from './entityEditorStore'

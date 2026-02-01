@@ -100,7 +100,7 @@ export function InfoTab({ agent }: InfoTabProps) {
       )}
 
       {/* Tags */}
-      {agent.tags && agent.tags.length > 0 && (
+      {agent.tags.length > 0 && (
         <section>
           <h3 className="text-sm font-medium text-foreground mb-3">Tags</h3>
           <div className="flex flex-wrap gap-2">
@@ -122,25 +122,25 @@ export function InfoTab({ agent }: InfoTabProps) {
         <section>
           <h3 className="text-sm font-medium text-foreground mb-3">Capabilities</h3>
           <div className="space-y-3">
-            {agent.capabilities.provides && agent.capabilities.provides.length > 0 && (
+            {agent.capabilities.provides.length > 0 && (
               <div>
                 <span className="text-xs text-muted-foreground">Provides:</span>
                 <ul className="mt-1 space-y-1">
                   {agent.capabilities.provides.map((cap, idx) => (
                     <li key={idx} className="text-sm font-mono">
-                      {cap.capabilityId} ({cap.verbs?.join(', ') || 'all'})
+                      {cap.capabilityId} ({cap.verbs.join(', ') || 'all'})
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            {agent.capabilities.requires && agent.capabilities.requires.length > 0 && (
+            {agent.capabilities.requires.length > 0 && (
               <div>
                 <span className="text-xs text-muted-foreground">Requires:</span>
                 <ul className="mt-1 space-y-1">
                   {agent.capabilities.requires.map((cap, idx) => (
                     <li key={idx} className="text-sm font-mono">
-                      {cap.capabilityId} ({cap.verbs?.join(', ') || 'all'})
+                      {cap.capabilityId} ({cap.verbs.join(', ') || 'all'})
                     </li>
                   ))}
                 </ul>
@@ -151,7 +151,7 @@ export function InfoTab({ agent }: InfoTabProps) {
       )}
 
       {/* Connectors (if defined) */}
-      {agent.connectors && agent.connectors.length > 0 && (
+      {agent.connectors.length > 0 && (
         <section>
           <h3 className="text-sm font-medium text-foreground mb-3">Connectors</h3>
           <ul className="space-y-2">

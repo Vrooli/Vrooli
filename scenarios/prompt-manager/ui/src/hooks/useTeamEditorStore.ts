@@ -6,10 +6,16 @@
  * - Org chart data (nodes and edges)
  * - Member documents (responsibilities, heartbeat instructions)
  * - Dirty tracking for save indicators
+ * - localStorage persistence for unsaved changes
  */
 
 import { create } from 'zustand'
 import type { OrgEdge, MemberDocs } from '@/types/orgChart'
+import {
+  PERSISTENCE_DEBOUNCE_MS,
+  ENTITY_PERSISTENCE_VERSION,
+  ENTITY_STORAGE_KEYS,
+} from '@/types/entityEditorStore'
 
 // ============================================================================
 // Types
@@ -39,6 +45,9 @@ interface TeamEditorState {
 
   /** Error message if document loading failed */
   docsError: string | null
+
+  /** Whether the store has been hydrated from localStorage */
+  isHydrated: boolean
 }
 
 interface TeamEditorActions {
@@ -80,6 +89,9 @@ interface TeamEditorActions {
 
   /** Reset entire store */
   reset: () => void
+
+  /** Hydrate the store from localStorage on mount */
+  hydrate: () => void
 }
 
 interface TeamEditorSelectors {
@@ -97,6 +109,12 @@ interface TeamEditorSelectors {
 
   /** Get reports (direct subordinates) for a member */
   getReportIds: (agentId: string) => string[]
+
+  /** Get count of members with dirty changes */
+  getDirtyCount: () => number
+
+  /** Get IDs of members with dirty changes */
+  getDirtyMemberIds: () => Set<string>
 }
 
 type TeamEditorStore = TeamEditorState & TeamEditorActions & TeamEditorSelectors
@@ -112,6 +130,86 @@ const initialState: TeamEditorState = {
   dirtyState: new Map(),
   isLoadingDocs: false,
   docsError: null,
+  isHydrated: false,
+}
+
+// ============================================================================
+// Persistence
+// ============================================================================
+
+const STORAGE_KEY = ENTITY_STORAGE_KEYS.teams
+
+interface PersistedTeamState {
+  version: number
+  memberDocs: Record<string, MemberDocs>
+  dirtyState: Record<string, DirtyState>
+  lastSavedAt: number
+}
+
+/**
+ * Load persisted state from localStorage.
+ */
+function loadPersistedState(): PersistedTeamState | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return null
+
+    const parsed = JSON.parse(stored) as PersistedTeamState
+    if (parsed.version !== ENTITY_PERSISTENCE_VERSION) {
+      return null
+    }
+
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Save state to localStorage (debounced).
+ */
+let persistTimeout: ReturnType<typeof setTimeout> | null = null
+
+function persistState(memberDocs: Map<string, MemberDocs>, dirtyState: Map<string, DirtyState>): void {
+  if (persistTimeout) {
+    clearTimeout(persistTimeout)
+  }
+
+  persistTimeout = setTimeout(() => {
+    try {
+      // Only persist if there are dirty members
+      const hasDirty = Array.from(dirtyState.values()).some(
+        (d) => d.responsibilities || d.heartbeatInstructions || d.schedule
+      )
+
+      if (!hasDirty) {
+        localStorage.removeItem(STORAGE_KEY)
+        return
+      }
+
+      // Convert Maps to objects for JSON serialization
+      const docsObj: Record<string, MemberDocs> = {}
+      for (const [id, docs] of memberDocs) {
+        docsObj[id] = docs
+      }
+
+      const dirtyObj: Record<string, DirtyState> = {}
+      for (const [id, dirty] of dirtyState) {
+        dirtyObj[id] = dirty
+      }
+
+      const persisted: PersistedTeamState = {
+        version: ENTITY_PERSISTENCE_VERSION,
+        memberDocs: docsObj,
+        dirtyState: dirtyObj,
+        lastSavedAt: Date.now(),
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted))
+    } catch (e) {
+      console.error('Failed to persist team editor state:', e)
+    }
+  }, PERSISTENCE_DEBOUNCE_MS)
 }
 
 // ============================================================================
@@ -170,10 +268,11 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
   },
 
   setMemberDocs: (agentId, docs) => {
-    const { memberDocs } = get()
+    const { memberDocs, dirtyState } = get()
     const newDocs = new Map(memberDocs)
     newDocs.set(agentId, docs)
     set({ memberDocs: newDocs })
+    persistState(newDocs, dirtyState)
   },
 
   updateResponsibilities: (agentId, content) => {
@@ -195,6 +294,7 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     newDirtyState.set(agentId, { ...existingDirty, responsibilities: true })
 
     set({ memberDocs: newDocs, dirtyState: newDirtyState })
+    persistState(newDocs, newDirtyState)
   },
 
   updateHeartbeatInstructions: (agentId, content) => {
@@ -216,10 +316,11 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     newDirtyState.set(agentId, { ...existingDirty, heartbeatInstructions: true })
 
     set({ memberDocs: newDocs, dirtyState: newDirtyState })
+    persistState(newDocs, newDirtyState)
   },
 
   setDirty: (agentId, field, isDirty) => {
-    const { dirtyState } = get()
+    const { memberDocs, dirtyState } = get()
     const newDirtyState = new Map(dirtyState)
     const existing = dirtyState.get(agentId) ?? {
       responsibilities: false,
@@ -228,10 +329,11 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     }
     newDirtyState.set(agentId, { ...existing, [field]: isDirty })
     set({ dirtyState: newDirtyState })
+    persistState(memberDocs, newDirtyState)
   },
 
   clearDirty: (agentId) => {
-    const { dirtyState } = get()
+    const { memberDocs, dirtyState } = get()
     const newDirtyState = new Map(dirtyState)
     newDirtyState.set(agentId, {
       responsibilities: false,
@@ -239,6 +341,7 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
       schedule: false,
     })
     set({ dirtyState: newDirtyState })
+    persistState(memberDocs, newDirtyState)
   },
 
   setLoadingDocs: (loading) => {
@@ -268,10 +371,33 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
       edges: newEdges,
       selectedMemberId: selectedMemberId === agentId ? null : selectedMemberId,
     })
+    persistState(newDocs, newDirtyState)
   },
 
   reset: () => {
-    set(initialState)
+    set({ ...initialState, isHydrated: true })
+    localStorage.removeItem(STORAGE_KEY)
+  },
+
+  hydrate: () => {
+    const persisted = loadPersistedState()
+    if (!persisted) {
+      set({ isHydrated: true })
+      return
+    }
+
+    // Convert objects back to Maps
+    const memberDocs = new Map<string, MemberDocs>()
+    for (const [id, docs] of Object.entries(persisted.memberDocs)) {
+      memberDocs.set(id, docs)
+    }
+
+    const dirtyState = new Map<string, DirtyState>()
+    for (const [id, dirty] of Object.entries(persisted.dirtyState)) {
+      dirtyState.set(id, dirty)
+    }
+
+    set({ memberDocs, dirtyState, isHydrated: true })
   },
 
   // Selectors
@@ -298,5 +424,29 @@ export const useTeamEditorStore = create<TeamEditorStore>((set, get) => ({
     return get()
       .edges.filter((e) => e.managerId === agentId)
       .map((e) => e.reportId)
+  },
+
+  /** Get count of members with dirty changes */
+  getDirtyCount: () => {
+    const { dirtyState } = get()
+    let count = 0
+    for (const dirty of dirtyState.values()) {
+      if (dirty.responsibilities || dirty.heartbeatInstructions || dirty.schedule) {
+        count++
+      }
+    }
+    return count
+  },
+
+  /** Get IDs of members with dirty changes */
+  getDirtyMemberIds: () => {
+    const { dirtyState } = get()
+    const ids = new Set<string>()
+    for (const [id, dirty] of dirtyState) {
+      if (dirty.responsibilities || dirty.heartbeatInstructions || dirty.schedule) {
+        ids.add(id)
+      }
+    }
+    return ids
   },
 }))

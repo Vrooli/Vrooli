@@ -18,6 +18,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { cn } from '@/lib/utils'
 import type { OrgChartNodeData } from '@/types/orgChart'
 import type { TeamRole } from '@/types/team'
+import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 
 type OrgChartNodeProps = NodeProps<Node<OrgChartNodeData, 'orgMember'>>
 
@@ -38,10 +39,6 @@ function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
 
   // Get roles that this member has
   const memberRoles: TeamRole[] = teamRoles.filter((role) => member.roles.includes(role.id))
-
-  // Default colors if appearance not provided
-  const bodyColor = appearance?.body ?? '#6366f1'
-  const headColor = appearance?.head ?? '#818cf8'
 
   const handleClick = () => {
     onSelect(member.agentId)
@@ -68,16 +65,8 @@ function OrgChartNodeComponent({ data }: OrgChartNodeProps) {
 
       {/* Content */}
       <div className="flex items-start gap-3">
-        {/* Avatar */}
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: bodyColor }}
-        >
-          <div
-            className="w-5 h-5 rounded-full"
-            style={{ backgroundColor: headColor }}
-          />
-        </div>
+        {/* Agent color badge */}
+        <AgentColorBadge appearance={appearance} size="md" />
 
         {/* Info */}
         <div className="flex-1 min-w-0">

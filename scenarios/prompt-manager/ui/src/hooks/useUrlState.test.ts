@@ -70,6 +70,8 @@ describe('useUrlState', () => {
   function createOptions(overrides: Partial<UseUrlStateOptions> = {}): UseUrlStateOptions {
     return {
       onSkillIdChange: vi.fn(),
+      onAgentIdChange: vi.fn(),
+      onTeamIdChange: vi.fn(),
       onSettingsOpenChange: vi.fn(),
       isDirty: false,
       storeCurrentChanges: vi.fn(),
@@ -148,6 +150,8 @@ describe('useUrlState', () => {
 
       expect(initialState).toEqual({
         skillId: 'my-skill',
+        agentId: null,
+        teamId: null,
         settingsOpen: true,
       })
     })
@@ -163,7 +167,7 @@ describe('useUrlState', () => {
       })
 
       expect(mockReplaceState).toHaveBeenCalledWith(
-        expect.objectContaining({ skillId: 'new-skill', settingsOpen: false }),
+        expect.objectContaining({ skillId: 'new-skill', agentId: null, teamId: null, settingsOpen: false }),
         '',
         '/?skill=new-skill'
       )
@@ -178,7 +182,7 @@ describe('useUrlState', () => {
       })
 
       expect(mockReplaceState).toHaveBeenCalledWith(
-        expect.objectContaining({ skillId: null, settingsOpen: true }),
+        expect.objectContaining({ skillId: null, agentId: null, teamId: null, settingsOpen: true }),
         '',
         '/?settings=true'
       )
@@ -193,7 +197,7 @@ describe('useUrlState', () => {
       })
 
       expect(mockReplaceState).toHaveBeenCalledWith(
-        expect.objectContaining({ skillId: 'skill-abc', settingsOpen: true }),
+        expect.objectContaining({ skillId: 'skill-abc', agentId: null, teamId: null, settingsOpen: true }),
         '',
         '/?skill=skill-abc&settings=true'
       )
@@ -214,7 +218,7 @@ describe('useUrlState', () => {
       })
 
       expect(mockReplaceState).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skillId: null, settingsOpen: false }),
+        expect.objectContaining({ skillId: null, agentId: null, teamId: null, settingsOpen: false }),
         '',
         '/'
       )
@@ -254,7 +258,7 @@ describe('useUrlState', () => {
       })
 
       expect(mockReplaceState).toHaveBeenLastCalledWith(
-        expect.objectContaining({ skillId: 'skill-merge', settingsOpen: true }),
+        expect.objectContaining({ skillId: 'skill-merge', agentId: null, teamId: null, settingsOpen: true }),
         '',
         '/?skill=skill-merge&settings=true'
       )
@@ -284,7 +288,7 @@ describe('useUrlState', () => {
 
       // Simulate browser back/forward
       const event = new PopStateEvent('popstate', {
-        state: { skillId: 'back-skill', settingsOpen: false },
+        state: { skillId: 'back-skill', agentId: null, teamId: null, settingsOpen: false },
       })
 
       act(() => {
@@ -299,7 +303,7 @@ describe('useUrlState', () => {
       renderHook(() => useUrlState(options))
 
       const event = new PopStateEvent('popstate', {
-        state: { skillId: null, settingsOpen: true },
+        state: { skillId: null, agentId: null, teamId: null, settingsOpen: true },
       })
 
       act(() => {
@@ -333,7 +337,7 @@ describe('useUrlState', () => {
       renderHook(() => useUrlState(options))
 
       const event = new PopStateEvent('popstate', {
-        state: { skillId: 'new-skill', settingsOpen: false },
+        state: { skillId: 'new-skill', agentId: null, teamId: null, settingsOpen: false },
       })
 
       act(() => {
@@ -349,7 +353,7 @@ describe('useUrlState', () => {
       renderHook(() => useUrlState(options))
 
       const event = new PopStateEvent('popstate', {
-        state: { skillId: 'new-skill', settingsOpen: false },
+        state: { skillId: 'new-skill', agentId: null, teamId: null, settingsOpen: false },
       })
 
       act(() => {
@@ -372,7 +376,7 @@ describe('useUrlState', () => {
       rerender({ opts: dirtyOptions })
 
       const event = new PopStateEvent('popstate', {
-        state: { skillId: 'other-skill', settingsOpen: false },
+        state: { skillId: 'other-skill', agentId: null, teamId: null, settingsOpen: false },
       })
 
       act(() => {

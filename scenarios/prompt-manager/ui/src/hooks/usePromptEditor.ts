@@ -135,21 +135,47 @@ export function usePromptEditor({
     return validateNormalizedState(formState)
   }, [formState])
 
-  // Get all prompts to compute dirty count
-  const promptsMap = useEditorStore((state) => state.prompts)
-
-  // Compute dirty item IDs from the prompts map
-  const dirtyItemIds = useMemo(() => {
-    const dirty = new Set<string>()
-    for (const [id, state] of promptsMap) {
-      if (!isFormStateEqual(state.original, state.current)) {
-        dirty.add(id)
+  // Compute dirty count directly from the store (stable primitive)
+  // This selector returns a number, which is always compared by value
+  const dirtyCount = useEditorStore((state) => {
+    let count = 0
+    for (const [, promptState] of state.prompts) {
+      if (!isFormStateEqual(promptState.original, promptState.current)) {
+        count++
       }
     }
-    return dirty
-  }, [promptsMap])
+    return count
+  })
 
-  const dirtyCount = dirtyItemIds.size
+  // Cache the previous dirty IDs to avoid creating new Set references unnecessarily
+  const prevDirtyIdsRef = useRef<Set<string>>(new Set())
+
+  // Compute dirty item IDs, using dirtyCount as a trigger
+  const dirtyItemIds = useMemo(() => {
+    // Early exit if no dirty prompts
+    if (dirtyCount === 0) {
+      if (prevDirtyIdsRef.current.size === 0) {
+        return prevDirtyIdsRef.current
+      }
+      const emptySet = new Set<string>()
+      prevDirtyIdsRef.current = emptySet
+      return emptySet
+    }
+
+    // Get dirty IDs from store
+    const newDirtyIds = useEditorStore.getState().getDirtyPromptIds()
+
+    // Check if content is the same (avoid new reference if unchanged)
+    const prevIds = prevDirtyIdsRef.current
+    if (
+      newDirtyIds.size === prevIds.size &&
+      [...newDirtyIds].every((id) => prevIds.has(id))
+    ) {
+      return prevIds
+    }
+    prevDirtyIdsRef.current = newDirtyIds
+    return newDirtyIds
+  }, [dirtyCount])
 
   // Get the current skill object
   const currentSkill = useMemo(() => {

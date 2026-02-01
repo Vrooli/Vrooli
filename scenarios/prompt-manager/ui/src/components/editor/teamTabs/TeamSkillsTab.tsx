@@ -234,7 +234,7 @@ function SkillPickerModal({
   const filteredSkills = availableSkills.filter(
     (skill) =>
       skill.name.toLowerCase().includes(search.toLowerCase()) ||
-      skill.description?.toLowerCase().includes(search.toLowerCase())
+      skill.description.toLowerCase().includes(search.toLowerCase())
   )
 
   return (

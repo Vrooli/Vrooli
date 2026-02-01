@@ -6,6 +6,7 @@ import { Plus, User, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAgentData } from '@/hooks/useAgentData'
 import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { selectors } from '@/constants/selectors'
 
 interface AgentListPanelProps {
@@ -92,16 +93,8 @@ export function AgentListPanel({
               data-testid={selectors.agents.row}
               data-agent-id={agent.id}
             >
-              {/* Agent preview */}
-              <div
-                className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: agent.appearance?.body ?? DEFAULT_AGENT_COLORS.body }}
-              >
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: agent.appearance?.head ?? DEFAULT_AGENT_COLORS.head }}
-                />
-              </div>
+              {/* Agent color badge */}
+              <AgentColorBadge appearance={agent.appearance} size="sm" />
 
               {/* Agent info */}
               <div className="flex-1 min-w-0">

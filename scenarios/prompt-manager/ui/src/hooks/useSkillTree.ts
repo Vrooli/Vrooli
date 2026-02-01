@@ -10,7 +10,7 @@
  * - Auto-expand to selected item
  */
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { Skill } from '@/types'
 import type { TreeNode } from '@/types/editor'
 import {
@@ -36,6 +36,8 @@ interface UseSkillTreeProps {
   initialSelectedTags?: string[]
   /** Initial selected folders (for persistence) */
   initialSelectedFolders?: string[]
+  /** Initial search query (for persistence) */
+  initialSearchQuery?: string
 }
 
 interface UseSkillTreeReturn {
@@ -93,7 +95,12 @@ export function useSkillTree({
   initialExpandedNodes = [],
   initialSelectedTags = [],
   initialSelectedFolders = [],
+  initialSearchQuery = '',
 }: UseSkillTreeProps): UseSkillTreeReturn {
+  // Ref to hold skills for stable callbacks (avoids re-creating callbacks when skills load)
+  const skillsRef = useRef(skills)
+  skillsRef.current = skills
+
   // Build tree from skills
   const treeNodes = useMemo(() => buildTree(skills), [skills])
 
@@ -105,8 +112,8 @@ export function useSkillTree({
     () => new Set(initialExpandedNodes)
   )
 
-  // Search state (intentionally not persisted - transient)
-  const [searchQuery, setSearchQuery] = useState('')
+  // Search state (persisted)
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
 
   // Tag filter state (initialized from persistence)
   const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags)
@@ -186,9 +193,12 @@ export function useSkillTree({
   }, [])
 
   // Expand nodes to reveal a specific item
+  // Note: Uses skillsRef instead of skills dependency to keep callback stable
+  // when skills array loads/changes. This prevents infinite loops in effects
+  // that depend on expandToItem.
   const expandToItem = useCallback(
     (itemId: string) => {
-      const paths = getPathsToItem(skills, itemId)
+      const paths = getPathsToItem(skillsRef.current, itemId)
       if (paths.length === 0) return
 
       setExpandedNodes((prev) => {
@@ -199,7 +209,7 @@ export function useSkillTree({
         return next
       })
     },
-    [skills]
+    []
   )
 
   // Toggle sidebar collapse
@@ -279,6 +289,9 @@ export function useSkillTree({
   }, [selectedItemId, expandToItem])
 
   // When search query changes, expand all matching nodes
+  // Note: We intentionally only depend on searchQuery, not filteredTreeNodes,
+  // to avoid infinite loops when setExpandedNodes triggers a re-render.
+  // We access filteredTreeNodes as a snapshot, not as a reactive dependency.
   useEffect(() => {
     if (searchQuery.trim()) {
       // Expand all nodes in filtered tree
@@ -296,7 +309,8 @@ export function useSkillTree({
       collectExpandable(filteredTreeNodes)
       setExpandedNodes(nodesToExpand)
     }
-  }, [searchQuery, filteredTreeNodes])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
 
   return {
     // Tree data

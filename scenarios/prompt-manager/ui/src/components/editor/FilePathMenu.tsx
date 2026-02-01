@@ -172,7 +172,7 @@ export function FilePathMenu({
 
   // Relative path: just the store-relative path
   const relativePath = skillDir
-    ? skillDir.split('/store/').pop() + '/SKILL.md'
+    ? (skillDir.split('/store/').pop() ?? '') + '/SKILL.md'
     : `skills/packs/${folder}/${safeFile.replace('.md', '')}/SKILL.md`
 
   // Copy function - wrapped to avoid returning promise in onClick

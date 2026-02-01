@@ -4,46 +4,52 @@
  * Features:
  * - List of assigned skills
  * - Add/remove skills
+ * - Uses centralized form state for dirty tracking
  * - Drag-drop reordering (future)
  */
 
 import { useState, useCallback } from 'react'
 import { Plus, X, GripVertical, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Agent, UpdateAgentRequest } from '@/types/agent'
+import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 import type { Skill } from '@/types'
 
 interface SkillsTabProps {
-  agent: Agent
+  /** Form state from the editor store */
+  formState: NormalizedAgentFormState
   /** All available skills for the picker */
   allSkills?: Skill[]
-  onUpdate: (updates: UpdateAgentRequest) => Promise<void>
+  /** Update a single field */
+  updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
 }
 
 /**
  * Skills assignment tab component.
  */
-export function SkillsTab({ agent, allSkills = [], onUpdate }: SkillsTabProps) {
+export function SkillsTab({ formState, allSkills = [], updateField }: SkillsTabProps) {
   const [showPicker, setShowPicker] = useState(false)
+
+  // Get skills from form state
+  const skills = formState.skills
 
   // Handle skill removal
   const handleRemoveSkill = useCallback(
-    async (skillId: string) => {
-      const newSkills = agent.skills.filter((id) => id !== skillId)
-      await onUpdate({ skills: newSkills })
+    (skillId: string) => {
+      const newSkills = skills.filter((id) => id !== skillId)
+      updateField('skills', newSkills)
     },
-    [agent.skills, onUpdate]
+    [skills, updateField]
   )
 
   // Handle skill addition
   const handleAddSkill = useCallback(
-    async (skillId: string) => {
-      if (!agent.skills.includes(skillId)) {
-        await onUpdate({ skills: [...agent.skills, skillId] })
+    (skillId: string) => {
+      if (!skills.includes(skillId)) {
+        updateField('skills', [...skills, skillId])
       }
       setShowPicker(false)
     },
-    [agent.skills, onUpdate]
+    [skills, updateField]
   )
 
   // Get skill info by ID
@@ -59,14 +65,14 @@ export function SkillsTab({ agent, allSkills = [], onUpdate }: SkillsTabProps) {
   )
 
   // Get available skills (not already assigned)
-  const availableSkills = allSkills.filter((s) => !agent.skills.includes(s.id))
+  const availableSkills = allSkills.filter((s) => !skills.includes(s.id))
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">
-          Assigned Skills ({agent.skills.length})
+          Assigned Skills ({skills.length})
         </h3>
         <button
           type="button"
@@ -82,7 +88,7 @@ export function SkillsTab({ agent, allSkills = [], onUpdate }: SkillsTabProps) {
       </div>
 
       {/* Skills List */}
-      {agent.skills.length === 0 ? (
+      {skills.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Zap className="h-10 w-10 text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground">No skills assigned</p>
@@ -92,7 +98,7 @@ export function SkillsTab({ agent, allSkills = [], onUpdate }: SkillsTabProps) {
         </div>
       ) : (
         <ul className="space-y-2">
-          {agent.skills.map((skillId, index) => {
+          {skills.map((skillId, index) => {
             const { name, description } = getSkillInfo(skillId)
             return (
               <li
@@ -124,7 +130,7 @@ export function SkillsTab({ agent, allSkills = [], onUpdate }: SkillsTabProps) {
                 {/* Remove button */}
                 <button
                   type="button"
-                  onClick={() => void handleRemoveSkill(skillId)}
+                  onClick={() => handleRemoveSkill(skillId)}
                   className={cn(
                     'p-1 rounded opacity-0 group-hover:opacity-100',
                     'text-muted-foreground hover:text-destructive hover:bg-destructive/10',
@@ -168,7 +174,7 @@ function SkillPickerModal({ availableSkills, onSelect, onClose }: SkillPickerMod
   const filteredSkills = availableSkills.filter(
     (skill) =>
       skill.name.toLowerCase().includes(search.toLowerCase()) ||
-      skill.description?.toLowerCase().includes(search.toLowerCase())
+      skill.description.toLowerCase().includes(search.toLowerCase())
   )
 
   return (

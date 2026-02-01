@@ -1,8 +1,0 @@
-{
-  "kind": "agent-skill",
-  "schemaVersion": 1,
-  "agentId": "agent-1",
-  "skillId": "assumption-mapping-and-hardening",
-  "pin": "latest",
-  "enabled": true
-}

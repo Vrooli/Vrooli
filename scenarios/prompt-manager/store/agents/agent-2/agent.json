@@ -5,11 +5,11 @@
   "displayName": "Member 2",
   "status": "active",
   "appearance": {
-    "body": "#4F46E5",
-    "head": "#818CF8",
-    "accent": "#C7D2FE"
+    "body": "#22c55e",
+    "head": "#64748b",
+    "accent": "#8b5cf6"
   },
-  "revision": 1,
+  "revision": 5,
   "createdAt": "2026-01-22T23:01:44Z",
-  "updatedAt": "2026-01-29T17:41:50Z"
+  "updatedAt": "2026-02-01T21:33:52Z"
 }

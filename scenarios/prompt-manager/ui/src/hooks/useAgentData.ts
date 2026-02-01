@@ -17,6 +17,9 @@ const QUERY_KEYS = {
   agents: ['agents'] as const,
 }
 
+// Stable empty array to avoid new reference on every render
+const EMPTY_AGENTS: Agent[] = []
+
 interface UseAgentDataReturn {
   // Data
   agents: Agent[]
@@ -48,7 +51,7 @@ export function useAgentData(): UseAgentDataReturn {
 
   // Query for all agents
   const {
-    data: agents = [],
+    data: agents = EMPTY_AGENTS,
     isLoading,
     isError,
     error,

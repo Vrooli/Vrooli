@@ -1,15 +1,18 @@
 /**
- * TeamEditorPanel - Full-panel editor for teams.
+ * TeamEditorPanel - Full-panel editor for teams with org chart visualization.
  *
  * Features:
  * - Header with close button, editable name, member count badge
  * - Editable mission statement
- * - Tabbed interface: Members, Roles, Skills, Info
+ * - Split-panel Members tab: Org chart (left) + Member detail (right)
+ * - Toggle between Graph and Code views in Members tab
+ * - Secondary tabs: Roles, Skills, Info
+ * - Keyboard shortcuts: Escape (close), Ctrl+S (save)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { X, Users, Shield, Zap, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Users, Shield, Zap, Info, ChevronDown, ChevronUp, GripVertical, Network, Code } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, UpdateTeamRequest, TeamRole, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Skill } from '@/types'
@@ -17,8 +20,23 @@ import type { Agent } from '@/types/agent'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
+import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel'
+import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
+import * as orgChartService from '@/services/orgChartService'
 
-import { MembersTab, RolesTab, TeamSkillsTab, TeamInfoTab } from './teamTabs'
+import { OrgChartPanel } from './OrgChartPanel'
+import { MemberDetailPanel } from './MemberDetailPanel'
+import { TeamCodeView } from './TeamCodeView'
+import { MemberPickerModal } from './teamTabs/MembersTab'
+import { RolesTab, TeamSkillsTab, TeamInfoTab } from './teamTabs'
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type MembersViewMode = 'graph' | 'code'
+
+const MEMBERS_VIEW_STORAGE_KEY = 'pm.teamMembersViewMode'
 
 interface TeamEditorPanelProps {
   /** Current team being edited */
@@ -64,6 +82,74 @@ export function TeamEditorPanel({
   // Mission expanded state
   const [isMissionExpanded, setIsMissionExpanded] = useState(false)
 
+  // Member picker modal state
+  const [showMemberPicker, setShowMemberPicker] = useState(false)
+
+  // Members view mode (graph vs code)
+  const [membersViewMode, setMembersViewMode] = useState<MembersViewMode>(() => {
+    if (typeof window === 'undefined') return 'graph'
+    const stored = localStorage.getItem(MEMBERS_VIEW_STORAGE_KEY)
+    return stored === 'code' ? 'code' : 'graph'
+  })
+
+  // Persist view mode preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(MEMBERS_VIEW_STORAGE_KEY, membersViewMode)
+    }
+  }, [membersViewMode])
+
+  // Team editor store
+  const selectedMemberId = useTeamEditorStore((state) => state.selectedMemberId)
+  const setSelectedMemberId = useTeamEditorStore((state) => state.setSelectedMemberId)
+  const edges = useTeamEditorStore((state) => state.edges)
+  const setEdges = useTeamEditorStore((state) => state.setEdges)
+  const updateEdge = useTeamEditorStore((state) => state.updateEdge)
+  const reset = useTeamEditorStore((state) => state.reset)
+
+  // Split panel for members tab
+  const { width, isResizing, containerRef, handleResizeStart } = useResizableSplitPanel({
+    defaultWidth: 400,
+    minWidth: 280,
+    maxWidthRatio: 0.6,
+    storageKey: 'pm.teamEditorSplitWidth',
+  })
+
+  // Load org chart edges when team changes
+  useEffect(() => {
+    if (!team) {
+      reset()
+      return
+    }
+
+    const loadEdges = async () => {
+      const orgEdges = await orgChartService.getEdges(team.id)
+      setEdges(orgEdges)
+    }
+    void loadEdges()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only re-run when team ID changes
+  }, [team?.id, setEdges, reset])
+
+  // Get selected member
+  const selectedMember = useMemo(() => {
+    if (!team || !selectedMemberId) return null
+    return team.members.find((m) => m.agentId === selectedMemberId) ?? null
+  }, [team, selectedMemberId])
+
+  // Get agent appearance for selected member
+  const selectedMemberAppearance = useMemo(() => {
+    if (!selectedMemberId) return undefined
+    const agent = allAgents.find((a) => a.id === selectedMemberId)
+    return agent?.appearance ?? undefined
+  }, [selectedMemberId, allAgents])
+
+  // Available agents (not already members)
+  const availableAgents = useMemo(() => {
+    if (!team) return allAgents
+    const memberIds = new Set(team.members.map((m) => m.agentId))
+    return allAgents.filter((a) => !memberIds.has(a.id))
+  }, [team, allAgents])
+
   // Handle name change
   const handleNameChange = useCallback(
     async (newName: string) => {
@@ -83,6 +169,58 @@ export function TeamEditorPanel({
     },
     [team, onUpdate]
   )
+
+  // Handle edge update
+  const handleEdgeUpdate = useCallback(
+    async (agentId: string, managerId: string | null) => {
+      if (!team) return
+
+      // Update local state first
+      updateEdge(agentId, managerId)
+
+      // Then sync to API
+      await orgChartService.updateEdge(team.id, agentId, { managerId })
+    },
+    [team, updateEdge]
+  )
+
+  // Handle add member
+  const handleAddMember = useCallback(
+    async (agentId: string) => {
+      await onAddMember({ agentId, roles: [] })
+      setShowMemberPicker(false)
+    },
+    [onAddMember]
+  )
+
+  // Handle remove member
+  const handleRemoveMember = useCallback(
+    async (agentId: string) => {
+      await onRemoveMember(agentId)
+      if (selectedMemberId === agentId) {
+        setSelectedMemberId(null)
+      }
+    },
+    [onRemoveMember, selectedMemberId, setSelectedMemberId]
+  )
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape: deselect member or close editor
+      if (e.key === 'Escape') {
+        if (selectedMemberId) {
+          setSelectedMemberId(null)
+        } else {
+          onClose()
+        }
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedMemberId, setSelectedMemberId, onClose])
 
   // Empty state when no team selected
   if (!team) {
@@ -104,7 +242,7 @@ export function TeamEditorPanel({
       {/* Header */}
       <div
         className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
-        data-testid={selectors.teamEditor?.header ?? 'team-editor-header'}
+        data-testid={selectors.teamEditor.header}
       >
         {/* Row 1: Close, Icon, Name, Member count */}
         <div className="flex items-center gap-3">
@@ -185,30 +323,106 @@ export function TeamEditorPanel({
         </Tabs.List>
 
         {/* Tab Content */}
-        <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="members" className="h-full p-4">
-            <MembersTab
-              team={team}
-              allAgents={allAgents}
-              onAddMember={onAddMember}
-              onUpdateMember={onUpdateMember}
-              onRemoveMember={onRemoveMember}
-            />
+        <div className="flex-1 min-h-0">
+          {/* Members tab - Split panel layout with view mode toggle */}
+          <Tabs.Content value="members" className="h-full flex flex-col">
+            {/* View mode toggle toolbar */}
+            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-4 py-2 border-b border-border bg-muted/30">
+              <MembersViewToggle
+                viewMode={membersViewMode}
+                onViewModeChange={setMembersViewMode}
+              />
+            </div>
+
+            {/* Content area */}
+            <div className="flex-1 min-h-0">
+              {membersViewMode === 'graph' ? (
+                <div
+                  ref={containerRef}
+                  className="h-full flex"
+                >
+                  {/* Left panel: Org Chart */}
+                  <div className="flex-1 min-w-0 h-full">
+                    <OrgChartPanel
+                      team={team}
+                      edges={edges}
+                      allAgents={allAgents}
+                      selectedMemberId={selectedMemberId}
+                      onSelectMember={setSelectedMemberId}
+                      onEdgeUpdate={(agentId, managerId) => void handleEdgeUpdate(agentId, managerId)}
+                      onAddMember={() => setShowMemberPicker(true)}
+                      className="h-full"
+                    />
+                  </div>
+
+                  {/* Resize handle + Right panel: Member detail (conditional) */}
+                  {selectedMember && (
+                    <>
+                      {/* Resize handle */}
+                      <div
+                        onMouseDown={handleResizeStart}
+                        className={cn(
+                          'flex-shrink-0 w-1.5 cursor-col-resize relative group',
+                          'hover:bg-primary/30 transition-colors',
+                          isResizing && 'bg-primary/50'
+                        )}
+                      >
+                        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-4 flex items-center justify-center">
+                          <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </div>
+
+                      {/* Right panel: Member detail */}
+                      <div
+                        style={{ width }}
+                        className="flex-shrink-0 h-full border-l border-border overflow-hidden"
+                      >
+                        <MemberDetailPanel
+                          team={team}
+                          member={selectedMember}
+                          appearance={selectedMemberAppearance}
+                          onUpdateMember={onUpdateMember}
+                          onRemoveMember={handleRemoveMember}
+                          onClose={() => setSelectedMemberId(null)}
+                          className="h-full"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <TeamCodeView
+                  team={team}
+                  edges={edges}
+                  readOnly
+                  className="h-full"
+                />
+              )}
+            </div>
           </Tabs.Content>
 
-          <Tabs.Content value="roles" className="h-full p-4">
+          <Tabs.Content value="roles" className="h-full overflow-y-auto p-4">
             <RolesTab team={team} onSetRoles={onSetRoles} />
           </Tabs.Content>
 
-          <Tabs.Content value="skills" className="h-full p-4">
+          <Tabs.Content value="skills" className="h-full overflow-y-auto p-4">
             <TeamSkillsTab team={team} allSkills={allSkills} onUpdate={onUpdate} />
           </Tabs.Content>
 
-          <Tabs.Content value="info" className="h-full p-4">
+          <Tabs.Content value="info" className="h-full overflow-y-auto p-4">
             <TeamInfoTab team={team} />
           </Tabs.Content>
         </div>
       </Tabs.Root>
+
+      {/* Member picker modal */}
+      {showMemberPicker && (
+        <MemberPickerModal
+          availableAgents={availableAgents}
+          onSelect={(agentId) => void handleAddMember(agentId)}
+          onClose={() => setShowMemberPicker(false)}
+        />
+      )}
     </div>
   )
 }
@@ -237,5 +451,51 @@ function TabTrigger({ value, icon, label }: TabTriggerProps) {
       {icon}
       {label}
     </Tabs.Trigger>
+  )
+}
+
+/**
+ * Toggle component for switching between Graph and Code view modes.
+ */
+interface MembersViewToggleProps {
+  viewMode: MembersViewMode
+  onViewModeChange: (mode: MembersViewMode) => void
+  className?: string
+}
+
+function MembersViewToggle({ viewMode, onViewModeChange, className }: MembersViewToggleProps) {
+  return (
+    <div className={cn('flex items-center rounded-lg bg-muted p-0.5', className)}>
+      <button
+        type="button"
+        onClick={() => onViewModeChange('graph')}
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+          viewMode === 'graph'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Graph view - Visual org chart"
+        aria-pressed={viewMode === 'graph'}
+      >
+        <Network className="h-3.5 w-3.5" />
+        Graph
+      </button>
+      <button
+        type="button"
+        onClick={() => onViewModeChange('code')}
+        className={cn(
+          'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+          viewMode === 'code'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'
+        )}
+        title="Code view - YAML representation"
+        aria-pressed={viewMode === 'code'}
+      >
+        <Code className="h-3.5 w-3.5" />
+        Code
+      </button>
+    </div>
   )
 }

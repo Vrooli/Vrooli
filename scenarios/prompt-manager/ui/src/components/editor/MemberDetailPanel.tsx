@@ -14,6 +14,7 @@ import { X, Trash2, Clock, Play, Pause, Save, FileText, AlertCircle } from 'luci
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, UpdateMemberRequest } from '@/types/team'
 import type { AgentAppearance } from '@/types/agent'
+import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -67,10 +68,6 @@ export function MemberDetailPanel({
   // Dirty tracking
   const [isResponsibilitiesDirty, setIsResponsibilitiesDirty] = useState(false)
   const [isInstructionsDirty, setIsInstructionsDirty] = useState(false)
-
-  // Avatar colors
-  const bodyColor = appearance?.body ?? '#6366f1'
-  const headColor = appearance?.head ?? '#818cf8'
 
   // Load member documents and heartbeat config
   useEffect(() => {
@@ -228,16 +225,8 @@ export function MemberDetailPanel({
             <X className="h-5 w-5" />
           </button>
 
-          {/* Avatar */}
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: bodyColor }}
-          >
-            <div
-              className="w-6 h-6 rounded-full"
-              style={{ backgroundColor: headColor }}
-            />
-          </div>
+          {/* Agent color badge */}
+          <AgentColorBadge appearance={appearance} size="lg" />
 
           {/* Name and status */}
           <div className="flex-1 min-w-0">

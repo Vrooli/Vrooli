@@ -48,6 +48,9 @@ const literalSelectors = {
     header: 'team-editor-header',
     nameDisplay: 'team-editor-name-display',
     nameInput: 'team-editor-name-input',
+    orgChart: 'team-editor-org-chart',
+    memberDetail: 'team-editor-member-detail',
+    addMemberButton: 'team-editor-add-member',
   },
   world: {
     canvas: 'world-canvas',

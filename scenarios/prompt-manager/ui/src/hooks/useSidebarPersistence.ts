@@ -27,6 +27,10 @@ export interface SidebarPersistedState {
   selectedTags: string[]
   /** Selected folder filters */
   selectedFolders: string[]
+  /** Active sidebar tab (skills, agents, teams) */
+  activeTab: string
+  /** Search query for skills */
+  searchQuery: string
 }
 
 const DEFAULT_STATE: SidebarPersistedState = {
@@ -34,6 +38,8 @@ const DEFAULT_STATE: SidebarPersistedState = {
   expandedNodes: [],
   selectedTags: [],
   selectedFolders: [],
+  activeTab: 'skills',
+  searchQuery: '',
 }
 
 /**
@@ -55,6 +61,8 @@ export function loadSidebarState(): SidebarPersistedState {
       expandedNodes: Array.isArray(parsed.expandedNodes) ? parsed.expandedNodes : DEFAULT_STATE.expandedNodes,
       selectedTags: Array.isArray(parsed.selectedTags) ? parsed.selectedTags : DEFAULT_STATE.selectedTags,
       selectedFolders: Array.isArray(parsed.selectedFolders) ? parsed.selectedFolders : DEFAULT_STATE.selectedFolders,
+      activeTab: typeof parsed.activeTab === 'string' ? parsed.activeTab : DEFAULT_STATE.activeTab,
+      searchQuery: typeof parsed.searchQuery === 'string' ? parsed.searchQuery : DEFAULT_STATE.searchQuery,
     }
   } catch {
     return DEFAULT_STATE
@@ -83,6 +91,10 @@ export interface UseSidebarPersistenceOptions {
   selectedTags: string[]
   /** Current selected folders */
   selectedFolders: string[]
+  /** Current active tab */
+  activeTab: string
+  /** Current search query */
+  searchQuery: string
 }
 
 export interface UseSidebarPersistenceReturn {
@@ -98,7 +110,7 @@ export interface UseSidebarPersistenceReturn {
  * 2. Pass current state to the hook - it auto-persists on changes
  */
 export function useSidebarPersistence(options: UseSidebarPersistenceOptions): UseSidebarPersistenceReturn {
-  const { isCollapsed, expandedNodes, selectedTags, selectedFolders } = options
+  const { isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery } = options
 
   // Debounce timer ref
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -117,6 +129,8 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         expandedNodes: Array.from(expandedNodes),
         selectedTags,
         selectedFolders,
+        activeTab,
+        searchQuery,
       })
     }, DEBOUNCE_MS)
 
@@ -125,7 +139,7 @@ export function useSidebarPersistence(options: UseSidebarPersistenceOptions): Us
         clearTimeout(timerRef.current)
       }
     }
-  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders])
+  }, [isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery])
 
   const getInitialState = useCallback((): SidebarPersistedState => {
     return loadSidebarState()

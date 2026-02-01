@@ -15,6 +15,7 @@ import { X, UserPlus, Users, Clock, Play, Pause, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamDetails, TeamMember, AddMemberRequest, UpdateMemberRequest } from '@/types/team'
 import type { Agent } from '@/types/agent'
+import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import * as heartbeatService from '@/services/heartbeatService'
 import type { HeartbeatConfig } from '@/services/heartbeatService'
 
@@ -327,13 +328,13 @@ function StatusBadge({ status, onChange }: StatusBadgeProps) {
 /**
  * Modal for selecting agents to add as members.
  */
-interface MemberPickerModalProps {
+export interface MemberPickerModalProps {
   availableAgents: Agent[]
   onSelect: (agentId: string) => void
   onClose: () => void
 }
 
-function MemberPickerModal({ availableAgents, onSelect, onClose }: MemberPickerModalProps) {
+export function MemberPickerModal({ availableAgents, onSelect, onClose }: MemberPickerModalProps) {
   const [search, setSearch] = useState('')
 
   // Filter agents by search query
@@ -403,16 +404,8 @@ function MemberPickerModal({ availableAgents, onSelect, onClose }: MemberPickerM
                       'hover:bg-muted transition-colors'
                     )}
                   >
-                    {/* Agent avatar */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: agent.appearance?.body ?? '#6366f1' }}
-                    >
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: agent.appearance?.head ?? '#818cf8' }}
-                      />
-                    </div>
+                    {/* Agent color badge */}
+                    <AgentColorBadge appearance={agent.appearance} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{agent.displayName}</p>
                       {agent.description && (

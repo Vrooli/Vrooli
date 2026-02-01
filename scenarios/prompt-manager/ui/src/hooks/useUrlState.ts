@@ -4,25 +4,35 @@
  * This hook enables:
  * - URL-backed state persistence across page refreshes
  * - Direct navigation to skills via URL (/?skill=<skillId>)
+ * - Direct navigation to agents via URL (/?agent=<agentId>)
+ * - Direct navigation to teams via URL (/?team=<teamId>)
  * - Direct navigation to settings modal (/?settings=true)
  * - Browser back/forward navigation support
  *
  * URL Structure:
  * - /?skill=<skillId> - Select and open skill for editing
+ * - /?agent=<agentId> - Select and open agent for editing
+ * - /?team=<teamId> - Select and open team for editing
  * - /?settings=true - Open settings modal
- * - /?skill=<id>&settings=true - Both simultaneously
+ * - Combinations: /?skill=<id>&settings=true, etc.
  */
 
 import { useEffect, useCallback, useRef } from 'react'
 
 export interface UrlState {
   skillId: string | null
+  agentId: string | null
+  teamId: string | null
   settingsOpen: boolean
 }
 
 export interface UseUrlStateOptions {
   /** Called when skill ID changes from URL navigation */
   onSkillIdChange: (id: string | null) => void
+  /** Called when agent ID changes from URL navigation */
+  onAgentIdChange: (id: string | null) => void
+  /** Called when team ID changes from URL navigation */
+  onTeamIdChange: (id: string | null) => void
   /** Called when settings open state changes from URL navigation */
   onSettingsOpenChange: (open: boolean) => void
   /** Whether there are unsaved changes */
@@ -41,6 +51,8 @@ export interface UseUrlStateReturn {
 /** URL parameter names */
 const URL_PARAMS = {
   SKILL: 'skill',
+  AGENT: 'agent',
+  TEAM: 'team',
   SETTINGS: 'settings',
 } as const
 
@@ -51,6 +63,8 @@ function parseUrlState(search: string): UrlState {
   const params = new URLSearchParams(search)
   return {
     skillId: params.get(URL_PARAMS.SKILL),
+    agentId: params.get(URL_PARAMS.AGENT),
+    teamId: params.get(URL_PARAMS.TEAM),
     settingsOpen: params.get(URL_PARAMS.SETTINGS) === 'true',
   }
 }
@@ -63,6 +77,14 @@ function buildUrlSearch(state: UrlState): string {
 
   if (state.skillId) {
     params.set(URL_PARAMS.SKILL, state.skillId)
+  }
+
+  if (state.agentId) {
+    params.set(URL_PARAMS.AGENT, state.agentId)
+  }
+
+  if (state.teamId) {
+    params.set(URL_PARAMS.TEAM, state.teamId)
   }
 
   if (state.settingsOpen) {
@@ -80,11 +102,13 @@ function buildUrlSearch(state: UrlState): string {
  * Handles browser back/forward navigation via the popstate event.
  */
 export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
-  const { onSkillIdChange, onSettingsOpenChange } = options
+  const { onSkillIdChange, onAgentIdChange, onTeamIdChange, onSettingsOpenChange } = options
 
   // Store current URL state to detect changes
   const currentStateRef = useRef<UrlState>({
     skillId: null,
+    agentId: null,
+    teamId: null,
     settingsOpen: false,
   })
 
@@ -99,7 +123,7 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
    */
   const getInitialState = useCallback((): UrlState => {
     if (typeof window === 'undefined') {
-      return { skillId: null, settingsOpen: false }
+      return { skillId: null, agentId: null, teamId: null, settingsOpen: false }
     }
     return parseUrlState(window.location.search)
   }, [])
@@ -119,6 +143,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     // Skip if state hasn't changed
     if (
       newState.skillId === currentStateRef.current.skillId &&
+      newState.agentId === currentStateRef.current.agentId &&
+      newState.teamId === currentStateRef.current.teamId &&
       newState.settingsOpen === currentStateRef.current.settingsOpen
     ) {
       return
@@ -155,6 +181,8 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
 
     // Notify about changes
     opts.onSkillIdChange(urlState.skillId)
+    opts.onAgentIdChange(urlState.agentId)
+    opts.onTeamIdChange(urlState.teamId)
     opts.onSettingsOpenChange(urlState.settingsOpen)
   }, [])
 
@@ -170,11 +198,17 @@ export function useUrlState(options: UseUrlStateOptions): UseUrlStateReturn {
     currentStateRef.current = initialState
 
     // Apply initial state (defer to allow component to mount)
-    if (initialState.skillId || initialState.settingsOpen) {
+    if (initialState.skillId || initialState.agentId || initialState.teamId || initialState.settingsOpen) {
       // Use setTimeout to ensure this runs after initial render
       setTimeout(() => {
         if (initialState.skillId) {
           onSkillIdChange(initialState.skillId)
+        }
+        if (initialState.agentId) {
+          onAgentIdChange(initialState.agentId)
+        }
+        if (initialState.teamId) {
+          onTeamIdChange(initialState.teamId)
         }
         if (initialState.settingsOpen) {
           onSettingsOpenChange(initialState.settingsOpen)

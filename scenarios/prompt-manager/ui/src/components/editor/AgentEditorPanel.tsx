@@ -2,50 +2,72 @@
  * AgentEditorPanel - Full-panel editor for agents.
  *
  * Similar to SkillEditorPanel, provides a comprehensive editing interface for agents.
+ * Uses centralized form state through useAgentEditor hook.
+ *
  * Features:
- * - Header with close button, 3D preview, editable name, and status toggle
+ * - Header with close button, color badge, editable name, and status toggle
  * - Expandable description
- * - Tabbed interface: Appearance, Skills, Persona, Info
- *
- * Appearance Tab:
- * - Live 3D preview
- * - Color pickers for body, head, accent
- *
- * Skills Tab:
- * - Assigned skills list with drag-drop reordering
- * - Add/remove skills
- *
- * Persona Tab:
- * - SOUL.md content editor (reuses SkillContentEditor)
- *
- * Info Tab:
- * - Read-only metadata (runtime, teams, created date)
+ * - Tabbed interface: Persona, Skills, Appearance, Info
+ * - Dirty tracking with save/discard buttons
+ * - Undo/redo support
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import { X, Palette, Zap, User, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Agent, UpdateAgentRequest } from '@/types/agent'
-import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import type { Agent } from '@/types/agent'
+import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
+import type { ValidationResult } from '@/types/entityEditorStore'
 import { InlineEditableText } from '../shared/InlineEditableText'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { selectors } from '@/constants/selectors'
 
 import { AppearanceTab, SkillsTab, PersonaTab, InfoTab } from './tabs'
+import { AgentColorBadge } from '../shared/AgentColorBadge'
 import type { Skill } from '@/types'
 
 interface AgentEditorPanelProps {
-  /** Current agent being edited */
+  /** Current agent being edited (for read-only metadata) */
   agent: Agent | null
+  /** Form state from the editor store */
+  formState: NormalizedAgentFormState
+  /** Original state for dirty comparison */
+  originalState: NormalizedAgentFormState | null
   /** All available skills for the skill picker */
   allSkills?: Skill[]
-  /** Callback when agent data changes */
-  onUpdate: (updates: UpdateAgentRequest) => Promise<void>
+  /** Update a single field */
+  updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
+  /** Update multiple fields at once */
+  updateFields: (updates: Partial<NormalizedAgentFormState>) => void
+  /** Validation result */
+  validation: ValidationResult
+  /** Whether the form has unsaved changes */
+  isDirty: boolean
+  /** Count of dirty entities */
+  dirtyCount: number
+  /** Undo last change */
+  onUndo: () => void
+  /** Redo last undone change */
+  onRedo: () => void
+  /** Whether undo is available */
+  canUndo: boolean
+  /** Whether redo is available */
+  canRedo: boolean
+  /** Save current agent */
+  onSave: () => void
+  /** Save all dirty agents */
+  onSaveAll: () => void
+  /** Discard current changes */
+  onDiscard: () => void
+  /** Delete current agent */
+  onDelete: () => void
   /** Callback to close the editor */
   onClose: () => void
   /** Whether the agent is being saved */
   isSaving?: boolean
+  /** Whether the agent is being deleted */
+  isDeleting?: boolean
   /** Additional class names */
   className?: string
 }
@@ -58,54 +80,36 @@ const STATUS_OPTIONS = ['active', 'inactive', 'suspended'] as const
  */
 export function AgentEditorPanel({
   agent,
+  formState,
+  originalState,
   allSkills = [],
-  onUpdate,
+  updateField,
+  updateFields,
+  validation,
+  isDirty,
+  dirtyCount,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onSave,
+  onSaveAll: _onSaveAll,
+  onDiscard,
+  onDelete: _onDelete,
   onClose,
   isSaving = false,
+  isDeleting: _isDeleting = false,
   className,
 }: AgentEditorPanelProps) {
+  // TODO: Wire up save all and delete buttons in the actions menu
+  void _onSaveAll
+  void _onDelete
+  void _isDeleting
   // Active tab state
-  const [activeTab, setActiveTab] = useState('appearance')
+  const [activeTab, setActiveTab] = useState('persona')
 
   // Description expanded state
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
-
-  // Handle name change
-  const handleNameChange = useCallback(
-    async (newName: string) => {
-      if (agent && newName !== agent.displayName) {
-        await onUpdate({ displayName: newName })
-      }
-    },
-    [agent, onUpdate]
-  )
-
-  // Handle description change
-  const handleDescriptionChange = useCallback(
-    async (newDescription: string) => {
-      if (agent) {
-        await onUpdate({ description: newDescription })
-      }
-    },
-    [agent, onUpdate]
-  )
-
-  // Handle status change
-  const handleStatusChange = useCallback(
-    async (newStatus: string) => {
-      if (agent && newStatus !== agent.status) {
-        await onUpdate({ status: newStatus as 'active' | 'inactive' | 'suspended' })
-      }
-    },
-    [agent, onUpdate]
-  )
-
-  // Extract colors with defaults
-  const colors = useMemo(() => ({
-    body: agent?.appearance?.body ?? DEFAULT_AGENT_COLORS.body,
-    head: agent?.appearance?.head ?? DEFAULT_AGENT_COLORS.head,
-    accent: agent?.appearance?.accent ?? DEFAULT_AGENT_COLORS.accent,
-  }), [agent?.appearance])
 
   // Empty state when no agent selected
   if (!agent) {
@@ -127,7 +131,7 @@ export function AgentEditorPanel({
       {/* Header */}
       <div
         className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
-        data-testid={selectors.agentEditor?.header ?? 'agent-editor-header'}
+        data-testid={selectors.agentEditor.header}
       >
         {/* Row 1: Close, Preview, Name, Status */}
         <div className="flex items-center gap-3">
@@ -142,35 +146,33 @@ export function AgentEditorPanel({
             <X className="h-5 w-5" />
           </button>
 
-          {/* Mini 3D preview */}
-          <div className="flex-shrink-0">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: colors.body }}
-            >
-              <div
-                className="w-5 h-5 rounded-full"
-                style={{ backgroundColor: colors.head }}
-              />
-            </div>
-          </div>
+          {/* Agent color badge - uses form state */}
+          <AgentColorBadge appearance={formState.appearance} size="md" />
 
-          {/* Editable name */}
+          {/* Editable name - uses form state */}
           <div className="flex-1 min-w-0">
             <InlineEditableText
-              value={agent.displayName}
-              onChange={(value) => void handleNameChange(value)}
+              value={formState.displayName}
+              onChange={(value) => updateField('displayName', value)}
               placeholder="Agent name"
               className="text-lg font-semibold"
+              error={validation.errors.displayName}
             />
           </div>
 
-          {/* Status toggle */}
+          {/* Status toggle - uses form state */}
           <AgentStatusToggle
-            status={agent.status}
-            onChange={handleStatusChange}
+            status={formState.status}
+            onChange={(status) => updateField('status', status as 'active' | 'inactive' | 'suspended')}
             disabled={isSaving}
           />
+
+          {/* Unsaved indicator */}
+          {isDirty && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0">
+              Unsaved
+            </div>
+          )}
         </div>
 
         {/* Row 2: Expandable description */}
@@ -188,14 +190,14 @@ export function AgentEditorPanel({
           </button>
           {isDescriptionExpanded ? (
             <ExpandableDescription
-              value={agent.description ?? ''}
-              onChange={(value) => void handleDescriptionChange(value)}
+              value={formState.description}
+              onChange={(value) => updateField('description', value)}
               placeholder="Add a description..."
               className="flex-1"
             />
           ) : (
             <p className="flex-1 text-sm text-muted-foreground truncate">
-              {agent.description || 'No description'}
+              {formState.description || 'No description'}
             </p>
           )}
         </div>
@@ -209,24 +211,46 @@ export function AgentEditorPanel({
       >
         {/* Tab List */}
         <Tabs.List className="flex-shrink-0 flex border-b border-border px-4">
-          <TabTrigger value="appearance" icon={<Palette className="h-4 w-4" />} label="Appearance" />
-          <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
           <TabTrigger value="persona" icon={<User className="h-4 w-4" />} label="Persona" />
+          <TabTrigger value="skills" icon={<Zap className="h-4 w-4" />} label="Skills" />
+          <TabTrigger value="appearance" icon={<Palette className="h-4 w-4" />} label="Appearance" />
           <TabTrigger value="info" icon={<Info className="h-4 w-4" />} label="Info" />
         </Tabs.List>
 
         {/* Tab Content */}
         <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="appearance" className="h-full p-4">
-            <AppearanceTab agent={agent} onUpdate={onUpdate} />
+          <Tabs.Content value="persona" className="h-full">
+            <PersonaTab
+              formState={formState}
+              originalState={originalState}
+              updateField={updateField}
+              updateFields={updateFields}
+              isDirty={isDirty}
+              dirtyCount={dirtyCount}
+              onUndo={onUndo}
+              onRedo={onRedo}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onSave={onSave}
+              onDiscard={onDiscard}
+              isSaving={isSaving}
+              isValid={validation.valid}
+            />
           </Tabs.Content>
 
           <Tabs.Content value="skills" className="h-full p-4">
-            <SkillsTab agent={agent} allSkills={allSkills} onUpdate={onUpdate} />
+            <SkillsTab
+              formState={formState}
+              allSkills={allSkills}
+              updateField={updateField}
+            />
           </Tabs.Content>
 
-          <Tabs.Content value="persona" className="h-full p-4">
-            <PersonaTab agent={agent} onUpdate={onUpdate} />
+          <Tabs.Content value="appearance" className="h-full p-4">
+            <AppearanceTab
+              formState={formState}
+              updateField={updateField}
+            />
           </Tabs.Content>
 
           <Tabs.Content value="info" className="h-full p-4">
@@ -301,4 +325,3 @@ function AgentStatusToggle({ status, onChange, disabled }: AgentStatusToggleProp
     </select>
   )
 }
-

@@ -60,6 +60,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: [],
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
     })
 
@@ -69,6 +71,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: ['folder-1', 'folder-2'],
         selectedTags: ['tag-a', 'tag-b'],
         selectedFolders: ['local', 'core'],
+        activeTab: 'agents',
+        searchQuery: 'test query',
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
 
@@ -87,6 +91,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: [],
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
     })
 
@@ -100,6 +106,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: [],
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
     })
 
@@ -120,6 +128,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: [],
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
     })
   })
@@ -131,6 +141,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: ['node-1'],
         selectedTags: ['tag-1'],
         selectedFolders: ['local'],
+        activeTab: 'teams',
+        searchQuery: 'find me',
       }
 
       saveSidebarState(state)
@@ -148,6 +160,8 @@ describe('useSidebarPersistence', () => {
           expandedNodes: new Set(),
           selectedTags: [],
           selectedFolders: [],
+          activeTab: 'skills',
+          searchQuery: '',
         })
       )
 
@@ -156,14 +170,16 @@ describe('useSidebarPersistence', () => {
 
     it('should persist state changes after debounce', () => {
       const { rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
             selectedFolders: [] as string[],
+            activeTab: 'skills',
+            searchQuery: '',
           },
         }
       )
@@ -174,6 +190,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: new Set(['folder-1']),
         selectedTags: ['tag-1'],
         selectedFolders: ['local'],
+        activeTab: 'agents',
+        searchQuery: 'test',
       })
 
       // Should not be saved yet (debounced)
@@ -191,19 +209,23 @@ describe('useSidebarPersistence', () => {
         expandedNodes: ['folder-1'],
         selectedTags: ['tag-1'],
         selectedFolders: ['local'],
+        activeTab: 'agents',
+        searchQuery: 'test',
       })
     })
 
     it('should cancel pending save on unmount', () => {
       const { unmount, rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
             selectedFolders: [] as string[],
+            activeTab: 'skills',
+            searchQuery: '',
           },
         }
       )
@@ -214,6 +236,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: new Set<string>(),
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
 
       // Unmount before debounce completes
@@ -230,14 +254,16 @@ describe('useSidebarPersistence', () => {
 
     it('should debounce rapid state changes', () => {
       const { rerender } = renderHook(
-        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders }) =>
-          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders }),
+        ({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }) =>
+          useSidebarPersistence({ isCollapsed, expandedNodes, selectedTags, selectedFolders, activeTab, searchQuery }),
         {
           initialProps: {
             isCollapsed: false,
             expandedNodes: new Set<string>(),
             selectedTags: [] as string[],
             selectedFolders: [] as string[],
+            activeTab: 'skills',
+            searchQuery: '',
           },
         }
       )
@@ -248,6 +274,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: new Set<string>(),
         selectedTags: [],
         selectedFolders: [],
+        activeTab: 'skills',
+        searchQuery: '',
       })
 
       act(() => {
@@ -259,6 +287,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: new Set(['a']),
         selectedTags: [],
         selectedFolders: ['local'],
+        activeTab: 'agents',
+        searchQuery: 'search',
       })
 
       act(() => {
@@ -270,6 +300,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: new Set(['a', 'b']),
         selectedTags: ['tag'],
         selectedFolders: ['local', 'core'],
+        activeTab: 'teams',
+        searchQuery: 'final',
       })
 
       // Nothing saved yet
@@ -287,6 +319,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: ['a', 'b'],
         selectedTags: ['tag'],
         selectedFolders: ['local', 'core'],
+        activeTab: 'teams',
+        searchQuery: 'final',
       })
     })
 
@@ -297,6 +331,8 @@ describe('useSidebarPersistence', () => {
         expandedNodes: ['saved-folder'],
         selectedTags: ['saved-tag'],
         selectedFolders: ['local'],
+        activeTab: 'agents',
+        searchQuery: 'saved query',
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState))
 
@@ -306,6 +342,8 @@ describe('useSidebarPersistence', () => {
           expandedNodes: new Set(),
           selectedTags: [],
           selectedFolders: [],
+          activeTab: 'skills',
+          searchQuery: '',
         })
       )
 

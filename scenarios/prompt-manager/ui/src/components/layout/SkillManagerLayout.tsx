@@ -29,6 +29,8 @@ import { useAgentData } from '@/hooks/useAgentData'
 import { useTeamData, useTeamDetails } from '@/hooks/useTeamData'
 import { useSkillTree } from '@/hooks/useSkillTree'
 import { usePromptEditor, type SaveResult } from '@/hooks/usePromptEditor'
+import { useAgentEditor } from '@/hooks/useAgentEditor'
+import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
 import { useResizableSidebar } from '@/hooks/useResizableSidebar'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -104,14 +106,14 @@ export function SkillManagerLayout() {
   const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
   const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
-  // Get the current agent for editing
-  const currentAgent = agents.find((a) => a.id === selectedAgentId) ?? null
-
   // Get the current team details for editing
   const { team: currentTeam } = useTeamDetails(selectedTeamId)
 
   // Load initial sidebar state from localStorage (only once on mount)
   const initialSidebarState = useMemo(() => loadSidebarState(), [])
+
+  // Active tab state (managed here for persistence)
+  const [activeTab, setActiveTab] = useState(initialSidebarState.activeTab)
 
   // Tree state (expansion, filtering, collapse - but NOT selection)
   const {
@@ -137,6 +139,7 @@ export function SkillManagerLayout() {
     initialExpandedNodes: initialSidebarState.expandedNodes,
     initialSelectedTags: initialSidebarState.selectedTags,
     initialSelectedFolders: initialSidebarState.selectedFolders,
+    initialSearchQuery: initialSidebarState.searchQuery,
   })
 
   // Persist sidebar state to localStorage
@@ -145,6 +148,8 @@ export function SkillManagerLayout() {
     expandedNodes,
     selectedTags,
     selectedFolders,
+    activeTab,
+    searchQuery,
   })
 
   // Skill selection store
@@ -267,16 +272,16 @@ export function SkillManagerLayout() {
     }
   }, [combineSelectedIds, combineFormat, setIsCombineCopying])
 
-  // Editor state
+  // Skill editor state
   const {
     currentSkill,
     formState,
     originalContent,
     updateField,
     validation,
-    isDirty,
+    isDirty: isSkillDirty,
     dirtyItemIds,
-    dirtyCount,
+    dirtyCount: skillDirtyCount,
     storeCurrentChanges,
     saveCurrentSkill,
     saveAllChanges,
@@ -294,6 +299,90 @@ export function SkillManagerLayout() {
     onSave: updateSkills,
     onDelete: deleteSkillApi,
   })
+
+  // Agent editor state
+  const {
+    currentAgent: agentFromEditor,
+    formState: agentFormState,
+    originalState: agentOriginalState,
+    updateField: updateAgentField,
+    updateFields: updateAgentFields,
+    validation: agentValidation,
+    isDirty: isAgentDirty,
+    dirtyAgentIds,
+    dirtyCount: agentDirtyCount,
+    undo: undoAgent,
+    redo: redoAgent,
+    canUndo: canUndoAgent,
+    canRedo: canRedoAgent,
+    saveCurrentAgent,
+    saveAllChanges: saveAllAgentChanges,
+    discardCurrentChanges: discardAgentChanges,
+    deleteCurrentAgent,
+    isSaving: isAgentSaving,
+    isDeleting: isAgentDeleting,
+  } = useAgentEditor({
+    agents,
+    selectedAgentId,
+    onSave: updateAgent,
+    onDelete: (id: string) => {
+      // Agent deletion would go here if implemented
+      console.log('Delete agent:', id)
+      return Promise.resolve()
+    },
+  })
+
+  // Team editor dirty state - compute count directly (stable primitive)
+  const teamDirtyCount = useTeamEditorStore((state) => {
+    let count = 0
+    for (const dirty of state.dirtyState.values()) {
+      if (dirty.responsibilities || dirty.heartbeatInstructions || dirty.schedule) {
+        count++
+      }
+    }
+    return count
+  })
+
+  // Cache the previous team dirty IDs to avoid creating new Set references
+  const prevTeamDirtyIdsRef = useRef<Set<string>>(new Set())
+
+  const teamDirtyMemberIds = useMemo(() => {
+    if (teamDirtyCount === 0) {
+      if (prevTeamDirtyIdsRef.current.size === 0) {
+        return prevTeamDirtyIdsRef.current
+      }
+      const emptySet = new Set<string>()
+      prevTeamDirtyIdsRef.current = emptySet
+      return emptySet
+    }
+
+    const newDirtyIds = useTeamEditorStore.getState().getDirtyMemberIds()
+    const prevIds = prevTeamDirtyIdsRef.current
+    if (
+      newDirtyIds.size === prevIds.size &&
+      [...newDirtyIds].every((id) => prevIds.has(id))
+    ) {
+      return prevIds
+    }
+    prevTeamDirtyIdsRef.current = newDirtyIds
+    return newDirtyIds
+  }, [teamDirtyCount])
+
+  // Combined dirty state for UI
+  const isDirty = isSkillDirty || isAgentDirty || teamDirtyCount > 0
+  const dirtyCount = skillDirtyCount + agentDirtyCount + teamDirtyCount
+
+  // Combined dirty IDs for sidebar display (skills + agents + team members)
+  const combinedDirtyIds = useMemo(() => {
+    const combined = new Set(dirtyItemIds)
+    for (const id of dirtyAgentIds) {
+      combined.add(id)
+    }
+    for (const id of teamDirtyMemberIds) {
+      combined.add(id)
+    }
+    return combined
+  }, [dirtyItemIds, dirtyAgentIds, teamDirtyMemberIds])
 
   // Toast helper for save results
   const showSaveResultToast = useCallback((result: SaveResult, isSaveAll: boolean) => {
@@ -339,6 +428,18 @@ export function SkillManagerLayout() {
       }
       setSelectedSkillId(id)
     }, [isDirty, selectedSkillId, storeCurrentChanges, setSelectedSkillId]),
+    onAgentIdChange: useCallback((id: string | null) => {
+      if (isDirty && id !== selectedAgentId) {
+        storeCurrentChanges()
+      }
+      setSelectedAgentId(id)
+    }, [isDirty, selectedAgentId, storeCurrentChanges, setSelectedAgentId]),
+    onTeamIdChange: useCallback((id: string | null) => {
+      if (isDirty && id !== selectedTeamId) {
+        storeCurrentChanges()
+      }
+      setSelectedTeamId(id)
+    }, [isDirty, selectedTeamId, storeCurrentChanges, setSelectedTeamId]),
     onSettingsOpenChange: useCallback((open: boolean) => {
       setShowSettingsDialog(open)
     }, []),
@@ -350,6 +451,16 @@ export function SkillManagerLayout() {
   useEffect(() => {
     updateUrl({ skillId: selectedSkillId })
   }, [selectedSkillId, updateUrl])
+
+  // Sync URL when selected agent changes
+  useEffect(() => {
+    updateUrl({ agentId: selectedAgentId })
+  }, [selectedAgentId, updateUrl])
+
+  // Sync URL when selected team changes
+  useEffect(() => {
+    updateUrl({ teamId: selectedTeamId })
+  }, [selectedTeamId, updateUrl])
 
   // Sync URL when settings dialog state changes
   useEffect(() => {
@@ -627,7 +738,7 @@ export function SkillManagerLayout() {
         skills={skills}
         selectedItemId={selectedSkillId}
         onSelectItem={handleSelectItem}
-        dirtyItemIds={dirtyItemIds}
+        dirtyItemIds={combinedDirtyIds}
         expandedNodes={expandedNodes}
         onToggleNode={toggleNode}
         renderItemIcon={renderItemIcon}
@@ -669,6 +780,8 @@ export function SkillManagerLayout() {
         onCombineCopy={() => void handleCombineCopy()}
         isCombineCopying={isCombineCopying}
         combineCopySuccess={combineCopySuccess}
+        initialActiveTab={activeTab}
+        onActiveTabChange={setActiveTab}
       />
     </PanelErrorBoundary>
   )
@@ -785,14 +898,26 @@ export function SkillManagerLayout() {
               />
             ) : selectedAgentId ? (
               <AgentEditorPanel
-                agent={currentAgent}
+                agent={agentFromEditor}
+                formState={agentFormState}
+                originalState={agentOriginalState}
                 allSkills={skills}
-                onUpdate={async (updates) => {
-                  if (selectedAgentId) {
-                    await updateAgent(selectedAgentId, updates)
-                  }
-                }}
+                updateField={updateAgentField}
+                updateFields={updateAgentFields}
+                validation={agentValidation}
+                isDirty={isAgentDirty}
+                dirtyCount={agentDirtyCount}
+                onUndo={undoAgent}
+                onRedo={redoAgent}
+                canUndo={canUndoAgent}
+                canRedo={canRedoAgent}
+                onSave={() => void saveCurrentAgent()}
+                onSaveAll={() => void saveAllAgentChanges()}
+                onDiscard={discardAgentChanges}
+                onDelete={() => void deleteCurrentAgent()}
                 onClose={() => setSelectedAgentId(null)}
+                isSaving={isAgentSaving}
+                isDeleting={isAgentDeleting}
                 className="h-full"
               />
             ) : (
@@ -852,7 +977,7 @@ export function SkillManagerLayout() {
                 skills={skills}
                 selectedItemId={selectedSkillId}
                 onSelectItem={handleSelectItem}
-                dirtyItemIds={dirtyItemIds}
+                dirtyItemIds={combinedDirtyIds}
                 expandedNodes={expandedNodes}
                 onToggleNode={toggleNode}
                 renderItemIcon={renderItemIcon}
@@ -892,6 +1017,8 @@ export function SkillManagerLayout() {
                 onCombineCopy={() => void handleCombineCopy()}
                 isCombineCopying={isCombineCopying}
                 combineCopySuccess={combineCopySuccess}
+                initialActiveTab={activeTab}
+                onActiveTabChange={setActiveTab}
                 className="border-r-0"
               />
             </div>

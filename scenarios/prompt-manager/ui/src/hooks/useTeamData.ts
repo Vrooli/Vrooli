@@ -29,6 +29,9 @@ const QUERY_KEYS = {
   teamDetails: (id: string) => ['teams', id] as const,
 }
 
+// Stable empty array to avoid new reference on every render
+const EMPTY_TEAMS: Team[] = []
+
 interface UseTeamDataReturn {
   // Data
   teams: Team[]
@@ -68,7 +71,7 @@ export function useTeamData(): UseTeamDataReturn {
 
   // Query for all teams
   const {
-    data: teams = [],
+    data: teams = EMPTY_TEAMS,
     isLoading,
     isError,
     error,

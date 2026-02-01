@@ -2,118 +2,79 @@
  * AppearanceTab - Agent appearance customization tab.
  *
  * Features:
- * - Live 3D preview of agent
  * - Color pickers for body, head, and accent
+ * - Uses centralized form state for dirty tracking
  */
 
 import { useCallback } from 'react'
 import { ColorPicker } from '@/components/shared/ColorPicker'
-import type { Agent, UpdateAgentRequest } from '@/types/agent'
-import { DEFAULT_AGENT_COLORS } from '@/types/agent'
+import type { NormalizedAgentFormState } from '@/stores/agentEditorStore'
 
 interface AppearanceTabProps {
-  agent: Agent
-  onUpdate: (updates: UpdateAgentRequest) => Promise<void>
+  /** Form state from the editor store */
+  formState: NormalizedAgentFormState
+  /** Update a single field */
+  updateField: <K extends keyof NormalizedAgentFormState>(field: K, value: NormalizedAgentFormState[K]) => void
 }
 
 /**
  * Appearance customization tab component.
  */
-export function AppearanceTab({ agent, onUpdate }: AppearanceTabProps) {
-  // Extract colors with defaults
-  const bodyColor = agent.appearance?.body ?? DEFAULT_AGENT_COLORS.body
-  const headColor = agent.appearance?.head ?? DEFAULT_AGENT_COLORS.head
-  const accentColor = agent.appearance?.accent ?? DEFAULT_AGENT_COLORS.accent
+export function AppearanceTab({ formState, updateField }: AppearanceTabProps) {
+  // Extract colors (appearance is always defined in NormalizedAgentFormState)
+  const bodyColor = formState.appearance.body
+  const headColor = formState.appearance.head
+  const accentColor = formState.appearance.accent
 
-  // Handle color changes
+  // Handle color changes - update through form state
   const handleBodyColorChange = useCallback(
-    async (color: string) => {
-      await onUpdate({
-        appearance: {
-          body: color,
-          head: headColor,
-          accent: accentColor,
-        },
+    (color: string) => {
+      updateField('appearance', {
+        ...formState.appearance,
+        body: color,
       })
     },
-    [headColor, accentColor, onUpdate]
+    [formState.appearance, updateField]
   )
 
   const handleHeadColorChange = useCallback(
-    async (color: string) => {
-      await onUpdate({
-        appearance: {
-          body: bodyColor,
-          head: color,
-          accent: accentColor,
-        },
+    (color: string) => {
+      updateField('appearance', {
+        ...formState.appearance,
+        head: color,
       })
     },
-    [bodyColor, accentColor, onUpdate]
+    [formState.appearance, updateField]
   )
 
   const handleAccentColorChange = useCallback(
-    async (color: string) => {
-      await onUpdate({
-        appearance: {
-          body: bodyColor,
-          head: headColor,
-          accent: color,
-        },
+    (color: string) => {
+      updateField('appearance', {
+        ...formState.appearance,
+        accent: color,
       })
     },
-    [bodyColor, headColor, onUpdate]
+    [formState.appearance, updateField]
   )
 
   return (
     <div className="space-y-6">
-      {/* Live 3D Preview */}
-      <div className="flex justify-center p-6 bg-muted/30 rounded-lg">
-        <div className="relative">
-          {/* Accent (antenna) */}
-          <div
-            className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full"
-            style={{ backgroundColor: accentColor }}
-          />
-          {/* Body */}
-          <div
-            className="w-24 h-32 rounded-full flex items-start justify-center pt-6"
-            style={{ backgroundColor: bodyColor }}
-          >
-            {/* Head */}
-            <div
-              className="w-14 h-14 rounded-full"
-              style={{ backgroundColor: headColor }}
-            />
-          </div>
-          {/* Arms */}
-          <div
-            className="absolute top-10 -left-3 w-4 h-14 rounded-full"
-            style={{ backgroundColor: bodyColor }}
-          />
-          <div
-            className="absolute top-10 -right-3 w-4 h-14 rounded-full"
-            style={{ backgroundColor: bodyColor }}
-          />
-        </div>
-      </div>
-
       {/* Color Pickers */}
       <div className="space-y-4">
         <ColorPicker
           label="Body Color"
           value={bodyColor}
-          onChange={(color) => void handleBodyColorChange(color)}
+          onChange={handleBodyColorChange}
         />
         <ColorPicker
           label="Head Color"
           value={headColor}
-          onChange={(color) => void handleHeadColorChange(color)}
+          onChange={handleHeadColorChange}
         />
         <ColorPicker
           label="Accent Color"
           value={accentColor}
-          onChange={(color) => void handleAccentColorChange(color)}
+          onChange={handleAccentColorChange}
         />
       </div>
     </div>

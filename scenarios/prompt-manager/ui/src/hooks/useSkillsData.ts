@@ -16,6 +16,9 @@ const QUERY_KEYS = {
   skills: ['skills'] as const,
 }
 
+// Stable empty array to avoid new reference on every render
+const EMPTY_SKILLS: Skill[] = []
+
 interface UseSkillsDataReturn {
   // Data
   skills: Skill[]
@@ -48,7 +51,7 @@ export function useSkillsData(): UseSkillsDataReturn {
 
   // Query for all skills
   const {
-    data: skills = [],
+    data: skills = EMPTY_SKILLS,
     isLoading,
     isError,
     error,
