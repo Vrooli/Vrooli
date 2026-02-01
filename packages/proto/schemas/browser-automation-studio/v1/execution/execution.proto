@@ -214,6 +214,12 @@ message ExecutionParameters {
   // @format uuid
   optional string save_session_profile_id = 25 [(buf.validate.field).string.uuid = true];
 
+  // Restore tabs from the session profile before execution.
+  // When true and session_profile_id is set, restores the profile's saved tabs
+  // (navigating to their URLs) before workflow execution begins.
+  // Default: false (clean session start is preferred for testing)
+  optional bool restore_tabs = 26;
+
   // =============================================================================
   // EXECUTION-LEVEL DEFAULTS
   // =============================================================================

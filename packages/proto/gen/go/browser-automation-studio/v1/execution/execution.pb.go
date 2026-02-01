@@ -253,6 +253,11 @@ type ExecutionParameters struct {
 	// This enables capturing authenticated sessions for later reuse.
 	// @format uuid
 	SaveSessionProfileId *string `protobuf:"bytes,25,opt,name=save_session_profile_id,json=saveSessionProfileId,proto3,oneof" json:"save_session_profile_id,omitempty"`
+	// Restore tabs from the session profile before execution.
+	// When true and session_profile_id is set, restores the profile's saved tabs
+	// (navigating to their URLs) before workflow execution begins.
+	// Default: false (clean session start is preferred for testing)
+	RestoreTabs *bool `protobuf:"varint,26,opt,name=restore_tabs,json=restoreTabs,proto3,oneof" json:"restore_tabs,omitempty"`
 	// Default navigation wait condition for all navigate steps.
 	// Overrides workflow-level default, but individual NavigateParams.wait_until takes precedence.
 	// @see NavigateWaitEvent enum in actions/action.proto
@@ -405,6 +410,13 @@ func (x *ExecutionParameters) GetSaveSessionProfileId() string {
 		return *x.SaveSessionProfileId
 	}
 	return ""
+}
+
+func (x *ExecutionParameters) GetRestoreTabs() bool {
+	if x != nil && x.RestoreTabs != nil {
+		return *x.RestoreTabs
+	}
+	return false
 }
 
 func (x *ExecutionParameters) GetNavigationWaitUntil() actions.NavigateWaitEvent {
@@ -1544,7 +1556,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x15_max_screenshot_bytesB\x19\n" +
 	"\x17_max_dom_snapshot_bytesB\x1a\n" +
 	"\x18_max_console_entry_bytesB\x1c\n" +
-	"\x1a_max_network_preview_bytes\"\xba\r\n" +
+	"\x1a_max_network_preview_bytes\"\xf3\r\n" +
 	"\x13ExecutionParameters\x12 \n" +
 	"\tstart_url\x18\x01 \x01(\tH\x00R\bstartUrl\x88\x01\x01\x12^\n" +
 	"\tvariables\x18\x02 \x03(\v2@.browser_automation_studio.v1.ExecutionParameters.VariablesEntryR\tvariables\x12*\n" +
@@ -1564,10 +1576,11 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x0fartifact_config\x18\x14 \x01(\v26.browser_automation_studio.v1.ArtifactCollectionConfigR\x0eartifactConfig\x12U\n" +
 	"\x0fbrowser_profile\x18\x15 \x01(\v2,.browser_automation_studio.v1.BrowserProfileR\x0ebrowserProfile\x12;\n" +
 	"\x12session_profile_id\x18\x16 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\bR\x10sessionProfileId\x88\x01\x01\x12D\n" +
-	"\x17save_session_profile_id\x18\x19 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\tR\x14saveSessionProfileId\x88\x01\x01\x12h\n" +
-	"\x15navigation_wait_until\x18\x17 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\n" +
-	"R\x13navigationWaitUntil\x88\x01\x01\x12/\n" +
-	"\x11continue_on_error\x18\x18 \x01(\bH\vR\x0fcontinueOnError\x88\x01\x01\x1a<\n" +
+	"\x17save_session_profile_id\x18\x19 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\tR\x14saveSessionProfileId\x88\x01\x01\x12&\n" +
+	"\frestore_tabs\x18\x1a \x01(\bH\n" +
+	"R\vrestoreTabs\x88\x01\x01\x12h\n" +
+	"\x15navigation_wait_until\x18\x17 \x01(\x0e2/.browser_automation_studio.v1.NavigateWaitEventH\vR\x13navigationWaitUntil\x88\x01\x01\x12/\n" +
+	"\x11continue_on_error\x18\x18 \x01(\bH\fR\x0fcontinueOnError\x88\x01\x01\x1a<\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aV\n" +
@@ -1590,7 +1603,8 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\v_timeout_msB\x0f\n" +
 	"\r_project_rootB\x15\n" +
 	"\x13_session_profile_idB\x1a\n" +
-	"\x18_save_session_profile_idB\x18\n" +
+	"\x18_save_session_profile_idB\x0f\n" +
+	"\r_restore_tabsB\x18\n" +
 	"\x16_navigation_wait_untilB\x14\n" +
 	"\x12_continue_on_errorJ\x04\b\x05\x10\x06\"\x81\x05\n" +
 	"\x0fExecutionResult\x12\x18\n" +
