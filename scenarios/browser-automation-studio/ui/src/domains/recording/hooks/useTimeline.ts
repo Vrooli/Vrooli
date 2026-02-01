@@ -15,6 +15,7 @@ import type {
   TimelinePageEvent,
 } from '../api/schemas';
 import type { Page } from './usePages';
+import { useSessionStore } from '../stores';
 
 // Re-export types for backward compatibility
 export type { TimelineEntry, TimelineAction, TimelinePageEvent } from '../api/schemas';
@@ -97,7 +98,7 @@ interface UseTimelineReturn {
 }
 
 export function useTimeline({
-  sessionId,
+  sessionId: propSessionId,
   pages,
   filterPageId = null,
   limit = 100,
@@ -108,6 +109,15 @@ export function useTimeline({
   const [error, setError] = useState<string | null>(null);
   const [totalEntries, setTotalEntries] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+
+  // Read session validation state from store
+  // This ensures we only subscribe to WebSocket when session is validated
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const isValidated = useSessionStore((s) => s.isValidated);
+
+  // Use store session ID if validated, otherwise fall back to prop
+  // This handles the case where prop is stale but store has the current session
+  const sessionId = isValidated ? storeSessionId : propSessionId;
 
   const { lastMessage, send, isConnected } = useWebSocket();
   const onEntryReceivedRef = useRef(onEntryReceived);
@@ -175,49 +185,80 @@ export function useTimeline({
     setHasMore(result.data.hasMore);
   }, [sessionId, filterPageId, limit]);
 
-  // Fetch timeline when session changes
+  // Fetch timeline when session changes and is validated
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && isValidated) {
       void refreshTimeline();
     } else {
       setEntries([]);
       setTotalEntries(0);
       setHasMore(false);
     }
-  }, [sessionId, refreshTimeline]);
+  }, [sessionId, isValidated, refreshTimeline]);
 
   // Subscribe to recording session for real-time timeline updates
+  // CRITICAL: Only subscribe when session is validated (confirmed to exist on server)
+  // This prevents subscribing to stale session IDs from URL after driver restart
+  //
+  // NOTE: We use a separate effect for subscription management to avoid flapping.
+  // The subscription should only change when:
+  // 1. We connect/disconnect from WebSocket
+  // 2. The actual validated session ID changes
+  // 3. Component unmounts
   useEffect(() => {
-    if (!isConnected || !sessionId) {
-      return;
-    }
+    // Determine the target session to subscribe to
+    // Only subscribe if we have a valid, validated session and are connected
+    const targetSession = isConnected && sessionId && isValidated ? sessionId : null;
+    const currentSub = subscribedSessionRef.current;
 
-    // Unsubscribe from previous session if different
-    if (subscribedSessionRef.current && subscribedSessionRef.current !== sessionId) {
-      send({ type: 'unsubscribe_recording', session_id: subscribedSessionRef.current });
+    console.log('[useTimeline] Subscription check:', {
+      isConnected,
+      sessionId,
+      isValidated,
+      targetSession,
+      currentSub,
+    });
+
+    // Case 1: We need to unsubscribe (was subscribed, now shouldn't be)
+    if (currentSub && currentSub !== targetSession) {
+      console.log('[useTimeline] Unsubscribing from session:', currentSub);
+      send({ type: 'unsubscribe_recording', session_id: currentSub });
       subscribedSessionRef.current = null;
     }
 
-    // Subscribe to new session
-    if (subscribedSessionRef.current !== sessionId) {
-      send({ type: 'subscribe_recording', session_id: sessionId });
-      subscribedSessionRef.current = sessionId;
+    // Case 2: We need to subscribe (target exists and we're not subscribed to it)
+    if (targetSession && subscribedSessionRef.current !== targetSession) {
+      console.log('[useTimeline] Subscribing to session:', targetSession);
+      send({ type: 'subscribe_recording', session_id: targetSession });
+      subscribedSessionRef.current = targetSession;
     }
 
-    // Cleanup: unsubscribe when unmounting or sessionId changes
+    // Cleanup: only unsubscribe on unmount, not on every re-render
+    // This prevents the subscribe/unsubscribe/subscribe flapping pattern
     return () => {
-      if (subscribedSessionRef.current) {
-        send({ type: 'unsubscribe_recording', session_id: subscribedSessionRef.current });
+      // Only cleanup on actual unmount by checking if we still have a subscription
+      // that matches what we set in this effect run
+      if (subscribedSessionRef.current === targetSession && targetSession) {
+        console.log('[useTimeline] Cleanup (unmount): unsubscribing from session:', targetSession);
+        send({ type: 'unsubscribe_recording', session_id: targetSession });
         subscribedSessionRef.current = null;
       }
     };
-  }, [isConnected, sessionId, send]);
+  }, [isConnected, sessionId, isValidated, send]);
 
   // Handle WebSocket messages for real-time updates
   useEffect(() => {
     if (!lastMessage || !sessionId) return;
 
     const msg = lastMessage as unknown as WebSocketTimelineMessage;
+
+    // Debug: Log all received messages
+    console.log('[useTimeline] Received WebSocket message:', {
+      type: msg.type,
+      session_id: 'session_id' in msg ? (msg as { session_id?: string }).session_id : undefined,
+      currentSessionId: sessionId,
+      isValidated,
+    });
 
     // Handle recording action
     if (msg.type === 'recording_action' && msg.session_id === sessionId) {

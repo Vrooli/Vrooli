@@ -18,6 +18,7 @@ import { getConfig } from '@/config';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { useFrameStats, type FrameStats } from '../hooks/useFrameStats';
 import { LatencyLogger, type LatencyStats } from '@utils/latencyLogger';
+import { useSessionStore } from '../stores';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -119,7 +120,7 @@ export interface UseFrameStreamResult {
 }
 
 export function useFrameStream({
-  sessionId,
+  sessionId: propSessionId,
   pageId,
   quality = 65,
   fps = 30,
@@ -133,6 +134,17 @@ export function useFrameStream({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const backBufferRef = useRef<HTMLCanvasElement | null>(null);
   const frameDimensionsRef = useRef<FrameDimensions | null>(null);
+
+  // Read session validation state from store
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const isValidated = useSessionStore((s) => s.isValidated);
+
+  // Use store session ID if validated, otherwise fall back to prop
+  const sessionId = isValidated ? storeSessionId : propSessionId;
+
+  // Get store actions for syncing dimensions
+  const storeSetFrameDimensions = useSessionStore((s) => s.setFrameDimensions);
+  const storeSetDisplayDimensions = useSessionStore((s) => s.setDisplayDimensions);
 
   const [hasFrame, setHasFrame] = useState(false);
   const hasFrameRef = useRef(false);
@@ -337,6 +349,9 @@ export function useFrameStream({
     }
     if (dimensionsChanged) {
       setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
+      // Sync to store
+      storeSetFrameDimensions({ width: newDimensions.width, height: newDimensions.height });
+      storeSetDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
     }
 
     // Guard setError(null) to avoid unnecessary React reconciliation
@@ -348,7 +363,7 @@ export function useFrameStream({
     // Track successful frame processing
     frameCountRef.current++;
     recordFrame(frameSize);
-  }, [drawFrameToCanvas, recordFrame]);
+  }, [drawFrameToCanvas, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
 
   /**
    * Decode a blob and queue it for drawing.
@@ -674,6 +689,9 @@ export function useFrameStream({
           }
           if (dimensionsChanged) {
             setDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
+            // Sync to store
+            storeSetFrameDimensions({ width: newDimensions.width, height: newDimensions.height });
+            storeSetDisplayDimensions({ width: newDimensions.width, height: newDimensions.height });
           }
           setDisplayedTimestamp(data.captured_at);
           if (errorRef.current !== null) {
@@ -705,7 +723,7 @@ export function useFrameStream({
         pollIntervalRef.current = nextInterval;
       }
     }
-  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame]);
+  }, [onStreamError, quality, sessionId, pageId, pollInterval, drawFrameToCanvas, recordFrame, storeSetFrameDimensions, storeSetDisplayDimensions]);
 
   // Track if we've received at least one WebSocket frame
   const hasReceivedWsFrameRef = useRef(false);
@@ -759,6 +777,9 @@ export function useFrameStream({
         setHasFrame(false);
         setDisplayDimensions(null);
         setDisplayedTimestamp(null);
+        // Clear store dimensions
+        storeSetFrameDimensions(null);
+        storeSetDisplayDimensions(null);
         const canvas = canvasRef.current;
         if (canvas) {
           const ctx = canvas.getContext('2d');
@@ -784,7 +805,7 @@ export function useFrameStream({
       frameCountRef.current = 0;
       droppedFramesRef.current = 0;
     }
-  }, [sessionId, resetStats]);
+  }, [sessionId, resetStats, storeSetFrameDimensions, storeSetDisplayDimensions]);
 
   // Callback to log latency stats to console
   const logLatencyStats = useCallback(() => {

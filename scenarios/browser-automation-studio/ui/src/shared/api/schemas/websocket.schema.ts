@@ -127,10 +127,15 @@ export const ConnectionStatusMessageSchema = z.object({
 });
 
 // Generic/unknown message (fallback)
+// This schema is permissive to allow recording_action and page_event messages
+// to pass through with their session_id and entry/event fields intact
 export const GenericMessageSchema = z.object({
   type: z.string(),
   execution_id: z.string().optional(),
   workflow_id: z.string().optional(),
+  session_id: z.string().optional(), // For recording_action and page_event messages
+  entry: z.unknown().optional(), // For recording_action messages
+  event: z.unknown().optional(), // For page_event messages
   status: z.string().optional(),
   progress: z.number().optional(),
   message: z.string().optional(),

@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { getApiBase } from '@/config';
+import { useSessionStore } from '../stores';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -237,7 +238,7 @@ interface UsePagesReturn {
 }
 
 export function usePages({
-  sessionId,
+  sessionId: propSessionId,
   onPageCreated,
   onPageClosed,
   onActivePageChanged,
@@ -250,6 +251,20 @@ export function usePages({
 
   const { lastMessage } = useWebSocket();
   const apiUrl = getApiBase();
+
+  // Read session validation state from store
+  const storeSessionId = useSessionStore((s) => s.sessionId);
+  const isValidated = useSessionStore((s) => s.isValidated);
+
+  // Use store session ID if validated, otherwise fall back to prop
+  const sessionId = isValidated ? storeSessionId : propSessionId;
+
+  // Get store actions for syncing page state
+  const storeSetPages = useSessionStore((s) => s.setPages);
+  const storeAddPage = useSessionStore((s) => s.addPage);
+  const storeUpdatePage = useSessionStore((s) => s.updatePage);
+  const storeSetActivePageId = useSessionStore((s) => s.setActivePageId);
+  const storeUpdatePageColorMap = useSessionStore((s) => s.updatePageColorMap);
 
   // Keep callbacks in refs to avoid stale closures
   const onPageCreatedRef = useRef(onPageCreated);
@@ -291,6 +306,11 @@ export function usePages({
 
       setPages(pageMap);
       setActivePageId(data.activePageId || null);
+
+      // Sync to store
+      storeSetPages(pageMap);
+      storeSetActivePageId(data.activePageId || null);
+      storeUpdatePageColorMap(data.pages);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch pages';
       setError(message);
@@ -298,17 +318,17 @@ export function usePages({
     } finally {
       setIsLoading(false);
     }
-  }, [apiUrl, sessionId]);
+  }, [apiUrl, sessionId, storeSetPages, storeSetActivePageId, storeUpdatePageColorMap]);
 
-  // Fetch pages when session changes
+  // Fetch pages when session changes and is validated
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && isValidated) {
       void refreshPages();
     } else {
       setPages(new Map());
       setActivePageId(null);
     }
-  }, [sessionId, refreshPages]);
+  }, [sessionId, isValidated, refreshPages]);
 
   // Keep track of active page in a ref for use in callbacks without stale closures
   const activePageIdRef = useRef(activePageId);
@@ -339,6 +359,9 @@ export function usePages({
             };
             next.set(event.pageId, newPage);
 
+            // Sync to store
+            storeAddPage(newPage);
+
             // Notify callback
             if (onPageCreatedRef.current) {
               onPageCreatedRef.current(newPage);
@@ -357,6 +380,9 @@ export function usePages({
                 title: newTitle,
               });
 
+              // Sync to store
+              storeUpdatePage(event.pageId, { url: newUrl, title: newTitle });
+
               // Notify callback with isActive flag
               if (onPageNavigatedRef.current) {
                 const isActive = event.pageId === activePageIdRef.current;
@@ -374,6 +400,9 @@ export function usePages({
                 status: 'closed',
                 closedAt: event.timestamp,
               });
+
+              // Sync to store
+              storeUpdatePage(event.pageId, { status: 'closed', closedAt: event.timestamp });
 
               // Notify callback
               if (onPageClosedRef.current) {
@@ -394,12 +423,15 @@ export function usePages({
       const newActivePageId = switchMessage.active_page_id;
       setActivePageId(newActivePageId);
 
+      // Sync to store
+      storeSetActivePageId(newActivePageId);
+
       // Notify callback
       if (onActivePageChangedRef.current) {
         onActivePageChangedRef.current(newActivePageId);
       }
     }
-  }, [lastMessage, sessionId]);
+  }, [lastMessage, sessionId, storeAddPage, storeUpdatePage, storeSetActivePageId]);
 
   // Switch active page
   const switchToPage = useCallback(async (pageId: string) => {
