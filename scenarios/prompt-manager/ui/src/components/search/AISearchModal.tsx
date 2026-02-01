@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Sparkles, Search, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { AISearchResponse, AISearchResult, AISearchStatus, AIReindexStatus } from '@/lib/api'
+import type { AISearchResponse, AISearchResult, AISearchStatus, AIReindexStatus } from '@/lib/schemas'
 import { aiSearch, getAISearchStatus, reindexAISearch, getAISearchReindexStatus, cancelAISearchReindex } from '@/services/skillService'
 
 interface AISearchModalProps {

@@ -138,7 +138,7 @@ func TestEmbedder_Embed_Success(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: expectedEmbedding})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: expectedEmbedding})
 	}))
 	defer server.Close()
 
@@ -172,7 +172,7 @@ func TestEmbedder_Embed_EmptyURL(t *testing.T) {
 func TestEmbedder_Embed_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal server error"))
+		_, _ = w.Write([]byte("internal server error"))
 	}))
 	defer server.Close()
 
@@ -190,7 +190,7 @@ func TestEmbedder_Embed_ServerError(t *testing.T) {
 func TestEmbedder_Available_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
 	}))
 	defer server.Close()
 
@@ -239,7 +239,7 @@ func TestVectorStore_EnsureCollection_AlreadyExists(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" && strings.Contains(r.URL.Path, "/collections/") {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"result": {}}`))
+			_, _ = w.Write([]byte(`{"result": {}}`))
 			return
 		}
 		t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -263,7 +263,7 @@ func TestVectorStore_EnsureCollection_Create(t *testing.T) {
 		if r.Method == "PUT" {
 			created = true
 			var req createCollectionRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			if req.Vectors.Distance != "Cosine" {
 				t.Errorf("expected Cosine distance, got %s", req.Vectors.Distance)
 			}
@@ -350,7 +350,7 @@ func TestVectorStore_Search_Success(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -376,7 +376,7 @@ func TestVectorStore_CountPoints_Success(t *testing.T) {
 			t.Errorf("expected /points/count path, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(countResponse{Result: struct {
+		_ = json.NewEncoder(w).Encode(countResponse{Result: struct {
 			Count int `json:"count"`
 		}{Count: 42}})
 	}))
@@ -435,7 +435,7 @@ func TestVectorStore_APIKeyHeader(t *testing.T) {
 func TestService_Search_AISuccess(t *testing.T) {
 	// Mock Ollama server
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
 	}))
 	defer ollamaServer.Close()
 
@@ -456,7 +456,7 @@ func TestService_Search_AISuccess(t *testing.T) {
 					}},
 				},
 			}
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 		}
 	}))
 	defer qdrantServer.Close()
@@ -518,7 +518,7 @@ func TestService_Search_FallbackToText(t *testing.T) {
 func TestService_GetStatus(t *testing.T) {
 	// Mock servers
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
 	}))
 	defer ollamaServer.Close()
 
@@ -528,7 +528,7 @@ func TestService_GetStatus(t *testing.T) {
 			return
 		}
 		if strings.Contains(r.URL.Path, "/points/count") {
-			json.NewEncoder(w).Encode(countResponse{Result: struct {
+			_ = json.NewEncoder(w).Encode(countResponse{Result: struct {
 				Count int `json:"count"`
 			}{Count: 10}})
 			return
@@ -584,7 +584,7 @@ func TestService_GetStatus_Unavailable(t *testing.T) {
 func TestService_Available(t *testing.T) {
 	// Both available
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1}})
 	}))
 	defer ollamaServer.Close()
 
@@ -706,7 +706,7 @@ func TestExtractFolderAndFile(t *testing.T) {
 func TestService_IndexSkill_Success(t *testing.T) {
 	// Mock Ollama server
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
 	}))
 	defer ollamaServer.Close()
 
@@ -791,7 +791,7 @@ func TestService_DeleteFromIndex_Success(t *testing.T) {
 func TestService_ReindexAll_Success(t *testing.T) {
 	// Mock Ollama server
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
 	}))
 	defer ollamaServer.Close()
 
@@ -839,7 +839,7 @@ func TestService_ReindexAll_Success(t *testing.T) {
 
 func TestService_ReindexAll_SkipsBadPaths(t *testing.T) {
 	ollamaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
+		_ = json.NewEncoder(w).Encode(embeddingResponse{Embedding: []float64{0.1, 0.2, 0.3}})
 	}))
 	defer ollamaServer.Close()
 

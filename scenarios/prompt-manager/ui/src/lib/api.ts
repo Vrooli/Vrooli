@@ -14,23 +14,54 @@
  * - POST /api/v1/tags - create tag
  * - POST /api/v1/skills/{id}/test - test with Ollama
  * - GET /api/v1/skills/{id}/test-history - get test history
+ *
+ * All API responses are validated at runtime using Zod schemas to prevent
+ * crashes from mismatched API responses.
  */
 
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
-import type {
-  Skill,
-  CreateSkillRequest,
-  UpdateSkillRequest,
-  Tag,
-  SkillTestRequest,
-  SkillTestResult,
-  SearchFilters,
-  HealthResponse,
-  Folder,
-  FolderType,
-} from '@/types'
-import type { Agent, CreateAgentRequest, UpdateAgentRequest, EffectiveSkillsResponse } from '@/types/agent'
-import type { DisplayFormat, DisplayResponse } from '@/types/world'
+import type { ZodType } from 'zod'
+import {
+  parseOrThrow,
+  SkillSchema,
+  SkillArraySchema,
+  TagSchema,
+  TagArraySchema,
+  SkillTestResultSchema,
+  SkillTestResultArraySchema,
+  UsageResponseSchema,
+  RatingResponseSchema,
+  HealthResponseSchema,
+  DisplayResponseSchema,
+  AgentSchema,
+  AgentArraySchema,
+  EffectiveSkillsResponseSchema,
+  AISearchResponseSchema,
+  AISearchStatusSchema,
+  AIReindexStatusSchema,
+  LinkPreviewDataSchema,
+  type Skill,
+  type CreateSkillRequest,
+  type UpdateSkillRequest,
+  type Tag,
+  type SkillTestRequest,
+  type SkillTestResult,
+  type UsageResponse,
+  type RatingResponse,
+  type HealthResponse,
+  type DisplayResponse,
+  type DisplayFormat,
+  type Agent,
+  type CreateAgentRequest,
+  type UpdateAgentRequest,
+  type EffectiveSkillsResponse,
+  type AISearchResponse,
+  type AISearchStatus,
+  type AIReindexStatus,
+  type LinkPreviewData,
+  type FolderType,
+} from '@/lib/schemas'
+import type { SearchFilters, Folder } from '@/types'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
 const API_BASE = resolveApiBase({ appendSuffix: true })
@@ -69,48 +100,8 @@ export const FOLDERS: Folder[] = [
 ]
 
 /**
- * API response type for usage recording
+ * AI search request parameters (used for request body, not validated)
  */
-interface UsageResponse {
-  status: string
-  usageCount: number
-  lastUsed: string
-}
-
-/**
- * API response type for rating
- */
-interface RatingResponse {
-  status: string
-  rating: number
-}
-
-/**
- * AI search types
- */
-export interface AISearchResult {
-  id: string
-  name: string
-  description: string
-  folder: string
-  tags: string[]
-  modes: string[]
-  score: number
-  scorePercent: number
-}
-
-export interface AISearchResponse {
-  results: AISearchResult[]
-  combined?: string
-  skillCount?: number
-  totalTokens?: number
-  format?: DisplayFormat
-  total: number
-  query: string
-  method: 'ai' | 'text'
-  output?: 'results' | 'combined' | 'both'
-}
-
 export interface AISearchRequest {
   query: string
   limit?: number
@@ -119,31 +110,20 @@ export interface AISearchRequest {
   renderLimit?: number
 }
 
-export interface AISearchStatus {
-  available: boolean
-  ollama: boolean
-  qdrant: boolean
-  indexedCount: number
-  message?: string
-}
-
-export interface AIReindexStatus {
-  running: boolean
-  startedAt?: string
-  finishedAt?: string
-  indexed: number
-  skipped: number
-  errors: number
-  total: number
-  message?: string
-  canceled?: boolean
-  error?: string
-}
-
 class ApiClient {
+  /**
+   * Make an API request with schema validation.
+   *
+   * @param endpoint - API endpoint path
+   * @param options - Fetch options
+   * @param schema - Zod schema for response validation
+   * @returns Validated response data
+   * @throws ValidationError if schema validation fails
+   */
   private async request<T>(
     endpoint: string,
-    options?: RequestInit
+    options: RequestInit | undefined,
+    schema: ZodType<T>
   ): Promise<T> {
     const url = buildApiUrl(endpoint, { baseUrl: API_BASE })
     console.log('[prompt-manager api] Fetching:', url)
@@ -172,7 +152,39 @@ class ApiClient {
         return {} as T
       }
 
-      return await response.json() as T
+      const data: unknown = await response.json()
+      return parseOrThrow(schema, data, endpoint)
+    } catch (error) {
+      console.error('[prompt-manager api] Fetch error:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Make an API request that returns no content (204).
+   */
+  private async requestVoid(endpoint: string, options: RequestInit): Promise<void> {
+    const url = buildApiUrl(endpoint, { baseUrl: API_BASE })
+    console.log('[prompt-manager api] Fetching:', url)
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+      if (options.headers) {
+        const optHeaders = options.headers as Record<string, string>
+        Object.assign(headers, optHeaders)
+      }
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      })
+
+      console.log('[prompt-manager api] Response status:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        throw new Error(`API error: ${response.status} ${response.statusText} - ${errorText}`)
+      }
     } catch (error) {
       console.error('[prompt-manager api] Fetch error:', error)
       throw error
@@ -209,7 +221,11 @@ class ApiClient {
     }
 
     const queryString = params.toString()
-    return this.request<Skill[]>(`/skills${queryString ? `?${queryString}` : ''}`)
+    return this.request<Skill[]>(
+      `/skills${queryString ? `?${queryString}` : ''}`,
+      undefined,
+      SkillArraySchema
+    )
   }
 
   async getSkillsByFolder(folder: FolderType): Promise<Skill[]> {
@@ -217,66 +233,96 @@ class ApiClient {
   }
 
   async getSkill(id: string): Promise<Skill> {
-    return this.request<Skill>(`/skills/${encodeURIComponent(id)}`)
+    return this.request<Skill>(
+      `/skills/${encodeURIComponent(id)}`,
+      undefined,
+      SkillSchema
+    )
   }
 
   async createSkill(skill: CreateSkillRequest): Promise<Skill> {
-    return this.request<Skill>('/skills', {
-      method: 'POST',
-      body: JSON.stringify(skill),
-    })
+    return this.request<Skill>(
+      '/skills',
+      {
+        method: 'POST',
+        body: JSON.stringify(skill),
+      },
+      SkillSchema
+    )
   }
 
   async updateSkill(id: string, updates: UpdateSkillRequest): Promise<Skill> {
-    return this.request<Skill>(`/skills/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    })
+    return this.request<Skill>(
+      `/skills/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      },
+      SkillSchema
+    )
   }
 
   async deleteSkill(id: string): Promise<void> {
-    await this.request<Record<string, never>>(`/skills/${encodeURIComponent(id)}`, {
+    await this.requestVoid(`/skills/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
   }
 
   // Usage tracking
   async recordUsage(id: string): Promise<UsageResponse> {
-    return this.request<UsageResponse>(`/skills/${encodeURIComponent(id)}/use`, {
-      method: 'POST',
-    })
+    return this.request<UsageResponse>(
+      `/skills/${encodeURIComponent(id)}/use`,
+      { method: 'POST' },
+      UsageResponseSchema
+    )
   }
 
   async setRating(id: string, rating: number, notes?: string): Promise<RatingResponse> {
-    return this.request<RatingResponse>(`/skills/${encodeURIComponent(id)}/rating`, {
-      method: 'PUT',
-      body: JSON.stringify({ rating, notes }),
-    })
+    return this.request<RatingResponse>(
+      `/skills/${encodeURIComponent(id)}/rating`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ rating, notes }),
+      },
+      RatingResponseSchema
+    )
   }
 
   // Tags
   async getTags(): Promise<Tag[]> {
-    return this.request<Tag[]>('/tags')
+    return this.request<Tag[]>('/tags', undefined, TagArraySchema)
   }
 
   async createTag(tag: Omit<Tag, 'id'>): Promise<Tag> {
-    return this.request<Tag>('/tags', {
-      method: 'POST',
-      body: JSON.stringify(tag),
-    })
+    return this.request<Tag>(
+      '/tags',
+      {
+        method: 'POST',
+        body: JSON.stringify(tag),
+      },
+      TagSchema
+    )
   }
 
   // Testing (requires Ollama)
   async testSkill(id: string, request: SkillTestRequest): Promise<SkillTestResult> {
-    return this.request<SkillTestResult>(`/skills/${encodeURIComponent(id)}/test`, {
-      method: 'POST',
-      body: JSON.stringify(request),
-    })
+    return this.request<SkillTestResult>(
+      `/skills/${encodeURIComponent(id)}/test`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      },
+      SkillTestResultSchema
+    )
   }
 
   async getTestHistory(id: string, limit?: number): Promise<SkillTestResult[]> {
     const params = limit ? `?limit=${limit}` : ''
-    return this.request<SkillTestResult[]>(`/skills/${encodeURIComponent(id)}/test-history${params}`)
+    return this.request<SkillTestResult[]>(
+      `/skills/${encodeURIComponent(id)}/test-history${params}`,
+      undefined,
+      SkillTestResultArraySchema
+    )
   }
 
   // Search - client-side filtering since no dedicated search endpoint
@@ -294,77 +340,105 @@ class ApiClient {
 
   // Display skills
   async displaySkills(identifiers: string[], format: DisplayFormat = 'xml'): Promise<DisplayResponse> {
-    return this.request<DisplayResponse>('/skills/read', {
-      method: 'POST',
-      body: JSON.stringify({ identifiers, output: 'combined', format }),
-    })
+    return this.request<DisplayResponse>(
+      '/skills/read',
+      {
+        method: 'POST',
+        body: JSON.stringify({ identifiers, output: 'combined', format }),
+      },
+      DisplayResponseSchema
+    )
   }
 
   // Health check
   async healthCheck(): Promise<HealthResponse> {
-    return this.request<HealthResponse>('/health')
+    return this.request<HealthResponse>('/health', undefined, HealthResponseSchema)
   }
 
   // AI Search - semantic search using Ollama embeddings and Qdrant
   async aiSearch(query: string, limit = 5, options?: Omit<AISearchRequest, 'query' | 'limit'>): Promise<AISearchResponse> {
-    return this.request<AISearchResponse>('/search/ai', {
-      method: 'POST',
-      body: JSON.stringify({ query, limit, ...options }),
-    })
+    return this.request<AISearchResponse>(
+      '/search/ai',
+      {
+        method: 'POST',
+        body: JSON.stringify({ query, limit, ...options }),
+      },
+      AISearchResponseSchema
+    )
   }
 
   async getAISearchStatus(): Promise<AISearchStatus> {
-    return this.request<AISearchStatus>('/search/ai/status')
+    return this.request<AISearchStatus>('/search/ai/status', undefined, AISearchStatusSchema)
   }
 
   async reindexAISearch(): Promise<AIReindexStatus> {
-    return this.request<AIReindexStatus>('/search/ai/reindex', {
-      method: 'POST',
-    })
+    return this.request<AIReindexStatus>(
+      '/search/ai/reindex',
+      { method: 'POST' },
+      AIReindexStatusSchema
+    )
   }
 
   async getAISearchReindexStatus(): Promise<AIReindexStatus> {
-    return this.request<AIReindexStatus>('/search/ai/reindex/status')
+    return this.request<AIReindexStatus>('/search/ai/reindex/status', undefined, AIReindexStatusSchema)
   }
 
   async cancelAISearchReindex(): Promise<AIReindexStatus> {
-    return this.request<AIReindexStatus>('/search/ai/reindex/cancel', {
-      method: 'POST',
-    })
+    return this.request<AIReindexStatus>(
+      '/search/ai/reindex/cancel',
+      { method: 'POST' },
+      AIReindexStatusSchema
+    )
   }
 
   // Agent methods - aligned with api/agents/handlers.go
   async getAgents(): Promise<Agent[]> {
-    return this.request<Agent[]>('/agents')
+    return this.request<Agent[]>('/agents', undefined, AgentArraySchema)
   }
 
   async getAgent(id: string): Promise<Agent> {
-    return this.request<Agent>(`/agents/${encodeURIComponent(id)}`)
+    return this.request<Agent>(
+      `/agents/${encodeURIComponent(id)}`,
+      undefined,
+      AgentSchema
+    )
   }
 
   async createAgent(agent: CreateAgentRequest): Promise<Agent> {
-    return this.request<Agent>('/agents', {
-      method: 'POST',
-      body: JSON.stringify(agent),
-    })
+    return this.request<Agent>(
+      '/agents',
+      {
+        method: 'POST',
+        body: JSON.stringify(agent),
+      },
+      AgentSchema
+    )
   }
 
   async updateAgent(id: string, updates: UpdateAgentRequest): Promise<Agent> {
-    return this.request<Agent>(`/agents/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    })
+    return this.request<Agent>(
+      `/agents/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      },
+      AgentSchema
+    )
   }
 
   async deleteAgent(id: string): Promise<void> {
-    await this.request<Record<string, never>>(`/agents/${encodeURIComponent(id)}`, {
+    await this.requestVoid(`/agents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
   }
 
   async getEffectiveSkills(agentId: string, teamId?: string): Promise<EffectiveSkillsResponse> {
     const params = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
-    return this.request<EffectiveSkillsResponse>(`/agents/${encodeURIComponent(agentId)}/effective-skills${params}`)
+    return this.request<EffectiveSkillsResponse>(
+      `/agents/${encodeURIComponent(agentId)}/effective-skills${params}`,
+      undefined,
+      EffectiveSkillsResponseSchema
+    )
   }
 }
 
@@ -373,14 +447,6 @@ export const api = new ApiClient()
 // -----------------------------------------------------------------------------
 // Link Preview API Functions
 // -----------------------------------------------------------------------------
-
-export interface LinkPreviewData {
-  title?: string
-  description?: string
-  image?: string
-  favicon?: string
-  site_name?: string
-}
 
 /**
  * Fetch OpenGraph metadata preview for a URL.
@@ -406,20 +472,15 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewData | n
     throw new Error(`Failed to fetch link preview: ${res.status}`)
   }
 
-  const data = (await res.json()) as {
-    title?: string
-    description?: string
-    image?: string
-    favicon?: string
-    siteName?: string
-    site_name?: string
+  const data: unknown = await res.json()
+
+  // Handle siteName -> site_name mapping before validation
+  const normalized = data as Record<string, unknown>
+  if ('siteName' in normalized && !('site_name' in normalized)) {
+    normalized.site_name = normalized.siteName
+    delete normalized.siteName
   }
 
-  return {
-    title: data.title,
-    description: data.description,
-    image: data.image,
-    favicon: data.favicon,
-    site_name: data.siteName ?? data.site_name,
-  }
+  return parseOrThrow(LinkPreviewDataSchema, normalized, '/og-metadata')
 }
+

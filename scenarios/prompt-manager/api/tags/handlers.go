@@ -27,7 +27,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 // Create handles POST /tags - creates a new tag.
@@ -50,5 +50,5 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(tag)
+	_ = json.NewEncoder(w).Encode(tag)
 }

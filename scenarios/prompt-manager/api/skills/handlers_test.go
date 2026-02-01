@@ -114,7 +114,7 @@ func (m *MockMetricsService) Delete(skillID string) error {
 func TestCreate_AutoIncrementID(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	// Create first skill with name "New Skill"
 	req1 := CreateRequest{
@@ -132,7 +132,7 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	}
 
 	var resp1 Response
-	json.Unmarshal(w1.Body.Bytes(), &resp1)
+	_ = json.Unmarshal(w1.Body.Bytes(), &resp1)
 	if resp1.ID != "new-skill" {
 		t.Errorf("first skill: expected ID 'new-skill', got '%s'", resp1.ID)
 	}
@@ -153,7 +153,7 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	}
 
 	var resp2 Response
-	json.Unmarshal(w2.Body.Bytes(), &resp2)
+	_ = json.Unmarshal(w2.Body.Bytes(), &resp2)
 	if resp2.ID != "new-skill-1" {
 		t.Errorf("second skill: expected ID 'new-skill-1', got '%s'", resp2.ID)
 	}
@@ -174,7 +174,7 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 	}
 
 	var resp3 Response
-	json.Unmarshal(w3.Body.Bytes(), &resp3)
+	_ = json.Unmarshal(w3.Body.Bytes(), &resp3)
 	if resp3.ID != "new-skill-2" {
 		t.Errorf("third skill: expected ID 'new-skill-2', got '%s'", resp3.ID)
 	}
@@ -183,7 +183,7 @@ func TestCreate_AutoIncrementID(t *testing.T) {
 func TestCreate_ExplicitIDConflict(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	// Create first skill with explicit ID
 	req1 := CreateRequest{
@@ -221,7 +221,7 @@ func TestCreate_ExplicitIDConflict(t *testing.T) {
 func TestCreate_EmptyNameFallback(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	// Create skill with special characters that produce empty slug
 	req := CreateRequest{
@@ -239,7 +239,7 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 	}
 
 	var resp Response
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp.ID != DefaultFallbackPrefix {
 		t.Errorf("expected ID '%s', got '%s'", DefaultFallbackPrefix, resp.ID)
 	}
@@ -255,7 +255,7 @@ func TestCreate_EmptyNameFallback(t *testing.T) {
 	}
 
 	var resp2 Response
-	json.Unmarshal(w2.Body.Bytes(), &resp2)
+	_ = json.Unmarshal(w2.Body.Bytes(), &resp2)
 	if resp2.ID != "skill-1" {
 		t.Errorf("expected ID 'skill-1', got '%s'", resp2.ID)
 	}
@@ -282,7 +282,7 @@ func addMockSkill(store *MockStore, folder, id, file, name, content string) {
 func TestRead_ResolveAutoByID(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
 
@@ -315,7 +315,7 @@ func TestRead_ResolveAutoByID(t *testing.T) {
 func TestRead_ResolveFileWithoutExtension(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
 
@@ -345,7 +345,7 @@ func TestRead_ResolveFileWithoutExtension(t *testing.T) {
 func TestRead_ResolveFilePath(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
 
@@ -375,7 +375,7 @@ func TestRead_ResolveFilePath(t *testing.T) {
 func TestRead_ResolveNameAmbiguous(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "alpha-core", "alpha.md", "Alpha", "content-a")
 	addMockSkill(store, "local", "alpha-local", "alpha.md", "Alpha", "content-b")
@@ -406,7 +406,7 @@ func TestRead_ResolveNameAmbiguous(t *testing.T) {
 func TestRead_StrictMissingReturnsNotFound(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	allowMissing := false
 	req := ReadRequest{
@@ -435,7 +435,7 @@ func TestRead_StrictMissingReturnsNotFound(t *testing.T) {
 func TestRead_CombinedResolveFileWithoutExtension(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "react-coherence", "react-coherence.md", "React Coherence", "content-a")
 
@@ -473,7 +473,7 @@ func TestRead_CombinedResolveFileWithoutExtension(t *testing.T) {
 func TestRead_CombinedStrictMissingReturnsNotFound(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	allowMissing := false
 	req := ReadRequest{
@@ -503,7 +503,7 @@ func TestRead_CombinedStrictMissingReturnsNotFound(t *testing.T) {
 func TestRead_ExtractsVariablesFromContent(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
 		"Run: cd scenarios/{{TARGET}}/ui && pnpm lint\nAlso check {{CONFIG}}")
@@ -544,7 +544,7 @@ func TestRead_ExtractsVariablesFromContent(t *testing.T) {
 func TestRead_SubstitutesVariablesWhenProvided(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
 		"Run: cd scenarios/{{TARGET}}/ui && pnpm lint")
@@ -589,7 +589,7 @@ func TestRead_SubstitutesVariablesWhenProvided(t *testing.T) {
 func TestRead_PartialSubstitutionLeavesUnknownVariables(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
 		"{{KNOWN}} and {{UNKNOWN}}")
@@ -608,7 +608,7 @@ func TestRead_PartialSubstitutionLeavesUnknownVariables(t *testing.T) {
 	}
 
 	var resp ReadResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 
 	// KNOWN substituted, UNKNOWN left as-is
 	expectedContent := "replaced and {{UNKNOWN}}"
@@ -620,7 +620,7 @@ func TestRead_PartialSubstitutionLeavesUnknownVariables(t *testing.T) {
 func TestRead_NoVariablesInContent(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	addMockSkill(store, "core", "test-skill", "test-skill.md", "Test Skill",
 		"Plain text without any variables")
@@ -636,7 +636,7 @@ func TestRead_NoVariablesInContent(t *testing.T) {
 	}
 
 	var resp ReadResponse
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 
 	if len(resp.Skills[0].Variables) != 0 {
 		t.Errorf("expected no variables, got %d", len(resp.Skills[0].Variables))
@@ -646,7 +646,7 @@ func TestRead_NoVariablesInContent(t *testing.T) {
 func TestSync_IncludesVariables(t *testing.T) {
 	store := NewMockStore()
 	metrics := &MockMetricsService{}
-	handlers := NewHandlers(store, metrics)
+	handlers := NewHandlers(store, metrics, "/test/store")
 
 	// Add skill with folder prefix in File field (as GetAll returns)
 	store.skills["core"] = []Metadata{{

@@ -126,13 +126,20 @@ export function calculateSkyColors(hour: number): SkyColors {
   ]
 
   // Find surrounding keyframes
-  let prev = colorKeyframes[colorKeyframes.length - 2]! // Second to last (23:59)
-  let next = colorKeyframes[0]! // First (00:00)
+  const lastKeyframe = colorKeyframes[colorKeyframes.length - 2]
+  const firstKeyframe = colorKeyframes[0]
+  if (!lastKeyframe || !firstKeyframe) {
+    return { top: '#0a0a1a', middle: '#1a1a3a', bottom: '#0f0f2f' }
+  }
+  let prev = lastKeyframe // Second to last (23:59)
+  let next = firstKeyframe // First (00:00)
 
   for (let i = 0; i < colorKeyframes.length - 1; i++) {
-    if (h >= colorKeyframes[i]!.hour && h < colorKeyframes[i + 1]!.hour) {
-      prev = colorKeyframes[i]!
-      next = colorKeyframes[i + 1]!
+    const current = colorKeyframes[i]
+    const following = colorKeyframes[i + 1]
+    if (current && following && h >= current.hour && h < following.hour) {
+      prev = current
+      next = following
       break
     }
   }
@@ -249,6 +256,52 @@ export function calculateLighting(hour: number): LightingParams {
     intensity,
     ambientColor,
     ambientIntensity,
+  }
+}
+
+/**
+ * Convert lighting params to a LightingPreset.
+ * This creates a complete preset with ambient and directional lights
+ * configured based on the time-derived lighting params.
+ */
+export interface LightingPreset {
+  ambient: { color: string; intensity: number }
+  directional: { position: [number, number, number]; color: string; intensity: number; castShadow?: boolean; shadowMapSize?: number }[]
+  point?: { position: [number, number, number]; color: string; intensity: number; distance?: number; decay?: number }[]
+}
+
+/**
+ * Calculate a complete LightingPreset from continuous time.
+ * This is the main function to use for environment lighting.
+ *
+ * @param hour - Continuous hour value (0-24)
+ * @returns Complete lighting preset for the time of day
+ */
+export function calculateLightingPreset(hour: number): LightingPreset {
+  const params = calculateLighting(hour)
+
+  // Scale direction to a reasonable position (40 units from origin)
+  const scale = 40
+  const position: [number, number, number] = [
+    params.direction[0] * scale,
+    Math.max(5, params.direction[1] * scale), // Keep light above ground
+    params.direction[2] * scale,
+  ]
+
+  return {
+    ambient: {
+      color: params.ambientColor,
+      intensity: params.ambientIntensity,
+    },
+    directional: [
+      {
+        position,
+        color: params.color,
+        intensity: params.intensity,
+        castShadow: true,
+        shadowMapSize: 2048,
+      },
+    ],
   }
 }
 

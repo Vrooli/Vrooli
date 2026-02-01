@@ -82,7 +82,7 @@ export interface SelectionState {
 /**
  * Displayed skills output format.
  */
-export type DisplayFormat = 'xml' | 'markdown' | 'json'
+export type DisplayFormat = 'xml' | 'markdown' | 'json' | 'cli'
 
 /**
  * Request to display multiple skills.

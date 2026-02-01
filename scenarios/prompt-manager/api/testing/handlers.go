@@ -103,10 +103,10 @@ func (h *Handlers) Test(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Best effort save - don't fail the request if storage fails
-	h.repo.Save(result)
+	_ = h.repo.Save(result)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(TestResponse{
+	_ = json.NewEncoder(w).Encode(TestResponse{
 		TestID:       testID,
 		Model:        req.Model,
 		Response:     llmResp.Response,
@@ -128,5 +128,5 @@ func (h *Handlers) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	_ = json.NewEncoder(w).Encode(results)
 }

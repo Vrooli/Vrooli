@@ -454,7 +454,7 @@ export function SkillManagerLayout() {
         content: skill.content,
         modes: [...skill.modes],
         tags: [...skill.tags],
-        icon: skill.icon,
+        icon: skill.icon ?? undefined,
         folder: skill.folder,
         draft: true,
       }

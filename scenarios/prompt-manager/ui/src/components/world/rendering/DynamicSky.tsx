@@ -13,14 +13,12 @@ import {
   calculateSunPosition,
   calculateSkyColors,
 } from '@/lib/sky/sunPosition'
-import type { TimeOfDay, SceneType } from '@/types/environment'
+import type { SceneType } from '@/types/environment'
 import { SKY_VERTEX_SHADER, SKY_FRAGMENT_SHADER } from '@/lib/shaders/glsl/sky.glsl'
 
 interface DynamicSkyProps {
   /** Override the time value (0-24 hours) */
   timeValue?: number
-  /** Override the time of day (legacy, use timeValue instead) */
-  timeOfDay?: TimeOfDay
   /** Radius of the sky dome */
   radius?: number
   /** Override scene type */
@@ -95,7 +93,6 @@ function createSolidMaterial(color: string): THREE.MeshBasicMaterial {
  */
 export function DynamicSky({
   timeValue: timeValueProp,
-  timeOfDay: _timeOfDayProp, // Legacy prop, kept for backwards compatibility
   radius = 80,
   sceneType: _sceneTypeProp, // Currently unused - gradient shader used for all scene types
 }: DynamicSkyProps) {
@@ -149,11 +146,8 @@ export function DynamicSky({
  */
 export function CelestialBody({
   timeValue: timeValueProp,
-  timeOfDay: _timeOfDayProp, // Legacy prop, kept for backwards compatibility
 }: {
   timeValue?: number
-  /** @deprecated Use timeValue instead */
-  timeOfDay?: TimeOfDay
 }) {
   const storeTimeValue = useEnvironmentStore((state) => state.timeValue)
 

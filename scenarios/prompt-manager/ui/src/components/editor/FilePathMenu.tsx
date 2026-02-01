@@ -26,8 +26,10 @@ interface FilePathMenuProps {
   onFileChange: (file: string) => void
   /** Called when folder is changed */
   onFolderChange?: (folder: FolderType) => void
-  /** Base path to skills directory (e.g., "/root/Vrooli/scenarios/prompt-manager/skills") */
-  skillsBasePath?: string
+  /** Absolute path to skill directory (from API) */
+  skillDir?: string
+  /** Absolute path to SKILL.md file (from API) */
+  contentPath?: string
   /** Additional class names */
   className?: string
 }
@@ -41,7 +43,8 @@ export function FilePathMenu({
   folder,
   onFileChange,
   onFolderChange,
-  skillsBasePath = '/root/Vrooli/scenarios/prompt-manager/skills',
+  skillDir,
+  contentPath,
   className,
 }: FilePathMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -152,16 +155,25 @@ export function FilePathMenu({
   // Build path segments for breadcrumb display only (modes are UI categories, not directory structure)
   const pathSegments = modes.filter(Boolean)
 
-  // Build file paths - actual structure is skills/{folder}/{filename}
-  // Note: modes are for UI tree organization, NOT file paths
-  const relativePath = `skills/${folder}/${safeFile}`
-  const fullPath = `${skillsBasePath}/${folder}/${safeFile}`
-  // Project path: relative to Vrooli root (useful for coding agents)
-  // Extract from skillsBasePath by finding "scenarios/" prefix
-  const scenariosIndex = skillsBasePath.indexOf('scenarios/')
-  const projectPath = scenariosIndex !== -1
-    ? `${skillsBasePath.slice(scenariosIndex)}/${folder}/${safeFile}`
-    : relativePath
+  // Use server-provided paths when available (ground truth from API)
+  // Fall back to constructed paths for backwards compatibility
+  const fullPath = contentPath || skillDir ? `${skillDir}/SKILL.md` : ''
+
+  // Compute project path: relative to project root (useful for coding agents)
+  // Extract from absolute path by finding "scenarios/" prefix
+  let projectPath = ''
+  if (contentPath) {
+    const scenariosIndex = contentPath.indexOf('scenarios/')
+    projectPath = scenariosIndex !== -1 ? contentPath.slice(scenariosIndex) : contentPath
+  } else if (skillDir) {
+    const scenariosIndex = skillDir.indexOf('scenarios/')
+    projectPath = scenariosIndex !== -1 ? `${skillDir.slice(scenariosIndex)}/SKILL.md` : `${skillDir}/SKILL.md`
+  }
+
+  // Relative path: just the store-relative path
+  const relativePath = skillDir
+    ? skillDir.split('/store/').pop() + '/SKILL.md'
+    : `skills/packs/${folder}/${safeFile.replace('.md', '')}/SKILL.md`
 
   // Copy function - wrapped to avoid returning promise in onClick
   const handleCopyRelative = useCallback(() => {

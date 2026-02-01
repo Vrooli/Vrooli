@@ -68,7 +68,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	if cached, ok := h.cache.get(targetURL); ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Cache", "HIT")
-		json.NewEncoder(w).Encode(cached)
+		_ = json.NewEncoder(w).Encode(cached)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Cache", "MISS")
-	json.NewEncoder(w).Encode(meta)
+	_ = json.NewEncoder(w).Encode(meta)
 }
 
 // fetchOGMeta fetches and parses OG metadata from a URL.

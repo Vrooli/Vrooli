@@ -208,9 +208,7 @@ export function getAllFolders(skills: Skill[]): string[] {
   const folders = new Set<string>()
 
   for (const skill of skills) {
-    if (skill.folder) {
-      folders.add(skill.folder)
-    }
+    folders.add(skill.folder)
   }
 
   // Return in logical order: core, local, drafts
@@ -284,7 +282,7 @@ export function filterTreeByFolders(
   // Find all matching skill IDs
   const matchingIds = new Set(
     skills
-      .filter((p) => p.folder && folderSet.has(p.folder))
+      .filter((p) => folderSet.has(p.folder))
       .map((p) => p.id)
   )
 

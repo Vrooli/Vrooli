@@ -5,7 +5,7 @@
  * for combining and copying selected skills.
  */
 
-import { FileCode, FileText, Braces, X, Copy, Check } from 'lucide-react'
+import { FileCode, FileText, Braces, Terminal, X, Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CombineFormat } from '@/stores/combineStore'
 
@@ -23,6 +23,7 @@ const FORMAT_OPTIONS: Array<{ value: CombineFormat; label: string; icon: React.R
   { value: 'xml', label: 'XML', icon: <FileCode className="h-3.5 w-3.5" /> },
   { value: 'markdown', label: 'MD', icon: <FileText className="h-3.5 w-3.5" /> },
   { value: 'json', label: 'JSON', icon: <Braces className="h-3.5 w-3.5" /> },
+  { value: 'cli', label: 'CLI', icon: <Terminal className="h-3.5 w-3.5" /> },
 ]
 
 export function CombineActionBar({

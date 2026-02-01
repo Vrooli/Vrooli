@@ -420,7 +420,7 @@ export class MutationTracker {
       get: (target, prop) => {
         const value = (target as Record<string | symbol, unknown>)[prop]
         if (typeof value === 'object' && value !== null) {
-          return this.trackRef(value as object, `${name}.${String(prop)}`)
+          return this.trackRef(value, `${name}.${String(prop)}`)
         }
         return value
       },

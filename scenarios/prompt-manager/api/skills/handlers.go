@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -24,14 +25,17 @@ type Handlers struct {
 	store     SkillStore
 	metrics   MetricsService
 	aiIndexer AISearchIndexer // Optional: nil if AI search not available
+	storeDir  string          // Absolute path to store directory for computing file paths
 }
 
 // NewHandlers creates a new skills handler.
 // Accepts any implementation of SkillStore and MetricsService interfaces.
-func NewHandlers(store SkillStore, metrics MetricsService) *Handlers {
+// storeDir should be an absolute path to the store directory for computing file paths.
+func NewHandlers(store SkillStore, metrics MetricsService, storeDir string) *Handlers {
 	return &Handlers{
-		store:   store,
-		metrics: metrics,
+		store:    store,
+		metrics:  metrics,
+		storeDir: storeDir,
 	}
 }
 
@@ -95,7 +99,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 // Sync handles GET /skills/sync - returns skills with content for syncing.
@@ -144,7 +148,7 @@ func (h *Handlers) Sync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(syncResponse)
+	_ = json.NewEncoder(w).Encode(syncResponse)
 }
 
 // Get handles GET /skills/{id} - returns a single skill.
@@ -171,7 +175,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	response.Variables = ExtractVariables(content)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Create handles POST /skills - creates a new skill.
@@ -252,7 +256,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 	// Save metadata
 	if err := h.store.SaveMetadata(req.Folder, skills); err != nil {
 		// Clean up content file on failure
-		h.store.DeleteContent(req.Folder, filename)
+		_ = h.store.DeleteContent(req.Folder, filename)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -266,7 +270,7 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // Update handles PUT /skills/{id} - updates an existing skill.
@@ -363,7 +367,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		oldSkills, err := h.store.LoadMetadata(folder)
 		if err != nil {
 			// Rollback: delete from new folder
-			h.store.DeleteContent(targetFolder, skill.File)
+			_ = h.store.DeleteContent(targetFolder, skill.File)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -374,7 +378,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if err := h.store.SaveMetadata(folder, filteredOld); err != nil {
-			h.store.DeleteContent(targetFolder, skill.File)
+			_ = h.store.DeleteContent(targetFolder, skill.File)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -396,7 +400,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		h.moveVersionHistory(id, folder, targetFolder)
 
 		// Delete old content file
-		h.store.DeleteContent(folder, oldFile)
+		_ = h.store.DeleteContent(folder, oldFile)
 	} else {
 		// Same folder - handle file rename or content update
 		if skill.File != oldFile {
@@ -416,7 +420,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Delete old file
-			h.store.DeleteContent(folder, oldFile)
+			_ = h.store.DeleteContent(folder, oldFile)
 		} else if req.Content != nil {
 			// No rename, just update content
 			if err := h.store.SaveContent(folder, skill.File, *req.Content); err != nil {
@@ -457,7 +461,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	h.triggerIndexAsync(id)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // moveVersionHistory moves version history from one folder to another.
@@ -484,8 +488,8 @@ func (h *Handlers) moveVersionHistory(skillID, fromFolder, toFolder string) {
 	delete(fromVersions, skillID)
 
 	// Save both
-	h.store.SaveVersions(toFolder, toVersions)
-	h.store.SaveVersions(fromFolder, fromVersions)
+	_ = h.store.SaveVersions(toFolder, toVersions)
+	_ = h.store.SaveVersions(fromFolder, fromVersions)
 }
 
 // Delete handles DELETE /skills/{id} - deletes a skill.
@@ -525,10 +529,10 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete content file (ignore error - best effort)
-	h.store.DeleteContent(folder, skill.File)
+	_ = h.store.DeleteContent(folder, skill.File)
 
 	// Delete metrics from database
-	h.metrics.Delete(id)
+	_ = h.metrics.Delete(id)
 
 	// Trigger async AI index delete
 	h.triggerDeleteAsync(id)
@@ -554,7 +558,7 @@ func (h *Handlers) RecordUsage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":     "usage recorded",
 		"usageCount": usageCount,
 		"lastUsed":   lastUsed,
@@ -592,7 +596,7 @@ func (h *Handlers) SetRating(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status": "rating updated",
 		"rating": req.Rating,
 	})
@@ -615,12 +619,22 @@ func (h *Handlers) toResponse(p Metadata) Response {
 	}
 
 	// Extract folder and filename from file path (format: "folder/filename.md")
+	var folder string
 	if parts := strings.SplitN(p.File, "/", 2); len(parts) == 2 {
-		response.Folder = parts[0]
+		folder = parts[0]
+		response.Folder = folder
 		response.File = parts[1]
 	} else {
 		// No folder prefix - just the filename
 		response.File = p.File
+	}
+
+	// Compute absolute paths to skill directory and content file
+	// Storage structure: store/skills/packs/{pack}/{skillId}/SKILL.md
+	if h.storeDir != "" && folder != "" {
+		skillDir := filepath.Join(h.storeDir, "skills", "packs", folder, p.ID)
+		response.SkillDir = skillDir
+		response.ContentPath = filepath.Join(skillDir, "SKILL.md")
 	}
 
 	// Load metrics from database
@@ -680,7 +694,7 @@ func (h *Handlers) GetVersions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // RevertToVersion handles POST /skills/{id}/revert/{version} - reverts to a version.
@@ -721,7 +735,7 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read current content", http.StatusInternalServerError)
 		return
 	}
-	h.store.SaveVersion(id, folder, skill, currentContent)
+	_ = h.store.SaveVersion(id, folder, skill, currentContent)
 
 	// Restore the old content
 	if err := h.store.SaveContent(folder, skill.File, targetVersion.Content); err != nil {
@@ -765,5 +779,5 @@ func (h *Handlers) RevertToVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

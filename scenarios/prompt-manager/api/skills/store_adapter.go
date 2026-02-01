@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"prompt-manager/store"
 )
@@ -134,10 +135,19 @@ func (a *StoreAdapter) SaveMetadata(folder string, skills []Metadata) error {
 func (a *StoreAdapter) GetContent(folder, filename string) (string, error) {
 	ctx := context.Background()
 
-	// Extract skill ID from filename (remove .md extension)
+	// Extract skill ID from filename
+	// Filename may be "id.md" or "folder/id.md" (from toMetadata)
+	// We need just the ID part
 	id := filename
-	if ext := filepath.Ext(filename); ext == ".md" {
-		id = filename[:len(filename)-len(ext)]
+
+	// Remove folder prefix if present (format: "folder/id.md")
+	if lastSlash := strings.LastIndex(id, "/"); lastSlash != -1 {
+		id = id[lastSlash+1:]
+	}
+
+	// Remove .md extension
+	if ext := filepath.Ext(id); ext == ".md" {
+		id = id[:len(id)-len(ext)]
 	}
 
 	_, content, err := a.fileStore.GetWithContent(ctx, id)
@@ -153,9 +163,18 @@ func (a *StoreAdapter) SaveContent(folder, filename, content string) error {
 	ctx := context.Background()
 
 	// Extract skill ID from filename
+	// Filename may be "id.md" or "folder/id.md" (from toMetadata)
+	// We need just the ID part
 	id := filename
-	if ext := filepath.Ext(filename); ext == ".md" {
-		id = filename[:len(filename)-len(ext)]
+
+	// Remove folder prefix if present (format: "folder/id.md")
+	if lastSlash := strings.LastIndex(id, "/"); lastSlash != -1 {
+		id = id[lastSlash+1:]
+	}
+
+	// Remove .md extension
+	if ext := filepath.Ext(id); ext == ".md" {
+		id = id[:len(id)-len(ext)]
 	}
 
 	// Check if skill exists - if so, update; otherwise this is part of a create

@@ -801,16 +801,17 @@ export class RefMutationTracker<T extends object> {
    * Wrap an object to track property changes.
    */
   wrap(target: T): T {
-    return this.createProxy(target, '') as T
+    return this.createProxy(target, '')
   }
 
   private createProxy<U extends object>(target: U, path: string): U {
-    const self = this
+    const createNestedProxy = this.createProxy.bind(this)
+    const changes = this.changes
     return new Proxy(target, {
       get(obj, prop) {
         const value = (obj as Record<string | symbol, unknown>)[prop]
         if (typeof value === 'object' && value !== null && typeof prop === 'string') {
-          return self.createProxy(value as object, path ? `${path}.${prop}` : prop)
+          return createNestedProxy(value as U, path ? `${path}.${prop}` : prop)
         }
         return value
       },
@@ -818,9 +819,9 @@ export class RefMutationTracker<T extends object> {
         (obj as Record<string | symbol, unknown>)[prop] = value
         if (typeof prop === 'string') {
           const fullPath = path ? `${path}.${prop}` : prop
-          const existing = self.changes.get(fullPath) ?? []
+          const existing = changes.get(fullPath) ?? []
           existing.push(value)
-          self.changes.set(fullPath, existing)
+          changes.set(fullPath, existing)
         }
         return true
       },

@@ -98,9 +98,7 @@ const mergeLiteralNodes = (
     }
 
     if (literalValue && typeof literalValue === 'object') {
-      merged[key] = mergeLiteralNodes(
-        literalValue as LiteralSelectorTree,
-      )
+      merged[key] = mergeLiteralNodes(literalValue)
     }
   })
 

@@ -5,11 +5,13 @@
  * - 5-second cache for list operations
  * - Cache invalidation on mutations
  * - Batch update support
+ * - Graceful handling of validation errors
  */
 
 import { api } from '@/lib/api'
 import { createCacheManager } from '@/lib/cache'
-import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
+import { ValidationError } from '@/lib/schemas'
+import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/lib/schemas'
 
 // Create cache for skills list
 const skillsCache = createCacheManager<Skill[]>()
@@ -25,7 +27,7 @@ export function invalidateCache(): void {
  * Get all skills with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all skills
+ * @returns Array of all skills (empty array on validation errors)
  */
 export async function getSkills(forceRefresh = false): Promise<Skill[]> {
   const cached = skillsCache.getIfValid(forceRefresh)
@@ -33,9 +35,17 @@ export async function getSkills(forceRefresh = false): Promise<Skill[]> {
     return cached
   }
 
-  const data = await api.getSkills()
-  skillsCache.set(data)
-  return data
+  try {
+    const data = await api.getSkills()
+    skillsCache.set(data)
+    return data
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[skillService] Invalid API response for getSkills:', error.message)
+      return []
+    }
+    throw error
+  }
 }
 
 /**
@@ -43,13 +53,17 @@ export async function getSkills(forceRefresh = false): Promise<Skill[]> {
  * Always fetches from API since the list cache doesn't include content.
  *
  * @param id - Skill ID
- * @returns The skill, or undefined if not found
+ * @returns The skill, or undefined if not found or invalid
  */
 export async function getSkill(id: string): Promise<Skill | undefined> {
   // Always fetch from API - list cache doesn't include content
   try {
     return await api.getSkill(id)
   } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn(`[skillService] Invalid API response for skill ${id}:`, error.message)
+      return undefined
+    }
     console.error(`[skillService] Failed to get skill ${id}:`, error)
     return undefined
   }
@@ -60,6 +74,7 @@ export async function getSkill(id: string): Promise<Skill | undefined> {
  *
  * @param request - Create request data
  * @returns The created skill
+ * @throws ValidationError if API response is invalid
  */
 export async function createSkill(request: CreateSkillRequest): Promise<Skill> {
   const skill = await api.createSkill(request)
@@ -73,6 +88,7 @@ export async function createSkill(request: CreateSkillRequest): Promise<Skill> {
  * @param id - Skill ID to update
  * @param updates - Fields to update
  * @returns The updated skill
+ * @throws ValidationError if API response is invalid
  */
 export async function updateSkill(id: string, updates: UpdateSkillRequest): Promise<Skill> {
   const skill = await api.updateSkill(id, updates)
@@ -122,7 +138,7 @@ export async function deleteSkill(id: string): Promise<void> {
  * Uses cached data when available for faster results.
  *
  * @param query - Search query
- * @returns Matching skills
+ * @returns Matching skills (empty array on errors)
  */
 export async function searchSkills(query: string): Promise<Skill[]> {
   // Use cached data if available for instant search
@@ -140,7 +156,15 @@ export async function searchSkills(query: string): Promise<Skill[]> {
   }
 
   // Fallback to API search
-  return api.searchSkills(query)
+  try {
+    return await api.searchSkills(query)
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[skillService] Invalid API response for searchSkills:', error.message)
+      return []
+    }
+    throw error
+  }
 }
 
 /**

@@ -8,13 +8,11 @@ import { persist } from 'zustand/middleware'
 import type {
   EnvironmentConfig,
   EnvironmentTransition,
-  TimeOfDay,
   LightingPreset,
   DreiEnvironmentPreset,
   THEME_ENVIRONMENTS,
 } from '@/types/environment'
-import { timeValueToTimeOfDay, timeOfDayToTimeValue } from '@/types/environment'
-import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
+import { createEnvironmentConfig, getPresetFromTime } from '@/config/environments'
 
 interface EnvironmentState {
   /** Current environment configuration */
@@ -27,11 +25,6 @@ interface EnvironmentState {
   transitionProgress: number
   /** Previous environment for blending during transition */
   previous: EnvironmentConfig | null
-  /**
-   * User's preferred time of day (legacy, for backwards compatibility)
-   * @deprecated Use timeValue instead
-   */
-  preferredTimeOfDay: TimeOfDay
   /** Continuous time value (0-24 hours, e.g., 14.5 = 2:30 PM) */
   timeValue: number
   /** Whether to sync time with system clock */
@@ -55,11 +48,6 @@ interface EnvironmentActions {
   completeTransition: () => void
   /** Cancel ongoing transition */
   cancelTransition: () => void
-  /**
-   * Set preferred time of day (legacy)
-   * @deprecated Use setTimeValue instead
-   */
-  setPreferredTimeOfDay: (timeOfDay: TimeOfDay) => void
   /** Set continuous time value (0-24 hours) */
   setTimeValue: (hour: number) => void
   /** Toggle real-time mode (sync with system clock) */
@@ -76,12 +64,12 @@ interface EnvironmentActions {
 
 type EnvironmentStore = EnvironmentState & EnvironmentActions
 
-/** Default environment configuration */
+/** Default environment configuration (10 PM = night) */
 const DEFAULT_ENVIRONMENT: EnvironmentConfig = {
   id: 'default',
   name: 'Default Environment',
   type: 'abstract-space',
-  timeOfDay: 'night',
+  timeValue: 22,
   lighting: {
     ambient: { color: '#404040', intensity: 0.4 },
     directional: [
@@ -131,8 +119,7 @@ const initialState: EnvironmentState = {
   isTransitioning: false,
   transitionProgress: 0,
   previous: null,
-  preferredTimeOfDay: 'night',
-  timeValue: 22, // Default to 10 PM (matches 'night' preset)
+  timeValue: 22, // Default to 10 PM (night)
   realTimeMode: false,
   syncWithTheme: true,
 }
@@ -204,18 +191,10 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         })
       },
 
-      setPreferredTimeOfDay: (timeOfDay) => {
-        // Also update timeValue for consistency
-        const timeValue = timeOfDayToTimeValue(timeOfDay)
-        set({ preferredTimeOfDay: timeOfDay, timeValue })
-      },
-
       setTimeValue: (hour) => {
         // Normalize to 0-24 range
         const normalized = ((hour % 24) + 24) % 24
-        // Also update legacy preferredTimeOfDay for backwards compatibility
-        const preferredTimeOfDay = timeValueToTimeOfDay(normalized)
-        set({ timeValue: normalized, preferredTimeOfDay })
+        set({ timeValue: normalized })
       },
 
       setRealTimeMode: (enabled) => {
@@ -242,15 +221,14 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
 
       setSceneType: (type) => {
         const state = get()
-        const timeOfDay = timeValueToTimeOfDay(state.timeValue)
         const newEnv = createEnvironmentConfig(
-          `${type}-${timeOfDay}`,
-          `${type} ${timeOfDay}`,
-          { sceneType: type, timeOfDay }
+          `${type}-${state.timeValue}`,
+          `${type} environment`,
+          { sceneType: type, timeValue: state.timeValue }
         )
         set({ current: newEnv })
         if (!state.syncWithTheme) {
-          set({ dreiPreset: TIME_TO_DREI_PRESET[timeOfDay] })
+          set({ dreiPreset: getPresetFromTime(state.timeValue) })
         }
       },
 
@@ -260,7 +238,6 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
       name: 'scene-environment',
       partialize: (state) => ({
         dreiPreset: state.dreiPreset,
-        preferredTimeOfDay: state.preferredTimeOfDay,
         timeValue: state.timeValue,
         realTimeMode: state.realTimeMode,
         syncWithTheme: state.syncWithTheme,
@@ -271,11 +248,10 @@ export const useEnvironmentStore = create<EnvironmentStore>()(
         if (state) {
           const persisted = state as EnvironmentStore & { sceneType?: string }
           if (persisted.sceneType && persisted.sceneType !== state.current.type) {
-            const timeOfDay = timeValueToTimeOfDay(state.timeValue)
             const newEnv = createEnvironmentConfig(
-              `${persisted.sceneType}-${timeOfDay}`,
-              `${persisted.sceneType} ${timeOfDay}`,
-              { sceneType: persisted.sceneType as EnvironmentConfig['type'], timeOfDay }
+              `${persisted.sceneType}-${state.timeValue}`,
+              `${persisted.sceneType} environment`,
+              { sceneType: persisted.sceneType as EnvironmentConfig['type'], timeValue: state.timeValue }
             )
             state.current = newEnv
           }
@@ -306,14 +282,6 @@ export function useFogColor(): string {
 }
 
 /**
- * Helper to get time-of-day based environment preset
+ * Helper to get drei preset based on continuous time value
  */
-export function getTimeOfDayPreset(timeOfDay: TimeOfDay): DreiEnvironmentPreset {
-  const presetMap: Record<TimeOfDay, DreiEnvironmentPreset> = {
-    morning: 'dawn',
-    noon: 'studio',
-    sunset: 'sunset',
-    night: 'night',
-  }
-  return presetMap[timeOfDay]
-}
+export { getPresetFromTime } from '@/config/environments'

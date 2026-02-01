@@ -1,37 +1,7 @@
 /**
  * Environment types for scene backgrounds and lighting.
- * Supports different presets and continuous time-of-day control.
+ * Uses continuous time control (0-24 hours) for smooth day/night transitions.
  */
-
-/**
- * Legacy time of day variants (deprecated, kept for backwards compatibility).
- * Use continuous timeValue (0-24) instead.
- * @deprecated Use timeValue for continuous time control
- */
-export type TimeOfDay = 'morning' | 'noon' | 'sunset' | 'night'
-
-/**
- * Convert continuous time to legacy TimeOfDay for backwards compatibility.
- */
-export function timeValueToTimeOfDay(hour: number): TimeOfDay {
-  const h = ((hour % 24) + 24) % 24
-  if (h >= 5 && h < 10) return 'morning'
-  if (h >= 10 && h < 17) return 'noon'
-  if (h >= 17 && h < 20) return 'sunset'
-  return 'night'
-}
-
-/**
- * Convert legacy TimeOfDay to continuous time value.
- */
-export function timeOfDayToTimeValue(timeOfDay: TimeOfDay): number {
-  switch (timeOfDay) {
-    case 'morning': return 8
-    case 'noon': return 12
-    case 'sunset': return 18.5
-    case 'night': return 22
-  }
-}
 
 /** Scene type categories */
 export type SceneType = 'outdoor-park' | 'indoor-office' | 'abstract-space' | 'custom'
@@ -194,7 +164,8 @@ export interface EnvironmentConfig {
   id: string
   name: string
   type: SceneType
-  timeOfDay: TimeOfDay
+  /** Time of day as continuous value (0-24 hours, e.g., 14.5 = 2:30 PM) */
+  timeValue: number
   lighting: LightingPreset
   fog?: FogConfig
   skybox: SkyboxConfig
@@ -236,41 +207,6 @@ export const THEME_ENVIRONMENTS: Record<'dark' | 'light', DreiEnvironmentPreset>
   light: 'studio',
 }
 
-/**
- * Default lighting presets for each time of day
- */
-export const TIME_OF_DAY_LIGHTING: Record<TimeOfDay, LightingPreset> = {
-  morning: {
-    ambient: { color: '#fff5e6', intensity: 0.5 },
-    directional: [
-      { position: [5, 10, 5], color: '#ffeedd', intensity: 1.2, castShadow: true },
-    ],
-  },
-  noon: {
-    ambient: { color: '#ffffff', intensity: 0.6 },
-    directional: [
-      { position: [0, 15, 0], color: '#ffffff', intensity: 1.5, castShadow: true },
-    ],
-  },
-  sunset: {
-    ambient: { color: '#ffddcc', intensity: 0.4 },
-    directional: [
-      { position: [-10, 5, 5], color: '#ff9966', intensity: 1.0, castShadow: true },
-    ],
-    point: [
-      { position: [10, 2, 0], color: '#ff6633', intensity: 0.5, distance: 20 },
-    ],
-  },
-  night: {
-    ambient: { color: '#334466', intensity: 0.3 },
-    directional: [
-      { position: [5, 10, -5], color: '#6688bb', intensity: 0.6, castShadow: true },
-    ],
-    point: [
-      { position: [0, 5, 0], color: '#6366f1', intensity: 0.3, distance: 15 },
-    ],
-  },
-}
 
 /**
  * Default fog settings for each scene type

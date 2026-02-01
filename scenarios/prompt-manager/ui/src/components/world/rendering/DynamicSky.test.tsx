@@ -18,8 +18,7 @@ import {
   takeStoreSnapshot,
   diffSnapshots,
 } from '@/test'
-import type { TimeOfDay, EnvironmentConfig } from '@/types/environment'
-import { timeOfDayToTimeValue } from '@/types/environment'
+import type { EnvironmentConfig } from '@/types/environment'
 
 // =============================================================================
 // MOCKS
@@ -83,11 +82,11 @@ vi.mock('@/config/environments', () => ({
 // =============================================================================
 
 /** Default environment config for testing */
-const createTestEnvironmentConfig = (timeOfDay: TimeOfDay = 'noon'): EnvironmentConfig => ({
+const createTestEnvironmentConfig = (timeValue: number = 12): EnvironmentConfig => ({
   id: 'test-env',
   name: 'Test Environment',
   type: 'abstract-space',
-  timeOfDay,
+  timeValue,
   lighting: {
     ambient: { color: '#404040', intensity: 0.4 },
     directional: [{ position: [10, 10, 5], color: '#ffffff', intensity: 1, castShadow: true }],
@@ -123,12 +122,11 @@ function resetTestState() {
 
   // Reset environment store with continuous time support
   useEnvironmentStore.setState({
-    current: createTestEnvironmentConfig('noon'),
+    current: createTestEnvironmentConfig(12),
     dreiPreset: 'studio',
     isTransitioning: false,
     transitionProgress: 0,
     previous: null,
-    preferredTimeOfDay: 'noon',
     timeValue: 12, // noon
     realTimeMode: false,
     syncWithTheme: true,
@@ -234,27 +232,21 @@ describe('DynamicSky', () => {
     )
   })
 
-  describe('legacy time of day handling', () => {
-    it('supports legacy timeOfDay prop', async () => {
-      const { DynamicSky } = await import('./DynamicSky')
-
-      // Set store to noon
-      useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('noon'))
-
-      // Render with legacy timeOfDay prop - should still work
-      render(<DynamicSky timeOfDay="night" />)
-
-      // Store should still be noon (not modified)
-      expect(useEnvironmentStore.getState().current.timeOfDay).toBe('noon')
-    })
-
-    it.each<TimeOfDay>(['morning', 'noon', 'sunset', 'night'])(
-      'renders correctly for legacy time of day: %s',
-      async (timeOfDay) => {
+  describe('time value edge cases', () => {
+    it.each<[string, number]>([
+      ['dawn (6h)', 6],
+      ['early morning (7h)', 7],
+      ['late afternoon (16h)', 16],
+      ['dusk (19h)', 19],
+      ['midnight (0h)', 0],
+      ['late night (3h)', 3],
+    ])(
+      'renders correctly for edge case: %s',
+      async (_, timeValue) => {
         const { DynamicSky } = await import('./DynamicSky')
 
-        useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(timeOfDay))
-        useEnvironmentStore.getState().setTimeValue(timeOfDayToTimeValue(timeOfDay))
+        useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(timeValue))
+        useEnvironmentStore.getState().setTimeValue(timeValue)
 
         expect(() => {
           render(<DynamicSky />)
@@ -270,7 +262,7 @@ describe('DynamicSky', () => {
 
       useEnvironmentStore.setState({
         current: {
-          ...createTestEnvironmentConfig('noon'),
+          ...createTestEnvironmentConfig(12),
           skybox: {
             type: 'gradient',
             source: ['#87CEEB', '#ADD8E6', '#FFF8DC'],
@@ -289,7 +281,7 @@ describe('DynamicSky', () => {
 
       useEnvironmentStore.setState({
         current: {
-          ...createTestEnvironmentConfig('noon'),
+          ...createTestEnvironmentConfig(12),
           skybox: {
             type: 'solid',
             source: '#0000ff',
@@ -308,7 +300,7 @@ describe('DynamicSky', () => {
 
       useEnvironmentStore.setState({
         current: {
-          ...createTestEnvironmentConfig('sunset'),
+          ...createTestEnvironmentConfig(18.5),
           skybox: {
             type: 'procedural',
             source: '#87CEEB',
@@ -327,7 +319,7 @@ describe('DynamicSky', () => {
 
       useEnvironmentStore.setState({
         current: {
-          ...createTestEnvironmentConfig('noon'),
+          ...createTestEnvironmentConfig(12),
           skybox: {
             type: 'unknown' as 'solid',
             source: '#87CEEB',
@@ -426,7 +418,7 @@ describe('DynamicSky', () => {
       // Change the skybox config
       act(() => {
         useEnvironmentStore.getState().setEnvironment({
-          ...createTestEnvironmentConfig('night'),
+          ...createTestEnvironmentConfig(22),
           skybox: { type: 'gradient', source: ['#000000', '#111111', '#222222'] },
         })
       })
@@ -447,14 +439,14 @@ describe('DynamicSky', () => {
 
       // Update unrelated store state
       act(() => {
-        useEnvironmentStore.getState().setPreferredTimeOfDay('morning')
+        useEnvironmentStore.getState().setTimeValue(8) // morning
       })
 
       const after = takeStoreSnapshot(useEnvironmentStore)
       const diff = diffSnapshots(before, after)
 
-      // Should have changed preferredTimeOfDay
-      expect(diff.changed).toHaveProperty('preferredTimeOfDay')
+      // Should have changed timeValue
+      expect(diff.changed).toHaveProperty('timeValue')
     })
 
     it('responds to environment changes', async () => {
@@ -462,16 +454,16 @@ describe('DynamicSky', () => {
 
       const { rerender } = render(<DynamicSky />)
 
-      // Change environment
+      // Change environment to night (22h)
       act(() => {
-        useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig('night'))
+        useEnvironmentStore.getState().setEnvironment(createTestEnvironmentConfig(22))
       })
 
       // Force rerender to pick up changes
       rerender(<DynamicSky />)
 
       // Should render with new environment
-      expect(useEnvironmentStore.getState().current.timeOfDay).toBe('night')
+      expect(useEnvironmentStore.getState().current.timeValue).toBe(22)
     })
   })
 })

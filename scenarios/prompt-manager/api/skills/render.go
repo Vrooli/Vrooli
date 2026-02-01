@@ -10,6 +10,7 @@ const (
 	RenderFormatXML      = "xml"
 	RenderFormatMarkdown = "markdown"
 	RenderFormatJSON     = "json"
+	RenderFormatCLI      = "cli"
 )
 
 // RenderCombined formats skills into a single combined output string.
@@ -27,8 +28,10 @@ func RenderCombined(skills []Response, format string) (string, string, error) {
 		return renderToMarkdown(skills), normalized, nil
 	case RenderFormatJSON:
 		return renderToJSON(skills), normalized, nil
+	case RenderFormatCLI:
+		return renderToCLI(skills), normalized, nil
 	default:
-		return "", "", fmt.Errorf("format must be 'xml', 'markdown', or 'json'")
+		return "", "", fmt.Errorf("format must be 'xml', 'markdown', 'json', or 'cli'")
 	}
 }
 
@@ -134,6 +137,14 @@ func renderToJSON(skills []Response) string {
 
 	data, _ := json.MarshalIndent(output, "", "  ")
 	return string(data)
+}
+
+func renderToCLI(skills []Response) string {
+	ids := make([]string, len(skills))
+	for i, s := range skills {
+		ids[i] = s.ID
+	}
+	return "prompt-manager skill read " + strings.Join(ids, " ")
 }
 
 func escapeXML(s string) string {

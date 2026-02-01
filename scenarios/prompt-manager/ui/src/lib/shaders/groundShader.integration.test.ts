@@ -69,10 +69,10 @@ function createMockShader(): THREE.Shader {
 }
 
 /** Type-safe uniform access - uniforms are guaranteed to be set after onBeforeCompile */
-function getUniform<T>(shader: THREE.Shader, name: string): T {
+function getUniform(shader: THREE.Shader, name: string): unknown {
   const uniform = shader.uniforms[name]
   if (!uniform) throw new Error(`Uniform ${name} not found`)
-  return uniform.value as T
+  return uniform.value
 }
 
 // =============================================================================
@@ -103,15 +103,15 @@ describe('groundShader integration', () => {
 
       // Verify uniforms were added
       expect(mockShader.uniforms.uBaseUvRepeat).toBeDefined()
-      expect(getUniform<number>(mockShader, 'uBaseUvRepeat')).toBe(10)
+      expect(getUniform(mockShader, 'uBaseUvRepeat')).toBe(10)
 
       // Step 3: Sync with new config
       const newConfig = createTestConfig({ baseUvRepeat: 20, stochasticEnabled: false })
       syncGroundShader(material, newConfig)
 
       // Verify uniforms were updated
-      expect(getUniform<number>(mockShader, 'uBaseUvRepeat')).toBe(20)
-      expect(getUniform<number>(mockShader, 'uStochasticEnabled')).toBe(0)
+      expect(getUniform(mockShader, 'uBaseUvRepeat')).toBe(20)
+      expect(getUniform(mockShader, 'uStochasticEnabled')).toBe(0)
     })
 
     it('handles multiple materials independently', () => {
@@ -137,8 +137,8 @@ describe('groundShader integration', () => {
       material2.onBeforeCompile(shader2, {} as THREE.WebGLRenderer)
 
       // Each should have correct uniform values
-      expect(getUniform<number>(shader1, 'uBaseUvRepeat')).toBe(10)
-      expect(getUniform<number>(shader2, 'uBaseUvRepeat')).toBe(20)
+      expect(getUniform(shader1, 'uBaseUvRepeat')).toBe(10)
+      expect(getUniform(shader2, 'uBaseUvRepeat')).toBe(20)
     })
   })
 
@@ -152,14 +152,14 @@ describe('groundShader integration', () => {
       material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
 
       // UV projection: uUseTriplanar = 0
-      expect(getUniform<number>(shader, 'uUseTriplanar')).toBe(0)
+      expect(getUniform(shader, 'uUseTriplanar')).toBe(0)
 
       // Switch to triplanar
       const triConfig = createTestConfig({ projection: 'triplanar' })
       syncGroundShader(material, triConfig)
 
       // Now uUseTriplanar = 1
-      expect(getUniform<number>(shader, 'uUseTriplanar')).toBe(1)
+      expect(getUniform(shader, 'uUseTriplanar')).toBe(1)
     })
 
     it('preserves other uniforms when switching projection', () => {
@@ -178,8 +178,8 @@ describe('groundShader integration', () => {
       syncGroundShader(material, { ...config, projection: 'triplanar' })
 
       // Other values unchanged
-      expect(getUniform<number>(shader, 'uBaseUvRepeat')).toBe(15)
-      expect(getUniform<number>(shader, 'uMacroIntensity')).toBe(0.25)
+      expect(getUniform(shader, 'uBaseUvRepeat')).toBe(15)
+      expect(getUniform(shader, 'uMacroIntensity')).toBe(0.25)
     })
   })
 
@@ -192,7 +192,7 @@ describe('groundShader integration', () => {
       const shader = createMockShader()
       material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
 
-      expect(getUniform<number>(shader, 'uStochasticEnabled')).toBe(1)
+      expect(getUniform(shader, 'uStochasticEnabled')).toBe(1)
     })
 
     it('disables stochastic tiling via uniform', () => {
@@ -203,7 +203,7 @@ describe('groundShader integration', () => {
       const shader = createMockShader()
       material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
 
-      expect(getUniform<number>(shader, 'uStochasticEnabled')).toBe(0)
+      expect(getUniform(shader, 'uStochasticEnabled')).toBe(0)
     })
   })
 
@@ -219,12 +219,12 @@ describe('groundShader integration', () => {
       const shader = createMockShader()
       material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
 
-      expect(getUniform<THREE.DataTexture>(shader, 'uMacroMap')).toBe(texture1)
+      expect(getUniform(shader, 'uMacroMap')).toBe(texture1)
 
       // Update texture
       syncGroundShader(material, { ...config, macroMap: texture2 })
 
-      expect(getUniform<THREE.DataTexture>(shader, 'uMacroMap')).toBe(texture2)
+      expect(getUniform(shader, 'uMacroMap')).toBe(texture2)
     })
   })
 
@@ -237,12 +237,12 @@ describe('groundShader integration', () => {
       const shader = createMockShader()
       material.onBeforeCompile(shader, {} as THREE.WebGLRenderer)
 
-      expect(getUniform<number>(shader, 'uRotation')).toBeCloseTo(Math.PI / 4, 5)
+      expect(getUniform(shader, 'uRotation')).toBeCloseTo(Math.PI / 4, 5)
 
       // Update rotation
       syncGroundShader(material, { ...config, rotation: Math.PI / 2 })
 
-      expect(getUniform<number>(shader, 'uRotation')).toBeCloseTo(Math.PI / 2, 5)
+      expect(getUniform(shader, 'uRotation')).toBeCloseTo(Math.PI / 2, 5)
     })
   })
 
@@ -324,15 +324,15 @@ describe('groundShader integration', () => {
       }
 
       // Verify specific values
-      expect(getUniform<number>(shader, 'uBaseUvRepeat')).toBe(12)
-      expect(getUniform<number>(shader, 'uBaseWorldScale')).toBe(0.15)
-      expect(getUniform<number>(shader, 'uMacroUvRepeat')).toBe(6)
-      expect(getUniform<number>(shader, 'uMacroWorldScale')).toBe(0.06)
-      expect(getUniform<number>(shader, 'uMacroIntensity')).toBe(0.2)
-      expect(getUniform<number>(shader, 'uUseTriplanar')).toBe(1)
-      expect(getUniform<number>(shader, 'uRotation')).toBe(0.5)
-      expect(getUniform<number>(shader, 'uTriplanarSharpness')).toBe(5)
-      expect(getUniform<number>(shader, 'uStochasticEnabled')).toBe(1)
+      expect(getUniform(shader, 'uBaseUvRepeat')).toBe(12)
+      expect(getUniform(shader, 'uBaseWorldScale')).toBe(0.15)
+      expect(getUniform(shader, 'uMacroUvRepeat')).toBe(6)
+      expect(getUniform(shader, 'uMacroWorldScale')).toBe(0.06)
+      expect(getUniform(shader, 'uMacroIntensity')).toBe(0.2)
+      expect(getUniform(shader, 'uUseTriplanar')).toBe(1)
+      expect(getUniform(shader, 'uRotation')).toBe(0.5)
+      expect(getUniform(shader, 'uTriplanarSharpness')).toBe(5)
+      expect(getUniform(shader, 'uStochasticEnabled')).toBe(1)
     })
   })
 

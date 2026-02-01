@@ -8,11 +8,13 @@
  * Provides:
  * - Agent API wrapper with caching
  * - Conversion utilities between agent and member formats
+ * - Graceful handling of validation errors
  */
 
 import { api } from '@/lib/api'
 import { createCacheManager } from '@/lib/cache'
-import type { Agent, CreateAgentRequest, UpdateAgentRequest, EffectiveSkillsResponse } from '@/types/agent'
+import { ValidationError } from '@/lib/schemas'
+import type { Agent, CreateAgentRequest, UpdateAgentRequest, EffectiveSkillsResponse } from '@/lib/schemas'
 
 // Create cache for agents list
 const agentsCache = createCacheManager<Agent[]>()
@@ -28,7 +30,7 @@ export function invalidateCache(): void {
  * Get all agents with caching.
  *
  * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all agents
+ * @returns Array of all agents (empty array on validation errors)
  */
 export async function getAgents(forceRefresh = false): Promise<Agent[]> {
   const cached = agentsCache.getIfValid(forceRefresh)
@@ -36,9 +38,17 @@ export async function getAgents(forceRefresh = false): Promise<Agent[]> {
     return cached
   }
 
-  const data = await api.getAgents()
-  agentsCache.set(data)
-  return data
+  try {
+    const data = await api.getAgents()
+    agentsCache.set(data)
+    return data
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn('[agentService] Invalid API response for getAgents:', error.message)
+      return []
+    }
+    throw error
+  }
 }
 
 /**
@@ -46,7 +56,7 @@ export async function getAgents(forceRefresh = false): Promise<Agent[]> {
  * Uses cached data if available, otherwise fetches.
  *
  * @param id - Agent ID
- * @returns The agent, or undefined if not found
+ * @returns The agent, or undefined if not found or invalid
  */
 export async function getAgent(id: string): Promise<Agent | undefined> {
   // Try cache first
@@ -60,6 +70,10 @@ export async function getAgent(id: string): Promise<Agent | undefined> {
   try {
     return await api.getAgent(id)
   } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn(`[agentService] Invalid API response for agent ${id}:`, error.message)
+      return undefined
+    }
     console.error(`[agentService] Failed to get agent ${id}:`, error)
     return undefined
   }
@@ -70,6 +84,7 @@ export async function getAgent(id: string): Promise<Agent | undefined> {
  *
  * @param request - Create request data
  * @returns The created agent
+ * @throws ValidationError if API response is invalid
  */
 export async function createAgent(request: CreateAgentRequest): Promise<Agent> {
   const agent = await api.createAgent(request)
@@ -83,6 +98,7 @@ export async function createAgent(request: CreateAgentRequest): Promise<Agent> {
  * @param id - Agent ID to update
  * @param updates - Fields to update
  * @returns The updated agent
+ * @throws ValidationError if API response is invalid
  */
 export async function updateAgent(id: string, updates: UpdateAgentRequest): Promise<Agent> {
   const agent = await api.updateAgent(id, updates)
@@ -105,10 +121,18 @@ export async function deleteAgent(id: string): Promise<void> {
  *
  * @param agentId - Agent ID
  * @param teamId - Optional team context for role-based grants
- * @returns Computed skill set
+ * @returns Computed skill set (empty skills on validation error)
  */
 export async function getEffectiveSkills(agentId: string, teamId?: string): Promise<EffectiveSkillsResponse> {
-  return api.getEffectiveSkills(agentId, teamId)
+  try {
+    return await api.getEffectiveSkills(agentId, teamId)
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      console.warn(`[agentService] Invalid API response for effective skills of ${agentId}:`, error.message)
+      return { agentId, skills: [] }
+    }
+    throw error
+  }
 }
 
 // Re-export animation utilities from memberService for convenience

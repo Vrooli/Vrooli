@@ -7,7 +7,7 @@
 
 import { create } from 'zustand'
 
-export type CombineFormat = 'xml' | 'markdown' | 'json'
+export type CombineFormat = 'xml' | 'markdown' | 'json' | 'cli'
 
 interface CombineStore {
   // Mode state

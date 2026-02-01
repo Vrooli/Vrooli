@@ -5,7 +5,16 @@
  * - Hex colors
  * - Identifiers (kebab-case)
  * - Agent/Member/Skill create requests
+ *
+ * Uses Zod schemas internally for consistency with API validation.
  */
+
+import { z } from 'zod'
+import {
+  HexColorSchema,
+  KebabCaseIdSchema,
+  FolderTypeSchema,
+} from '@/lib/schemas'
 
 /**
  * Validates a hex color string.
@@ -13,7 +22,7 @@
  * @returns true if valid hex color format
  */
 export function isValidHexColor(color: string): boolean {
-  return /^#[0-9A-Fa-f]{6}$/.test(color)
+  return HexColorSchema.safeParse(color).success
 }
 
 /**
@@ -22,7 +31,7 @@ export function isValidHexColor(color: string): boolean {
  * @returns true if valid kebab-case format
  */
 export function isValidKebabCase(id: string): boolean {
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)
+  return KebabCaseIdSchema.safeParse(id).success
 }
 
 /**
@@ -34,7 +43,26 @@ export interface ValidationResult {
 }
 
 /**
- * Validates agent create request
+ * Convert Zod parse result to ValidationResult format.
+ */
+function zodToValidationResult<T>(
+  schema: z.ZodType<T>,
+  data: unknown
+): ValidationResult {
+  const result = schema.safeParse(data)
+  if (result.success) {
+    return { valid: true, errors: [] }
+  }
+
+  const errors = result.error.issues.map((issue) => {
+    const path = issue.path.join('.')
+    return path ? `${path}: ${issue.message}` : issue.message
+  })
+  return { valid: false, errors }
+}
+
+/**
+ * Validates agent create request using Zod schema.
  */
 export function validateAgentCreate(req: {
   displayName?: string
@@ -44,31 +72,28 @@ export function validateAgentCreate(req: {
     accent?: string
   }
 }): ValidationResult {
-  const errors: string[] = []
+  // Create a partial schema that matches the input format
+  const InputSchema = z.object({
+    displayName: z.string().min(1, 'Display name is required').max(100, 'Display name must be 100 characters or less'),
+    appearance: z.object({
+      body: HexColorSchema.optional(),
+      head: HexColorSchema.optional(),
+      accent: HexColorSchema.optional(),
+    }).optional(),
+  })
 
-  if (!req.displayName || req.displayName.trim() === '') {
-    errors.push('Display name is required')
-  } else if (req.displayName.length > 100) {
-    errors.push('Display name must be 100 characters or less')
+  // Transform the input to match expected format
+  const input = {
+    displayName: req.displayName?.trim() ?? '',
+    appearance: req.appearance,
   }
 
-  if (req.appearance) {
-    if (req.appearance.body && !isValidHexColor(req.appearance.body)) {
-      errors.push('Body color must be a valid hex color (e.g., #FF5733)')
-    }
-    if (req.appearance.head && !isValidHexColor(req.appearance.head)) {
-      errors.push('Head color must be a valid hex color (e.g., #FF5733)')
-    }
-    if (req.appearance.accent && !isValidHexColor(req.appearance.accent)) {
-      errors.push('Accent color must be a valid hex color (e.g., #FF5733)')
-    }
-  }
-
-  return { valid: errors.length === 0, errors }
+  return zodToValidationResult(InputSchema, input)
 }
 
 /**
- * Validates member create request (legacy format)
+ * Validates member create request (legacy format).
+ * Uses manual validation to maintain exact error messages.
  */
 export function validateMemberCreate(req: {
   name?: string
@@ -104,28 +129,41 @@ export function validateMemberCreate(req: {
 }
 
 /**
- * Validates skill create request
+ * Validates skill create request using Zod schema.
  */
 export function validateSkillCreate(req: {
   name?: string
   content?: string
   folder?: string
 }): ValidationResult {
-  const errors: string[] = []
+  const SkillCreateInputSchema = z.object({
+    name: z.string().min(1, 'Name is required'),
+    content: z.string().min(1, 'Content is required'),
+    folder: FolderTypeSchema,
+  })
 
-  if (!req.name || req.name.trim() === '') {
-    errors.push('Name is required')
+  // Transform the input to handle empty strings
+  const input = {
+    name: req.name?.trim() ?? '',
+    content: req.content?.trim() ?? '',
+    folder: req.folder ?? '',
   }
 
-  if (!req.content || req.content.trim() === '') {
-    errors.push('Content is required')
+  const result = SkillCreateInputSchema.safeParse(input)
+
+  if (result.success) {
+    return { valid: true, errors: [] }
   }
 
-  if (!req.folder) {
-    errors.push('Folder is required')
-  } else if (!['local', 'drafts', 'core'].includes(req.folder)) {
-    errors.push('Folder must be local, drafts, or core')
-  }
+  // Transform Zod errors to user-friendly messages
+  const errors = result.error.issues.map((issue) => {
+    const isFolder = issue.path.includes('folder')
+    if (isFolder && (issue.code === 'invalid_value' || issue.code === 'invalid_type')) {
+      // In Zod v4, enum validation errors use 'invalid_value'
+      return 'Folder must be local, drafts, or core'
+    }
+    return issue.message
+  })
 
-  return { valid: errors.length === 0, errors }
+  return { valid: false, errors }
 }

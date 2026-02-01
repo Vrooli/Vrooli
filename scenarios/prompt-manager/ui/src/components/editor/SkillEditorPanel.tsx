@@ -244,6 +244,8 @@ export function SkillEditorPanel({
               folder={formState.folder}
               onFileChange={(v) => onFieldChange('file', v)}
               onFolderChange={(v) => onFieldChange('folder', v)}
+              skillDir={currentSkill?.skillDir ?? undefined}
+              contentPath={currentSkill?.contentPath ?? undefined}
               className="flex-shrink-0"
             />
           </div>

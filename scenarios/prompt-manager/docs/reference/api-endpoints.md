@@ -323,6 +323,50 @@ Semantic search powered by embeddings, with optional combined output formatting.
 
 Returns AI search availability status.
 
+### POST /api/v1/search/ai/reindex
+
+Trigger a full reindex of all skills into the vector store.
+
+**Response:**
+```json
+{
+  "status": "started",
+  "startedAt": "2024-01-21T09:00:00Z"
+}
+```
+
+**Notes:**
+- Returns existing status if reindex is already in progress
+
+### GET /api/v1/search/ai/reindex/status
+
+Get the current status of reindexing.
+
+**Response:**
+```json
+{
+  "status": "running",
+  "startedAt": "2024-01-21T09:00:00Z",
+  "processed": 25,
+  "total": 50,
+  "errors": []
+}
+```
+
+**Status Values:** `idle`, `running`, `completed`, `failed`
+
+### POST /api/v1/search/ai/reindex/cancel
+
+Cancel an in-progress reindex operation.
+
+**Response:**
+```json
+{
+  "status": "cancelled",
+  "message": "Reindex cancelled"
+}
+```
+
 ---
 
 ## Sync
@@ -625,60 +669,210 @@ Get computed effective skill set for an agent.
 
 ---
 
-## Members (Legacy)
+## Teams
 
-[CODE: api/agents/handlers.go#MemberList]
+[CODE: api/teams/handlers.go]
 
-**DEPRECATED:** Use `/api/v1/agents` instead. These endpoints maintain backward compatibility by delegating to agent handlers with format translation.
+Teams represent organizational units that group agents together with roles and shared policies.
 
-### GET /api/v1/members
+### GET /api/v1/teams
 
-List all agents in legacy member format.
+List all teams.
 
 **Response:**
 ```json
 [
   {
-    "id": "member-1",
-    "name": "Alice",
-    "bodyColor": "#3B82F6",
-    "headColor": "#F59E0B",
-    "accentColor": "#10B981",
-    "skills": ["debugging", "testing"],
+    "id": "engineering",
+    "displayName": "Engineering Team",
+    "mission": "Build great software",
+    "memberCount": 5,
     "createdAt": "2024-01-15T10:00:00Z",
     "updatedAt": "2024-01-20T14:30:00Z"
   }
 ]
 ```
 
-### GET /api/v1/members/{id}
+### GET /api/v1/teams/{id}
 
-Get a single agent in legacy member format.
+Get a single team with full details including roles and members.
 
-### POST /api/v1/members
+**Response:**
+```json
+{
+  "id": "engineering",
+  "displayName": "Engineering Team",
+  "mission": "Build great software",
+  "memberCount": 5,
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-20T14:30:00Z",
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Team Lead",
+      "description": "Leads the team"
+    }
+  ],
+  "members": [
+    {
+      "agentId": "agent-1",
+      "displayName": "Alice",
+      "roles": ["lead"],
+      "status": "active"
+    }
+  ],
+  "defaults": {
+    "skillGrantsByRole": {
+      "lead": ["code-review", "debugging"]
+    }
+  }
+}
+```
 
-Create a new agent from legacy member format.
+**Errors:**
+- `404` - Team not found
+
+### POST /api/v1/teams
+
+Create a new team.
 
 **Request Body:**
 ```json
 {
-  "name": "Bob",
-  "bodyColor": "#3B82F6",
-  "headColor": "#F59E0B",
-  "accentColor": "#10B981",
-  "skills": []
+  "id": "engineering",
+  "displayName": "Engineering Team",
+  "mission": "Build great software",
+  "defaults": {
+    "skillGrantsByRole": {
+      "developer": ["debugging", "testing"]
+    }
+  }
 }
 ```
 
-**Required Fields:** `name`, `bodyColor`, `headColor`, `accentColor`
+**Required Fields:** `displayName`
 
-### PUT /api/v1/members/{id}
+**Optional Fields:** `id` (auto-generated from displayName), `mission`, `defaults`
 
-Update an agent from legacy member format.
+**Response:** Created team object with `201 Created`.
 
-### DELETE /api/v1/members/{id}
+### PUT /api/v1/teams/{id}
 
-Delete an agent.
+Update an existing team.
+
+**Request Body:** (all fields optional)
+```json
+{
+  "displayName": "Updated Name",
+  "mission": "New mission",
+  "defaults": {
+    "skillGrantsByRole": {
+      "developer": ["debugging"]
+    }
+  }
+}
+```
+
+**Response:** Updated team object.
+
+### DELETE /api/v1/teams/{id}
+
+Delete a team and all its member relationships.
+
+**Response:** `204 No Content`
+
+### POST /api/v1/teams/{id}/members
+
+Add an agent to a team.
+
+**Request Body:**
+```json
+{
+  "agentId": "agent-1",
+  "roles": ["developer"]
+}
+```
+
+**Required Fields:** `agentId`
+
+**Optional Fields:** `roles`
+
+**Response:** Created member object with `201 Created`.
+```json
+{
+  "agentId": "agent-1",
+  "displayName": "Alice",
+  "roles": ["developer"],
+  "status": "active"
+}
+```
+
+**Errors:**
+- `404` - Team or agent not found
+
+### PUT /api/v1/teams/{id}/members/{agentId}
+
+Update a team member's roles or status.
+
+**Request Body:**
+```json
+{
+  "roles": ["developer", "reviewer"],
+  "status": "inactive"
+}
+```
+
+**Response:** Updated member object.
+
+### DELETE /api/v1/teams/{id}/members/{agentId}
+
+Remove an agent from a team.
+
+**Response:** `204 No Content`
+
+### GET /api/v1/teams/{id}/roles
+
+Get available roles for a team.
+
+**Response:**
+```json
+[
+  {
+    "id": "lead",
+    "name": "Team Lead",
+    "description": "Leads the team"
+  },
+  {
+    "id": "developer",
+    "name": "Developer",
+    "description": "Writes code"
+  }
+]
+```
+
+### PUT /api/v1/teams/{id}/roles
+
+Set roles for a team (replaces all existing roles).
+
+**Request Body:**
+```json
+{
+  "roles": [
+    {
+      "id": "lead",
+      "name": "Team Lead",
+      "description": "Leads the team"
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "description": "Writes code"
+    }
+  ]
+}
+```
+
+**Response:** Updated roles array.
 
 ---
 

@@ -8,10 +8,9 @@ import { Clock, Building2, Trees, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { useEnvironmentStore } from '@/stores/environmentStore'
-import { createEnvironmentConfig, TIME_TO_DREI_PRESET } from '@/config/environments'
+import { createEnvironmentConfig, getPresetFromTime } from '@/config/environments'
 import { formatTimeFromHour } from '@/lib/sky/sunPosition'
 import { useRealTimeClock } from '@/hooks/useRealTimeClock'
-import { timeValueToTimeOfDay } from '@/types/environment'
 import type { SceneType } from '@/types/environment'
 import { selectors } from '@/constants/selectors'
 
@@ -59,17 +58,16 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
       }
 
       // Update environment config with new time
-      const timeOfDay = timeValueToTimeOfDay(newTime)
       const newEnv = createEnvironmentConfig(
-        `${sceneType}-${timeOfDay}`,
-        `${sceneType} ${timeOfDay}`,
-        { sceneType, timeOfDay }
+        `${sceneType}-${newTime}`,
+        `${sceneType} environment`,
+        { sceneType, timeValue: newTime }
       )
       setEnvironment(newEnv)
 
       // Update drei preset
       if (!syncWithTheme) {
-        setDreiPreset(TIME_TO_DREI_PRESET[timeOfDay])
+        setDreiPreset(getPresetFromTime(newTime))
       }
     },
     [timeValue, setTimeValue, realTimeMode, setRealTimeMode, sceneType, setEnvironment, syncWithTheme, setDreiPreset]
@@ -77,17 +75,16 @@ export function EnvironmentControls({ className }: EnvironmentControlsProps) {
 
   const handleSceneTypeChange = useCallback(
     (type: SceneType) => {
-      const timeOfDay = timeValueToTimeOfDay(timeValue)
       // Create and set full environment config
       const newEnv = createEnvironmentConfig(
-        `${type}-${timeOfDay}`,
-        `${type} ${timeOfDay}`,
-        { sceneType: type, timeOfDay }
+        `${type}-${timeValue}`,
+        `${type} environment`,
+        { sceneType: type, timeValue }
       )
       setEnvironment(newEnv)
       // Also update drei preset for scene type
       if (!syncWithTheme) {
-        setDreiPreset(TIME_TO_DREI_PRESET[timeOfDay])
+        setDreiPreset(getPresetFromTime(timeValue))
       }
     },
     [setDreiPreset, setEnvironment, syncWithTheme, timeValue]

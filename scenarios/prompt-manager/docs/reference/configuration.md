@@ -9,8 +9,12 @@ Environment variables and configuration options for prompt-manager.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OLLAMA_URL` | (disabled) | Ollama API URL for skill testing (e.g., `http://localhost:11434`) |
-| `SKILLS_DIR` | `../skills` | Path to skills directory |
+| `STORE_DIR` | `../store` | Path to the store directory containing skills, agents, teams, and relations |
 | `DATABASE_URL` | (from lifecycle) | PostgreSQL connection string |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
+| `QDRANT_API_KEY` | (none) | API key for Qdrant authentication |
+| `AI_SEARCH_COLLECTION` | `prompt-manager-skills` | Qdrant collection name for skill embeddings |
+| `AI_SEARCH_THRESHOLD` | `0.5` | Minimum similarity score for AI search results |
 
 ### CLI
 
@@ -46,36 +50,93 @@ createdb prompt_manager
 psql -d prompt_manager < initialization/storage/postgres/schema.sql
 ```
 
-## Skills Directory Structure
+## Store Directory Structure
+
+The storage system uses a per-entity file structure under the `store/` directory:
 
 ```
-skills/
-├── core/              # System skills (read-only in production)
-│   ├── metadata.json  # Skill metadata array
-│   └── *.md          # Skill content files
-├── local/             # User-created skills
-│   └── metadata.json
-└── drafts/            # Work-in-progress
-    └── metadata.json
+store/
+├── skills/
+│   ├── _pack-order.json        # Active pack precedence
+│   └── packs/
+│       ├── core/               # System skills
+│       │   └── debugging/
+│       │       ├── skill.json  # Metadata
+│       │       ├── SKILL.md    # Content
+│       │       └── history.jsonl
+│       ├── local/              # User-created skills
+│       └── drafts/             # Work-in-progress
+├── agents/
+│   └── agent-1/
+│       └── agent.json
+├── teams/
+│   └── engineering/
+│       ├── team.json
+│       ├── roles.json
+│       └── org-chart.json
+├── relations/
+│   ├── agent-skill/
+│   │   └── agent-1__skill-id.json
+│   └── team-member/
+│       └── team-id__agent-1.json
+├── indexes/                    # Generated (never hand-edit)
+│   ├── skills.index.json
+│   ├── agents.index.json
+│   └── teams.index.json
+└── schemas/                    # JSON Schemas for validation
+    ├── skill.schema.json
+    ├── agent.schema.json
+    └── team.schema.json
 ```
 
-### metadata.json Format
+### skill.json Format
 
 ```json
-[
-  {
-    "id": "skill-id",
-    "name": "Skill Name",
-    "description": "Brief description",
-    "filename": "skill-id.md",
-    "modes": ["agent", "human"],
-    "tags": ["debugging"],
-    "icon": "bug",
-    "draft": false,
-    "createdAt": "2024-01-15T10:00:00Z",
-    "updatedAt": "2024-01-20T14:30:00Z"
-  }
-]
+{
+  "id": "debugging",
+  "name": "Debugging",
+  "description": "Systematic debugging approach",
+  "modes": ["agent"],
+  "tags": ["debugging"],
+  "icon": "bug",
+  "draft": false,
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-20T14:30:00Z"
+}
+```
+
+### agent.json Format
+
+```json
+{
+  "id": "agent-1",
+  "displayName": "Alice",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-20T14:30:00Z"
+}
+```
+
+### team.json Format
+
+```json
+{
+  "id": "engineering",
+  "displayName": "Engineering Team",
+  "mission": "Build great software",
+  "defaults": {
+    "skillGrantsByRole": {
+      "developer": ["debugging", "testing"]
+    }
+  },
+  "createdAt": "2024-01-15T10:00:00Z",
+  "updatedAt": "2024-01-20T14:30:00Z"
+}
 ```
 
 ## Optional Resources

@@ -76,6 +76,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      // Test utilities aren't meant for HMR
+      "react-refresh/only-export-components": "off",
     },
   }
 );

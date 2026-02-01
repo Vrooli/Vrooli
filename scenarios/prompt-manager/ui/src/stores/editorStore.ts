@@ -40,7 +40,7 @@ export function normalizeSkill(skill: Skill): NormalizedFormState {
     description: skill.description,
     content: skill.content,
     modes: [...skill.modes],
-    tags: [...skill.tags], // Already an array from API
+    tags: [...skill.tags],
     icon: skill.icon ?? '',
     draft: skill.draft,
     folder: skill.folder,

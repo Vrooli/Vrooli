@@ -56,7 +56,7 @@ func (h *Handlers) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // Status handles GET /api/v1/search/ai/status - check AI availability.
@@ -64,7 +64,7 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	status := h.service.GetStatus(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 // Reindex handles POST /api/v1/search/ai/reindex - rebuild vector index.
@@ -82,7 +82,7 @@ func (h *Handlers) Reindex(w http.ResponseWriter, r *http.Request) {
 	if started {
 		w.WriteHeader(http.StatusAccepted)
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // ReindexStatus handles GET /api/v1/search/ai/reindex/status - check reindex status.
@@ -90,7 +90,7 @@ func (h *Handlers) ReindexStatus(w http.ResponseWriter, r *http.Request) {
 	status := h.service.ReindexStatus()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 // CancelReindex handles POST /api/v1/search/ai/reindex/cancel - cancel active reindex.
@@ -98,5 +98,5 @@ func (h *Handlers) CancelReindex(w http.ResponseWriter, r *http.Request) {
 	status := h.service.CancelReindex()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }

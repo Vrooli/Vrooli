@@ -45,7 +45,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 // Get handles GET /agents/{id} - returns a single agent.
@@ -61,7 +61,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
+	_ = json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
 }
 
 // Create handles POST /agents - creates a new agent.
@@ -134,18 +134,18 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 				Pin:     "latest",
 				Enabled: true,
 			}
-			h.relationStore.SetAgentSkill(ctx, rel)
+			_ = h.relationStore.SetAgentSkill(ctx, rel)
 		}
 	}
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateAgents(ctx)
+		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
+	_ = json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
 }
 
 // Update handles PUT /agents/{id} - updates an existing agent.
@@ -160,8 +160,7 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agent, err := h.agentStore.Get(ctx, id)
-	if err != nil {
+	if _, err := h.agentStore.Get(ctx, id); err != nil {
 		http.Error(w, "Agent not found", http.StatusNotFound)
 		return
 	}
@@ -223,28 +222,28 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 					Pin:     "latest",
 					Enabled: true,
 				}
-				h.relationStore.SetAgentSkill(ctx, rel)
+				_ = h.relationStore.SetAgentSkill(ctx, rel)
 			}
 		}
 
 		// Remove old relations
 		for _, rel := range existingRels {
 			if !desiredMap[rel.SkillID] {
-				h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
+				_ = h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
 			}
 		}
 	}
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateAgents(ctx)
+		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 
 	// Get updated agent
-	agent, _ = h.agentStore.Get(ctx, id)
+	agent, _ := h.agentStore.Get(ctx, id)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
+	_ = json.NewEncoder(w).Encode(h.toResponse(ctx, agent))
 }
 
 // Delete handles DELETE /agents/{id} - deletes an agent.
@@ -266,13 +265,13 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if h.relationStore != nil {
 		rels, _ := h.relationStore.ListAgentSkills(ctx, id)
 		for _, rel := range rels {
-			h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
+			_ = h.relationStore.DeleteAgentSkill(ctx, id, rel.SkillID)
 		}
 	}
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateAgents(ctx)
+		_ = h.indexStore.RegenerateAgents(ctx)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -307,7 +306,7 @@ func (h *Handlers) GetEffectiveSkills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // Helper functions

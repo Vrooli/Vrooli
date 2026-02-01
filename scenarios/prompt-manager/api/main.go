@@ -22,6 +22,7 @@ import (
 	"prompt-manager/skills"
 	"prompt-manager/store"
 	"prompt-manager/tags"
+	"prompt-manager/teams"
 	"prompt-manager/testing"
 
 	"github.com/vrooli/api-core/database"
@@ -55,6 +56,13 @@ func main() {
 		storeDir = envDir
 	}
 
+	// Resolve to absolute path for consistent file path reporting
+	absStoreDir, err := filepath.Abs(storeDir)
+	if err != nil {
+		log.Printf("Warning: Could not resolve absolute path for store dir: %v", err)
+		absStoreDir = storeDir
+	}
+
 	// Connect to database
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
@@ -81,7 +89,7 @@ func main() {
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
-	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter)
+	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter, absStoreDir)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 
@@ -220,6 +228,19 @@ func main() {
 	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
 	v1.HandleFunc("/agents/{id}/effective-skills", agentHandlers.GetEffectiveSkills).Methods("GET")
+
+	// Team routes
+	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())
+	v1.HandleFunc("/teams", teamHandlers.List).Methods("GET")
+	v1.HandleFunc("/teams", teamHandlers.Create).Methods("POST")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Get).Methods("GET")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/teams/{id}", teamHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/members", teamHandlers.AddMember).Methods("POST")
+	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.UpdateMember).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/roles", teamHandlers.GetRoles).Methods("GET")
+	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")

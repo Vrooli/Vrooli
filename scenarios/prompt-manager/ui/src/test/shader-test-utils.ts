@@ -60,9 +60,6 @@ export function compileShaderWithWebGL(
   type: 'vertex' | 'fragment'
 ): WebGLCompilationResult {
   const gl = createGL(1, 1) // 1x1 pixel context is enough for compilation
-  if (!gl) {
-    return { success: false, error: 'Failed to create WebGL context' }
-  }
 
   const shaderType = type === 'vertex' ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER
   const shader = gl.createShader(shaderType)

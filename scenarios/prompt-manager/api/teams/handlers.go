@@ -47,7 +47,7 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(responses)
+	_ = json.NewEncoder(w).Encode(responses)
 }
 
 // Get handles GET /teams/{id} - returns a single team with details.
@@ -63,7 +63,7 @@ func (h *Handlers) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
 }
 
 // Create handles POST /teams - creates a new team.
@@ -111,12 +111,12 @@ func (h *Handlers) Create(w http.ResponseWriter, r *http.Request) {
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateTeams(ctx)
+		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
 }
 
 // Update handles PUT /teams/{id} - updates an existing team.
@@ -156,14 +156,14 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateTeams(ctx)
+		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 
 	// Get updated team
 	team, _ := h.teamStore.Get(ctx, id)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
+	_ = json.NewEncoder(w).Encode(h.toDetailsResponse(ctx, team))
 }
 
 // Delete handles DELETE /teams/{id} - deletes a team.
@@ -176,7 +176,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	if h.relationStore != nil {
 		members, _ := h.relationStore.ListTeamMembers(ctx, id)
 		for _, m := range members {
-			h.relationStore.DeleteTeamMember(ctx, id, m.AgentID)
+			_ = h.relationStore.DeleteTeamMember(ctx, id, m.AgentID)
 		}
 	}
 
@@ -191,7 +191,7 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateTeams(ctx)
+		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -240,7 +240,7 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateTeams(ctx)
+		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 
 	// Get agent for response
@@ -254,7 +254,7 @@ func (h *Handlers) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(member)
+	_ = json.NewEncoder(w).Encode(member)
 }
 
 // UpdateMember handles PUT /teams/{id}/members/{agentId} - updates a team member.
@@ -300,7 +300,7 @@ func (h *Handlers) UpdateMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(member)
+	_ = json.NewEncoder(w).Encode(member)
 }
 
 // RemoveMember handles DELETE /teams/{id}/members/{agentId} - removes a member from a team.
@@ -321,7 +321,7 @@ func (h *Handlers) RemoveMember(w http.ResponseWriter, r *http.Request) {
 
 	// Regenerate index
 	if h.indexStore != nil {
-		h.indexStore.RegenerateTeams(ctx)
+		_ = h.indexStore.RegenerateTeams(ctx)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -349,7 +349,7 @@ func (h *Handlers) GetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(roleDTOs)
+	_ = json.NewEncoder(w).Encode(roleDTOs)
 }
 
 // SetRoles handles PUT /teams/{id}/roles - sets team roles.
@@ -393,7 +393,7 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(req.Roles)
+	_ = json.NewEncoder(w).Encode(req.Roles)
 }
 
 // Helper functions

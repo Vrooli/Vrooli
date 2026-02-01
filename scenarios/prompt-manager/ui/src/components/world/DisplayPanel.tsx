@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check, X, FileCode, FileText, Braces, ChevronDown, ChevronUp } from 'lucide-react'
+import { Copy, Check, X, FileCode, FileText, Braces, Terminal, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import type { Skill } from '@/types'
@@ -22,6 +22,7 @@ const FORMAT_OPTIONS: Array<{ value: DisplayFormat; label: string; icon: React.R
   { value: 'xml', label: 'XML', icon: <FileCode className="h-4 w-4" /> },
   { value: 'markdown', label: 'Markdown', icon: <FileText className="h-4 w-4" /> },
   { value: 'json', label: 'JSON', icon: <Braces className="h-4 w-4" /> },
+  { value: 'cli', label: 'CLI', icon: <Terminal className="h-4 w-4" /> },
 ]
 
 export function DisplayPanel({ selectedSkills, onClear, onDisplay }: DisplayPanelProps) {

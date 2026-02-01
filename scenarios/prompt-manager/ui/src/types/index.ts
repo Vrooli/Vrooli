@@ -1,19 +1,33 @@
-// Types aligned with the Go API (api/skills/models.go)
-// These match the exact response shapes from the prompt-manager API
-
 /**
- * Folder represents the organizational structure for skills.
- * - "core": Important skills (git-tracked)
- * - "local": Personal skills (gitignored)
- * - "drafts": Work-in-progress skills
+ * Types for the prompt-manager UI.
+ *
+ * API types are re-exported from @/lib/schemas (single source of truth).
+ * UI-only types are defined here.
  */
-export type FolderType = 'core' | 'local' | 'drafts'
+
+// Re-export API types from schemas (these include runtime validation)
+export type {
+  FolderType,
+  Skill,
+  CreateSkillRequest,
+  UpdateSkillRequest,
+  Tag,
+  SkillTestRequest,
+  SkillTestResult,
+  SyncResponse,
+  HealthResponse,
+  UsageResponse,
+  RatingResponse,
+  DisplayFormat,
+  DisplayResponse,
+} from '@/lib/schemas'
 
 /**
- * Folder metadata for UI display
+ * Folder metadata for UI display.
+ * This is a UI-only type (not from API - computed client-side).
  */
 export interface Folder {
-  id: FolderType
+  id: 'core' | 'local' | 'drafts'
   name: string
   description: string
   icon: string
@@ -21,123 +35,13 @@ export interface Folder {
 }
 
 /**
- * Skill matches the API's Response type from api/skills/models.go
- */
-export interface Skill {
-  id: string
-  file: string
-  name: string
-  description: string
-  content: string
-  modes: string[]
-  tags: string[]
-  icon?: string
-  targetToolId?: string | null
-  draft: boolean
-  folder: FolderType
-  createdAt: string
-  updatedAt: string
-  usageCount: number
-  lastUsed?: string | null
-  effectivenessRating?: number | null
-}
-
-/**
- * CreateSkillRequest matches the API's CreateRequest type
- */
-export interface CreateSkillRequest {
-  id?: string
-  name: string
-  description: string
-  content: string
-  modes?: string[]
-  tags?: string[]
-  icon?: string
-  targetToolId?: string | null
-  draft?: boolean
-  folder: FolderType  // Can create in any folder
-}
-
-/**
- * UpdateSkillRequest matches the API's UpdateRequest type
- */
-export interface UpdateSkillRequest {
-  file?: string
-  name?: string
-  description?: string
-  content?: string
-  modes?: string[]
-  tags?: string[]
-  icon?: string
-  targetToolId?: string | null
-  draft?: boolean
-  folder?: FolderType
-}
-
-/**
- * Tag from the tags domain
- */
-export interface Tag {
-  id: string
-  name: string
-  color?: string
-  description?: string
-}
-
-/**
- * SkillTestRequest for testing skills with Ollama
- */
-export interface SkillTestRequest {
-  model: string
-  inputVariables?: Record<string, string>
-  maxTokens?: number
-  temperature?: number
-}
-
-/**
- * SkillTestResult from the testing domain
- */
-export interface SkillTestResult {
-  id: string
-  skillId: string
-  model: string
-  inputVariables?: Record<string, string>
-  response: string
-  responseTime: number
-  tokenCount?: number
-  rating?: number
-  notes?: string
-  testedAt: string
-}
-
-/**
- * SearchFilters for filtering skills
+ * SearchFilters for filtering skills.
+ * This is a UI-only type used for local filtering.
  */
 export interface SearchFilters {
   tag?: string
-  folder?: FolderType
+  folder?: 'core' | 'local' | 'drafts'
   modes?: string[]
-}
-
-/**
- * SyncResponse matches the API's SyncResponse type
- */
-export interface SyncResponse {
-  skills: Skill[]
-  lastUpdated: string
-  hash: string
-}
-
-/**
- * HealthResponse from the health endpoint
- */
-export interface HealthResponse {
-  status: string
-  service: string
-  version: string
-  readiness: boolean
-  timestamp: string
-  dependencies?: Record<string, string>
 }
 
 // Theme types for UI settings

@@ -36,6 +36,8 @@ type Response struct {
 	TargetToolID        *string    `json:"targetToolId,omitempty"`
 	Draft               bool       `json:"draft"`
 	Folder              string     `json:"folder"`
+	SkillDir            string     `json:"skillDir,omitempty"`    // Absolute path to skill directory
+	ContentPath         string     `json:"contentPath,omitempty"` // Absolute path to SKILL.md file
 	CreatedAt           string     `json:"createdAt"`
 	UpdatedAt           string     `json:"updatedAt"`
 	UsageCount          int        `json:"usageCount"`

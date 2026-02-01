@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchLinkPreview, type LinkPreviewData } from '@/lib/api'
+import { fetchLinkPreview } from '@/lib/api'
+import type { LinkPreviewData } from '@/lib/schemas'
 
 export type LinkPreview = LinkPreviewData
 

@@ -116,6 +116,15 @@ function displayToJson(skills: Skill[]): string {
 }
 
 /**
+ * Display skills into CLI command format.
+ * Returns a command that can be used to fetch the skills via the prompt-manager CLI.
+ */
+function displayToCli(skills: Skill[]): string {
+  const ids = skills.map((s) => s.id).join(' ')
+  return `prompt-manager skill read ${ids}`
+}
+
+/**
  * Display multiple skills into the specified format.
  */
 export function displaySkills(
@@ -142,6 +151,9 @@ export function displaySkills(
       break
     case 'json':
       combined = displayToJson(skills)
+      break
+    case 'cli':
+      combined = displayToCli(skills)
       break
     default:
       combined = displayToXml(skills)

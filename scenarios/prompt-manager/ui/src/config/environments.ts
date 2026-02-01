@@ -1,90 +1,22 @@
 /**
  * Environment preset configurations.
  *
- * Note: The sky system now uses continuous time (0-24 hours) instead of
- * discrete TimeOfDay presets. These presets are kept for backwards
- * compatibility but lighting is now dynamically calculated from time.
+ * The sky system uses continuous time (0-24 hours) for smooth day/night
+ * transitions. Lighting and sky colors are calculated dynamically from time
+ * using calculateLightingPreset() and calculateSkyColors() from '@/lib/sky/sunPosition'.
  */
 
 import type {
   EnvironmentConfig,
-  TimeOfDay,
   SceneType,
   LightingPreset,
   FogConfig,
-  SkyboxConfig,
   GroundConfig,
   BoundaryConfig,
   PlacementConfig,
   DreiEnvironmentPreset,
 } from '@/types/environment'
-
-/**
- * Lighting presets for different times of day.
- * @deprecated Lighting is now calculated dynamically from continuous time.
- * Use calculateLighting() from '@/lib/sky/sunPosition' instead.
- */
-export const LIGHTING_PRESETS: Record<TimeOfDay, LightingPreset> = {
-  morning: {
-    ambient: { color: '#fff5e6', intensity: 0.5 },
-    directional: [
-      {
-        position: [5, 10, 5],
-        color: '#ffeedd',
-        intensity: 1.2,
-        castShadow: true,
-        shadowMapSize: 2048,
-      },
-    ],
-    point: [
-      { position: [0, 3, 0], color: '#ffe4c4', intensity: 0.2, distance: 15 },
-    ],
-  },
-  noon: {
-    ambient: { color: '#ffffff', intensity: 0.6 },
-    directional: [
-      {
-        position: [0, 15, 0],
-        color: '#ffffff',
-        intensity: 1.5,
-        castShadow: true,
-        shadowMapSize: 2048,
-      },
-    ],
-  },
-  sunset: {
-    ambient: { color: '#ffddcc', intensity: 0.4 },
-    directional: [
-      {
-        position: [-10, 5, 5],
-        color: '#ff9966',
-        intensity: 1.0,
-        castShadow: true,
-        shadowMapSize: 2048,
-      },
-    ],
-    point: [
-      { position: [10, 2, 0], color: '#ff6633', intensity: 0.5, distance: 20 },
-      { position: [-5, 1, -5], color: '#ff4488', intensity: 0.3, distance: 15 },
-    ],
-  },
-  night: {
-    ambient: { color: '#334466', intensity: 0.3 },
-    directional: [
-      {
-        position: [5, 10, -5],
-        color: '#6688bb',
-        intensity: 0.6,
-        castShadow: true,
-        shadowMapSize: 2048,
-      },
-    ],
-    point: [
-      { position: [0, 5, 0], color: '#6366f1', intensity: 0.4, distance: 15 },
-      { position: [-10, 3, -10], color: '#22d3ee', intensity: 0.3, distance: 12 },
-    ],
-  },
-}
+import { calculateLightingPreset, calculateSkyColors } from '@/lib/sky/sunPosition'
 
 /**
  * Fog presets for different scene types
@@ -97,32 +29,15 @@ export const FOG_PRESETS: Record<SceneType, FogConfig | undefined> = {
 }
 
 /**
- * Skybox presets.
- * @deprecated Sky colors are now calculated dynamically from continuous time.
- * Use calculateSkyColors() from '@/lib/sky/sunPosition' instead.
- * Kept for backwards compatibility with existing environment configs.
+ * Create a skybox config from continuous time value.
+ * Uses calculateSkyColors() for dynamic gradient generation.
  */
-export const SKYBOX_PRESETS: Record<TimeOfDay, SkyboxConfig> = {
-  morning: {
+export function createSkyboxFromTime(timeValue: number): { type: 'gradient' | 'solid'; source: string[] } {
+  const colors = calculateSkyColors(timeValue)
+  return {
     type: 'gradient',
-    source: ['#87CEEB', '#FFF8DC', '#FFE4B5'],
-    blur: 0.5,
-  },
-  noon: {
-    type: 'gradient',
-    source: ['#87CEEB', '#ADD8E6'],
-    blur: 0.3,
-  },
-  sunset: {
-    type: 'gradient',
-    source: ['#2C1810', '#FF6B35', '#F7C59F'],
-    blur: 0.4,
-  },
-  night: {
-    type: 'solid',
-    source: '#0f172a',
-    blur: 0,
-  },
+    source: [colors.top, colors.middle, colors.bottom],
+  }
 }
 
 /**
@@ -251,27 +166,36 @@ export const THEME_TO_DREI_PRESET: Record<'light' | 'dark', DreiEnvironmentPrese
 }
 
 /**
- * Time of day to drei preset mapping
+ * Map continuous time (0-24) to drei preset.
+ * Uses time ranges to select appropriate preset.
  */
-export const TIME_TO_DREI_PRESET: Record<TimeOfDay, DreiEnvironmentPreset> = {
-  morning: 'dawn',
-  noon: 'studio',
-  sunset: 'sunset',
-  night: 'night',
+export function getPresetFromTime(timeValue: number): DreiEnvironmentPreset {
+  const hour = ((timeValue % 24) + 24) % 24 // Normalize to 0-24
+  if (hour >= 5 && hour < 9) return 'dawn'
+  if (hour >= 9 && hour < 17) return 'studio'
+  if (hour >= 17 && hour < 20) return 'sunset'
+  return 'night'
 }
 
+/** Time constants for presets (hours in 24h format) */
+const TIME_NIGHT = 22
+const TIME_NOON = 12
+const TIME_MORNING = 8
+const TIME_SUNSET = 18.5
+
 /**
- * Pre-built environment configurations
+ * Pre-built environment configurations.
+ * Lighting and skybox are calculated dynamically from timeValue.
  */
 export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
   'default-dark': {
     id: 'default-dark',
     name: 'Dark Space',
     type: 'abstract-space',
-    timeOfDay: 'night',
-    lighting: LIGHTING_PRESETS.night,
+    timeValue: TIME_NIGHT,
+    lighting: calculateLightingPreset(TIME_NIGHT),
     fog: FOG_PRESETS['abstract-space'],
-    skybox: SKYBOX_PRESETS.night,
+    skybox: createSkyboxFromTime(TIME_NIGHT),
     ground: GROUND_PRESETS['abstract-space'],
     boundary: BOUNDARY_PRESETS['abstract-space'],
     placement: PLACEMENT_DEFAULTS,
@@ -280,8 +204,8 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     id: 'default-light',
     name: 'Light Studio',
     type: 'indoor-office',
-    timeOfDay: 'noon',
-    lighting: LIGHTING_PRESETS.noon,
+    timeValue: TIME_NOON,
+    lighting: calculateLightingPreset(TIME_NOON),
     fog: FOG_PRESETS['indoor-office'],
     skybox: { type: 'solid', source: '#f8fafc' },
     ground: {
@@ -302,10 +226,10 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     id: 'outdoor-morning',
     name: 'Morning Park',
     type: 'outdoor-park',
-    timeOfDay: 'morning',
-    lighting: LIGHTING_PRESETS.morning,
+    timeValue: TIME_MORNING,
+    lighting: calculateLightingPreset(TIME_MORNING),
     fog: FOG_PRESETS['outdoor-park'],
-    skybox: SKYBOX_PRESETS.morning,
+    skybox: createSkyboxFromTime(TIME_MORNING),
     ground: GROUND_PRESETS['outdoor-park'],
     boundary: BOUNDARY_PRESETS['outdoor-park'],
     placement: PLACEMENT_DEFAULTS,
@@ -314,10 +238,10 @@ export const ENVIRONMENT_PRESETS: Record<string, EnvironmentConfig> = {
     id: 'outdoor-sunset',
     name: 'Sunset Vista',
     type: 'outdoor-park',
-    timeOfDay: 'sunset',
-    lighting: LIGHTING_PRESETS.sunset,
+    timeValue: TIME_SUNSET,
+    lighting: calculateLightingPreset(TIME_SUNSET),
     fog: { color: '#FFB347', near: 15, far: 60 },
-    skybox: SKYBOX_PRESETS.sunset,
+    skybox: createSkyboxFromTime(TIME_SUNSET),
     ground: GROUND_PRESETS['outdoor-park'],
     boundary: BOUNDARY_PRESETS['outdoor-park'],
     placement: PLACEMENT_DEFAULTS,
@@ -345,7 +269,8 @@ export function createEnvironmentConfig(
   name: string,
   options: {
     sceneType?: SceneType
-    timeOfDay?: TimeOfDay
+    /** Continuous time value (0-24 hours). Default: 22 (night) */
+    timeValue?: number
     customLighting?: Partial<LightingPreset>
     customFog?: FogConfig
     customGround?: Partial<GroundConfig>
@@ -353,7 +278,7 @@ export function createEnvironmentConfig(
     customPlacement?: Partial<PlacementConfig>
   }
 ): EnvironmentConfig {
-  const { sceneType = 'abstract-space', timeOfDay = 'night' } = options
+  const { sceneType = 'abstract-space', timeValue = TIME_NIGHT } = options
 
   const ground = {
     ...GROUND_PRESETS[sceneType],
@@ -383,13 +308,13 @@ export function createEnvironmentConfig(
     id,
     name,
     type: sceneType,
-    timeOfDay,
+    timeValue,
     lighting: {
-      ...LIGHTING_PRESETS[timeOfDay],
+      ...calculateLightingPreset(timeValue),
       ...options.customLighting,
     },
     fog: options.customFog ?? FOG_PRESETS[sceneType],
-    skybox: SKYBOX_PRESETS[timeOfDay],
+    skybox: createSkyboxFromTime(timeValue),
     ground,
     boundary,
     placement,

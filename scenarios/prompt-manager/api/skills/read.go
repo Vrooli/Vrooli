@@ -86,7 +86,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h *Handlers) Read(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func isValidResolveMode(mode string) bool {
@@ -129,9 +129,7 @@ func loadIndexedSkills(store SkillStore) ([]indexedSkill, error) {
 		for _, skill := range skills {
 			filename := skill.File
 			prefix := folder + "/"
-			if strings.HasPrefix(filename, prefix) {
-				filename = strings.TrimPrefix(filename, prefix)
-			}
+			filename = strings.TrimPrefix(filename, prefix)
 			indexed = append(indexed, indexedSkill{
 				meta:     skill,
 				folder:   folder,
@@ -224,9 +222,7 @@ func normalizeFileIdentifier(raw string) string {
 	if idx := strings.LastIndex(s, "/skills/"); idx != -1 {
 		s = s[idx+len("/skills/"):]
 	}
-	if strings.HasPrefix(s, "skills/") {
-		s = strings.TrimPrefix(s, "skills/")
-	}
+	s = strings.TrimPrefix(s, "skills/")
 	return strings.TrimPrefix(s, "/")
 }
 
