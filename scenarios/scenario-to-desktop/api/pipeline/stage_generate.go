@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // GenerateStage implements the desktop wrapper generation stage of the pipeline.
@@ -99,7 +100,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	}
 
 	if s.analyzer == nil {
-		failStage(result, s.timeProvider, "scenario analyzer not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrGenerateAnalyzerNotConfigured())
 		return result
 	}
 
@@ -109,7 +110,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// Analyze the scenario
 	metadata, err := s.analyzer.AnalyzeScenario(scenarioName)
 	if err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("scenario analysis failed: %v", err))
+		failStage(result, s.timeProvider, errors.ErrScenarioAnalysisFailed(err, scenarioName))
 		return result
 	}
 
@@ -118,7 +119,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 
 	// Validate scenario is ready for desktop
 	if err := s.analyzer.ValidateScenarioForDesktop(scenarioName); err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("scenario validation failed: %v", err))
+		failStage(result, s.timeProvider, errors.ErrScenarioValidationFailed(err, scenarioName))
 		return result
 	}
 
@@ -126,7 +127,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	templateType := input.Config.GetTemplateType()
 	desktopConfig, err := s.analyzer.CreateDesktopConfigFromMetadata(metadata, templateType)
 	if err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("failed to create desktop config: %v", err))
+		failStage(result, s.timeProvider, errors.ErrDesktopConfigFailed(err))
 		return result
 	}
 
@@ -147,7 +148,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	)
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "generation service not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrGenerateServiceNotConfigured())
 		return result
 	}
 
@@ -158,7 +159,7 @@ func (s *GenerateStage) Execute(ctx context.Context, input *StageInput) *StageRe
 	// Wait for generation to complete (poll with cancellation support)
 	desktopPath, err := s.waitForGeneration(ctx, buildID, buildStatus)
 	if err != nil {
-		failStage(result, s.timeProvider, err.Error())
+		failStage(result, s.timeProvider, errors.ErrGenerationFailed(err).WithDetail("build_id", buildID))
 		return result
 	}
 

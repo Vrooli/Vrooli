@@ -2,11 +2,11 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"scenario-to-desktop-api/bundle"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // BundleStage implements the bundle packaging stage of the pipeline.
@@ -119,7 +119,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		outputDir := filepath.Dir(manifestPath)
 		generatedPath, genErr := s.manifestGenerator.GenerateManifest(ctx, input.Config.ScenarioName, outputDir)
 		if genErr != nil {
-			failStage(result, s.timeProvider, fmt.Sprintf("failed to generate manifest: %v", genErr))
+			failStage(result, s.timeProvider, errors.ErrBundleManifestGeneration(genErr))
 			return result
 		}
 
@@ -127,7 +127,7 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		appendInfo(result, "Generated manifest: %s", manifestPath)
 	} else if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
 		// No generator configured and manifest doesn't exist - fail
-		failStage(result, s.timeProvider, fmt.Sprintf("bundle manifest not found: %s (no generator configured)", manifestPath))
+		failStage(result, s.timeProvider, errors.ErrBundleManifestNotFound(manifestPath))
 		return result
 	}
 
@@ -136,14 +136,14 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 
 	// Check for packager
 	if s.packager == nil {
-		failStage(result, s.timeProvider, "bundle packager not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrBundleServiceNotConfigured())
 		return result
 	}
 
 	// Run the packager
 	packageResult, err := s.packager.Package(scenarioPath, manifestPath, framework, input.Config.Platforms)
 	if err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("bundle packaging failed: %v", err))
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 		return result
 	}
 

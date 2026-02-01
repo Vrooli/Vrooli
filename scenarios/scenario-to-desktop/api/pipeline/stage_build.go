@@ -3,9 +3,11 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/build"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // BuildStage implements the Electron build stage of the pipeline.
@@ -75,13 +77,13 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "build service not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrBuildServiceNotConfigured())
 		return result
 	}
 
 	desktopPath := input.DesktopPath
 	if desktopPath == "" {
-		failStage(result, s.timeProvider, "desktop path not available from generation stage")
+		failStage(result, s.timeProvider, errors.ErrBuildDesktopPathMissing())
 		return result
 	}
 
@@ -107,9 +109,18 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	)
 
 	// Wait for build to complete
-	buildStatus, err := s.waitForBuild(ctx, buildID)
-	if err != nil {
-		failStage(result, s.timeProvider, err.Error())
+	buildStatus, waitErr := s.waitForBuild(ctx, buildID)
+	if waitErr != nil {
+		// Handle wait error based on its kind
+		if waitErr.Kind == WaitErrorStore {
+			failStage(result, s.timeProvider, errors.ErrBuildStoreNotConfigured())
+		} else if waitErr.Kind == WaitErrorTimeout {
+			failStage(result, s.timeProvider, errors.ErrBuildTimedOut(buildID, DefaultBuildTimeout.String()))
+		} else if waitErr.Kind == WaitErrorCancelled {
+			failStage(result, s.timeProvider, errors.New(errors.CodePipelineCancelled, "build cancelled").InDomain("build"))
+		} else {
+			failStage(result, s.timeProvider, errors.ErrBuildStartFailed(waitErr, strings.Join(platforms, ",")))
+		}
 		return result
 	}
 
@@ -120,11 +131,23 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	case BuildStatusPartial:
 		result.Logs = append(result.Logs, "Build completed with some platform failures")
 	case BuildStatusFailed:
-		errMsg := "build failed"
+		lastOutput := ""
 		if len(buildStatus.ErrorLog) > 0 {
-			errMsg = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
+			lastOutput = buildStatus.ErrorLog[len(buildStatus.ErrorLog)-1]
 		}
-		failStage(result, s.timeProvider, errMsg)
+		// Determine which platform failed
+		failedPlatform := ""
+		for platform, platResult := range buildStatus.PlatformResults {
+			if platResult.Status == BuildStatusFailed {
+				failedPlatform = platform
+				break
+			}
+		}
+		failStage(result, s.timeProvider, errors.ErrBuildPlatformFailed(
+			fmt.Errorf("build failed: %s", lastOutput),
+			failedPlatform,
+			lastOutput,
+		))
 		result.Details = buildStatus
 		return result
 	}
@@ -148,45 +171,32 @@ func (s *BuildStage) Execute(ctx context.Context, input *StageInput) *StageResul
 	return result
 }
 
-// waitForBuild polls for build completion.
-func (s *BuildStage) waitForBuild(ctx context.Context, buildID string) (*build.Status, error) {
+// waitForBuild polls for build completion using the generic Poller.
+func (s *BuildStage) waitForBuild(ctx context.Context, buildID string) (*build.Status, *WaitError) {
 	if s.store == nil {
-		return nil, fmt.Errorf("build store not configured for status polling - this is a server configuration error; check startup logs or contact support")
-	}
-
-	// Poll with timeout (builds can take a long time)
-	timeout := time.After(DefaultBuildTimeout)
-	ticker := time.NewTicker(DefaultBuildPollInterval)
-	defer ticker.Stop()
-
-	notFoundCount := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("build cancelled")
-		case <-timeout:
-			return nil, fmt.Errorf("build timed out after %v", DefaultBuildTimeout)
-		case <-ticker.C:
-			status, ok := s.store.Get(buildID)
-			if !ok {
-				// Build not yet registered, keep waiting
-				notFoundCount++
-				if notFoundCount%10 == 0 {
-					// Log every ~20 seconds (10 polls * 2 second interval) when status not found
-					// This helps users understand the wait isn't stalled
-					fmt.Printf("Build status not yet registered after %d polls, still waiting for build %s...\n", notFoundCount, buildID)
-				}
-				continue
-			}
-
-			switch status.Status {
-			case BuildStatusReady, BuildStatusPartial:
-				return status, nil
-			case BuildStatusFailed:
-				return status, nil // Let caller handle the failure
-			}
-			// Still building, continue polling
+		return nil, &WaitError{
+			Kind:       WaitErrorStore,
+			EntityType: "build",
+			EntityID:   buildID,
 		}
 	}
+
+	poller := &Poller[*build.Status]{
+		Config: PollerConfig{
+			EntityType:   "Build",
+			Timeout:      DefaultBuildTimeout,
+			PollInterval: DefaultBuildPollInterval,
+			LogInterval:  10, // Log every ~20 seconds
+		},
+		GetStatus: s.store.Get,
+		IsComplete: func(status *build.Status) bool {
+			switch status.Status {
+			case BuildStatusReady, BuildStatusPartial, BuildStatusFailed:
+				return true
+			}
+			return false
+		},
+	}
+
+	return poller.Wait(ctx, buildID)
 }

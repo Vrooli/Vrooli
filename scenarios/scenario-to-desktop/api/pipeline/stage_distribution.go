@@ -3,9 +3,10 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"time"
+	"strings"
 
 	"scenario-to-desktop-api/distribution"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // DistributionStage implements the distribution stage of the pipeline.
@@ -74,7 +75,7 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "distribution service not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrDistributionServiceNotConfigured())
 		return result
 	}
 
@@ -111,16 +112,29 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 
 	resp, err := s.service.Distribute(ctx, req)
 	if err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("distribution failed: %v", err))
+		targetStr := strings.Join(input.Config.DistributionTargets, ",")
+		if targetStr == "" {
+			targetStr = "all"
+		}
+		failStage(result, s.timeProvider, errors.ErrDistributionStartFailed(err, targetStr))
 		return result
 	}
 
 	result.Logs = append(result.Logs, fmt.Sprintf("Distribution started: %s", resp.DistributionID))
 
 	// Wait for distribution to complete
-	distStatus, err := s.waitForDistribution(ctx, resp.DistributionID)
-	if err != nil {
-		failStage(result, s.timeProvider, err.Error())
+	distStatus, waitErr := s.waitForDistribution(ctx, resp.DistributionID)
+	if waitErr != nil {
+		// Handle wait error based on its kind
+		if waitErr.Kind == WaitErrorStore {
+			failStage(result, s.timeProvider, errors.ErrDistributionStoreNotConfigured())
+		} else if waitErr.Kind == WaitErrorTimeout {
+			failStage(result, s.timeProvider, errors.ErrDistributionTimeout(resp.DistributionID, DefaultDistributionTimeout.String()))
+		} else if waitErr.Kind == WaitErrorCancelled {
+			failStage(result, s.timeProvider, errors.New(errors.CodePipelineCancelled, "distribution cancelled").InDomain("distribution"))
+		} else {
+			failStage(result, s.timeProvider, errors.ErrDistributionFailed(waitErr, "unknown"))
+		}
 		return result
 	}
 
@@ -131,13 +145,14 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	case distribution.StatusPartial:
 		result.Logs = append(result.Logs, "Distribution completed with some failures")
 	case distribution.StatusFailed:
-		failStage(result, s.timeProvider, distStatus.Error)
+		failStage(result, s.timeProvider, errors.ErrDistributionFailed(
+			fmt.Errorf("%s", distStatus.Error),
+			"unknown",
+		))
 		result.Details = distStatus
 		return result
 	case distribution.StatusCancelled:
-		result.Status = StatusCancelled
-		result.CompletedAt = s.timeProvider.Now()
-		result.Error = "distribution cancelled"
+		failStage(result, s.timeProvider, errors.New(errors.CodePipelineCancelled, "distribution cancelled").InDomain("distribution"))
 		return result
 	}
 
@@ -168,40 +183,32 @@ func (s *DistributionStage) Execute(ctx context.Context, input *StageInput) *Sta
 	return result
 }
 
-// waitForDistribution polls for distribution completion.
-func (s *DistributionStage) waitForDistribution(ctx context.Context, distributionID string) (*distribution.DistributionStatus, error) {
+// waitForDistribution polls for distribution completion using the generic Poller.
+func (s *DistributionStage) waitForDistribution(ctx context.Context, distributionID string) (*distribution.DistributionStatus, *WaitError) {
 	if s.store == nil {
-		return nil, fmt.Errorf("distribution store not configured for status polling - this is a server configuration error; check startup logs or contact support")
-	}
-
-	// Poll with timeout (uploads can take time for large files)
-	timeout := time.After(DefaultDistributionTimeout)
-	ticker := time.NewTicker(DefaultDistributionPollInterval)
-	defer ticker.Stop()
-
-	notFoundCount := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("distribution cancelled")
-		case <-timeout:
-			return nil, fmt.Errorf("distribution timed out after %v", DefaultDistributionTimeout)
-		case <-ticker.C:
-			status, ok := s.store.Get(distributionID)
-			if !ok {
-				notFoundCount++
-				if notFoundCount%10 == 0 {
-					// Log every ~50 seconds (10 polls * 5 second interval) when status not found
-					fmt.Printf("Distribution status not yet registered after %d polls, still waiting for %s...\n", notFoundCount, distributionID)
-				}
-				continue
-			}
-
-			switch status.Status {
-			case distribution.StatusCompleted, distribution.StatusPartial, distribution.StatusFailed, distribution.StatusCancelled:
-				return status, nil
-			}
+		return nil, &WaitError{
+			Kind:       WaitErrorStore,
+			EntityType: "distribution",
+			EntityID:   distributionID,
 		}
 	}
+
+	poller := &Poller[*distribution.DistributionStatus]{
+		Config: PollerConfig{
+			EntityType:   "Distribution",
+			Timeout:      DefaultDistributionTimeout,
+			PollInterval: DefaultDistributionPollInterval,
+			LogInterval:  10, // Log every ~50 seconds
+		},
+		GetStatus: s.store.Get,
+		IsComplete: func(status *distribution.DistributionStatus) bool {
+			switch status.Status {
+			case distribution.StatusCompleted, distribution.StatusPartial, distribution.StatusFailed, distribution.StatusCancelled:
+				return true
+			}
+			return false
+		},
+	}
+
+	return poller.Wait(ctx, distributionID)
 }

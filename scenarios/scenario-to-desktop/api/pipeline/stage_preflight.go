@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"scenario-to-desktop-api/preflight"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // PreflightStage implements the preflight validation stage of the pipeline.
@@ -76,12 +77,12 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	}
 
 	if s.service == nil {
-		failStage(result, s.timeProvider, "preflight service not configured - this is a server configuration error; check startup logs or contact support")
+		failStage(result, s.timeProvider, errors.ErrPreflightServiceNotConfigured())
 		return result
 	}
 
 	if input.BundleResult == nil {
-		failStage(result, s.timeProvider, "bundle result not available from previous stage")
+		failStage(result, s.timeProvider, errors.ErrPreflightBundleNotAvailable())
 		return result
 	}
 
@@ -107,17 +108,16 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	// Run preflight validation
 	response, err := s.service.RunBundlePreflight(request)
 	if err != nil {
-		failStage(result, s.timeProvider, fmt.Sprintf("preflight validation failed: %v", err))
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(err, nil))
 		return result
 	}
 
 	// Check validation result
 	if response.Status == "error" || response.Status == "failed" {
-		if len(response.Errors) > 0 {
-			failStage(result, s.timeProvider, fmt.Sprintf("preflight validation failed: %v", response.Errors))
-		} else {
-			failStage(result, s.timeProvider, "preflight validation failed")
-		}
+		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(
+			fmt.Errorf("preflight returned status: %s", response.Status),
+			response.Errors,
+		))
 		result.Details = response
 		return result
 	}

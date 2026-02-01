@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"time"
 
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
@@ -31,6 +32,103 @@ const (
 	StatusCancelled = "cancelled" // Pipeline was manually cancelled
 	StatusSkipped   = "skipped"   // Stage/pipeline was skipped
 )
+
+// PipelineState represents the current fine-grained phase of pipeline execution.
+// This provides more granular observability than the high-level Status field.
+type PipelineState string
+
+const (
+	// PipelineStateCreated indicates the pipeline has been created but not started.
+	PipelineStateCreated PipelineState = "created"
+	// PipelineStateInitializing indicates the pipeline is initializing resources.
+	PipelineStateInitializing PipelineState = "initializing"
+	// PipelineStateQueueingStage indicates the pipeline is preparing to execute a stage.
+	PipelineStateQueueingStage PipelineState = "queueing_stage"
+	// PipelineStateExecutingStage indicates a stage is actively executing.
+	PipelineStateExecutingStage PipelineState = "executing_stage"
+	// PipelineStatePollingCompletion indicates the pipeline is polling for async completion.
+	PipelineStatePollingCompletion PipelineState = "polling_completion"
+	// PipelineStateProcessingResult indicates the pipeline is processing stage results.
+	PipelineStateProcessingResult PipelineState = "processing_result"
+	// PipelineStateCompleted indicates the pipeline finished successfully.
+	PipelineStateCompleted PipelineState = "completed"
+	// PipelineStateFailed indicates the pipeline encountered an error.
+	PipelineStateFailed PipelineState = "failed"
+	// PipelineStateCancelled indicates the pipeline was cancelled.
+	PipelineStateCancelled PipelineState = "cancelled"
+)
+
+// ValidPipelineStateTransitions defines all valid state transitions in the pipeline state machine.
+var ValidPipelineStateTransitions = map[PipelineState][]PipelineState{
+	"": { // Initial empty state
+		PipelineStateCreated,
+	},
+	PipelineStateCreated: {
+		PipelineStateInitializing,
+		PipelineStateCancelled,
+	},
+	PipelineStateInitializing: {
+		PipelineStateQueueingStage,
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStateQueueingStage: {
+		PipelineStateExecutingStage,
+		PipelineStateCompleted, // If no more stages
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStateExecutingStage: {
+		PipelineStatePollingCompletion,
+		PipelineStateProcessingResult,
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStatePollingCompletion: {
+		PipelineStateProcessingResult,
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStateProcessingResult: {
+		PipelineStateQueueingStage, // Next stage
+		PipelineStateCompleted,
+		PipelineStateFailed,
+		PipelineStateCancelled,
+	},
+	PipelineStateCompleted: {}, // Terminal state
+	PipelineStateFailed:    {}, // Terminal state
+	PipelineStateCancelled: {}, // Terminal state
+}
+
+// CanTransitionTo checks if transitioning from this state to the target is valid.
+func (s PipelineState) CanTransitionTo(target PipelineState) bool {
+	validTargets, ok := ValidPipelineStateTransitions[s]
+	if !ok {
+		return false
+	}
+	for _, valid := range validTargets {
+		if valid == target {
+			return true
+		}
+	}
+	return false
+}
+
+// IsTerminal returns true if this is a terminal state (no valid outgoing transitions).
+func (s PipelineState) IsTerminal() bool {
+	transitions, ok := ValidPipelineStateTransitions[s]
+	return ok && len(transitions) == 0
+}
+
+// PipelineStateTransition records a state change for debugging and observability.
+type PipelineStateTransition struct {
+	From       PipelineState `json:"from"`
+	To         PipelineState `json:"to"`
+	Timestamp  time.Time     `json:"timestamp"`
+	Stage      string        `json:"stage,omitempty"`      // Current stage when transition occurred
+	Message    string        `json:"message,omitempty"`    // Optional context message
+	DurationMs int64         `json:"duration_ms,omitempty"` // Time spent in From state (ms)
+}
 
 // Config represents the configuration for a pipeline run.
 type Config struct {
@@ -132,6 +230,12 @@ type Status struct {
 	// CurrentStage is the name of the currently executing stage.
 	CurrentStage string `json:"current_stage,omitempty"`
 
+	// CurrentState is the fine-grained pipeline state for observability.
+	CurrentState PipelineState `json:"current_state,omitempty"`
+
+	// Transitions records the state change history for debugging.
+	Transitions []PipelineStateTransition `json:"transitions,omitempty"`
+
 	// ProgressPercent is the completion percentage (0-100).
 	// Calculated from completed stages / total stages.
 	// Always present in the response for quick status checks by agents and UIs.
@@ -176,6 +280,40 @@ type Status struct {
 	// IdempotencyKey is the client-provided key for request deduplication.
 	// Stored on the status to enable lookup of existing pipelines by idempotency key.
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
+
+	// lastStateChange tracks when the current state was entered (for duration calculation).
+	lastStateChange time.Time
+}
+
+// TransitionTo transitions the pipeline to a new state with validation.
+// Returns true if the transition was valid and applied, false otherwise.
+// If the transition is invalid, the state remains unchanged.
+func (s *Status) TransitionTo(target PipelineState, message string) bool {
+	if !s.CurrentState.CanTransitionTo(target) && s.CurrentState != "" {
+		// Invalid transition - log but don't panic
+		return false
+	}
+
+	now := time.Now()
+	var durationMs int64
+	if !s.lastStateChange.IsZero() {
+		durationMs = now.Sub(s.lastStateChange).Milliseconds()
+	}
+
+	transition := PipelineStateTransition{
+		From:       s.CurrentState,
+		To:         target,
+		Timestamp:  now,
+		Stage:      s.CurrentStage,
+		Message:    message,
+		DurationMs: durationMs,
+	}
+
+	s.Transitions = append(s.Transitions, transition)
+	s.CurrentState = target
+	s.lastStateChange = now
+
+	return true
 }
 
 // StageInput carries data between pipeline stages.
@@ -234,11 +372,58 @@ type StageResult struct {
 	// Error contains the error message if the stage failed.
 	Error string `json:"error,omitempty"`
 
+	// ErrorInfo contains structured error information with recovery guidance.
+	// Populated when the stage fails with a DomainError.
+	ErrorInfo *StageErrorInfo `json:"error_info,omitempty"`
+
 	// Details contains stage-specific output data.
 	Details interface{} `json:"details,omitempty"`
 
 	// Logs contains log messages from stage execution.
 	Logs []string `json:"logs,omitempty"`
+}
+
+// StageErrorInfo contains structured error information for stage failures.
+// This mirrors DomainError fields relevant for stage-level error reporting.
+type StageErrorInfo struct {
+	Code          string                 `json:"code"`
+	Message       string                 `json:"message"`
+	Domain        string                 `json:"domain,omitempty"`
+	Details       map[string]interface{} `json:"details,omitempty"`
+	Recovery      string                 `json:"recovery,omitempty"`
+	RecoveryHint  string                 `json:"recovery_hint,omitempty"`
+	RetryStrategy *RetryStrategyInfo     `json:"retry_strategy,omitempty"`
+	AutoFix       *AutoFixInfo           `json:"auto_fix,omitempty"`
+	ManualSteps   []string               `json:"manual_steps,omitempty"`
+	Diagnostic    *DiagnosticInfo        `json:"diagnostic,omitempty"`
+}
+
+// RetryStrategyInfo mirrors errors.RetryStrategy for JSON serialization.
+type RetryStrategyInfo struct {
+	MaxAttempts       int     `json:"max_attempts"`
+	BackoffMs         int     `json:"backoff_ms"`
+	BackoffMultiplier float64 `json:"backoff_multiplier"`
+}
+
+// AutoFixInfo mirrors errors.AutoFix for JSON serialization.
+type AutoFixInfo struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+	Safe        bool   `json:"safe"`
+}
+
+// DiagnosticInfo mirrors errors.DiagnosticContext for JSON serialization.
+type DiagnosticInfo struct {
+	Process *ProcessDiagnosticInfo `json:"process,omitempty"`
+	System  map[string]string      `json:"system,omitempty"`
+}
+
+// ProcessDiagnosticInfo mirrors errors.ProcessDiagnostic for JSON serialization.
+type ProcessDiagnosticInfo struct {
+	PID        int    `json:"pid,omitempty"`
+	ExitCode   int    `json:"exit_code,omitempty"`
+	RuntimeMs  int64  `json:"runtime_ms,omitempty"`
+	LastOutput string `json:"last_output,omitempty"`
 }
 
 // RunRequest is the HTTP request body for starting a pipeline.

@@ -14,11 +14,16 @@ import (
 // This ensures consistent error formatting across all endpoints.
 // Includes recovery information to help clients determine appropriate next steps.
 type ErrorResponse struct {
-	Error        string                 `json:"error"`
-	Code         string                 `json:"code,omitempty"`
-	Details      map[string]interface{} `json:"details,omitempty"`
-	Recovery     string                 `json:"recovery,omitempty"`
-	RecoveryHint string                 `json:"recovery_hint,omitempty"`
+	Error         string                    `json:"error"`
+	Code          string                    `json:"code,omitempty"`
+	Category      string                    `json:"category,omitempty"` // Semantic category for simplified client handling
+	Details       map[string]interface{}    `json:"details,omitempty"`
+	Recovery      string                    `json:"recovery,omitempty"`
+	RecoveryHint  string                    `json:"recovery_hint,omitempty"`
+	RetryStrategy *errors.RetryStrategy     `json:"retry_strategy,omitempty"`
+	AutoFix       *errors.AutoFix           `json:"auto_fix,omitempty"`
+	ManualSteps   []string                  `json:"manual_steps,omitempty"`
+	Diagnostic    *errors.DiagnosticContext `json:"diagnostic,omitempty"`
 }
 
 // SuccessResponse represents a generic success response with optional message.
@@ -85,11 +90,16 @@ func WriteError(w http.ResponseWriter, err error) {
 
 	if de, ok := errors.IsDomainError(err); ok {
 		WriteJSON(w, de.HTTPStatus(), ErrorResponse{
-			Error:        de.Message,
-			Code:         string(de.Code),
-			Details:      de.Details,
-			Recovery:     string(de.GetRecovery()),
-			RecoveryHint: de.RecoveryHint,
+			Error:         de.Message,
+			Code:          string(de.Code),
+			Category:      string(de.Category()),
+			Details:       de.Details,
+			Recovery:      string(de.GetRecovery()),
+			RecoveryHint:  de.RecoveryHint,
+			RetryStrategy: de.RetryStrategy,
+			AutoFix:       de.AutoFix,
+			ManualSteps:   de.ManualSteps,
+			Diagnostic:    de.Diagnostic,
 		})
 		return
 	}
@@ -116,17 +126,23 @@ func WriteErrorWithStatus(w http.ResponseWriter, status int, err error) {
 
 	if de, ok := errors.IsDomainError(err); ok {
 		WriteJSON(w, status, ErrorResponse{
-			Error:        de.Message,
-			Code:         string(de.Code),
-			Details:      de.Details,
-			Recovery:     string(de.GetRecovery()),
-			RecoveryHint: de.RecoveryHint,
+			Error:         de.Message,
+			Code:          string(de.Code),
+			Category:      string(de.Category()),
+			Details:       de.Details,
+			Recovery:      string(de.GetRecovery()),
+			RecoveryHint:  de.RecoveryHint,
+			RetryStrategy: de.RetryStrategy,
+			AutoFix:       de.AutoFix,
+			ManualSteps:   de.ManualSteps,
+			Diagnostic:    de.Diagnostic,
 		})
 		return
 	}
 
 	WriteJSON(w, status, ErrorResponse{
 		Error:    err.Error(),
+		Category: string(errors.CategoryExecution), // Default category for non-domain errors
 		Recovery: string(errors.RecoveryRetry),
 	})
 }

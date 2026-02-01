@@ -47,6 +47,9 @@ interface DesktopConfig {
     bundle_ui_port_name?: string;
     bundle_telemetry_upload_url?: string;
 
+    // Auth configuration
+    lpbs_url?: string; // Vrooli platform URL for auth (defaults to https://vrooli.com)
+
     // Template configuration
     framework: 'electron' | 'tauri' | 'neutralino';
     template_type: 'basic' | 'universal' | 'advanced' | 'kiosk' | 'multi_window';
@@ -373,6 +376,9 @@ class DesktopTemplateGenerator {
             UPDATE_PROVIDER: this.config.update_config?.provider || 'none',
             UPDATE_AUTO_CHECK: this.config.update_config?.auto_check ?? false,
             UPDATE_SERVER_URL: this.getUpdateServerUrl(),
+
+            // Auth configuration
+            LPBS_URL: this.config.lpbs_url || 'https://vrooli.com',
         };
         
         // Merge template-specific variables

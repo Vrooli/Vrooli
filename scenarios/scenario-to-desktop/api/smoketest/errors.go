@@ -1,8 +1,18 @@
+// Package smoketest provides smoke test execution and error handling.
+//
+// This file bridges the smoketest-local error types with the shared errors package.
+// The ErrorKind and Error types are kept for backward compatibility with the
+// Status type's JSON serialization, but internally use shared error infrastructure.
 package smoketest
 
-import "fmt"
+import (
+	"fmt"
+
+	"scenario-to-desktop-api/shared/errors"
+)
 
 // ErrorKind categorizes smoke test errors for distinct handling.
+// Kept for backward compatibility with Status.ErrorKind JSON field.
 type ErrorKind int
 
 const (
@@ -49,6 +59,8 @@ func (k ErrorKind) String() string {
 }
 
 // Error is a structured smoke test error with context for diagnosis.
+// This type is used internally for rich error handling and is converted
+// to Status fields when storing results.
 type Error struct {
 	Kind            ErrorKind
 	Message         string
@@ -57,59 +69,11 @@ type Error struct {
 	Recoverable     bool
 	SuggestedAction string
 
-	// Enhanced recovery information
-	RetryStrategy *RetryStrategy     // Retry configuration if applicable
-	AutoFix       *AutoFix           // Automatic fix command if safe to run
-	ManualSteps   []string           // Ordered manual resolution steps
-	Diagnostic    *DiagnosticContext // Additional diagnostic information
-}
-
-// RetryStrategy defines how to retry a failed operation.
-type RetryStrategy struct {
-	// MaxAttempts is the maximum number of retry attempts.
-	MaxAttempts int
-
-	// BackoffMs is the initial backoff duration in milliseconds.
-	BackoffMs int
-
-	// BackoffMultiplier increases backoff between attempts (default 2.0).
-	BackoffMultiplier float64
-}
-
-// AutoFix describes an automatic fix that can be applied.
-type AutoFix struct {
-	// Command is the shell command to run.
-	Command string
-
-	// Description explains what the command does.
-	Description string
-
-	// Safe indicates if the command is safe to run without confirmation.
-	Safe bool
-}
-
-// DiagnosticContext provides additional information for debugging.
-type DiagnosticContext struct {
-	// Process contains process-related diagnostics.
-	Process *ProcessDiagnostic
-
-	// System contains system-related information.
-	System map[string]string
-}
-
-// ProcessDiagnostic contains process execution details.
-type ProcessDiagnostic struct {
-	// PID is the process ID if available.
-	PID int
-
-	// ExitCode is the exit code if the process terminated.
-	ExitCode int
-
-	// RuntimeMs is how long the process ran in milliseconds.
-	RuntimeMs int64
-
-	// LastOutput is the last portion of output before failure.
-	LastOutput string
+	// Enhanced recovery information (from shared errors)
+	RetryStrategy *errors.RetryStrategy     // Retry configuration if applicable
+	AutoFix       *errors.AutoFix           // Automatic fix command if safe to run
+	ManualSteps   []string                  // Ordered manual resolution steps
+	Diagnostic    *errors.DiagnosticContext // Additional diagnostic information
 }
 
 func (e *Error) Error() string {
@@ -121,6 +85,67 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error {
 	return e.Cause
+}
+
+// ToDomainError converts this Error to a shared DomainError.
+// This enables integration with the HTTP error handling infrastructure.
+func (e *Error) ToDomainError() *errors.DomainError {
+	code := e.mapKindToCode()
+	de := errors.New(code, e.Message).
+		InDomain("smoketest").
+		WithCause(e.Cause)
+
+	// Copy context to details
+	if len(e.Context) > 0 {
+		details := make(map[string]interface{})
+		for k, v := range e.Context {
+			details[k] = v
+		}
+		de = de.WithDetails(details)
+	}
+
+	// Copy recovery information
+	if e.SuggestedAction != "" {
+		de = de.WithRecovery(de.DefaultRecovery(), e.SuggestedAction)
+	}
+	if e.RetryStrategy != nil {
+		de = de.WithRetryStrategy(e.RetryStrategy)
+	}
+	if e.AutoFix != nil {
+		de = de.WithAutoFix(e.AutoFix)
+	}
+	if len(e.ManualSteps) > 0 {
+		de = de.WithManualSteps(e.ManualSteps)
+	}
+	if e.Diagnostic != nil {
+		de = de.WithDiagnostic(e.Diagnostic)
+	}
+
+	return de
+}
+
+// mapKindToCode maps ErrorKind to shared ErrorCode.
+func (e *Error) mapKindToCode() errors.ErrorCode {
+	switch e.Kind {
+	case ErrKindArtifact:
+		return errors.CodeArtifactNotFound
+	case ErrKindExecution:
+		return errors.CodeSmokeTestFailed
+	case ErrKindTimeout:
+		return errors.CodeTimeout
+	case ErrKindValidation:
+		return errors.CodeSmokeTestFailed
+	case ErrKindTelemetry:
+		return errors.CodeTelemetryError
+	case ErrKindPlatform:
+		return errors.CodeSmokeTestFailed
+	case ErrKindStore:
+		return errors.CodeInternal
+	case ErrKindCancelled:
+		return errors.CodePipelineCancelled
+	default:
+		return errors.CodeInternal
+	}
 }
 
 // RecoveryPaths maps error kinds to recovery suggestions.
@@ -162,11 +187,7 @@ func NewExecutionError(msg string, cause error, context map[string]string) *Erro
 		Context:         context,
 		Recoverable:     true,
 		SuggestedAction: RecoveryPaths[ErrKindExecution],
-		RetryStrategy: &RetryStrategy{
-			MaxAttempts:       3,
-			BackoffMs:         1000,
-			BackoffMultiplier: 2.0,
-		},
+		RetryStrategy:   errors.RetryDefault,
 		ManualSteps: []string{
 			"Check if the application can run manually",
 			"Verify all dependencies are installed",
@@ -185,11 +206,7 @@ func NewTimeoutError(msg string, cause error, context map[string]string) *Error 
 		Context:         context,
 		Recoverable:     true,
 		SuggestedAction: RecoveryPaths[ErrKindTimeout],
-		RetryStrategy: &RetryStrategy{
-			MaxAttempts:       2,
-			BackoffMs:         5000,
-			BackoffMultiplier: 1.5,
-		},
+		RetryStrategy:   errors.RetryConservative,
 		ManualSteps: []string{
 			"Increase SMOKE_TEST_TIMEOUT_MS environment variable",
 			"Check if app startup is slow due to large assets",
@@ -226,11 +243,7 @@ func NewTelemetryError(msg string, cause error, context map[string]string) *Erro
 		Context:         context,
 		Recoverable:     true,
 		SuggestedAction: RecoveryPaths[ErrKindTelemetry],
-		RetryStrategy: &RetryStrategy{
-			MaxAttempts:       3,
-			BackoffMs:         2000,
-			BackoffMultiplier: 2.0,
-		},
+		RetryStrategy:   errors.RetryDefault,
 		ManualSteps: []string{
 			"Check telemetry service is running and accessible",
 			"Verify network connectivity to telemetry endpoint",
@@ -259,7 +272,7 @@ func NewPlatformError(msg string, cause error, platform string) *Error {
 			"Set DISPLAY environment variable or ensure X11 is running",
 			"Verify libgtk and other Electron dependencies are installed",
 		}
-		err.AutoFix = &AutoFix{
+		err.AutoFix = &errors.AutoFix{
 			Command:     "sudo apt-get install -y xvfb libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libasound2",
 			Description: "Install common Electron dependencies for Linux",
 			Safe:        false,
@@ -295,11 +308,7 @@ func NewStoreError(msg string, cause error) *Error {
 		Context:         nil,
 		Recoverable:     true,
 		SuggestedAction: RecoveryPaths[ErrKindStore],
-		RetryStrategy: &RetryStrategy{
-			MaxAttempts:       3,
-			BackoffMs:         500,
-			BackoffMultiplier: 2.0,
-		},
+		RetryStrategy:   errors.RetryDefault,
 		ManualSteps: []string{
 			"Check available disk space: df -h",
 			"Verify file system permissions",

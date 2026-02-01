@@ -219,7 +219,8 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 		IdempotencyKey: config.IdempotencyKey, // Store for future lookups
 	}
 
-	// Set initial progress
+	// Set initial state and progress
+	status.TransitionTo(PipelineStateCreated, "Pipeline created and queued")
 	status.UpdateProgress()
 
 	// Save initial status
@@ -361,7 +362,8 @@ func (o *DefaultOrchestrator) CreateIdlePipeline(config *Config) (*Status, error
 		IdempotencyKey: config.IdempotencyKey,
 	}
 
-	// Set initial progress message for idle state
+	// Set initial state and progress message for idle state
+	status.TransitionTo(PipelineStateCreated, "Pipeline created")
 	status.ProgressPercent = 0
 	status.ProgressMessage = "Pipeline created, waiting to start"
 
@@ -525,9 +527,10 @@ func (o *DefaultOrchestrator) UpdatePipelineConfig(pipelineID string, configUpda
 func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *Config) {
 	defer o.cancelManager.Clear(pipelineID)
 
-	// Update status to running
+	// Update status to running and transition to initializing state
 	o.store.Update(pipelineID, func(s *Status) {
 		s.Status = StatusRunning
+		s.TransitionTo(PipelineStateInitializing, "Pipeline starting execution")
 		s.UpdateProgress()
 	})
 
@@ -601,6 +604,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 				s.Status = StatusCancelled
 				s.CompletedAt = o.timeProvider.Now()
 				s.Error = "pipeline cancelled"
+				s.TransitionTo(PipelineStateCancelled, "Pipeline cancelled by context")
 				s.UpdateProgress()
 			})
 			o.logger.Info("Pipeline cancelled", "pipeline_id", pipelineID)
@@ -608,9 +612,10 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		default:
 		}
 
-		// Update current stage
+		// Update current stage and transition to queueing state
 		o.store.Update(pipelineID, func(s *Status) {
 			s.CurrentStage = stageName
+			s.TransitionTo(PipelineStateQueueingStage, fmt.Sprintf("Queueing stage: %s", stageName))
 			s.UpdateProgress()
 		})
 
@@ -636,8 +641,19 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 			continue
 		}
 
+		// Transition to executing state
+		o.store.Update(pipelineID, func(s *Status) {
+			s.TransitionTo(PipelineStateExecutingStage, fmt.Sprintf("Executing stage: %s", stageName))
+		})
+
 		// Execute stage
 		result := stage.Execute(ctx, input)
+
+		// Transition to processing result state
+		o.store.Update(pipelineID, func(s *Status) {
+			s.TransitionTo(PipelineStateProcessingResult, fmt.Sprintf("Processing result: %s", stageName))
+		})
+
 		o.store.UpdateStage(pipelineID, stageName, result)
 
 		o.logger.Info("Stage completed",
@@ -653,6 +669,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 					s.Status = StatusFailed
 					s.CompletedAt = o.timeProvider.Now()
 					s.Error = fmt.Sprintf("stage %s failed: %s", stageName, result.Error)
+					s.TransitionTo(PipelineStateFailed, fmt.Sprintf("Stage %s failed", stageName))
 					s.UpdateProgress()
 				})
 				o.logger.Error("Pipeline failed", "pipeline_id", pipelineID, "stage", stageName, "error", result.Error)
@@ -667,6 +684,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 				s.Status = StatusCancelled
 				s.CompletedAt = o.timeProvider.Now()
 				s.Error = "pipeline cancelled"
+				s.TransitionTo(PipelineStateCancelled, fmt.Sprintf("Stage %s cancelled", stageName))
 				s.UpdateProgress()
 			})
 			o.logger.Info("Pipeline cancelled at stage", "pipeline_id", pipelineID, "stage", stageName)
@@ -689,6 +707,7 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.FinalArtifacts = finalArtifacts
+		s.TransitionTo(PipelineStateCompleted, "Pipeline completed successfully")
 		s.UpdateProgress()
 	})
 
@@ -707,6 +726,7 @@ func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input
 		s.FinalArtifacts = finalArtifacts
 		// Save the input so it can be restored when resuming
 		s.ResumedInput = input
+		s.TransitionTo(PipelineStateCompleted, fmt.Sprintf("Pipeline stopped after stage: %s", stageName))
 		s.UpdateProgress()
 	})
 

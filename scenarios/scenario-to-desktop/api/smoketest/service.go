@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // DefaultService is the default implementation of Service.
@@ -358,24 +360,16 @@ func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, arti
 }
 
 // getRetryStrategy returns the retry strategy for an error, or nil if not retryable.
-func (s *DefaultService) getRetryStrategy(err error) *RetryStrategy {
+func (s *DefaultService) getRetryStrategy(err error) *errors.RetryStrategy {
 	// Check for timeout errors (retryable)
 	if strings.Contains(err.Error(), "timed out") {
-		return &RetryStrategy{
-			MaxAttempts:       2,
-			BackoffMs:         5000,
-			BackoffMultiplier: 1.5,
-		}
+		return errors.RetryConservative
 	}
 
 	// Check for temporary execution errors (retryable)
 	if strings.Contains(err.Error(), "resource temporarily unavailable") ||
 		strings.Contains(err.Error(), "text file busy") {
-		return &RetryStrategy{
-			MaxAttempts:       3,
-			BackoffMs:         1000,
-			BackoffMultiplier: 2.0,
-		}
+		return errors.RetryDefault
 	}
 
 	// Not retryable
@@ -501,8 +495,8 @@ func (s *DefaultService) buildExecutionError(execErr error, execResult *Executio
 
 	// Add process diagnostics if available
 	if execResult != nil {
-		err.Diagnostic = &DiagnosticContext{
-			Process: &ProcessDiagnostic{
+		err.Diagnostic = &errors.DiagnosticContext{
+			Process: &errors.ProcessDiagnostic{
 				ExitCode:   execResult.ExitCode,
 				RuntimeMs:  execResult.Duration.Milliseconds(),
 				LastOutput: truncateOutput(execResult.Stderr, 1000),

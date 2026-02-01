@@ -38,6 +38,123 @@ const (
 	RecoveryNone RecoveryAction = "none"
 )
 
+// SemanticCategory groups error codes into recovery-distinct categories.
+// This simplifies client-side error handling by providing a higher-level classification
+// than the 51+ individual error codes.
+type SemanticCategory string
+
+const (
+	// CategoryConfiguration indicates user configuration errors that require fixing input.
+	// Recovery: fix_input - User needs to correct configuration and retry.
+	CategoryConfiguration SemanticCategory = "configuration"
+
+	// CategoryResourceMissing indicates a required resource was not found.
+	// Recovery: fix_input or install_dependency - User needs to ensure resource exists.
+	CategoryResourceMissing SemanticCategory = "resource_missing"
+
+	// CategoryTransient indicates temporary failures that may succeed on retry.
+	// Recovery: retry_with_backoff - Wait and retry automatically.
+	CategoryTransient SemanticCategory = "transient"
+
+	// CategoryExecution indicates execution errors that may succeed on immediate retry.
+	// Recovery: retry - Retry immediately.
+	CategoryExecution SemanticCategory = "execution"
+
+	// CategoryCredentials indicates authentication or authorization issues.
+	// Recovery: provide_credentials - User needs to provide valid credentials.
+	CategoryCredentials SemanticCategory = "credentials"
+
+	// CategoryTerminal indicates unrecoverable errors requiring human intervention.
+	// Recovery: none or contact_support - No automatic recovery possible.
+	CategoryTerminal SemanticCategory = "terminal"
+)
+
+// categoryMap maps error codes to semantic categories.
+// This provides a simplified classification for client error handling.
+var categoryMap = map[ErrorCode]SemanticCategory{
+	// General errors
+	CodeInternal:       CategoryExecution,
+	CodeNotFound:       CategoryResourceMissing,
+	CodeBadRequest:     CategoryConfiguration,
+	CodeUnauthorized:   CategoryCredentials,
+	CodeForbidden:      CategoryCredentials,
+	CodeConflict:       CategoryTransient,
+	CodeTimeout:        CategoryTransient,
+	CodeValidation:     CategoryConfiguration,
+	CodeUnavailable:    CategoryTransient,
+	CodeNotImplemented: CategoryTerminal,
+
+	// Bundle domain errors
+	CodeBundleNotFound:       CategoryResourceMissing,
+	CodeBundleInvalid:        CategoryConfiguration,
+	CodeBundleManifestError:  CategoryConfiguration,
+	CodeBundleCompileError:   CategoryExecution,
+	CodeBundleRuntimeError:   CategoryExecution,
+	CodeBundleSecretsError:   CategoryCredentials,
+	CodeBundlePackageError:   CategoryExecution,
+	CodeBundleServiceTimeout: CategoryTransient,
+
+	// Build domain errors
+	CodeBuildNotFound:       CategoryResourceMissing,
+	CodeBuildInProgress:     CategoryTransient,
+	CodeBuildFailed:         CategoryExecution,
+	CodeBuildArtifactError:  CategoryExecution,
+	CodePlatformUnsupported: CategoryConfiguration,
+
+	// Generation domain errors
+	CodeWrapperNotFound:     CategoryResourceMissing,
+	CodeTemplateNotFound:    CategoryResourceMissing,
+	CodeTemplateError:       CategoryTerminal,
+	CodeGenerationFailed:    CategoryExecution,
+	CodeConfigInvalid:       CategoryConfiguration,
+	CodeScenarioNotFound:    CategoryResourceMissing,
+	CodeScenarioPathInvalid: CategoryConfiguration,
+
+	// Preflight domain errors
+	CodePreflightFailed:    CategoryConfiguration,
+	CodePreflightTimeout:   CategoryTransient,
+	CodeSessionNotFound:    CategoryResourceMissing,
+	CodeSessionExpired:     CategoryTransient,
+	CodeJobNotFound:        CategoryResourceMissing,
+	CodeServiceStartError:  CategoryExecution,
+	CodeServiceHealthError: CategoryTransient,
+	CodeDependencyError:    CategoryResourceMissing,
+
+	// Smoke test domain errors
+	CodeSmokeTestNotFound:  CategoryResourceMissing,
+	CodeSmokeTestFailed:    CategoryExecution,
+	CodeTelemetryError:     CategoryExecution,
+	CodeArtifactNotFound:   CategoryResourceMissing,
+	CodeProcessSpawnError:  CategoryExecution,
+	CodeProcessExitError:   CategoryExecution,
+	CodeProcessKillTimeout: CategoryTransient,
+
+	// Signing domain errors
+	CodeSigningNotConfigured:   CategoryConfiguration,
+	CodeSigningCertError:       CategoryConfiguration,
+	CodeSigningToolError:       CategoryResourceMissing,
+	CodeNotarizationError:      CategoryExecution,
+	CodeEntitlementsError:      CategoryConfiguration,
+	CodeCertificateExpired:     CategoryConfiguration,
+	CodeCertificateNotFound:    CategoryResourceMissing,
+	CodeCertificateInvalid:     CategoryConfiguration,
+	CodeKeychainError:          CategoryExecution,
+	CodeSigningIdentityMissing: CategoryConfiguration,
+
+	// Pipeline domain errors
+	CodePipelineNotFound:  CategoryResourceMissing,
+	CodePipelineFailed:    CategoryExecution,
+	CodePipelineCancelled: CategoryTerminal,
+	CodePipelineTimeout:   CategoryTransient,
+	CodeStageSkipped:      CategoryTerminal, // Not an error, informational
+	CodeStageFailed:       CategoryExecution,
+
+	// System domain errors
+	CodeWineNotInstalled:    CategoryResourceMissing,
+	CodeWineInstallFailed:   CategoryExecution,
+	CodeSystemResourceError: CategoryExecution,
+}
+
 // Domain error codes - grouped by domain for discoverability.
 const (
 	// General errors
@@ -141,7 +258,66 @@ type DomainError struct {
 	RecoveryHint string `json:"recovery_hint,omitempty"`
 	// Cause is the underlying error (not serialized to JSON)
 	Cause error `json:"-"`
+
+	// RetryStrategy provides configuration for automatic retries
+	RetryStrategy *RetryStrategy `json:"retry_strategy,omitempty"`
+	// AutoFix describes an automatic fix command if available
+	AutoFix *AutoFix `json:"auto_fix,omitempty"`
+	// ManualSteps provides ordered manual resolution steps
+	ManualSteps []string `json:"manual_steps,omitempty"`
+	// Diagnostic provides additional debugging context
+	Diagnostic *DiagnosticContext `json:"diagnostic,omitempty"`
 }
+
+// RetryStrategy defines how to retry a failed operation.
+type RetryStrategy struct {
+	// MaxAttempts is the maximum number of retry attempts.
+	MaxAttempts int `json:"max_attempts"`
+	// BackoffMs is the initial backoff duration in milliseconds.
+	BackoffMs int `json:"backoff_ms"`
+	// BackoffMultiplier increases backoff between attempts.
+	BackoffMultiplier float64 `json:"backoff_multiplier"`
+}
+
+// AutoFix describes an automatic fix that can be applied.
+type AutoFix struct {
+	// Command is the shell command to run.
+	Command string `json:"command"`
+	// Description explains what the command does.
+	Description string `json:"description"`
+	// Safe indicates if the command is safe to run without confirmation.
+	Safe bool `json:"safe"`
+}
+
+// DiagnosticContext provides additional information for debugging.
+type DiagnosticContext struct {
+	// Process contains process-related diagnostics.
+	Process *ProcessDiagnostic `json:"process,omitempty"`
+	// System contains system-related information.
+	System map[string]string `json:"system,omitempty"`
+}
+
+// ProcessDiagnostic contains process execution details.
+type ProcessDiagnostic struct {
+	// PID is the process ID if available.
+	PID int `json:"pid,omitempty"`
+	// ExitCode is the exit code if the process terminated.
+	ExitCode int `json:"exit_code,omitempty"`
+	// RuntimeMs is how long the process ran in milliseconds.
+	RuntimeMs int64 `json:"runtime_ms,omitempty"`
+	// LastOutput is the last portion of output before failure.
+	LastOutput string `json:"last_output,omitempty"`
+}
+
+// Predefined retry strategies for common scenarios.
+var (
+	// RetryDefault is a balanced retry strategy for most operations.
+	RetryDefault = &RetryStrategy{MaxAttempts: 3, BackoffMs: 1000, BackoffMultiplier: 2.0}
+	// RetryAggressive is for operations that should be retried quickly.
+	RetryAggressive = &RetryStrategy{MaxAttempts: 5, BackoffMs: 500, BackoffMultiplier: 1.5}
+	// RetryConservative is for operations that need longer delays.
+	RetryConservative = &RetryStrategy{MaxAttempts: 2, BackoffMs: 5000, BackoffMultiplier: 2.0}
+)
 
 // Error implements the error interface.
 func (e *DomainError) Error() string {
@@ -159,13 +335,17 @@ func (e *DomainError) Unwrap() error {
 // WithCause returns a copy of the error with the given underlying cause.
 func (e *DomainError) WithCause(cause error) *DomainError {
 	return &DomainError{
-		Code:         e.Code,
-		Message:      e.Message,
-		Domain:       e.Domain,
-		Details:      e.Details,
-		Recovery:     e.Recovery,
-		RecoveryHint: e.RecoveryHint,
-		Cause:        cause,
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
 	}
 }
 
@@ -177,13 +357,17 @@ func (e *DomainError) WithDetail(key string, value interface{}) *DomainError {
 	}
 	details[key] = value
 	return &DomainError{
-		Code:         e.Code,
-		Message:      e.Message,
-		Domain:       e.Domain,
-		Details:      details,
-		Recovery:     e.Recovery,
-		RecoveryHint: e.RecoveryHint,
-		Cause:        e.Cause,
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
 	}
 }
 
@@ -197,26 +381,34 @@ func (e *DomainError) WithDetails(details map[string]interface{}) *DomainError {
 		merged[k] = v
 	}
 	return &DomainError{
-		Code:         e.Code,
-		Message:      e.Message,
-		Domain:       e.Domain,
-		Details:      merged,
-		Recovery:     e.Recovery,
-		RecoveryHint: e.RecoveryHint,
-		Cause:        e.Cause,
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       merged,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
 	}
 }
 
 // WithMessage returns a copy of the error with a custom message.
 func (e *DomainError) WithMessage(msg string) *DomainError {
 	return &DomainError{
-		Code:         e.Code,
-		Message:      msg,
-		Domain:       e.Domain,
-		Details:      e.Details,
-		Recovery:     e.Recovery,
-		RecoveryHint: e.RecoveryHint,
-		Cause:        e.Cause,
+		Code:          e.Code,
+		Message:       msg,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
 	}
 }
 
@@ -228,13 +420,85 @@ func (e *DomainError) WithMessagef(format string, args ...interface{}) *DomainEr
 // WithRecovery returns a copy of the error with recovery information.
 func (e *DomainError) WithRecovery(action RecoveryAction, hint string) *DomainError {
 	return &DomainError{
-		Code:         e.Code,
-		Message:      e.Message,
-		Domain:       e.Domain,
-		Details:      e.Details,
-		Recovery:     action,
-		RecoveryHint: hint,
-		Cause:        e.Cause,
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      action,
+		RecoveryHint:  hint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
+	}
+}
+
+// WithRetryStrategy returns a copy of the error with a retry strategy.
+func (e *DomainError) WithRetryStrategy(s *RetryStrategy) *DomainError {
+	return &DomainError{
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: s,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
+	}
+}
+
+// WithAutoFix returns a copy of the error with an auto-fix command.
+func (e *DomainError) WithAutoFix(f *AutoFix) *DomainError {
+	return &DomainError{
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       f,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
+	}
+}
+
+// WithManualSteps returns a copy of the error with manual resolution steps.
+func (e *DomainError) WithManualSteps(steps []string) *DomainError {
+	return &DomainError{
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   steps,
+		Diagnostic:    e.Diagnostic,
+	}
+}
+
+// WithDiagnostic returns a copy of the error with diagnostic context.
+func (e *DomainError) WithDiagnostic(d *DiagnosticContext) *DomainError {
+	return &DomainError{
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    d,
 	}
 }
 
@@ -426,6 +690,175 @@ func (e *DomainError) GetRecovery() RecoveryAction {
 	return e.DefaultRecovery()
 }
 
+// Category returns the semantic category for this error.
+// Categories group the 51+ error codes into 6 recovery-distinct categories
+// for simpler client-side error handling.
+func (e *DomainError) Category() SemanticCategory {
+	if cat, ok := categoryMap[e.Code]; ok {
+		return cat
+	}
+	// Default to execution for unknown codes (retry is safe)
+	return CategoryExecution
+}
+
+// defaultManualStepsMap provides default manual steps for error codes.
+// These are used when an error doesn't have explicit manual steps set.
+var defaultManualStepsMap = map[ErrorCode][]string{
+	// General errors
+	CodeInternal: {
+		"Check server logs for detailed error information",
+		"Verify the service is running correctly",
+		"Contact support if the issue persists",
+	},
+	CodeNotFound: {
+		"Verify the resource identifier is correct",
+		"Check that the resource exists",
+		"Ensure you have permission to access the resource",
+	},
+	CodeBadRequest: {
+		"Review the request parameters",
+		"Check the API documentation for required fields",
+		"Ensure all values are in the expected format",
+	},
+	CodeUnauthorized: {
+		"Verify your credentials are correct",
+		"Check that your session hasn't expired",
+		"Ensure you're using the correct authentication method",
+	},
+	CodeForbidden: {
+		"Verify you have permission for this operation",
+		"Check with your administrator about access rights",
+		"Ensure the resource isn't restricted",
+	},
+	CodeConflict: {
+		"Wait a moment and retry the operation",
+		"Check if a similar operation is already in progress",
+		"Refresh the current state before retrying",
+	},
+	CodeTimeout: {
+		"Check network connectivity",
+		"Verify the target service is responsive",
+		"Consider increasing the timeout duration",
+	},
+	CodeValidation: {
+		"Review the input values for errors",
+		"Check required fields are provided",
+		"Ensure values match expected formats",
+	},
+	CodeUnavailable: {
+		"Wait a moment and retry",
+		"Check if the service is undergoing maintenance",
+		"Verify network connectivity",
+	},
+	CodeNotImplemented: {
+		"This feature is not yet available",
+		"Check documentation for alternative approaches",
+		"Contact support for feature requests",
+	},
+}
+
+// defaultAutoFixMap provides default auto-fix suggestions for error codes.
+// These are safe commands that can help resolve common issues.
+var defaultAutoFixMap = map[ErrorCode]*AutoFix{
+	CodeBundleManifestError: {
+		Command:     "vrooli scenario generate-manifest <scenario-name>",
+		Description: "Generate a bundle manifest for the scenario",
+		Safe:        true,
+	},
+	CodeWineNotInstalled: {
+		Command:     "sudo apt-get install -y wine64",
+		Description: "Install Wine for Windows cross-compilation",
+		Safe:        false, // Requires sudo
+	},
+	CodeDependencyError: {
+		Command:     "vrooli setup --resources enabled",
+		Description: "Install required dependencies",
+		Safe:        true,
+	},
+}
+
+// DefaultManualSteps returns the default manual steps for this error code.
+// Returns nil if no defaults are defined.
+func (e *DomainError) DefaultManualSteps() []string {
+	if steps, ok := defaultManualStepsMap[e.Code]; ok {
+		return steps
+	}
+	return nil
+}
+
+// DefaultAutoFix returns the default auto-fix for this error code.
+// Returns nil if no default is defined.
+func (e *DomainError) DefaultAutoFix() *AutoFix {
+	if fix, ok := defaultAutoFixMap[e.Code]; ok {
+		return fix
+	}
+	return nil
+}
+
+// EnrichRecovery adds sensible default recovery information if not already present.
+// This fills in ManualSteps, AutoFix, RecoveryHint, and RetryStrategy based on
+// the error code when these fields are not explicitly set.
+// Returns a new DomainError with enriched recovery information.
+func (e *DomainError) EnrichRecovery() *DomainError {
+	enriched := &DomainError{
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        e.Domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
+	}
+
+	// Add default manual steps if not set
+	if len(enriched.ManualSteps) == 0 {
+		if steps := e.DefaultManualSteps(); steps != nil {
+			enriched.ManualSteps = steps
+		}
+	}
+
+	// Add default auto-fix if not set
+	if enriched.AutoFix == nil {
+		if fix := e.DefaultAutoFix(); fix != nil {
+			enriched.AutoFix = fix
+		}
+	}
+
+	// Add recovery hint based on category if not set
+	if enriched.RecoveryHint == "" {
+		switch e.Category() {
+		case CategoryConfiguration:
+			enriched.RecoveryHint = "Check configuration and correct any invalid values"
+		case CategoryResourceMissing:
+			enriched.RecoveryHint = "Ensure the required resource exists and is accessible"
+		case CategoryTransient:
+			enriched.RecoveryHint = "This may be a temporary issue - wait and retry"
+		case CategoryExecution:
+			enriched.RecoveryHint = "Retry the operation"
+		case CategoryCredentials:
+			enriched.RecoveryHint = "Verify credentials and permissions"
+		case CategoryTerminal:
+			enriched.RecoveryHint = "This error requires manual intervention"
+		}
+	}
+
+	// Add default retry strategy based on category if not set
+	if enriched.RetryStrategy == nil {
+		switch e.Category() {
+		case CategoryTransient:
+			enriched.RetryStrategy = RetryConservative
+		case CategoryExecution:
+			enriched.RetryStrategy = RetryDefault
+		}
+	}
+
+	return enriched
+}
+
 // HTTPStatus returns the appropriate HTTP status code for this error.
 func (e *DomainError) HTTPStatus() int {
 	if status, ok := httpStatusMap[e.Code]; ok {
@@ -490,13 +923,17 @@ func Wrapf(code ErrorCode, cause error, format string, args ...interface{}) *Dom
 // InDomain returns a copy of the error with the domain set.
 func (e *DomainError) InDomain(domain string) *DomainError {
 	return &DomainError{
-		Code:         e.Code,
-		Message:      e.Message,
-		Domain:       domain,
-		Details:      e.Details,
-		Recovery:     e.Recovery,
-		RecoveryHint: e.RecoveryHint,
-		Cause:        e.Cause,
+		Code:          e.Code,
+		Message:       e.Message,
+		Domain:        domain,
+		Details:       e.Details,
+		Recovery:      e.Recovery,
+		RecoveryHint:  e.RecoveryHint,
+		Cause:         e.Cause,
+		RetryStrategy: e.RetryStrategy,
+		AutoFix:       e.AutoFix,
+		ManualSteps:   e.ManualSteps,
+		Diagnostic:    e.Diagnostic,
 	}
 }
 
@@ -875,4 +1312,566 @@ func containsAny(s string, substrings ...string) bool {
 		}
 	}
 	return false
+}
+
+// ---- Stage-specific error constructors ----
+// These provide rich error information for pipeline stage failures.
+
+// Bundle stage errors
+
+// ErrBundleManifestNotFound creates an error for missing bundle manifest.
+func ErrBundleManifestNotFound(path string) *DomainError {
+	return New(CodeBundleManifestError, "bundle manifest not found").
+		WithDetail("manifest_path", path).
+		WithRecovery(RecoveryFixInput, "Ensure the bundle manifest exists at the expected path").
+		WithManualSteps([]string{
+			fmt.Sprintf("Check if manifest exists: ls -la %s", path),
+			"Verify scenario has platforms/<framework>/bundle/bundle.json",
+			"Run deployment-manager to generate the manifest if missing",
+		}).
+		InDomain("bundle")
+}
+
+// ErrBundleManifestGeneration creates an error for manifest generation failure.
+func ErrBundleManifestGeneration(cause error) *DomainError {
+	return Wrap(CodeBundleManifestError, cause, "failed to generate bundle manifest").
+		WithRecovery(RecoveryRetry, "Retry the operation or check manifest generation logs").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Check deployment-manager logs for details",
+			"Verify scenario service.json is valid",
+			"Ensure all required dependencies are available",
+		}).
+		InDomain("bundle")
+}
+
+// ErrBundlePackagingFailed creates an error for bundle packaging failure.
+func ErrBundlePackagingFailed(cause error, path string) *DomainError {
+	return Wrap(CodeBundlePackageError, cause, "bundle packaging failed").
+		WithDetail("bundle_path", path).
+		WithRecovery(RecoveryRetry, "Check bundle configuration and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Review the bundle manifest for errors",
+			"Check disk space and permissions",
+			"Verify all referenced files exist",
+		}).
+		InDomain("bundle")
+}
+
+// ErrBundleServiceNotConfigured creates an error for missing bundle service.
+func ErrBundleServiceNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Bundle packaging service unavailable").
+		WithDetail("internal_error", "bundle packager not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the bundle packager is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("bundle")
+}
+
+// Preflight stage errors
+
+// ErrPreflightServiceNotConfigured creates an error for missing preflight service.
+func ErrPreflightServiceNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Preflight validation service unavailable").
+		WithDetail("internal_error", "preflight service not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the preflight service is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("preflight")
+}
+
+// ErrPreflightValidationFailed creates an error for preflight validation failure.
+func ErrPreflightValidationFailed(cause error, validationErrors []string) *DomainError {
+	err := Wrap(CodePreflightFailed, cause, "preflight validation failed").
+		WithRecovery(RecoveryFixInput, "Fix validation errors and retry").
+		InDomain("preflight")
+
+	if len(validationErrors) > 0 {
+		err = err.WithDetail("validation_errors", validationErrors)
+		steps := []string{"Fix the following validation errors:"}
+		for _, e := range validationErrors {
+			steps = append(steps, "  - "+e)
+		}
+		steps = append(steps, "Re-run the pipeline after fixing issues")
+		err = err.WithManualSteps(steps)
+	}
+
+	return err
+}
+
+// ErrPreflightBundleNotAvailable creates an error when bundle result is missing.
+func ErrPreflightBundleNotAvailable() *DomainError {
+	return New(CodeDependencyError, "bundle result not available from previous stage").
+		WithRecovery(RecoveryRetry, "Ensure bundle stage completes successfully first").
+		WithManualSteps([]string{
+			"Check if the bundle stage completed successfully",
+			"Review bundle stage logs for errors",
+			"Restart the pipeline from the bundle stage",
+		}).
+		InDomain("preflight")
+}
+
+// ErrPreflightTimeout creates an error for preflight timeout.
+func ErrPreflightTimeout(duration string) *DomainError {
+	return New(CodePreflightTimeout, "preflight validation timed out").
+		WithDetail("timeout_duration", duration).
+		WithRecovery(RecoveryRetryWithBackoff, "Increase timeout and retry").
+		WithRetryStrategy(RetryConservative).
+		WithManualSteps([]string{
+			"Increase preflight_timeout_seconds in pipeline config",
+			"Check if services are starting slowly",
+			"Review resource usage during preflight",
+		}).
+		InDomain("preflight")
+}
+
+// Generate stage errors
+
+// ErrGenerateAnalyzerNotConfigured creates an error for missing scenario analyzer.
+func ErrGenerateAnalyzerNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Scenario analysis service unavailable").
+		WithDetail("internal_error", "scenario analyzer not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the generation service is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("generation")
+}
+
+// ErrGenerateServiceNotConfigured creates an error for missing generation service.
+func ErrGenerateServiceNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Code generation service unavailable").
+		WithDetail("internal_error", "generation service not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the generation service is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("generation")
+}
+
+// ErrScenarioAnalysisFailed creates an error for scenario analysis failure.
+func ErrScenarioAnalysisFailed(cause error, scenarioName string) *DomainError {
+	return Wrap(CodeGenerationFailed, cause, "scenario analysis failed").
+		WithDetail("scenario_name", scenarioName).
+		WithRecovery(RecoveryFixInput, "Check scenario configuration and retry").
+		WithManualSteps([]string{
+			"Verify scenario exists in scenarios/" + scenarioName,
+			"Check scenario service.json is valid JSON",
+			"Ensure required fields are present in service.json",
+		}).
+		InDomain("generation")
+}
+
+// ErrScenarioValidationFailed creates an error for scenario validation failure.
+func ErrScenarioValidationFailed(cause error, scenarioName string) *DomainError {
+	return Wrap(CodeGenerationFailed, cause, "scenario validation failed").
+		WithDetail("scenario_name", scenarioName).
+		WithRecovery(RecoveryFixInput, "Fix scenario configuration for desktop deployment").
+		WithManualSteps([]string{
+			"Check scenario meets desktop deployment requirements",
+			"Verify UI port and entry point are configured",
+			"Review desktop deployment documentation",
+		}).
+		InDomain("generation")
+}
+
+// ErrDesktopConfigFailed creates an error for desktop config creation failure.
+func ErrDesktopConfigFailed(cause error) *DomainError {
+	return Wrap(CodeGenerationFailed, cause, "failed to create desktop config").
+		WithRecovery(RecoveryRetry, "Check scenario metadata and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Verify scenario metadata is complete",
+			"Check template type is supported",
+			"Review generation service logs",
+		}).
+		InDomain("generation")
+}
+
+// ErrGenerationTimeout creates an error for generation timeout.
+func ErrGenerationTimeout(buildID string, duration string) *DomainError {
+	return New(CodeTimeout, "generation timed out").
+		WithDetail("build_id", buildID).
+		WithDetail("timeout_duration", duration).
+		WithRecovery(RecoveryRetryWithBackoff, "Retry with longer timeout").
+		WithRetryStrategy(RetryConservative).
+		WithManualSteps([]string{
+			"Check if generation is slow due to large template",
+			"Review system resource usage",
+			"Consider simplifying the desktop configuration",
+		}).
+		InDomain("generation")
+}
+
+// ErrGenerationFailed creates an error for generation failure.
+func ErrGenerationFailed(cause error) *DomainError {
+	return Wrap(CodeGenerationFailed, cause, "generation failed").
+		WithRecovery(RecoveryRetry, "Check generation logs and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Review generation error logs",
+			"Verify template files are intact",
+			"Check disk space and permissions",
+		}).
+		InDomain("generation")
+}
+
+// Build stage errors
+
+// ErrBuildServiceNotConfigured creates an error for missing build service.
+func ErrBuildServiceNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Build service unavailable").
+		WithDetail("internal_error", "build service not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the build service is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("build")
+}
+
+// ErrBuildStoreNotConfigured creates an error for missing build store.
+func ErrBuildStoreNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Build tracking service unavailable").
+		WithDetail("internal_error", "build store not configured for status polling").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the build store is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("build")
+}
+
+// ErrBuildDesktopPathMissing creates an error when desktop path is missing.
+func ErrBuildDesktopPathMissing() *DomainError {
+	return New(CodeDependencyError, "desktop path not available from generation stage").
+		WithRecovery(RecoveryRetry, "Ensure generation stage completes successfully first").
+		WithManualSteps([]string{
+			"Check if the generation stage completed successfully",
+			"Review generation stage logs for errors",
+			"Restart the pipeline from the generation stage",
+		}).
+		InDomain("build")
+}
+
+// ErrBuildStartFailed creates an error for build start failure.
+func ErrBuildStartFailed(cause error, platform string) *DomainError {
+	return Wrap(CodeBuildFailed, cause, "build failed to start").
+		WithDetail("platform", platform).
+		WithRecovery(RecoveryRetry, "Check build configuration and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Verify electron-builder is installed",
+			"Check platform-specific build tools are available",
+			"Review build service logs for details",
+		}).
+		InDomain("build")
+}
+
+// ErrBuildTimedOut creates an error for build timeout.
+func ErrBuildTimedOut(buildID string, duration string) *DomainError {
+	return New(CodeTimeout, "build timed out").
+		WithDetail("build_id", buildID).
+		WithDetail("timeout_duration", duration).
+		WithRecovery(RecoveryRetryWithBackoff, "Retry with longer timeout").
+		WithRetryStrategy(RetryConservative).
+		WithManualSteps([]string{
+			"Build may be slow due to large assets",
+			"Check system resource usage during build",
+			"Consider building fewer platforms in parallel",
+		}).
+		InDomain("build")
+}
+
+// ErrBuildPlatformFailed creates an error for platform build failure.
+func ErrBuildPlatformFailed(cause error, platform string, lastOutput string) *DomainError {
+	err := Wrap(CodeBuildFailed, cause, "build failed").
+		WithDetail("platform", platform).
+		WithRecovery(RecoveryRetry, "Check build logs and retry").
+		WithRetryStrategy(RetryDefault).
+		InDomain("build")
+
+	if lastOutput != "" {
+		err = err.WithDiagnostic(&DiagnosticContext{
+			Process: &ProcessDiagnostic{
+				LastOutput: lastOutput,
+			},
+		})
+	}
+
+	// Platform-specific manual steps
+	switch platform {
+	case "linux":
+		err = err.WithManualSteps([]string{
+			"Check Linux build dependencies are installed",
+			"Verify fpm is available for package creation",
+			"Review electron-builder output for errors",
+		})
+	case "mac":
+		err = err.WithManualSteps([]string{
+			"macOS builds may require code signing",
+			"Check Xcode command line tools are installed",
+			"Review electron-builder output for errors",
+		})
+	case "win":
+		err = err.WithManualSteps([]string{
+			"Windows builds on Linux require Wine",
+			"Check if Wine is installed and configured",
+			"Review electron-builder output for errors",
+		})
+	default:
+		err = err.WithManualSteps([]string{
+			"Review electron-builder output for errors",
+			"Check platform-specific requirements",
+			"Verify build configuration is correct",
+		})
+	}
+
+	return err
+}
+
+// Distribution stage errors
+
+// ErrDistributionServiceNotConfigured creates an error for missing distribution service.
+func ErrDistributionServiceNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Distribution service unavailable").
+		WithDetail("internal_error", "distribution service not configured").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the distribution service is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("distribution")
+}
+
+// ErrDistributionStoreNotConfigured creates an error for missing distribution store.
+func ErrDistributionStoreNotConfigured() *DomainError {
+	return New(CodeServiceStartError, "Distribution tracking service unavailable").
+		WithDetail("internal_error", "distribution store not configured for status polling").
+		WithRecovery(RecoveryContactSupport, "Server configuration issue - contact support").
+		WithManualSteps([]string{
+			"Check server startup logs for initialization errors",
+			"Verify the distribution store is properly configured",
+			"Contact support if the issue persists",
+		}).
+		InDomain("distribution")
+}
+
+// ErrDistributionStartFailed creates an error for distribution start failure.
+func ErrDistributionStartFailed(cause error, target string) *DomainError {
+	return Wrap(CodeInternal, cause, "distribution failed to start").
+		WithDetail("target", target).
+		WithRecovery(RecoveryRetry, "Check distribution configuration and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Verify distribution target is configured",
+			"Check target credentials are valid",
+			"Review distribution service logs",
+		}).
+		InDomain("distribution")
+}
+
+// ErrDistributionFailed creates an error for distribution failure.
+func ErrDistributionFailed(cause error, target string) *DomainError {
+	return Wrap(CodeInternal, cause, "distribution failed").
+		WithDetail("target", target).
+		WithRecovery(RecoveryRetry, "Check upload logs and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Verify network connectivity to target",
+			"Check target storage quota",
+			"Review upload error details",
+		}).
+		InDomain("distribution")
+}
+
+// ErrDistributionTimeout creates an error for distribution timeout.
+func ErrDistributionTimeout(distributionID string, duration string) *DomainError {
+	return New(CodeTimeout, "distribution timed out").
+		WithDetail("distribution_id", distributionID).
+		WithDetail("timeout_duration", duration).
+		WithRecovery(RecoveryRetryWithBackoff, "Retry with longer timeout").
+		WithRetryStrategy(RetryConservative).
+		WithManualSteps([]string{
+			"Large artifacts may need more upload time",
+			"Check network speed to distribution target",
+			"Consider uploading fewer artifacts in parallel",
+		}).
+		InDomain("distribution")
+}
+
+// Smoke test stage errors (for use by smoketest package)
+
+// ErrSmokeTestArtifactNotFound creates an error for missing smoke test artifact.
+func ErrSmokeTestArtifactNotFound(artifactPath string) *DomainError {
+	return New(CodeArtifactNotFound, "smoke test artifact not found").
+		WithDetail("artifact_path", artifactPath).
+		WithRecovery(RecoveryFixInput, "Ensure build stage completed and produced artifacts").
+		WithManualSteps([]string{
+			"Verify the build stage completed successfully",
+			fmt.Sprintf("Check if artifact exists: ls -la %s", artifactPath),
+			"Review build logs for errors",
+			"Ensure build output directory is correct",
+		}).
+		InDomain("smoketest")
+}
+
+// ErrSmokeTestExecutionFailed creates an error for smoke test execution failure.
+func ErrSmokeTestExecutionFailed(cause error, context map[string]string) *DomainError {
+	err := Wrap(CodeSmokeTestFailed, cause, "smoke test execution failed").
+		WithRecovery(RecoveryRetry, "Check app startup logs and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Check if the application can run manually",
+			"Verify all dependencies are installed",
+			"Check system logs for crash information",
+			"Try running with --verbose flag for more output",
+		}).
+		InDomain("smoketest")
+
+	for k, v := range context {
+		err = err.WithDetail(k, v)
+	}
+
+	return err
+}
+
+// ErrSmokeTestTimeout creates an error for smoke test timeout.
+func ErrSmokeTestTimeout(duration string, context map[string]string) *DomainError {
+	err := New(CodeTimeout, "smoke test timed out").
+		WithDetail("timeout_duration", duration).
+		WithRecovery(RecoveryRetryWithBackoff, "Increase timeout and retry").
+		WithRetryStrategy(RetryConservative).
+		WithManualSteps([]string{
+			"Increase SMOKE_TEST_TIMEOUT_MS environment variable",
+			"Check if app startup is slow due to large assets",
+			"Profile app initialization to identify bottlenecks",
+			"Verify network connectivity if app makes startup requests",
+		}).
+		InDomain("smoketest")
+
+	for k, v := range context {
+		err = err.WithDetail(k, v)
+	}
+
+	return err
+}
+
+// ErrSmokeTestValidationFailed creates an error for missing success marker.
+func ErrSmokeTestValidationFailed(context map[string]string) *DomainError {
+	err := New(CodeSmokeTestFailed, "smoke test validation failed: success marker not found").
+		WithRecovery(RecoveryFixInput, "Ensure app outputs SMOKE_TEST_RESULT=passed").
+		WithManualSteps([]string{
+			"Verify app outputs SMOKE_TEST_RESULT=passed on successful startup",
+			"Check if app is detecting SMOKE_TEST=1 environment variable",
+			"Review app smoke test handler implementation",
+			"Ensure app doesn't crash before outputting success marker",
+		}).
+		InDomain("smoketest")
+
+	for k, v := range context {
+		err = err.WithDetail(k, v)
+	}
+
+	return err
+}
+
+// ErrSmokeTestPlatformError creates an error for platform-specific issues.
+func ErrSmokeTestPlatformError(cause error, platform string) *DomainError {
+	err := Wrap(CodeSmokeTestFailed, cause, "platform-specific smoke test error").
+		WithDetail("platform", platform).
+		WithRecovery(RecoveryInstallDependency, "Install required platform dependencies").
+		InDomain("smoketest")
+
+	// Platform-specific recovery steps
+	switch platform {
+	case "linux":
+		err = err.WithManualSteps([]string{
+			"Install xvfb for headless display: sudo apt-get install xvfb",
+			"Set DISPLAY environment variable or ensure X11 is running",
+			"Verify libgtk and other Electron dependencies are installed",
+		}).WithAutoFix(&AutoFix{
+			Command:     "sudo apt-get install -y xvfb libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils libatspi2.0-0 libdrm2 libgbm1 libasound2",
+			Description: "Install common Electron dependencies for Linux",
+			Safe:        false,
+		})
+	case "mac":
+		err = err.WithManualSteps([]string{
+			"Ensure app is properly signed for macOS",
+			"Check Gatekeeper settings: spctl --status",
+			"Verify app bundle structure: Contents/MacOS/ exists",
+		})
+	case "win":
+		err = err.WithManualSteps([]string{
+			"Ensure .exe file is not blocked by Windows Defender",
+			"Check Windows Firewall settings",
+			"Verify Visual C++ Redistributable is installed",
+		})
+	default:
+		err = err.WithManualSteps([]string{
+			"Verify platform is supported (linux, mac, win)",
+			"Check platform-specific documentation",
+		})
+	}
+
+	return err
+}
+
+// ErrSmokeTestTelemetryFailed creates an error for telemetry failures.
+func ErrSmokeTestTelemetryFailed(cause error, context map[string]string) *DomainError {
+	err := Wrap(CodeTelemetryError, cause, "smoke test telemetry failed").
+		WithRecovery(RecoveryRetry, "Check telemetry service and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Check telemetry service is running and accessible",
+			"Verify network connectivity to telemetry endpoint",
+			"Check telemetry file permissions if using file-based fallback",
+			"Review telemetry API logs for errors",
+		}).
+		InDomain("smoketest")
+
+	for k, v := range context {
+		err = err.WithDetail(k, v)
+	}
+
+	return err
+}
+
+// ErrSmokeTestStoreFailed creates an error for persistence failures.
+func ErrSmokeTestStoreFailed(cause error) *DomainError {
+	return Wrap(CodeInternal, cause, "Could not save test results").
+		WithDetail("internal_error", "smoke test store operation failed").
+		WithRecovery(RecoveryRetry, "Check disk space and retry").
+		WithRetryStrategy(RetryDefault).
+		WithManualSteps([]string{
+			"Check available disk space: df -h",
+			"Verify file system permissions",
+			"Check if data directory exists and is writable",
+		}).
+		InDomain("smoketest")
+}
+
+// ErrSmokeTestCancelled creates an error for cancelled operations.
+func ErrSmokeTestCancelled() *DomainError {
+	return New(CodePipelineCancelled, "smoke test cancelled").
+		WithRecovery(RecoveryNone, "Re-run smoke test if cancellation was unintentional").
+		WithManualSteps([]string{
+			"Re-run the smoke test if cancellation was unintentional",
+			"Check if timeout was too short",
+		}).
+		InDomain("smoketest")
 }
