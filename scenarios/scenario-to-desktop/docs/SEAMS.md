@@ -137,6 +137,7 @@ type Stage interface {
 }
 ```
 **Implementations**: `BundleStage`, `PreflightStage`, `GenerateStage`, `BuildStage`, `SmokeTestStage`, `DistributionStage`
+**Deep Dive**: See [Smoke Test Pipeline](reference/smoke-test-pipeline.md) for detailed SmokeTestStage execution flow
 **Status**: ✅ Implemented (Jan 2026)
 
 #### 8. Pipeline Store Seam (`Store`)

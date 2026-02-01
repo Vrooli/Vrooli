@@ -1,3 +1,4 @@
+// DOC: docs/reference/smoke-test-pipeline.md
 package smoketest
 
 import (
@@ -16,6 +17,7 @@ import (
 )
 
 // DefaultService is the default implementation of Service.
+// See docs/reference/smoke-test-pipeline.md for execution flow and configuration.
 type DefaultService struct {
 	store             Store
 	cancelManager     CancelManager

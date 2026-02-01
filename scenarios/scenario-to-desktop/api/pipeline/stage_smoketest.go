@@ -1,3 +1,4 @@
+// DOC: docs/reference/smoke-test-pipeline.md
 package pipeline
 
 import (
@@ -9,6 +10,7 @@ import (
 )
 
 // SmokeTestStage implements the smoke test stage of the pipeline.
+// See docs/reference/smoke-test-pipeline.md for detailed execution flow.
 type SmokeTestStage struct {
 	service      smoketest.Service
 	store        smoketest.Store

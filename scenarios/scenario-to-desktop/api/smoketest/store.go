@@ -1,3 +1,4 @@
+// DOC: docs/reference/smoke-test-pipeline.md#storage--persistence
 package smoketest
 
 import (
@@ -11,6 +12,7 @@ import (
 )
 
 // FileStore provides a persistent smoke test store backed by a JSON file.
+// See docs/reference/smoke-test-pipeline.md#storage--persistence for data structure.
 type FileStore struct {
 	mu        sync.RWMutex
 	statusMap map[string]*Status

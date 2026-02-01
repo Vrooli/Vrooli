@@ -69,7 +69,7 @@ The pipeline orchestrator is the core engine that coordinates multi-stage deskto
 | **Preflight** | Validate system prerequisites (Node, npm, Wine, Xcode) | Yes (via config) | None |
 | **Generate** | Create Electron wrapper for the scenario | No (required) | Preflight |
 | **Build** | Compile native binaries per platform (Windows, macOS, Linux) | No | Generate |
-| **SmokeTest** | Verify built application runs correctly | Yes (via config) | Build |
+| **SmokeTest** | Verify built application runs correctly ([details](./smoke-test-pipeline.md)) | Yes (via config) | Build |
 | **Distribution** | Upload artifacts to S3/R2 targets | Yes | SmokeTest |
 
 ### Pipeline States
@@ -410,6 +410,7 @@ type Status struct {
 ## Related Documentation
 
 - [SEAMS.md](../SEAMS.md) - Detailed seam definitions and testability patterns
+- [Smoke Test Pipeline](./smoke-test-pipeline.md) - Deep dive into smoke test stage execution
 - [Pipeline Interfaces](../../api/pipeline/interfaces.go) - Go interface definitions
 - [Tool Execution](../../api/toolexecution/) - Tool executor implementations
 
