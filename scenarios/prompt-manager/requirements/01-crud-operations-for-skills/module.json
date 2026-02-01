@@ -1,7 +1,7 @@
 {
-  "description": "",
+  "description": "Core CRUD operations for skill entities including metadata, content, and pack organization",
   "module_id": "MOD-P0-001",
-  "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+  "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
   "priority": "P0",
   "requirements": [
     {
@@ -9,11 +9,11 @@
       "dependencies": [
         "REQ-P0-012"
       ],
-      "description": "Implement REST API endpoints for creating, reading, updating and deleting prompts with JSON payload support",
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting skills with JSON payload support",
       "id": "REQ-P0-001",
-      "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
       "status": "draft",
-      "title": "REST API for Prompt CRUD",
+      "title": "REST API for Skill CRUD",
       "validation": [
         {
           "notes": "All CRUD endpoints return correct HTTP status codes",
@@ -51,14 +51,14 @@
           "type": "test"
         },
         {
-          "notes": "API response time under 200ms for single prompt operations",
+          "notes": "API response time under 200ms for single skill operations",
           "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Successfully manage prompts via API endpoints",
+          "notes": "Successfully manage skills via API endpoints",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -78,63 +78,63 @@
       "dependencies": [
         "REQ-P0-012"
       ],
-      "description": "Implement REST API endpoints for campaign management with hierarchical structure support",
+      "description": "Implement REST API endpoints for pack-based skill organization with folder structure support",
       "id": "REQ-P0-002",
-      "prd_ref": "prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api",
+      "prd_ref": "prompt-manager-must-have-crud-operations-for-skills-via-api",
       "status": "draft",
-      "title": "Campaign CRUD API",
+      "title": "Pack-based Skill Organization API",
       "validation": [
         {
-          "notes": "Campaign CRUD operations functional",
+          "notes": "Pack CRUD operations functional",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Hierarchical relationship validation",
+          "notes": "Pack precedence ordering works correctly",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Referential integrity checks",
+          "notes": "Skill-to-pack relationship validation",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Full campaign lifecycle testing",
+          "notes": "Full pack lifecycle testing",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Parent-child relationship verification",
+          "notes": "Pack ordering relationship verification",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Campaign tree operations complete within 500ms",
+          "notes": "Pack listing operations complete within 500ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Campaigns can be organized hierarchically",
+          "notes": "Skills can be organized into packs (core/local/drafts)",
           "phase": "business",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Campaign structure maintains integrity",
+          "notes": "Pack structure maintains integrity",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -143,5 +143,5 @@
       ]
     }
   ],
-  "title": "CRUD operations for prompts and campaigns via API"
+  "title": "CRUD operations for skills via API"
 }

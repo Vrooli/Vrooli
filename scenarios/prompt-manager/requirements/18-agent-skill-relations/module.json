@@ -1,0 +1,52 @@
+{
+  "description": "Agent-skill relationship management including skill pins, enabled/disabled state, and version pinning.",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "prompt-manager-should-have-agent-skill-assignment-management",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-016", "REQ-P0-001"],
+      "description": "Create and manage agent-skill relationships with pin and enabled state",
+      "id": "REQ-P1-021",
+      "prd_ref": "prompt-manager-should-have-agent-skill-assignment-management",
+      "status": "complete",
+      "title": "Agent-Skill Relations API",
+      "validation": [
+        {
+          "notes": "Relations stored in store/relations/agent-skill/",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Agent update with skills array creates relations",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P1-021"],
+      "description": "Inline skill pins on agent entity for quick assignment",
+      "id": "REQ-P1-022",
+      "prd_ref": "prompt-manager-should-have-agent-skill-assignment-management",
+      "status": "complete",
+      "title": "Agent Skill Pins",
+      "validation": [
+        {
+          "notes": "skillPins array stored on agent entity",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Agent-skill assignment management"
+}

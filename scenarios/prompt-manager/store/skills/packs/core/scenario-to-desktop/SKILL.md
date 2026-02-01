@@ -54,8 +54,16 @@ Before generating desktop apps:
    curl -s https://app-monitor.<domain>/apps/<scenario>/proxy/api/health
    ```
 
+   If not running:
+   ```bash
+   cd scenarios/<scenario> && make start
+   # Wait for health check to pass
+   curl --retry 5 --retry-delay 3 http://localhost:<SCENARIO_PORT>/api/health
+   ```
+
 2. **Scenario has a built UI**
    - Check: `scenarios/<scenario>/ui/dist/` exists and contains built assets
+   - If missing: `cd scenarios/<scenario>/ui && pnpm install && pnpm build`
 
 3. **Start scenario-to-desktop**
    ```bash
@@ -141,6 +149,11 @@ scenario-to-desktop pipeline-history <scenario> [--limit N]
 **Pipeline stages:** `bundle`, `preflight`, `generate`, `build`, `distribution`, `smoketest`
 
 Note: The `distribution` stage is automatically skipped unless `--distribute` is specified. The `smoketest` stage runs after distribution to validate the final artifacts.
+
+**Command distinction:**
+- `pipeline-run <scenario>`: Creates a new pipeline AND starts it (one command, most common use case)
+- `pipeline-create` + `pipeline-start`: Separate creation and execution (useful when you need to configure between steps)
+- `pipeline-active`: Gets the most recent pipeline (creates if none exists)
 
 **Blocking mode flags:**
 - `--wait`: Block until pipeline completes (recommended for agents and scripts)
@@ -325,6 +338,7 @@ scenario-to-desktop configure token
 
 #### **4.1 Basic Desktop App Generation**
 
+**For interactive use (monitor manually):**
 ```bash
 # 1. Start the scenario-to-desktop service
 cd scenarios/scenario-to-desktop && make start
@@ -332,28 +346,38 @@ cd scenarios/scenario-to-desktop && make start
 # 2. Verify system status
 scenario-to-desktop status
 
-# 3. Run the full pipeline
+# 3. Run the full pipeline (async - returns immediately)
 scenario-to-desktop pipeline-run my-scenario --platforms win,mac,linux
 
 # 4. Monitor progress
 scenario-to-desktop pipeline-status <pipeline-id> --verbose
 
-# 5. Download built installers
-scenario-to-desktop download my-scenario win
-scenario-to-desktop download my-scenario mac
+# 5. Download built installers after completion
 scenario-to-desktop download my-scenario linux
-
-# 6. Verify downloads
-ls -la *.exe *.AppImage *.zip  # Check files exist
-file my-scenario.AppImage      # Should show: ELF 64-bit LSB executable
 ```
 
-**Pipeline success verification:**
+**For agents/scripts (recommended):**
 ```bash
-# Confirm pipeline completed
-scenario-to-desktop pipeline-status <id> --json | jq '.status'
-# Expected: "completed"
+# 1. Start the scenario-to-desktop service
+cd scenarios/scenario-to-desktop && make start
+
+# 2. Run and wait for completion - blocks until done
+scenario-to-desktop pipeline-run my-scenario --platforms linux --wait --timeout 900
+
+# 3. Download built installers (with verification)
+scenario-to-desktop download my-scenario linux --output my-scenario.AppImage || {
+  echo "Download failed - check pipeline status"
+  exit 1
+}
+
+# 4. Verify download
+[ -f my-scenario.AppImage ] && file my-scenario.AppImage | grep -q "ELF" || {
+  echo "Invalid or missing AppImage"
+  exit 1
+}
 ```
+
+> **Note:** For agent/scripted workflows, always use `--wait`. See Section 4.5 for details and EOF handling.
 
 #### **4.2 Collect User Telemetry**
 
@@ -583,6 +607,37 @@ jq -c . telemetry.jsonl 2>&1 | grep -n "parse error"
 # Linux:   ~/.config/<App Name>/deployment-telemetry.jsonl
 ```
 
+#### **7.6 Generate Stage Failures**
+
+**"build status not found in store"**
+This indicates an internal state synchronization issue.
+```bash
+# Reset the pipeline state and retry
+scenario-to-desktop pipeline-reset my-scenario
+scenario-to-desktop pipeline-start my-scenario --platforms linux
+```
+
+If the error persists:
+1. Check API logs: `make logs` in `scenarios/scenario-to-desktop`
+2. Restart the service: `make stop && make start`
+3. File a bug if reproducible
+
+#### **7.7 EOF Error with `--wait`**
+
+When using `--wait` on long-running pipelines, you may encounter an EOF error if the HTTP connection times out. This does NOT necessarily mean the pipeline failed:
+
+```bash
+# If you see: Error: request failed: ... EOF
+
+# Check if pipeline actually completed:
+scenario-to-desktop pipeline-status <id> --json | jq '.status'
+# May show "completed" even after EOF error
+
+# For very long builds, prefer async + polling:
+scenario-to-desktop pipeline-run my-scenario --platforms linux  # async
+watch -n 10 'scenario-to-desktop pipeline-status <id>'          # poll
+```
+
 ---
 
 ### **8. Guardrails**
@@ -621,3 +676,24 @@ jq -c . telemetry.jsonl 2>&1 | grep -n "parse error"
 - Use bundled mode in production (not ready)
 - Distribute apps without testing on target platforms
 - Ignore telemetry from user deployments
+
+---
+
+### **10. Success Artifacts**
+
+After a successful pipeline run, you should have:
+
+| Platform | File | Location |
+|----------|------|----------|
+| Linux | `<scenario>.AppImage` | Downloaded via `download` command |
+| Windows | `<scenario>-Setup.exe` | Downloaded via `download` command |
+| macOS | `<scenario>.zip` (contains .app) | Downloaded via `download` command |
+
+The pipeline status will show:
+```json
+{
+  "status": "completed",
+  "progress_percent": 100,
+  "stages": { "bundle": {"status": "completed"}, "preflight": {"status": "completed"}, ... }
+}
+```

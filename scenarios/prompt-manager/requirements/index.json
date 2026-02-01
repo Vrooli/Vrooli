@@ -1,63 +1,70 @@
 {
   "_metadata": {
     "entity": "prompt-manager",
-    "generated_at": "2025-12-30T14:32:21-05:00",
+    "generated_at": "2026-02-01T00:00:00-05:00",
     "generator": "prd-control-tower",
     "schema_version": "1.0"
   },
   "imports": [
-    "01-crud-operations-for-prompts-and-campaign/module.json",
-    "02-campaign-based-organization-with-hierarc/module.json",
-    "03-full-text-search-across-all-prompts/module.json",
-    "04-cli-for-quick-prompt-operations/module.json",
-    "05-web-ui-for-visual-prompt-management/module.json",
-    "06-postgresql-integration-for-persistent-st/module.json",
+    "01-crud-operations-for-skills/module.json",
+    "02-pack-based-skill-organization/module.json",
+    "03-full-text-search-across-all-skills/module.json",
+    "04-cli-for-quick-skill-operations/module.json",
+    "05-web-ui-for-visual-skill-management/module.json",
+    "06-file-based-storage/module.json",
     "07-semantic-search-using-qdrant-vector-data/module.json",
-    "08-prompt-analysis-and-pattern-extraction/module.json",
-    "09-prompt-enhancement-suggestions/module.json",
+    "08-skill-analysis-and-pattern-extraction/module.json",
+    "09-skill-enhancement-suggestions/module.json",
     "10-usage-tracking-and-metrics/module.json",
     "11-tag-based-categorization/module.json",
     "12-export-import-functionality/module.json",
     "13-collaboration-features/module.json",
     "14-advanced-analytics-dashboard/module.json",
-    "15-version-history-for-prompts/module.json"
+    "15-version-history-for-skills/module.json",
+    "16-agent-crud-operations/module.json",
+    "17-team-crud-operations/module.json",
+    "18-agent-skill-relations/module.json",
+    "19-team-member-relations/module.json",
+    "20-effective-skills-computation/module.json",
+    "21-3d-world-visualization/module.json",
+    "22-pack-based-skill-organization/module.json"
   ],
   "modules": [
     {
       "id": "MOD-P0-001",
-      "path": "01-crud-operations-for-prompts-and-campaign",
+      "path": "01-crud-operations-for-skills",
       "priority": "P0",
-      "title": "CRUD operations for prompts and campaigns via API"
+      "title": "CRUD operations for skills via API"
     },
     {
       "id": "MOD-P0-002",
-      "path": "02-campaign-based-organization-with-hierarc",
+      "path": "02-pack-based-skill-organization",
       "priority": "P0",
-      "title": "Campaign-based organization with hierarchical structure"
+      "title": "Pack-based skill organization (core/local/drafts)"
     },
     {
       "id": "MOD-P0-003",
-      "path": "03-full-text-search-across-all-prompts",
+      "path": "03-full-text-search-across-all-skills",
       "priority": "P0",
-      "title": "Full-text search across all prompts"
+      "title": "Full-text search across all skills"
     },
     {
       "id": "MOD-P0-004",
-      "path": "04-cli-for-quick-prompt-operations",
+      "path": "04-cli-for-quick-skill-operations",
       "priority": "P0",
-      "title": "CLI for quick prompt operations"
+      "title": "CLI for quick skill and agent operations"
     },
     {
       "id": "MOD-P0-005",
-      "path": "05-web-ui-for-visual-prompt-management",
+      "path": "05-web-ui-for-visual-skill-management",
       "priority": "P0",
-      "title": "Web UI for visual prompt management"
+      "title": "Web UI for visual skill management"
     },
     {
       "id": "MOD-P0-006",
-      "path": "06-postgresql-integration-for-persistent-st",
+      "path": "06-file-based-storage",
       "priority": "P0",
-      "title": "PostgreSQL integration for persistent storage"
+      "title": "File-based storage for entities"
     },
     {
       "id": "MOD-P1-007",
@@ -67,15 +74,15 @@
     },
     {
       "id": "MOD-P1-008",
-      "path": "08-prompt-analysis-and-pattern-extraction",
+      "path": "08-skill-analysis-and-pattern-extraction",
       "priority": "P1",
-      "title": "Prompt analysis and pattern extraction"
+      "title": "Skill analysis and pattern extraction"
     },
     {
       "id": "MOD-P1-009",
-      "path": "09-prompt-enhancement-suggestions",
+      "path": "09-skill-enhancement-suggestions",
       "priority": "P1",
-      "title": "Prompt enhancement suggestions"
+      "title": "Skill enhancement suggestions"
     },
     {
       "id": "MOD-P1-010",
@@ -93,7 +100,7 @@
       "id": "MOD-P2-012",
       "path": "12-export-import-functionality",
       "priority": "P2",
-      "title": "Export/import functionality (COMPLETE: Fixed database column mismatch, tested and working)"
+      "title": "Export/import functionality (COMPLETE)"
     },
     {
       "id": "MOD-P2-013",
@@ -109,9 +116,51 @@
     },
     {
       "id": "MOD-P2-015",
-      "path": "15-version-history-for-prompts",
+      "path": "15-version-history-for-skills",
       "priority": "P2",
-      "title": "Version history for prompts (COMPLETE: Full implementation with API endpoints, automatic versioning, CLI commands)"
+      "title": "Version history for skills (COMPLETE)"
+    },
+    {
+      "id": "MOD-P0-016",
+      "path": "16-agent-crud-operations",
+      "priority": "P0",
+      "title": "Agent CRUD operations via API"
+    },
+    {
+      "id": "MOD-P0-017",
+      "path": "17-team-crud-operations",
+      "priority": "P0",
+      "title": "Team CRUD with roles, members, org chart"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-agent-skill-relations",
+      "priority": "P1",
+      "title": "Agent-skill assignment management"
+    },
+    {
+      "id": "MOD-P1-019",
+      "path": "19-team-member-relations",
+      "priority": "P1",
+      "title": "Team membership with roles"
+    },
+    {
+      "id": "MOD-P1-020",
+      "path": "20-effective-skills-computation",
+      "priority": "P1",
+      "title": "Effective skills computation with team context"
+    },
+    {
+      "id": "MOD-P2-021",
+      "path": "21-3d-world-visualization",
+      "priority": "P2",
+      "title": "3D world visualization for agents"
+    },
+    {
+      "id": "MOD-P1-022",
+      "path": "22-pack-based-skill-organization",
+      "priority": "P1",
+      "title": "Pack-based skill organization (core/local/drafts)"
     }
   ]
 }

@@ -109,3 +109,30 @@ export {
   type AIReindexStatus,
   type LinkPreviewData,
 } from './search.schema'
+
+// Team schemas
+export {
+  TeamMemberStatusSchema,
+  TeamRoleSchema,
+  TeamMemberSchema,
+  TeamDefaultsSchema,
+  TeamSchema,
+  TeamArraySchema,
+  TeamDetailsSchema,
+  CreateTeamRequestSchema,
+  UpdateTeamRequestSchema,
+  AddMemberRequestSchema,
+  UpdateMemberRequestSchema,
+  SetRolesRequestSchema,
+  type TeamMemberStatus,
+  type TeamRole,
+  type TeamMember,
+  type TeamDefaults,
+  type Team,
+  type TeamDetails,
+  type CreateTeamRequest,
+  type UpdateTeamRequest,
+  type AddMemberRequest,
+  type UpdateMemberRequest,
+  type SetRolesRequest,
+} from './team.schema'

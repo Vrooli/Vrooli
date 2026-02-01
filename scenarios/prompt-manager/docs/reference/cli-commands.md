@@ -23,8 +23,8 @@ go build -o prompt-manager .
 | Command | Description |
 |---------|-------------|
 | `prompt-manager skill` | Manage skills (CRUD, versions, ratings) |
+| `prompt-manager agent` | Manage agents (CRUD, appearance, skills) |
 | `prompt-manager tag` | Manage tags |
-| `prompt-manager member` | Manage members |
 | `prompt-manager test` | Test skills with Ollama |
 | `prompt-manager search` | Search skills |
 | `prompt-manager metadata` | Fetch URL metadata |
@@ -260,34 +260,34 @@ prompt-manager tag create performance --color="#FF5733" --description="Performan
 
 ---
 
-## Members
+## Agents
 
-[CODE: cli/members/members.go]
+[CODE: cli/agents/agents.go]
 
-Members represent team entities for 3D world visualization.
+Agents represent AI entities visualized in the 3D world. They can be assigned skills and organized into teams.
 
-### prompt-manager member list
+### prompt-manager agent list
 
-List all members.
+List all agents.
 
 ```bash
-prompt-manager member list [--json]
+prompt-manager agent list [--json]
 ```
 
-### prompt-manager member show
+### prompt-manager agent show
 
-Show member details.
+Show agent details including appearance, persona, and assigned skills.
 
 ```bash
-prompt-manager member show <id> [--json]
+prompt-manager agent show <id> [--json]
 ```
 
-### prompt-manager member create
+### prompt-manager agent create
 
-Create a new member.
+Create a new agent.
 
 ```bash
-prompt-manager member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--json]
+prompt-manager agent create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB] [--accent-color=#RRGGBB] [--skills=id1,id2] [--json]
 ```
 
 **Options:**
@@ -300,24 +300,148 @@ prompt-manager member create <name> [--body-color=#RRGGBB] [--head-color=#RRGGBB
 
 **Example:**
 ```bash
-prompt-manager member create "Alice" --body-color="#3B82F6" --skills=debugging,testing
+prompt-manager agent create "Alice" --body-color="#3B82F6" --skills=debugging,testing
 ```
 
-### prompt-manager member update
+### prompt-manager agent update
 
-Update a member.
+Update an agent.
 
 ```bash
-prompt-manager member update <id> [--name=...] [--body-color=...] [--head-color=...] [--accent-color=...] [--skills=...] [--json]
+prompt-manager agent update <id> [--name=...] [--body-color=...] [--head-color=...] [--accent-color=...] [--skills=...] [--json]
 ```
 
-### prompt-manager member delete
+### prompt-manager agent delete
 
-Delete a member (with confirmation).
+Delete an agent (with confirmation).
 
 ```bash
-prompt-manager member delete <id> [--force]
+prompt-manager agent delete <id> [--force]
 ```
+
+### prompt-manager agent effective-skills
+
+Compute the effective skill set for an agent. This includes:
+1. Skills pinned directly to the agent (skillPins)
+2. Agent-skill relations (enabled=true)
+3. Team role-based grants (if --team specified)
+
+```bash
+prompt-manager agent effective-skills <id> [--team=<team-id>] [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--team` | Team ID to include role-based skill grants |
+| `--json` | Output as JSON |
+
+**Example:**
+```bash
+prompt-manager agent effective-skills alice --team=engineering
+# Output:
+# Effective Skills for alice (team: engineering):
+#   debugging (pinned)
+#   testing (relation)
+#   code-review (role: reviewer)
+```
+
+---
+
+## Teams
+
+[CODE: cli/teams/teams.go]
+
+Teams coordinate multiple agents with role-based skill grants. Teams define missions, roles, and organizational structure for agent swarms.
+
+### prompt-manager team list
+
+List all teams.
+
+```bash
+prompt-manager team list [--json]
+```
+
+### prompt-manager team show
+
+Show team details including roles, members, and org chart.
+
+```bash
+prompt-manager team show <id> [--json]
+```
+
+**Example:**
+```bash
+prompt-manager team show engineering
+# Output:
+# Team: Engineering Team
+# Mission: Build and maintain core platform
+# Roles: lead, developer, reviewer
+# Members: 3 agents
+```
+
+### prompt-manager team create
+
+Create a new team.
+
+```bash
+prompt-manager team create <name> [--mission=...] [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--mission` | Team mission statement |
+| `--json` | Output as JSON |
+
+**Example:**
+```bash
+prompt-manager team create "Engineering" --mission="Build and maintain core platform"
+```
+
+### prompt-manager team add-member
+
+Add an agent to a team with optional roles.
+
+```bash
+prompt-manager team add-member <team-id> <agent-id> [--roles=role1,role2]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--roles` | Comma-separated role IDs to assign |
+
+**Example:**
+```bash
+prompt-manager team add-member engineering alice --roles=developer,reviewer
+```
+
+### prompt-manager team update-member
+
+Update an agent's roles within a team.
+
+```bash
+prompt-manager team update-member <team-id> <agent-id> [--roles=role1,role2] [--status=active|inactive]
+```
+
+### prompt-manager team remove-member
+
+Remove an agent from a team.
+
+```bash
+prompt-manager team remove-member <team-id> <agent-id> [--force]
+```
+
+### prompt-manager team roles
+
+Manage team roles.
+
+```bash
+prompt-manager team roles <team-id> [--json]
+```
+
+Shows available roles for a team.
 
 ---
 

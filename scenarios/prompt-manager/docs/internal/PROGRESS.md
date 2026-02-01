@@ -21,7 +21,9 @@ Agent-maintained document tracking development milestones.
 - [x] Interfaces added to all domains:
   - `skills/interfaces.go` - SkillStore, MetricsService
   - `tags/interfaces.go` - TagRepository
-  - `members/interfaces.go` - MemberStore
+  - `agents/interfaces.go` - AgentStore
+  - `teams/interfaces.go` - TeamStore
+  - `store/interfaces.go` - RelationStore, IndexStore
   - `testing/interfaces.go` - TestRepository, LLMClient
   - `metrics/interfaces.go` - MetricsRepository
 - [x] Handlers refactored to depend on interfaces
@@ -33,7 +35,8 @@ Agent-maintained document tracking development milestones.
 - [x] All API endpoints have CLI coverage:
   - `skill` - list, show, read, add, update, delete, use, sync, rate, versions, revert
   - `tag` - list, create
-  - `member` - list, show, create, update, delete
+  - `agent` - list, show, create, update, delete
+  - `team` - list, show, create, add-member (commands implemented)
   - `test` - run, history
   - `search` - query
   - `metadata` - fetch
@@ -50,6 +53,17 @@ Agent-maintained document tracking development milestones.
 
 ---
 
+### Phase 5: Skills + Agents + Teams Evolution (2025-01-30)
+- [x] Agent domain with appearance, persona, capabilities
+- [x] Team domain with roles, members, org charts
+- [x] Agent-skill relations with pins and enablement
+- [x] Team-member relations with role assignments
+- [x] Effective skills computation API
+- [x] 3D world visualization with React Three Fiber
+- [x] Documentation update to reflect 3-domain architecture
+
+---
+
 ## Current Focus
 
 - Documentation completeness and accuracy
@@ -61,7 +75,7 @@ Agent-maintained document tracking development milestones.
 ## Upcoming Work
 
 ### Testing
-- [ ] Add tests for tags, members, testing, search handlers
+- [ ] Add tests for tags, agents, teams, testing, search handlers
 - [ ] Add CLI integration tests
 - [ ] Add E2E tests with test containers
 

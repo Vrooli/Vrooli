@@ -23,8 +23,10 @@ import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { SkillTreeSidebar } from '../tree/SkillTreeSidebar'
 import { SkillEditorPanel } from '../editor/SkillEditorPanel'
 import { AgentEditorPanel } from '../editor/AgentEditorPanel'
+import { TeamEditorPanel } from '../editor/TeamEditorPanel'
 import { useSkillsData } from '@/hooks/useSkillsData'
 import { useAgentData } from '@/hooks/useAgentData'
+import { useTeamData, useTeamDetails } from '@/hooks/useTeamData'
 import { useSkillTree } from '@/hooks/useSkillTree'
 import { usePromptEditor, type SaveResult } from '@/hooks/usePromptEditor'
 import { useModeSuggestions } from '@/hooks/useModeSuggestions'
@@ -84,6 +86,14 @@ export function SkillManagerLayout() {
     updateAgent,
   } = useAgentData()
 
+  const {
+    updateTeam,
+    addMember,
+    updateMember,
+    removeMember,
+    setRoles,
+  } = useTeamData()
+
   const isLoading = isLoadingSkills || isLoadingAgents
 
   // Centralized selection state from Zustand store
@@ -91,9 +101,14 @@ export function SkillManagerLayout() {
   const setSelectedSkillId = useSelectionStore((state) => state.setSelectedSkillId)
   const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
   const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
+  const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
+  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
   // Get the current agent for editing
   const currentAgent = agents.find((a) => a.id === selectedAgentId) ?? null
+
+  // Get the current team details for editing
+  const { team: currentTeam } = useTeamDetails(selectedTeamId)
 
   // Load initial sidebar state from localStorage (only once on mount)
   const initialSidebarState = useMemo(() => loadSidebarState(), [])
@@ -732,7 +747,43 @@ export function SkillManagerLayout() {
         {/* Editor panel */}
         <main className="flex-1 overflow-hidden">
           <PanelErrorBoundary panelName="Editor" className="h-full">
-            {selectedAgentId ? (
+            {selectedTeamId ? (
+              <TeamEditorPanel
+                team={currentTeam ?? null}
+                allSkills={skills}
+                allAgents={agents}
+                onUpdate={async (updates) => {
+                  if (selectedTeamId) {
+                    await updateTeam(selectedTeamId, updates)
+                  }
+                }}
+                onAddMember={async (request) => {
+                  if (selectedTeamId) {
+                    return addMember(selectedTeamId, request)
+                  }
+                  throw new Error('No team selected')
+                }}
+                onUpdateMember={async (agentId, request) => {
+                  if (selectedTeamId) {
+                    return updateMember(selectedTeamId, agentId, request)
+                  }
+                  throw new Error('No team selected')
+                }}
+                onRemoveMember={async (agentId) => {
+                  if (selectedTeamId) {
+                    await removeMember(selectedTeamId, agentId)
+                  }
+                }}
+                onSetRoles={async (roles) => {
+                  if (selectedTeamId) {
+                    return setRoles(selectedTeamId, roles)
+                  }
+                  throw new Error('No team selected')
+                }}
+                onClose={() => setSelectedTeamId(null)}
+                className="h-full"
+              />
+            ) : selectedAgentId ? (
               <AgentEditorPanel
                 agent={currentAgent}
                 allSkills={skills}

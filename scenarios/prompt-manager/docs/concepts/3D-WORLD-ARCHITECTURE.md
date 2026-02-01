@@ -2,6 +2,8 @@
 
 This document describes the architecture of the 3D world visualization system in the prompt-manager UI, built with React Three Fiber.
 
+> **Terminology Note:** In the codebase, 3D character components use "Member" naming (e.g., `GeometricMember`, `MemberProvider`) for historical reasons. At the API and data model level, these are **Agents**. The "Member" terminology in code refers to the visual representation of an Agent entity.
+
 ---
 
 ## Technology Stack

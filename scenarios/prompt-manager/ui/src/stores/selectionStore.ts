@@ -19,6 +19,9 @@ interface SelectionStore {
   // Agent selection for editing
   selectedAgentId: string | null
 
+  // Team selection for editing
+  selectedTeamId: string | null
+
   // Actions
   setSelectedSkillId: (id: string | null) => void
   toggleSkillSelection: (id: string) => void
@@ -28,12 +31,14 @@ interface SelectionStore {
   clearSelection: () => void
   clearAllSelection: () => void
   setSelectedAgentId: (id: string | null) => void
+  setSelectedTeamId: (id: string | null) => void
 }
 
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedSkillId: null,
   selectedSkillIds: [],
   selectedAgentId: null,
+  selectedTeamId: null,
 
   setSelectedSkillId: (id) => {
     set({
@@ -41,8 +46,9 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       // When selecting a single skill for editing, also update multi-selection
       // This ensures the 3D tree highlights the selected skill
       selectedSkillIds: id ? [id] : [],
-      // Clear agent selection when selecting a skill
+      // Clear agent and team selection when selecting a skill
       selectedAgentId: null,
+      selectedTeamId: null,
     })
   },
 
@@ -103,15 +109,27 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
       selectedSkillId: null,
       selectedSkillIds: [],
       selectedAgentId: null,
+      selectedTeamId: null,
     })
   },
 
   setSelectedAgentId: (id) => {
     set({
       selectedAgentId: id,
-      // Clear skill selection when selecting an agent
+      // Clear skill and team selection when selecting an agent
       selectedSkillId: null,
       selectedSkillIds: [],
+      selectedTeamId: null,
+    })
+  },
+
+  setSelectedTeamId: (id) => {
+    set({
+      selectedTeamId: id,
+      // Clear skill and agent selection when selecting a team
+      selectedSkillId: null,
+      selectedSkillIds: [],
+      selectedAgentId: null,
     })
   },
 }))

@@ -1,7 +1,7 @@
 {
-  "description": "",
+  "description": "Command-line interface for skill, agent, and team operations",
   "module_id": "MOD-P0-004",
-  "prd_ref": "prompt-manager-must-have-cli-for-quick-prompt-operations",
+  "prd_ref": "prompt-manager-must-have-cli-for-quick-skill-operations",
   "priority": "P0",
   "requirements": [
     {
@@ -9,14 +9,28 @@
       "dependencies": [
         "REQ-P0-001"
       ],
-      "description": "Implement command-line interface for basic prompt operations (CRUD)",
+      "description": "Implement command-line interface for skill, agent, and team operations (CRUD)",
       "id": "REQ-P0-005",
-      "prd_ref": "prompt-manager-must-have-cli-for-quick-prompt-operations",
+      "prd_ref": "prompt-manager-must-have-cli-for-quick-skill-operations",
       "status": "draft",
       "title": "CLI Basic Operations",
       "validation": [
         {
-          "notes": "All CRUD commands functional",
+          "notes": "All CRUD commands functional for skills",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "All CRUD commands functional for agents",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Team management commands functional",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -37,7 +51,7 @@
           "type": "test"
         },
         {
-          "notes": "CLI operations affect database",
+          "notes": "CLI operations affect file-based store",
           "phase": "integration",
           "ref": "",
           "status": "pending",
@@ -58,7 +72,7 @@
           "type": "test"
         },
         {
-          "notes": "Users can manage prompts via CLI",
+          "notes": "Users can manage skills, agents, and teams via CLI",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -74,5 +88,5 @@
       ]
     }
   ],
-  "title": "CLI for quick prompt operations"
+  "title": "CLI for quick skill and agent operations"
 }

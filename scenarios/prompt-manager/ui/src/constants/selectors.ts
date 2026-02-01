@@ -39,6 +39,16 @@ const literalSelectors = {
     nameDisplay: 'agent-editor-name-display',
     nameInput: 'agent-editor-name-input',
   },
+  teams: {
+    list: 'team-list',
+    newButton: 'team-new-button',
+    row: 'team-row',
+  },
+  teamEditor: {
+    header: 'team-editor-header',
+    nameDisplay: 'team-editor-name-display',
+    nameInput: 'team-editor-name-input',
+  },
   world: {
     canvas: 'world-canvas',
     stats: 'world-stats',

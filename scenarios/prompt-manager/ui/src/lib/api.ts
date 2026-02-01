@@ -40,6 +40,10 @@ import {
   AISearchStatusSchema,
   AIReindexStatusSchema,
   LinkPreviewDataSchema,
+  TeamArraySchema,
+  TeamDetailsSchema,
+  TeamRoleSchema,
+  TeamMemberSchema,
   type Skill,
   type CreateSkillRequest,
   type UpdateSkillRequest,
@@ -60,6 +64,14 @@ import {
   type AIReindexStatus,
   type LinkPreviewData,
   type FolderType,
+  type Team,
+  type TeamDetails,
+  type TeamRole,
+  type TeamMember,
+  type CreateTeamRequest,
+  type UpdateTeamRequest,
+  type AddMemberRequest,
+  type UpdateMemberRequest,
 } from '@/lib/schemas'
 import type { SearchFilters, Folder } from '@/types'
 
@@ -438,6 +450,95 @@ class ApiClient {
       `/agents/${encodeURIComponent(agentId)}/effective-skills${params}`,
       undefined,
       EffectiveSkillsResponseSchema
+    )
+  }
+
+  // Team methods - aligned with api/teams/handlers.go
+  async getTeams(): Promise<Team[]> {
+    return this.request<Team[]>('/teams', undefined, TeamArraySchema)
+  }
+
+  async getTeam(id: string): Promise<TeamDetails> {
+    return this.request<TeamDetails>(
+      `/teams/${encodeURIComponent(id)}`,
+      undefined,
+      TeamDetailsSchema
+    )
+  }
+
+  async createTeam(team: CreateTeamRequest): Promise<TeamDetails> {
+    return this.request<TeamDetails>(
+      '/teams',
+      {
+        method: 'POST',
+        body: JSON.stringify(team),
+      },
+      TeamDetailsSchema
+    )
+  }
+
+  async updateTeam(id: string, updates: UpdateTeamRequest): Promise<TeamDetails> {
+    return this.request<TeamDetails>(
+      `/teams/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      },
+      TeamDetailsSchema
+    )
+  }
+
+  async deleteTeam(id: string): Promise<void> {
+    await this.requestVoid(`/teams/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async addTeamMember(teamId: string, request: AddMemberRequest): Promise<TeamMember> {
+    return this.request<TeamMember>(
+      `/teams/${encodeURIComponent(teamId)}/members`,
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      },
+      TeamMemberSchema
+    )
+  }
+
+  async updateTeamMember(teamId: string, agentId: string, request: UpdateMemberRequest): Promise<TeamMember> {
+    return this.request<TeamMember>(
+      `/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(agentId)}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(request),
+      },
+      TeamMemberSchema
+    )
+  }
+
+  async removeTeamMember(teamId: string, agentId: string): Promise<void> {
+    await this.requestVoid(
+      `/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(agentId)}`,
+      { method: 'DELETE' }
+    )
+  }
+
+  async getTeamRoles(teamId: string): Promise<TeamRole[]> {
+    return this.request<TeamRole[]>(
+      `/teams/${encodeURIComponent(teamId)}/roles`,
+      undefined,
+      TeamRoleSchema.array()
+    )
+  }
+
+  async setTeamRoles(teamId: string, roles: TeamRole[]): Promise<TeamRole[]> {
+    return this.request<TeamRole[]>(
+      `/teams/${encodeURIComponent(teamId)}/roles`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ roles }),
+      },
+      TeamRoleSchema.array()
     )
   }
 }

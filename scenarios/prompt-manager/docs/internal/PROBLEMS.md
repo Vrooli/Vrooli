@@ -36,7 +36,9 @@ _No significant debt identified._
 |---------|----------|------|
 | skills/ | Good | handlers_test.go, query_test.go exist |
 | tags/ | None | Needs handler tests |
-| members/ | None | Needs handler tests |
+| agents/ | None | Needs handler tests |
+| teams/ | None | Needs handler tests |
+| store/ | None | Needs relation and index tests |
 | testing/ | None | Needs handler tests with mock Ollama |
 | search/ | None | Needs handler tests |
 | metrics/ | None | Needs repository tests |
@@ -60,7 +62,7 @@ _No significant debt identified._
 
 | Area | Issue | Impact | Recommendation |
 |------|-------|--------|----------------|
-| UI smoke coverage | Smoke tests cover load, scene switching, and new-skill editor open only | Medium | Add BAS cases for skill editing (save/discard), search filtering, and member creation flows |
+| UI smoke coverage | Smoke tests cover load, scene switching, and new-skill editor open only | Medium | Add BAS cases for skill editing (save/discard), search filtering, and agent creation flows |
 | Requirements linkage | BAS workflows not linked to requirements JSON | Low | Add automation validation entries once requirements are formalized |
 
 ### Missing data-testid attributes in production bundle (Fixed)

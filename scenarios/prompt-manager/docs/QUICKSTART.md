@@ -38,7 +38,7 @@ make status
 Open your browser to the UI port shown in the logs. The interface provides:
 - Skill browser with folder organization (core/local/drafts)
 - Skill editor with live preview
-- 3D world visualization for members
+- 3D world visualization for agents
 - Usage tracking and metrics
 
 ### CLI

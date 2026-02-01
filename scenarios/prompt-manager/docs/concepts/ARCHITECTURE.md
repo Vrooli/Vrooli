@@ -57,11 +57,12 @@ api/
 │   ├── store.go     # File-based storage
 │   └── query.go     # Filtering/search logic
 │
+├── agents/          # Agent management with appearance, persona, capabilities
+├── teams/           # Team management with roles, members, org charts
 ├── tags/            # Tag categorization
-├── agents/          # Agent management (replaces members)
-├── store/           # New storage layer (per-entity files)
+├── store/           # Storage layer (per-entity files)
 ├── testing/         # LLM-based skill testing
-├── search/          # Full-text search
+├── search/          # Full-text and semantic search
 ├── metrics/         # Usage tracking
 └── ogmeta/          # URL metadata fetching
 ```
@@ -200,10 +201,13 @@ The editor exposes **Editor / Preview** view modes so users can inspect markdown
 
 | State Type | Owner | Storage |
 |------------|-------|---------|
-| Skills, Tags, Metrics | API | PostgreSQL + Files |
+| Skills, Agents, Teams | API | File system (store/) |
+| Tags, Metrics, Test Results | API | PostgreSQL |
+| Relations (agent-skill, team-member) | API | File system (store/relations/) |
 | Favorites | UI | localStorage |
 | View preferences | UI | Component state |
 | Theme | UI | localStorage |
+| 3D World state | UI | Zustand stores |
 
 ## Version Control
 
@@ -231,7 +235,19 @@ See [SEAMS.md](../internal/SEAMS.md) for detailed testing seam documentation.
 
 ## Related Documentation
 
+### Getting Started
 - [QUICKSTART.md](../QUICKSTART.md) - Getting started guide
 - [API Reference](../reference/api-endpoints.md) - Endpoint documentation
 - [CLI Reference](../reference/cli-commands.md) - Command documentation
+
+### Core Concepts
+- [Swarm Model](SWARM-MODEL.md) - The Skills + Agents + Teams architecture
+- [Relations](RELATIONS.md) - Agent-skill and team-member relations
+- [Effective Skills](EFFECTIVE-SKILLS.md) - Computed skill resolution algorithm
+- [Persona System](PERSONA-SYSTEM.md) - Agent identity and personality
+- [Capability Matching](CAPABILITY-MATCHING.md) - Skill-to-agent matching
+- [3D World Architecture](3D-WORLD-ARCHITECTURE.md) - Visualization system
+
+### Internal
 - [Testing Seams](../internal/SEAMS.md) - Testing architecture details
+- [Store Migration](STORE-MIGRATION.md) - Migration from legacy storage

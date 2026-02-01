@@ -1,72 +1,68 @@
 {
-  "description": "",
-  "module_id": "MOD-P2-015",
-  "prd_ref": "prompt-manager-nice-to-have-version-history-for-prompts-complete-full-implementation-with-api-endpoints-automatic-versioning-cli-commands",
-  "priority": "P2",
+  "description": "Pack-based organization system with core/local/drafts hierarchy and precedence ordering",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "prompt-manager-must-have-pack-based-skill-organization",
+  "priority": "P0",
   "requirements": [
     {
       "category": "core",
-      "dependencies": [
-        "REQ-P0-001",
-        "REQ-P0-012"
-      ],
-      "description": "Implement version history system for tracking prompt changes over time",
-      "id": "REQ-P2-004",
-      "prd_ref": "prompt-manager-nice-to-have-version-history-for-prompts-complete-full-implementation-with-api-endpoints-automatic-versioning-cli-commands",
+      "description": "Implement data model and logic for pack-based skill organization with precedence ordering",
+      "id": "REQ-P0-003",
+      "prd_ref": "prompt-manager-must-have-pack-based-skill-organization",
       "status": "draft",
-      "title": "Prompt Version Control",
+      "title": "Pack-based Skill Structure",
       "validation": [
         {
-          "notes": "Version creation",
+          "notes": "Create skills in different packs",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "History tracking",
+          "notes": "Move skills between packs",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Rollback functionality",
+          "notes": "Pack precedence ordering",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Version control system integration",
+          "notes": "Complex pack operations",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "API endpoint functionality",
+          "notes": "Pack ordering persistence",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Version operations under 500ms",
+          "notes": "Pack listing under 100ms for 1000 skills",
           "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Changes are tracked effectively",
+          "notes": "Logical skill organization possible",
           "phase": "business",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Version history is maintainable",
+          "notes": "Pack hierarchy visualization accurate",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -75,5 +71,5 @@
       ]
     }
   ],
-  "title": "Version history for prompts (COMPLETE: Full implementation with API endpoints, automatic versioning, CLI commands)"
+  "title": "Pack-based skill organization (core/local/drafts)"
 }

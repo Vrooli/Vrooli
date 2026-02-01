@@ -1,7 +1,7 @@
 {
-  "description": "",
+  "description": "Full-text search implementation across skill content, metadata, and tags",
   "module_id": "MOD-P0-003",
-  "prd_ref": "prompt-manager-must-have-full-text-search-across-all-prompts",
+  "prd_ref": "prompt-manager-must-have-full-text-search-across-all-skills",
   "priority": "P0",
   "requirements": [
     {
@@ -9,9 +9,9 @@
       "dependencies": [
         "REQ-P0-012"
       ],
-      "description": "Implement PostgreSQL full-text search across prompt content and metadata",
+      "description": "Implement full-text search across skill content and metadata with file-based storage",
       "id": "REQ-P0-004",
-      "prd_ref": "prompt-manager-must-have-full-text-search-across-all-prompts",
+      "prd_ref": "prompt-manager-must-have-full-text-search-across-all-skills",
       "status": "draft",
       "title": "Full-text Search Implementation",
       "validation": [
@@ -51,14 +51,14 @@
           "type": "test"
         },
         {
-          "notes": "Search results returned within 300ms for 10k prompts",
+          "notes": "Search results returned within 300ms for 10k skills",
           "phase": "performance",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Users can find prompts efficiently",
+          "notes": "Users can find skills efficiently",
           "phase": "business",
           "ref": "",
           "status": "pending",
@@ -74,5 +74,5 @@
       ]
     }
   ],
-  "title": "Full-text search across all prompts"
+  "title": "Full-text search across all skills"
 }

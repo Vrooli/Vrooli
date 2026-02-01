@@ -14,7 +14,7 @@
 
 import { type ReactNode, type RefObject, useState, useRef, useCallback, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Check, X, Sparkles, Layers } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, ChevronDown, ChevronUp, Settings, User, Users, Check, X, Sparkles, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TreeNode } from '@/types/editor'
 import type { Skill, FolderType } from '@/types'
@@ -25,6 +25,7 @@ import { TagFilterChips } from './TagFilterChips'
 import { TagFilterPopover } from './TagFilterPopover'
 import { FolderFilterChips } from './FolderFilterChips'
 import { AgentListPanel } from '../agent/AgentListPanel'
+import { TeamListPanel } from '../team/TeamListPanel'
 import { FolderContextMenu } from './FolderContextMenu'
 import { SkillContextMenu } from './SkillContextMenu'
 import { AISearchModal } from '../search/AISearchModal'
@@ -153,6 +154,10 @@ export function SkillTreeSidebar({
   // Agent selection from centralized store
   const selectedAgentId = useSelectionStore((state) => state.selectedAgentId)
   const setSelectedAgentId = useSelectionStore((state) => state.setSelectedAgentId)
+
+  // Team selection from centralized store
+  const selectedTeamId = useSelectionStore((state) => state.selectedTeamId)
+  const setSelectedTeamId = useSelectionStore((state) => state.setSelectedTeamId)
 
   // Active tab state - locked to skills when in skill selection mode
   const [activeTab, setActiveTab] = useState('skills')
@@ -426,6 +431,21 @@ export function SkillTreeSidebar({
             <User className="h-3.5 w-3.5" />
             Agents
           </Tabs.Trigger>
+          <Tabs.Trigger
+            value="teams"
+            disabled={skillSelectionMode}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium',
+              'border-b-2 border-transparent',
+              'text-muted-foreground hover:text-foreground',
+              'data-[state=active]:text-foreground data-[state=active]:border-primary',
+              'transition-colors',
+              skillSelectionMode && 'opacity-50 cursor-not-allowed'
+            )}
+          >
+            <Users className="h-3.5 w-3.5" />
+            Teams
+          </Tabs.Trigger>
         </Tabs.List>
 
         {/* Skills Tab */}
@@ -660,6 +680,15 @@ export function SkillTreeSidebar({
           <AgentListPanel
             selectedAgentId={selectedAgentId}
             onSelectAgent={setSelectedAgentId}
+            className="flex-1"
+          />
+        </Tabs.Content>
+
+        {/* Teams Tab */}
+        <Tabs.Content value="teams" className="flex-1 flex flex-col min-h-0 data-[state=inactive]:hidden">
+          <TeamListPanel
+            selectedTeamId={selectedTeamId}
+            onSelectTeam={setSelectedTeamId}
             className="flex-1"
           />
         </Tabs.Content>

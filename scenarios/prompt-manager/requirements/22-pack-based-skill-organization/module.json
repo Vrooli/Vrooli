@@ -1,0 +1,52 @@
+{
+  "description": "Pack-based skill organization with core, local, and drafts folders and precedence ordering.",
+  "module_id": "MOD-P1-022",
+  "prd_ref": "prompt-manager-should-have-pack-based-skill-organization",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": ["REQ-P0-001"],
+      "description": "Skills organized into packs (core, local, drafts) with folder filtering",
+      "id": "REQ-P1-030",
+      "prd_ref": "prompt-manager-should-have-pack-based-skill-organization",
+      "status": "complete",
+      "title": "Pack-based Skill Organization",
+      "validation": [
+        {
+          "notes": "GET /api/v1/skills?folder=core filters by pack",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Skills stored in store/skills/packs/{pack}/{id}/",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P1-030"],
+      "description": "Pack precedence ordering for skill resolution",
+      "id": "REQ-P1-031",
+      "prd_ref": "prompt-manager-should-have-pack-based-skill-organization",
+      "status": "complete",
+      "title": "Pack Precedence Ordering",
+      "validation": [
+        {
+          "notes": "_pack-order.json configures active/inactive packs",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Pack-based skill organization (core/local/drafts)"
+}

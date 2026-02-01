@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains the requirements definitions for this scenario, organized by operational target.
+This directory contains the requirements definitions for this scenario, organized by operational target. The prompt-manager scenario implements a **Skills + Agents + Teams** architecture.
 
 ## Structure
 
@@ -18,23 +18,42 @@ requirements/
 
 Requirements are linked to PRD operational targets using the `prd_ref` field.
 
-| Priority | Target ID | Title | Requirements |
-|----------|-----------|-------|-------------|
-| P0 | prompt-manager-must-have-crud-operations-for-prompts-and-campaigns-via-api | CRUD operations for prompts and campa... | 2 |
-| P0 | prompt-manager-must-have-campaign-based-organization-with-hierarchical-structure | Campaign-based organization with hier... | 1 |
-| P0 | prompt-manager-must-have-full-text-search-across-all-prompts | Full-text search across all prompts | 1 |
-| P0 | prompt-manager-must-have-cli-for-quick-prompt-operations | CLI for quick prompt operations | 1 |
-| P0 | prompt-manager-must-have-web-ui-for-visual-prompt-management | Web UI for visual prompt management | 1 |
-| P0 | prompt-manager-must-have-postgresql-integration-for-persistent-storage | PostgreSQL integration for persistent... | 1 |
-| P1 | prompt-manager-should-have-semantic-search-using-qdrant-vector-database | Semantic search using Qdrant vector d... | 1 |
-| P1 | prompt-manager-should-have-prompt-analysis-and-pattern-extraction | Prompt analysis and pattern extraction | 1 |
-| P1 | prompt-manager-should-have-prompt-enhancement-suggestions | Prompt enhancement suggestions | 1 |
-| P1 | prompt-manager-should-have-usage-tracking-and-metrics | Usage tracking and metrics | 1 |
-| P1 | prompt-manager-should-have-tag-based-categorization | Tag-based categorization | 1 |
-| P2 | prompt-manager-nice-to-have-exportimport-functionality-complete-fixed-database-column-mismatch-tested-and-working | Export/import functionality (COMPLETE... | 1 |
-| P2 | prompt-manager-nice-to-have-collaboration-features | Collaboration features | 1 |
-| P2 | prompt-manager-nice-to-have-advanced-analytics-dashboard | Advanced analytics dashboard | 1 |
-| P2 | prompt-manager-nice-to-have-version-history-for-prompts-complete-full-implementation-with-api-endpoints-automatic-versioning-cli-commands | Version history for prompts (COMPLETE... | 1 |
+### P0 - Must Ship for Viability
+
+| Module | Title | Status |
+|--------|-------|--------|
+| 01 | CRUD operations for skills via API | Complete |
+| 02 | Pack-based skill organization (core/local/drafts) | Complete |
+| 03 | Full-text search across all skills | Complete |
+| 04 | CLI for quick skill and agent operations | Complete |
+| 05 | Web UI for visual skill management | Complete |
+| 06 | File-based storage for entities | Complete |
+| 16 | Agent CRUD operations via API | Complete |
+| 17 | Team CRUD with roles, members, org chart | Complete |
+
+### P1 - Should Have Post-Launch
+
+| Module | Title | Status |
+|--------|-------|--------|
+| 07 | Semantic search using Qdrant vector database | Complete |
+| 08 | Skill analysis and pattern extraction | Complete |
+| 09 | Skill enhancement suggestions | Complete |
+| 10 | Usage tracking and metrics | Complete |
+| 11 | Tag-based categorization | Complete |
+| 18 | Agent-skill assignment management | Complete |
+| 19 | Team membership with roles | Complete |
+| 20 | Effective skills computation with team context | Complete |
+| 22 | Pack-based skill organization | Complete |
+
+### P2 - Future / Expansion
+
+| Module | Title | Status |
+|--------|-------|--------|
+| 12 | Export/import functionality | Complete |
+| 13 | Collaboration features | Pending |
+| 14 | Advanced analytics dashboard | Pending |
+| 15 | Version history for skills | Complete |
+| 21 | 3D world visualization for agents | Complete |
 
 ## Auto-sync Behavior
 

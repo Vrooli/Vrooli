@@ -1,0 +1,59 @@
+{
+  "description": "Dynamic computation of an agent's effective skill set from pins, relations, and team role grants.",
+  "module_id": "MOD-P1-020",
+  "prd_ref": "prompt-manager-should-have-effective-skills-computation-with-team-context",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": ["REQ-P1-021", "REQ-P1-023", "REQ-P0-019"],
+      "description": "Compute agent's effective skills from multiple sources",
+      "id": "REQ-P1-025",
+      "prd_ref": "prompt-manager-should-have-effective-skills-computation-with-team-context",
+      "status": "complete",
+      "title": "Effective Skills Computation API",
+      "validation": [
+        {
+          "notes": "GET /api/v1/agents/{id}/effective-skills returns computed set",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Skills resolved from agent pins + relations + team grants",
+          "phase": "integration",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        },
+        {
+          "notes": "Computation completes under 50ms",
+          "phase": "performance",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": ["REQ-P1-025"],
+      "description": "Team context parameter for role-based skill resolution",
+      "id": "REQ-P1-026",
+      "prd_ref": "prompt-manager-should-have-effective-skills-computation-with-team-context",
+      "status": "complete",
+      "title": "Team Context for Effective Skills",
+      "validation": [
+        {
+          "notes": "teamId query parameter enables role-based grants",
+          "phase": "unit",
+          "ref": "",
+          "status": "complete",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Effective skills computation with team context"
+}

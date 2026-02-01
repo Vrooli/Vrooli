@@ -15,6 +15,7 @@ import (
 	"prompt-manager/cli/search"
 	"prompt-manager/cli/skills"
 	"prompt-manager/cli/tags"
+	"prompt-manager/cli/teams"
 	"prompt-manager/cli/testing"
 )
 
@@ -97,6 +98,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	groups = append(groups, skills.Commands(a)...)  // prompt-manager skill <verb>
 	groups = append(groups, tags.Commands(a))       // prompt-manager tag <verb>
 	groups = append(groups, members.Commands(a))    // prompt-manager member <verb>
+	groups = append(groups, teams.Commands(a))      // prompt-manager team <verb>
 	groups = append(groups, testing.Commands(a))    // prompt-manager test <verb>
 	groups = append(groups, metadata.Commands(a))   // prompt-manager metadata <verb>
 	groups = append(groups, search.Commands(a))     // prompt-manager search (standalone)
