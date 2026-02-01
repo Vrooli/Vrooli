@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,6 +18,7 @@ type FileStore struct {
 	mu        sync.RWMutex
 	statusMap map[string]*Status
 	path      string
+	errWriter io.Writer // For logging persist errors; defaults to os.Stderr
 }
 
 // StoreOption configures a FileStore.
@@ -29,11 +31,19 @@ func WithPath(path string) StoreOption {
 	}
 }
 
+// WithErrorWriter sets the writer for persist error logs.
+func WithErrorWriter(w io.Writer) StoreOption {
+	return func(s *FileStore) {
+		s.errWriter = w
+	}
+}
+
 // NewStore creates a new smoke test store with the given path.
 func NewStore(path string, opts ...StoreOption) (*FileStore, error) {
 	store := &FileStore{
 		statusMap: make(map[string]*Status),
 		path:      path,
+		errWriter: os.Stderr,
 	}
 	for _, opt := range opts {
 		opt(store)
@@ -48,6 +58,7 @@ func NewStore(path string, opts ...StoreOption) (*FileStore, error) {
 func NewInMemoryStore() *FileStore {
 	return &FileStore{
 		statusMap: make(map[string]*Status),
+		errWriter: os.Stderr,
 	}
 }
 
@@ -97,7 +108,7 @@ func (s *FileStore) persist() error {
 	if err != nil {
 		return fmt.Errorf("marshal smoke test store: %w", err)
 	}
-	if err := os.WriteFile(s.path, data, 0o644); err != nil {
+	if err := os.WriteFile(s.path, data, 0o600); err != nil {
 		return fmt.Errorf("write smoke test store: %w", err)
 	}
 	return nil
@@ -108,7 +119,10 @@ func (s *FileStore) Save(status *Status) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.statusMap[status.SmokeTestID] = status
-	_ = s.persist()
+	if err := s.persist(); err != nil {
+		// Log but don't fail the operation - in-memory state is authoritative
+		fmt.Fprintf(s.errWriter, "[smoke-test-store] persist failed: %v\n", err)
+	}
 }
 
 // Get returns the status for the given smoke test ID if it exists.
@@ -129,7 +143,10 @@ func (s *FileStore) Update(id string, fn func(status *Status)) bool {
 		return false
 	}
 	fn(status)
-	_ = s.persist()
+	if err := s.persist(); err != nil {
+		// Log but don't fail the operation - in-memory state is authoritative
+		fmt.Fprintf(s.errWriter, "[smoke-test-store] persist failed: %v\n", err)
+	}
 	return true
 }
 

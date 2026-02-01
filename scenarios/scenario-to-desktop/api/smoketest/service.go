@@ -2,17 +2,12 @@
 package smoketest
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
+	"log/slog"
+	"math"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -24,334 +19,502 @@ type DefaultService struct {
 	telemetryIngestor TelemetryIngestor
 	port              int
 	logger            Logger
+
+	// New injected components
+	config            Config
+	executor          ProcessExecutor
+	platformResolver  PlatformResolver
+	telemetryResolver TelemetryPathResolver
+	outputParser      OutputParser
+	fileSystem        FileSystem
+	prereqChecker     PrerequisiteCheckerI
+	envReader         EnvironmentReader
 }
 
-// ServiceOption configures a DefaultService.
-type ServiceOption func(*DefaultService)
-
-// WithStore sets the smoke test store.
-func WithStore(store Store) ServiceOption {
-	return func(s *DefaultService) {
-		s.store = store
+// NewService creates a new smoke test service with all required dependencies.
+func NewService(
+	store Store,
+	cancelManager CancelManager,
+	telemetryIngestor TelemetryIngestor,
+	config Config,
+	executor ProcessExecutor,
+	platformResolver PlatformResolver,
+	telemetryResolver TelemetryPathResolver,
+	outputParser OutputParser,
+	fileSystem FileSystem,
+	logger Logger,
+	port int,
+) *DefaultService {
+	return &DefaultService{
+		store:             store,
+		cancelManager:     cancelManager,
+		telemetryIngestor: telemetryIngestor,
+		config:            config,
+		executor:          executor,
+		platformResolver:  platformResolver,
+		telemetryResolver: telemetryResolver,
+		outputParser:      outputParser,
+		fileSystem:        fileSystem,
+		logger:            logger,
+		port:              port,
 	}
 }
 
-// WithCancelManager sets the cancel manager.
-func WithCancelManager(cm CancelManager) ServiceOption {
-	return func(s *DefaultService) {
-		s.cancelManager = cm
-	}
-}
+// NewDefaultSmokeTestService creates a new smoke test service with default implementations.
+// This is the factory function for production wiring.
+func NewDefaultSmokeTestService(
+	store Store,
+	cancelManager CancelManager,
+	telemetryIngestor TelemetryIngestor,
+	port int,
+	logger Logger,
+) *DefaultService {
+	config := DefaultConfig()
+	envReader := NewEnvironmentReader()
+	fs := NewFileSystem()
+	executor := NewProcessExecutorWithLimit(logger, config.MaxOutputBytes)
+	platformResolver := NewPlatformResolver(executor, config, envReader, fs)
+	telemetryResolver := NewTelemetryPathResolver(config, envReader, fs)
+	outputParser := NewOutputParser(config)
+	prereqChecker := NewPrerequisiteChecker(envReader, fs, executor)
 
-// WithTelemetryIngestor sets the telemetry ingestor.
-func WithTelemetryIngestor(ti TelemetryIngestor) ServiceOption {
-	return func(s *DefaultService) {
-		s.telemetryIngestor = ti
+	return &DefaultService{
+		store:             store,
+		cancelManager:     cancelManager,
+		telemetryIngestor: telemetryIngestor,
+		config:            config,
+		executor:          executor,
+		platformResolver:  platformResolver,
+		telemetryResolver: telemetryResolver,
+		outputParser:      outputParser,
+		fileSystem:        fs,
+		logger:            logger,
+		port:              port,
+		prereqChecker:     prereqChecker,
+		envReader:         envReader,
 	}
-}
-
-// WithPort sets the server port for telemetry uploads.
-func WithPort(port int) ServiceOption {
-	return func(s *DefaultService) {
-		s.port = port
-	}
-}
-
-// WithLogger sets the logger.
-func WithLogger(logger Logger) ServiceOption {
-	return func(s *DefaultService) {
-		s.logger = logger
-	}
-}
-
-// NewService creates a new smoke test service with the given options.
-func NewService(opts ...ServiceOption) *DefaultService {
-	s := &DefaultService{
-		store:         NewInMemoryStore(),
-		cancelManager: NewCancelManager(),
-		port:          8080,
-		logger:        &noopLogger{},
-	}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
 }
 
 // CurrentPlatform returns the current platform identifier.
 func (s *DefaultService) CurrentPlatform() string {
-	switch runtime.GOOS {
-	case "windows":
-		return "win"
-	case "darwin":
-		return "mac"
-	default:
-		return "linux"
-	}
+	return s.platformResolver.CurrentPlatform()
 }
 
 // PerformSmokeTest runs a smoke test on a built application.
 func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string) {
+	// Check if smoke test exists before doing anything
 	if _, ok := s.store.Get(smokeTestID); !ok {
+		return
+	}
+
+	s.transitionTo(smokeTestID, StateInitializing, fmt.Sprintf("scenario=%s platform=%s", scenarioName, platform))
+
+	// Validate preconditions
+	s.transitionTo(smokeTestID, StateValidatingArtifact, artifactPath)
+	if !s.validatePreconditions(ctx, smokeTestID, artifactPath, platform) {
 		return
 	}
 	defer s.cancelManager.Clear(smokeTestID)
 
-	defer func() {
-		if r := recover(); r != nil {
-			s.store.Update(smokeTestID, func(status *Status) {
-				status.Status = "failed"
-				status.Error = fmt.Sprintf("panic: %v", r)
-				now := time.Now()
-				status.CompletedAt = &now
-			})
-		}
-	}()
+	// Panic recovery
+	defer s.recoverFromPanic(smokeTestID)
 
+	// Log start
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.Logs = append(status.Logs, fmt.Sprintf("Starting smoke test for %s on %s (artifact: %s)", scenarioName, platform, filepath.Base(artifactPath)))
+		status.Logs = append(status.Logs, fmt.Sprintf(
+			"Starting smoke test for %s on %s (artifact: %s)",
+			scenarioName, platform, filepath.Base(artifactPath),
+		))
 	})
 
-	if ctx.Err() != nil {
-		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = "smoke test cancelled"
-			now := time.Now()
-			status.CompletedAt = &now
-		})
-		return
-	}
-
-	if _, err := os.Stat(artifactPath); err != nil {
-		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = fmt.Sprintf("artifact not found: %v", err)
-			status.Logs = append(status.Logs, "Smoke test failed: artifact missing")
-			now := time.Now()
-			status.CompletedAt = &now
-		})
-		return
-	}
-
-	commandName, commandArgs, displayCommand, err := s.resolveSmokeTestCommand(platform, artifactPath)
+	// Resolve command
+	s.transitionTo(smokeTestID, StateResolvingCommand, platform)
+	cmd, args, displayCommand, err := s.resolveCommand(smokeTestID, platform, artifactPath)
 	if err != nil {
-		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = err.Error()
-			status.Logs = append(status.Logs, "Smoke test failed: artifact not runnable")
-			now := time.Now()
-			status.CompletedAt = &now
-		})
+		s.recordTypedFailure(smokeTestID, NewPlatformError(
+			"artifact not runnable",
+			err,
+			platform,
+		))
 		return
 	}
 
-	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
-	smokeEnv := []string{
-		"SMOKE_TEST=1",
-		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", TimeoutSeconds*1000),
-		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
+	// Execute smoke test with retry support
+	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
+	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand)
+
+	// Process results
+	outputLen := 0
+	if execResult != nil {
+		outputLen = len(execResult.Combined)
 	}
-	if runtime.GOOS == "linux" && os.Getenv("DISPLAY") == "" {
-		if _, err := exec.LookPath("xvfb-run"); err == nil {
-			commandArgs = append([]string{"-a", commandName}, commandArgs...)
-			commandName = "xvfb-run"
-			displayCommand = "xvfb-run -a " + displayCommand
-		} else {
+	s.transitionTo(smokeTestID, StateParsingOutput, fmt.Sprintf("%d bytes of output", outputLen))
+	s.processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand, execResult, execErr)
+}
+
+func (s *DefaultService) validatePreconditions(ctx context.Context, smokeTestID, artifactPath, platform string) bool {
+	// Check for cancellation
+	if ctx.Err() != nil {
+		s.recordTypedFailure(smokeTestID, NewCancelledError("smoke test cancelled"))
+		return false
+	}
+
+	// Check artifact exists (fast path - don't run full prereqs if artifact missing)
+	if _, err := s.fileSystem.Stat(artifactPath); err != nil {
+		s.recordTypedFailure(smokeTestID, NewArtifactError(
+			"artifact not found",
+			err,
+			artifactPath,
+		))
+		return false
+	}
+
+	// Run prerequisite checks if checker is available
+	if s.prereqChecker != nil {
+		s.transitionTo(smokeTestID, StateValidatingPrereqs, "checking system prerequisites")
+		results := s.prereqChecker.CheckAll(artifactPath, platform, s.port)
+
+		// Log all results
+		for _, r := range results {
+			logMsg := fmt.Sprintf("[prereq:%s] %s", r.Kind, r.Message)
+			if !r.Passed && r.Suggestion != "" {
+				logMsg += fmt.Sprintf(" (suggestion: %s)", r.Suggestion)
+			}
 			s.store.Update(smokeTestID, func(status *Status) {
-				status.Status = "failed"
-				status.Error = "DISPLAY is not set and xvfb-run is unavailable; cannot run Electron smoke test headlessly"
-				status.Logs = append(status.Logs, "Smoke test failed: DISPLAY is not set and xvfb-run is unavailable")
-				now := time.Now()
-				status.CompletedAt = &now
+				status.Logs = append(status.Logs, logMsg)
 			})
-			return
+
+			if !r.Passed {
+				s.logger.Warn("smoke_test_prerequisite_failed",
+					"smoke_test_id", smokeTestID,
+					"kind", r.Kind.String(),
+					"message", r.Message,
+					"fatal", r.Fatal,
+				)
+			}
+		}
+
+		// Check for fatal failures
+		if s.prereqChecker.HasFatalFailure(results) {
+			// Find the first fatal failure for error reporting
+			for _, r := range results {
+				if !r.Passed && r.Fatal {
+					s.recordTypedFailure(smokeTestID, &Error{
+						Kind:            ErrKindArtifact,
+						Message:         r.Message,
+						Recoverable:     false,
+						SuggestedAction: r.Suggestion,
+						ManualSteps:     []string{r.Suggestion},
+					})
+					return false
+				}
+			}
 		}
 	}
 
+	return true
+}
+
+func (s *DefaultService) recoverFromPanic(smokeTestID string) {
+	if r := recover(); r != nil {
+		kind := ErrKindExecution
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Status = "failed"
+			status.Error = fmt.Sprintf("panic: %v", r)
+			status.ErrorKind = &kind
+			status.SuggestedAction = RecoveryPaths[kind]
+			status.CurrentState = StateFailed
+			now := time.Now()
+			status.CompletedAt = &now
+		})
+		s.logger.Error("smoke_test_panic",
+			"smoke_test_id", smokeTestID,
+			"panic", fmt.Sprintf("%v", r),
+		)
+	}
+}
+
+func (s *DefaultService) resolveCommand(smokeTestID, platform, artifactPath string) (string, []string, string, error) {
+	cmd, args, display, err := s.platformResolver.ResolveCommand(platform, artifactPath)
+	if err != nil {
+		return "", nil, "", err
+	}
+
+	// Check if headless wrapper is needed
+	needed, wrapperCmd, wrapperArgs, wrapperErr := s.platformResolver.RequiresHeadlessWrapper()
+	if wrapperErr != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Logs = append(status.Logs, fmt.Sprintf(
+				"Smoke test failed: %s", wrapperErr.Error(),
+			))
+		})
+		return "", nil, "", wrapperErr
+	}
+
+	if needed {
+		// Prepend wrapper command and args
+		args = append(append(wrapperArgs, cmd), args...)
+		cmd = wrapperCmd
+		display = fmt.Sprintf("%s %s %s", wrapperCmd, wrapperArgs[0], display)
+	}
+
+	return cmd, args, display, nil
+}
+
+func (s *DefaultService) executeSmokeTest(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand string) (*ExecutionResult, error) {
+	// Build environment
+	uploadURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/deployment/telemetry", s.port)
+	env := []string{
+		"SMOKE_TEST=1",
+		fmt.Sprintf("SMOKE_TEST_TIMEOUT_MS=%d", s.config.TimeoutMS()),
+		fmt.Sprintf("SMOKE_TEST_UPLOAD_URL=%s", uploadURL),
+	}
+
+	// Execute
 	workDir := filepath.Dir(artifactPath)
-	output, err := s.runSmokeTestCommand(ctx, workDir, commandName, commandArgs, smokeEnv, time.Duration(TimeoutSeconds)*time.Second)
+	result, err := s.executor.ExecuteWithResult(ctx, workDir, cmd, args, env, s.config.Timeout())
+
+	// Store execution details for debugging
+	if result != nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.LastStdout = truncateOutput(result.Stdout, 10000)
+			status.LastStderr = truncateOutput(result.Stderr, 10000)
+			status.OutputTruncated = result.Truncated
+		})
+	}
+
+	// Log execution result
+	s.logExecutionResultWithDetails(smokeTestID, displayCommand, result, err)
+
+	return result, err
+}
+
+// truncateOutput limits output to the specified maximum length.
+func truncateOutput(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + fmt.Sprintf("... (%d bytes truncated)", len(s)-maxLen)
+}
+
+// executeWithRetry wraps executeSmokeTest with retry logic for recoverable errors.
+func (s *DefaultService) executeWithRetry(ctx context.Context, smokeTestID, artifactPath, cmd string, args []string, displayCommand string) (*ExecutionResult, error) {
+	var lastResult *ExecutionResult
+
+	for attempt := 0; ; attempt++ {
+		result, err := s.executeSmokeTest(ctx, smokeTestID, artifactPath, cmd, args, displayCommand)
+		lastResult = result
+
+		if err == nil {
+			return result, nil
+		}
+
+		// Check if this is a retryable error
+		retryStrategy := s.getRetryStrategy(err)
+		if retryStrategy == nil {
+			// Non-retryable error
+			return result, err
+		}
+
+		if attempt >= retryStrategy.MaxAttempts-1 {
+			// Max attempts reached
+			s.logger.Warn("smoke_test_retry_exhausted",
+				"smoke_test_id", smokeTestID,
+				"attempts", attempt+1,
+				"error", err.Error(),
+			)
+			return result, err
+		}
+
+		// Calculate backoff
+		backoff := time.Duration(retryStrategy.BackoffMs) * time.Millisecond
+		multiplier := retryStrategy.BackoffMultiplier
+		if multiplier == 0 {
+			multiplier = 2.0
+		}
+		backoff = time.Duration(float64(backoff) * math.Pow(multiplier, float64(attempt)))
+
+		s.transitionTo(smokeTestID, StateRetrying, fmt.Sprintf("attempt %d/%d, backoff %v", attempt+2, retryStrategy.MaxAttempts, backoff))
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.RetryCount = attempt + 1
+			status.Logs = append(status.Logs, fmt.Sprintf("Retrying after error: %v (attempt %d/%d)", err, attempt+2, retryStrategy.MaxAttempts))
+		})
+
+		s.logger.Info("smoke_test_retrying",
+			"smoke_test_id", smokeTestID,
+			"attempt", attempt+2,
+			"max_attempts", retryStrategy.MaxAttempts,
+			"backoff_ms", backoff.Milliseconds(),
+			"error", err.Error(),
+		)
+
+		select {
+		case <-ctx.Done():
+			return lastResult, ctx.Err()
+		case <-time.After(backoff):
+			s.transitionTo(smokeTestID, StateExecuting, fmt.Sprintf("retry attempt %d", attempt+2))
+		}
+	}
+}
+
+// getRetryStrategy returns the retry strategy for an error, or nil if not retryable.
+func (s *DefaultService) getRetryStrategy(err error) *RetryStrategy {
+	// Check for timeout errors (retryable)
+	if strings.Contains(err.Error(), "timed out") {
+		return &RetryStrategy{
+			MaxAttempts:       2,
+			BackoffMs:         5000,
+			BackoffMultiplier: 1.5,
+		}
+	}
+
+	// Check for temporary execution errors (retryable)
+	if strings.Contains(err.Error(), "resource temporarily unavailable") ||
+		strings.Contains(err.Error(), "text file busy") {
+		return &RetryStrategy{
+			MaxAttempts:       3,
+			BackoffMs:         1000,
+			BackoffMultiplier: 2.0,
+		}
+	}
+
+	// Not retryable
+	return nil
+}
+
+func (s *DefaultService) logExecutionResultWithDetails(smokeTestID, displayCommand string, result *ExecutionResult, err error) {
 	logEntry := fmt.Sprintf("[smoke-test] %s", displayCommand)
 	if err != nil {
 		logEntry += fmt.Sprintf("\nFAILED: %v", err)
 	} else {
 		logEntry += "\nSUCCESS"
 	}
-	if len(output) < 500 {
-		logEntry += fmt.Sprintf("\nOutput: %s", output)
-	} else {
-		logEntry += fmt.Sprintf("\nOutput: %s... (%d bytes)", output[:500], len(output))
+
+	if result != nil {
+		// Add exit code
+		logEntry += fmt.Sprintf("\nExit code: %d", result.ExitCode)
+
+		// Log stdout
+		stdout := result.Stdout
+		if len(stdout) > 0 {
+			if len(stdout) < 500 {
+				logEntry += fmt.Sprintf("\nStdout: %s", stdout)
+			} else {
+				logEntry += fmt.Sprintf("\nStdout: %s... (%d bytes)", stdout[:500], len(stdout))
+			}
+		}
+
+		// Log stderr separately for debugging
+		stderr := result.Stderr
+		if len(stderr) > 0 {
+			if len(stderr) < 500 {
+				logEntry += fmt.Sprintf("\nStderr: %s", stderr)
+			} else {
+				logEntry += fmt.Sprintf("\nStderr: %s... (%d bytes)", stderr[:500], len(stderr))
+			}
+		}
+
+		// Note truncation
+		if result.Truncated {
+			logEntry += fmt.Sprintf("\n[Output truncated: %d bytes exceeded limit]", result.TruncatedBytes)
+		}
 	}
 
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, logEntry)
 	})
+}
 
-	if strings.Contains(output, "SMOKE_TEST_UPLOAD=ok") {
+func (s *DefaultService) processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand string, execResult *ExecutionResult, execErr error) {
+	// Get the combined output for parsing
+	output := ""
+	if execResult != nil {
+		output = execResult.Combined
+	}
+
+	result := s.outputParser.ParseResult(output)
+
+	// Update telemetry upload status
+	if result.TelemetryUploaded {
+		s.transitionTo(smokeTestID, StateTelemetryUpload, "telemetry uploaded by app")
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.TelemetryUploaded = true
 			status.TelemetryUploadError = ""
 		})
-	} else if strings.Contains(output, "SMOKE_TEST_UPLOAD=error") {
+	} else if result.TelemetryUploadError {
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.TelemetryUploadError = "telemetry upload failed (see logs)"
 		})
 	}
 
-	if !strings.Contains(output, "SMOKE_TEST_UPLOAD=ok") {
+	// Attempt telemetry fallback if upload didn't succeed
+	if !result.TelemetryUploaded {
+		s.transitionTo(smokeTestID, StateTelemetryFallback, "attempting fallback")
 		s.attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output)
 	}
 
-	if err != nil {
-		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = fmt.Sprintf("smoke-test failed: %v", err)
-			status.Logs = append(status.Logs, "Smoke test failed")
-			now := time.Now()
-			status.CompletedAt = &now
-		})
+	// Check execution error
+	if execErr != nil {
+		smokeErr := s.buildExecutionError(execErr, execResult, displayCommand, platform)
+		s.recordTypedFailure(smokeTestID, smokeErr)
 		return
 	}
 
-	if !strings.Contains(output, "SMOKE_TEST_RESULT=passed") {
-		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = "smoke test did not report success"
-			status.Logs = append(status.Logs, "Smoke test failed: missing SMOKE_TEST_RESULT=passed")
-			now := time.Now()
-			status.CompletedAt = &now
-		})
+	// Check for success marker
+	if !result.Passed {
+		s.recordTypedFailure(smokeTestID, NewValidationError(
+			"smoke test did not report success",
+			map[string]string{
+				"expected": "SMOKE_TEST_RESULT=passed",
+				"platform": platform,
+			},
+		))
 		return
 	}
 
+	// Success!
+	s.transitionTo(smokeTestID, StatePassed, "smoke test passed")
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Status = "passed"
 		status.Logs = append(status.Logs, "Smoke test passed")
 		now := time.Now()
 		status.CompletedAt = &now
 	})
+
+	s.logger.Info("smoke_test_passed",
+		"smoke_test_id", smokeTestID,
+		"scenario", scenarioName,
+		"platform", platform,
+	)
 }
 
-func (s *DefaultService) resolveSmokeTestCommand(platform, artifactPath string) (string, []string, string, error) {
-	switch platform {
-	case "linux":
-		if strings.HasSuffix(artifactPath, ".AppImage") {
-			if err := ensureExecutable(artifactPath); err != nil {
-				return "", nil, "", fmt.Errorf("failed to set AppImage executable bit: %w", err)
-			}
-			return artifactPath, []string{"--smoke-test"}, fmt.Sprintf("%s --smoke-test", artifactPath), nil
+// buildExecutionError creates an Error with process diagnostics.
+func (s *DefaultService) buildExecutionError(execErr error, execResult *ExecutionResult, displayCommand, platform string) *Error {
+	err := NewExecutionError(
+		"smoke test process failed",
+		execErr,
+		map[string]string{
+			"command":  displayCommand,
+			"platform": platform,
+		},
+	)
+
+	// Add process diagnostics if available
+	if execResult != nil {
+		err.Diagnostic = &DiagnosticContext{
+			Process: &ProcessDiagnostic{
+				ExitCode:   execResult.ExitCode,
+				RuntimeMs:  execResult.Duration.Milliseconds(),
+				LastOutput: truncateOutput(execResult.Stderr, 1000),
+			},
 		}
-		return "", nil, "", fmt.Errorf("unsupported linux artifact for smoke test: %s", filepath.Base(artifactPath))
-	case "win":
-		if strings.HasSuffix(strings.ToLower(artifactPath), ".exe") {
-			return artifactPath, []string{"--smoke-test"}, fmt.Sprintf("%s --smoke-test", artifactPath), nil
-		}
-		return "", nil, "", fmt.Errorf("unsupported windows artifact for smoke test: %s", filepath.Base(artifactPath))
-	case "mac":
-		if strings.HasSuffix(artifactPath, ".app") {
-			executable, err := resolveMacAppExecutable(artifactPath)
-			if err != nil {
-				return "", nil, "", err
-			}
-			return executable, []string{"--smoke-test"}, fmt.Sprintf("%s --smoke-test", executable), nil
-		}
-		return "", nil, "", fmt.Errorf("unsupported macOS artifact for smoke test: %s", filepath.Base(artifactPath))
-	default:
-		return "", nil, "", fmt.Errorf("unsupported platform for smoke test: %s", platform)
-	}
-}
-
-func resolveMacAppExecutable(appPath string) (string, error) {
-	macosDir := filepath.Join(appPath, "Contents", "MacOS")
-	entries, err := os.ReadDir(macosDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read app bundle: %w", err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		executable := filepath.Join(macosDir, entry.Name())
-		if err := ensureExecutable(executable); err != nil {
-			return "", fmt.Errorf("failed to make app executable: %w", err)
-		}
-		return executable, nil
-	}
-	return "", fmt.Errorf("no executable found in %s", macosDir)
-}
-
-func ensureExecutable(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-	mode := info.Mode()
-	if mode&0o111 != 0 {
-		return nil
-	}
-	return os.Chmod(path, mode|0o111)
-}
-
-func (s *DefaultService) runSmokeTestCommand(parent context.Context, workDir, command string, args []string, extraEnv []string, timeout time.Duration) (string, error) {
-	if timeout <= 0 {
-		timeout = time.Duration(TimeoutSeconds) * time.Second
-	}
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	defer cancel()
-
-	cmd := exec.Command(command, args...)
-	cmd.Dir = workDir
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
-	if len(extraEnv) > 0 {
-		cmd.Env = append(os.Environ(), extraEnv...)
-	}
-
-	type result struct {
-		output []byte
-		err    error
-	}
-	resultCh := make(chan result, 1)
-
-	go func() {
-		output, err := cmd.CombinedOutput()
-		resultCh <- result{output: output, err: err}
-	}()
-
-	select {
-	case res := <-resultCh:
-		return string(res.output), res.err
-	case <-ctx.Done():
-		terminateProcess(cmd)
-		select {
-		case res := <-resultCh:
-			if ctx.Err() == context.DeadlineExceeded {
-				return string(res.output), fmt.Errorf("command timed out after %s", timeout)
-			}
-			return string(res.output), fmt.Errorf("command cancelled")
-		case <-time.After(2 * time.Second):
-			if ctx.Err() == context.DeadlineExceeded {
-				return "", fmt.Errorf("command timed out after %s", timeout)
-			}
-			return "", fmt.Errorf("command cancelled")
+		// Add stderr to context for easier debugging
+		if execResult.Stderr != "" {
+			err.Context["stderr"] = truncateOutput(execResult.Stderr, 500)
 		}
 	}
-}
 
-func terminateProcess(cmd *exec.Cmd) {
-	if cmd.Process == nil {
-		return
-	}
-	if runtime.GOOS == "windows" {
-		_ = cmd.Process.Kill()
-		return
-	}
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err == nil {
-		_ = syscall.Kill(-pgid, syscall.SIGKILL)
-		return
-	}
-	_ = cmd.Process.Kill()
+	return err
 }
 
 func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, platform, artifactPath, output string) {
@@ -359,32 +522,47 @@ func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, pla
 		return
 	}
 
-	telemetryPath := extractTelemetryPath(output)
+	// Try to extract path from output first
+	telemetryPath := s.telemetryResolver.ExtractFromOutput(output)
 	if telemetryPath == "" {
-		appName := resolveAppNameFromArtifact(artifactPath, scenarioName)
-		if appName != "" {
-			telemetryPath = resolveTelemetryPath(platform, appName)
-		}
+		// Fall back to artifact-based resolution
+		telemetryPath = s.telemetryResolver.ResolveFromArtifact(platform, artifactPath, scenarioName)
 	}
+
 	if telemetryPath == "" {
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.Logs = append(status.Logs, "Telemetry fallback skipped: telemetry path not found")
 		})
+		s.logger.Info("smoke_test_telemetry_fallback_skipped",
+			"smoke_test_id", smokeTestID,
+			"reason", "telemetry path not found",
+		)
 		return
 	}
 
-	events, err := readTelemetryEvents(telemetryPath, 500)
+	events, err := s.telemetryResolver.ReadTelemetryEvents(telemetryPath, s.config.MaxTelemetryEvents)
 	if err != nil {
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.TelemetryUploadError = fmt.Sprintf("telemetry fallback read failed: %v", err)
 			status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback failed: %v", err))
 		})
+		s.logger.Error("smoke_test_telemetry_fallback_read_failed",
+			"smoke_test_id", smokeTestID,
+			"telemetry_path", telemetryPath,
+			"error", err.Error(),
+		)
 		return
 	}
+
 	if len(events) == 0 {
 		s.store.Update(smokeTestID, func(status *Status) {
 			status.Logs = append(status.Logs, "Telemetry fallback skipped: no events found")
 		})
+		s.logger.Info("smoke_test_telemetry_fallback_skipped",
+			"smoke_test_id", smokeTestID,
+			"telemetry_path", telemetryPath,
+			"reason", "no events found",
+		)
 		return
 	}
 
@@ -394,6 +572,12 @@ func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, pla
 			status.TelemetryUploadError = fmt.Sprintf("telemetry fallback upload failed: %v", err)
 			status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback upload failed: %v", err))
 		})
+		s.logger.Error("smoke_test_telemetry_fallback_upload_failed",
+			"smoke_test_id", smokeTestID,
+			"telemetry_path", telemetryPath,
+			"events_found", len(events),
+			"error", err.Error(),
+		)
 		return
 	}
 
@@ -402,110 +586,84 @@ func (s *DefaultService) attemptTelemetryFallback(smokeTestID, scenarioName, pla
 		status.TelemetryUploadError = ""
 		status.Logs = append(status.Logs, fmt.Sprintf("Telemetry fallback uploaded %d events from %s", ingested, telemetryPath))
 	})
+
+	s.logger.Info("smoke_test_telemetry_fallback",
+		"smoke_test_id", smokeTestID,
+		"telemetry_path", telemetryPath,
+		"events_found", len(events),
+		"events_ingested", ingested,
+	)
 }
 
-func extractTelemetryPath(output string) string {
-	const marker = "[Desktop App] Telemetry initialized at "
-	for _, line := range strings.Split(output, "\n") {
-		if strings.Contains(line, marker) {
-			idx := strings.Index(line, marker)
-			if idx >= 0 {
-				return strings.TrimSpace(line[idx+len(marker):])
-			}
-		}
-	}
-	return ""
+func (s *DefaultService) recordTypedFailure(smokeTestID string, err *Error) {
+	s.transitionTo(smokeTestID, StateFailed, err.Message)
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.Status = "failed"
+		status.Error = err.Error()
+		status.ErrorKind = &err.Kind
+		status.ErrorContext = err.Context
+		status.SuggestedAction = err.SuggestedAction
+		status.Logs = append(status.Logs, fmt.Sprintf("FAILED: %s", err.Message))
+		now := time.Now()
+		status.CompletedAt = &now
+	})
+
+	s.logger.Error("smoke_test_failed",
+		"smoke_test_id", smokeTestID,
+		"error_kind", err.Kind.String(),
+		"error", err.Error(),
+		"recoverable", err.Recoverable,
+	)
 }
 
-func resolveAppNameFromArtifact(artifactPath, fallback string) string {
-	dir := filepath.Dir(artifactPath)
-	pkgPath := filepath.Clean(filepath.Join(dir, "..", "package.json"))
-	file, err := os.Open(pkgPath)
-	if err != nil {
-		return fallback
-	}
-	defer file.Close()
+func (s *DefaultService) transitionTo(smokeTestID string, newState State, message string) {
+	s.store.Update(smokeTestID, func(status *Status) {
+		now := time.Now()
+		var durationMs int64
+		if len(status.Transitions) > 0 {
+			lastTransition := status.Transitions[len(status.Transitions)-1]
+			durationMs = now.Sub(lastTransition.Timestamp).Milliseconds()
+		}
+		transition := StateTransition{
+			From:       status.CurrentState,
+			To:         newState,
+			Timestamp:  now,
+			Message:    message,
+			DurationMs: durationMs,
+		}
+		status.Transitions = append(status.Transitions, transition)
+		status.CurrentState = newState
+		status.Logs = append(status.Logs, fmt.Sprintf("[%s] %s", newState, message))
+	})
 
-	raw, err := io.ReadAll(file)
-	if err != nil {
-		return fallback
-	}
-	var payload map[string]interface{}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return fallback
-	}
-	if name, ok := payload["name"].(string); ok && name != "" {
-		return name
-	}
-	return fallback
+	s.logger.Info("smoke_test_state_transition",
+		"smoke_test_id", smokeTestID,
+		"state", string(newState),
+		"message", message,
+	)
 }
 
-func resolveTelemetryPath(platform, appName string) string {
-	if appName == "" {
-		return ""
-	}
-	switch platform {
-	case "win":
-		base := os.Getenv("APPDATA")
-		if base == "" {
-			return ""
-		}
-		return filepath.Join(base, appName, "deployment-telemetry.jsonl")
-	case "mac":
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		return filepath.Join(home, "Library", "Application Support", appName, "deployment-telemetry.jsonl")
-	default:
-		config := os.Getenv("XDG_CONFIG_HOME")
-		if config == "" {
-			home, err := os.UserHomeDir()
-			if err != nil {
-				return ""
-			}
-			config = filepath.Join(home, ".config")
-		}
-		return filepath.Join(config, appName, "deployment-telemetry.jsonl")
-	}
+// SlogAdapter adapts slog.Logger to the Logger interface.
+type SlogAdapter struct {
+	logger *slog.Logger
 }
 
-func readTelemetryEvents(path string, limit int) ([]map[string]interface{}, error) {
-	if limit <= 0 {
-		limit = 500
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	events := make([]map[string]interface{}, 0, limit)
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for scanner.Scan() {
-		if len(events) >= limit {
-			break
-		}
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		var event map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			return events, err
-		}
-		events = append(events, event)
-	}
-	if err := scanner.Err(); err != nil {
-		return events, err
-	}
-	return events, nil
+// NewSlogAdapter creates a new slog adapter.
+func NewSlogAdapter(logger *slog.Logger) *SlogAdapter {
+	return &SlogAdapter{logger: logger}
 }
 
-// noopLogger is a no-op logger for when logging is not needed.
-type noopLogger struct{}
+// Info logs an info message.
+func (a *SlogAdapter) Info(msg string, args ...interface{}) {
+	a.logger.Info(msg, args...)
+}
 
-func (l *noopLogger) Info(msg string, args ...interface{})  {}
-func (l *noopLogger) Warn(msg string, args ...interface{})  {}
-func (l *noopLogger) Error(msg string, args ...interface{}) {}
+// Warn logs a warning message.
+func (a *SlogAdapter) Warn(msg string, args ...interface{}) {
+	a.logger.Warn(msg, args...)
+}
+
+// Error logs an error message.
+func (a *SlogAdapter) Error(msg string, args ...interface{}) {
+	a.logger.Error(msg, args...)
+}

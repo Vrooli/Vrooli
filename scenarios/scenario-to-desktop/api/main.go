@@ -132,10 +132,13 @@ func NewServer(port int) *Server {
 		smokeTestStore = smoketest.NewInMemoryStore()
 	}
 	cancelManager := smoketest.NewCancelManager()
-	smokeTestService := smoketest.NewService(
-		smoketest.WithStore(smokeTestStore),
-		smoketest.WithCancelManager(cancelManager),
-		smoketest.WithPort(port),
+	smokeTestLogger := smoketest.NewSlogAdapter(logger)
+	smokeTestService := smoketest.NewDefaultSmokeTestService(
+		smokeTestStore,
+		cancelManager,
+		nil, // telemetryIngestor - set later via handler
+		port,
+		smokeTestLogger,
 	)
 
 	// Telemetry domain

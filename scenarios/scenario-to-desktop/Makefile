@@ -138,6 +138,19 @@ test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
+test-unit: ## Run unit tests only (fast, no external dependencies)
+	@echo "$(BLUE)🧪 Running unit tests...$(RESET)"
+	@cd api && go test -v -race ./smoketest/...
+	@echo "$(GREEN)✓ Unit tests passed$(RESET)"
+
+test-integration: ## Run integration tests (requires test fixture build)
+	@echo "$(BLUE)🧪 Running integration tests...$(RESET)"
+	@cd api && go test -tags=integration -timeout=5m -v ./smoketest/...
+	@echo "$(GREEN)✓ Integration tests passed$(RESET)"
+
+test-all: test-unit test-integration ## Run all tests (unit + integration)
+	@echo "$(GREEN)✓ All tests passed$(RESET)"
+
 runtime-validate: ## Run supervisor dry-run validation loop (fixture bundle)
 	@echo "$(BLUE)🧪 Running runtime dry-run validation...$(RESET)"
 	@cd runtime && go run ./cmd/runtime --manifest testdata/fixture-bundle/bundle.json --app-data /tmp/vrooli-runtime-fixture --dry-run
@@ -260,6 +273,9 @@ r: run
 s: stop
 d: dev
 t: test
+tu: test-unit
+ti: test-integration
+ta: test-all
 l: logs
 c: clean
 b: build
