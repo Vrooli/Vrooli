@@ -198,6 +198,28 @@ CREATE INDEX IF NOT EXISTS idx_recording_actions_type ON recording_actions(actio
 CREATE INDEX IF NOT EXISTS idx_recording_actions_timestamp ON recording_actions(timestamp);
 
 -- ============================================================================
+-- TIMELINE_ENTRIES: Unified timeline for recording sessions
+-- ============================================================================
+-- Stores both actions and page events in a single timeline.
+-- This enables unified querying and WebSocket broadcasting.
+CREATE TABLE IF NOT EXISTS timeline_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type VARCHAR(50) NOT NULL,  -- 'action' | 'page_event'
+    timestamp TIMESTAMP NOT NULL,
+    session_id VARCHAR(255) NOT NULL REFERENCES recording_sessions(id) ON DELETE CASCADE,
+    page_id UUID NOT NULL,
+    sequence INTEGER NOT NULL,
+    action_json JSONB,      -- JSON for action details (when type='action')
+    page_event_json JSONB,  -- JSON for page event details (when type='page_event')
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_session ON timeline_entries(session_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_page ON timeline_entries(page_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_sequence ON timeline_entries(session_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_timeline_entries_type ON timeline_entries(type);
+
+-- ============================================================================
 -- UNIFIED CREDIT SYSTEM TABLES
 -- Single credit pool model for all operations (AI, executions, exports).
 -- ============================================================================

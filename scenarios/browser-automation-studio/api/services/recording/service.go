@@ -134,6 +134,39 @@ func (s *Service) CreateSession(ctx context.Context, cfg SessionConfig) (*domain
 	return session, nil
 }
 
+// RegisterSession registers an existing session ID from an external source (like live-capture driver).
+// This is used when the session is created by the driver but needs to be tracked for timeline persistence.
+func (s *Service) RegisterSession(ctx context.Context, sessionID string, cfg SessionConfig) error {
+	session := &domain.RecordingSession{
+		ID:             sessionID,
+		ProfileID:      cfg.ProfileID,
+		Status:         domain.SessionStatusActive,
+		ViewportWidth:  cfg.ViewportWidth,
+		ViewportHeight: cfg.ViewportHeight,
+		CreatedAt:      s.clock.Now(),
+	}
+
+	// Persist to database if repo is available
+	if s.repo != nil {
+		if err := s.repo.CreateSession(ctx, session); err != nil {
+			s.log.WithError(err).Error("Failed to register recording session in database")
+			return err
+		}
+	}
+
+	// Initialize hot cache
+	s.cacheMu.Lock()
+	s.cache[sessionID] = &SessionTimeline{
+		SessionID: sessionID,
+		Entries:   make([]persistence.UnifiedTimelineEntry, 0),
+		Sequence:  1,
+	}
+	s.cacheMu.Unlock()
+
+	s.log.WithField("session_id", sessionID).Info("Registered recording session")
+	return nil
+}
+
 // RecordAction records a browser action to the timeline.
 // This is the primary entry point for all action recording, ensuring
 // consistent handling regardless of action source.

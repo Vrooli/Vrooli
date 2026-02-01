@@ -31,7 +31,7 @@ func NewSQLiteRepository(db *sql.DB, log *logrus.Logger) *SQLiteRepository {
 func (r *SQLiteRepository) CreateSession(ctx context.Context, session *domain.RecordingSession) error {
 	query := `
 		INSERT INTO recording_sessions (id, profile_id, status, viewport_width, viewport_height, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.db.ExecContext(ctx, query,
 		session.ID,
@@ -52,7 +52,7 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 	query := `
 		SELECT id, profile_id, status, viewport_width, viewport_height, created_at, closed_at
 		FROM recording_sessions
-		WHERE id = ?
+		WHERE id = $1
 	`
 	var session domain.RecordingSession
 	var profileID sql.NullString
@@ -82,7 +82,7 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 	}
 
 	// Get action count
-	countQuery := `SELECT COUNT(*) FROM timeline_entries WHERE session_id = ?`
+	countQuery := `SELECT COUNT(*) FROM timeline_entries WHERE session_id = $1`
 	if err := r.db.QueryRowContext(ctx, countQuery, sessionID).Scan(&session.ActionCount); err != nil {
 		r.log.WithError(err).Warn("Failed to count session actions")
 	}
@@ -92,7 +92,7 @@ func (r *SQLiteRepository) GetSession(ctx context.Context, sessionID string) (*d
 
 // CloseSession marks a session as closed.
 func (r *SQLiteRepository) CloseSession(ctx context.Context, sessionID string, closedAt time.Time) error {
-	query := `UPDATE recording_sessions SET status = ?, closed_at = ? WHERE id = ?`
+	query := `UPDATE recording_sessions SET status = $1, closed_at = $2 WHERE id = $3`
 	_, err := r.db.ExecContext(ctx, query, domain.SessionStatusClosed, closedAt, sessionID)
 	if err != nil {
 		return fmt.Errorf("close session: %w", err)
@@ -109,9 +109,9 @@ func (r *SQLiteRepository) ListSessions(ctx context.Context, profileID *string, 
 		query = `
 			SELECT id, profile_id, status, viewport_width, viewport_height, created_at, closed_at
 			FROM recording_sessions
-			WHERE profile_id = ?
+			WHERE profile_id = $1
 			ORDER BY created_at DESC
-			LIMIT ? OFFSET ?
+			LIMIT $2 OFFSET $3
 		`
 		args = []interface{}{*profileID, limit, offset}
 	} else {
@@ -119,7 +119,7 @@ func (r *SQLiteRepository) ListSessions(ctx context.Context, profileID *string, 
 			SELECT id, profile_id, status, viewport_width, viewport_height, created_at, closed_at
 			FROM recording_sessions
 			ORDER BY created_at DESC
-			LIMIT ? OFFSET ?
+			LIMIT $1 OFFSET $2
 		`
 		args = []interface{}{limit, offset}
 	}
@@ -164,12 +164,12 @@ func (r *SQLiteRepository) ListSessions(ctx context.Context, profileID *string, 
 // DeleteSession removes a session and all its entries.
 func (r *SQLiteRepository) DeleteSession(ctx context.Context, sessionID string) error {
 	// Delete entries first (foreign key)
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = ?`, sessionID); err != nil {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, sessionID); err != nil {
 		return fmt.Errorf("delete session entries: %w", err)
 	}
 
 	// Delete session
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM recording_sessions WHERE id = ?`, sessionID); err != nil {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM recording_sessions WHERE id = $1`, sessionID); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
 
@@ -199,7 +199,7 @@ func (r *SQLiteRepository) SaveTimelineEntry(ctx context.Context, entry *Unified
 
 	query := `
 		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := r.db.ExecContext(ctx, query,
 		entry.ID.String(),
@@ -228,7 +228,7 @@ func (r *SQLiteRepository) SaveTimelineEntries(ctx context.Context, entries []*U
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare statement: %w", err)
@@ -277,7 +277,7 @@ func (r *SQLiteRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UU
 	query := `
 		SELECT id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json
 		FROM timeline_entries
-		WHERE id = ?
+		WHERE id = $1
 	`
 
 	var entry UnifiedTimelineEntry
@@ -331,22 +331,25 @@ func (r *SQLiteRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UU
 func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery) (*TimelineResponse, error) {
 	query.ApplyDefaults()
 
-	// Build query
+	// Build query with PostgreSQL numbered placeholders
 	baseQuery := `
 		SELECT id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json
 		FROM timeline_entries
-		WHERE session_id = ?
+		WHERE session_id = $1
 	`
 	args := []interface{}{query.SessionID}
+	paramNum := 2 // Next placeholder number
 
 	if query.PageID != nil {
-		baseQuery += ` AND page_id = ?`
+		baseQuery += fmt.Sprintf(` AND page_id = $%d`, paramNum)
 		args = append(args, query.PageID.String())
+		paramNum++
 	}
 
 	if query.Since != nil {
-		baseQuery += ` AND timestamp > ?`
+		baseQuery += fmt.Sprintf(` AND timestamp > $%d`, paramNum)
 		args = append(args, *query.Since)
+		paramNum++
 	}
 
 	if len(query.EntryTypes) > 0 {
@@ -355,13 +358,14 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 			if i > 0 {
 				baseQuery += ","
 			}
-			baseQuery += "?"
+			baseQuery += fmt.Sprintf("$%d", paramNum)
 			args = append(args, t)
+			paramNum++
 		}
 		baseQuery += `)`
 	}
 
-	baseQuery += ` ORDER BY sequence ASC LIMIT ? OFFSET ?`
+	baseQuery += fmt.Sprintf(` ORDER BY sequence ASC LIMIT $%d OFFSET $%d`, paramNum, paramNum+1)
 	args = append(args, query.Limit+1, query.Offset)
 
 	rows, err := r.db.QueryContext(ctx, baseQuery, args...)
@@ -438,7 +442,7 @@ func (r *SQLiteRepository) GetTimeline(ctx context.Context, query TimelineQuery)
 // CountTimelineEntries returns the total entry count for a session.
 func (r *SQLiteRepository) CountTimelineEntries(ctx context.Context, sessionID string) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM timeline_entries WHERE session_id = ?`, sessionID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM timeline_entries WHERE session_id = $1`, sessionID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count entries: %w", err)
 	}
@@ -447,7 +451,7 @@ func (r *SQLiteRepository) CountTimelineEntries(ctx context.Context, sessionID s
 
 // DeleteSessionEntries removes all timeline entries for a session.
 func (r *SQLiteRepository) DeleteSessionEntries(ctx context.Context, sessionID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = ?`, sessionID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, sessionID)
 	if err != nil {
 		return fmt.Errorf("delete session entries: %w", err)
 	}
@@ -457,7 +461,7 @@ func (r *SQLiteRepository) DeleteSessionEntries(ctx context.Context, sessionID s
 // PruneOldSessions removes sessions older than the given time.
 func (r *SQLiteRepository) PruneOldSessions(ctx context.Context, olderThan time.Time) (int, error) {
 	// Get session IDs to delete
-	rows, err := r.db.QueryContext(ctx, `SELECT id FROM recording_sessions WHERE created_at < ?`, olderThan)
+	rows, err := r.db.QueryContext(ctx, `SELECT id FROM recording_sessions WHERE created_at < $1`, olderThan)
 	if err != nil {
 		return 0, fmt.Errorf("query old sessions: %w", err)
 	}
@@ -485,10 +489,10 @@ func (r *SQLiteRepository) PruneOldSessions(ctx context.Context, olderThan time.
 	defer tx.Rollback()
 
 	for _, id := range sessionIDs {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = ?`, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, id); err != nil {
 			return 0, fmt.Errorf("delete entries for session %s: %w", id, err)
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM recording_sessions WHERE id = ?`, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM recording_sessions WHERE id = $1`, id); err != nil {
 			return 0, fmt.Errorf("delete session %s: %w", id, err)
 		}
 	}

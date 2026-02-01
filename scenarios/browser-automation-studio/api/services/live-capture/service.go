@@ -189,6 +189,19 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (*Sessi
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
+	// Register session with unified recording service for timeline persistence.
+	// This ensures the recording_sessions table entry exists before any actions
+	// are recorded, satisfying the foreign key constraint on timeline_entries.
+	if s.unifiedRecordingSvc != nil {
+		regCfg := unifiedrecording.SessionConfig{
+			ViewportWidth:  cfg.ViewportWidth,
+			ViewportHeight: cfg.ViewportHeight,
+		}
+		if err := s.unifiedRecordingSvc.RegisterSession(ctx, sess.ID(), regCfg); err != nil {
+			s.log.WithError(err).Warn("Failed to register session with unified recording service - timeline persistence may fail")
+		}
+	}
+
 	// Initialize page tracking for multi-tab support
 	sess.InitializePageTracking(cfg.InitialURL)
 

@@ -32,6 +32,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -178,12 +179,13 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 
 // DepsOptions holds optional dependencies for handler initialization.
 type DepsOptions struct {
-	UXMetricsRepo       uxmetrics.Repository
-	EntitlementService  *entitlement.Service
-	CreditService       credits.CreditService                // Unified credit tracking
-	AIClientFactory     *ai.AIClientFactory                  // Per-request AI client creation
-	NavigatorRegistry   *vision.NavigatorRegistry            // Vision navigator selection
-	PlaywrightNavigator *vision.PlaywrightVisionNavigator    // Direct reference to playwright navigator
+	UXMetricsRepo           uxmetrics.Repository
+	EntitlementService      *entitlement.Service
+	CreditService           credits.CreditService                    // Unified credit tracking
+	AIClientFactory         *ai.AIClientFactory                      // Per-request AI client creation
+	NavigatorRegistry       *vision.NavigatorRegistry                // Vision navigator selection
+	PlaywrightNavigator     *vision.PlaywrightVisionNavigator        // Direct reference to playwright navigator
+	UnifiedRecordingService *unifiedrecording.Service                // Timeline persistence for recorded actions
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -258,8 +260,14 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	}
 
 	// Create record mode service for live recording session management
-	// Note: Without unified recording service, recording callbacks won't be injected
-	recordModeSvc := livecapture.NewService(log, nil)
+	// Inject unified recording service from options for timeline persistence
+	// Without this, recorded actions won't be persisted
+	recordModeSvc := livecapture.NewService(log, opts.UnifiedRecordingService)
+	if opts.UnifiedRecordingService != nil {
+		log.Info("✅ Record mode service initialized with unified recording (timeline persistence enabled)")
+	} else {
+		log.Warn("⚠️ Record mode service initialized WITHOUT unified recording - actions won't be persisted to timeline")
+	}
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces

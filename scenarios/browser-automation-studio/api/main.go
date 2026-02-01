@@ -41,6 +41,10 @@ import (
 	"github.com/vrooli/browser-automation-studio/usecases/import/shared"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 
+	// Unified recording service for timeline persistence
+	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	unifiedpersistence "github.com/vrooli/browser-automation-studio/services/recording/persistence"
+
 	// Tool Discovery Protocol
 	toolhandlers "github.com/vrooli/browser-automation-studio/internal/handlers"
 	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
@@ -140,6 +144,14 @@ func main() {
 	hub := wsHub.NewHub(log)
 	go hub.Run()
 
+	// Initialize unified recording service for timeline persistence
+	// This service manages all recorded actions and page events across the application
+	unifiedRecordingRepo := unifiedpersistence.NewSQLiteRepository(db.RawDB(), log)
+	unifiedRecordingSvc := unifiedrecording.NewService(
+		unifiedRecordingRepo, hub, log, unifiedrecording.ServiceConfig{},
+	)
+	log.Info("✅ Unified recording service initialized")
+
 	// Load configuration
 	cfg := config.Load()
 
@@ -224,12 +236,13 @@ func main() {
 	// The UX metrics collector wraps the event sink to passively capture interaction data
 	// The entitlement services enable tier-based feature gating and credit tracking
 	deps := handlers.InitDefaultDepsWithOptions(repo, hub, log, handlers.DepsOptions{
-		UXMetricsRepo:       uxRepo,
-		EntitlementService:  entitlementSvc,
-		CreditService:       creditService,
-		AIClientFactory:     aiClientFactory,
-		NavigatorRegistry:   navigatorRegistry,
-		PlaywrightNavigator: playwrightNav,
+		UXMetricsRepo:           uxRepo,
+		EntitlementService:      entitlementSvc,
+		CreditService:           creditService,
+		AIClientFactory:         aiClientFactory,
+		NavigatorRegistry:       navigatorRegistry,
+		PlaywrightNavigator:     playwrightNav,
+		UnifiedRecordingService: unifiedRecordingSvc,
 	})
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowAll, corsCfg.AllowedOrigins, deps)
 
