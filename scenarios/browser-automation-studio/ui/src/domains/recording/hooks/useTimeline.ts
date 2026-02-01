@@ -8,142 +8,18 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useWebSocket } from '@/contexts/WebSocketContext';
-import { getApiBase } from '@/config';
+import { recordingApi } from '../api';
+import type {
+  TimelineEntry,
+  TimelineAction,
+  TimelinePageEvent,
+} from '../api/schemas';
 import type { Page } from './usePages';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const isString = (value: unknown): value is string => typeof value === 'string';
-const isNumber = (value: unknown): value is number => typeof value === 'number';
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
-
-/** Timeline entry types */
+// Re-export types for backward compatibility
+export type { TimelineEntry, TimelineAction, TimelinePageEvent } from '../api/schemas';
+export type { PageEventType } from '../api/schemas';
 export type TimelineEntryType = 'action' | 'page_event';
-
-/** Page event types */
-export type PageEventType = 'page_created' | 'page_navigated' | 'page_closed';
-
-/** Recorded action from timeline */
-export interface TimelineAction {
-  id: string;
-  actionType: string;
-  url?: string;
-  sequenceNum: number;
-  timestamp: string;
-  selector?: { primary: string };
-  payload?: Record<string, unknown>;
-  confidence: number;
-  pageTitle?: string;
-}
-
-/** Page event from timeline */
-export interface TimelinePageEvent {
-  id: string;
-  type: PageEventType;
-  pageId: string;
-  url?: string;
-  title?: string;
-  openerId?: string;
-  timestamp: string;
-}
-
-/** Unified timeline entry */
-export interface TimelineEntry {
-  id: string;
-  type: TimelineEntryType;
-  timestamp: string;
-  pageId: string;
-  action?: TimelineAction;
-  pageEvent?: TimelinePageEvent;
-}
-
-/** API response for timeline */
-interface TimelineResponse {
-  entries: TimelineEntry[];
-  hasMore: boolean;
-  totalEntries: number;
-}
-
-const parseTimelineAction = (value: unknown): TimelineAction | undefined => {
-  if (!isRecord(value)) return undefined;
-  if (!isString(value.id)) return undefined;
-  if (!isString(value.actionType)) return undefined;
-  if (!isNumber(value.sequenceNum)) return undefined;
-  if (!isString(value.timestamp)) return undefined;
-  if (!isNumber(value.confidence)) return undefined;
-  const selector = isRecord(value.selector) && isString(value.selector.primary)
-    ? { primary: value.selector.primary }
-    : undefined;
-  return {
-    id: value.id,
-    actionType: value.actionType,
-    sequenceNum: value.sequenceNum,
-    timestamp: value.timestamp,
-    confidence: value.confidence,
-    url: isString(value.url) ? value.url : undefined,
-    selector,
-    payload: isRecord(value.payload) ? value.payload : undefined,
-    pageTitle: isString(value.pageTitle) ? value.pageTitle : undefined,
-  };
-};
-
-const parseTimelinePageEvent = (value: unknown): TimelinePageEvent | undefined => {
-  if (!isRecord(value)) return undefined;
-  if (!isString(value.id)) return undefined;
-  if (!isString(value.type)) return undefined;
-  if (!isString(value.pageId)) return undefined;
-  if (!isString(value.timestamp)) return undefined;
-  if (value.type !== 'page_created' && value.type !== 'page_navigated' && value.type !== 'page_closed') {
-    return undefined;
-  }
-  return {
-    id: value.id,
-    type: value.type,
-    pageId: value.pageId,
-    timestamp: value.timestamp,
-    url: isString(value.url) ? value.url : undefined,
-    title: isString(value.title) ? value.title : undefined,
-    openerId: isString(value.openerId) ? value.openerId : undefined,
-  };
-};
-
-const parseTimelineEntry = (value: unknown): TimelineEntry | null => {
-  if (!isRecord(value)) return null;
-  if (!isString(value.id)) return null;
-  if (!isString(value.type)) return null;
-  if (!isString(value.timestamp)) return null;
-  if (!isString(value.pageId)) return null;
-  const action = parseTimelineAction(value.action);
-  const pageEvent = parseTimelinePageEvent(value.pageEvent);
-  return {
-    id: value.id,
-    type: value.type as TimelineEntryType,
-    timestamp: value.timestamp,
-    pageId: value.pageId,
-    action,
-    pageEvent,
-  };
-};
-
-const parseTimelineResponse = (value: unknown): TimelineResponse | null => {
-  if (!isRecord(value)) return null;
-  const entries = Array.isArray(value.entries)
-    ? value.entries.map(parseTimelineEntry).filter((entry): entry is TimelineEntry => entry !== null)
-    : [];
-  const hasMore = typeof value.hasMore === 'boolean' ? value.hasMore : false;
-  const totalEntries = typeof value.totalEntries === 'number' ? value.totalEntries : entries.length;
-  return { entries, hasMore, totalEntries };
-};
 
 /** WebSocket message for recording action */
 interface RecordingActionMessage {
@@ -234,10 +110,25 @@ export function useTimeline({
   const [hasMore, setHasMore] = useState(false);
 
   const { lastMessage, send, isConnected } = useWebSocket();
-  const apiUrl = getApiBase();
   const onEntryReceivedRef = useRef(onEntryReceived);
   onEntryReceivedRef.current = onEntryReceived;
   const subscribedSessionRef = useRef<string | null>(null);
+
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  // Reset abort controller when session changes
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+  }, [sessionId]);
 
   // Assign colors to pages based on creation order
   const pageColorMap = useMemo(() => {
@@ -262,33 +153,27 @@ export function useTimeline({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const params = new URLSearchParams({ limit: limit.toString() });
-      if (filterPageId) {
-        params.set('pageId', filterPageId);
-      }
+    const result = await recordingApi.getTimeline(
+      sessionId,
+      { limit, pageId: filterPageId ?? undefined },
+      { signal: abortControllerRef.current?.signal }
+    );
 
-      const response = await fetch(`${apiUrl}/recordings/live/${sessionId}/timeline?${params}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch timeline: ${response.statusText}`);
-      }
+    setIsLoading(false);
 
-      const payload = await safeJson(response);
-      const data = parseTimelineResponse(payload);
-      if (!data) {
-        throw new Error('Invalid timeline response');
+    if (!result.success) {
+      // Don't set error for aborted requests
+      if (result.error !== 'Request cancelled') {
+        setError(result.error);
+        console.error('[useTimeline] Error fetching timeline:', result.error);
       }
-      setEntries(data.entries || []);
-      setTotalEntries(data.totalEntries || 0);
-      setHasMore(data.hasMore || false);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch timeline';
-      setError(message);
-      console.error('[useTimeline] Error fetching timeline:', err);
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  }, [apiUrl, sessionId, filterPageId, limit]);
+
+    setEntries(result.data.entries);
+    setTotalEntries(result.data.totalEntries);
+    setHasMore(result.data.hasMore);
+  }, [sessionId, filterPageId, limit]);
 
   // Fetch timeline when session changes
   useEffect(() => {

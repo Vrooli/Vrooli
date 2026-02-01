@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getConfig } from '@/config';
 import { logger } from '@/utils/logger';
-import type { ViewportDimensions, ActualViewport, ViewportSource } from '../types/viewport';
+import { recordingApi } from '../api';
+import type { ActualViewport } from '../api/schemas';
+import type { ViewportDimensions } from '../types/viewport';
 import {
   type RetryState,
   DEFAULT_RETRY_CONFIG,
@@ -11,38 +12,8 @@ import {
   createManualRetryState,
 } from '../services';
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
-
-const isViewportSource = (value: unknown): value is ViewportSource =>
-  value === 'requested' ||
-  value === 'fingerprint' ||
-  value === 'fingerprint_partial' ||
-  value === 'default';
-
-const parseActualViewport = (value: unknown): ActualViewport | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.width !== 'number' || typeof value.height !== 'number') return null;
-  return {
-    width: value.width,
-    height: value.height,
-    source: isViewportSource(value.source) ? value.source : 'requested',
-    reason: typeof value.reason === 'string' ? value.reason : '',
-  };
-};
-
 // Re-export types for backward compatibility
-export type { ViewportSource, ActualViewport } from '../types/viewport';
+export type { ViewportSource, ActualViewport } from '../api/schemas';
 
 interface UseRecordingSessionOptions {
   initialSessionId: string | null;
@@ -104,16 +75,24 @@ export function useRecordingSession({
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryAttemptsRef = useRef(0);
 
-  // Clean up cooldown timer on unmount
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (cooldownTimerRef.current) {
         clearTimeout(cooldownTimerRef.current);
       }
+      abortControllerRef.current?.abort();
     };
   }, []);
 
   useEffect(() => {
+    // Abort any pending requests when session changes
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
     setSessionId(initialSessionId ?? null);
     setSessionProfileId(initialSessionProfileId ?? null);
     setSessionError(null);
@@ -159,63 +138,49 @@ export function useRecordingSession({
 
     const createSession = async (): Promise<string | null> => {
       try {
-        const config = await getConfig();
-        const response = await fetch(`${config.API_URL}/recordings/live/session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            viewport_width: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : 1280,
-            viewport_height: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : 720,
-            session_profile_id: profileId ?? sessionProfileId ?? undefined,
-            // Stream settings for frame streaming configuration
-            stream_quality: streamSettings?.quality,
-            stream_fps: streamSettings?.fps,
-            stream_scale: streamSettings?.scale,
-            // Tab restoration - defaults to true on server if not specified
-            restore_tabs: restoreTabs,
-          }),
-        });
+        const result = await recordingApi.createSession(
+          {
+            viewportWidth: viewport?.width && viewport.width > 0 ? Math.round(viewport.width) : undefined,
+            viewportHeight: viewport?.height && viewport.height > 0 ? Math.round(viewport.height) : undefined,
+            sessionProfileId: profileId ?? sessionProfileId ?? undefined,
+            streamQuality: streamSettings?.quality,
+            streamFps: streamSettings?.fps,
+            streamScale: streamSettings?.scale,
+            restoreTabs,
+          },
+          { signal: abortControllerRef.current?.signal }
+        );
 
-        const payload = await safeJson(response);
-        if (!response.ok) {
-          const message =
-            isRecord(payload) && typeof payload.message === 'string'
-              ? payload.message
-              : `Failed to create recording session: ${response.statusText}`;
-          throw new Error(message);
+        if (!result.success) {
+          throw new Error(result.error);
         }
 
-        const newSessionId =
-          isRecord(payload) && typeof payload.session_id === 'string'
-            ? payload.session_id
-            : undefined;
-
-        if (!newSessionId) {
-          throw new Error('No session ID returned from server');
-        }
+        const { session_id: newSessionId, session_profile_id, actual_viewport, initial_url } = result.data;
 
         // Success - reset retry state
         retryAttemptsRef.current = 0;
         setRetryState(createSuccessState());
 
         setSessionId(newSessionId);
-        if (isRecord(payload) && typeof payload.session_profile_id === 'string') {
-          setSessionProfileId(payload.session_profile_id);
+        if (session_profile_id) {
+          setSessionProfileId(session_profile_id);
         }
-        const actualViewportValue = parseActualViewport(
-          isRecord(payload) ? payload.actual_viewport : null
-        );
-        if (actualViewportValue) {
-          setActualViewport(actualViewportValue);
+        if (actual_viewport) {
+          setActualViewport(actual_viewport);
         }
-        if (isRecord(payload) && typeof payload.initial_url === 'string') {
-          setInitialRestoredUrl(payload.initial_url);
+        if (initial_url) {
+          setInitialRestoredUrl(initial_url);
         }
         if (onSessionReady) {
           onSessionReady(newSessionId);
         }
         return newSessionId;
       } catch (err) {
+        // Handle abort
+        if (err instanceof Error && err.name === 'AbortError') {
+          return null;
+        }
+
         const message = err instanceof Error ? err.message : 'Failed to create recording session';
         setSessionError(message);
         logger.error('Failed to create recording session', { component: 'useRecordingSession', action: 'ensureSession' }, err);

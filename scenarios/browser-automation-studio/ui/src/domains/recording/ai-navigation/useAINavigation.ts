@@ -9,12 +9,12 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { getApiBase } from '@/config';
 import { useWebSocket } from '@/contexts/WebSocketContext';
 import { getAIRequestHeadersSync } from '@/utils/apiHeaders';
+import { recordingApi } from '../api';
+import { logger } from '@/utils/logger';
 import type {
   AINavigateRequest,
-  AINavigateResponse,
   AINavigationState,
   AINavigationStep,
   AINavigationStepEvent,
@@ -22,13 +22,19 @@ import type {
   AINavigationAwaitingHumanEvent,
   AINavigationResumedEvent,
   VisionModelSpec,
+  BrowserAction,
+  TokenUsage,
 } from './types';
 import { VISION_MODELS } from './types';
+
+// ============================================================================
+// Helper Functions for WebSocket Message Parsing
+// ============================================================================
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const actionTypes = new Set<AINavigationStep['action']['type']>([
+const actionTypes = new Set<BrowserAction['type']>([
   'click',
   'type',
   'scroll',
@@ -41,14 +47,14 @@ const actionTypes = new Set<AINavigationStep['action']['type']>([
   'request_human',
 ]);
 
-const directionTypes = new Set<NonNullable<AINavigationStep['action']['direction']>>([
+const directionTypes = new Set<NonNullable<BrowserAction['direction']>>([
   'up',
   'down',
   'left',
   'right',
 ]);
 
-const interventionTypes = new Set<NonNullable<AINavigationStep['action']['interventionType']>>([
+const interventionTypes = new Set<NonNullable<BrowserAction['interventionType']>>([
   'captcha',
   'verification',
   'complex_interaction',
@@ -70,7 +76,7 @@ const statusTypes = new Set<AINavigationCompleteEvent['status']>([
   'awaiting_human',
 ]);
 
-const parseTokensUsed = (value: unknown): AINavigationStepEvent['tokensUsed'] => {
+const parseTokensUsed = (value: unknown): TokenUsage => {
   if (!isRecord(value)) {
     return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
   }
@@ -80,12 +86,12 @@ const parseTokensUsed = (value: unknown): AINavigationStepEvent['tokensUsed'] =>
   return { promptTokens, completionTokens, totalTokens };
 };
 
-const parseBrowserAction = (value: unknown): AINavigationStep['action'] => {
-  if (!isRecord(value) || typeof value.type !== 'string' || !actionTypes.has(value.type as AINavigationStep['action']['type'])) {
+const parseBrowserAction = (value: unknown): BrowserAction => {
+  if (!isRecord(value) || typeof value.type !== 'string' || !actionTypes.has(value.type as BrowserAction['type'])) {
     return { type: 'wait' };
   }
 
-  const action: AINavigationStep['action'] = { type: value.type as AINavigationStep['action']['type'] };
+  const action: BrowserAction = { type: value.type as BrowserAction['type'] };
 
   if (typeof value.elementId === 'number') {
     action.elementId = value.elementId;
@@ -96,8 +102,8 @@ const parseBrowserAction = (value: unknown): AINavigationStep['action'] => {
   if (typeof value.text === 'string') {
     action.text = value.text;
   }
-  if (typeof value.direction === 'string' && directionTypes.has(value.direction as NonNullable<AINavigationStep['action']['direction']>)) {
-    action.direction = value.direction as NonNullable<AINavigationStep['action']['direction']>;
+  if (typeof value.direction === 'string' && directionTypes.has(value.direction as NonNullable<BrowserAction['direction']>)) {
+    action.direction = value.direction as NonNullable<BrowserAction['direction']>;
   }
   if (typeof value.url === 'string') {
     action.url = value.url;
@@ -117,8 +123,8 @@ const parseBrowserAction = (value: unknown): AINavigationStep['action'] => {
   if (typeof value.instructions === 'string') {
     action.instructions = value.instructions;
   }
-  if (typeof value.interventionType === 'string' && interventionTypes.has(value.interventionType as NonNullable<AINavigationStep['action']['interventionType']>)) {
-    action.interventionType = value.interventionType as NonNullable<AINavigationStep['action']['interventionType']>;
+  if (typeof value.interventionType === 'string' && interventionTypes.has(value.interventionType as NonNullable<BrowserAction['interventionType']>)) {
+    action.interventionType = value.interventionType as NonNullable<BrowserAction['interventionType']>;
   }
   return action;
 };
@@ -220,36 +226,9 @@ const parseResumedEvent = (value: unknown): AINavigationResumedEvent | null => {
   };
 };
 
-const parseNavigationError = (
-  value: unknown
-): { code?: string; message?: string; details?: Record<string, string> } => {
-  if (!isRecord(value)) return {};
-  const code = typeof value.code === 'string' ? value.code : undefined;
-  const message = typeof value.message === 'string' ? value.message : undefined;
-  let details: Record<string, string> | undefined;
-  if (isRecord(value.details)) {
-    const entries = Object.entries(value.details).filter(([, val]) => typeof val === 'string');
-    if (entries.length > 0) {
-      details = Object.fromEntries(entries) as Record<string, string>;
-    }
-  }
-  return { code, message, details };
-};
-
-const parseNavigateResponse = (value: unknown): AINavigateResponse | null => {
-  if (!isRecord(value)) return null;
-  if (typeof value.navigation_id !== 'string') return null;
-  if (typeof value.status !== 'string') return null;
-  if (typeof value.model !== 'string') return null;
-  if (typeof value.max_steps !== 'number') return null;
-  return {
-    navigationId: value.navigation_id,
-    status: value.status,
-    model: value.model,
-    maxSteps: value.max_steps,
-    estimatedCost: typeof value.estimated_cost === 'number' ? value.estimated_cost : undefined,
-  };
-};
+// ============================================================================
+// Custom Error Class
+// ============================================================================
 
 /**
  * Custom error class for AI navigation errors.
@@ -266,6 +245,10 @@ export class AINavigationError extends Error {
     this.details = details;
   }
 }
+
+// ============================================================================
+// Hook Interface
+// ============================================================================
 
 interface UseAINavigationOptions {
   sessionId: string | null;
@@ -306,12 +289,15 @@ const initialState: AINavigationState = {
   humanIntervention: null,
 };
 
+// ============================================================================
+// Hook Implementation
+// ============================================================================
+
 export function useAINavigation({
   sessionId,
   onStep,
   onComplete,
 }: UseAINavigationOptions): UseAINavigationReturn {
-  const apiUrl = getApiBase();
   const [state, setState] = useState<AINavigationState>(initialState);
   const { lastMessage } = useWebSocket();
 
@@ -322,6 +308,16 @@ export function useAINavigation({
   onStepRef.current = onStep;
   onCompleteRef.current = onComplete;
 
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   // Process WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
@@ -331,7 +327,10 @@ export function useAINavigation({
 
     // Log all AI navigation related messages
     if (typeof msg.type === 'string' && msg.type.startsWith('ai_navigation')) {
-      console.log('[useAINavigation] WebSocket message received:', msg.type, msg);
+      logger.debug('WebSocket message received', {
+        component: 'useAINavigation',
+        messageType: msg.type,
+      });
     }
 
     // Handle AI navigation step events
@@ -373,7 +372,8 @@ export function useAINavigation({
     const completeEvent = parseCompleteEvent(msg);
     if (completeEvent) {
 
-      console.log('[useAINavigation] Received complete event:', {
+      logger.debug('Received complete event', {
+        component: 'useAINavigation',
         eventNavigationId: completeEvent.navigationId,
         currentNavigationId: navigationIdRef.current,
         eventStatus: completeEvent.status,
@@ -381,7 +381,7 @@ export function useAINavigation({
 
       // Only process events for our current navigation
       if (completeEvent.navigationId !== navigationIdRef.current) {
-        console.log('[useAINavigation] Ignoring complete event - navigationId mismatch');
+        logger.debug('Ignoring complete event - navigationId mismatch', { component: 'useAINavigation' });
         return;
       }
 
@@ -389,7 +389,10 @@ export function useAINavigation({
       const status = completeEvent.status ?? 'completed';
       const totalTokens = completeEvent.totalTokens ?? 0;
 
-      console.log('[useAINavigation] Processing complete event with status:', status);
+      logger.debug('Processing complete event', {
+        component: 'useAINavigation',
+        status,
+      });
 
       setState((prev) => ({
         ...prev,
@@ -441,6 +444,10 @@ export function useAINavigation({
 
   // Reset state when session changes
   useEffect(() => {
+    // Abort any pending requests when session changes
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
     setState(initialState);
     navigationIdRef.current = null;
   }, [sessionId]);
@@ -482,41 +489,52 @@ export function useAINavigation({
           maxSteps,
         };
 
-        const response = await fetch(`${apiUrl}/ai-navigate`, {
-          method: 'POST',
-          headers: getAIRequestHeadersSync(),
-          body: JSON.stringify({
-            session_id: request.sessionId,
+        const result = await recordingApi.startAINavigation(
+          {
+            sessionId: request.sessionId,
             prompt: request.prompt,
             model: request.model,
-            max_steps: request.maxSteps,
-          }),
-        });
+            maxSteps: request.maxSteps,
+          },
+          getAIRequestHeadersSync(),
+          { signal: abortControllerRef.current?.signal }
+        );
 
-        if (!response.ok) {
-          const errorPayload: unknown = await response.json().catch(() => null);
-          const parsedError = parseNavigationError(errorPayload);
-          throw new AINavigationError(
-            parsedError.code ?? 'UNKNOWN_ERROR',
-            parsedError.message ?? `Failed to start navigation: ${response.statusText}`,
-            parsedError.details,
-          );
+        if (!result.success) {
+          // Parse enriched error from the service
+          let code = 'UNKNOWN_ERROR';
+          let message = result.error;
+          let details: Record<string, string> | undefined;
+
+          try {
+            const errorData: unknown = JSON.parse(result.error);
+            if (isRecord(errorData)) {
+              if (typeof errorData.code === 'string') code = errorData.code;
+              if (typeof errorData.message === 'string') message = errorData.message;
+              if (isRecord(errorData.details)) {
+                // Validate that all values are strings
+                const d = errorData.details;
+                const allStrings = Object.values(d).every((v) => typeof v === 'string');
+                if (allStrings) {
+                  details = d as Record<string, string>;
+                }
+              }
+            }
+          } catch {
+            // Not JSON, use raw error
+          }
+
+          throw new AINavigationError(code, message, details);
         }
 
-        // API returns snake_case, convert to camelCase
-        const rawData: unknown = await response.json();
-        const data = parseNavigateResponse(rawData);
-        if (!data) {
-          throw new Error('Invalid navigation response');
-        }
-        navigationIdRef.current = data.navigationId;
+        navigationIdRef.current = result.data.navigation_id;
 
         setState((prev) => ({
           ...prev,
-          navigationId: data.navigationId,
+          navigationId: result.data.navigation_id,
         }));
 
-        return data.navigationId;
+        return result.data.navigation_id;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to start navigation';
         setState((prev) => ({
@@ -528,51 +546,45 @@ export function useAINavigation({
         throw err;
       }
     },
-    [apiUrl, sessionId, state.isNavigating]
+    [sessionId, state.isNavigating]
   );
 
   const abortNavigation = useCallback(async () => {
     // Use ref for the most current navigationId (avoids stale closure issues)
     const navId = navigationIdRef.current;
     if (!navId) {
-      console.warn('[useAINavigation] Cannot abort: no navigationId in ref');
+      logger.warn('Cannot abort: no navigationId in ref', { component: 'useAINavigation' });
       return;
     }
 
-    console.log('[useAINavigation] Aborting navigation:', navId);
+    logger.info('Aborting navigation', { component: 'useAINavigation', navigationId: navId });
 
-    try {
-      const response = await fetch(`${apiUrl}/ai-navigate/${navId}/abort`, {
-        method: 'POST',
-      });
+    const result = await recordingApi.abortAINavigation(navId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      if (!response.ok) {
-        const errorPayload: unknown = await response.json().catch(() => null);
-        const parsedError = parseNavigationError(errorPayload);
-        throw new Error(parsedError.message ?? 'Failed to abort navigation');
-      }
-
-      console.log('[useAINavigation] Abort request sent, waiting for completion');
-
-      // Set status to 'aborting' - navigation is still in progress until server confirms
-      // The WebSocket ai_navigation_complete event will set the final 'aborted' status
+    if (!result.success) {
+      logger.error('Abort failed', { component: 'useAINavigation' }, new Error(result.error));
       setState((prev) => ({
         ...prev,
-        status: 'aborting',
-        humanIntervention: null,
+        error: result.error,
       }));
-
-      // Note: Don't set isNavigating to false or clear navigationIdRef yet
-      // The WebSocket complete event will handle final cleanup
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to abort navigation';
-      console.error('[useAINavigation] Abort failed:', message);
-      setState((prev) => ({
-        ...prev,
-        error: message,
-      }));
+      return;
     }
-  }, [apiUrl]);
+
+    logger.info('Abort request sent, waiting for completion', { component: 'useAINavigation' });
+
+    // Set status to 'aborting' - navigation is still in progress until server confirms
+    // The WebSocket ai_navigation_complete event will set the final 'aborted' status
+    setState((prev) => ({
+      ...prev,
+      status: 'aborting',
+      humanIntervention: null,
+    }));
+
+    // Note: Don't set isNavigating to false or clear navigationIdRef yet
+    // The WebSocket complete event will handle final cleanup
+  }, []);
 
   const resumeNavigation = useCallback(async () => {
     if (!state.navigationId) {
@@ -587,26 +599,20 @@ export function useAINavigation({
       return;
     }
 
-    try {
-      const response = await fetch(`${apiUrl}/ai-navigate/${state.navigationId}/resume`, {
-        method: 'POST',
-      });
+    const result = await recordingApi.resumeAINavigation(state.navigationId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      if (!response.ok) {
-        const errorPayload: unknown = await response.json().catch(() => null);
-        const parsedError = parseNavigationError(errorPayload);
-        throw new Error(parsedError.message ?? 'Failed to resume navigation');
-      }
-
-      // The WebSocket resumed event will clear humanIntervention
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to resume navigation';
+    if (!result.success) {
       setState((prev) => ({
         ...prev,
-        error: message,
+        error: result.error,
       }));
+      return;
     }
-  }, [apiUrl, state.navigationId, state.status]);
+
+    // The WebSocket resumed event will clear humanIntervention
+  }, [state.navigationId, state.status]);
 
   const reset = useCallback(() => {
     setState(initialState);

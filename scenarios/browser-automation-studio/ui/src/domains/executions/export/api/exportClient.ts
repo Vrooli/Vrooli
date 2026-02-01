@@ -107,6 +107,11 @@ async function fetchRecordedVideoStatus(
   executionId: string,
   signal?: AbortSignal,
 ): Promise<RecordedVideoStatus> {
+  // Validate at service boundary - prevents /executions//recorded-videos requests
+  if (!executionId || executionId.trim() === '') {
+    return { available: false, count: 0, videos: [] };
+  }
+
   const { API_URL } = await getConfig();
   const response = await fetch(`${API_URL}/executions/${executionId}/recorded-videos`, {
     signal,
@@ -147,6 +152,11 @@ async function executeExport(
   payload: ExportRequestPayload,
   signal?: AbortSignal,
 ): Promise<ExportResult> {
+  // Validate at service boundary
+  if (!executionId || executionId.trim() === '') {
+    throw new Error('Execution ID is required for export');
+  }
+
   const { API_URL } = await getConfig();
   const acceptHeader = payload.format === "gif" ? "image/gif" : "video/mp4";
 

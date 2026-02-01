@@ -65,6 +65,14 @@ export const fetchExecutionExportPreview = async (
   executionId: string,
   options?: { signal?: AbortSignal },
 ) => {
+  // Validate at service boundary - prevents /executions//export requests
+  if (!executionId || executionId.trim() === '') {
+    throw new Error(JSON.stringify({
+      code: 'INVALID_EXECUTION_ID',
+      message: 'Execution ID is required',
+    }));
+  }
+
   const { API_URL } = await getConfig();
   const response = await fetch(
     `${API_URL}/executions/${executionId}/export`,

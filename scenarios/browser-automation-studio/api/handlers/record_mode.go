@@ -390,9 +390,11 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Map service response to handler response type
+	// Generate recording ID since the driver doesn't provide one
 	driverResp := StartRecordingResponse{
-		SessionID: resp.SessionID,
-		StartedAt: resp.StartedAt,
+		RecordingID: uuid.NewString(),
+		SessionID:   resp.SessionID,
+		StartedAt:   resp.StartedAt,
 	}
 
 	if pb, err := protoconv.StartRecordingToProto(driverResp); err == nil && pb != nil {

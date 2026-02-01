@@ -20,121 +20,14 @@ import {
   type SetStateAction,
 } from 'react';
 import toast from 'react-hot-toast';
-import { getApiBase } from '@/config';
+import { recordingApi } from '../api';
+import type { RecordedAction, SelectorSet } from '../types/types';
 import type {
-  RecordedAction,
-  StopRecordingResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
-  SelectorSet,
   ReplayPreviewResponse,
-} from '../types/types';
+} from '../api/schemas';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const isString = (value: unknown): value is string => typeof value === 'string';
-const isNumber = (value: unknown): value is number => typeof value === 'number';
-const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
-
-const safeJson = async (response: Response): Promise<unknown> => {
-  const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
-
-const parseStopRecordingResponse = (value: unknown): StopRecordingResponse | null => {
-  if (!isRecord(value)) return null;
-  if (!isString(value.recording_id)) return null;
-  if (!isString(value.session_id)) return null;
-  if (!isNumber(value.action_count)) return null;
-  if (!isString(value.stopped_at)) return null;
-  return {
-    recording_id: value.recording_id,
-    session_id: value.session_id,
-    action_count: value.action_count,
-    stopped_at: value.stopped_at,
-  };
-};
-
-const parseGenerateWorkflowResponse = (value: unknown): GenerateWorkflowResponse | null => {
-  if (!isRecord(value)) return null;
-  if (!isString(value.workflow_id)) return null;
-  if (!isString(value.project_id)) return null;
-  if (!isString(value.name)) return null;
-  if (!isNumber(value.node_count)) return null;
-  if (!isNumber(value.action_count)) return null;
-  return {
-    workflow_id: value.workflow_id,
-    project_id: value.project_id,
-    name: value.name,
-    node_count: value.node_count,
-    action_count: value.action_count,
-  };
-};
-
-const parseSelectorValidation = (value: unknown): SelectorValidation | null => {
-  if (!isRecord(value)) return null;
-  if (!isBoolean(value.valid)) return null;
-  if (!isNumber(value.match_count)) return null;
-  if (!isString(value.selector)) return null;
-  const result: SelectorValidation = {
-    valid: value.valid,
-    match_count: value.match_count,
-    selector: value.selector,
-  };
-  if (typeof value.error === 'string') {
-    result.error = value.error;
-  }
-  return result;
-};
-
-const isActionReplayError = (value: unknown): value is ReplayPreviewResponse['results'][number]['error'] => {
-  if (!isRecord(value)) return false;
-  if (!isString(value.message)) return false;
-  if (!isString(value.code)) return false;
-  if (value.match_count !== undefined && !isNumber(value.match_count)) return false;
-  if (value.selector !== undefined && !isString(value.selector)) return false;
-  return true;
-};
-
-const isActionReplayResult = (value: unknown): value is ReplayPreviewResponse['results'][number] => {
-  if (!isRecord(value)) return false;
-  if (!isString(value.action_id)) return false;
-  if (!isNumber(value.sequence_num)) return false;
-  if (!isString(value.action_type)) return false;
-  if (!isBoolean(value.success)) return false;
-  if (!isNumber(value.duration_ms)) return false;
-  if (value.error !== undefined && value.error !== null && !isActionReplayError(value.error)) return false;
-  if (value.screenshot_on_error !== undefined && !isString(value.screenshot_on_error)) return false;
-  return true;
-};
-
-const parseReplayPreviewResponse = (value: unknown): ReplayPreviewResponse | null => {
-  if (!isRecord(value)) return null;
-  if (!isBoolean(value.success)) return null;
-  if (!isNumber(value.total_actions)) return null;
-  if (!isNumber(value.passed_actions)) return null;
-  if (!isNumber(value.failed_actions)) return null;
-  if (!isNumber(value.total_duration_ms)) return null;
-  if (!isBoolean(value.stopped_early)) return null;
-  if (!Array.isArray(value.results)) return null;
-  const results = value.results.filter(isActionReplayResult);
-  return {
-    success: value.success,
-    total_actions: value.total_actions,
-    passed_actions: value.passed_actions,
-    failed_actions: value.failed_actions,
-    total_duration_ms: value.total_duration_ms,
-    stopped_early: value.stopped_early,
-    results,
-  };
-};
 
 interface UseRecordModeOptions {
   sessionId: string | null;
@@ -175,9 +68,7 @@ const CONFIDENCE = {
 
 type ActionSetter = Dispatch<SetStateAction<RecordedAction[]>>;
 
-interface UseRecordingTransportOptions extends UseRecordModeOptions {
-  apiUrl: string;
-}
+type UseRecordingTransportOptions = UseRecordModeOptions;
 
 interface UseRecordingTransportReturn {
   isRecording: boolean;
@@ -196,7 +87,6 @@ interface UseRecordingTransportReturn {
 
 function useRecordingTransport({
   sessionId,
-  apiUrl,
 }: UseRecordingTransportOptions): UseRecordingTransportReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingId, setRecordingId] = useState<string | null>(null);
@@ -208,7 +98,22 @@ function useRecordingTransport({
   const sessionIdRef = useRef<string | null>(sessionId ?? null);
   sessionIdRef.current = sessionId ?? null;
 
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up abort controller on unmount
   useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  // Reset state when session changes
+  useEffect(() => {
+    // Abort any pending requests when session changes
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
     setActions([]);
     setRecordingId(null);
     setIsRecording(false);
@@ -217,7 +122,7 @@ function useRecordingTransport({
 
   const startRecording = useCallback(async (sessionIdOverride?: string) => {
     const currentSessionId = sessionIdOverride ?? sessionIdRef.current;
-    if (!currentSessionId || currentSessionId.trim() === '') {
+    if (!currentSessionId?.trim()) {
       setError('No session ID provided');
       return;
     }
@@ -225,54 +130,30 @@ function useRecordingTransport({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch(`${apiUrl}/recordings/live/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: currentSessionId }),
-      });
+    const result = await recordingApi.startRecording(currentSessionId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      const payload = await safeJson(response);
-      const errorMessage =
-        isRecord(payload) && typeof payload.message === 'string'
-          ? payload.message
-          : undefined;
-      const payloadCode =
-        isRecord(payload) && typeof payload.code === 'string'
-          ? payload.code
-          : undefined;
-      const recordingIdValue =
-        isRecord(payload) && typeof payload.recording_id === 'string'
-          ? payload.recording_id
-          : null;
+    setIsLoading(false);
 
-      // Handle 409 Conflict: Recording is already in progress for this session.
-      // This happens when the page is refreshed - React state is lost but the
-      // playwright-driver still has an active recording. We treat this as a
-      // successful state sync rather than an error.
-      if (response.status === 409 && payloadCode === 'RECORDING_IN_PROGRESS') {
-        console.log('Recording already in progress, syncing state:', recordingIdValue);
-        setRecordingId(recordingIdValue);
-        setIsRecording(true);
-        // Don't clear actions - they may be streaming in via WebSocket
-        toast.success('Reconnected to existing session', { duration: 2000 });
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(errorMessage || `Failed to start recording: ${response.statusText}`);
-      }
-
-      setRecordingId(recordingIdValue);
-      setIsRecording(true);
-      setActions([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start recording');
-      throw err;
-    } finally {
-      setIsLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
     }
-  }, [apiUrl]);
+
+    // Handle 409 case - recording was already in progress
+    setRecordingId(result.data.recording_id);
+    setIsRecording(true);
+
+    // Only clear actions for new recordings, not for 409 reconnections
+    // (check if we were already recording - if so, don't clear)
+    if (!isRecording) {
+      setActions([]);
+      toast.success('Recording started', { duration: 2000 });
+    } else {
+      toast.success('Reconnected to existing session', { duration: 2000 });
+    }
+  }, [isRecording]);
 
   const stopRecording = useCallback(async () => {
     const currentSessionId = sessionIdRef.current;
@@ -284,89 +165,56 @@ function useRecordingTransport({
     setIsLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch(`${apiUrl}/recordings/live/${currentSessionId}/stop`, {
-        method: 'POST',
-      });
+    const result = await recordingApi.stopRecording(currentSessionId, {
+      signal: abortControllerRef.current?.signal,
+    });
 
-      if (!response.ok) {
-        const payload = await safeJson(response);
-        const message =
-          isRecord(payload) && typeof payload.message === 'string'
-            ? payload.message
-            : `Failed to stop recording: ${response.statusText}`;
-        throw new Error(message);
-      }
+    setIsLoading(false);
 
-      const payload = await safeJson(response);
-      const data = parseStopRecordingResponse(payload);
-      if (!data) {
-        throw new Error('Invalid stop recording response');
-      }
-      setIsRecording(false);
-      console.log('Recording stopped:', data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to stop recording');
-      throw err;
-    } finally {
-      setIsLoading(false);
+    if (!result.success) {
+      setError(result.error);
+      return;
     }
-  }, [apiUrl]);
+
+    setIsRecording(false);
+    console.log('Recording stopped:', result.data);
+  }, []);
 
   const generateWorkflow = useCallback(
     async (name: string, projectId?: string, actionsOverride?: RecordedAction[], settings?: WorkflowSettingsTyped): Promise<GenerateWorkflowResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
-        throw new Error('No session ID provided');
+        const error = 'No session ID provided';
+        setError(error);
+        throw new Error(error);
       }
 
       const actionsToSend = actionsOverride ?? actions;
       if (actionsToSend.length === 0) {
-        throw new Error('No actions to generate workflow from');
+        const error = 'No actions to generate workflow from';
+        setError(error);
+        throw new Error(error);
       }
 
       setIsLoading(true);
       setError(null);
 
-      try {
-        const response = await fetch(
-          `${apiUrl}/recordings/live/${currentSessionId}/generate-workflow`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name,
-              project_id: projectId,
-              actions: actionsToSend,
-              settings,
-            }),
-          }
-        );
+      const result = await recordingApi.generateWorkflow(
+        currentSessionId,
+        { name, projectId, actions: actionsToSend, settings },
+        { signal: abortControllerRef.current?.signal }
+      );
 
-        if (!response.ok) {
-          const payload = await safeJson(response);
-          const message =
-            isRecord(payload) && typeof payload.message === 'string'
-              ? payload.message
-              : `Failed to generate workflow: ${response.statusText}`;
-          throw new Error(message);
-        }
+      setIsLoading(false);
 
-        const payload = await safeJson(response);
-        const data = parseGenerateWorkflowResponse(payload);
-        if (!data) {
-          throw new Error('Invalid generate workflow response');
-        }
-        return data;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to generate workflow';
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
+      if (!result.success) {
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      return result.data;
     },
-    [apiUrl, actions]
+    [actions]
   );
 
   const validateSelector = useCallback(
@@ -376,82 +224,58 @@ function useRecordingTransport({
         throw new Error('No session ID provided');
       }
 
-      const response = await fetch(
-        `${apiUrl}/recordings/live/${currentSessionId}/validate-selector`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ selector }),
-        }
-      );
+      const result = await recordingApi.validateSelector(currentSessionId, selector, {
+        signal: abortControllerRef.current?.signal,
+      });
 
-      if (!response.ok) {
-        throw new Error(`Failed to validate selector: ${response.statusText}`);
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
-      const payload = await safeJson(response);
-      const data = parseSelectorValidation(payload);
-      if (!data) {
-        throw new Error('Invalid selector validation response');
-      }
-      return data;
+      return result.data;
     },
-    [apiUrl]
+    []
   );
 
   const replayPreview = useCallback(
     async (options?: { limit?: number; stopOnFailure?: boolean }, actionsOverride?: RecordedAction[]): Promise<ReplayPreviewResponse> => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
-        throw new Error('No session ID provided');
+        const error = 'No session ID provided';
+        setError(error);
+        throw new Error(error);
       }
 
       const actionsToSend = actionsOverride ?? actions;
       if (actionsToSend.length === 0) {
-        throw new Error('No actions to replay');
+        const error = 'No actions to replay';
+        setError(error);
+        throw new Error(error);
       }
 
       setIsReplaying(true);
       setError(null);
 
-      try {
-        const response = await fetch(
-          `${apiUrl}/recordings/live/${currentSessionId}/replay-preview`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              actions: actionsToSend,
-              limit: options?.limit,
-              stop_on_failure: options?.stopOnFailure ?? true,
-            }),
-          }
-        );
+      const result = await recordingApi.replayPreview(
+        currentSessionId,
+        {
+          actions: actionsToSend,
+          limit: options?.limit,
+          stopOnFailure: options?.stopOnFailure,
+        },
+        { signal: abortControllerRef.current?.signal }
+      );
 
-        if (!response.ok) {
-          const payload = await safeJson(response);
-          const message =
-            isRecord(payload) && typeof payload.message === 'string'
-              ? payload.message
-              : `Failed to replay recording: ${response.statusText}`;
-          throw new Error(message);
-        }
+      setIsReplaying(false);
 
-        const payload = await safeJson(response);
-        const data = parseReplayPreviewResponse(payload);
-        if (!data) {
-          throw new Error('Invalid replay preview response');
-        }
-        return data;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to replay recording';
-        setError(message);
-        throw err;
-      } finally {
-        setIsReplaying(false);
+      if (!result.success) {
+        setError(result.error);
+        throw new Error(result.error);
       }
+
+      return result.data;
     },
-    [apiUrl, actions]
+    [actions]
   );
 
   return {
@@ -569,11 +393,8 @@ function useActionEditing(actions: RecordedAction[], setActions: ActionSetter): 
 export function useRecordMode({
   sessionId,
 }: UseRecordModeOptions): UseRecordModeReturn {
-  const apiUrl = getApiBase();
-
   const transport = useRecordingTransport({
     sessionId,
-    apiUrl,
   });
 
   const editing = useActionEditing(transport.actions, transport.setActions);

@@ -1,11 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
-import { getConfig } from '@/config';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { logger } from '@/utils/logger';
+import { recordingApi } from '../api';
 import { createProfileResourceHook } from './useProfileResource';
 import type { HistoryResponse, HistorySettings } from '../types/types';
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 
 export interface UseHistoryResult {
   history: HistoryResponse | null;
@@ -47,6 +44,21 @@ export function useHistory(): UseHistoryResult {
   // Additional state for navigation operations
   const [navigating, setNavigating] = useState(false);
 
+  // AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  // Reset abort controller
+  useEffect(() => {
+    abortControllerRef.current = new AbortController();
+  }, []);
+
   const deleteHistoryEntry = useCallback(
     async (profileId: string, entryId: string): Promise<boolean> => {
       return deleteRequest(profileId, encodeURIComponent(entryId));
@@ -58,42 +70,39 @@ export function useHistory(): UseHistoryResult {
     async (profileId: string, settings: Partial<HistorySettings>): Promise<boolean> => {
       setLoading(true);
       setError(null);
-      try {
-        const config = await getConfig();
-        // Merge with existing settings
-        const existingSettings = data?.settings ?? {
-          maxEntries: 100,
-          retentionDays: 30,
-          captureThumbnails: true,
-        };
-        const mergedSettings: HistorySettings = {
-          ...existingSettings,
-          ...settings,
-        };
 
-        const response = await fetch(`${config.API_URL}/recordings/sessions/${profileId}/history/settings`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            maxEntries: mergedSettings.maxEntries,
-            retentionDays: mergedSettings.retentionDays,
-            captureThumbnails: mergedSettings.captureThumbnails,
-          }),
-        });
-        if (!response.ok) {
-          throw new Error(`Update settings failed (${response.status})`);
-        }
-        // Refetch history to get updated data (settings may have triggered pruning)
-        await fetchHistory(profileId);
-        return true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Update settings failed';
-        setError(message);
-        logger.error(message, { component: 'useHistory', action: 'updateSettings' }, err);
-        return false;
-      } finally {
+      // Merge with existing settings
+      const existingSettings = data?.settings ?? {
+        maxEntries: 100,
+        retentionDays: 30,
+        captureThumbnails: true,
+      };
+      const mergedSettings: HistorySettings = {
+        ...existingSettings,
+        ...settings,
+      };
+
+      const result = await recordingApi.updateHistorySettings(
+        profileId,
+        {
+          maxEntries: mergedSettings.maxEntries,
+          retentionDays: mergedSettings.retentionDays,
+          captureThumbnails: mergedSettings.captureThumbnails,
+        },
+        { signal: abortControllerRef.current?.signal }
+      );
+
+      if (!result.success) {
+        setError(result.error);
         setLoading(false);
+        logger.error(result.error, { component: 'useHistory', action: 'updateSettings' });
+        return false;
       }
+
+      // Refetch history to get updated data (settings may have triggered pruning)
+      await fetchHistory(profileId);
+      setLoading(false);
+      return true;
     },
     [data?.settings, fetchHistory, setLoading, setError]
   );
@@ -102,36 +111,20 @@ export function useHistory(): UseHistoryResult {
     async (profileId: string, url: string): Promise<boolean> => {
       setNavigating(true);
       setError(null);
-      try {
-        const config = await getConfig();
-        const response = await window.fetch(`${config.API_URL}/recordings/sessions/${profileId}/history/navigate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url }),
-        });
-        if (!response.ok) {
-          const payloadText = await response.text();
-          let payload: unknown = null;
-          try {
-            payload = JSON.parse(payloadText);
-          } catch {
-            payload = null;
-          }
-          const message =
-            isRecord(payload) && typeof payload.message === 'string'
-              ? payload.message
-              : `Navigate failed (${response.status})`;
-          throw new Error(message);
-        }
-        return true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Navigate failed';
-        setError(message);
-        logger.error(message, { component: 'useHistory', action: 'navigateToUrl', url }, err);
+
+      const result = await recordingApi.navigateToHistoryUrl(profileId, url, {
+        signal: abortControllerRef.current?.signal,
+      });
+
+      setNavigating(false);
+
+      if (!result.success) {
+        setError(result.error);
+        logger.error(result.error, { component: 'useHistory', action: 'navigateToUrl', url });
         return false;
-      } finally {
-        setNavigating(false);
       }
+
+      return true;
     },
     [setError]
   );
