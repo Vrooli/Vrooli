@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
+	"prompt-manager/cli/agents"
 	"prompt-manager/cli/internal/appctx"
 	"prompt-manager/cli/members"
 	"prompt-manager/cli/metadata"
@@ -95,13 +96,14 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	}
 
 	// Domain commands (noun-verb pattern)
-	groups = append(groups, skills.Commands(a)...)  // prompt-manager skill <verb>
-	groups = append(groups, tags.Commands(a))       // prompt-manager tag <verb>
-	groups = append(groups, members.Commands(a))    // prompt-manager member <verb>
-	groups = append(groups, teams.Commands(a))      // prompt-manager team <verb>
-	groups = append(groups, testing.Commands(a))    // prompt-manager test <verb>
-	groups = append(groups, metadata.Commands(a))   // prompt-manager metadata <verb>
-	groups = append(groups, search.Commands(a))     // prompt-manager search (standalone)
+	groups = append(groups, skills.Commands(a)...) // prompt-manager skill <verb>
+	groups = append(groups, tags.Commands(a))      // prompt-manager tag <verb>
+	groups = append(groups, members.Commands(a))   // prompt-manager member <verb>
+	groups = append(groups, agents.Commands(a))    // prompt-manager agent <verb>
+	groups = append(groups, teams.Commands(a))     // prompt-manager team <verb>
+	groups = append(groups, testing.Commands(a))   // prompt-manager test <verb>
+	groups = append(groups, metadata.Commands(a))  // prompt-manager metadata <verb>
+	groups = append(groups, search.Commands(a))    // prompt-manager search (standalone)
 	groups = append(groups, config)
 
 	return groups

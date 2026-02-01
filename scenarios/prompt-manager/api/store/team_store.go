@@ -196,3 +196,168 @@ func (s *FileTeamStore) loadTeam(teamID string) (*Team, error) {
 	teamPath := filepath.Join(s.teamsDir(), teamID, "team.json")
 	return LoadJSON[Team](teamPath)
 }
+
+// memberDir returns the path to a member's directory within a team
+func (s *FileTeamStore) memberDir(teamID, agentID string) string {
+	return filepath.Join(s.teamsDir(), teamID, "members", agentID)
+}
+
+// EnsureMemberDir creates the member directory structure if it doesn't exist
+func (s *FileTeamStore) EnsureMemberDir(ctx context.Context, teamID, agentID string) error {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return err
+	}
+
+	memberDir := s.memberDir(teamID, agentID)
+	logsDir := filepath.Join(memberDir, "logs")
+
+	// Create directories
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return fmt.Errorf("creating member directories: %w", err)
+	}
+
+	return nil
+}
+
+// GetResponsibilities reads the RESPONSIBILITIES.md content for a team member
+func (s *FileTeamStore) GetResponsibilities(ctx context.Context, teamID, agentID string) (string, error) {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return "", err
+	}
+
+	respPath := filepath.Join(s.memberDir(teamID, agentID), "RESPONSIBILITIES.md")
+	if !FileExists(respPath) {
+		return "", nil
+	}
+
+	return ReadContent(respPath)
+}
+
+// SetResponsibilities writes the RESPONSIBILITIES.md content for a team member
+func (s *FileTeamStore) SetResponsibilities(ctx context.Context, teamID, agentID, content string) error {
+	// Ensure member directory exists
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+
+	respPath := filepath.Join(s.memberDir(teamID, agentID), "RESPONSIBILITIES.md")
+	return WriteContent(respPath, content)
+}
+
+// GetHeartbeatInstructions reads the HEARTBEAT.md content for a team member
+func (s *FileTeamStore) GetHeartbeatInstructions(ctx context.Context, teamID, agentID string) (string, error) {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return "", err
+	}
+
+	hbPath := filepath.Join(s.memberDir(teamID, agentID), "HEARTBEAT.md")
+	if !FileExists(hbPath) {
+		return "", nil
+	}
+
+	return ReadContent(hbPath)
+}
+
+// SetHeartbeatInstructions writes the HEARTBEAT.md content for a team member
+func (s *FileTeamStore) SetHeartbeatInstructions(ctx context.Context, teamID, agentID, content string) error {
+	// Ensure member directory exists
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+
+	hbPath := filepath.Join(s.memberDir(teamID, agentID), "HEARTBEAT.md")
+	return WriteContent(hbPath, content)
+}
+
+// GetHeartbeatConfig reads the heartbeat.json config for a team member
+func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID string) (*HeartbeatConfig, error) {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return nil, err
+	}
+
+	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	if !FileExists(configPath) {
+		return nil, nil
+	}
+
+	return LoadJSON[HeartbeatConfig](configPath)
+}
+
+// SetHeartbeatConfig writes the heartbeat.json config for a team member
+func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID string, config *HeartbeatConfig) error {
+	// Ensure member directory exists
+	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
+		return err
+	}
+
+	// Set entity metadata
+	config.Kind = KindHeartbeatConfig
+	config.SchemaVersion = CurrentSchemaVersion
+	config.TeamID = teamID
+	config.AgentID = agentID
+
+	if config.CreatedAt == "" {
+		config.Timestamps = NewTimestamps()
+	} else {
+		config.UpdateTimestamp()
+	}
+
+	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	return SaveJSON(configPath, config)
+}
+
+// DeleteHeartbeatConfig removes the heartbeat.json config for a team member
+func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agentID string) error {
+	configPath := filepath.Join(s.memberDir(teamID, agentID), "heartbeat.json")
+	return DeleteFile(configPath)
+}
+
+// ListHeartbeatConfigs lists all heartbeat configs for a team
+func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string) ([]HeartbeatConfig, error) {
+	// Verify team exists
+	if _, err := s.Get(ctx, teamID); err != nil {
+		return nil, err
+	}
+
+	membersDir := filepath.Join(s.teamsDir(), teamID, "members")
+	agentDirs, err := ListDirectories(membersDir)
+	if err != nil {
+		return nil, nil // No members directory yet
+	}
+
+	var configs []HeartbeatConfig
+	for _, agentID := range agentDirs {
+		config, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
+		if err == nil && config != nil {
+			configs = append(configs, *config)
+		}
+	}
+
+	return configs, nil
+}
+
+// GetMemberLogPath returns the path for a heartbeat execution log
+func (s *FileTeamStore) GetMemberLogPath(teamID, agentID, timestamp string) string {
+	return filepath.Join(s.memberDir(teamID, agentID), "logs", timestamp+".log")
+}
+
+// ListMemberLogs lists all log files for a team member
+func (s *FileTeamStore) ListMemberLogs(ctx context.Context, teamID, agentID string) ([]string, error) {
+	logsDir := filepath.Join(s.memberDir(teamID, agentID), "logs")
+	files, err := ListFiles(logsDir, "*.log")
+	if err != nil {
+		return nil, nil // No logs yet
+	}
+
+	// Extract just the filenames
+	var logs []string
+	for _, f := range files {
+		logs = append(logs, filepath.Base(f))
+	}
+
+	return logs, nil
+}

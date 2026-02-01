@@ -13,9 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
+	"prompt-manager/heartbeat"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
 	"prompt-manager/search"
@@ -228,6 +230,8 @@ func main() {
 	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
 	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
 	v1.HandleFunc("/agents/{id}/effective-skills", agentHandlers.GetEffectiveSkills).Methods("GET")
+	v1.HandleFunc("/agents/{id}/soul", agentHandlers.GetSoul).Methods("GET")
+	v1.HandleFunc("/agents/{id}/soul", agentHandlers.SetSoul).Methods("PUT")
 
 	// Team routes
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())
@@ -243,6 +247,66 @@ func main() {
 	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
 	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
 	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
+
+	// Heartbeat system
+	// Get Vrooli root for working directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Default to parent of store dir
+		vrooliRoot, _ = filepath.Abs(filepath.Join(storeDir, ".."))
+	}
+
+	// Initialize heartbeat components
+	agentManagerClient := heartbeat.NewAgentManagerClient(30 * time.Second)
+	heartbeatExecutor := heartbeat.NewExecutor(
+		fileStore.Teams().(*store.FileTeamStore),
+		fileStore.Agents().(*store.FileAgentStore),
+		fileStore.Skills(),
+		agentManagerClient,
+		vrooliRoot,
+	)
+	heartbeatScheduler := heartbeat.NewScheduler(heartbeatExecutor, agentManagerClient)
+	heartbeatHandlers := heartbeat.NewHandlers(
+		fileStore.Teams().(*store.FileTeamStore),
+		heartbeatScheduler,
+		heartbeatExecutor,
+	)
+
+	// Start scheduler (doesn't auto-start heartbeats - they must be explicitly enabled)
+	go func() {
+		if err := heartbeatScheduler.Start(context.Background()); err != nil {
+			log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
+		}
+
+		// Load enabled heartbeats from all teams
+		teams, _ := fileStore.Teams().List(context.Background())
+		for _, team := range teams {
+			configs, _ := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(context.Background(), team.ID)
+			for _, config := range configs {
+				if config.Enabled {
+					if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+						log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
+					}
+				}
+			}
+		}
+	}()
+
+	// Heartbeat routes
+	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.UpdateHeartbeat).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.DeleteHeartbeat).Methods("DELETE")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/trigger", heartbeatHandlers.TriggerHeartbeat).Methods("POST")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs", heartbeatHandlers.ListLogs).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}/logs/{logId}", heartbeatHandlers.GetLog).Methods("GET")
+
+	// Member document routes (RESPONSIBILITIES.md and HEARTBEAT.md)
+	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.GetResponsibilities).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/responsibilities", heartbeatHandlers.SetResponsibilities).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.GetHeartbeatInstructions).Methods("GET")
+	v1.HandleFunc("/teams/{id}/members/{agentId}/heartbeat-instructions", heartbeatHandlers.SetHeartbeatInstructions).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")

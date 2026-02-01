@@ -90,7 +90,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "team",
 				Aliases:     []string{"teams", "t"},
 				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles)",
+				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|heartbeat-*)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -127,6 +127,22 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdRemoveMember(ctx, subArgs)
 	case "roles":
 		return cmdRoles(ctx, subArgs)
+	case "heartbeat-list":
+		return cmdHeartbeatList(ctx, subArgs)
+	case "heartbeat":
+		return cmdHeartbeat(ctx, subArgs)
+	case "heartbeat-enable":
+		return cmdHeartbeatEnable(ctx, subArgs)
+	case "heartbeat-disable":
+		return cmdHeartbeatDisable(ctx, subArgs)
+	case "heartbeat-trigger":
+		return cmdHeartbeatTrigger(ctx, subArgs)
+	case "heartbeat-logs":
+		return cmdHeartbeatLogs(ctx, subArgs)
+	case "responsibilities":
+		return cmdResponsibilities(ctx, subArgs)
+	case "heartbeat-instructions":
+		return cmdHeartbeatInstructions(ctx, subArgs)
 	default:
 		return fmt.Errorf("unknown subcommand: %s\n\n%s", subcommand, usageText())
 	}
@@ -149,7 +165,19 @@ Subcommands:
   add-member <team-id> <agent-id>   Add a member to a team
   update-member <team-id> <agent-id> Update a team member
   remove-member <team-id> <agent-id> Remove a member from a team
-  roles <team-id>                   List team roles`
+  roles <team-id>                   List team roles
+
+Heartbeat Commands:
+  heartbeat-list <team-id>                    List all heartbeat configs
+  heartbeat <team-id> <agent-id>              Show heartbeat config
+  heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
+  heartbeat-disable <team-id> <agent-id>      Disable heartbeat
+  heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
+  heartbeat-logs <team-id> <agent-id>         List execution logs
+
+Member Document Commands:
+  responsibilities <team-id> <agent-id>       Get/set RESPONSIBILITIES.md
+  heartbeat-instructions <team-id> <agent-id> Get/set HEARTBEAT.md`
 }
 
 func cmdList(ctx appctx.Context, args []string) error {
@@ -495,5 +523,462 @@ func cmdRoles(ctx appctx.Context, args []string) error {
 		}
 		fmt.Printf("  %s [%s]%s\n", r.Name, r.ID, desc)
 	}
+	return nil
+}
+
+// HeartbeatConfig represents a heartbeat configuration from the API
+type HeartbeatConfig struct {
+	TeamID        string               `json:"teamId"`
+	AgentID       string               `json:"agentId"`
+	Enabled       bool                 `json:"enabled"`
+	Schedule      string               `json:"schedule"`
+	ProfileKey    string               `json:"profileKey,omitempty"`
+	LastExecution *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	NextExecution string               `json:"nextExecution,omitempty"`
+	CreatedAt     string               `json:"createdAt"`
+	UpdatedAt     string               `json:"updatedAt"`
+}
+
+// HeartbeatExecResult represents execution result
+type HeartbeatExecResult struct {
+	StartedAt string `json:"startedAt"`
+	EndedAt   string `json:"endedAt,omitempty"`
+	Status    string `json:"status"`
+	RunID     string `json:"runId,omitempty"`
+	LogPath   string `json:"logPath,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+// CreateHeartbeatRequest is the request for creating a heartbeat
+type CreateHeartbeatRequest struct {
+	Schedule   string `json:"schedule"`
+	ProfileKey string `json:"profileKey,omitempty"`
+	Enabled    *bool  `json:"enabled,omitempty"`
+}
+
+// UpdateHeartbeatRequest is the request for updating a heartbeat
+type UpdateHeartbeatRequest struct {
+	Schedule   *string `json:"schedule,omitempty"`
+	ProfileKey *string `json:"profileKey,omitempty"`
+	Enabled    *bool   `json:"enabled,omitempty"`
+}
+
+// TriggerResponse is the response from triggering a heartbeat
+type TriggerResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	RunID   string `json:"runId"`
+	Status  string `json:"status"`
+	LogPath string `json:"logPath,omitempty"`
+}
+
+// LogEntry represents a log file entry
+type LogEntry struct {
+	Filename  string `json:"filename"`
+	Timestamp string `json:"timestamp"`
+	Status    string `json:"status,omitempty"`
+}
+
+// LogListResponse is the response for listing logs
+type LogListResponse struct {
+	TeamID  string     `json:"teamId"`
+	AgentID string     `json:"agentId"`
+	Logs    []LogEntry `json:"logs"`
+}
+
+// MemberDocResponse is the response for member document operations
+type MemberDocResponse struct {
+	TeamID  string `json:"teamId"`
+	AgentID string `json:"agentId"`
+	Content string `json:"content"`
+}
+
+// MemberDocRequest is the request for setting member documents
+type MemberDocRequest struct {
+	Content string `json:"content"`
+}
+
+func cmdHeartbeatList(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-list", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: team heartbeat-list <team-id>")
+	}
+	teamID := fs.Arg(0)
+
+	var configs []HeartbeatConfig
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats", teamID), &configs); err != nil {
+		return fmt.Errorf("failed to list heartbeats: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(configs)
+	}
+
+	if len(configs) == 0 {
+		fmt.Println("No heartbeat configurations found")
+		return nil
+	}
+
+	fmt.Println("Heartbeat Configurations:")
+	for _, c := range configs {
+		status := "disabled"
+		if c.Enabled {
+			status = "enabled"
+		}
+		lastRun := "never"
+		if c.LastExecution != nil {
+			lastRun = c.LastExecution.Status + " at " + c.LastExecution.StartedAt
+		}
+		fmt.Printf("  %s: %s [%s] - last: %s\n", c.AgentID, c.Schedule, status, lastRun)
+	}
+	return nil
+}
+
+func cmdHeartbeat(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat <team-id> <agent-id>")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	var config HeartbeatConfig
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), &config); err != nil {
+		return fmt.Errorf("failed to get heartbeat config: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(config)
+	}
+
+	fmt.Printf("Team: %s\n", config.TeamID)
+	fmt.Printf("Agent: %s\n", config.AgentID)
+	fmt.Printf("Schedule: %s\n", config.Schedule)
+	fmt.Printf("Enabled: %v\n", config.Enabled)
+	if config.ProfileKey != "" {
+		fmt.Printf("Profile Key: %s\n", config.ProfileKey)
+	}
+	if config.NextExecution != "" {
+		fmt.Printf("Next Execution: %s\n", config.NextExecution)
+	}
+	if config.LastExecution != nil {
+		fmt.Printf("Last Execution:\n")
+		fmt.Printf("  Started: %s\n", config.LastExecution.StartedAt)
+		if config.LastExecution.EndedAt != "" {
+			fmt.Printf("  Ended: %s\n", config.LastExecution.EndedAt)
+		}
+		fmt.Printf("  Status: %s\n", config.LastExecution.Status)
+		if config.LastExecution.RunID != "" {
+			fmt.Printf("  Run ID: %s\n", config.LastExecution.RunID)
+		}
+		if config.LastExecution.Error != "" {
+			fmt.Printf("  Error: %s\n", config.LastExecution.Error)
+		}
+	}
+	return nil
+}
+
+func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-enable", flag.ContinueOnError)
+	schedule := fs.String("schedule", "0 */6 * * *", "Cron schedule expression")
+	profileKey := fs.String("profile", "", "Agent-manager profile key")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-enable <team-id> <agent-id> [--schedule='0 */6 * * *'] [--profile=key]")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	// Check if config exists
+	var existing HeartbeatConfig
+	existsErr := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), &existing)
+
+	enabled := true
+	if existsErr != nil {
+		// Create new config
+		req := CreateHeartbeatRequest{
+			Schedule:   *schedule,
+			ProfileKey: *profileKey,
+			Enabled:    &enabled,
+		}
+		var config HeartbeatConfig
+		if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
+			return fmt.Errorf("failed to create heartbeat config: %w", err)
+		}
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(config)
+		}
+		fmt.Printf("Created and enabled heartbeat for %s/%s with schedule: %s\n", teamID, agentID, config.Schedule)
+	} else {
+		// Update existing config
+		req := UpdateHeartbeatRequest{
+			Enabled: &enabled,
+		}
+		if *schedule != "0 */6 * * *" {
+			req.Schedule = schedule
+		}
+		if *profileKey != "" {
+			req.ProfileKey = profileKey
+		}
+		var config HeartbeatConfig
+		if err := ctx.Put(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
+			return fmt.Errorf("failed to update heartbeat config: %w", err)
+		}
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(config)
+		}
+		fmt.Printf("Enabled heartbeat for %s/%s with schedule: %s\n", teamID, agentID, config.Schedule)
+	}
+	return nil
+}
+
+func cmdHeartbeatDisable(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-disable", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-disable <team-id> <agent-id>")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	enabled := false
+	req := UpdateHeartbeatRequest{
+		Enabled: &enabled,
+	}
+
+	var config HeartbeatConfig
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
+		return fmt.Errorf("failed to disable heartbeat: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(config)
+	}
+
+	fmt.Printf("Disabled heartbeat for %s/%s\n", teamID, agentID)
+	return nil
+}
+
+func cmdHeartbeatTrigger(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-trigger", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-trigger <team-id> <agent-id>")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	var resp TriggerResponse
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/heartbeats/%s/trigger", teamID, agentID), nil, &resp); err != nil {
+		return fmt.Errorf("failed to trigger heartbeat: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Triggered heartbeat for %s/%s\n", teamID, agentID)
+	fmt.Printf("Run ID: %s\n", resp.RunID)
+	fmt.Printf("Status: %s\n", resp.Status)
+	return nil
+}
+
+func cmdHeartbeatLogs(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-logs", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-logs <team-id> <agent-id>")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	var resp LogListResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats/%s/logs", teamID, agentID), &resp); err != nil {
+		return fmt.Errorf("failed to list logs: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if len(resp.Logs) == 0 {
+		fmt.Println("No logs found")
+		return nil
+	}
+
+	fmt.Println("Execution Logs:")
+	for _, log := range resp.Logs {
+		fmt.Printf("  %s\n", log.Filename)
+	}
+	return nil
+}
+
+func cmdResponsibilities(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("responsibilities", flag.ContinueOnError)
+	setContent := fs.String("set", "", "Set content from string")
+	setFile := fs.String("file", "", "Set content from file")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team responsibilities <team-id> <agent-id> [--set='content'] [--file=path]")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	// If setting content
+	if *setContent != "" || *setFile != "" {
+		var content string
+		if *setFile != "" {
+			data, err := os.ReadFile(*setFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+			content = string(data)
+		} else {
+			content = *setContent
+		}
+
+		req := MemberDocRequest{Content: content}
+		var resp MemberDocResponse
+		if err := ctx.Put(fmt.Sprintf("/teams/%s/members/%s/responsibilities", teamID, agentID), req, &resp); err != nil {
+			return fmt.Errorf("failed to set responsibilities: %w", err)
+		}
+
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(resp)
+		}
+
+		fmt.Printf("Updated RESPONSIBILITIES.md for %s/%s (%d bytes)\n", teamID, agentID, len(content))
+		return nil
+	}
+
+	// Get content
+	var resp MemberDocResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/members/%s/responsibilities", teamID, agentID), &resp); err != nil {
+		return fmt.Errorf("failed to get responsibilities: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Content == "" {
+		fmt.Println("No RESPONSIBILITIES.md content defined")
+		return nil
+	}
+
+	fmt.Println(resp.Content)
+	return nil
+}
+
+func cmdHeartbeatInstructions(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-instructions", flag.ContinueOnError)
+	setContent := fs.String("set", "", "Set content from string")
+	setFile := fs.String("file", "", "Set content from file")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team heartbeat-instructions <team-id> <agent-id> [--set='content'] [--file=path]")
+	}
+	teamID := fs.Arg(0)
+	agentID := fs.Arg(1)
+
+	// If setting content
+	if *setContent != "" || *setFile != "" {
+		var content string
+		if *setFile != "" {
+			data, err := os.ReadFile(*setFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+			content = string(data)
+		} else {
+			content = *setContent
+		}
+
+		req := MemberDocRequest{Content: content}
+		var resp MemberDocResponse
+		if err := ctx.Put(fmt.Sprintf("/teams/%s/members/%s/heartbeat-instructions", teamID, agentID), req, &resp); err != nil {
+			return fmt.Errorf("failed to set heartbeat instructions: %w", err)
+		}
+
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(resp)
+		}
+
+		fmt.Printf("Updated HEARTBEAT.md for %s/%s (%d bytes)\n", teamID, agentID, len(content))
+		return nil
+	}
+
+	// Get content
+	var resp MemberDocResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/members/%s/heartbeat-instructions", teamID, agentID), &resp); err != nil {
+		return fmt.Errorf("failed to get heartbeat instructions: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.Content == "" {
+		fmt.Println("No HEARTBEAT.md content defined")
+		return nil
+	}
+
+	fmt.Println(resp.Content)
 	return nil
 }

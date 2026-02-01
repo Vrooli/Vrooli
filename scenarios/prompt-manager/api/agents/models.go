@@ -103,3 +103,14 @@ type EffectiveSkillsResponse struct {
 	TeamID  *string  `json:"teamId,omitempty"`
 	Skills  []string `json:"skills"`
 }
+
+// SoulRequest is the request body for setting SOUL.md content.
+type SoulRequest struct {
+	Content string `json:"content"`
+}
+
+// SoulResponse is the response for SOUL.md operations.
+type SoulResponse struct {
+	AgentID string `json:"agentId"`
+	Content string `json:"content"`
+}

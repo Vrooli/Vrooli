@@ -197,3 +197,29 @@ func (s *FileAgentStore) loadAgent(agentID string) (*Agent, error) {
 	agentPath := filepath.Join(s.agentsDir(), agentID, "agent.json")
 	return LoadJSON[Agent](agentPath)
 }
+
+// GetSoul reads the SOUL.md content for an agent
+func (s *FileAgentStore) GetSoul(ctx context.Context, agentID string) (string, error) {
+	// Verify agent exists
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return "", err
+	}
+
+	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
+	if !FileExists(soulPath) {
+		return "", nil // Return empty string if no SOUL.md exists
+	}
+
+	return ReadContent(soulPath)
+}
+
+// SetSoul writes the SOUL.md content for an agent
+func (s *FileAgentStore) SetSoul(ctx context.Context, agentID string, content string) error {
+	// Verify agent exists
+	if _, err := s.Get(ctx, agentID); err != nil {
+		return err
+	}
+
+	soulPath := filepath.Join(s.agentsDir(), agentID, "SOUL.md")
+	return WriteContent(soulPath, content)
+}

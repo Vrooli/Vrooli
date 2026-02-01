@@ -214,3 +214,36 @@ type TeamsIndexEntry struct {
 	DisplayName string `json:"displayName"`
 	MemberCount int    `json:"memberCount"`
 }
+
+// HeartbeatConfig represents the heartbeat configuration for a team member
+//
+// DOC: docs/concepts/HEARTBEATS.md
+type HeartbeatConfig struct {
+	BaseEntity
+	TeamID        string               `json:"teamId"`
+	AgentID       string               `json:"agentId"`
+	Enabled       bool                 `json:"enabled"`
+	Schedule      string               `json:"schedule"`             // Cron expression
+	ProfileKey    string               `json:"profileKey,omitempty"` // agent-manager profile key
+	LastExecution *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	Timestamps
+}
+
+// HeartbeatExecResult represents the result of a heartbeat execution
+type HeartbeatExecResult struct {
+	StartedAt string `json:"startedAt"`
+	EndedAt   string `json:"endedAt,omitempty"`
+	Status    string `json:"status"` // running, completed, failed
+	RunID     string `json:"runId,omitempty"`
+	LogPath   string `json:"logPath,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+// Heartbeat config constants
+const (
+	KindHeartbeatConfig = "heartbeat-config"
+
+	HeartbeatStatusRunning   = "running"
+	HeartbeatStatusCompleted = "completed"
+	HeartbeatStatusFailed    = "failed"
+)

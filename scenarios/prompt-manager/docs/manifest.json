@@ -39,6 +39,18 @@
           "title": "Storage Migration",
           "description": "Migration guide from legacy skills/ to new store/ directory structure",
           "audience": ["developers"]
+        },
+        {
+          "path": "concepts/HEARTBEATS.md",
+          "title": "Heartbeats & Cron Execution",
+          "description": "Autonomous scheduled task execution for team members",
+          "audience": ["developers", "users"]
+        },
+        {
+          "path": "concepts/EFFECTIVE-SKILLS.md",
+          "title": "Effective Skills",
+          "description": "How skills are computed from multiple sources for agents",
+          "audience": ["developers"]
         }
       ]
     },
@@ -64,6 +76,18 @@
           "title": "Configuration",
           "description": "Environment variables, settings, and resource configuration",
           "audience": ["developers", "operators"]
+        },
+        {
+          "path": "reference/heartbeat-api.md",
+          "title": "Heartbeat API",
+          "description": "REST API endpoints for heartbeat configuration and execution",
+          "audience": ["developers"]
+        },
+        {
+          "path": "reference/heartbeat-cli.md",
+          "title": "Heartbeat CLI",
+          "description": "CLI commands for heartbeat management",
+          "audience": ["users", "developers"]
         }
       ]
     },

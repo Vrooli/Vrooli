@@ -411,6 +411,75 @@ func (h *Handlers) GetEffectiveSkills(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// GetSoul handles GET /agents/{id}/soul - returns the SOUL.md content for an agent.
+func (h *Handlers) GetSoul(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Type assert to FileAgentStore to access GetSoul
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "GetSoul not supported", http.StatusInternalServerError)
+		return
+	}
+
+	content, err := fileStore.GetSoul(ctx, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := SoulResponse{
+		AgentID: id,
+		Content: content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// SetSoul handles PUT /agents/{id}/soul - sets the SOUL.md content for an agent.
+func (h *Handlers) SetSoul(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req SoulRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Type assert to FileAgentStore to access SetSoul
+	fileStore, ok := h.agentStore.(*store.FileAgentStore)
+	if !ok {
+		http.Error(w, "SetSoul not supported", http.StatusInternalServerError)
+		return
+	}
+
+	if err := fileStore.SetSoul(ctx, id, req.Content); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Agent not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := SoulResponse{
+		AgentID: id,
+		Content: req.Content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // Helper functions
 
 func (h *Handlers) toResponse(ctx context.Context, a *store.Agent) Response {
