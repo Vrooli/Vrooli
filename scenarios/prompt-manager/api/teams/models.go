@@ -72,3 +72,20 @@ type UpdateMemberRequest struct {
 type SetRolesRequest struct {
 	Roles []RoleDTO `json:"roles"`
 }
+
+// OrgEdgeDTO represents a manager-report relationship in the org chart.
+type OrgEdgeDTO struct {
+	ManagerAgentID string `json:"managerAgentId"`
+	ReportAgentID  string `json:"reportAgentId"`
+}
+
+// OrgChartResponse is the API response for a team's org chart.
+type OrgChartResponse struct {
+	TeamID string       `json:"teamId"`
+	Edges  []OrgEdgeDTO `json:"edges"`
+}
+
+// SetOrgChartRequest is the request body for setting a team's org chart.
+type SetOrgChartRequest struct {
+	Edges []OrgEdgeDTO `json:"edges"`
+}

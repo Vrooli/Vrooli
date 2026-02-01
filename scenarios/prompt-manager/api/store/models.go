@@ -22,19 +22,19 @@ type Skill struct {
 // Agent represents an agent entity from agent.json
 type Agent struct {
 	BaseEntity
-	ID                string              `json:"id"`
-	DisplayName       string              `json:"displayName"`
-	Description       string              `json:"description,omitempty"`
-	Status            string              `json:"status"`
-	Appearance        *AgentAppearance    `json:"appearance,omitempty"`
-	Persona           *AgentPersona       `json:"persona,omitempty"`
-	Capabilities      *AgentCapabilities  `json:"capabilities,omitempty"`
-	Connectors        []AgentConnector    `json:"connectors,omitempty"`
-	DefaultProfileRef string              `json:"defaultProfileRef,omitempty"`
-	Heartbeat         *AgentHeartbeat     `json:"heartbeat,omitempty"`
-	Tags              []string            `json:"tags,omitempty"`
-	SkillPins         []SkillPin          `json:"skillPins,omitempty"`
-	Runtime           *AgentRuntime       `json:"runtime,omitempty"`
+	ID                string             `json:"id"`
+	DisplayName       string             `json:"displayName"`
+	Description       string             `json:"description,omitempty"`
+	Status            string             `json:"status"`
+	Appearance        *AgentAppearance   `json:"appearance,omitempty"`
+	Persona           *AgentPersona      `json:"persona,omitempty"`
+	Capabilities      *AgentCapabilities `json:"capabilities,omitempty"`
+	Connectors        []AgentConnector   `json:"connectors,omitempty"`
+	DefaultProfileRef string             `json:"defaultProfileRef,omitempty"`
+	Heartbeat         *AgentHeartbeat    `json:"heartbeat,omitempty"`
+	Tags              []string           `json:"tags,omitempty"`
+	SkillPins         []SkillPin         `json:"skillPins,omitempty"`
+	Runtime           *AgentRuntime      `json:"runtime,omitempty"`
 	Timestamps
 }
 

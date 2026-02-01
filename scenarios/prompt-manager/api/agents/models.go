@@ -5,20 +5,20 @@ package agents
 
 // Response is the API response for an agent.
 type Response struct {
-	ID                string            `json:"id"`
-	DisplayName       string            `json:"displayName"`
-	Description       string            `json:"description,omitempty"`
-	Status            string            `json:"status"`
-	Appearance        *AppearanceDTO    `json:"appearance,omitempty"`
-	Persona           *PersonaDTO       `json:"persona,omitempty"`
-	Capabilities      *CapabilitiesDTO  `json:"capabilities,omitempty"`
-	Connectors        []ConnectorDTO    `json:"connectors,omitempty"`
-	DefaultProfileRef string            `json:"defaultProfileRef,omitempty"`
-	Heartbeat         *HeartbeatDTO     `json:"heartbeat,omitempty"`
-	Tags              []string          `json:"tags,omitempty"`
-	Skills            []string          `json:"skills,omitempty"`
-	CreatedAt         string            `json:"createdAt"`
-	UpdatedAt         string            `json:"updatedAt"`
+	ID                string           `json:"id"`
+	DisplayName       string           `json:"displayName"`
+	Description       string           `json:"description,omitempty"`
+	Status            string           `json:"status"`
+	Appearance        *AppearanceDTO   `json:"appearance,omitempty"`
+	Persona           *PersonaDTO      `json:"persona,omitempty"`
+	Capabilities      *CapabilitiesDTO `json:"capabilities,omitempty"`
+	Connectors        []ConnectorDTO   `json:"connectors,omitempty"`
+	DefaultProfileRef string           `json:"defaultProfileRef,omitempty"`
+	Heartbeat         *HeartbeatDTO    `json:"heartbeat,omitempty"`
+	Tags              []string         `json:"tags,omitempty"`
+	Skills            []string         `json:"skills,omitempty"`
+	CreatedAt         string           `json:"createdAt"`
+	UpdatedAt         string           `json:"updatedAt"`
 }
 
 // AppearanceDTO represents visual appearance for 3D UI
@@ -103,4 +103,3 @@ type EffectiveSkillsResponse struct {
 	TeamID  *string  `json:"teamId,omitempty"`
 	Skills  []string `json:"skills"`
 }
-

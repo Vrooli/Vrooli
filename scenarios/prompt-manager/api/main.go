@@ -241,6 +241,8 @@ func main() {
 	v1.HandleFunc("/teams/{id}/members/{agentId}", teamHandlers.RemoveMember).Methods("DELETE")
 	v1.HandleFunc("/teams/{id}/roles", teamHandlers.GetRoles).Methods("GET")
 	v1.HandleFunc("/teams/{id}/roles", teamHandlers.SetRoles).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/org", teamHandlers.GetOrgChart).Methods("GET")
+	v1.HandleFunc("/teams/{id}/org", teamHandlers.SetOrgChart).Methods("PUT")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")

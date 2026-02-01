@@ -111,13 +111,21 @@ func (m *MockRelationStore) ListTeamMembers(ctx context.Context, teamID string) 
 // MockIndexStore implements store.IndexStore for testing
 type MockIndexStore struct{}
 
-func (m *MockIndexStore) RegenerateAll(ctx context.Context) error { return nil }
+func (m *MockIndexStore) RegenerateAll(ctx context.Context) error    { return nil }
 func (m *MockIndexStore) RegenerateSkills(ctx context.Context) error { return nil }
 func (m *MockIndexStore) RegenerateAgents(ctx context.Context) error { return nil }
-func (m *MockIndexStore) RegenerateTeams(ctx context.Context) error { return nil }
-func (m *MockIndexStore) GetSkillsIndex(ctx context.Context) (*store.SkillsIndex, error) { return nil, nil }
-func (m *MockIndexStore) GetAgentsIndex(ctx context.Context) (*store.AgentsIndex, error) { return nil, nil }
-func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, error) { return nil, nil }
+func (m *MockIndexStore) RegenerateTeams(ctx context.Context) error  { return nil }
+func (m *MockIndexStore) GetSkillsIndex(ctx context.Context) (*store.SkillsIndex, error) {
+	return nil, nil
+}
+
+func (m *MockIndexStore) GetAgentsIndex(ctx context.Context) (*store.AgentsIndex, error) {
+	return nil, nil
+}
+
+func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, error) {
+	return nil, nil
+}
 
 func TestList(t *testing.T) {
 	agentStore := NewMockAgentStore()

@@ -396,6 +396,89 @@ func (h *Handlers) SetRoles(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(req.Roles)
 }
 
+// GetOrgChart handles GET /teams/{id}/org - returns the org chart for a team.
+func (h *Handlers) GetOrgChart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Verify team exists
+	if _, err := h.teamStore.Get(ctx, id); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+
+	org, err := h.teamStore.GetOrgChart(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to DTO response
+	resp := OrgChartResponse{
+		TeamID: id,
+		Edges:  make([]OrgEdgeDTO, 0, len(org.Edges)),
+	}
+	for _, edge := range org.Edges {
+		resp.Edges = append(resp.Edges, OrgEdgeDTO{
+			ManagerAgentID: edge.ManagerAgentID,
+			ReportAgentID:  edge.ReportAgentID,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// SetOrgChart handles PUT /teams/{id}/org - sets the org chart for a team.
+func (h *Handlers) SetOrgChart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	var req SetOrgChartRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Get the FileTeamStore to access SetOrgChart (not in interface)
+	fileTeamStore, ok := h.teamStore.(*store.FileTeamStore)
+	if !ok {
+		http.Error(w, "SetOrgChart not supported", http.StatusInternalServerError)
+		return
+	}
+
+	org := &store.OrgChart{
+		TeamID: id,
+		Edges:  make([]store.OrgEdge, 0, len(req.Edges)),
+	}
+	for _, e := range req.Edges {
+		org.Edges = append(org.Edges, store.OrgEdge{
+			ManagerAgentID: e.ManagerAgentID,
+			ReportAgentID:  e.ReportAgentID,
+		})
+	}
+
+	if err := fileTeamStore.SetOrgChart(ctx, id, org); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the updated org chart
+	resp := OrgChartResponse{
+		TeamID: id,
+		Edges:  req.Edges,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 // Helper functions
 
 func (h *Handlers) toResponse(ctx context.Context, t *store.Team) Response {
