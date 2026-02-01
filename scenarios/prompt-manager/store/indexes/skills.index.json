@@ -1,0 +1,685 @@
+{
+  "generatedAt": "2026-01-31T23:53:05Z",
+  "items": [
+    {
+      "id": "unit-testing-architecture-steer",
+      "pack": "local",
+      "name": "Unit Testing Architecture",
+      "modes": [
+        "steer",
+        "test"
+      ],
+      "tags": [
+        "testing",
+        "unit-tests",
+        "architecture",
+        "mocks",
+        "testcontainers",
+        "dependency-injection"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "assumption-mapping-and-hardening",
+      "pack": "core",
+      "name": "Assumption Mapping \u0026 Hardening",
+      "modes": [
+        "steer",
+        "analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "boundary-of-responsibility-enforcement",
+      "pack": "core",
+      "name": "Boundary of Responsibility Enforcement",
+      "modes": [
+        "steer",
+        "architecture"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "browser-automation-studio",
+      "pack": "core",
+      "name": "Browser Automation Studio",
+      "modes": [
+        "tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "change-axis-and-evolution-resilience-audit",
+      "pack": "core",
+      "name": "Change Axis \u0026 Evolution Resilience",
+      "modes": [
+        "steer",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "cli-steer",
+      "pack": "core",
+      "name": "CLI Steer",
+      "modes": [
+        "steer",
+        "architecture"
+      ],
+      "tags": [
+        "cli",
+        "cli-core",
+        "go",
+        "cross-platform",
+        "api-parity"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "code-cleanup",
+      "pack": "core",
+      "name": "Code Cleanup",
+      "modes": [
+        "steer",
+        "cleanup"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "cognitive-load-reduction",
+      "pack": "core",
+      "name": "Cognitive Load Reduction",
+      "modes": [
+        "steer",
+        "simplification"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "concept-vocabulary-unification",
+      "pack": "core",
+      "name": "Concept Vocabulary Unification",
+      "modes": [
+        "steer",
+        "naming"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "control-surface-tunable-levers-design",
+      "pack": "core",
+      "name": "Control Surface \u0026 Tunable Levers",
+      "modes": [
+        "steer",
+        "configuration"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "decision-boundary-extraction",
+      "pack": "core",
+      "name": "Decision Boundary Extraction",
+      "modes": [
+        "steer",
+        "analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "documentation-health",
+      "pack": "core",
+      "name": "Documentation Health",
+      "modes": [
+        "steer",
+        "documentation",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "documentation-search",
+      "pack": "core",
+      "name": "Documentation Search",
+      "modes": [
+        "search",
+        "documentation"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "domain-compression",
+      "pack": "core",
+      "name": "Domain Compression",
+      "modes": [
+        "steer",
+        "abstraction"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "e2e-testing",
+      "pack": "core",
+      "name": "E2E Testing",
+      "modes": [
+        "steer",
+        "test"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "error-semantics-recovery-path-design",
+      "pack": "core",
+      "name": "Error Semantics \u0026 Recovery Path",
+      "modes": [
+        "steer",
+        "errorhandling"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "experience-architecture-audit",
+      "pack": "core",
+      "name": "Experience Architecture Audit",
+      "modes": [
+        "steer",
+        "ux",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "explore",
+      "pack": "core",
+      "name": "Exploration \u0026 Discovery",
+      "modes": [
+        "steer",
+        "explore"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "failure-topography-and-graceful-degradation",
+      "pack": "core",
+      "name": "Failure Topography \u0026 Graceful Degradation",
+      "modes": [
+        "steer",
+        "reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "idempotency-replay-safety-hardening",
+      "pack": "core",
+      "name": "Idempotency \u0026 Replay Safety",
+      "modes": [
+        "steer",
+        "reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "intent-clarification",
+      "pack": "core",
+      "name": "Intent Clarification",
+      "modes": [
+        "steer",
+        "documentation"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "interoperability-steer",
+      "pack": "core",
+      "name": "Interoperability Steer",
+      "modes": [
+        "steer",
+        "architecture"
+      ],
+      "tags": [
+        "proto",
+        "types",
+        "validation",
+        "contracts"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "invariant-discovery-and-enforcement",
+      "pack": "core",
+      "name": "Invariant Discovery \u0026 Enforcement",
+      "modes": [
+        "steer",
+        "analysis"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "navigation-integrity-audit",
+      "pack": "core",
+      "name": "Navigation Integrity Audit",
+      "modes": [
+        "steer",
+        "ux",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "new-skill",
+      "pack": "core",
+      "name": "Skill Validation",
+      "modes": [
+        "meta"
+      ],
+      "status": "draft"
+    },
+    {
+      "id": "new-skill-1",
+      "pack": "core",
+      "name": "API Steer",
+      "modes": [
+        "steer",
+        "architecture"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "performance",
+      "pack": "core",
+      "name": "Performance",
+      "modes": [
+        "steer",
+        "performance"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "polish",
+      "pack": "core",
+      "name": "Polish",
+      "modes": [
+        "steer",
+        "polish"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "progress",
+      "pack": "core",
+      "name": "Progress",
+      "modes": [
+        "steer",
+        "progress"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "progress-continuity-interruption-resilience",
+      "pack": "core",
+      "name": "Progress Continuity \u0026 Interruption Resilience",
+      "modes": [
+        "steer",
+        "reliability"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "r3f-coherence",
+      "pack": "core",
+      "name": "React Three Fiber (R3F)",
+      "modes": [
+        "steer",
+        "react",
+        "performance"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "react-coherence",
+      "pack": "core",
+      "name": "React Coherence",
+      "modes": [
+        "steer",
+        "react"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "react-stability",
+      "pack": "core",
+      "name": "React Stability",
+      "modes": [
+        "steer",
+        "react"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "refactor",
+      "pack": "core",
+      "name": "Refactor",
+      "modes": [
+        "steer",
+        "refactor"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "scenario-to-desktop",
+      "pack": "core",
+      "name": "Scenario to Desktop",
+      "modes": [
+        "tools"
+      ],
+      "tags": [
+        "desktop",
+        "electron",
+        "packaging",
+        "distribution",
+        "cross-platform"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "screaming-architecture-audit",
+      "pack": "core",
+      "name": "Screaming Architecture",
+      "modes": [
+        "steer",
+        "architecture",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "seam-discovery-and-enforcement",
+      "pack": "core",
+      "name": "Testing Seam Discovery \u0026 Enforcement",
+      "modes": [
+        "steer",
+        "architecture"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "security",
+      "pack": "core",
+      "name": "Security",
+      "modes": [
+        "steer",
+        "security"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "signal-and-feedback-surface-design",
+      "pack": "core",
+      "name": "Signal \u0026 Feedback Surface Design",
+      "modes": [
+        "steer",
+        "observability"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-authoring",
+      "pack": "core",
+      "name": "Steer Skill Authoring",
+      "modes": [
+        "meta",
+        "steer"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-authoring-meta",
+      "pack": "core",
+      "name": "Meta Skill Authoring",
+      "modes": [
+        "meta",
+        "meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-authoring-search",
+      "pack": "core",
+      "name": "Search Skill Authoring",
+      "modes": [
+        "meta",
+        "search"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-authoring-tools",
+      "pack": "core",
+      "name": "Tools Skill Authoring",
+      "modes": [
+        "meta",
+        "tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-improvement-suggestions",
+      "pack": "core",
+      "name": "Skill Improvement Suggestions",
+      "modes": [
+        "meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "skill-principles",
+      "pack": "core",
+      "name": "Skill Principles",
+      "modes": [
+        "meta"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "storage-steer",
+      "pack": "core",
+      "name": "Storage Architecture",
+      "modes": [
+        "steer"
+      ],
+      "tags": [
+        "storage",
+        "database",
+        "postgres",
+        "redis",
+        "qdrant",
+        "migrations",
+        "repository-pattern",
+        "connection-pooling",
+        "environment-variables"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "temporal-flow-audit",
+      "pack": "core",
+      "name": "Temporal Flow Audit",
+      "modes": [
+        "steer",
+        "audits"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "test",
+      "pack": "core",
+      "name": "Test",
+      "modes": [
+        "steer",
+        "test"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "utils-unification",
+      "pack": "core",
+      "name": "Utils Unification",
+      "modes": [
+        "steer",
+        "architecture",
+        "refactor"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "ux",
+      "pack": "core",
+      "name": "UX Improvement",
+      "modes": [
+        "steer",
+        "ux"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    },
+    {
+      "id": "x-dev-log",
+      "pack": "core",
+      "name": "X Dev Log Generator",
+      "modes": [
+        "tools"
+      ],
+      "tags": [
+        "skill"
+      ],
+      "status": "active"
+    }
+  ]
+}

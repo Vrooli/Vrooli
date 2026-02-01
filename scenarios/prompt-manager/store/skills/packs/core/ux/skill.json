@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "ux",
+  "name": "UX Improvement",
+  "description": "User experience quality across all interfaces",
+  "modes": [
+    "steer",
+    "ux"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "users",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

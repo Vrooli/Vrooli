@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "react-coherence",
+  "name": "React Coherence",
+  "description": "Ensure architectural coherence in React codebases through Zustand state management, code sharing patterns, and styling organization",
+  "modes": [
+    "steer",
+    "react"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "link",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-01-23T00:00:00Z",
+  "updatedAt": "2026-01-23T00:00:00Z"
+}

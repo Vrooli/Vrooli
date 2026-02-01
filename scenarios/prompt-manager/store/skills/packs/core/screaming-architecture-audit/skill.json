@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "screaming-architecture-audit",
+  "name": "Screaming Architecture",
+  "description": "Architecture alignment and refactoring - make the codebase express its purpose",
+  "modes": [
+    "steer",
+    "architecture",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "building2",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetToolId": "run-agent",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

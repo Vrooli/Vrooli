@@ -19,6 +19,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+import toast from 'react-hot-toast';
 import { getApiBase } from '@/config';
 import type {
   RecordedAction,
@@ -236,9 +237,9 @@ function useRecordingTransport({
         isRecord(payload) && typeof payload.message === 'string'
           ? payload.message
           : undefined;
-      const payloadError =
-        isRecord(payload) && typeof payload.error === 'string'
-          ? payload.error
+      const payloadCode =
+        isRecord(payload) && typeof payload.code === 'string'
+          ? payload.code
           : undefined;
       const recordingIdValue =
         isRecord(payload) && typeof payload.recording_id === 'string'
@@ -249,11 +250,12 @@ function useRecordingTransport({
       // This happens when the page is refreshed - React state is lost but the
       // playwright-driver still has an active recording. We treat this as a
       // successful state sync rather than an error.
-      if (response.status === 409 && payloadError === 'RECORDING_IN_PROGRESS') {
+      if (response.status === 409 && payloadCode === 'RECORDING_IN_PROGRESS') {
         console.log('Recording already in progress, syncing state:', recordingIdValue);
         setRecordingId(recordingIdValue);
         setIsRecording(true);
         // Don't clear actions - they may be streaming in via WebSocket
+        toast.success('Reconnected to existing session', { duration: 2000 });
         return;
       }
 

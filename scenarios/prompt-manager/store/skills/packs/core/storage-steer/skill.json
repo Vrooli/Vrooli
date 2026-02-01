@@ -1,0 +1,26 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "storage-steer",
+  "name": "Storage Architecture",
+  "description": "Ensures persistent storage mechanisms (PostgreSQL, Redis, Qdrant, filesystem) are properly configured with environment-driven connections, scenario-isolated databases, idempotent schema initialization, repository abstractions, and correct resource declarations in service.json.",
+  "modes": [
+    "steer"
+  ],
+  "tags": [
+    "storage",
+    "database",
+    "postgres",
+    "redis",
+    "qdrant",
+    "migrations",
+    "repository-pattern",
+    "connection-pooling",
+    "environment-variables"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-01-30T20:00:00-05:00",
+  "updatedAt": "2026-01-30T19:24:54-05:00"
+}

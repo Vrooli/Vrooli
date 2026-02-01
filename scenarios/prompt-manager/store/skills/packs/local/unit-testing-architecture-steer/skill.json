@@ -1,0 +1,24 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "unit-testing-architecture-steer",
+  "name": "Unit Testing Architecture",
+  "description": "Establishes robust unit test infrastructure including file organization, test isolation, mock organization, testable production code patterns, and systematic edge case coverage structures.",
+  "modes": [
+    "steer",
+    "test"
+  ],
+  "tags": [
+    "testing",
+    "unit-tests",
+    "architecture",
+    "mocks",
+    "testcontainers",
+    "dependency-injection"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-01-30T17:00:00-05:00",
+  "updatedAt": "2026-01-30T19:01:10-05:00"
+}

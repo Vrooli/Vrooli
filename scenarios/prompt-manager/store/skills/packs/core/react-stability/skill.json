@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "react-stability",
+  "name": "React Stability",
+  "description": "React best practices, performance, and stability patterns",
+  "modes": [
+    "steer",
+    "react"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "atom",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-16T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

@@ -33,6 +33,12 @@
           "title": "3D World Architecture",
           "description": "Component hierarchy, state management, and rendering pipeline for the 3D visualization system",
           "audience": ["developers"]
+        },
+        {
+          "path": "concepts/STORE-MIGRATION.md",
+          "title": "Storage Migration",
+          "description": "Migration guide from legacy skills/ to new store/ directory structure",
+          "audience": ["developers"]
         }
       ]
     },

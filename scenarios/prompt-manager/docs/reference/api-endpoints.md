@@ -504,15 +504,136 @@ Get test history for a skill.
 
 ---
 
-## Members
+## Agents
 
-[CODE: api/members/handlers.go]
+[CODE: api/agents/handlers.go]
 
-Members represent team entities visualized in the 3D world.
+Agents represent team entities visualized in the 3D world. They can be assigned skills and organized into teams.
+
+### GET /api/v1/agents
+
+List all agents.
+
+**Response:**
+```json
+[
+  {
+    "id": "agent-1",
+    "displayName": "Alice",
+    "status": "active",
+    "appearance": {
+      "body": "#3B82F6",
+      "head": "#F59E0B",
+      "accent": "#10B981"
+    },
+    "skills": ["debugging", "testing"],
+    "createdAt": "2024-01-15T10:00:00Z",
+    "updatedAt": "2024-01-20T14:30:00Z"
+  }
+]
+```
+
+### GET /api/v1/agents/{id}
+
+Get a single agent.
+
+**Response:** Same as list item above.
+
+**Errors:**
+- `404` - Agent not found
+
+### POST /api/v1/agents
+
+Create a new agent.
+
+**Request Body:**
+```json
+{
+  "id": "alice",
+  "displayName": "Alice",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "skills": ["debugging"]
+}
+```
+
+**Required Fields:** `displayName`
+
+**Optional Fields:** `id` (auto-generated from displayName), `appearance`, `skills`
+
+**Notes:**
+- Colors must be valid hex format: `#RRGGBB`
+- Skills array creates agent-skill relations
+
+### PUT /api/v1/agents/{id}
+
+Update an existing agent.
+
+**Request Body:** (all fields optional)
+```json
+{
+  "displayName": "Updated Name",
+  "status": "inactive",
+  "appearance": {
+    "body": "#FF5733",
+    "head": "#3498DB",
+    "accent": "#2ECC71"
+  },
+  "skills": ["debugging", "testing", "refactor"]
+}
+```
+
+**Status Values:** `active`, `inactive`, `suspended`
+
+**Response:** Updated agent object.
+
+### DELETE /api/v1/agents/{id}
+
+Delete an agent.
+
+**Response:** `204 No Content`
+
+**Notes:**
+- Also deletes all agent-skill relations
+
+### GET /api/v1/agents/{id}/effective-skills
+
+Get computed effective skill set for an agent.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `teamId` | string | Optional team context for role-based grants |
+
+**Response:**
+```json
+{
+  "agentId": "agent-1",
+  "teamId": "engineering",
+  "skills": ["debugging", "testing", "code-review"]
+}
+```
+
+**Skill Resolution Order:**
+1. Agent explicit skill pins
+2. Agent-skill relations (enabled)
+3. Team role default grants (if teamId provided)
+4. Subtract disabled relations
+
+---
+
+## Members (Legacy)
+
+[CODE: api/agents/handlers.go#MemberList]
+
+**DEPRECATED:** Use `/api/v1/agents` instead. These endpoints maintain backward compatibility by delegating to agent handlers with format translation.
 
 ### GET /api/v1/members
 
-List all members.
+List all agents in legacy member format.
 
 **Response:**
 ```json
@@ -532,11 +653,11 @@ List all members.
 
 ### GET /api/v1/members/{id}
 
-Get a single member.
+Get a single agent in legacy member format.
 
 ### POST /api/v1/members
 
-Create a new member.
+Create a new agent from legacy member format.
 
 **Request Body:**
 ```json
@@ -553,11 +674,11 @@ Create a new member.
 
 ### PUT /api/v1/members/{id}
 
-Update a member.
+Update an agent from legacy member format.
 
 ### DELETE /api/v1/members/{id}
 
-Delete a member.
+Delete an agent.
 
 ---
 

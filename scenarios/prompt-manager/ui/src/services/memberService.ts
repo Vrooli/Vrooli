@@ -1,15 +1,15 @@
 /**
- * Member Service - Member state machine, animations, and API functions.
+ * Member Service - State machine and animation utilities for 3D members/agents.
  *
  * Provides:
  * - Member state machine for behavior management
  * - Animation calculations (look rotation, idle sway, wave, celebration)
  * - Easing functions
- * - API wrapper with caching
+ * - Interpolation helpers
+ *
+ * Note: For API operations, use agentService.ts instead.
  */
 
-import { api } from '@/lib/api'
-import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
 import type { MemberState } from '@/types/world'
 
 // ============================================================================
@@ -274,104 +274,4 @@ export function lerpPosition(
     lerp(start[1], end[1], t),
     lerp(start[2], end[2], t),
   ]
-}
-
-// Cache configuration
-const CACHE_TTL_MS = 5000 // 5 seconds
-
-// Cache state
-interface CacheEntry<T> {
-  data: T
-  timestamp: number
-}
-
-let membersCache: CacheEntry<Member[]> | null = null
-
-/**
- * Check if cache entry is still valid.
- */
-function isCacheValid<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
-  if (!entry) return false
-  return Date.now() - entry.timestamp < CACHE_TTL_MS
-}
-
-/**
- * Invalidate all caches. Call after mutations.
- */
-export function invalidateCache(): void {
-  membersCache = null
-}
-
-/**
- * Get all members with caching.
- *
- * @param forceRefresh - Skip cache and fetch fresh data
- * @returns Array of all members
- */
-export async function getMembers(forceRefresh = false): Promise<Member[]> {
-  if (!forceRefresh && isCacheValid(membersCache)) {
-    return membersCache.data
-  }
-
-  const data = await api.getMembers()
-  membersCache = { data, timestamp: Date.now() }
-  return data
-}
-
-/**
- * Get a single member by ID.
- * Uses cached data if available, otherwise fetches.
- *
- * @param id - Member ID
- * @returns The member, or undefined if not found
- */
-export async function getMember(id: string): Promise<Member | undefined> {
-  // Try cache first
-  if (isCacheValid(membersCache)) {
-    const cached = membersCache.data.find((a) => a.id === id)
-    if (cached) return cached
-  }
-
-  // Fetch from API
-  try {
-    return await api.getMember(id)
-  } catch (error) {
-    console.error(`[memberService] Failed to get member ${id}:`, error)
-    return undefined
-  }
-}
-
-/**
- * Create a new member.
- *
- * @param request - Create request data
- * @returns The created member
- */
-export async function createMember(request: CreateMemberRequest): Promise<Member> {
-  const member = await api.createMember(request)
-  invalidateCache()
-  return member
-}
-
-/**
- * Update a member.
- *
- * @param id - Member ID to update
- * @param updates - Fields to update
- * @returns The updated member
- */
-export async function updateMember(id: string, updates: UpdateMemberRequest): Promise<Member> {
-  const member = await api.updateMember(id, updates)
-  invalidateCache()
-  return member
-}
-
-/**
- * Delete a member.
- *
- * @param id - Member ID to delete
- */
-export async function deleteMember(id: string): Promise<void> {
-  await api.deleteMember(id)
-  invalidateCache()
 }

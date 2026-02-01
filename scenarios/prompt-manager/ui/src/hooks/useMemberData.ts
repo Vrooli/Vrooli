@@ -1,15 +1,21 @@
 /**
- * useMemberData - Data fetching hook for members.
+ * useMemberData - Data fetching hook for members/agents.
+ *
+ * This hook provides a backward-compatible Member interface while
+ * using the Agent API under the hood. UI components can continue
+ * using Member types while the API uses agents.
  *
  * Handles:
- * - Fetching all members via react-query
+ * - Fetching all agents via react-query
+ * - Converting Agent responses to Member format
  * - CRUD operations with cache invalidation
  * - Loading and error states
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import * as memberService from '@/services/memberService'
+import * as agentService from '@/services/agentService'
 import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
+import { agentToMember, DEFAULT_AGENT_COLORS } from '@/types/agent'
 
 // Query key constants
 const QUERY_KEYS = {
@@ -41,11 +47,12 @@ interface UseMemberDataReturn {
 
 /**
  * Hook for fetching and mutating member data.
+ * Uses Agent API internally but returns Member format for compatibility.
  */
 export function useMemberData(): UseMemberDataReturn {
   const queryClient = useQueryClient()
 
-  // Query for all members
+  // Query for all agents, convert to members
   const {
     data: members = [],
     isLoading,
@@ -54,22 +61,58 @@ export function useMemberData(): UseMemberDataReturn {
     refetch,
   } = useQuery({
     queryKey: QUERY_KEYS.members,
-    queryFn: () => memberService.getMembers(true), // Force refresh on query
+    queryFn: async () => {
+      const agents = await agentService.getAgents(true) // Force refresh on query
+      return agents.map(agentToMember)
+    },
     staleTime: 5000, // Match service cache TTL
   })
 
-  // Create mutation
+  // Create mutation - convert Member request to Agent request
   const createMutation = useMutation({
-    mutationFn: (request: CreateMemberRequest) => memberService.createMember(request),
+    mutationFn: async (request: CreateMemberRequest) => {
+      const agent = await agentService.createAgent({
+        id: request.id,
+        displayName: request.name,
+        appearance: {
+          body: request.bodyColor,
+          head: request.headColor,
+          accent: request.accentColor,
+        },
+        skills: request.skills,
+      })
+      return agentToMember(agent)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },
   })
 
-  // Update mutation
+  // Update mutation - convert Member updates to Agent updates
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: UpdateMemberRequest }) =>
-      memberService.updateMember(id, updates),
+    mutationFn: async ({ id, updates }: { id: string; updates: UpdateMemberRequest }) => {
+      const agentUpdates: Parameters<typeof agentService.updateAgent>[1] = {}
+
+      if (updates.name !== undefined) {
+        agentUpdates.displayName = updates.name
+      }
+
+      // Build appearance if any color is updated
+      if (updates.bodyColor !== undefined || updates.headColor !== undefined || updates.accentColor !== undefined) {
+        agentUpdates.appearance = {
+          body: updates.bodyColor ?? DEFAULT_AGENT_COLORS.body,
+          head: updates.headColor ?? DEFAULT_AGENT_COLORS.head,
+          accent: updates.accentColor ?? DEFAULT_AGENT_COLORS.accent,
+        }
+      }
+
+      if (updates.skills !== undefined) {
+        agentUpdates.skills = updates.skills
+      }
+
+      const agent = await agentService.updateAgent(id, agentUpdates)
+      return agentToMember(agent)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },
@@ -77,7 +120,7 @@ export function useMemberData(): UseMemberDataReturn {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => memberService.deleteMember(id),
+    mutationFn: (id: string) => agentService.deleteAgent(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.members })
     },

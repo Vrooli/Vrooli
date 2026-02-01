@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "invariant-discovery-and-enforcement",
+  "name": "Invariant Discovery \u0026 Enforcement",
+  "description": "Discover and enforce system invariants and constraints",
+  "modes": [
+    "steer",
+    "analysis"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "lock",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

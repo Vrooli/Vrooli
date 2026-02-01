@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/prompt-manager/relation.schema.json",
+  "title": "Relation",
+  "description": "Normalized relationship between entities",
+  "oneOf": [
+    {
+      "title": "AgentSkill",
+      "description": "Relationship between an agent and a skill",
+      "type": "object",
+      "required": ["kind", "schemaVersion", "agentId", "skillId"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "agent-skill",
+          "description": "Relationship type discriminator"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema version for forward compatibility"
+        },
+        "agentId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Reference to agent"
+        },
+        "skillId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Reference to skill"
+        },
+        "pin": {
+          "type": "string",
+          "default": "latest",
+          "description": "Version pin (semver or 'latest')"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the skill is currently active"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "TeamMember",
+      "description": "Relationship between a team and an agent (membership)",
+      "type": "object",
+      "required": ["kind", "schemaVersion", "teamId", "agentId"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "team-member",
+          "description": "Relationship type discriminator"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema version for forward compatibility"
+        },
+        "teamId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Reference to team"
+        },
+        "agentId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "description": "Reference to agent"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Roles assigned to this member in the team"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive", "pending"],
+          "default": "active",
+          "description": "Membership status"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

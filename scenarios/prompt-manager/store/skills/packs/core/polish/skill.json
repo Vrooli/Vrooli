@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "polish",
+  "name": "Polish",
+  "description": "Final touches - consistency, edge cases, error messages",
+  "modes": [
+    "steer",
+    "polish"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "sparkles",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

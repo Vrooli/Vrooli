@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "assumption-mapping-and-hardening",
+  "name": "Assumption Mapping \u0026 Hardening",
+  "description": "Identify and validate implicit assumptions in the codebase",
+  "modes": [
+    "steer",
+    "analysis"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "map",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

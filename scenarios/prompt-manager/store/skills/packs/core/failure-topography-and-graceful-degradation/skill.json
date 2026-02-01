@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "failure-topography-and-graceful-degradation",
+  "name": "Failure Topography \u0026 Graceful Degradation",
+  "description": "Map failure modes and implement graceful degradation",
+  "modes": [
+    "steer",
+    "reliability"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "activity",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

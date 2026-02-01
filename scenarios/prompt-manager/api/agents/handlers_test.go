@@ -1,0 +1,301 @@
+package agents
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"prompt-manager/store"
+
+	"github.com/gorilla/mux"
+)
+
+// MockAgentStore implements store.AgentStore for testing
+type MockAgentStore struct {
+	agents map[string]*store.Agent
+}
+
+func NewMockAgentStore() *MockAgentStore {
+	return &MockAgentStore{
+		agents: make(map[string]*store.Agent),
+	}
+}
+
+func (m *MockAgentStore) List(ctx context.Context) ([]store.Agent, error) {
+	result := make([]store.Agent, 0, len(m.agents))
+	for _, a := range m.agents {
+		result = append(result, *a)
+	}
+	return result, nil
+}
+
+func (m *MockAgentStore) Get(ctx context.Context, id string) (*store.Agent, error) {
+	if a, ok := m.agents[id]; ok {
+		return a, nil
+	}
+	return nil, fmt.Errorf("agent not found: %s", id)
+}
+
+func (m *MockAgentStore) Create(ctx context.Context, agent *store.Agent) error {
+	m.agents[agent.ID] = agent
+	return nil
+}
+
+func (m *MockAgentStore) Update(ctx context.Context, id string, agent *store.Agent) error {
+	if existing, ok := m.agents[id]; ok {
+		if agent.DisplayName != "" {
+			existing.DisplayName = agent.DisplayName
+		}
+		if agent.Appearance != nil {
+			existing.Appearance = agent.Appearance
+		}
+		if agent.Status != "" {
+			existing.Status = agent.Status
+		}
+	}
+	return nil
+}
+
+func (m *MockAgentStore) Delete(ctx context.Context, id string) error {
+	delete(m.agents, id)
+	return nil
+}
+
+func (m *MockAgentStore) GetSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
+	return nil, nil
+}
+
+func (m *MockAgentStore) GetEffectiveSkills(ctx context.Context, agentID string, teamID *string) ([]string, error) {
+	return []string{}, nil
+}
+
+// MockRelationStore implements store.RelationStore for testing
+type MockRelationStore struct{}
+
+func (m *MockRelationStore) GetAgentSkill(ctx context.Context, agentID, skillID string) (*store.AgentSkillRelation, error) {
+	return nil, nil
+}
+
+func (m *MockRelationStore) SetAgentSkill(ctx context.Context, rel *store.AgentSkillRelation) error {
+	return nil
+}
+
+func (m *MockRelationStore) DeleteAgentSkill(ctx context.Context, agentID, skillID string) error {
+	return nil
+}
+
+func (m *MockRelationStore) ListAgentSkills(ctx context.Context, agentID string) ([]store.AgentSkillRelation, error) {
+	return nil, nil
+}
+
+func (m *MockRelationStore) GetTeamMember(ctx context.Context, teamID, agentID string) (*store.TeamMemberRelation, error) {
+	return nil, nil
+}
+
+func (m *MockRelationStore) SetTeamMember(ctx context.Context, rel *store.TeamMemberRelation) error {
+	return nil
+}
+
+func (m *MockRelationStore) DeleteTeamMember(ctx context.Context, teamID, agentID string) error {
+	return nil
+}
+
+func (m *MockRelationStore) ListTeamMembers(ctx context.Context, teamID string) ([]store.TeamMemberRelation, error) {
+	return nil, nil
+}
+
+// MockIndexStore implements store.IndexStore for testing
+type MockIndexStore struct{}
+
+func (m *MockIndexStore) RegenerateAll(ctx context.Context) error { return nil }
+func (m *MockIndexStore) RegenerateSkills(ctx context.Context) error { return nil }
+func (m *MockIndexStore) RegenerateAgents(ctx context.Context) error { return nil }
+func (m *MockIndexStore) RegenerateTeams(ctx context.Context) error { return nil }
+func (m *MockIndexStore) GetSkillsIndex(ctx context.Context) (*store.SkillsIndex, error) { return nil, nil }
+func (m *MockIndexStore) GetAgentsIndex(ctx context.Context) (*store.AgentsIndex, error) { return nil, nil }
+func (m *MockIndexStore) GetTeamsIndex(ctx context.Context) (*store.TeamsIndex, error) { return nil, nil }
+
+func TestList(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	agentStore.agents["agent-1"] = &store.Agent{
+		ID:          "agent-1",
+		DisplayName: "Test Agent",
+		Status:      store.AgentStatusActive,
+	}
+
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	req := httptest.NewRequest("GET", "/agents", nil)
+	w := httptest.NewRecorder()
+
+	handlers.List(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response []Response
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(response) != 1 {
+		t.Errorf("Expected 1 agent, got %d", len(response))
+	}
+
+	if response[0].DisplayName != "Test Agent" {
+		t.Errorf("Expected display name 'Test Agent', got '%s'", response[0].DisplayName)
+	}
+}
+
+func TestCreate(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	body := CreateRequest{
+		DisplayName: "New Agent",
+		Appearance: &AppearanceDTO{
+			Body:   "#FF0000",
+			Head:   "#00FF00",
+			Accent: "#0000FF",
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Errorf("Expected status 201, got %d", w.Code)
+	}
+
+	var response Response
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.DisplayName != "New Agent" {
+		t.Errorf("Expected display name 'New Agent', got '%s'", response.DisplayName)
+	}
+
+	if response.ID != "new-agent" {
+		t.Errorf("Expected ID 'new-agent', got '%s'", response.ID)
+	}
+}
+
+func TestCreateMissingDisplayName(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	body := CreateRequest{}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestCreateInvalidColor(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	body := CreateRequest{
+		DisplayName: "New Agent",
+		Appearance: &AppearanceDTO{
+			Body:   "not-a-color",
+			Head:   "#00FF00",
+			Accent: "#0000FF",
+		},
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/agents", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handlers.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestGet(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	agentStore.agents["agent-1"] = &store.Agent{
+		ID:          "agent-1",
+		DisplayName: "Test Agent",
+		Status:      store.AgentStatusActive,
+	}
+
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	req := httptest.NewRequest("GET", "/agents/agent-1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Get(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response Response
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response.DisplayName != "Test Agent" {
+		t.Errorf("Expected display name 'Test Agent', got '%s'", response.DisplayName)
+	}
+}
+
+func TestGetNotFound(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	req := httptest.NewRequest("GET", "/agents/nonexistent", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
+	w := httptest.NewRecorder()
+
+	handlers.Get(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404, got %d", w.Code)
+	}
+}
+
+func TestDelete(t *testing.T) {
+	agentStore := NewMockAgentStore()
+	agentStore.agents["agent-1"] = &store.Agent{
+		ID:          "agent-1",
+		DisplayName: "Test Agent",
+		Status:      store.AgentStatusActive,
+	}
+
+	handlers := NewHandlers(agentStore, &MockRelationStore{}, &MockIndexStore{})
+
+	req := httptest.NewRequest("DELETE", "/agents/agent-1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "agent-1"})
+	w := httptest.NewRecorder()
+
+	handlers.Delete(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected status 204, got %d", w.Code)
+	}
+
+	if _, ok := agentStore.agents["agent-1"]; ok {
+		t.Error("Expected agent to be deleted")
+	}
+}

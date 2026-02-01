@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "explore",
+  "name": "Exploration \u0026 Discovery",
+  "description": "Creative exploration, experimentation, and discovery within architectural boundaries",
+  "modes": [
+    "steer",
+    "explore"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "compass",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

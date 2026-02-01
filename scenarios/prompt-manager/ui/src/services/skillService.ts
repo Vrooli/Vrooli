@@ -8,32 +8,17 @@
  */
 
 import { api } from '@/lib/api'
+import { createCacheManager } from '@/lib/cache'
 import type { Skill, CreateSkillRequest, UpdateSkillRequest } from '@/types'
 
-// Cache configuration
-const CACHE_TTL_MS = 5000 // 5 seconds
-
-// Cache state
-interface CacheEntry<T> {
-  data: T
-  timestamp: number
-}
-
-let skillsCache: CacheEntry<Skill[]> | null = null
-
-/**
- * Check if cache entry is still valid.
- */
-function isCacheValid<T>(entry: CacheEntry<T> | null): entry is CacheEntry<T> {
-  if (!entry) return false
-  return Date.now() - entry.timestamp < CACHE_TTL_MS
-}
+// Create cache for skills list
+const skillsCache = createCacheManager<Skill[]>()
 
 /**
  * Invalidate all caches. Call after mutations.
  */
 export function invalidateCache(): void {
-  skillsCache = null
+  skillsCache.invalidate()
 }
 
 /**
@@ -43,12 +28,13 @@ export function invalidateCache(): void {
  * @returns Array of all skills
  */
 export async function getSkills(forceRefresh = false): Promise<Skill[]> {
-  if (!forceRefresh && isCacheValid(skillsCache)) {
-    return skillsCache.data
+  const cached = skillsCache.getIfValid(forceRefresh)
+  if (cached) {
+    return cached
   }
 
   const data = await api.getSkills()
-  skillsCache = { data, timestamp: Date.now() }
+  skillsCache.set(data)
   return data
 }
 
@@ -140,9 +126,10 @@ export async function deleteSkill(id: string): Promise<void> {
  */
 export async function searchSkills(query: string): Promise<Skill[]> {
   // Use cached data if available for instant search
-  if (isCacheValid(skillsCache)) {
+  const cached = skillsCache.getIfValid()
+  if (cached) {
     const lowerQuery = query.toLowerCase()
-    return skillsCache.data.filter(
+    return cached.filter(
       (p) =>
         p.name.toLowerCase().includes(lowerQuery) ||
         p.description.toLowerCase().includes(lowerQuery) ||

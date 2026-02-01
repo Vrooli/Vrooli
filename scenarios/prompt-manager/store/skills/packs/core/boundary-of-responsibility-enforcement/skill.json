@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "boundary-of-responsibility-enforcement",
+  "name": "Boundary of Responsibility Enforcement",
+  "description": "Clarify and enforce module boundaries and responsibilities",
+  "modes": [
+    "steer",
+    "architecture"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "box",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

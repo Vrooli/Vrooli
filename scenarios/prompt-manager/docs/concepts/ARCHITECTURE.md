@@ -19,13 +19,13 @@ This document describes the overall architecture of the prompt-manager scenario,
 ┌─────────────────────────────────────────────────────────────────┐
 │                        API Server (Go)                          │
 │  ┌──────────┬──────────┬──────────┬──────────┬──────────────┐  │
-│  │  skills/ │  tags/   │ members/ │ testing/ │   search/    │  │
+│  │  skills/ │  tags/   │  agents/ │ testing/ │   search/    │  │
 │  │  domain  │  domain  │  domain  │  domain  │   domain     │  │
 │  └────┬─────┴────┬─────┴────┬─────┴────┬─────┴──────┬───────┘  │
 │       │          │          │          │            │          │
 │  ┌────┴──────────┴──────────┴──────────┴────────────┴───────┐  │
 │  │                    Interfaces Layer                       │  │
-│  │   SkillStore │ TagRepository │ MemberStore │ LLMClient   │  │
+│  │   SkillStore │ TagRepository │ AgentStore │ LLMClient    │  │
 │  └────┬──────────────────────────────────────────────┬──────┘  │
 └───────┼──────────────────────────────────────────────┼─────────┘
         │                                              │
@@ -58,7 +58,8 @@ api/
 │   └── query.go     # Filtering/search logic
 │
 ├── tags/            # Tag categorization
-├── members/         # Team member management (3D world)
+├── agents/          # Agent management (replaces members)
+├── store/           # New storage layer (per-entity files)
 ├── testing/         # LLM-based skill testing
 ├── search/          # Full-text search
 ├── metrics/         # Usage tracking
@@ -94,26 +95,63 @@ type Handlers struct {
 | Data Type | Storage | Rationale |
 |-----------|---------|-----------|
 | Skills (content) | File system (`.md` files) | Human-readable, version control friendly |
-| Skill metadata | File system (`metadata.json`) | Colocated with content |
+| Skill metadata | File system (`skill.json` per skill) | Colocated with content |
 | Tags | PostgreSQL | Relational queries, shared taxonomy |
 | Usage metrics | PostgreSQL | Aggregations, time-series queries |
 | Test results | PostgreSQL | History, analysis |
-| Members | File system (`data/members.json`) | Simple structure, rarely changes |
+| Agents | File system (`agent.json` per agent) | Normalized entity structure |
+| Teams | File system (`team.json` per team) | Normalized entity structure |
+| Relations | File system (`relations/` directory) | Agent-skill and team-member mappings |
 
-### File Storage Layout
+### New Storage Layout (v2.0)
+
+The storage system uses a per-entity file structure under the `store/` directory:
 
 ```
-skills/
-├── core/              # System skills (read-only)
-│   ├── metadata.json
-│   ├── debugging.md
-│   └── testing.md
-├── local/             # User-created skills
-│   ├── metadata.json
-│   └── my-skill.md
-└── drafts/            # Work-in-progress
-    └── metadata.json
+store/
+├── skills/
+│   ├── _pack-order.json        # Active pack precedence
+│   └── packs/
+│       ├── core/               # System skills
+│       │   ├── debugging/
+│       │   │   ├── skill.json  # Metadata
+│       │   │   ├── SKILL.md    # Content
+│       │   │   └── history.jsonl
+│       │   └── testing/
+│       │       └── ...
+│       ├── local/              # User-created skills
+│       └── drafts/             # Work-in-progress
+├── agents/
+│   └── agent-1/
+│       └── agent.json
+├── teams/
+│   └── engineering/
+│       ├── team.json
+│       ├── roles.json
+│       └── org-chart.json
+├── relations/
+│   ├── agent-skill/
+│   │   └── agent-1--skill-id.json
+│   └── team-member/
+│       └── team-id--agent-1.json
+├── indexes/                    # Generated (never hand-edit)
+│   ├── skills.json
+│   ├── agents.json
+│   └── teams.json
+└── schemas/                    # JSON Schemas for validation
+    ├── skill.schema.json
+    ├── agent.schema.json
+    └── team.schema.json
 ```
+
+**Key Design Changes:**
+- Per-entity files instead of monolithic `metadata.json`
+- Pack-based skill organization with precedence ordering
+- Normalized relations in separate directory
+- Generated indexes for fast lookups
+- Schemas for runtime validation
+
+See [STORE-MIGRATION.md](STORE-MIGRATION.md) for migration details.
 
 ## CLI Architecture
 
@@ -124,7 +162,7 @@ cli/
 ├── app.go           # Command registration
 ├── skills/          # skill list|show|add|update|delete|...
 ├── tags/            # tag list|create
-├── members/         # member list|show|create|update|delete
+├── agents/          # agent list|show|create|update|delete
 ├── testing/         # test run|history
 ├── search/          # search <query>
 ├── metadata/        # metadata fetch

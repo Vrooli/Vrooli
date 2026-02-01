@@ -61,6 +61,7 @@ var (
 	ErrWorkflowAlreadyExists   = apierror.ErrWorkflowAlreadyExists
 	ErrWorkflowVersionConflict = apierror.ErrWorkflowVersionConflict
 	ErrConflict                = apierror.ErrConflict
+	ErrRecordingInProgress     = apierror.ErrRecordingInProgress
 )
 
 // 500 Internal Server Error

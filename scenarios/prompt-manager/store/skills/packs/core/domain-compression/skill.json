@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "domain-compression",
+  "name": "Domain Compression",
+  "description": "Compress domain concepts into minimal, powerful abstractions",
+  "modes": [
+    "steer",
+    "abstraction"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "minimize2",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

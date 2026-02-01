@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "control-surface-tunable-levers-design",
+  "name": "Control Surface \u0026 Tunable Levers",
+  "description": "Design configuration and control points for flexibility",
+  "modes": [
+    "steer",
+    "configuration"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "sliders",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

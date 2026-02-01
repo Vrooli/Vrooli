@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "error-semantics-recovery-path-design",
+  "name": "Error Semantics \u0026 Recovery Path",
+  "description": "Design meaningful error types and recovery strategies",
+  "modes": [
+    "steer",
+    "errorhandling"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "alerttriangle",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

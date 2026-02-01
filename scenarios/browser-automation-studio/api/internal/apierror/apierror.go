@@ -210,6 +210,12 @@ var (
 		Code:    "WORKFLOW_CONFLICT",
 		Message: "The workflow was updated elsewhere. Refresh and retry.",
 	}
+
+	ErrRecordingInProgress = &APIError{
+		Status:  http.StatusConflict,
+		Code:    "RECORDING_IN_PROGRESS",
+		Message: "Recording is already in progress for this session",
+	}
 )
 
 // Common errors - 500 Internal Server Error

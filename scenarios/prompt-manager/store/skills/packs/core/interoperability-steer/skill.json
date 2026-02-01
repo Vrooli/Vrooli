@@ -1,0 +1,22 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "interoperability-steer",
+  "name": "Interoperability Steer",
+  "description": "Ensure scenarios communicate reliably through type-safe, proto-first contracts between UI↔API and API↔API boundaries",
+  "modes": [
+    "steer",
+    "architecture"
+  ],
+  "tags": [
+    "proto",
+    "types",
+    "validation",
+    "contracts"
+  ],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-01-30T15:30:00-05:00",
+  "updatedAt": "2026-01-30T17:26:54-05:00"
+}

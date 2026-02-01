@@ -14,14 +14,14 @@ type AISearchRequest struct {
 
 // AISearchResult represents a single search result.
 type AISearchResult struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Folder      string   `json:"folder"`
-	Tags        []string `json:"tags,omitempty"`
-	Modes       []string `json:"modes,omitempty"`
-	Score       float64  `json:"score"`
-	ScorePercent int     `json:"scorePercent"` // 0-100 for display
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description,omitempty"`
+	Folder       string   `json:"folder"`
+	Tags         []string `json:"tags,omitempty"`
+	Modes        []string `json:"modes,omitempty"`
+	Score        float64  `json:"score"`
+	ScorePercent int      `json:"scorePercent"` // 0-100 for display
 }
 
 // AISearchResponse wraps search results with metadata.

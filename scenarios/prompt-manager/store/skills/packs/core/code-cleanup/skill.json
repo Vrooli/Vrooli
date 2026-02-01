@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "code-cleanup",
+  "name": "Code Cleanup",
+  "description": "Remove dead code, unused imports, and obsolete patterns",
+  "modes": [
+    "steer",
+    "cleanup"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "trash2",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-14T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

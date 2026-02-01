@@ -29,7 +29,7 @@ import type {
   Folder,
   FolderType,
 } from '@/types'
-import type { Member, CreateMemberRequest, UpdateMemberRequest } from '@/types/member'
+import type { Agent, CreateAgentRequest, UpdateAgentRequest, EffectiveSkillsResponse } from '@/types/agent'
 import type { DisplayFormat, DisplayResponse } from '@/types/world'
 
 // Use @vrooli/api-base for automatic API resolution across all deployment contexts
@@ -333,33 +333,38 @@ class ApiClient {
     })
   }
 
-  // Member methods - aligned with api/members/handlers.go
-  async getMembers(): Promise<Member[]> {
-    return this.request<Member[]>('/members')
+  // Agent methods - aligned with api/agents/handlers.go
+  async getAgents(): Promise<Agent[]> {
+    return this.request<Agent[]>('/agents')
   }
 
-  async getMember(id: string): Promise<Member> {
-    return this.request<Member>(`/members/${encodeURIComponent(id)}`)
+  async getAgent(id: string): Promise<Agent> {
+    return this.request<Agent>(`/agents/${encodeURIComponent(id)}`)
   }
 
-  async createMember(member: CreateMemberRequest): Promise<Member> {
-    return this.request<Member>('/members', {
+  async createAgent(agent: CreateAgentRequest): Promise<Agent> {
+    return this.request<Agent>('/agents', {
       method: 'POST',
-      body: JSON.stringify(member),
+      body: JSON.stringify(agent),
     })
   }
 
-  async updateMember(id: string, updates: UpdateMemberRequest): Promise<Member> {
-    return this.request<Member>(`/members/${encodeURIComponent(id)}`, {
+  async updateAgent(id: string, updates: UpdateAgentRequest): Promise<Agent> {
+    return this.request<Agent>(`/agents/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
   }
 
-  async deleteMember(id: string): Promise<void> {
-    await this.request<Record<string, never>>(`/members/${encodeURIComponent(id)}`, {
+  async deleteAgent(id: string): Promise<void> {
+    await this.request<Record<string, never>>(`/agents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
+  }
+
+  async getEffectiveSkills(agentId: string, teamId?: string): Promise<EffectiveSkillsResponse> {
+    const params = teamId ? `?teamId=${encodeURIComponent(teamId)}` : ''
+    return this.request<EffectiveSkillsResponse>(`/agents/${encodeURIComponent(agentId)}/effective-skills${params}`)
   }
 }
 

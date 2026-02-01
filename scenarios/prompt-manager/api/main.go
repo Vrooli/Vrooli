@@ -14,12 +14,13 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"prompt-manager/agents"
 	"prompt-manager/aisearch"
-	"prompt-manager/members"
 	"prompt-manager/metrics"
 	"prompt-manager/ogmeta"
 	"prompt-manager/search"
 	"prompt-manager/skills"
+	"prompt-manager/store"
 	"prompt-manager/tags"
 	"prompt-manager/testing"
 
@@ -47,9 +48,11 @@ func main() {
 		log.Println("OLLAMA_URL not provided - skill testing will be disabled")
 	}
 
-	skillsDir := filepath.Join("..", "skills")
-	if envDir := os.Getenv("SKILLS_DIR"); envDir != "" {
-		skillsDir = envDir
+	// Storage configuration
+	// The new storage uses store/ directory with per-entity files
+	storeDir := filepath.Join("..", "store")
+	if envDir := os.Getenv("STORE_DIR"); envDir != "" {
+		storeDir = envDir
 	}
 
 	// Connect to database
@@ -65,8 +68,12 @@ func main() {
 		log.Fatal("Failed to set search_path:", err)
 	}
 
+	// Initialize the new file-based store
+	fileStore := store.NewFileStore(storeDir)
+
 	// Initialize domain components (seams for testing)
-	skillStore := skills.NewStore(skillsDir)
+	// Use the store adapter to bridge new storage to existing handlers
+	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills())
 	metricsRepo := metrics.NewRepository(db)
 	tagsRepo := tags.NewRepository(db)
 	testingRepo := testing.NewRepository(db)
@@ -74,20 +81,18 @@ func main() {
 
 	// Initialize handlers with interface adapters
 	metricsAdapter := skills.NewMetricsAdapter(metricsRepo)
-	skillHandlers := skills.NewHandlers(skillStore, metricsAdapter)
+	skillHandlers := skills.NewHandlers(skillStoreAdapter, metricsAdapter)
 	tagsHandlers := tags.NewHandlers(tagsRepo)
-	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStore)
+	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 
-	// Member store and handlers
-	memberDataDir := filepath.Join(skillsDir, "data")
-	memberStore := members.NewStore(memberDataDir)
-	memberHandlers := members.NewHandlers(memberStore)
+	// Agent handlers (new storage-backed, replaces member handlers)
+	agentHandlers := agents.NewHandlers(fileStore.Agents(), fileStore.Relations(), fileStore.Indexes())
 
 	// OG metadata handlers
 	ogmetaHandlers := ogmeta.NewHandlers()
 
 	// Search service and handlers
-	searchService := search.NewService(skillStore)
+	searchService := search.NewService(skillStoreAdapter)
 	searchHandlers := search.NewHandlers(searchService)
 
 	// AI Search service (graceful degradation when unavailable)
@@ -112,7 +117,7 @@ func main() {
 	// Initialize AI search components
 	embedder := aisearch.NewEmbedder(ollamaURL, "nomic-embed-text")
 	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
-	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStore, searchService, aiSearchThreshold)
+	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStoreAdapter, searchService, aiSearchThreshold)
 	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
 
 	// Set AI indexer on skill handlers for CRUD hook integration
@@ -208,18 +213,19 @@ func main() {
 	v1.HandleFunc("/skills/{id}/test", testingHandlers.Test).Methods("POST")
 	v1.HandleFunc("/skills/{id}/test-history", testingHandlers.GetHistory).Methods("GET")
 
-	// Member routes
-	v1.HandleFunc("/members", memberHandlers.List).Methods("GET")
-	v1.HandleFunc("/members", memberHandlers.Create).Methods("POST")
-	v1.HandleFunc("/members/{id}", memberHandlers.Get).Methods("GET")
-	v1.HandleFunc("/members/{id}", memberHandlers.Update).Methods("PUT")
-	v1.HandleFunc("/members/{id}", memberHandlers.Delete).Methods("DELETE")
+	// Agent routes
+	v1.HandleFunc("/agents", agentHandlers.List).Methods("GET")
+	v1.HandleFunc("/agents", agentHandlers.Create).Methods("POST")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Get).Methods("GET")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Update).Methods("PUT")
+	v1.HandleFunc("/agents/{id}", agentHandlers.Delete).Methods("DELETE")
+	v1.HandleFunc("/agents/{id}/effective-skills", agentHandlers.GetEffectiveSkills).Methods("GET")
 
 	// OG metadata routes (for link previews)
 	v1.HandleFunc("/og-metadata", ogmetaHandlers.Get).Methods("GET")
 
 	log.Printf("Prompt Manager API v2.0 starting")
-	log.Printf("Skills directory: %s", skillsDir)
+	log.Printf("Store directory: %s", storeDir)
 	if ollamaURL != "" {
 		log.Printf("Ollama: %s", ollamaURL)
 	}

@@ -1,0 +1,15 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "agent-1",
+  "displayName": "Member 1",
+  "status": "active",
+  "appearance": {
+    "body": "#22C55E",
+    "head": "#F97316",
+    "accent": "#C7D2FE"
+  },
+  "revision": 1,
+  "createdAt": "2026-01-22T23:01:43Z",
+  "updatedAt": "2026-01-23T02:56:56Z"
+}

@@ -242,10 +242,10 @@ func (v *VectorStore) Delete(ctx context.Context, id string) error {
 }
 
 type searchRequest struct {
-	Vector         []float64   `json:"vector"`
-	Limit          int         `json:"limit"`
-	WithPayload    bool        `json:"with_payload"`
-	ScoreThreshold *float64    `json:"score_threshold,omitempty"`
+	Vector         []float64 `json:"vector"`
+	Limit          int       `json:"limit"`
+	WithPayload    bool      `json:"with_payload"`
+	ScoreThreshold *float64  `json:"score_threshold,omitempty"`
 }
 
 type searchResponse struct {

@@ -1,0 +1,21 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "navigation-integrity-audit",
+  "name": "Navigation Integrity Audit",
+  "description": "Audit navigation flows and routing consistency",
+  "modes": [
+    "steer",
+    "ux",
+    "audits"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "navigation",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2025-01-21T00:00:00Z"
+}

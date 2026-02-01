@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.com/schemas/prompt-manager/team.schema.json",
+  "title": "Team",
+  "description": "A group with shared intent, org structure, and policy defaults",
+  "type": "object",
+  "required": [
+    "kind",
+    "schemaVersion",
+    "id",
+    "displayName",
+    "revision",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "team",
+      "description": "Entity type discriminator"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Schema version for forward compatibility"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Unique identifier in kebab-case"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable display name"
+    },
+    "mission": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Team's purpose statement"
+    },
+    "shared": {
+      "type": "object",
+      "description": "Team shared documents configuration",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path to shared docs folder"
+        },
+        "mountHint": {
+          "type": "string",
+          "enum": ["readOnly", "readWrite"],
+          "default": "readOnly",
+          "description": "Access mode hint for runtime"
+        }
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default policies for team members",
+      "properties": {
+        "skillGrantsByRole": {
+          "type": "object",
+          "description": "Map of role IDs to skill IDs granted by default",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Revision number for optimistic concurrency"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 last update timestamp"
+    }
+  },
+  "additionalProperties": false
+}

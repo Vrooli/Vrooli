@@ -97,6 +97,14 @@ func (m *MockSkillStore) GetVersionContent(skillID string, version int) (*skills
 	return nil, errors.New("version not found")
 }
 
+func (m *MockSkillStore) LoadVersions(folder string) (map[string]*skills.VersionFile, error) {
+	return make(map[string]*skills.VersionFile), nil
+}
+
+func (m *MockSkillStore) SaveVersions(folder string, versions map[string]*skills.VersionFile) error {
+	return nil
+}
+
 func (m *MockSkillStore) AddSkill(folder string, skill skills.Metadata, content string) {
 	m.skills[folder] = append(m.skills[folder], skill)
 	// Extract filename from the skill.File path for content storage
@@ -136,7 +144,6 @@ func TestEmbedder_Embed_Success(t *testing.T) {
 
 	embedder := NewEmbedder(server.URL, "nomic-embed-text")
 	result, err := embedder.Embed(context.Background(), "test text")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -241,7 +248,6 @@ func TestVectorStore_EnsureCollection_AlreadyExists(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "test-collection", 768)
 	err := vs.EnsureCollection(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -269,7 +275,6 @@ func TestVectorStore_EnsureCollection_Create(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "new-collection", 768)
 	err := vs.EnsureCollection(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -295,7 +300,6 @@ func TestVectorStore_Upsert_Success(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "test", 768)
 	err := vs.Upsert(context.Background(), "skill-1", []float64{0.1, 0.2}, map[string]interface{}{"name": "test"})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -324,7 +328,6 @@ func TestVectorStore_Delete_Success(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "test", 768)
 	err := vs.Delete(context.Background(), "skill-1")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -353,7 +356,6 @@ func TestVectorStore_Search_Success(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "test", 768)
 	results, err := vs.Search(context.Background(), []float64{0.1, 0.2}, 5, 0.5)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -382,7 +384,6 @@ func TestVectorStore_CountPoints_Success(t *testing.T) {
 
 	vs := NewVectorStore(server.URL, "", "test", 768)
 	count, err := vs.CountPoints(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -467,7 +468,6 @@ func TestService_Search_AISuccess(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	result, err := service.Search(context.Background(), "test query", 5)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -507,7 +507,6 @@ func TestService_Search_FallbackToText(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	result, err := service.Search(context.Background(), "test", 5)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -737,7 +736,6 @@ func TestService_IndexSkill_Success(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	err := service.IndexSkill(context.Background(), "skill-1")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -782,7 +780,6 @@ func TestService_DeleteFromIndex_Success(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	err := service.DeleteFromIndex(context.Background(), "skill-1")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -826,7 +823,6 @@ func TestService_ReindexAll_Success(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	result, err := service.ReindexAll(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -866,7 +862,6 @@ func TestService_ReindexAll_SkipsBadPaths(t *testing.T) {
 	service := NewService(embedder, vectorStore, skillStore, searchSvc, 0.5)
 
 	result, err := service.ReindexAll(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

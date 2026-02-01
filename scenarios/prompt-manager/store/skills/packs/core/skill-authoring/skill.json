@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "skill-authoring",
+  "name": "Steer Skill Authoring",
+  "description": "Authoring guide for Steer skills that drive scenario development loops. Covers convergence patterns, audit sections, and memory continuity.",
+  "modes": [
+    "meta",
+    "steer"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "fileedit",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-01-23T00:00:00Z",
+  "updatedAt": "2026-01-28T00:00:00Z"
+}

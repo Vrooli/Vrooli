@@ -1,0 +1,20 @@
+{
+  "kind": "team",
+  "schemaVersion": 1,
+  "id": "example",
+  "displayName": "Example Team",
+  "mission": "Demonstrate the team structure and serve as a template for new teams.",
+  "shared": {
+    "path": "shared/",
+    "mountHint": "readOnly"
+  },
+  "defaults": {
+    "skillGrantsByRole": {
+      "lead": ["progress", "explore"],
+      "member": ["progress"]
+    }
+  },
+  "revision": 1,
+  "createdAt": "2026-01-31T12:00:00Z",
+  "updatedAt": "2026-01-31T12:00:00Z"
+}

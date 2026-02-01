@@ -238,19 +238,19 @@ func (s *Service) loadResponsesByIDs(ids []string) []skills.Response {
 		}
 
 		responses = append(responses, skills.Response{
-			ID:          meta.ID,
-			File:        meta.File,
-			Name:        meta.Name,
-			Description: meta.Description,
-			Content:     content,
-			Modes:       meta.Modes,
-			Tags:        meta.Tags,
-			Icon:        meta.Icon,
+			ID:           meta.ID,
+			File:         meta.File,
+			Name:         meta.Name,
+			Description:  meta.Description,
+			Content:      content,
+			Modes:        meta.Modes,
+			Tags:         meta.Tags,
+			Icon:         meta.Icon,
 			TargetToolID: meta.TargetToolID,
-			Draft:       meta.Draft,
-			Folder:      folder,
-			CreatedAt:   meta.CreatedAt,
-			UpdatedAt:   meta.UpdatedAt,
+			Draft:        meta.Draft,
+			Folder:       folder,
+			CreatedAt:    meta.CreatedAt,
+			UpdatedAt:    meta.UpdatedAt,
 		})
 	}
 

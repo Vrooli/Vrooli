@@ -1,0 +1,20 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "seam-discovery-and-enforcement",
+  "name": "Testing Seam Discovery \u0026 Enforcement",
+  "description": "Find and strengthen module boundaries and integration points",
+  "modes": [
+    "steer",
+    "architecture"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "scissors",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2025-01-15T00:00:00Z",
+  "updatedAt": "2026-01-31T13:03:44-05:00"
+}

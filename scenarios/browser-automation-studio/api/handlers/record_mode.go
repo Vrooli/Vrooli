@@ -379,7 +379,7 @@ func (h *Handler) StartLiveRecording(w http.ResponseWriter, r *http.Request) {
 		// Check for specific error types
 		if driverErr, ok := err.(*driver.Error); ok {
 			if strings.Contains(driverErr.Message, "RECORDING_IN_PROGRESS") {
-				h.respondError(w, ErrConflict.WithMessage("Recording is already in progress for this session"))
+				h.respondError(w, ErrRecordingInProgress)
 				return
 			}
 		}
